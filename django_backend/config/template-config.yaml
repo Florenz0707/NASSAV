@@ -1,6 +1,6 @@
 Proxy:
-  Enable: true
-  url: http://127.0.0.1:7077
+  Enable: false
+  url: http://127.0.0.1:443
 
 ScrapperDomain: [
   "www.javbus.com",

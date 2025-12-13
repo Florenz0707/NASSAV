@@ -13,4 +13,9 @@ dependencies = [
     "curl-cffi>=0.7",
     "pillow>=11.0",
     "loguru>=0.7",
+    "pip>=25.3",
 ]
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
