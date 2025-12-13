@@ -118,14 +118,9 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Shanghai'
 
-# Resource paths
+# Resource paths - 统一存储到 resource/{avid}/ 目录
 RESOURCE_DIR = BASE_DIR / 'resource'
-COVER_DIR = RESOURCE_DIR / 'cover'
-VIDEO_DIR = RESOURCE_DIR / 'video'
-
-# Ensure directories exist
-COVER_DIR.mkdir(parents=True, exist_ok=True)
-VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Log directory
 LOG_DIR = BASE_DIR / 'log'
@@ -159,3 +154,6 @@ PROXY_URL = PROXY_CONFIG.get('url', None)
 
 # Source configurations
 SOURCE_CONFIG = CONFIG.get('Source', {})
+
+# Scrapper domains for metadata fetching (e.g., JavBus)
+SCRAPPER_DOMAINS = CONFIG.get('ScrapperDomain', [])

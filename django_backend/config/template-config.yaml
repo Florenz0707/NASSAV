@@ -16,6 +16,7 @@ Source:
   jable:
     domain: jable.tv
     weight: 800
+    cookie:
   hohoj:
     domain: hohoj.tv
     weight: 700
