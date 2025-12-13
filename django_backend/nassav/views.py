@@ -227,7 +227,7 @@ class NewResourceView(APIView):
                 'cover_downloaded': save_result['cover_saved'],
                 'html_saved': save_result['html_saved'],
                 'metadata_saved': save_result['metadata_saved'],
-                'scrapped': save_result.get('scrapped', False)
+                'scraped': save_result.get('scraped', False)
             }
         }, status=status.HTTP_201_CREATED)
 

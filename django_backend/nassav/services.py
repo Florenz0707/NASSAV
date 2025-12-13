@@ -31,7 +31,7 @@ HEADERS = {
 }
 
 from nassav.Scrapper.AVDownloadInfo import AVDownloadInfo
-from nassav.Scrapper.MetadataScrapper import MetadataScrapper
+from nassav.Scrapper.MetadataScraper import MetadataScraper
 from nassav.downloader.DownloaderBase import DownloaderBase
 
 from nassav.downloader.AvtodayDownloader import AvtodayDownloader
@@ -64,7 +64,7 @@ class DownloaderManager:
         self.downloaders: Dict[str, DownloaderBase] = {}
 
         # 初始化元数据刮削器
-        self.scrapper = MetadataScrapper(proxy)
+        self.scrapper = MetadataScraper(proxy)
 
         # 注册下载器，根据配置中的权重
         source_config = settings.SOURCE_CONFIG
@@ -129,7 +129,7 @@ class DownloaderManager:
             'html_saved': False,
             'cover_saved': False,
             'metadata_saved': False,
-            'cover_path': None
+            'scraped': False,
         }
 
         # 1. 保存 HTML
@@ -149,7 +149,6 @@ class DownloaderManager:
             cover_path = resource_dir / f"{avid}.jpg"
             if downloader.download_file(cover_url, str(cover_path)):
                 result['cover_saved'] = True
-                result['cover_path'] = (str(cover_path) is None)
             else:
                 logger.warning(f"封面下载失败: {avid}")
         else:
@@ -161,8 +160,6 @@ class DownloaderManager:
             info.update_from_scrapper(scrapped_data)
             result['scrapped'] = True
             logger.info(f"已从刮削器获取 {avid} 的额外元数据")
-        else:
-            result['scrapped'] = False
 
         # 4. 保存元数据
         try:

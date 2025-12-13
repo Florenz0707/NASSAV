@@ -8,7 +8,7 @@ from loguru import logger
 from nassav.services import HEADERS
 
 
-class MetadataScrapper:
+class MetadataScraper:
     """
     元数据刮削器 - 从 JavBus 等网站获取详细元数据
     """
