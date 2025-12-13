@@ -2,11 +2,13 @@ Proxy:
   Enable: false
   url: http://127.0.0.1:443
 
-ScrapperDomain: [
-  "www.javbus.com",
-  "www.busdmm.ink",
-  "www.dmmsee.bond"
-]
+Scraper:
+  javbus:
+    domain: www.javbus.com
+  busdmm:
+    domain: www.busdmm.ink
+  dmmsee:
+    domain: www.dmmsee.bond
 
 Source:
   missav:

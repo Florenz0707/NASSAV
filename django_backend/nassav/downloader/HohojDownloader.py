@@ -4,7 +4,7 @@ from typing import Optional
 from django.conf import settings
 from loguru import logger
 
-from nassav.Scrapper.AVDownloadInfo import AVDownloadInfo
+from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.downloader.DownloaderBase import DownloaderBase
 
 
@@ -25,7 +25,6 @@ class HohojDownloader(DownloaderBase):
             f'https://{self.domain}/video/{avid_lower}',
             f'https://{self.domain}/video/{avid_lower}-chinese-subtitle',
             f'https://{self.domain}/video/{avid_lower}-uncensored-leak',
-            f"https://{self.domain}/search?text={avid_lower}",
         ]
         for url in urls:
             content = self.fetch_html(url)

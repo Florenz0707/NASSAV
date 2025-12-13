@@ -4,7 +4,7 @@ from typing import Optional
 from django.conf import settings
 from loguru import logger
 
-from nassav.Scrapper.AVDownloadInfo import AVDownloadInfo
+from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.downloader.DownloaderBase import DownloaderBase
 
 

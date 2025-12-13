@@ -155,5 +155,5 @@ PROXY_URL = PROXY_CONFIG.get('url', None)
 # Source configurations
 SOURCE_CONFIG = CONFIG.get('Source', {})
 
-# Scrapper domains for metadata fetching (e.g., JavBus)
-SCRAPPER_DOMAINS = CONFIG.get('ScrapperDomain', [])
+# Scraper configurations (e.g., JavBus, Busdmm, Dmmsee)
+SCRAPER_CONFIG = CONFIG.get('Scraper', {})
