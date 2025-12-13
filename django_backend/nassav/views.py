@@ -2,14 +2,13 @@
 API视图：实现6个接口
 """
 import json
-import os
-from pathlib import Path
+
 from django.conf import settings
 from django.http import FileResponse, Http404
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from loguru import logger
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import AVInfo
 from .serializers import (
@@ -17,7 +16,7 @@ from .serializers import (
     NewResourceSerializer,
     DownloadRequestSerializer
 )
-from .services import downloader_manager, video_download_service
+from .services import downloader_manager
 
 
 class ResourceListView(APIView):
@@ -30,7 +29,7 @@ class ResourceListView(APIView):
         queryset = AVInfo.objects.all()
         serializer = AVInfoListSerializer(queryset, many=True)
         return Response({
-            'code': 0,
+            'code': 200,
             'message': 'success',
             'data': serializer.data
         })
@@ -88,7 +87,7 @@ class DownloadsListView(APIView):
                         downloaded_avids.append(item.name)
 
         return Response({
-            'code': 0,
+            'code': 200,
             'message': 'success',
             'data': downloaded_avids
         })
@@ -129,7 +128,7 @@ class DownloadsMetadataView(APIView):
                 metadata['file_exists'] = False
 
             return Response({
-                'code': 0,
+                'code': 200,
                 'message': 'success',
                 'data': metadata
             })
@@ -163,7 +162,7 @@ class NewResourceView(APIView):
         if AVInfo.objects.filter(avid=avid).exists():
             av_info = AVInfo.objects.get(avid=avid)
             return Response({
-                'code': 0,
+                'code': 409,
                 'message': '资源已存在',
                 'data': {
                     'avid': av_info.avid,
@@ -195,7 +194,7 @@ class NewResourceView(APIView):
         )
 
         return Response({
-            'code': 0,
+            'code': 201,
             'message': 'success',
             'data': {
                 'avid': av_info.avid,
@@ -234,7 +233,7 @@ class NewDownloadView(APIView):
         mp4_path = settings.VIDEO_DIR / avid / f"{avid}.mp4"
         if mp4_path.exists():
             return Response({
-                'code': 0,
+                'code': 409,
                 'message': '视频已下载',
                 'data': {
                     'avid': avid,
@@ -248,7 +247,7 @@ class NewDownloadView(APIView):
         task = download_video_task.delay(avid)
 
         return Response({
-            'code': 0,
+            'code': 202,
             'message': '下载任务已提交',
             'data': {
                 'avid': avid,

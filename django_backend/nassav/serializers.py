@@ -1,9 +1,11 @@
 from rest_framework import serializers
+
 from .models import AVInfo
 
 
 class AVInfoSerializer(serializers.ModelSerializer):
     """AVInfo序列化器"""
+
     class Meta:
         model = AVInfo
         fields = ['id', 'avid', 'title', 'source', 'created_at', 'updated_at']
@@ -12,6 +14,7 @@ class AVInfoSerializer(serializers.ModelSerializer):
 
 class AVInfoListSerializer(serializers.ModelSerializer):
     """AVInfo列表序列化器（仅返回avid和title）"""
+
     class Meta:
         model = AVInfo
         fields = ['avid', 'title']

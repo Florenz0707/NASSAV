@@ -3,16 +3,15 @@
 """
 import json
 import os
-import re
 import platform
-from pathlib import Path
-from typing import Optional, Tuple, List, Dict, Any
+import re
 from dataclasses import dataclass, asdict
-from loguru import logger
-from curl_cffi import requests
-from PIL import Image
-from django.conf import settings
+from pathlib import Path
+from typing import Optional, Tuple, List, Dict
 
+from curl_cffi import requests
+from django.conf import settings
+from loguru import logger
 
 # 初始化日志
 LOG_DIR = settings.LOG_DIR
@@ -48,7 +47,8 @@ class AVDownloadInfo:
 
 # 通用请求头
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 "
+                  "Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5"
 }
@@ -75,7 +75,10 @@ class DownloaderBase:
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         raise NotImplementedError
 
-    def _fetch_html(self, url: str, referer: str = "") -> Optional[str]:
+    def get_cover_url(self, html: str) -> str:
+        raise NotImplementedError
+
+    def fetch_html(self, url: str, referer: str = "") -> Optional[str]:
         logger.debug(f"fetch url: {url}")
         try:
             headers = HEADERS.copy()
@@ -94,7 +97,7 @@ class DownloaderBase:
             logger.error(f"请求失败: {str(e)}")
             return None
 
-    def _download_file(self, url: str, save_path: str, referer: str = "") -> bool:
+    def download_file(self, url: str, save_path: str, referer: str = "") -> bool:
         """下载文件到指定路径"""
         logger.debug(f"download {url} to {save_path}")
         try:
@@ -141,10 +144,11 @@ class MissAVDownloader(DownloaderBase):
             f'https://{self.domain}/cn/{avid_lower}-chinese-subtitle',
             f'https://{self.domain}/cn/{avid_lower}-uncensored-leak',
             f'https://{self.domain}/cn/{avid_lower}',
-            f'https://{self.domain}/dm13/cn/{avid_lower}',
+            f'https://{self.domain}/dm76/cn/{avid_lower}',
+            f'https://{self.domain}/dm52/cn/{avid_lower}',
         ]
         for url in urls:
-            content = self._fetch_html(url)
+            content = self.fetch_html(url)
             if content:
                 return content
         return None
@@ -179,7 +183,7 @@ class MissAVDownloader(DownloaderBase):
     @staticmethod
     def _extract_uuid(html: str) -> Optional[str]:
         try:
-            match = re.search(r"m3u8\|([a-f0-9\|]+)\|com\|surrit\|https\|video", html)
+            match = re.search(r"m3u8\|([a-f0-9|]+)\|com\|surrit\|https\|video", html)
             if match:
                 return "-".join(match.group(1).split("|")[::-1])
             return None
@@ -262,7 +266,7 @@ class JableDownloader(DownloaderBase):
 
     def get_html(self, avid: str) -> Optional[str]:
         url = f'https://{self.domain}/videos/{avid.lower()}/'
-        return self._fetch_html(url)
+        return self.fetch_html(url)
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         info = AVDownloadInfo()
@@ -302,27 +306,511 @@ class JableDownloader(DownloaderBase):
             return None
 
 
+class HohojDownloader(DownloaderBase):
+    """Hohoj下载器"""
+
+    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+        super().__init__(proxy, timeout)
+        source_config = settings.SOURCE_CONFIG.get('hohoj', {})
+        self.domain = source_config.get('domain', 'hohoj.tv')
+
+    def get_downloader_name(self) -> str:
+        return "Hohoj"
+
+    def get_html(self, avid: str) -> Optional[str]:
+        avid_lower = avid.lower()
+        urls = [
+            f'https://{self.domain}/video/{avid_lower}',
+            f'https://{self.domain}/video/{avid_lower}-chinese-subtitle',
+            f'https://{self.domain}/video/{avid_lower}-uncensored-leak',
+        ]
+        for url in urls:
+            content = self.fetch_html(url)
+            if content:
+                return content
+        return None
+
+    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+        info = AVDownloadInfo()
+        info.source = self.get_downloader_name()
+
+        try:
+            # 提取m3u8 - 尝试多种模式
+            m3u8_patterns = [
+                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'src["\']?\s*[:=]\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
+            ]
+            for pattern in m3u8_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.m3u8 = match.group(1)
+                    break
+
+            if not info.m3u8:
+                return None
+
+            # 提取标题
+            title_patterns = [
+                r'<title>([^<]+)</title>',
+                r'<h1[^>]*>([^<]+)</h1>',
+                r'<meta property="og:title" content="([^"]+)"',
+            ]
+            for pattern in title_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.title = match.group(1).strip()
+                    break
+
+            # 提取avid
+            avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
+            if avid_match:
+                info.avid = avid_match.group(1).upper()
+
+            return info
+        except Exception as e:
+            logger.error(f"Hohoj解析失败: {e}")
+            return None
+
+    def get_cover_url(self, html: str) -> Optional[str]:
+        try:
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            if match:
+                return match.group(1)
+            return None
+        except Exception as e:
+            logger.error(f"封面URL提取失败: {e}")
+            return None
+
+
+class MemoDownloader(DownloaderBase):
+    """MemoJav下载器"""
+
+    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+        super().__init__(proxy, timeout)
+        source_config = settings.SOURCE_CONFIG.get('memo', {})
+        self.domain = source_config.get('domain', 'memojav.com')
+
+    def get_downloader_name(self) -> str:
+        return "Memo"
+
+    def get_html(self, avid: str) -> Optional[str]:
+        avid_lower = avid.lower()
+        urls = [
+            f'https://{self.domain}/video/{avid_lower}',
+            f'https://{self.domain}/cn/{avid_lower}',
+            f'https://{self.domain}/{avid_lower}',
+        ]
+        for url in urls:
+            content = self.fetch_html(url)
+            if content:
+                return content
+        return None
+
+    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+        info = AVDownloadInfo()
+        info.source = self.get_downloader_name()
+
+        try:
+            # 提取m3u8
+            m3u8_patterns = [
+                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
+            ]
+            for pattern in m3u8_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.m3u8 = match.group(1)
+                    break
+
+            if not info.m3u8:
+                return None
+
+            # 提取标题
+            title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if title_match:
+                info.title = title_match.group(1).strip()
+
+            # 提取avid
+            avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
+            if avid_match:
+                info.avid = avid_match.group(1).upper()
+
+            return info
+        except Exception as e:
+            logger.error(f"Memo解析失败: {e}")
+            return None
+
+    def get_cover_url(self, html: str) -> Optional[str]:
+        try:
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            if match:
+                return match.group(1)
+            return None
+        except Exception as e:
+            logger.error(f"封面URL提取失败: {e}")
+            return None
+
+
+class KanavDownloader(DownloaderBase):
+    """Kanav下载器"""
+
+    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+        super().__init__(proxy, timeout)
+        source_config = settings.SOURCE_CONFIG.get('kanav', {})
+        self.domain = source_config.get('domain', 'kanav.info')
+
+    def get_downloader_name(self) -> str:
+        return "Kanav"
+
+    def get_html(self, avid: str) -> Optional[str]:
+        avid_lower = avid.lower()
+        urls = [
+            f'https://{self.domain}/video/{avid_lower}',
+            f'https://{self.domain}/watch/{avid_lower}',
+            f'https://{self.domain}/{avid_lower}',
+        ]
+        for url in urls:
+            content = self.fetch_html(url)
+            if content:
+                return content
+        return None
+
+    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+        info = AVDownloadInfo()
+        info.source = self.get_downloader_name()
+
+        try:
+            # 提取m3u8
+            m3u8_patterns = [
+                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
+                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
+            ]
+            for pattern in m3u8_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.m3u8 = match.group(1)
+                    break
+
+            if not info.m3u8:
+                return None
+
+            # 提取标题
+            title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if title_match:
+                info.title = title_match.group(1).strip()
+
+            # 提取avid
+            avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
+            if avid_match:
+                info.avid = avid_match.group(1).upper()
+
+            return info
+        except Exception as e:
+            logger.error(f"Kanav解析失败: {e}")
+            return None
+
+    def get_cover_url(self, html: str) -> Optional[str]:
+        try:
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            if match:
+                return match.group(1)
+            return None
+        except Exception as e:
+            logger.error(f"封面URL提取失败: {e}")
+            return None
+
+
+class AvtodayDownloader(DownloaderBase):
+    """Avtoday下载器"""
+
+    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+        super().__init__(proxy, timeout)
+        source_config = settings.SOURCE_CONFIG.get('avtoday', {})
+        self.domain = source_config.get('domain', 'avtoday.io')
+
+    def get_downloader_name(self) -> str:
+        return "Avtoday"
+
+    def get_html(self, avid: str) -> Optional[str]:
+        avid_lower = avid.lower()
+        urls = [
+            f'https://{self.domain}/video/{avid_lower}',
+            f'https://{self.domain}/watch/{avid_lower}',
+            f'https://{self.domain}/{avid_lower}',
+        ]
+        for url in urls:
+            content = self.fetch_html(url)
+            if content:
+                return content
+        return None
+
+    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+        info = AVDownloadInfo()
+        info.source = self.get_downloader_name()
+
+        try:
+            # 提取m3u8
+            m3u8_patterns = [
+                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
+                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
+            ]
+            for pattern in m3u8_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.m3u8 = match.group(1)
+                    break
+
+            if not info.m3u8:
+                return None
+
+            # 提取标题
+            title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if title_match:
+                info.title = title_match.group(1).strip()
+
+            # 提取avid
+            avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
+            if avid_match:
+                info.avid = avid_match.group(1).upper()
+
+            return info
+        except Exception as e:
+            logger.error(f"Avtoday解析失败: {e}")
+            return None
+
+    def get_cover_url(self, html: str) -> Optional[str]:
+        try:
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            if match:
+                return match.group(1)
+            return None
+        except Exception as e:
+            logger.error(f"封面URL提取失败: {e}")
+            return None
+
+
+class NetflavDownloader(DownloaderBase):
+    """Netflav下载器"""
+
+    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+        super().__init__(proxy, timeout)
+        source_config = settings.SOURCE_CONFIG.get('netflav', {})
+        self.domain = source_config.get('domain', 'netflav.com')
+
+    def get_downloader_name(self) -> str:
+        return "Netflav"
+
+    def get_html(self, avid: str) -> Optional[str]:
+        # Netflav 使用搜索页面找到视频
+        avid_lower = avid.lower()
+        avid_upper = avid.upper()
+
+        # 尝试直接访问视频页面
+        urls = [
+            f'https://{self.domain}/video/{avid_lower}',
+            f'https://{self.domain}/video/{avid_upper}',
+        ]
+        for url in urls:
+            content = self.fetch_html(url)
+            if content:
+                return content
+
+        # 尝试搜索
+        search_url = f'https://{self.domain}/search?keyword={avid_upper}'
+        search_html = self.fetch_html(search_url)
+        if search_html:
+            # 从搜索结果中提取视频链接
+            video_match = re.search(rf'href="([^"]+{avid_lower}[^"]*)"', search_html, re.IGNORECASE)
+            if video_match:
+                video_url = video_match.group(1)
+                if not video_url.startswith('http'):
+                    video_url = f'https://{self.domain}{video_url}'
+                return self.fetch_html(video_url)
+
+        return None
+
+    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+        info = AVDownloadInfo()
+        info.source = self.get_downloader_name()
+
+        try:
+            # Netflav 通常使用 iframe 或 ajax 加载视频
+            # 尝试提取 m3u8
+            m3u8_patterns = [
+                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
+                r'm3u8["\']?\s*[:=]\s*["\']([^"\']+)["\']',
+                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
+            ]
+            for pattern in m3u8_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.m3u8 = match.group(1)
+                    break
+
+            if not info.m3u8:
+                # 尝试提取 iframe src 并获取其中的 m3u8
+                iframe_match = re.search(r'<iframe[^>]+src="([^"]+)"', html)
+                if iframe_match:
+                    iframe_url = iframe_match.group(1)
+                    if not iframe_url.startswith('http'):
+                        iframe_url = f'https:{iframe_url}' if iframe_url.startswith('//') else f'https://{self.domain}{iframe_url}'
+                    iframe_html = self.fetch_html(iframe_url)
+                    if iframe_html:
+                        for pattern in m3u8_patterns:
+                            match = re.search(pattern, iframe_html)
+                            if match:
+                                info.m3u8 = match.group(1)
+                                break
+
+            if not info.m3u8:
+                return None
+
+            # 提取标题
+            title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if title_match:
+                info.title = title_match.group(1).strip()
+
+            # 提取avid
+            avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
+            if avid_match:
+                info.avid = avid_match.group(1).upper()
+
+            return info
+        except Exception as e:
+            logger.error(f"Netflav解析失败: {e}")
+            return None
+
+    def get_cover_url(self, html: str) -> Optional[str]:
+        try:
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            if match:
+                return match.group(1)
+            return None
+        except Exception as e:
+            logger.error(f"封面URL提取失败: {e}")
+            return None
+
+
+class KissavDownloader(DownloaderBase):
+    """Kissav下载器"""
+
+    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+        super().__init__(proxy, timeout)
+        source_config = settings.SOURCE_CONFIG.get('kissav', {})
+        self.domain = source_config.get('domain', 'f15.bzraizy.cc')
+
+    def get_downloader_name(self) -> str:
+        return "Kissav"
+
+    def get_html(self, avid: str) -> Optional[str]:
+        avid_lower = avid.lower()
+        avid_upper = avid.upper()
+        urls = [
+            f'https://{self.domain}/video/{avid_lower}',
+            f'https://{self.domain}/video/{avid_upper}',
+            f'https://{self.domain}/{avid_lower}',
+            f'https://{self.domain}/play/{avid_lower}',
+            f"https://{self.domain}/videos/index/id/{avid_lower}",
+        ]
+        for url in urls:
+            content = self.fetch_html(url)
+            if content:
+                return content
+        return None
+
+    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+        info = AVDownloadInfo()
+        info.source = self.get_downloader_name()
+
+        try:
+            # 提取m3u8
+            m3u8_patterns = [
+                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
+                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
+            ]
+            for pattern in m3u8_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.m3u8 = match.group(1)
+                    break
+
+            if not info.m3u8:
+                return None
+
+            # 提取标题
+            title_patterns = [
+                r'<meta property="og:title" content="([^"]+)"',
+                r'<title>([^<]+)</title>',
+                r'<h1[^>]*>([^<]+)</h1>',
+            ]
+            for pattern in title_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    info.title = match.group(1).strip()
+                    break
+
+            # 提取avid
+            avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
+            if avid_match:
+                info.avid = avid_match.group(1).upper()
+
+            return info
+        except Exception as e:
+            logger.error(f"Kissav解析失败: {e}")
+            return None
+
+    def get_cover_url(self, html: str) -> Optional[str]:
+        try:
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            if match:
+                return match.group(1)
+            return None
+        except Exception as e:
+            logger.error(f"封面URL提取失败: {e}")
+            return None
+
+
 class DownloaderManager:
     """下载器管理器"""
+
+    # 下载器类映射
+    DOWNLOADER_CLASSES = {
+        'missav': MissAVDownloader,
+        'jable': JableDownloader,
+        'hohoj': HohojDownloader,
+        'memo': MemoDownloader,
+        'kanav': KanavDownloader,
+        'avtoday': AvtodayDownloader,
+        'netflav': NetflavDownloader,
+        'kissav': KissavDownloader,
+    }
 
     def __init__(self):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         self.downloaders: Dict[str, DownloaderBase] = {}
 
-        # 注册下载器，按权重排序
+        # 注册下载器，根据配置中的权重
         source_config = settings.SOURCE_CONFIG
 
-        # MissAV
-        missav_config = source_config.get('missav', {})
-        if missav_config.get('weight', 0):
-            downloader = MissAVDownloader(proxy)
-            self.downloaders[downloader.get_downloader_name()] = downloader
-
-        # Jable
-        jable_config = source_config.get('jable', {})
-        if jable_config.get('weight', 0):
-            downloader = JableDownloader(proxy)
-            self.downloaders[downloader.get_downloader_name()] = downloader
+        for source_name, downloader_class in self.DOWNLOADER_CLASSES.items():
+            config = source_config.get(source_name, {})
+            weight = config.get('weight')
+            # 只有配置了有效权重的源才会被注册
+            if weight:
+                downloader = downloader_class(proxy)
+                self.downloaders[downloader.get_downloader_name()] = downloader
+                logger.debug(f"注册下载器: {downloader.get_downloader_name()}, 权重: {weight}")
 
     def get_sorted_downloaders(self) -> List[Tuple[str, DownloaderBase]]:
         """获取按权重排序的下载器列表"""
@@ -357,7 +845,7 @@ class DownloaderManager:
             return None
 
         cover_path = settings.COVER_DIR / f"{avid.upper()}.jpg"
-        if downloader._download_file(cover_url, str(cover_path)):
+        if downloader.download_file(cover_url, str(cover_path)):
             return str(cover_path)
         return None
 
@@ -365,16 +853,16 @@ class DownloaderManager:
 class VideoDownloadService:
     """视频下载服务"""
 
-    def __init__(self):
-        self.manager = DownloaderManager()
-        self.base_dir = Path(__file__).resolve().parent.parent.parent
+    def __init__(self, downloader: DownloaderManager):
+        self.manager = downloader
 
-        # 下载工具路径
+        # 下载工具路径 - 改为使用 settings 中的 RESOURCE_DIR
+        tools_dir = settings.BASE_DIR / "tools"
         if platform.system() == 'Windows':
-            self.download_tool = str(self.base_dir / "tools" / "m3u8-Downloader-Go.exe")
-            self.ffmpeg_tool = str(self.base_dir / "tools" / "ffmpeg.exe")
+            self.download_tool = str(tools_dir / "m3u8-Downloader-Go.exe")
+            self.ffmpeg_tool = str(tools_dir / "ffmpeg.exe")
         else:
-            self.download_tool = str(self.base_dir / "tools" / "m3u8-Downloader-Go")
+            self.download_tool = str(tools_dir / "m3u8-Downloader-Go")
             self.ffmpeg_tool = "ffmpeg"
 
     def download_video(self, avid: str) -> bool:
@@ -440,4 +928,4 @@ class VideoDownloadService:
 
 # 全局服务实例
 downloader_manager = DownloaderManager()
-video_download_service = VideoDownloadService()
+video_download_service = VideoDownloadService(downloader_manager)

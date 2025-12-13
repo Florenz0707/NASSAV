@@ -1,4 +1,5 @@
 from django.urls import path
+
 from . import views
 
 app_name = 'nassav'
@@ -14,11 +15,11 @@ urlpatterns = [
     path('api/resource/downloads/list', views.DownloadsListView.as_view(), name='downloads-list'),
 
     # GET /api/resource/downloads/metadata?avid= - 根据avid获取视频元数据
-    path('api/resource/downloads/metadata', views.DownloadsMetadataView.as_view(), name='downloads-metadata'),
+    path('api/downloads/metadata', views.DownloadsMetadataView.as_view(), name='downloads-metadata'),
 
     # POST /api/resource/new - 通过avid获取title并下载cover
     path('api/resource/new', views.NewResourceView.as_view(), name='resource-new'),
 
     # POST /api/resource/downloads/new - 通过avid下载视频
-    path('api/resource/downloads/new', views.NewDownloadView.as_view(), name='downloads-new'),
+    path('api/downloads/new', views.NewDownloadView.as_view(), name='downloads-new'),
 ]

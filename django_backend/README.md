@@ -73,19 +73,19 @@ uv run celery -A django_project worker -l info
 
 ### 资源管理
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/resource/list` | 获取所有资源列表 |
-| GET | `/api/resource/cover?avid=XXX` | 获取封面图片 |
-| POST | `/api/resource/new` | 添加新资源 |
+| 方法   | 端点                             | 说明       |
+|------|--------------------------------|----------|
+| GET  | `/api/resource/list`           | 获取所有资源列表 |
+| GET  | `/api/resource/cover?avid=XXX` | 获取封面图片   |
+| POST | `/api/resource/new`            | 添加新资源    |
 
 ### 下载管理
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/resource/downloads/list` | 获取已下载视频列表 |
-| GET | `/api/resource/downloads/metadata?avid=XXX` | 获取视频元数据 |
-| POST | `/api/resource/downloads/new` | 提交下载任务 |
+| 方法   | 端点                                          | 说明        |
+|------|---------------------------------------------|-----------|
+| GET  | `/api/resource/downloads/list`              | 获取已下载视频列表 |
+| GET  | `/api/resource/downloads/metadata?avid=XXX` | 获取视频元数据   |
+| POST | `/api/resource/downloads/new`               | 提交下载任务    |
 
 ## API 详细说明
 
@@ -220,14 +220,14 @@ Source:
 
 ### AVInfo
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | AutoField | 主键 |
-| avid | CharField | 视频编号 (唯一) |
-| title | CharField | 视频标题 |
-| source | CharField | 来源 |
-| created_at | DateTime | 创建时间 |
-| updated_at | DateTime | 更新时间 |
+| 字段         | 类型        | 说明        |
+|------------|-----------|-----------|
+| id         | AutoField | 主键        |
+| avid       | CharField | 视频编号 (唯一) |
+| title      | CharField | 视频标题      |
+| source     | CharField | 来源        |
+| created_at | DateTime  | 创建时间      |
+| updated_at | DateTime  | 更新时间      |
 
 ## 依赖服务
 

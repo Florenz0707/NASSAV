@@ -2,9 +2,10 @@
 Django settings for django_project project.
 """
 
-from pathlib import Path
-import yaml
 import os
+from pathlib import Path
+
+import yaml
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,7 +19,7 @@ with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
 SECRET_KEY = 'django-insecure-nassav-backend-secret-key-change-in-production'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -129,6 +130,27 @@ VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 # Log directory
 LOG_DIR = BASE_DIR / 'log'
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        # More details for debugging: file, line and function name
+        "verbose": {"format": "[%(asctime)s] %(levelname)s %(name)s %(pathname)s:%(lineno)d %(funcName)s: %(message)s"},
+        "standard": {"format": "[%(asctime)s] %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+    },
+    "loggers": {
+        # Django core
+        "django": {"handlers": ["console"], "level": "INFO"},
+        "django.request": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        # Celery and dependencies
+        "celery": {"handlers": ["console"], "level": "INFO", "propagate": True},
+        "celery.app.trace": {"handlers": ["console"], "level": "INFO", "propagate": True},
+    }
+}
 
 # Proxy settings from config
 PROXY_CONFIG = CONFIG.get('Proxy', {})
