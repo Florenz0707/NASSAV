@@ -1,10 +1,16 @@
 [project]
 name = "django-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "NASSAV Django Backend with Celery async task support"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "pip>=25.3",
-    "setuptools>=80.9.0",
+    "django>=5.1",
+    "djangorestframework>=3.15",
+    "celery>=5.4",
+    "redis>=5.0",
+    "pyyaml>=6.0",
+    "curl-cffi>=0.7",
+    "pillow>=11.0",
+    "loguru>=0.7",
 ]
