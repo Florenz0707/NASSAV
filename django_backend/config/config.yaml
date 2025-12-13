@@ -1,0 +1,31 @@
+Proxy:
+  Enable: true
+  url: http://127.0.0.1:7077
+
+ScrapperDomain: [
+  "www.javbus.com",
+  "www.busdmm.ink",
+  "www.dmmsee.bond"
+]
+
+Source:
+  missav:
+    domain: missav.ai
+    weight: 1000
+    cookie:
+  jable:
+    domain: jable.tv
+    weight: 800
+  hohoj:
+    domain: hohoj.tv
+    weight:
+  memo:
+    domain: memojav.com
+  kanav:
+    domain: kanav.info
+  avtoday:
+    domain: avtoday.io
+  netflav:
+    domain: netflav.com
+  kissav:
+    domain: f15.bzraizy.cc

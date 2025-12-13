@@ -2,6 +2,12 @@ version = 1
 revision = 3
 requires-python = ">=3.11"
 
+[manifest]
+members = [
+    "django-backend",
+    "nassav",
+]
+
 [[package]]
 name = "certifi"
 version = "2025.11.12"
@@ -110,6 +116,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/20/0f/78b0221782c43cba88cb09b74484bc0fc7db09c85ddefaf9817381a9414f/curl_cffi-0.10.0-cp39-abi3-win32.whl", hash = "sha256:1e60b8ecc80bfb0da4ff73ac9d194e80482b50ecbb8aefec1b0edaf45fafd80e", size = 1087075, upload-time = "2025-03-12T12:05:09.656Z" },
     { url = "https://files.pythonhosted.org/packages/26/80/dbc3a5119afe233ddc9dfc14d5b175636443e5d6349f4cdce3eaa9e1523a/curl_cffi-0.10.0-cp39-abi3-win_amd64.whl", hash = "sha256:59389773a1556e087120e91eac1e33f84f1599d853e1bc168b153e4cdf360002", size = 1374008, upload-time = "2025-03-12T12:05:11.408Z" },
 ]
+
+[[package]]
+name = "django-backend"
+version = "0.1.0"
+source = { virtual = "django_backend" }
+dependencies = [
+    { name = "pip" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pip", specifier = ">=25.3" }]
 
 [[package]]
 name = "loguru"
