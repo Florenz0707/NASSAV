@@ -1,3 +1,9 @@
-curl_cffi==0.10.0
-pillow==11.1.0
+﻿certifi==2025.11.12
+cffi==2.0.0
+colorama==0.4.6
+curl-cffi==0.13.0
 loguru==0.7.3
+pillow==12.0.0
+pip==25.3
+pycparser==2.23
+win32-setctime==1.2.0

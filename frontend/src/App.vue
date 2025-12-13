@@ -5,16 +5,16 @@
         <router-link to="/" class="logo">
           <h1>NASSAV</h1>
         </router-link>
-        
+
         <div class="search-box">
-          <input 
-            v-model="inputContent" 
-            type="text" 
-            placeholder="输入视频内容" 
+          <input
+            v-model="inputContent"
+            type="text"
+            placeholder="输入视频内容"
             class="search-input"
             @keyup.enter="handleAddVideo(inputContent)"
           >
-          <button 
+          <button
             class="search-button"
             @click="handleAddVideo(inputContent)"
             :disabled="isAdding"
@@ -179,25 +179,25 @@ body {
     padding: 1rem;
     flex-wrap: nowrap; /* 防止换行 */
   }
-  
+
   .logo h1 {
     font-size: 1.2rem;
   }
-  
+
   .search-box {
     gap: 8px;
   }
-  
+
   .search-input {
     width: 120px;
     font-size: 13px;
   }
-  
+
   .search-button {
     padding: 8px 12px;
     font-size: 13px;
   }
-  
+
   .app-main {
     padding: 1rem;
   }
@@ -208,11 +208,11 @@ body {
   .header-container {
     padding: 0.8rem;
   }
-  
+
   .search-input {
     width: 100px;
   }
-  
+
   .search-button {
     padding: 6px 10px;
   }

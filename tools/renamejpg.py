@@ -5,7 +5,7 @@ from pathlib import Path
 def rename_jpg_files_with_prefix(root_dir):
     """为所有jpg文件添加所在文件夹名前缀"""
     root_path = Path(root_dir).resolve()
-    
+
     # 遍历目录
     for folder in root_path.iterdir():
         if folder == "thumb":
@@ -18,7 +18,7 @@ def rename_jpg_files_with_prefix(root_dir):
                     # 构造新文件名，符合jellyfin命名规则
                     new_name = f"{prefix}-{file.name}"
                     new_path = file.with_name(new_name)
-                    
+
                     # 重命名文件
                     try:
                         file.rename(new_path)
@@ -31,6 +31,6 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print(f"用法: {sys.argv[0]} <目录路径>")
         sys.exit(1)
-    
+
     target_dir = sys.argv[1]
     rename_jpg_files_with_prefix(target_dir)

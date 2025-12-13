@@ -74,43 +74,43 @@ class MissAVDownloader(Downloader):
                     metadata.title = title_content.replace(metadata.avid, '').strip()
                 else:
                     metadata.title = title_content.strip()
-        
+
         except Exception as e:
             logger.error(f"元数据解析异常: {str(e)}")
             return False
 
         return True
-    
+
     @staticmethod
     def _get_highest_quality_m3u8(playlist_url: str) -> Optional[Tuple[str, str]]:
         try:
             response = requests.get(playlist_url, timeout=10, impersonate="chrome110")
             response.raise_for_status()
             playlist_content = response.text
-            
+
             streams = []
             pattern = re.compile(
                 r'#EXT-X-STREAM-INF:BANDWIDTH=(\d+),.*?RESOLUTION=(\d+x\d+).*?\n(.*)'
             )
-            
+
             for match in pattern.finditer(playlist_content):
                 bandwidth = int(match.group(1))
                 resolution = match.group(2)
                 url = match.group(3).strip()
                 streams.append((bandwidth, resolution, url))
-            
+
             # 按带宽降序排序
             streams.sort(reverse=True, key=lambda x: x[0])
             logger.debug(streams)
-            
+
             if streams:
                 # 返回最高质量的流
                 best_stream = streams[0]
                 base_url = playlist_url.rsplit('/', 1)[0]  # 获取基础URL
                 full_url = f"{base_url}/{best_stream[2]}" if not best_stream[2].startswith('http') else best_stream[2]
-                return full_url, best_stream[1]      
+                return full_url, best_stream[1]
             return None
-        
+
         except Exception as e:
             logger.error(f"获取最高质量流失败: {str(e)}")
             return None

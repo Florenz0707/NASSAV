@@ -2,14 +2,14 @@
   <div class="gallery" v-if="images.length > 0">
     <h2 class="gallery-title">剧照集锦</h2>
     <div class="gallery-grid">
-      <div 
-        v-for="(image, index) in images" 
-        :key="index" 
-        class="gallery-item" 
+      <div
+        v-for="(image, index) in images"
+        :key="index"
+        class="gallery-item"
         @click="openLightbox(index)"
       >
-        <img 
-          :src="image" 
+        <img
+          :src="image"
           :alt="'剧照 ' + (index + 1)"
           loading="lazy"
         >
@@ -18,9 +18,9 @@
 
     <!-- 简化版灯箱 - 移除了滑动动画 -->
     <transition name="fade">
-      <div 
-        class="lightbox" 
-        v-if="showLightbox" 
+      <div
+        class="lightbox"
+        v-if="showLightbox"
         @click.self="closeLightbox"
       >
         <div class="lightbox-content">
@@ -29,13 +29,13 @@
               <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
             </svg>
           </button>
-          
-          <img 
-            :src="images[currentIndex]" 
+
+          <img
+            :src="images[currentIndex]"
             class="lightbox-image"
             @click.stop
           >
-          
+
           <button class="nav-btn prev" @click.stop="prevImage">
             <svg width="24" height="24" viewBox="0 0 24 24">
               <path fill="currentColor" d="M15.41 16.09l-4.58-4.59 4.58-4.59L14 5.5l-6 6 6 6z"/>
@@ -46,7 +46,7 @@
               <path fill="currentColor" d="M8.59 16.34l4.58-4.59-4.58-4.59L10 5.75l6 6-6 6z"/>
             </svg>
           </button>
-          
+
           <div class="image-counter">
             {{ currentIndex + 1 }} / {{ images.length }}
           </div>
@@ -265,12 +265,12 @@ export default {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 10px;
   }
-  
+
   .nav-btn {
     width: 40px;
     height: 40px;
   }
-  
+
   .close-btn {
     top: 20px;
     right: 20px;

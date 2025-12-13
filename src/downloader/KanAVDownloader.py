@@ -25,16 +25,16 @@ class KanAVDownloader(Downloader):
             logger.info(pageUrl)
         if not pageUrl:
             return None
-        
+
         content = self._fetch_html(pageUrl)
         if content: return content
         return None
-        
+
 
     def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
         '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
         downloadInfo = AVDownloadInfo()
-        
+
         match = re.search(r'"url":"([A-Za-z0-9]*)"', html)
         if match:
             encoded_url = match.group(1)

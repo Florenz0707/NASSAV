@@ -52,4 +52,3 @@ class JableDownloader(Downloader):
             return False
 
         return True
-

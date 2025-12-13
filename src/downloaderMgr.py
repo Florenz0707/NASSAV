@@ -23,9 +23,9 @@ class DownloaderMgr:
 
         downloader = MemoDownloader(save_path, myproxy)
         self.downloaders[downloader.getDownloaderName()] = downloader
-        
+
         downloader = KanAVDownloader(save_path, myproxy)
         self.downloaders[downloader.getDownloaderName()] = downloader
-    
+
     def GetDownloader(self, downloaderName: str) -> Optional[Downloader]:
         return self.downloaders[downloaderName]

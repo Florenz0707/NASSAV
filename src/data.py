@@ -8,14 +8,14 @@ def initialize_db(db_path: str, table_name: str):
     """初始化数据库，创建表"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     # 创建表（如果不存在）
     cursor.execute(f'''
     CREATE TABLE IF NOT EXISTS {table_name} (
         bvid TEXT PRIMARY KEY
     )
     ''')
-    
+
     conn.commit()
     conn.close()
 
@@ -23,7 +23,7 @@ def batch_insert_bvids(bvid_list: list[str], db_path: str, table_name: str):
     """批量插入BVID，自动忽略已存在的"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     try:
         # 使用 INSERT OR IGNORE 避免重复插入
         cursor.executemany(
@@ -50,9 +50,9 @@ def find_in_db(bvid: str, db_path: str, table_name: str) -> bool:
         # 关闭连接
         cursor.close()
         conn.close()
-        
+
         return result is not None
-        
+
     except sqlite3.Error as e:
         print(f"数据库错误: {e}")
         return False

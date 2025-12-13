@@ -28,7 +28,7 @@ class AVDownloadInfo:
         try:
             path = Path(file_path) if isinstance(file_path, str) else file_path
             path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with path.open('w', encoding='utf-8') as f:
                 json.dump(asdict(self), f, ensure_ascii=False, indent=indent)
             return True
@@ -62,9 +62,9 @@ class Downloader(ABC):
             'https': proxy
         } if proxy else None
         self.timeout = timeout
-    
+
     def setDomain(self, domain: str) -> bool:
-        if domain:  
+        if domain:
             self.domain = domain
             return True
         return False
@@ -85,7 +85,7 @@ class Downloader(ABC):
         注意：实现新的downloader，只需要获取到m3u8就行了(也可以多匹配点方便调试)，元数据统一使用MissAV
         '''
         pass
-    
+
     def downloadInfo(self, avid: str) -> Optional[AVDownloadInfo]:
         '''将元数据download_info.json序列化到到对应位置，同时返回AVDownloadInfo'''
         # 获取html
@@ -104,14 +104,14 @@ class Downloader(ABC):
         if info is None:
             logger.error("解析元数据失败")
             return None
-        
+
         info.avid = info.avid.upper() # 强制大写
         info.to_json(os.path.join(self.path, avid, "download_info.json"))
         logger.info("已保存到 download_info.json")
 
         return info
 
-    
+
     def downloadM3u8(self, url: str, avid: str) -> bool:
         """m3u8视频下载"""
         os.makedirs(os.path.dirname(os.path.join(self.path, avid)), exist_ok=True)
@@ -134,7 +134,7 @@ class Downloader(ABC):
                 logger.debug(f"retry {command}")
                 if os.system(command) != 0:
                     return False
-            
+
             # 转mp4
             convert = f"{ffmpeg_tool} -i {os.path.join(self.path, avid, avid+'.ts')} -c copy -f mp4 {os.path.join(self.path, avid, avid+'.mp4')}"
             logger.debug(convert)
@@ -145,7 +145,7 @@ class Downloader(ABC):
             return True
         except:
             return False
-    
+
     def _fetch_html(self, url: str, referer: str = "") -> Optional[str]:
         logger.debug(f"fetch url: {url}")
         try:
@@ -164,4 +164,3 @@ class Downloader(ABC):
         except requests.exceptions.RequestException as e:
             logger.error(f"请求失败: {str(e)}")
             return None
-    

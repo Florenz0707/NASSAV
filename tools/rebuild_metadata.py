@@ -24,9 +24,9 @@ for fold in folders:
                 # 解析 XML 文件
                 tree = ET.parse(file_path)
                 root_elem = tree.getroot()
-                
+
                 modified = False
-                
+
                 # 查找所有 actor 元素
                 for actor in root_elem.findall('.//actor'):
                     thumb_elem = actor.find('thumb')
@@ -34,16 +34,16 @@ for fold in folders:
                         # 替换路径
                         thumb_elem.text = thumb_elem.text.replace(old_path, new_path)
                         modified = True
-                
+
                 # 如果有修改，保存文件
                 if modified:
                     # 保留原始 XML 声明和格式
                     with open(file_path, 'r', encoding='utf-8') as f:
                         original_content = f.read()
-                    
+
                     # 使用 ElementTree 生成修改后的内容
                     tree.write(file_path, encoding='utf-8', xml_declaration=True)
-                    
+
                     # 恢复原始格式（ElementTree 会改变格式）
                     with open(file_path, 'r+', encoding='utf-8') as f:
                         modified_content = f.read()
@@ -51,9 +51,9 @@ for fold in folders:
                         f.seek(0)
                         f.write(final_content)
                         f.truncate()
-                    
+
                     print(f"已修改: {file_path}")
-                
+
             except ET.ParseError as e:
                 print(f"解析错误 {file_path}: {e}")
             except Exception as e:

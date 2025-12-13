@@ -65,7 +65,7 @@ class AVMetadata:
         try:
             path = Path(file_path) if isinstance(file_path, str) else file_path
             path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             with path.open('w', encoding='utf-8') as f:
                 json.dump(asdict(self), f, ensure_ascii=False, indent=indent)
             return True
@@ -81,7 +81,7 @@ headers = {
     "Referer": scraperDomain,
     "Sec-Fetch-Mode": "navigate"
 }
-     
+
 class Sracper:
     def __init__(self, path: str, proxy = None, timeout = 15):
         """
@@ -105,7 +105,7 @@ class Sracper:
         if html is None:
             return None
         logger.info("fetch html succ")
-        
+
         # 解析元数据
         metadata = self._extract(html)
         if not metadata:
@@ -196,11 +196,11 @@ class Sracper:
             metadata.fanarts = fanarts
 
             return metadata
-        
+
         except:
             logger.error("您進入的網址有誤")
             return None
-    
+
     def downloadIMG(self, metadata: AVMetadata) -> bool:
         '''海报+封面+演员头像'''
         # 下载横版海报
@@ -212,7 +212,7 @@ class Sracper:
         else:
             logger.error(f"封面下载失败：{metadata.cover}")
             return False
-        
+
         # 下载预览图
         for fanart in metadata.fanarts:
             fanartCount += 1
@@ -233,12 +233,12 @@ class Sracper:
         prefix = metadata.avid+"-" # Jellyfin海报格式
         # 创建XML根节点
         root = ET.Element("movie")
-        
+
         # 基础元数据
         ET.SubElement(root, "title").text = metadata.title
         ET.SubElement(root, "plot").text = metadata.description
         ET.SubElement(root, "outline").text = metadata.description[:100] + "..."
-        
+
         # 发行日期处理
         try:
             release_date = datetime.strptime(metadata.release_date, "%Y-%m-%d").strftime("%Y-%m-%d")
@@ -246,27 +246,27 @@ class Sracper:
             ET.SubElement(root, "releasedate").text = release_date
         except ValueError:
             pass
-        
+
         # 时长转换（分钟）
         if "分鐘" in metadata.duration:
             mins = metadata.duration.replace("分鐘", "").strip()
             ET.SubElement(root, "runtime").text = mins
-        
+
         # 海报
         if metadata.cover:
             art = ET.SubElement(root, "art")
             ET.SubElement(art, "poster").text = prefix+"poster.jpg"
-        
+
         # 预览
         for i in range(1, len(metadata.fanarts) + 1):
             ET.SubElement(art, "fanart").text = prefix+f"fanart-{i}.jpg"
-        
+
         # 演员信息
         for name, _ in metadata.actress.items():
             actor = ET.SubElement(root, "actor")
             ET.SubElement(actor, "name").text = name
             ET.SubElement(actor, "thumb").text = os.path.join(self.path, "thumb/"+name+".jpg")
-        
+
         # 类型标签（来自关键词）
         for genre in metadata.keywords[:5]:  # 最多取5个关键词
             ET.SubElement(root, "genre").text = genre
@@ -274,7 +274,7 @@ class Sracper:
         # 转换为格式化的XML
         xml_str = ET.tostring(root, encoding='utf-8')
         dom = minidom.parseString(xml_str)
-        
+
         # 写入文件
         with open(os.path.join(self.path, metadata.avid, metadata.avid+".nfo"), 'w', encoding='utf-8') as f:
             dom.writexml(f, indent="  ", addindent="  ", newl="\n", encoding='utf-8')
@@ -290,7 +290,7 @@ class Sracper:
             response = requests.get(url, stream=True, impersonate="chrome110", proxies=self.proxies,\
                                     headers=newHeader,timeout=self.timeout, allow_redirects=False)
             response.raise_for_status()
-            
+
             with open(os.path.join(self.path, filename), 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
@@ -299,7 +299,7 @@ class Sracper:
         except Exception as e:
             logger.error(f"下载失败: {e}")
             return False
-    
+
     def _fetch_html(self, url: str, referer: str = "") -> Optional[str]:
         try:
             newHeader = headers
@@ -318,7 +318,7 @@ class Sracper:
         except requests.exceptions.RequestException as e:
             logger.error(f"请求失败: {str(e)}")
             return None
-    
+
     def _crop_img(self, srcname, optname):
         img = Image.open(os.path.join(self.path, srcname))
         width, height = img.size

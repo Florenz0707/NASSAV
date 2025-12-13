@@ -12,7 +12,7 @@ def append_if_not_duplicate(filename, new_content):
             existing_lines = [line.strip() for line in file.readlines()]
     except FileNotFoundError:
         existing_lines = []
-    
+
     if new_content not in existing_lines:
         with open(filename, 'a', encoding='utf-8') as file:
             file.write(new_content + '\n')
@@ -22,24 +22,24 @@ def append_if_not_duplicate(filename, new_content):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process some parameters.")
-    
+
     parser.add_argument('-f', '--force', action='store_true', help='跳过DB检查，强制执行')
     parser.add_argument('-t', '--target', type=str, help='指定车牌号')
-    
+
     args, unknown = parser.parse_known_args()
     if not args and not unknown:
         logger.error(f"Error: Unknown arguments are not allowed: {args, unknown}")
         sys.exit(1)
-    
+
     # 获取位置参数
     positional_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
-    
+
     if len(positional_args) == 1:
         args.target = positional_args[0]
     elif args.target is None:
         logger.error("需要提供车牌号")
         sys.exit(1)
-    
+
     logger.info(f"Force: {args.force}")
     logger.info(f"Target: {args.target}")
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         if data.find_in_db(avid, downloaded_path, "MissAV"):
             logger.info(f"{avid} 已在小姐姐数据库中")
             exit(0)
-            
+
     logger.info(f"开始执行 车牌号: {avid}")
 
     # 文件锁实现全局下载单例
@@ -68,13 +68,13 @@ if __name__ == "__main__":
 
     with open("work", "w") as f:
         f.write("1")
-    
+
     mgr = downloaderMgr.DownloaderMgr()
     try:
         # 按照配置好的下载器顺序，依次尝试
         if len(sorted_downloaders) == 0:
             raise ValueError(f"cfg没有配置下载器：{sorted_downloaders}")
-        
+
         count = 0
         for it in sorted_downloaders:
             count += 1
@@ -102,10 +102,10 @@ if __name__ == "__main__":
                     raise ValueError(f"{info.m3u8} 下载视频失败")
                 continue
             break
-            
+
         # 元数据只尝试下载一次，且只使用配置中权重最大的刮削器
         gen_nfo()
-            
+
     except ValueError as e:
         logger.error(e)
         if append_if_not_duplicate(queue_path, avid):

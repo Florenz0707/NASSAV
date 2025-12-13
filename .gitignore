@@ -128,8 +128,7 @@ coverage/
 *.tar.gz
 *.tgz
 
-# 系统文件
-.DS_Store
-Thumbs.db
-
-downloaded.db
+db/
+cfg/configs.json
+work
+vol2/
