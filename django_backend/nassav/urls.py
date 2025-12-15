@@ -6,7 +6,7 @@ app_name = 'nassav'
 
 urlpatterns = [
     # GET /api/source/list - 获取可用的下载源列表
-    path('api/source/list', views.SourceListView.as_view(), name='downloader-list'),
+    path('api/source/list', views.SourceListView.as_view(), name='source-list'),
 
     # GET /api/resource/list - 获取所有已保存资源
     path('api/resource/list', views.ResourceListView.as_view(), name='resource-list'),
