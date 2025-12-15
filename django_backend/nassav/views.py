@@ -6,7 +6,7 @@ API视图：实现资源管理接口
 import json
 
 from django.conf import settings
-from django.http import FileResponse, Http404
+from django.http import FileResponse
 from loguru import logger
 from rest_framework import status
 from rest_framework.response import Response
@@ -14,7 +14,6 @@ from rest_framework.views import APIView
 
 from .serializers import (
     NewResourceSerializer,
-    DownloadRequestSerializer,
     SourceCookieSerializer
 )
 from .services import source_manager
@@ -337,14 +336,6 @@ class NewDownloadView(APIView):
     """
 
     def post(self, request, avid):
-        serializer = DownloadRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response({
-                'code': 400,
-                'message': '参数错误',
-                'data': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
-
         avid = avid.upper()
 
         # 检查元数据是否存在

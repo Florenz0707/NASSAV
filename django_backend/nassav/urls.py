@@ -29,7 +29,7 @@ urlpatterns = [
     # GET /api/downloads/list - 获取已下载的所有视频的avid
     path('api/downloads/list', views.DownloadsListView.as_view(), name='downloads-list'),
 
-    # POST /api/downloads/new - 通过avid下载视频
+    # POST /api/downloads/{avid} - 通过avid下载视频
     path('api/downloads/<str:avid>', views.NewDownloadView.as_view(), name='downloads-new'),
 
     # DELETE /api/downloads/{avid} - 删除已下载的视频

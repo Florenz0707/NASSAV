@@ -46,7 +46,7 @@ export const resourceApi = {
   addNew: (avid, source = 'any') => api.post('/resource', { avid, source }),
 
   // 刷新资源
-  refresh: (avid) => api.post('/resource/refresh/' + avid)
+  refresh: (avid) => api.post(`/resource/refresh/${encodeURIComponent(avid)}`)
 }
 
 // 下载管理
@@ -55,7 +55,5 @@ export const downloadApi = {
   getList: () => api.get('/downloads/list'),
 
   // 提交下载任务
-  submitDownload: (avid) => api.post('/downloads/' + avid)
+  submitDownload: (avid) => api.post(`/downloads/${encodeURIComponent(avid)}`)
 }
-
-export default api
