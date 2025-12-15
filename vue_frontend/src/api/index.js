@@ -43,10 +43,10 @@ export const resourceApi = {
   getCoverUrl: (avid) => `/nassav/api/resource/cover?avid=${encodeURIComponent(avid)}`,
 
   // 添加新资源
-  addNew: (avid, source = 'any') => api.post('/resource/new', { avid, source }),
+  addNew: (avid, source = 'any') => api.post('/resource', { avid, source }),
 
   // 刷新资源
-  refresh: (avid) => api.post('/resource/refresh', { avid })
+  refresh: (avid) => api.post('/resource/refresh/' + avid)
 }
 
 // 下载管理
@@ -55,7 +55,7 @@ export const downloadApi = {
   getList: () => api.get('/downloads/list'),
 
   // 提交下载任务
-  submitDownload: (avid) => api.post('/downloads/new', { avid })
+  submitDownload: (avid) => api.post('/downloads/' + avid)
 }
 
 export default api

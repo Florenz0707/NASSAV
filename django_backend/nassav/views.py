@@ -336,7 +336,7 @@ class NewDownloadView(APIView):
     通过avid下载视频，此avid的元数据必须已存在于 resource 目录中
     """
 
-    def post(self, request):
+    def post(self, request, avid):
         serializer = DownloadRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({
@@ -345,7 +345,7 @@ class NewDownloadView(APIView):
                 'data': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        avid = serializer.validated_data['avid'].upper()
+        avid = avid.upper()
 
         # 检查元数据是否存在
         resource_dir = settings.RESOURCE_DIR / avid
