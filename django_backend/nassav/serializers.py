@@ -4,6 +4,7 @@ from rest_framework import serializers
 class NewResourceSerializer(serializers.Serializer):
     """新增资源请求序列化器"""
     avid = serializers.CharField(max_length=50)
+    source = serializers.CharField(max_length=50, default='any', required=False)
 
 
 class DownloadRequestSerializer(serializers.Serializer):

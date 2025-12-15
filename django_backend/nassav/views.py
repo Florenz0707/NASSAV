@@ -1,6 +1,7 @@
 """
-API视图：实现6个接口
+API视图：实现资源管理接口
 所有信息以 resource 目录中的实际资源为准
+统一响应格式: {"code": xxx, "message": xxx, "data": data}
 """
 import json
 
@@ -16,6 +17,21 @@ from .serializers import (
     DownloadRequestSerializer
 )
 from .services import downloader_manager
+
+
+class SourceListView(APIView):
+    """
+    GET /api/source/list
+    获取所有可用的下载源名称列表
+    """
+
+    def get(self, request):
+        sources = list(downloader_manager.downloaders.keys())
+        return Response({
+            'code': 200,
+            'message': 'success',
+            'data': sources
+        })
 
 
 class ResourceListView(APIView):
@@ -69,7 +85,8 @@ class ResourceCoverView(APIView):
         if not avid:
             return Response({
                 'code': 400,
-                'message': 'avid参数缺失'
+                'message': 'avid参数缺失',
+                'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # 查找封面文件 - 路径: resource/{avid}/{avid}.jpg
@@ -84,7 +101,11 @@ class ResourceCoverView(APIView):
                     break
 
         if not cover_path.exists():
-            raise Http404(f"封面 {avid} 不存在")
+            return Response({
+                'code': 404,
+                'message': f'封面 {avid} 不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
 
         return FileResponse(
             open(cover_path, 'rb'),
@@ -128,7 +149,8 @@ class DownloadsMetadataView(APIView):
         if not avid:
             return Response({
                 'code': 400,
-                'message': 'avid参数缺失'
+                'message': 'avid参数缺失',
+                'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # 查找元数据文件 - 路径: resource/{avid}/{avid}.json
@@ -137,7 +159,8 @@ class DownloadsMetadataView(APIView):
         if not metadata_path.exists():
             return Response({
                 'code': 404,
-                'message': f'资源 {avid} 的元数据不存在'
+                'message': f'资源 {avid} 的元数据不存在',
+                'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
         try:
@@ -161,7 +184,8 @@ class DownloadsMetadataView(APIView):
             logger.error(f"读取元数据失败: {e}")
             return Response({
                 'code': 500,
-                'message': f'读取元数据失败: {str(e)}'
+                'message': f'读取元数据失败: {str(e)}',
+                'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -169,7 +193,10 @@ class NewResourceView(APIView):
     """
     POST /api/resource/new
     通过avid获取资源信息并保存（HTML、封面、元数据）
-    若遍历所有的源都无法获取，则返回错误信息
+
+    请求参数:
+        avid: 视频编号
+        source: 指定源名称，默认 "any" 表示尝试所有源
     """
 
     def post(self, request):
@@ -178,10 +205,11 @@ class NewResourceView(APIView):
             return Response({
                 'code': 400,
                 'message': '参数错误',
-                'errors': serializer.errors
+                'data': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
         avid = serializer.validated_data['avid'].upper()
+        source = serializer.validated_data.get('source', 'any').lower()
 
         # 检查资源是否已存在（基于 resource 目录）
         resource_dir = settings.RESOURCE_DIR / avid
@@ -196,18 +224,39 @@ class NewResourceView(APIView):
                     'data': {
                         'avid': avid,
                         'title': metadata.get('title', ''),
-                        'source': metadata.get('source', '')
+                        'source': metadata.get('source', ''),
+                        'cover_downloaded': True,
+                        'html_saved': True,
+                        'metadata_saved': True,
+                        'scraped': bool(metadata.get('release_date'))
                     }
                 })
             except Exception:
                 pass  # 元数据损坏，重新获取
 
-        # 遍历所有源获取信息
-        result = downloader_manager.get_info_from_any_source(avid)
+        # 根据 source 参数选择获取方式
+        if source == 'any':
+            result = downloader_manager.get_info_from_any_source(avid)
+            error_msg = f'无法从任何源获取 {avid} 的信息'
+        else:
+            # 检查指定源是否存在
+            available_sources = [s.lower() for s in downloader_manager.downloaders.keys()]
+            if source not in available_sources:
+                return Response({
+                    'code': 400,
+                    'message': f'源 {source} 不存在',
+                    'data': {
+                        'available_sources': list(downloader_manager.downloaders.keys())
+                    }
+                }, status=status.HTTP_400_BAD_REQUEST)
+            result = downloader_manager.get_info_from_source(avid, source)
+            error_msg = f'从 {source} 获取 {avid} 失败'
+
         if not result:
             return Response({
                 'code': 404,
-                'message': f'无法从任何源获取 {avid} 的信息'
+                'message': error_msg,
+                'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
         info, downloader, html = result
@@ -244,7 +293,7 @@ class NewDownloadView(APIView):
             return Response({
                 'code': 400,
                 'message': '参数错误',
-                'errors': serializer.errors
+                'data': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
         avid = serializer.validated_data['avid'].upper()
@@ -255,7 +304,8 @@ class NewDownloadView(APIView):
         if not metadata_path.exists():
             return Response({
                 'code': 404,
-                'message': f'{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源'
+                'message': f'{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源',
+                'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
         # 检查是否已下载 - 路径: resource/{avid}/{avid}.mp4
@@ -266,6 +316,7 @@ class NewDownloadView(APIView):
                 'message': '视频已下载',
                 'data': {
                     'avid': avid,
+                    'task_id': None,
                     'status': 'completed',
                     'file_size': mp4_path.stat().st_size
                 }
@@ -281,6 +332,83 @@ class NewDownloadView(APIView):
             'data': {
                 'avid': avid,
                 'task_id': task.id,
-                'status': 'pending'
+                'status': 'pending',
+                'file_size': None
             }
         }, status=status.HTTP_202_ACCEPTED)
+
+
+class RefreshResourceView(APIView):
+    """
+    POST /api/resource/refresh
+    刷新已有资源的元数据和m3u8链接，使用原有source获取
+    """
+
+    def post(self, request):
+        serializer = NewResourceSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'code': 400,
+                'message': '参数错误',
+                'data': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        avid = serializer.validated_data['avid'].upper()
+
+        # 检查资源是否存在
+        resource_dir = settings.RESOURCE_DIR / avid
+        metadata_path = resource_dir / f"{avid}.json"
+        if not metadata_path.exists():
+            return Response({
+                'code': 404,
+                'message': f'{avid} 的资源不存在，请先调用 /api/resource/new 添加资源',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # 读取现有元数据获取 source
+        try:
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                old_metadata = json.load(f)
+            source = old_metadata.get('source', '')
+        except Exception as e:
+            logger.error(f"读取现有元数据失败: {e}")
+            return Response({
+                'code': 500,
+                'message': f'读取现有元数据失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if not source:
+            return Response({
+                'code': 400,
+                'message': f'{avid} 的元数据中没有 source 信息，无法刷新',
+                'data': None
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 使用原有 source 获取新信息
+        result = downloader_manager.get_info_from_source(avid, source)
+        if not result:
+            return Response({
+                'code': 502,
+                'message': f'从 {source} 刷新 {avid} 失败',
+                'data': None
+            }, status=status.HTTP_502_BAD_GATEWAY)
+
+        info, downloader, html = result
+
+        # 保存新资源（覆盖旧资源）
+        save_result = downloader_manager.save_all_resources(avid, info, downloader, html)
+
+        return Response({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'avid': info.avid,
+                'title': info.title,
+                'source': info.source,
+                'cover_downloaded': save_result['cover_saved'],
+                'html_saved': save_result['html_saved'],
+                'metadata_saved': save_result['metadata_saved'],
+                'scraped': save_result.get('scraped', False)
+            }
+        })

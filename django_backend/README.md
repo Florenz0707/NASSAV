@@ -2,14 +2,25 @@
 
 基于 Django + Celery 构建的视频资源管理后端服务。
 
+## 功能特性
+
+- 🎬 **多源资源获取**：支持 8+ 视频源，自动按权重遍历获取
+- 📥 **异步视频下载**：基于 Celery 的异步下载队列，支持 M3U8 流媒体
+- 🔍 **元数据刮削**：从 JavBus 等站点获取详细元数据（发行日期、演员、类别等）
+- 🔒 **分布式锁**：Redis 分布式锁确保下载任务串行执行
+- 📁 **统一资源管理**：所有资源按 AVID 分目录存储
+
 ## 技术栈
 
-- **Python** 3.12+
-- **Django** 5.1+
-- **Django REST Framework** 3.15+
-- **Celery** 5.4+ (异步任务)
-- **Redis** (消息队列)
-- **curl_cffi** (HTTP 请求)
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| Python | 3.12+ | 运行环境 |
+| Django | 5.1+ | Web 框架 |
+| Django REST Framework | 3.15+ | API 框架 |
+| Celery | 5.4+ | 异步任务队列 |
+| Redis | - | 消息队列 & 分布式锁 |
+| curl_cffi | - | HTTP 请求（绕过反爬） |
+| N_m3u8DL-RE | - | M3U8 下载工具 |
 
 ## 项目结构
 
@@ -21,28 +32,11 @@ django_backend/
 │   ├── config.yaml               # 应用配置文件
 │   └── template-config.yaml      # 配置模板
 ├── django_project/                # Django 项目配置
-│   ├── __init__.py               # Celery 初始化
 │   ├── settings.py               # Django 配置
-│   ├── urls.py                   # 根路由
-│   ├── celery.py                 # Celery 配置
-│   └── wsgi.py                   # WSGI 入口
+│   └── celery.py                 # Celery 配置
 ├── nassav/                        # Django 应用
-│   ├── downloader/               # 下载器模块
-│   │   ├── DownloaderBase.py    # 下载器基类
-│   │   ├── MissAVDownloader.py  # MissAV 下载器
-│   │   ├── JableDownloader.py   # Jable 下载器
-│   │   ├── HohojDownloader.py   # Hohoj 下载器
-│   │   ├── MemoDownloader.py    # Memo 下载器
-│   │   ├── KanavDownloader.py   # Kanav 下载器
-│   │   ├── AvtodayDownloader.py # Avtoday 下载器
-│   │   ├── NetflavDownloader.py # Netflav 下载器
-│   │   └── KissavDownloader.py  # Kissav 下载器
+│   ├── downloader/               # 下载器模块（8个下载源）
 │   ├── scraper/                  # 刮削器模块
-│   │   ├── AVDownloadInfo.py    # 下载信息数据类
-│   │   ├── ScraperBase.py       # 刮削器基类
-│   │   ├── ScraperManager.py    # 刮削器管理器
-│   │   └── JavbusScraper.py     # JavBus 刮削器
-│   ├── serializers.py            # 序列化器
 │   ├── services.py               # 服务层
 │   ├── tasks.py                  # Celery 异步任务
 │   ├── urls.py                   # API 路由
@@ -75,168 +69,7 @@ uv sync
 cp config/template-config.yaml config/config.yaml
 ```
 
-### 3. 启动 Django 服务
-
-```bash
-uv run python manage.py runserver 0.0.0.0:8000
-```
-
-### 4. 启动 Celery Worker (异步下载)
-
-```bash
-# 需要先启动 Redis 服务
-uv run celery -A django_project worker -l info
-```
-
-## API 接口
-
-所有接口前缀：`/nassav`
-
-### 资源管理
-
-| 方法   | 端点                             | 说明           |
-|------|--------------------------------|--------------|
-| GET  | `/api/resource/list`           | 获取所有资源列表     |
-| GET  | `/api/resource/cover?avid=XXX` | 获取封面图片       |
-| POST | `/api/resource/new`            | 添加新资源        |
-
-### 下载管理
-
-| 方法   | 端点                                          | 说明          |
-|------|---------------------------------------------|-------------|
-| GET  | `/api/resource/downloads/list`              | 获取已下载视频列表   |
-| GET  | `/api/resource/downloads/metadata?avid=XXX` | 获取视频元数据     |
-| POST | `/api/resource/downloads/new`               | 提交下载任务      |
-
-## API 详细说明
-
-### GET /nassav/api/resource/list
-
-获取所有已保存资源的列表（从 resource 目录读取）。
-
-**响应示例：**
-```json
-{
-    "code": 200,
-    "message": "success",
-    "data": [
-        {
-            "avid": "SSIS-469",
-            "title": "视频标题",
-            "source": "Jable",
-            "release_date": "2024-01-01",
-            "has_video": true
-        }
-    ]
-}
-```
-
-### GET /nassav/api/resource/cover
-
-根据 avid 获取封面图片。
-
-**参数：**
-- `avid`: 视频编号 (必填)
-
-**响应：** 图片文件 (image/jpeg)
-
-### POST /nassav/api/resource/new
-
-添加新资源，自动获取标题、下载封面、刮削元数据。
-
-**请求体：**
-```json
-{
-    "avid": "SSIS-469"
-}
-```
-
-**响应示例：**
-```json
-{
-    "code": 201,
-    "message": "success",
-    "data": {
-        "avid": "SSIS-469",
-        "title": "视频标题",
-        "source": "Jable",
-        "cover_downloaded": true,
-        "html_saved": true,
-        "metadata_saved": true,
-        "scraped": true
-    }
-}
-```
-
-### GET /nassav/api/resource/downloads/list
-
-获取已下载的所有视频 avid 列表。
-
-**响应示例：**
-```json
-{
-    "code": 200,
-    "message": "success",
-    "data": ["SSIS-469", "SSIS-470"]
-}
-```
-
-### GET /nassav/api/resource/downloads/metadata
-
-获取已下载视频的元数据。
-
-**参数：**
-- `avid`: 视频编号 (必填)
-
-**响应示例：**
-```json
-{
-    "code": 200,
-    "message": "success",
-    "data": {
-        "avid": "SSIS-469",
-        "title": "视频标题",
-        "m3u8": "https://...",
-        "source": "Jable",
-        "release_date": "2024-01-01",
-        "duration": "120分钟",
-        "director": "导演名",
-        "studio": "制作商",
-        "actors": ["演员1", "演员2"],
-        "genres": ["类别1", "类别2"],
-        "file_size": 1234567890,
-        "file_exists": true
-    }
-}
-```
-
-### POST /nassav/api/resource/downloads/new
-
-提交视频下载任务（异步执行）。
-
-**请求体：**
-```json
-{
-    "avid": "SSIS-469"
-}
-```
-
-**响应示例：**
-```json
-{
-    "code": 202,
-    "message": "下载任务已提交",
-    "data": {
-        "avid": "SSIS-469",
-        "task_id": "abc123...",
-        "status": "pending"
-    }
-}
-```
-
-## 配置说明
-
-编辑 `config/config.yaml` 配置代理、下载源和刮削器：
+配置示例：
 
 ```yaml
 Proxy:
@@ -249,78 +82,69 @@ Scraper:
     domain: www.javbus.com
   busdmm:
     domain: www.busdmm.ink
-  dmmsee:
-    domain: www.dmmsee.bond
 
 # 下载源配置（权重越高优先级越高）
 Source:
   jable:
     domain: jable.tv
-    weight: 800
-    cookie: YOUR_COOKIE_HERE
+    weight: 1000
+    cookie: YOUR_COOKIE_HERE  # 可选
   missav:
     domain: missav.ai
     weight: 200
-  hohoj:
-    domain: hohoj.tv
-    weight: 700
   # ... 更多下载源
 ```
 
-## 元数据结构
+### 3. 下载工具
 
-### AVDownloadInfo
+下载 [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE/releases) 并放置到 `tools/` 目录：
 
-| 字段           | 类型         | 说明       |
-|--------------|------------|----------|
-| avid         | str        | 视频编号     |
-| title        | str        | 视频标题     |
-| m3u8         | str        | M3U8 链接  |
-| source       | str        | 下载来源     |
-| release_date | str        | 发行日期     |
-| duration     | str        | 时长       |
-| director     | str        | 导演       |
-| studio       | str        | 制作商      |
-| label        | str        | 发行商      |
-| series       | str        | 系列       |
-| genres       | List[str]  | 类别列表     |
-| actors       | List[str]  | 演员列表     |
-
-## 架构设计
-
-### 下载器模块 (Downloader)
-
-```
-DownloaderBase (基类)
-├── MissAVDownloader
-├── JableDownloader
-├── HohojDownloader
-├── MemoDownloader
-├── KanavDownloader
-├── AvtodayDownloader
-├── NetflavDownloader
-└── KissavDownloader
-
-DownloaderManager (管理器)
-└── 根据配置权重排序，遍历尝试获取资源
+```bash
+mkdir -p tools
+# 下载对应平台的 N_m3u8DL-RE 并放入 tools/ 目录
+chmod +x tools/N_m3u8DL-RE  # Linux/macOS
 ```
 
-### 刮削器模块 (Scraper)
+### 4. 启动服务
 
+#### 启动 Redis（必需）
+
+```bash
+# Ubuntu/Debian
+sudo apt install redis-server
+sudo systemctl start redis
+
+# macOS
+brew install redis
+brew services start redis
 ```
-ScraperBase (基类)
-├── JavbusScraper
-├── BusdmmScraper
-└── DmmseeScraper
 
-ScraperManager (管理器)
-└── 遍历刮削器获取详细元数据
+#### 启动 Django 服务
+
+```bash
+uv run python manage.py runserver 0.0.0.0:8000
 ```
 
-## 依赖服务
+#### 启动 Celery Worker（异步下载）
 
-- **Redis**: Celery 消息队列，默认连接 `redis://localhost:6379/0`
-- **N_m3u8DL-RE**: 高性能 M3U8 下载工具，需要在 `tools/` 目录放置。[点击下载](https://github.com/nilaoda/N_m3u8DL-RE/releases)
+```bash
+uv run celery -A django_project worker -l info
+```
+
+## API 文档
+
+详细接口说明请参考 [interfaces.md](./interfaces.md)
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/source/list` | 获取可用下载源列表 |
+| GET | `/api/resource/list` | 获取所有资源列表 |
+| GET | `/api/resource/cover` | 获取封面图片 |
+| POST | `/api/resource/new` | 添加新资源 |
+| POST | `/api/resource/refresh` | 刷新资源元数据 |
+| GET | `/api/downloads/list` | 获取已下载列表 |
+| GET | `/api/downloads/metadata` | 获取下载元数据 |
+| POST | `/api/downloads/new` | 提交下载任务 |
 
 ## 开发命令
 

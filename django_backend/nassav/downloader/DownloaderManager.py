@@ -77,6 +77,33 @@ class DownloaderManager:
                     return info, downloader, html
         return None
 
+    def get_info_from_source(self, avid: str, source: str) -> Optional[Tuple[AVDownloadInfo, DownloaderBase, str]]:
+        """
+        从指定源获取信息
+        返回: (info, downloader, html) 或 None
+        """
+        # 查找对应的下载器（不区分大小写）
+        downloader = None
+        for name, dl in self.downloaders.items():
+            if name.lower() == source.lower():
+                downloader = dl
+                break
+
+        if not downloader:
+            logger.warning(f"未找到源 {source} 对应的下载器")
+            return None
+
+        logger.info(f"从 {source} 刷新 {avid}")
+        html = downloader.get_html(avid)
+        if html:
+            info = downloader.parse_html(html)
+            if info:
+                info.avid = avid.upper()
+                return info, downloader, html
+
+        logger.warning(f"从 {source} 获取 {avid} 失败")
+        return None
+
     def get_resource_dir(self, avid: str) -> Path:
         """获取资源目录路径"""
         resource_dir = settings.RESOURCE_DIR / avid.upper()
