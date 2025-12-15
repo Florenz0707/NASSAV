@@ -54,8 +54,7 @@ django_backend/
 │       ├── {AVID}.json          # 元数据
 │       └── {AVID}.mp4           # 视频文件
 ├── tools/                         # 工具目录
-│   ├── m3u8-Downloader-Go       # M3U8 下载工具
-│   └── ffmpeg                   # 视频转换工具
+│   └── N_m3u8DL-RE              # M3U8 下载工具
 └── log/                          # 日志目录
 ```
 
@@ -321,8 +320,7 @@ ScraperManager (管理器)
 ## 依赖服务
 
 - **Redis**: Celery 消息队列，默认连接 `redis://localhost:6379/0`
-- **FFmpeg**: 视频格式转换，需要在 `tools/` 目录或系统 PATH 中
-- **m3u8-Downloader-Go**: M3U8 下载工具，需要在 `tools/` 目录中，[点击下载](https://github.com/Greyh4t/m3u8-Downloader-Go/releases)
+- **N_m3u8DL-RE**: 高性能 M3U8 下载工具，需要在 `tools/` 目录放置。[点击下载](https://github.com/nilaoda/N_m3u8DL-RE/releases)
 
 ## 开发命令
 
