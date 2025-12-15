@@ -8,8 +8,8 @@ from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.services import HEADERS
 
 
-class DownloaderBase:
-    """下载器基类"""
+class SourceBase:
+    """下载源基类"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         self.proxy = proxy
@@ -24,7 +24,7 @@ class DownloaderBase:
     def set_cookie(self, cookie: str):
         self.cookie = cookie
 
-    def get_downloader_name(self) -> str:
+    def get_source_name(self) -> str:
         raise NotImplementedError
 
     def get_html(self, avid: str) -> Optional[str]:

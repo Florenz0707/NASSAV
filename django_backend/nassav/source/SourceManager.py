@@ -5,29 +5,29 @@ from typing import Dict, List, Tuple, Optional
 from django.conf import settings
 from loguru import logger
 
-from nassav.downloader import MissAVDownloader, JableDownloader, HohojDownloader, MemoDownloader, \
-    KanavDownloader, AvtodayDownloader, NetflavDownloader, KissavDownloader, DownloaderBase
+from nassav.source import MissAV, Jable, Hohoj, Memo, \
+    Kanav, Avtoday, Netflav, Kissav, SourceBase
 from nassav.scraper import ScraperManager, AVDownloadInfo
 
 
-class DownloaderManager:
+class SourceManager:
     """下载器管理器"""
 
     # 下载器类映射
-    DOWNLOADER_CLASSES = {
-        'missav': MissAVDownloader,
-        'jable': JableDownloader,
-        'hohoj': HohojDownloader,
-        'memo': MemoDownloader,
-        'kanav': KanavDownloader,
-        'avtoday': AvtodayDownloader,
-        'netflav': NetflavDownloader,
-        'kissav': KissavDownloader,
+    SOURCE_CLASSES = {
+        'missav': MissAV,
+        'jable': Jable,
+        'hohoj': Hohoj,
+        'memo': Memo,
+        'kanav': Kanav,
+        'avtoday': Avtoday,
+        'netflav': Netflav,
+        'kissav': Kissav,
     }
 
     def __init__(self):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
-        self.downloaders: Dict[str, DownloaderBase] = {}
+        self.sources: Dict[str, SourceBase] = {}
 
         # 初始化元数据刮削器
         self.scraper = ScraperManager(proxy)
@@ -35,38 +35,38 @@ class DownloaderManager:
         # 注册下载器，根据配置中的权重
         source_config = settings.SOURCE_CONFIG
 
-        for source_name, downloader_class in self.DOWNLOADER_CLASSES.items():
+        for source_name, source_class in self.SOURCE_CLASSES.items():
             config = source_config.get(source_name, {})
             weight = config.get('weight')
             # 只有配置了有效权重的源才会被注册
             if weight:
-                downloader = downloader_class(proxy)
+                source = source_class(proxy)
                 # 从配置中读取并设置 cookie
                 cookie = config.get('cookie')
                 if cookie:
-                    downloader.set_cookie(cookie)
-                    logger.debug(f"注册下载器: {downloader.get_downloader_name()}, 权重: {weight}, Cookie: 已设置")
+                    source.set_cookie(cookie)
+                    logger.debug(f"注册下载器: {source.get_source_name()}, 权重: {weight}, Cookie: 已设置")
                 else:
-                    logger.debug(f"注册下载器: {downloader.get_downloader_name()}, 权重: {weight}")
-                self.downloaders[downloader.get_downloader_name()] = downloader
+                    logger.debug(f"注册下载器: {source.get_source_name()}, 权重: {weight}")
+                self.sources[source.get_source_name()] = source
 
-    def get_sorted_downloaders(self) -> List[Tuple[str, DownloaderBase]]:
+    def get_sorted_sources(self) -> List[Tuple[str, SourceBase]]:
         """获取按权重排序的下载器列表"""
         source_config = settings.SOURCE_CONFIG
         sorted_items = []
-        for name, downloader in self.downloaders.items():
+        for name, downloader in self.sources.items():
             weight = source_config.get(name.lower(), {}).get('weight', 0)
             sorted_items.append((name, downloader, weight))
         sorted_items.sort(key=lambda x: x[2], reverse=True)
         return [(name, dl) for name, dl, _ in sorted_items]
 
-    def get_info_from_any_source(self, avid: str) -> Optional[Tuple[AVDownloadInfo, DownloaderBase, str]]:
+    def get_info_from_any_source(self, avid: str) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:
         """
         遍历所有源获取信息
         返回: (info, downloader, html) 或 None
         """
         import time
-        for name, downloader in self.get_sorted_downloaders():
+        for name, downloader in self.get_sorted_sources():
             logger.info(f"尝试从 {name} 获取 {avid}")
             html = downloader.get_html(avid)
             time.sleep(0.5)
@@ -77,14 +77,14 @@ class DownloaderManager:
                     return info, downloader, html
         return None
 
-    def get_info_from_source(self, avid: str, source: str) -> Optional[Tuple[AVDownloadInfo, DownloaderBase, str]]:
+    def get_info_from_source(self, avid: str, source: str) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:
         """
         从指定源获取信息
         返回: (info, downloader, html) 或 None
         """
         # 查找对应的下载器（不区分大小写）
         downloader = None
-        for name, dl in self.downloaders.items():
+        for name, dl in self.sources.items():
             if name.lower() == source.lower():
                 downloader = dl
                 break
@@ -110,7 +110,7 @@ class DownloaderManager:
         resource_dir.mkdir(parents=True, exist_ok=True)
         return resource_dir
 
-    def save_all_resources(self, avid: str, info: AVDownloadInfo, downloader: DownloaderBase, html: str) -> dict:
+    def save_all_resources(self, avid: str, info: AVDownloadInfo, downloader: SourceBase, html: str) -> dict:
         """
         一次性保存所有资源到 resource/{avid}/ 目录
         包括: HTML缓存、封面、元数据
@@ -189,7 +189,7 @@ class DownloaderManager:
                         m3u8=data.get('m3u8', ''),
                         title=data.get('title', ''),
                         avid=data.get('avid', ''),
-                        source=data.get('source', '')
+                        source=data.get('downloader', '')
                     )
                     return info
             except Exception as e:
@@ -197,4 +197,4 @@ class DownloaderManager:
         return None
 
 
-downloader_manager = DownloaderManager()
+source_manager = SourceManager()

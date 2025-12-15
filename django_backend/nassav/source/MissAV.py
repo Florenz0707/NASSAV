@@ -6,10 +6,10 @@ from django.conf import settings
 from loguru import logger
 
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.downloader.DownloaderBase import DownloaderBase
+from nassav.source.SourceBase import SourceBase
 
 
-class MissAVDownloader(DownloaderBase):
+class MissAV(SourceBase):
     """MissAV下载器"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
@@ -17,7 +17,7 @@ class MissAVDownloader(DownloaderBase):
         source_config = settings.SOURCE_CONFIG.get('missav', {})
         self.domain = source_config.get('domain', 'missav.ai')
 
-    def get_downloader_name(self) -> str:
+    def get_source_name(self) -> str:
         return "MissAV"
 
     def get_html(self, avid: str) -> Optional[str]:
@@ -39,7 +39,7 @@ class MissAVDownloader(DownloaderBase):
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         """解析HTML获取下载信息"""
         info = AVDownloadInfo()
-        info.source = self.get_downloader_name()
+        info.source = self.get_source_name()
 
         # 提取m3u8
         uuid = self._extract_uuid(html)

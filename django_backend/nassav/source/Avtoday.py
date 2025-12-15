@@ -5,10 +5,10 @@ from django.conf import settings
 from loguru import logger
 
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.downloader.DownloaderBase import DownloaderBase
+from nassav.source.SourceBase import SourceBase
 
 
-class AvtodayDownloader(DownloaderBase):
+class Avtoday(SourceBase):
     """Avtoday下载器"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
@@ -16,7 +16,7 @@ class AvtodayDownloader(DownloaderBase):
         source_config = settings.SOURCE_CONFIG.get('avtoday', {})
         self.domain = source_config.get('domain', 'avtoday.io')
 
-    def get_downloader_name(self) -> str:
+    def get_source_name(self) -> str:
         return "Avtoday"
 
     def get_html(self, avid: str) -> Optional[str]:
@@ -36,13 +36,13 @@ class AvtodayDownloader(DownloaderBase):
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         info = AVDownloadInfo()
-        info.source = self.get_downloader_name()
+        info.source = self.get_source_name()
 
         try:
             # 提取m3u8 - Avtoday 特定格式: var m3u8_url = 'https://avtoday.io/streaming/XXX/xxx.m3u8';
             m3u8_patterns = [
                 r"var\s+m3u8_url\s*=\s*['\"]([^'\"]+\.m3u8)['\"]",  # Avtoday 特定格式
-                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'downloader:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
                 r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
                 r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
                 r'["\']([^"\']+\.m3u8[^"\']*)["\']',

@@ -16,7 +16,7 @@ from .serializers import (
     NewResourceSerializer,
     DownloadRequestSerializer
 )
-from .services import downloader_manager
+from .services import source_manager
 
 
 class SourceListView(APIView):
@@ -26,7 +26,7 @@ class SourceListView(APIView):
     """
 
     def get(self, request):
-        sources = list(downloader_manager.downloaders.keys())
+        sources = list(source_manager.sources.keys())
         return Response({
             'code': 200,
             'message': 'success',
@@ -57,7 +57,7 @@ class ResourceListView(APIView):
                             resources.append({
                                 'avid': avid,
                                 'title': metadata.get('title', ''),
-                                'source': metadata.get('source', ''),
+                                'downloader': metadata.get('downloader', ''),
                                 'release_date': metadata.get('release_date', ''),
                                 'has_video': (item / f"{avid}.mp4").exists()
                             })
@@ -196,7 +196,7 @@ class NewResourceView(APIView):
 
     请求参数:
         avid: 视频编号
-        source: 指定源名称，默认 "any" 表示尝试所有源
+        downloader: 指定源名称，默认 "any" 表示尝试所有源
     """
 
     def post(self, request):
@@ -209,7 +209,7 @@ class NewResourceView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         avid = serializer.validated_data['avid'].upper()
-        source = serializer.validated_data.get('source', 'any').lower()
+        source = serializer.validated_data.get('downloader', 'any').lower()
 
         # 检查资源是否已存在（基于 resource 目录）
         resource_dir = settings.RESOURCE_DIR / avid
@@ -224,7 +224,7 @@ class NewResourceView(APIView):
                     'data': {
                         'avid': avid,
                         'title': metadata.get('title', ''),
-                        'source': metadata.get('source', ''),
+                        'downloader': metadata.get('downloader', ''),
                         'cover_downloaded': True,
                         'html_saved': True,
                         'metadata_saved': True,
@@ -234,22 +234,22 @@ class NewResourceView(APIView):
             except Exception:
                 pass  # 元数据损坏，重新获取
 
-        # 根据 source 参数选择获取方式
+        # 根据 downloader 参数选择获取方式
         if source == 'any':
-            result = downloader_manager.get_info_from_any_source(avid)
+            result = source_manager.get_info_from_any_source(avid)
             error_msg = f'无法从任何源获取 {avid} 的信息'
         else:
             # 检查指定源是否存在
-            available_sources = [s.lower() for s in downloader_manager.downloaders.keys()]
+            available_sources = [s.lower() for s in source_manager.sources.keys()]
             if source not in available_sources:
                 return Response({
                     'code': 400,
                     'message': f'源 {source} 不存在',
                     'data': {
-                        'available_sources': list(downloader_manager.downloaders.keys())
+                        'available_sources': list(source_manager.sources.keys())
                     }
                 }, status=status.HTTP_400_BAD_REQUEST)
-            result = downloader_manager.get_info_from_source(avid, source)
+            result = source_manager.get_info_from_source(avid, source)
             error_msg = f'从 {source} 获取 {avid} 失败'
 
         if not result:
@@ -262,7 +262,7 @@ class NewResourceView(APIView):
         info, downloader, html = result
 
         # 一次性保存所有资源（HTML、封面、元数据）到 resource/{avid}/
-        save_result = downloader_manager.save_all_resources(avid, info, downloader, html)
+        save_result = source_manager.save_all_resources(avid, info, downloader, html)
         if not save_result['cover_saved']:
             logger.warning(f"封面下载失败: {avid}")
 
@@ -272,7 +272,7 @@ class NewResourceView(APIView):
             'data': {
                 'avid': info.avid,
                 'title': info.title,
-                'source': info.source,
+                'downloader': info.source,
                 'cover_downloaded': save_result['cover_saved'],
                 'html_saved': save_result['html_saved'],
                 'metadata_saved': save_result['metadata_saved'],
@@ -365,11 +365,11 @@ class RefreshResourceView(APIView):
                 'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # 读取现有元数据获取 source
+        # 读取现有元数据获取 downloader
         try:
             with open(metadata_path, 'r', encoding='utf-8') as f:
                 old_metadata = json.load(f)
-            source = old_metadata.get('source', '')
+            source = old_metadata.get('downloader', '')
         except Exception as e:
             logger.error(f"读取现有元数据失败: {e}")
             return Response({
@@ -381,12 +381,12 @@ class RefreshResourceView(APIView):
         if not source:
             return Response({
                 'code': 400,
-                'message': f'{avid} 的元数据中没有 source 信息，无法刷新',
+                'message': f'{avid} 的元数据中没有 downloader 信息，无法刷新',
                 'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 使用原有 source 获取新信息
-        result = downloader_manager.get_info_from_source(avid, source)
+        # 使用原有 downloader 获取新信息
+        result = source_manager.get_info_from_source(avid, source)
         if not result:
             return Response({
                 'code': 502,
@@ -397,7 +397,7 @@ class RefreshResourceView(APIView):
         info, downloader, html = result
 
         # 保存新资源（覆盖旧资源）
-        save_result = downloader_manager.save_all_resources(avid, info, downloader, html)
+        save_result = source_manager.save_all_resources(avid, info, downloader, html)
 
         return Response({
             'code': 200,
@@ -405,7 +405,7 @@ class RefreshResourceView(APIView):
             'data': {
                 'avid': info.avid,
                 'title': info.title,
-                'source': info.source,
+                'downloader': info.source,
                 'cover_downloaded': save_result['cover_saved'],
                 'html_saved': save_result['html_saved'],
                 'metadata_saved': save_result['metadata_saved'],

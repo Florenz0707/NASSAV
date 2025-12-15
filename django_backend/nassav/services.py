@@ -2,8 +2,6 @@
 服务层：封装下载器和刮削器逻辑
 """
 import os
-import platform
-import subprocess
 import time
 from contextlib import contextmanager
 from typing import Optional
@@ -32,7 +30,8 @@ HEADERS = {
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6"
 }
 
-from nassav.downloader.DownloaderManager import DownloaderManager, downloader_manager
+from nassav.source.SourceManager import SourceManager, source_manager
+from nassav.m3u8downloader import M3u8DownloaderBase, N_m3u8DL_RE
 
 # Redis 分布式锁 - 跨进程有效
 _redis_client = redis.from_url(settings.CELERY_BROKER_URL)
@@ -81,15 +80,20 @@ def redis_download_lock(avid: str, timeout: int = _DOWNLOAD_LOCK_TIMEOUT):
 class VideoDownloadService:
     """视频下载服务"""
 
-    def __init__(self, downloader: DownloaderManager):
-        self.manager = downloader
+    def __init__(
+            self,
+            resource_manager: SourceManager,
+            m3u8_downloader: M3u8DownloaderBase
+    ):
+        """
+        初始化视频下载服务
 
-        # N_m3u8DL-RE 工具路径
-        tools_dir = settings.BASE_DIR / "tools"
-        if platform.system() == 'Windows':
-            self.download_tool = str(tools_dir / "N_m3u8DL-RE.exe")
-        else:
-            self.download_tool = str(tools_dir / "N_m3u8DL-RE")
+        Args:
+            resource_manager: 资源管理器（获取元数据、封面等）
+            m3u8_downloader: M3U8 下载器（下载视频流）
+        """
+        self.manager = resource_manager
+        self.m3u8_downloader = m3u8_downloader
 
     def download_video(self, avid: str) -> bool:
         """
@@ -143,97 +147,42 @@ class VideoDownloadService:
         return None
 
     def _get_domain_from_source(self, source: str) -> str:
-        """根据 source 名称获取对应的 domain"""
+        """根据 downloader 名称获取对应的 domain"""
         source_lower = source.lower()
         source_config = settings.SOURCE_CONFIG.get(source_lower, {})
         return source_config.get('domain', source_lower + '.com')
 
     def _download_m3u8(self, url: str, avid: str, domain: str, total_duration: Optional[int] = None) -> bool:
-        """使用 N_m3u8DL-RE 下载 m3u8 视频"""
+        """使用注入的 M3U8 下载器下载视频"""
         avid_upper = avid.upper()
         resource_dir = settings.RESOURCE_DIR / avid_upper
-        resource_dir.mkdir(parents=True, exist_ok=True)
-        mp4_path = resource_dir / f"{avid_upper}.mp4"
-        tmp_path = resource_dir / "temp"
 
-        try:
-            # 构建 N_m3u8DL-RE 命令
+        duration_str = f"{total_duration // 60}分钟" if total_duration else "未知"
+        logger.info(f"开始下载 {avid_upper} (预计时长: {duration_str})")
+        logger.info(f"使用下载器: {self.m3u8_downloader.get_downloader_name()}")
 
-            cmd = [
-                self.download_tool,
-                url,
-                "--tmp-dir", str(tmp_path),
-                "--save-dir", str(resource_dir),
-                "--save-name", avid_upper,
-                "--thread-count", "32",  # 并发下载线程数
-                "--download-retry-count", "5",  # 重试次数
-                "--del-after-done",  # 下载完成后删除临时文件
-                "--auto-select",  # 自动选择最佳质量
-                "--no-log",  # 禁用日志文件
-                "-H", f"Referer: https://{domain}/",
-                "-H", f"User-Agent: {HEADERS["User-Agent"]}",
-            ]
+        # 调用注入的 M3U8 下载器
+        success = self.m3u8_downloader.download(
+            url=url,
+            output_dir=resource_dir,
+            output_name=avid_upper,
+            referer=f"https://{domain}/",
+            user_agent=HEADERS["User-Agent"],
+            thread_count=32,
+            retry_count=5,
+        )
 
-            duration_str = f"{total_duration // 60}分钟" if total_duration else "未知"
-            logger.info(f"开始下载 {avid_upper} (预计时长: {duration_str})")
-            logger.debug(f"执行命令: {' '.join(cmd)}")
+        if success:
+            # 确保输出文件为 MP4 格式
+            self.m3u8_downloader.ensure_mp4(resource_dir, avid_upper)
 
-            # 设置环境变量
-            env = os.environ.copy()
-            if settings.PROXY_ENABLED and settings.PROXY_URL:
-                env['http_proxy'] = settings.PROXY_URL
-                env['https_proxy'] = settings.PROXY_URL
-                env['HTTP_PROXY'] = settings.PROXY_URL
-                env['HTTPS_PROXY'] = settings.PROXY_URL
-                logger.debug(f"使用代理: {settings.PROXY_URL}")
-
-            # 直接运行，让工具输出到终端显示进度
-            result = subprocess.run(
-                cmd,
-                env=env,
-                capture_output=False,  # 不捕获输出，直接显示到终端
-            )
-
-            if result.returncode != 0:
-                logger.error(f"N_m3u8DL-RE 下载失败，退出码: {result.returncode}")
-                return False
-
-            # 检查输出文件
-            # N_m3u8DL-RE 可能生成 .mp4 或 .ts 文件
-            possible_files = [
-                resource_dir / f"{avid_upper}.mp4",
-                resource_dir / f"{avid_upper}.ts",
-                resource_dir / f"{avid_upper}.mkv",
-            ]
-
-            output_file = None
-            for f in possible_files:
-                if f.exists():
-                    output_file = f
-                    break
-
-            if output_file:
-                file_size = output_file.stat().st_size
-                size_mb = file_size / (1024 * 1024)
-
-                # 如果不是 mp4，重命名为 mp4
-                if output_file.suffix != '.mp4':
-                    output_file.rename(mp4_path)
-                    logger.debug(f"重命名 {output_file.name} -> {avid_upper}.mp4")
-
-                logger.info(f"[{avid_upper}] 下载完成: {size_mb:.1f} MB")
-                return True
-            else:
-                logger.error(f"[{avid_upper}] 未找到输出文件")
-                return False
-
-        except FileNotFoundError:
-            logger.error(f"N_m3u8DL-RE 工具不存在: {self.download_tool}")
-            return False
-        except Exception as e:
-            logger.error(f"下载失败: {e}")
-            return False
+        return success
 
 
-# 全局服务实例
-video_download_service = VideoDownloadService(downloader_manager)
+# 全局服务实例（使用依赖注入）
+video_download_service = VideoDownloadService(
+    resource_manager=source_manager,
+    m3u8_downloader=N_m3u8DL_RE(
+        proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None
+    )
+)

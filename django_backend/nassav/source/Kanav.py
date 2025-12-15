@@ -5,26 +5,26 @@ from django.conf import settings
 from loguru import logger
 
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.downloader.DownloaderBase import DownloaderBase
+from nassav.source.SourceBase import SourceBase
 
 
-class HohojDownloader(DownloaderBase):
-    """Hohoj下载器"""
+class Kanav(SourceBase):
+    """Kanav下载器"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         super().__init__(proxy, timeout)
-        source_config = settings.SOURCE_CONFIG.get('hohoj', {})
-        self.domain = source_config.get('domain', 'hohoj.tv')
+        source_config = settings.SOURCE_CONFIG.get('kanav', {})
+        self.domain = source_config.get('domain', 'kanav.info')
 
-    def get_downloader_name(self) -> str:
-        return "Hohoj"
+    def get_source_name(self) -> str:
+        return "Kanav"
 
     def get_html(self, avid: str) -> Optional[str]:
         avid_lower = avid.lower()
         urls = [
             f'https://{self.domain}/video/{avid_lower}',
-            f'https://{self.domain}/video/{avid_lower}-chinese-subtitle',
-            f'https://{self.domain}/video/{avid_lower}-uncensored-leak',
+            f'https://{self.domain}/watch/{avid_lower}',
+            f'https://{self.domain}/{avid_lower}',
         ]
         for url in urls:
             content = self.fetch_html(url)
@@ -34,14 +34,14 @@ class HohojDownloader(DownloaderBase):
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         info = AVDownloadInfo()
-        info.source = self.get_downloader_name()
+        info.source = self.get_source_name()
 
         try:
-            # 提取m3u8 - 尝试多种模式
+            # 提取m3u8
             m3u8_patterns = [
-                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'downloader:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
                 r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
-                r'src["\']?\s*[:=]\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
                 r'["\']([^"\']+\.m3u8[^"\']*)["\']',
             ]
             for pattern in m3u8_patterns:
@@ -54,16 +54,9 @@ class HohojDownloader(DownloaderBase):
                 return None
 
             # 提取标题
-            title_patterns = [
-                r'<title>([^<]+)</title>',
-                r'<h1[^>]*>([^<]+)</h1>',
-                r'<meta property="og:title" content="([^"]+)"',
-            ]
-            for pattern in title_patterns:
-                match = re.search(pattern, html)
-                if match:
-                    info.title = match.group(1).strip()
-                    break
+            title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if title_match:
+                info.title = title_match.group(1).strip()
 
             # 提取avid
             avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
@@ -72,7 +65,7 @@ class HohojDownloader(DownloaderBase):
 
             return info
         except Exception as e:
-            logger.error(f"Hohoj解析失败: {e}")
+            logger.error(f"Kanav解析失败: {e}")
             return None
 
     def get_cover_url(self, html: str) -> Optional[str]:

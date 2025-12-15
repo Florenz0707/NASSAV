@@ -5,10 +5,10 @@ from django.conf import settings
 from loguru import logger
 
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.downloader.DownloaderBase import DownloaderBase
+from nassav.source.SourceBase import SourceBase
 
 
-class KissavDownloader(DownloaderBase):
+class Kissav(SourceBase):
     """Kissav下载器"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
@@ -16,7 +16,7 @@ class KissavDownloader(DownloaderBase):
         source_config = settings.SOURCE_CONFIG.get('kissav', {})
         self.domain = source_config.get('domain', 'f15.bzraizy.cc')
 
-    def get_downloader_name(self) -> str:
+    def get_source_name(self) -> str:
         return "Kissav"
 
     def get_html(self, avid: str) -> Optional[str]:
@@ -37,12 +37,12 @@ class KissavDownloader(DownloaderBase):
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         info = AVDownloadInfo()
-        info.source = self.get_downloader_name()
+        info.source = self.get_source_name()
 
         try:
             # 提取m3u8
             m3u8_patterns = [
-                r'source:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r'downloader:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
                 r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
                 r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
                 r'["\']([^"\']+\.m3u8[^"\']*)["\']',
