@@ -53,10 +53,10 @@ class JableDownloader(DownloaderBase):
                         info.title = title_match.group(1).strip()
                         break
 
-            # 提取avid
-            avid_match = re.search(r'<span class="inactive-color">([A-Z]+-\d+)</span>', html)
-            if avid_match:
-                info.avid = avid_match.group(1)
+                # 提取avid
+                avid_match = re.search(r'<span class="inactive-color">([A-Z]+-\d+)</span>', html)
+                if avid_match:
+                    info.avid = avid_match.group(1)
 
             return info
         except Exception as e:

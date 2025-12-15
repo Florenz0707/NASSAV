@@ -14,6 +14,9 @@ urlpatterns = [
     # GET /api/resource/cover?avid= - 根据avid获取封面图片
     path('api/resource/cover', views.ResourceCoverView.as_view(), name='resource-cover'),
 
+    # GET /api/resource/metadata?avid= - 根据avid获取视频元数据
+    path('api/resource/metadata', views.ResourceMetadataView.as_view(), name='resource-metadata'),
+
     # POST /api/resource/new - 通过avid获取资源信息（可指定source）
     path('api/resource/new', views.NewResourceView.as_view(), name='resource-new'),
 
@@ -22,9 +25,6 @@ urlpatterns = [
 
     # GET /api/downloads/list - 获取已下载的所有视频的avid
     path('api/downloads/list', views.DownloadsListView.as_view(), name='downloads-list'),
-
-    # GET /api/downloads/metadata?avid= - 根据avid获取视频元数据
-    path('api/downloads/metadata', views.DownloadsMetadataView.as_view(), name='downloads-metadata'),
 
     # POST /api/downloads/new - 通过avid下载视频
     path('api/downloads/new', views.NewDownloadView.as_view(), name='downloads-new'),

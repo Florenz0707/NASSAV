@@ -119,7 +119,7 @@ class VideoDownloadService:
             self.manager.save_all_resources(avid, info, downloader, html)
 
         # 解析视频时长（用于日志显示）
-        duration_seconds = self.parse_duration(info.duration) if info.duration else None
+        duration_seconds = self._parse_duration(info.duration) if info.duration else None
 
         # 下载m3u8视频（使用 Redis 分布式锁确保只有一个下载任务运行）
         with redis_download_lock(avid):
@@ -127,13 +127,13 @@ class VideoDownloadService:
             logger.info(f"[{avid}] 下载{'成功' if result else '失败'}")
             return result
 
-    def parse_duration(self, duration_str: str) -> Optional[int]:
+    def _parse_duration(self, duration_str: str) -> Optional[int]:
         """解析时长字符串，返回秒数"""
         import re
         if not duration_str:
             return None
         # 尝试匹配 "120分钟" 或 "120分" 格式
-        match = re.search(r'(\d+)\s*分', duration_str)
+        match = re.search(r'(\d+)分', duration_str)
         if match:
             return int(match.group(1)) * 60
         # 尝试匹配纯数字
@@ -158,10 +158,6 @@ class VideoDownloadService:
 
         try:
             # 构建 N_m3u8DL-RE 命令
-            user_agent = (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
-            )
 
             cmd = [
                 self.download_tool,
@@ -175,7 +171,7 @@ class VideoDownloadService:
                 "--auto-select",  # 自动选择最佳质量
                 "--no-log",  # 禁用日志文件
                 "-H", f"Referer: https://{domain}/",
-                "-H", f"User-Agent: {user_agent}",
+                "-H", f"User-Agent: {HEADERS["User-Agent"]}",
             ]
 
             duration_str = f"{total_duration // 60}分钟" if total_duration else "未知"

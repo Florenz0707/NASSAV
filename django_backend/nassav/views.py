@@ -138,7 +138,7 @@ class DownloadsListView(APIView):
         })
 
 
-class DownloadsMetadataView(APIView):
+class ResourceMetadataView(APIView):
     """
     GET /api/resource/downloads/metadata?avid=
     根据avid获取视频元数据
