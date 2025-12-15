@@ -10,3 +10,9 @@ class NewResourceSerializer(serializers.Serializer):
 class DownloadRequestSerializer(serializers.Serializer):
     """下载请求序列化器"""
     avid = serializers.CharField(max_length=50)
+
+
+class SourceCookieSerializer(serializers.Serializer):
+    """设置源Cookie请求序列化器"""
+    source = serializers.CharField(max_length=50)
+    cookie = serializers.CharField()

@@ -41,14 +41,62 @@ class SourceManager:
             # 只有配置了有效权重的源才会被注册
             if weight:
                 source = source_class(proxy)
-                # 从配置中读取并设置 cookie
-                cookie = config.get('cookie')
-                if cookie:
-                    source.set_cookie(cookie)
-                    logger.debug(f"注册下载器: {source.get_source_name()}, 权重: {weight}, Cookie: 已设置")
-                else:
-                    logger.debug(f"注册下载器: {source.get_source_name()}, 权重: {weight}")
+                logger.debug(f"注册下载器: {source.get_source_name()}, 权重: {weight}")
                 self.sources[source.get_source_name()] = source
+
+        # 从数据库加载 cookie
+        self._load_cookies_from_db()
+
+    def _load_cookies_from_db(self):
+        """从数据库加载所有源的 cookie"""
+        try:
+            from nassav.models import SourceCookie
+            cookies = SourceCookie.objects.all()
+            for cookie_obj in cookies:
+                source_name = cookie_obj.source_name.lower()
+                # 查找对应的源（不区分大小写）
+                for name, source in self.sources.items():
+                    if name.lower() == source_name:
+                        source.set_cookie(cookie_obj.cookie)
+                        logger.debug(f"从数据库加载 {name} 的 Cookie")
+                        break
+        except Exception as e:
+            logger.warning(f"从数据库加载 Cookie 失败: {e}")
+
+    def set_source_cookie(self, source_name: str, cookie: str) -> bool:
+        """
+        设置指定源的 cookie，同时更新内存和数据库
+        返回是否设置成功
+        """
+        # 查找对应的源（不区分大小写）
+        target_source = None
+        actual_name = None
+        for name, source in self.sources.items():
+            if name.lower() == source_name.lower():
+                target_source = source
+                actual_name = name
+                break
+
+        if not target_source:
+            logger.warning(f"未找到源 {source_name}")
+            return False
+
+        # 更新内存中的 cookie
+        target_source.set_cookie(cookie)
+        logger.info(f"已设置 {actual_name} 的 Cookie")
+
+        # 更新数据库
+        try:
+            from nassav.models import SourceCookie
+            SourceCookie.objects.update_or_create(
+                source_name=actual_name.lower(),
+                defaults={'cookie': cookie}
+            )
+            logger.debug(f"已保存 {actual_name} 的 Cookie 到数据库")
+            return True
+        except Exception as e:
+            logger.error(f"保存 Cookie 到数据库失败: {e}")
+            return False
 
     def get_sorted_sources(self) -> List[Tuple[str, SourceBase]]:
         """获取按权重排序的下载器列表"""

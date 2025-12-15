@@ -14,7 +14,8 @@ from rest_framework.views import APIView
 
 from .serializers import (
     NewResourceSerializer,
-    DownloadRequestSerializer
+    DownloadRequestSerializer,
+    SourceCookieSerializer
 )
 from .services import source_manager
 
@@ -32,6 +33,54 @@ class SourceListView(APIView):
             'message': 'success',
             'data': sources
         })
+
+
+class SourceCookieView(APIView):
+    """
+    POST /api/source/cookie
+    设置指定源的 Cookie
+    """
+
+    def post(self, request):
+        serializer = SourceCookieSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'code': 400,
+                'message': '参数错误',
+                'data': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        source_name = serializer.validated_data['source']
+        cookie = serializer.validated_data['cookie']
+
+        # 检查源是否存在
+        available_sources = [s.lower() for s in source_manager.sources.keys()]
+        if source_name.lower() not in available_sources:
+            return Response({
+                'code': 404,
+                'message': f'源 {source_name} 不存在',
+                'data': {
+                    'available_sources': list(source_manager.sources.keys())
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # 设置 cookie
+        success = source_manager.set_source_cookie(source_name, cookie)
+        if success:
+            return Response({
+                'code': 200,
+                'message': 'success',
+                'data': {
+                    'source': source_name,
+                    'cookie_set': True
+                }
+            })
+        else:
+            return Response({
+                'code': 500,
+                'message': '设置 Cookie 失败',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ResourceListView(APIView):
@@ -340,20 +389,12 @@ class NewDownloadView(APIView):
 
 class RefreshResourceView(APIView):
     """
-    POST /api/resource/refresh
+    POST /api/resource/refresh/{avid}
     刷新已有资源的元数据和m3u8链接，使用原有source获取
     """
 
-    def post(self, request):
-        serializer = NewResourceSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response({
-                'code': 400,
-                'message': '参数错误',
-                'data': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        avid = serializer.validated_data['avid'].upper()
+    def post(self, request, avid):
+        avid = avid.upper()
 
         # 检查资源是否存在
         resource_dir = settings.RESOURCE_DIR / avid
@@ -365,11 +406,11 @@ class RefreshResourceView(APIView):
                 'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # 读取现有元数据获取 downloader
+        # 读取现有元数据获取 source
         try:
             with open(metadata_path, 'r', encoding='utf-8') as f:
                 old_metadata = json.load(f)
-            source = old_metadata.get('downloader', '')
+            source = old_metadata.get('source', '')
         except Exception as e:
             logger.error(f"读取现有元数据失败: {e}")
             return Response({
@@ -381,11 +422,11 @@ class RefreshResourceView(APIView):
         if not source:
             return Response({
                 'code': 400,
-                'message': f'{avid} 的元数据中没有 downloader 信息，无法刷新',
+                'message': f'{avid} 的元数据中没有 source 信息，无法刷新',
                 'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 使用原有 downloader 获取新信息
+        # 使用原有 source获取新信息
         result = source_manager.get_info_from_source(avid, source)
         if not result:
             return Response({
@@ -412,3 +453,86 @@ class RefreshResourceView(APIView):
                 'scraped': save_result.get('scraped', False)
             }
         })
+
+
+class DeleteDownloadView(APIView):
+    """
+    DELETE /api/downloads/{avid}
+    删除已下载的视频文件
+    """
+
+    def delete(self, request, avid):
+        avid = avid.upper()
+        resource_dir = settings.RESOURCE_DIR / avid
+        mp4_path = resource_dir / f"{avid}.mp4"
+
+        if not mp4_path.exists():
+            return Response({
+                'code': 404,
+                'message': f'视频 {avid} 不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            file_size = mp4_path.stat().st_size
+            mp4_path.unlink()
+            logger.info(f"已删除视频: {avid}")
+            return Response({
+                'code': 200,
+                'message': 'success',
+                'data': {
+                    'avid': avid,
+                    'deleted_file': f"{avid}.mp4",
+                    'file_size': file_size
+                }
+            })
+        except Exception as e:
+            logger.error(f"删除视频失败: {e}")
+            return Response({
+                'code': 500,
+                'message': f'删除失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class DeleteResourceView(APIView):
+    """
+    DELETE /api/resource/{avid}
+    删除整个资源目录（包括 HTML、封面、元数据、视频）
+    """
+
+    def delete(self, request, avid):
+        import shutil
+        avid = avid.upper()
+        resource_dir = settings.RESOURCE_DIR / avid
+
+        if not resource_dir.exists():
+            return Response({
+                'code': 404,
+                'message': f'资源 {avid} 不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            # 收集删除的文件信息
+            deleted_files = []
+            for f in resource_dir.iterdir():
+                deleted_files.append(f.name)
+
+            shutil.rmtree(resource_dir)
+            logger.info(f"已删除资源目录: {avid}")
+            return Response({
+                'code': 200,
+                'message': 'success',
+                'data': {
+                    'avid': avid,
+                    'deleted_files': deleted_files
+                }
+            })
+        except Exception as e:
+            logger.error(f"删除资源目录失败: {e}")
+            return Response({
+                'code': 500,
+                'message': f'删除失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

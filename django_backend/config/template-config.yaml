@@ -14,11 +14,9 @@ Source:
   missav:
     domain: missav.ai
     weight: 1000
-    cookie:
   jable:
     domain: jable.tv
     weight: 800
-    cookie:
   hohoj:
     domain: hohoj.tv
     weight: 700

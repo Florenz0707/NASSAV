@@ -40,6 +40,51 @@
 
 ---
 
+### POST /nassav/api/source/cookie
+
+设置指定源的 Cookie（持久化到数据库）。
+
+**请求体：**
+
+```json
+{
+    "source": "jable",
+    "cookie": "kt_tcookie=1; PHPSESSID=xxx; kt_member=xxx"
+}
+```
+
+| 参数     | 类型     | 必填 | 说明           |
+|--------|--------|----|--------------|
+| source | string | 是  | 源名称（不区分大小写） |
+| cookie | string | 是  | Cookie 字符串   |
+
+**成功响应 (200)：**
+
+```json
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "source": "jable",
+        "cookie_set": true
+    }
+}
+```
+
+**源不存在响应 (404)：**
+
+```json
+{
+    "code": 404,
+    "message": "源 xxx 不存在",
+    "data": {
+        "available_sources": ["Jable", "MissAV", "Hohoj"]
+    }
+}
+```
+
+---
+
 ## 资源管理
 
 ### GET /nassav/api/resource/list
@@ -215,17 +260,11 @@
 
 ---
 
-### POST /nassav/api/resource/refresh
+### POST /nassav/api/resource/refresh/{avid}
 
 刷新已有资源的元数据和 m3u8 链接，使用原有 source 获取。
 
-**请求体：**
-
-```json
-{
-    "avid": "SSIS-469"
-}
-```
+**路径参数：**
 
 | 参数   | 类型     | 必填 | 说明   |
 |------|--------|----|------|
@@ -265,6 +304,41 @@
 {
     "code": 502,
     "message": "从 Jable 刷新 SSIS-469 失败",
+    "data": null
+}
+```
+
+---
+
+### DELETE /nassav/api/resource/{avid}
+
+删除整个资源目录（包括 HTML、封面、元数据、视频）。
+
+**路径参数：**
+
+| 参数   | 类型     | 必填 | 说明   |
+|------|--------|----|------|
+| avid | string | 是  | 视频编号 |
+
+**成功响应 (200)：**
+
+```json
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "avid": "SSIS-469",
+        "deleted_files": ["SSIS-469.html", "SSIS-469.jpg", "SSIS-469.json", "SSIS-469.mp4"]
+    }
+}
+```
+
+**资源不存在响应 (404)：**
+
+```json
+{
+    "code": 404,
+    "message": "资源 SSIS-469 不存在",
     "data": null
 }
 ```
@@ -353,6 +427,42 @@
 {
     "code": 404,
     "message": "SSIS-469 的元数据不存在，请先调用 /api/resource/new 添加资源",
+    "data": null
+}
+```
+
+---
+
+### DELETE /nassav/api/downloads/{avid}
+
+删除已下载的视频文件（只删除 mp4 文件，保留元数据）。
+
+**路径参数：**
+
+| 参数   | 类型     | 必填 | 说明   |
+|------|--------|----|------|
+| avid | string | 是  | 视频编号 |
+
+**成功响应 (200)：**
+
+```json
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "avid": "SSIS-469",
+        "deleted_file": "SSIS-469.mp4",
+        "file_size": 1234567890
+    }
+}
+```
+
+**视频不存在响应 (404)：**
+
+```json
+{
+    "code": 404,
+    "message": "视频 SSIS-469 不存在",
     "data": null
 }
 ```
