@@ -242,7 +242,7 @@ uv run celery -A django_project worker -l info
 ```yaml
 Proxy:
   Enable: true
-  url: http://127.0.0.1:7077
+  url: http://127.0.0.1:3000
 
 # 刮削器配置（从 JavBus 获取详细元数据）
 Scraper:
@@ -322,7 +322,7 @@ ScraperManager (管理器)
 
 - **Redis**: Celery 消息队列，默认连接 `redis://localhost:6379/0`
 - **FFmpeg**: 视频格式转换，需要在 `tools/` 目录或系统 PATH 中
-- **m3u8-Downloader-Go**: M3U8 下载工具，需要在 `tools/` 目录中
+- **m3u8-Downloader-Go**: M3U8 下载工具，需要在 `tools/` 目录中，[点击下载](https://github.com/Greyh4t/m3u8-Downloader-Go/releases)
 
 ## 开发命令
 
