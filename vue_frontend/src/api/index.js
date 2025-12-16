@@ -46,7 +46,10 @@ export const resourceApi = {
     addNew: (avid, source = 'any') => api.post('/resource', {avid, source}),
 
     // 刷新资源
-    refresh: (avid) => api.post(`/resource/refresh/${encodeURIComponent(avid)}`)
+    refresh: (avid) => api.post(`/resource/refresh/${encodeURIComponent(avid)}`),
+
+    // 删除资源
+    delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`)
 }
 
 // 下载管理
@@ -55,5 +58,8 @@ export const downloadApi = {
     getList: () => api.get('/downloads/list'),
 
     // 提交下载任务
-    submitDownload: (avid) => api.post(`/downloads/${encodeURIComponent(avid)}`)
+    submitDownload: (avid) => api.post(`/downloads/${encodeURIComponent(avid)}`),
+
+    // 删除下载的视频
+    deleteFile: (avid) => api.delete(`/downloads/${encodeURIComponent(avid)}`),
 }

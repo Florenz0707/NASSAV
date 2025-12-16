@@ -14,269 +14,287 @@ const filterStatus = ref('all')
 const sortBy = ref('date')
 
 onMounted(async () => {
-  await resourceStore.fetchResources()
+	await resourceStore.fetchResources()
 })
 
 const filteredResources = computed(() => {
-  let result = [...resourceStore.resources]
+	let result = [...resourceStore.resources]
 
-  // 搜索过滤
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(r =>
-        r.avid.toLowerCase().includes(query) ||
-        r.title.toLowerCase().includes(query) ||
-        r.source.toLowerCase().includes(query)
-    )
-  }
+	// 搜索过滤
+	if (searchQuery.value) {
+		const query = searchQuery.value.toLowerCase()
+		result = result.filter(r =>
+			r.avid.toLowerCase().includes(query) ||
+			r.title.toLowerCase().includes(query) ||
+			r.source.toLowerCase().includes(query)
+		)
+	}
 
-  // 状态过滤
-  if (filterStatus.value === 'downloaded') {
-    result = result.filter(r => r.has_video)
-  } else if (filterStatus.value === 'pending') {
-    result = result.filter(r => !r.has_video)
-  }
+	// 状态过滤
+	if (filterStatus.value === 'downloaded') {
+		result = result.filter(r => r.has_video)
+	} else if (filterStatus.value === 'pending') {
+		result = result.filter(r => !r.has_video)
+	}
 
-  // 排序
-  if (sortBy.value === 'date') {
-    result.sort((a, b) => new Date(b.release_date) - new Date(a.release_date))
-  } else if (sortBy.value === 'avid') {
-    result.sort((a, b) => a.avid.localeCompare(b.avid))
-  } else if (sortBy.value === 'source') {
-    result.sort((a, b) => a.source.localeCompare(b.source))
-  }
+	// 排序
+	if (sortBy.value === 'date') {
+		result.sort((a, b) => new Date(b.release_date) - new Date(a.release_date))
+	} else if (sortBy.value === 'avid') {
+		result.sort((a, b) => a.avid.localeCompare(b.avid))
+	} else if (sortBy.value === 'source') {
+		result.sort((a, b) => a.source.localeCompare(b.source))
+	}
 
-  return result
+	return result
 })
 
 async function handleDownload(avid) {
-  try {
-    await resourceStore.submitDownload(avid)
-    toastStore.success(`${avid} 下载任务已提交`)
-  } catch (err) {
-    toastStore.error(err.message || '下载失败')
-  }
+	try {
+		await resourceStore.submitDownload(avid)
+		toastStore.success(`${avid} 下载任务已提交`)
+	} catch (err) {
+		toastStore.error(err.message || '下载失败')
+	}
 }
 
 async function handleRefresh(avid) {
-  try {
-    await resourceStore.refreshResource(avid)
-    toastStore.success(`${avid} 已刷新`)
-  } catch (err) {
-    toastStore.error(err.message || '刷新失败')
-  }
+	try {
+		await resourceStore.refreshResource(avid)
+		toastStore.success(`${avid} 已刷新`)
+	} catch (err) {
+		toastStore.error(err.message || '刷新失败')
+	}
+}
+
+async function handleDeleteResource(avid) {
+	// 从资源列表中移除已删除的资源
+	resourceStore.resources = resourceStore.resources.filter(
+		r => r.avid !== avid
+	)
+}
+
+async function handleDeleteFile(avid) {
+	// 更新资源的下载状态
+	const resource = resourceStore.resources.find(r => r.avid === avid)
+	if (resource) {
+		resource.has_video = false
+		resource.file_size = null
+	}
 }
 </script>
 
 <template>
-  <div class="resources-view">
-    <div class="page-header">
-      <h1 class="page-title">资源库</h1>
-      <p class="page-subtitle">管理您的所有视频资源</p>
-    </div>
+	<div class="resources-view">
+		<div class="page-header">
+			<h1 class="page-title">资源库</h1>
+			<p class="page-subtitle">管理您的所有视频资源</p>
+		</div>
 
-    <div class="controls">
-      <div class="search-box">
-        <span class="search-icon">⌕</span>
-        <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索 AVID、标题、来源..."
-            class="search-input"
-        />
-      </div>
+		<div class="controls">
+			<div class="search-box">
+				<span class="search-icon">⌕</span>
+				<input
+					v-model="searchQuery"
+					type="text"
+					placeholder="搜索 AVID、标题、来源..."
+					class="search-input"
+				/>
+			</div>
 
-      <div class="filters">
-        <select v-model="filterStatus" class="filter-select">
-          <option value="all">全部状态</option>
-          <option value="downloaded">已下载</option>
-          <option value="pending">未下载</option>
-        </select>
+			<div class="filters">
+				<select v-model="filterStatus" class="filter-select">
+					<option value="all">全部状态</option>
+					<option value="downloaded">已下载</option>
+					<option value="pending">未下载</option>
+				</select>
 
-        <select v-model="sortBy" class="filter-select">
-          <option value="date">按日期</option>
-          <option value="avid">按编号</option>
-          <option value="source">按来源</option>
-        </select>
-      </div>
-    </div>
+				<select v-model="sortBy" class="filter-select">
+					<option value="date">按日期</option>
+					<option value="avid">按编号</option>
+					<option value="source">按来源</option>
+				</select>
+			</div>
+		</div>
 
-    <div class="results-info" v-if="!resourceStore.loading">
-      <span>共 {{ filteredResources.length }} 个资源</span>
-    </div>
+		<div class="results-info" v-if="!resourceStore.loading">
+			<span>共 {{ filteredResources.length }} 个资源</span>
+		</div>
 
-    <LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..."/>
+		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..."/>
 
-    <EmptyState
-        v-else-if="filteredResources.length === 0"
-        icon="◇"
-        title="暂无资源"
-        :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
-    >
-      <template #action>
-        <RouterLink to="/add" class="btn btn-primary">
-          添加资源
-        </RouterLink>
-      </template>
-    </EmptyState>
+		<EmptyState
+			v-else-if="filteredResources.length === 0"
+			icon="◇"
+			title="暂无资源"
+			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
+		>
+			<template #action>
+				<RouterLink to="/add" class="btn btn-primary">
+					添加资源
+				</RouterLink>
+			</template>
+		</EmptyState>
 
-    <div v-else class="resources-grid">
-      <ResourceCard
-          v-for="resource in filteredResources"
-          :key="resource.avid"
-          :resource="resource"
-          @download="handleDownload"
-          @refresh="handleRefresh"
-      />
-    </div>
-  </div>
+		<div v-else class="resources-grid">
+			<ResourceCard
+				v-for="resource in filteredResources"
+				:key="resource.avid"
+				:resource="resource"
+				@download="handleDownload"
+				@refresh="handleRefresh"
+				@deleteResource="handleDeleteResource"
+				@deleteFile="handleDeleteFile"
+			/>
+		</div>
+	</div>
 </template>
 
 <style scoped>
 .resources-view {
-  animation: fadeIn 0.5s ease;
+	animation: fadeIn 0.5s ease;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
 
 .page-header {
-  margin-bottom: 2rem;
+	margin-bottom: 2rem;
 }
 
 .page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
+	font-size: 2rem;
+	font-weight: 700;
+	color: var(--text-primary);
+	margin-bottom: 0.5rem;
 }
 
 .page-subtitle {
-  color: var(--text-muted);
-  font-size: 1rem;
+	color: var(--text-muted);
+	font-size: 1rem;
 }
 
 .controls {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
+	display: flex;
+	gap: 1rem;
+	margin-bottom: 1.5rem;
+	flex-wrap: wrap;
 }
 
 .search-box {
-  flex: 1;
-  min-width: 250px;
-  position: relative;
+	flex: 1;
+	min-width: 250px;
+	position: relative;
 }
 
 .search-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  font-size: 1.1rem;
+	position: absolute;
+	left: 1rem;
+	top: 50%;
+	transform: translateY(-50%);
+	color: var(--text-muted);
+	font-size: 1.1rem;
 }
 
 .search-input {
-  width: 100%;
-  padding: 0.875rem 1rem 0.875rem 2.75rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
+	width: 100%;
+	padding: 0.875rem 1rem 0.875rem 2.75rem;
+	background: var(--card-bg);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	color: var(--text-primary);
+	font-size: 0.95rem;
+	transition: all 0.2s ease;
 }
 
 .search-input:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+	outline: none;
+	border-color: var(--accent-primary);
+	box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
 }
 
 .search-input::placeholder {
-  color: var(--text-muted);
+	color: var(--text-muted);
 }
 
 .filters {
-  display: flex;
-  gap: 0.75rem;
+	display: flex;
+	gap: 0.75rem;
 }
 
 .filter-select {
-  padding: 0.875rem 1rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
+	padding: 0.875rem 1rem;
+	background: var(--card-bg);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	color: var(--text-primary);
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: all 0.2s ease;
 }
 
 .filter-select:focus {
-  outline: none;
-  border-color: var(--accent-primary);
+	outline: none;
+	border-color: var(--accent-primary);
 }
 
 .filter-select option {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+	background: var(--bg-primary);
+	color: var(--text-primary);
 }
 
 .results-info {
-  margin-bottom: 1.5rem;
-  color: var(--text-muted);
-  font-size: 0.9rem;
+	margin-bottom: 1.5rem;
+	color: var(--text-muted);
+	font-size: 0.9rem;
 }
 
 .resources-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	gap: 1.5rem;
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1.5rem;
+	border: none;
+	border-radius: 10px;
+	font-size: 0.95rem;
+	font-weight: 500;
+	text-decoration: none;
+	cursor: pointer;
+	transition: all 0.2s ease;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary), #ff5252);
-  color: white;
+	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+	color: white;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
+	transform: translateY(-2px);
 }
 
 @media (max-width: 768px) {
-  .controls {
-    flex-direction: column;
-  }
+	.controls {
+		flex-direction: column;
+	}
 
-  .filters {
-    width: 100%;
-  }
+	.filters {
+		width: 100%;
+	}
 
-  .filter-select {
-    flex: 1;
-  }
+	.filter-select {
+		flex: 1;
+	}
 }
 </style>
