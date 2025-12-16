@@ -5,6 +5,7 @@ import {useToastStore} from '../stores/toast'
 import ResourceCard from '../components/ResourceCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
+import {downloadApi, resourceApi} from "../api/index.js";
 
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()
@@ -12,6 +13,7 @@ const toastStore = useToastStore()
 const searchQuery = ref('')
 const filterStatus = ref('all')
 const sortBy = ref('date')
+const refreshing = ref(false)
 
 onMounted(async () => {
 	await resourceStore.fetchResources()
@@ -68,18 +70,36 @@ async function handleRefresh(avid) {
 }
 
 async function handleDeleteResource(avid) {
-	// 从资源列表中移除已删除的资源
-	resourceStore.resources = resourceStore.resources.filter(
-		r => r.avid !== avid
-	)
+	// 完全删除资源
+	try {
+		await resourceApi.delete(avid)
+		await handleManualRefresh()
+		toastStore.success(`${avid} 已被完全删除`)
+	} catch (err) {
+		toastStore.error(err.message || "删除失败")
+	}
 }
 
 async function handleDeleteFile(avid) {
-	// 更新资源的下载状态
-	const resource = resourceStore.resources.find(r => r.avid === avid)
-	if (resource) {
-		resource.has_video = false
-		resource.file_size = null
+	// 删除资源视频
+	try {
+		await downloadApi.deleteFile(avid)
+		await handleManualRefresh()
+		toastStore.success(`${avid} 已删除视频`)
+	} catch (err) {
+		toastStore.error(err.message || "删除失败")
+	}
+}
+
+async function handleManualRefresh() {
+	refreshing.value = true
+	try {
+		await resourceStore.fetchResources()
+		toastStore.success('资源列表已刷新')
+	} catch (err) {
+		toastStore.error(err.message || '刷新失败')
+	} finally {
+		refreshing.value = false
 	}
 }
 </script>
@@ -147,6 +167,18 @@ async function handleDeleteFile(avid) {
 				@deleteFile="handleDeleteFile"
 			/>
 		</div>
+
+		<!-- 悬浮刷新按钮 -->
+		<button
+			class="floating-refresh-btn"
+			:disabled="refreshing"
+			@click="handleManualRefresh"
+			:title="refreshing ? '刷新中...' : '刷新资源列表'"
+		>
+			<span class="refresh-icon" :class="{ spinning: refreshing }">
+				{{ refreshing ? '◷' : '↻' }}
+			</span>
+		</button>
 	</div>
 </template>
 
@@ -284,6 +316,55 @@ async function handleDeleteFile(avid) {
 	transform: translateY(-2px);
 }
 
+/* 悬浮刷新按钮 */
+.floating-refresh-btn {
+	position: fixed;
+	bottom: 2rem;
+	right: 2rem;
+	width: 60px;
+	height: 60px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+	border: none;
+	box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+	cursor: pointer;
+	transition: all 0.3s ease;
+	z-index: 1000;
+	display: block;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	font-size: 1.2rem;
+}
+
+.floating-refresh-btn:hover:not(:disabled) {
+	transform: translateY(-3px);
+	box-shadow: 0 6px 25px rgba(255, 107, 107, 0.4);
+}
+
+.floating-refresh-btn:disabled {
+	opacity: 0.7;
+	cursor: not-allowed;
+}
+
+.refresh-icon {
+	display: block;
+	transition: transform 0.3s ease;
+}
+
+.refresh-icon.spinning {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 @media (max-width: 768px) {
 	.controls {
 		flex-direction: column;
@@ -295,6 +376,14 @@ async function handleDeleteFile(avid) {
 
 	.filter-select {
 		flex: 1;
+	}
+
+	.floating-refresh-btn {
+		bottom: 1.5rem;
+		right: 1.5rem;
+		width: 50px;
+		height: 50px;
+		font-size: 1rem;
 	}
 }
 </style>

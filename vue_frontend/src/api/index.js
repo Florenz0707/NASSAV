@@ -57,6 +57,9 @@ export const downloadApi = {
     // 获取已下载视频列表
     getList: () => api.get('/downloads/list'),
 
+    // 获取视频文件路径
+    getFilePath: (avid) => api.get('/downloads/abspath', {params: {avid}}),
+
     // 提交下载任务
     submitDownload: (avid) => api.post(`/downloads/${encodeURIComponent(avid)}`),
 

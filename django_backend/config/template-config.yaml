@@ -2,6 +2,8 @@ Proxy:
   Enable: false
   url: http://127.0.0.1:443
 
+UrlPrefix: null
+
 Scraper:
   javbus:
     domain: www.javbus.com

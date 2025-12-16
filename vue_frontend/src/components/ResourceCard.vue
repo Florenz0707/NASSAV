@@ -1,8 +1,8 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { resourceApi, downloadApi } from '../api'
-import { useToastStore } from '../stores/toast'
-import { RouterLink } from 'vue-router'
+import {computed, ref, onMounted, onUnmounted} from 'vue'
+import {resourceApi, downloadApi} from '../api'
+import {useToastStore} from '../stores/toast'
+import {RouterLink} from 'vue-router'
 
 const props = defineProps({
 	resource: {
@@ -29,12 +29,12 @@ const deleteOptions = computed(() => {
 
 	if (isDownloaded) {
 		baseOptions.push(
-			{ text: '删除视频', action: 'deleteFile', confirm: '确定要删除视频文件吗？元数据和封面将保留' },
-			{ text: '全部删除', action: 'delete', confirm: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？' }
+			{text: '删除视频', action: 'deleteFile', confirm: '确定要删除视频文件吗？元数据和封面将保留'},
+			{text: '全部删除', action: 'delete', confirm: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？'}
 		)
 	} else {
 		baseOptions.push(
-			{ text: '删除元数据', action: 'delete', confirm: '确定要删除该资源的元数据和封面吗？' }
+			{text: '删除数据', action: 'delete', confirm: '确定要删除该资源的元数据和封面吗？'}
 		)
 	}
 	return baseOptions
@@ -80,7 +80,7 @@ onUnmounted(() => {
 <template>
 	<div class="resource-card" :class="statusClass">
 		<div class="card-cover">
-			<img :src="coverUrl" :alt="resource.title" loading="lazy" />
+			<img :src="coverUrl" :alt="resource.title" loading="lazy"/>
 			<div class="cover-overlay">
 				<RouterLink :to="`/resource/${resource.avid}`" class="btn-view">
 					查看详情
@@ -92,7 +92,12 @@ onUnmounted(() => {
 		</div>
 
 		<div class="card-content">
-			<div class="card-avid">{{ resource.avid }}</div>
+			<div class="meta-head">
+				<div class="card-avid">{{ resource.avid }}</div>
+				<div class="card-download" :class="{ downloaded: resource.has_video }">
+					{{ resource.has_video ? '已下载' : '未下载' }}
+				</div>
+			</div>
 			<h3 class="card-title" :title="resource.title">{{ resource.title }}</h3>
 
 			<div class="card-meta">
@@ -108,19 +113,20 @@ onUnmounted(() => {
 
 			<div class="card-actions">
 				<button
+					class="btn btn-secondary btn-small"
+					@click="emit('refresh', resource.avid)"
+				>
+					<span class="btn-icon">↻</span>
+					刷新
+				</button>
+
+				<button
 					v-if="!resource.has_video"
 					class="btn btn-primary btn-small"
 					@click="emit('download', resource.avid)"
 				>
 					<span class="btn-icon">⬇</span>
 					下载
-				</button>
-				<button
-					class="btn btn-secondary btn-small"
-					@click="emit('refresh', resource.avid)"
-				>
-					<span class="btn-icon">↻</span>
-					刷新
 				</button>
 
 				<!-- 删除按钮容器 -->
@@ -219,26 +225,16 @@ onUnmounted(() => {
 	transform: scale(1.05);
 }
 
-.status-badge {
-	position: absolute;
-	top: 12px;
-	right: 12px;
-	padding: 0.35rem 0.75rem;
-	border-radius: 20px;
-	font-size: 0.75rem;
-	font-weight: 600;
-	background: rgba(255, 193, 7, 0.6);
-	color: #1a1a2e;
-}
-
-.status-badge.downloaded {
-	background: rgba(46, 213, 115, 0.6);
-	color: #1a1a2e;
-}
-
 .card-content {
 	padding: 1.25rem;
 	position: relative; /* 确保菜单不会超出卡片 */
+}
+
+.meta-head {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 1rem;
+	margin-bottom: 10px;
 }
 
 .card-avid {
@@ -247,6 +243,26 @@ onUnmounted(() => {
 	color: var(--accent-primary);
 	font-weight: 600;
 	margin-bottom: 0.5rem;
+	background: rgba(255, 107, 107, 0.15);
+	border-radius: 6px;
+	width: fit-content;
+	padding: 4px 8px;
+}
+
+.card-download {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.85rem;
+	color: var(--accent-secondary);
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+	background: rgba(255, 107, 107, 0.15);
+	border-radius: 6px;
+	width: fit-content;
+	padding: 4px 8px;
+}
+
+.card-download.downloaded {
+	color: var(--accent-primary);
 }
 
 .card-title {
@@ -266,6 +282,7 @@ onUnmounted(() => {
 	flex-wrap: wrap;
 	gap: 0.75rem;
 	margin-bottom: 1rem;
+	justify-content: left;
 }
 
 .meta-item {
@@ -357,7 +374,7 @@ onUnmounted(() => {
 	border: 1px solid var(--border-color);
 	border-radius: 8px;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-	min-width: 90px;
+	min-width: 85px;
 	z-index: 100;
 	overflow: hidden;
 	/* 防止菜单超出卡片 */
@@ -373,7 +390,7 @@ onUnmounted(() => {
 	background: rgba(239, 71, 111, 0.2);
 	border: none;
 	color: #ef476f;
-	font-size: 0.85rem;
+	font-size: 0.8rem;
 	cursor: pointer;
 	transition: background 0.2s ease;
 }

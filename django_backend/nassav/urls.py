@@ -29,6 +29,9 @@ urlpatterns = [
     # GET /api/downloads/list - 获取已下载的所有视频的avid
     path('api/downloads/list', views.DownloadsListView.as_view(), name='downloads-list'),
 
+    # GET /api/downloads/abspath?avid= - 返回视频文件的绝对路径，前面拼接 config.UrlPrefix
+    path('api/downloads/abspath', views.DownloadAbspathView.as_view(), name='downloads-abspath'),
+
     # POST /api/downloads/{avid} - 通过avid下载视频
     path('api/downloads/<str:avid>', views.NewDownloadView.as_view(), name='downloads-new'),
 

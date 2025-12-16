@@ -111,18 +111,18 @@ class SourceManager:
     def get_info_from_any_source(self, avid: str) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:
         """
         遍历所有源获取信息
-        返回: (info, downloader, html) 或 None
+        返回: (info, source, html) 或 None
         """
         import time
-        for name, downloader in self.get_sorted_sources():
+        for name, source in self.get_sorted_sources():
             logger.info(f"尝试从 {name} 获取 {avid}")
-            html = downloader.get_html(avid)
+            html = source.get_html(avid)
             time.sleep(0.5)
             if html:
-                info = downloader.parse_html(html)
+                info = source.parse_html(html)
                 if info:
                     info.avid = avid.upper()
-                    return info, downloader, html
+                    return info, source, html
         return None
 
     def get_info_from_source(self, avid: str, source: str) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:

@@ -105,7 +105,7 @@ class ResourceListView(APIView):
                             resources.append({
                                 'avid': avid,
                                 'title': metadata.get('title', ''),
-                                'downloader': metadata.get('downloader', ''),
+                                'source': metadata.get('source', ''),
                                 'release_date': metadata.get('release_date', ''),
                                 'has_video': (item / f"{avid}.mp4").exists()
                             })
@@ -186,6 +186,54 @@ class DownloadsListView(APIView):
         })
 
 
+class DownloadAbspathView(APIView):
+    """
+    GET /api/downloads/abspath?avid=
+    返回视频文件的绝对路径，并在前面拼接 config.UrlPrefix 作为前缀
+    """
+
+    def get(self, request):
+        avid = request.query_params.get('avid', '').upper()
+        if not avid:
+            return Response({
+                'code': 400,
+                'message': 'avid参数缺失',
+                'data': None
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        resource_dir = settings.RESOURCE_DIR / avid
+        mp4_path = resource_dir / f"{avid}.mp4"
+
+        if not mp4_path.exists():
+            return Response({
+                'code': 404,
+                'message': f'视频 {avid} 不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            abs_path = str(mp4_path.resolve())
+        except Exception:
+            abs_path = str(mp4_path.absolute())
+
+        url_prefix = ''
+        try:
+            url_prefix = settings.CONFIG.get('UrlPrefix', '') if hasattr(settings, 'CONFIG') else ''
+        except Exception:
+            url_prefix = ''
+
+        # 拼接前缀和绝对路径
+        prefixed = f"{url_prefix}{abs_path}"
+
+        return Response({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                "abspath": prefixed
+            }
+        })
+
+
 class ResourceMetadataView(APIView):
     """
     GET /api/resource/downloads/metadata?avid=
@@ -257,7 +305,7 @@ class NewResourceView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         avid = serializer.validated_data['avid'].upper()
-        source = serializer.validated_data.get('downloader', 'any').lower()
+        source = serializer.validated_data.get('source', 'any').lower()
 
         # 检查资源是否已存在（基于 resource 目录）
         resource_dir = settings.RESOURCE_DIR / avid
@@ -272,7 +320,7 @@ class NewResourceView(APIView):
                     'data': {
                         'avid': avid,
                         'title': metadata.get('title', ''),
-                        'downloader': metadata.get('downloader', ''),
+                        'source': metadata.get('source', ''),
                         'cover_downloaded': True,
                         'html_saved': True,
                         'metadata_saved': True,
@@ -307,10 +355,10 @@ class NewResourceView(APIView):
                 'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-        info, downloader, html = result
+        info, source, html = result
 
         # 一次性保存所有资源（HTML、封面、元数据）到 resource/{avid}/
-        save_result = source_manager.save_all_resources(avid, info, downloader, html)
+        save_result = source_manager.save_all_resources(avid, info, source, html)
         if not save_result['cover_saved']:
             logger.warning(f"封面下载失败: {avid}")
 
@@ -320,7 +368,7 @@ class NewResourceView(APIView):
             'data': {
                 'avid': info.avid,
                 'title': info.title,
-                'downloader': info.source,
+                'source': info.source,
                 'cover_downloaded': save_result['cover_saved'],
                 'html_saved': save_result['html_saved'],
                 'metadata_saved': save_result['metadata_saved'],
@@ -437,7 +485,7 @@ class RefreshResourceView(APIView):
             'data': {
                 'avid': info.avid,
                 'title': info.title,
-                'downloader': info.source,
+                'source': info.source,
                 'cover_downloaded': save_result['cover_saved'],
                 'html_saved': save_result['html_saved'],
                 'metadata_saved': save_result['metadata_saved'],
