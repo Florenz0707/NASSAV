@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { resourceApi } from '../api'
+import {computed} from 'vue'
+import {resourceApi} from '../api'
 
 const props = defineProps({
   resource: {
@@ -22,7 +22,7 @@ const statusClass = computed(() => ({
 <template>
   <div class="resource-card" :class="statusClass">
     <div class="card-cover">
-      <img :src="coverUrl" :alt="resource.title" loading="lazy" />
+      <img :src="coverUrl" :alt="resource.title" loading="lazy"/>
       <div class="cover-overlay">
         <RouterLink :to="`/resource/${resource.avid}`" class="btn-view">
           查看详情
@@ -50,16 +50,16 @@ const statusClass = computed(() => ({
 
       <div class="card-actions">
         <button
-          v-if="!resource.has_video"
-          class="btn btn-primary btn-small"
-          @click="emit('download', resource.avid)"
+            v-if="!resource.has_video"
+            class="btn btn-primary btn-small"
+            @click="emit('download', resource.avid)"
         >
           <span class="btn-icon">⬇</span>
           下载
         </button>
         <button
-          class="btn btn-secondary btn-small"
-          @click="emit('refresh', resource.avid)"
+            class="btn btn-secondary btn-small"
+            @click="emit('refresh', resource.avid)"
         >
           <span class="btn-icon">↻</span>
           刷新

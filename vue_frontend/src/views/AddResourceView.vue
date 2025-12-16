@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useResourceStore } from '../stores/resource'
-import { useToastStore } from '../stores/toast'
+import {ref, onMounted} from 'vue'
+import {useRouter} from 'vue-router'
+import {useResourceStore} from '../stores/resource'
+import {useToastStore} from '../stores/toast'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const router = useRouter()
@@ -79,12 +79,12 @@ function addAnother() {
         <div class="form-group">
           <label class="form-label">视频编号 (AVID)</label>
           <input
-            v-model="avid"
-            type="text"
-            placeholder="例如: SSIS-469"
-            class="form-input"
-            :disabled="submitting"
-            @input="avid = avid.toUpperCase()"
+              v-model="avid"
+              type="text"
+              placeholder="例如: SSIS-469"
+              class="form-input"
+              :disabled="submitting"
+              @input="avid = avid.toUpperCase()"
           />
           <p class="form-hint">支持多种格式，如 SSIS-469、ABP-123 等</p>
         </div>
@@ -101,11 +101,11 @@ function addAnother() {
         </div>
 
         <button
-          type="submit"
-          class="btn btn-primary btn-large btn-full"
-          :disabled="submitting || !avid.trim()"
+            type="submit"
+            class="btn btn-primary btn-large btn-full"
+            :disabled="submitting || !avid.trim()"
         >
-          <LoadingSpinner v-if="submitting" size="small" />
+          <LoadingSpinner v-if="submitting" size="small"/>
           <template v-else>
             <span class="btn-icon">⊕</span>
             添加资源
@@ -185,8 +185,14 @@ function addAnother() {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .page-header {

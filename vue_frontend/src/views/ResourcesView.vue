@@ -1,7 +1,7 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
-import { useResourceStore } from '../stores/resource'
-import { useToastStore } from '../stores/toast'
+import {onMounted, ref, computed} from 'vue'
+import {useResourceStore} from '../stores/resource'
+import {useToastStore} from '../stores/toast'
 import ResourceCard from '../components/ResourceCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -24,9 +24,9 @@ const filteredResources = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(r =>
-      r.avid.toLowerCase().includes(query) ||
-      r.title.toLowerCase().includes(query) ||
-      r.source.toLowerCase().includes(query)
+        r.avid.toLowerCase().includes(query) ||
+        r.title.toLowerCase().includes(query) ||
+        r.source.toLowerCase().includes(query)
     )
   }
 
@@ -79,10 +79,10 @@ async function handleRefresh(avid) {
       <div class="search-box">
         <span class="search-icon">⌕</span>
         <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜索 AVID、标题、来源..."
-          class="search-input"
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜索 AVID、标题、来源..."
+            class="search-input"
         />
       </div>
 
@@ -105,13 +105,13 @@ async function handleRefresh(avid) {
       <span>共 {{ filteredResources.length }} 个资源</span>
     </div>
 
-    <LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
+    <LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..."/>
 
     <EmptyState
-      v-else-if="filteredResources.length === 0"
-      icon="◇"
-      title="暂无资源"
-      :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
+        v-else-if="filteredResources.length === 0"
+        icon="◇"
+        title="暂无资源"
+        :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
     >
       <template #action>
         <RouterLink to="/add" class="btn btn-primary">
@@ -122,11 +122,11 @@ async function handleRefresh(avid) {
 
     <div v-else class="resources-grid">
       <ResourceCard
-        v-for="resource in filteredResources"
-        :key="resource.avid"
-        :resource="resource"
-        @download="handleDownload"
-        @refresh="handleRefresh"
+          v-for="resource in filteredResources"
+          :key="resource.avid"
+          :resource="resource"
+          @download="handleDownload"
+          @refresh="handleRefresh"
       />
     </div>
   </div>
@@ -138,8 +138,12 @@ async function handleRefresh(avid) {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .page-header {

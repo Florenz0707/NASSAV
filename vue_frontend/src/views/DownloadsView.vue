@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useResourceStore } from '../stores/resource'
-import { resourceApi } from '../api'
+import {ref, onMounted, computed} from 'vue'
+import {useResourceStore} from '../stores/resource'
+import {resourceApi} from '../api'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 
@@ -52,13 +52,13 @@ const totalSize = computed(() => {
       </div>
     </div>
 
-    <LoadingSpinner v-if="loading" size="large" text="加载下载列表..." />
+    <LoadingSpinner v-if="loading" size="large" text="加载下载列表..."/>
 
     <EmptyState
-      v-else-if="downloadedResources.length === 0"
-      icon="⬇"
-      title="暂无下载"
-      description="您还没有下载任何视频，去资源库添加并下载吧"
+        v-else-if="downloadedResources.length === 0"
+        icon="⬇"
+        title="暂无下载"
+        description="您还没有下载任何视频，去资源库添加并下载吧"
     >
       <template #action>
         <RouterLink to="/resources" class="btn btn-primary">
@@ -69,15 +69,15 @@ const totalSize = computed(() => {
 
     <div v-else class="downloads-list">
       <RouterLink
-        v-for="resource in downloadedResources"
-        :key="resource.avid"
-        :to="`/resource/${resource.avid}`"
-        class="download-item"
+          v-for="resource in downloadedResources"
+          :key="resource.avid"
+          :to="`/resource/${resource.avid}`"
+          class="download-item"
       >
         <img
-          :src="resourceApi.getCoverUrl(resource.avid)"
-          :alt="resource.title"
-          class="download-cover"
+            :src="resourceApi.getCoverUrl(resource.avid)"
+            :alt="resource.title"
+            class="download-cover"
         />
         <div class="download-info">
           <div class="download-avid">{{ resource.avid }}</div>
@@ -102,8 +102,12 @@ const totalSize = computed(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .page-header {

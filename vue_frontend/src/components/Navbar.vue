@@ -1,14 +1,14 @@
 <script setup>
-import { RouterLink, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import {RouterLink, useRoute} from 'vue-router'
+import {computed} from 'vue'
 
 const route = useRoute()
 
 const navItems = [
-  { path: '/', name: '首页', icon: '◈' },
-  { path: '/resources', name: '资源库', icon: '▣' },
-  { path: '/add', name: '添加资源', icon: '⊕' },
-  { path: '/downloads', name: '下载管理', icon: '⬇' }
+  {path: '/', name: '首页', icon: '◈'},
+  {path: '/resources', name: '资源库', icon: '▣'},
+  {path: '/add', name: '添加资源', icon: '⊕'},
+  {path: '/downloads', name: '下载管理', icon: '⬇'}
 ]
 
 const isActive = (path) => {
@@ -27,10 +27,10 @@ const isActive = (path) => {
 
       <div class="nav-links">
         <RouterLink
-          v-for="item in navItems"
-          :key="item.path"
-          :to="item.path"
-          :class="['nav-link', { active: isActive(item.path) }]"
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            :class="['nav-link', { active: isActive(item.path) }]"
         >
           <span class="nav-icon">{{ item.icon }}</span>
           <span class="nav-text">{{ item.name }}</span>

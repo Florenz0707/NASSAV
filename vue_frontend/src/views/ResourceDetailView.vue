@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { resourceApi } from '../api'
-import { useResourceStore } from '../stores/resource'
-import { useToastStore } from '../stores/toast'
+import {ref, onMounted, computed} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
+import {resourceApi} from '../api'
+import {useResourceStore} from '../stores/resource'
+import {useToastStore} from '../stores/toast'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const route = useRoute()
@@ -87,7 +87,7 @@ function goBack() {
       返回
     </button>
 
-    <LoadingSpinner v-if="loading" size="large" text="加载详情中..." />
+    <LoadingSpinner v-if="loading" size="large" text="加载详情中..."/>
 
     <div v-else-if="error" class="error-state">
       <div class="error-icon">✕</div>
@@ -99,7 +99,7 @@ function goBack() {
     <template v-else-if="metadata">
       <div class="detail-header">
         <div class="cover-wrapper">
-          <img :src="coverUrl" :alt="metadata.title" class="cover-image" />
+          <img :src="coverUrl" :alt="metadata.title" class="cover-image"/>
           <div class="cover-status" :class="{ downloaded: metadata.file_exists }">
             {{ metadata.file_exists ? '已下载' : '未下载' }}
           </div>
@@ -130,18 +130,18 @@ function goBack() {
 
           <div class="action-buttons">
             <button
-              v-if="!metadata.file_exists"
-              class="btn btn-primary"
-              :disabled="downloading"
-              @click="handleDownload"
+                v-if="!metadata.file_exists"
+                class="btn btn-primary"
+                :disabled="downloading"
+                @click="handleDownload"
             >
               <span class="btn-icon">{{ downloading ? '◷' : '⬇' }}</span>
               {{ downloading ? '提交中...' : '下载视频' }}
             </button>
             <button
-              class="btn btn-secondary"
-              :disabled="refreshing"
-              @click="handleRefresh"
+                class="btn btn-secondary"
+                :disabled="refreshing"
+                @click="handleRefresh"
             >
               <span class="btn-icon">{{ refreshing ? '◷' : '↻' }}</span>
               {{ refreshing ? '刷新中...' : '刷新信息' }}
@@ -201,8 +201,12 @@ function goBack() {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .back-btn {

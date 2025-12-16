@@ -1,7 +1,7 @@
 <script setup>
-import { onMounted, computed } from 'vue'
-import { useResourceStore } from '../stores/resource'
-import { RouterLink } from 'vue-router'
+import {onMounted, computed} from 'vue'
+import {useResourceStore} from '../stores/resource'
+import {RouterLink} from 'vue-router'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const resourceStore = useResourceStore()
@@ -80,15 +80,15 @@ const recentResources = computed(() => {
 
       <div class="recent-grid">
         <RouterLink
-          v-for="resource in recentResources"
-          :key="resource.avid"
-          :to="`/resource/${resource.avid}`"
-          class="recent-item"
+            v-for="resource in recentResources"
+            :key="resource.avid"
+            :to="`/resource/${resource.avid}`"
+            class="recent-item"
         >
           <img
-            :src="`/nassav/api/resource/cover?avid=${resource.avid}`"
-            :alt="resource.title"
-            class="recent-cover"
+              :src="`/nassav/api/resource/cover?avid=${resource.avid}`"
+              :alt="resource.title"
+              class="recent-cover"
           />
           <div class="recent-info">
             <span class="recent-avid">{{ resource.avid }}</span>
@@ -101,7 +101,7 @@ const recentResources = computed(() => {
       </div>
     </section>
 
-    <LoadingSpinner v-if="resourceStore.loading" text="加载中..." />
+    <LoadingSpinner v-if="resourceStore.loading" text="加载中..."/>
   </div>
 </template>
 
@@ -111,8 +111,14 @@ const recentResources = computed(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero {
@@ -254,18 +260,30 @@ const recentResources = computed(() => {
 }
 
 @keyframes float1 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-20px, 20px); }
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-20px, 20px);
+  }
 }
 
 @keyframes float2 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(15px, -15px); }
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(15px, -15px);
+  }
 }
 
 @keyframes float3 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-10px, -20px); }
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-10px, -20px);
+  }
 }
 
 .stats-section {

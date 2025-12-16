@@ -7,7 +7,7 @@ from django.conf import settings
 from loguru import logger
 
 from .ScraperBase import ScraperBase
-from .JavbusScraper import JavbusScraper, BusdmmScraper, DmmseeScraper
+from .Javbus import Javbus, Busdmm, Dmmsee
 
 
 class ScraperManager:
@@ -15,9 +15,9 @@ class ScraperManager:
 
     # 刮削器类映射
     SCRAPER_CLASSES = {
-        'javbus': JavbusScraper,
-        'busdmm': BusdmmScraper,
-        'dmmsee': DmmseeScraper,
+        'javbus': Javbus,
+        'busdmm': Busdmm,
+        'dmmsee': Dmmsee,
     }
 
     def __init__(self, proxy: Optional[str] = None):

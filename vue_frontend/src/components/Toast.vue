@@ -1,5 +1,5 @@
 <script setup>
-import { useToastStore } from '../stores/toast'
+import {useToastStore} from '../stores/toast'
 
 const toastStore = useToastStore()
 
@@ -16,10 +16,10 @@ const iconMap = {
     <div class="toast-container">
       <TransitionGroup name="toast">
         <div
-          v-for="toast in toastStore.toasts"
-          :key="toast.id"
-          :class="['toast', `toast-${toast.type}`]"
-          @click="toastStore.remove(toast.id)"
+            v-for="toast in toastStore.toasts"
+            :key="toast.id"
+            :class="['toast', `toast-${toast.type}`]"
+            @click="toastStore.remove(toast.id)"
         >
           <span class="toast-icon">{{ iconMap[toast.type] }}</span>
           <span class="toast-message">{{ toast.message }}</span>

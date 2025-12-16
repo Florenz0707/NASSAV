@@ -15,6 +15,9 @@ dependencies = [
     "loguru>=0.7",
     "pip>=25.3",
     "uvicorn>=0.38.0",
+    "channels>=4.3.2",
+    "channels-redis>=4.3.0",
+    "celery-types>=0.23.0",
 ]
 
 [[tool.uv.index]]

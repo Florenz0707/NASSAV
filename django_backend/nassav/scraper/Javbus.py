@@ -10,7 +10,7 @@ from loguru import logger
 from .ScraperBase import ScraperBase
 
 
-class JavbusScraper(ScraperBase):
+class Javbus(ScraperBase):
     """JavBus 刮削器"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
@@ -119,7 +119,7 @@ class JavbusScraper(ScraperBase):
             return None
 
 
-class BusdmmScraper(JavbusScraper):
+class Busdmm(Javbus):
     """Busdmm 刮削器 - JavBus 镜像站"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
@@ -131,7 +131,7 @@ class BusdmmScraper(JavbusScraper):
         return "Busdmm"
 
 
-class DmmseeScraper(JavbusScraper):
+class Dmmsee(Javbus):
     """Dmmsee 刮削器 - JavBus 镜像站"""
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
