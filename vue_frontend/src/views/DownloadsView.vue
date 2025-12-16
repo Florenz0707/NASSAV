@@ -27,11 +27,11 @@ async function loadDownloads() {
 	}
 }
 
-const totalSize = computed(() => {
+computed(() => {
 	// 假设每个视频平均大小
 	const count = downloadedResources.value.length
 	return count > 0 ? `${count} 个视频` : '无'
-})
+});
 </script>
 
 <template>

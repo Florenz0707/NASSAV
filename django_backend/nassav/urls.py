@@ -40,4 +40,7 @@ urlpatterns = [
 
     # DELETE /api/resource/{avid} - 删除整个资源目录
     path('api/resource/<str:avid>', views.DeleteResourceView.as_view(), name='resource-delete'),
+
+    # GET /api/task/status - 查看当前任务队列状态和下载锁状态
+    path('api/task/status', views.TaskStatusView.as_view(), name='task-status'),
 ]
