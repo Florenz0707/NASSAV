@@ -1,7 +1,8 @@
 <script setup>
-import {computed} from 'vue'
-import {resourceApi} from '../api'
-import {useToastStore} from '../stores/toast'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { resourceApi, downloadApi } from '../api'
+import { useToastStore } from '../stores/toast'
+import { RouterLink } from 'vue-router'
 
 const props = defineProps({
 	resource: {
@@ -13,90 +14,73 @@ const props = defineProps({
 const emit = defineEmits(['download', 'refresh', 'delete', 'deleteFile'])
 
 const coverUrl = computed(() => resourceApi.getCoverUrl(props.resource.avid))
-
 const statusClass = computed(() => ({
 	downloaded: props.resource.has_video,
 	pending: !props.resource.has_video
 }))
 
 const toastStore = useToastStore()
+const showDeleteMenu = ref(false)
 
-// 显示删除确认对话框
-async function showDeleteOptions() {
-	const avid = props.resource.avid
+// 生成删除菜单选项
+const deleteOptions = computed(() => {
 	const isDownloaded = props.resource.has_video
+	const baseOptions = []
 
-	// 根据是否已下载显示不同的确认选项
-	const actions = [
-		{
-			text: isDownloaded ? '删除视频文件' : '删除资源',
-			value: isDownloaded ? 'file' : 'resource',
-			confirm: isDownloaded
-				? '确定要删除视频文件吗？元数据和封面将保留'
-				: '确定要删除该资源的所有数据吗？'
-		}
-	]
-
-	// 如果已下载，增加"删除全部"选项
 	if (isDownloaded) {
-		actions.push({
-			text: '删除全部数据',
-			value: 'resource',
-			confirm: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？'
-		})
-	}
-
-	// 显示确认对话框（这里使用浏览器原生confirm，实际项目可替换为UI库的对话框）
-	const action = await chooseAction(actions)
-	if (!action) return
-
-	if (action === 'file') {
-		await handleDeleteFile(avid)
+		baseOptions.push(
+			{ text: '删除视频', action: 'deleteFile', confirm: '确定要删除视频文件吗？元数据和封面将保留' },
+			{ text: '全部删除', action: 'delete', confirm: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？' }
+		)
 	} else {
-		await handleDeleteResource(avid)
+		baseOptions.push(
+			{ text: '删除元数据', action: 'delete', confirm: '确定要删除该资源的元数据和封面吗？' }
+		)
 	}
-}
+	return baseOptions
+})
 
-// 选择删除操作的辅助函数
-function chooseAction(actions) {
-	return new Promise(resolve => {
-		for (const act of actions) {
-			if (confirm(act.confirm)) {
-				resolve(act.value)
-				return
-			}
+// 点击删除选项后的确认与执行
+async function handleDeleteOption(option) {
+	if (!confirm(option.confirm)) return
+
+	try {
+		if (option.action === 'deleteFile') {
+			await downloadApi.deleteFile(props.resource.avid)
+			toastStore.success('视频文件已删除')
+			emit('deleteFile', props.resource.avid)
+		} else {
+			await resourceApi.delete(props.resource.avid)
+			toastStore.success('资源已删除')
+			emit('delete', props.resource.avid)
 		}
-		resolve(null)
-	})
-}
-
-// 删除视频文件（保留元数据）
-async function handleDeleteFile(avid) {
-	try {
-		await downloadApi.deleteFile(avid)
-		toastStore.success('视频文件已删除')
-		emit('deleteFile', avid) // 通知父组件更新列表
+		showDeleteMenu.value = false
 	} catch (err) {
-		toastStore.error(err.message || '删除视频失败')
+		toastStore.error(err.message || `删除${option.action === 'deleteFile' ? '视频' : '资源'}失败`)
 	}
 }
 
-// 删除整个资源（包括所有数据）
-async function handleDeleteResource(avid) {
-	try {
-		await resourceApi.delete(avid)
-		toastStore.success('资源已完全删除')
-		emit('deleteResource', avid) // 通知父组件更新列表
-	} catch (err) {
-		toastStore.error(err.message || '删除资源失败')
+// 点击外部关闭菜单
+function closeMenuOnOutsideClick(event) {
+	const menu = document.querySelector(`.delete-menu[data-avid="${props.resource.avid}"]`)
+	const btn = document.querySelector(`.delete-btn[data-avid="${props.resource.avid}"]`)
+	if (menu && btn && !menu.contains(event.target) && !btn.contains(event.target)) {
+		showDeleteMenu.value = false
 	}
 }
+
+onMounted(() => {
+	document.addEventListener('click', closeMenuOnOutsideClick)
+})
+onUnmounted(() => {
+	document.removeEventListener('click', closeMenuOnOutsideClick)
+})
 </script>
 
 <template>
 	<div class="resource-card" :class="statusClass">
 		<div class="card-cover">
-			<img :src="coverUrl" :alt="resource.title" loading="lazy"/>
+			<img :src="coverUrl" :alt="resource.title" loading="lazy" />
 			<div class="cover-overlay">
 				<RouterLink :to="`/resource/${resource.avid}`" class="btn-view">
 					查看详情
@@ -138,15 +122,35 @@ async function handleDeleteResource(avid) {
 					<span class="btn-icon">↻</span>
 					刷新
 				</button>
-				<!-- 删除按钮 -->
-				<button
-					class="btn delete-btn btn-small"
-					@click.stop="showDeleteOptions"
-					title="删除"
-				>
-					删除
-					<span class="delete-icon">✕</span>
-				</button>
+
+				<!-- 删除按钮容器 -->
+				<div class="delete-container" @click.stop>
+					<button
+						class="btn delete-btn btn-small"
+						:data-avid="resource.avid"
+						@click="showDeleteMenu = !showDeleteMenu"
+						title="删除"
+					>
+						<span class="btn-icon">✕</span>
+						删除
+					</button>
+
+					<!-- 下拉菜单（定位到按钮上方） -->
+					<div
+						class="delete-menu"
+						v-if="showDeleteMenu"
+						:data-avid="resource.avid"
+					>
+						<button
+							v-for="option in deleteOptions"
+							:key="option.action"
+							class="delete-menu-item"
+							@click="handleDeleteOption(option)"
+						>
+							{{ option.text }}
+						</button>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -223,17 +227,18 @@ async function handleDeleteResource(avid) {
 	border-radius: 20px;
 	font-size: 0.75rem;
 	font-weight: 600;
-	background: rgba(255, 193, 7, 0.9);
+	background: rgba(255, 193, 7, 0.6);
 	color: #1a1a2e;
 }
 
 .status-badge.downloaded {
-	background: rgba(46, 213, 115, 0.9);
+	background: rgba(46, 213, 115, 0.6);
 	color: #1a1a2e;
 }
 
 .card-content {
 	padding: 1.25rem;
+	position: relative; /* 确保菜单不会超出卡片 */
 }
 
 .card-avid {
@@ -280,6 +285,8 @@ async function handleDeleteResource(avid) {
 	display: flex;
 	gap: 0.5rem;
 	justify-content: space-between;
+	align-items: center;
+	position: relative;
 }
 
 .btn {
@@ -324,9 +331,13 @@ async function handleDeleteResource(avid) {
 	font-size: 0.9rem;
 }
 
-/* 删除按钮样式（与刷新按钮保持一致风格） */
+/* 删除按钮容器 */
+.delete-container {
+	position: relative;
+}
+
+/* 删除按钮样式 */
 .delete-btn {
-	/* 复用secondary按钮样式，仅调整颜色以区分功能 */
 	background: rgba(239, 71, 111, 0.1);
 	color: #ef476f;
 	border: 1px solid rgba(239, 71, 111, 0.2);
@@ -335,5 +346,60 @@ async function handleDeleteResource(avid) {
 .delete-btn:hover {
 	background: rgba(239, 71, 111, 0.2);
 	color: #ff5252;
+}
+
+/* 下拉菜单（核心修改：定位到按钮上方） */
+.delete-menu {
+	position: absolute;
+	bottom: calc(100% + 0.5rem); /* 改为底部对齐按钮顶部，向上展开 */
+	right: 0; /* 右对齐按钮 */
+	background: var(--card-bg);
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	min-width: 90px;
+	z-index: 100;
+	overflow: hidden;
+	/* 防止菜单超出卡片 */
+	max-height: calc(100vh - 20px);
+	overflow-y: auto;
+}
+
+/* 菜单选项样式 */
+.delete-menu-item {
+	width: 100%;
+	padding: 0.6rem 1rem;
+	text-align: center;
+	background: rgba(239, 71, 111, 0.2);
+	border: none;
+	color: #ef476f;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
+
+.delete-menu-item:hover {
+	background: rgba(239, 71, 111, 0.1);
+	color: #ef476f;
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+	.card-actions .btn span:not(.btn-icon) {
+		display: none;
+	}
+
+	.card-actions .btn {
+		padding: 0.5rem;
+	}
+
+	.delete-menu {
+		min-width: 100px;
+	}
+
+	.delete-menu-item {
+		padding: 0.5rem 0.8rem;
+		font-size: 0.8rem;
+	}
 }
 </style>
