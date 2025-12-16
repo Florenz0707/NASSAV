@@ -21,7 +21,7 @@ SECRET_KEY = 'django-insecure-nassav-backend-secret-key-change-in-production'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['http://localhost:8080']
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 # Redis Configuration
 REDIS_URL = "redis://localhost:6379/0"
