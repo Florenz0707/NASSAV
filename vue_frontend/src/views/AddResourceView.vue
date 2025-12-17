@@ -110,8 +110,9 @@ async function saveCookie() {
 		if (!response.ok || (result.code && (result.code < 200 || result.code >= 300))) {
 			toastStore.error(result.message || `HTTP ${response.status}`)
 		}
-
-		toastStore.success(`${cookieForm.value.source} Cookie 已保存`)
+		else {
+			toastStore.success(`${cookieForm.value.source} Cookie 已保存`)
+		}
 		closeCookieModal()
 	} catch (err) {
 		if (err.name === 'TypeError' && err.message.includes('fetch')) {
@@ -265,11 +266,11 @@ async function saveCookie() {
 							<textarea
 								v-model="cookieForm.cookie"
 								class="form-textarea"
-								placeholder="请粘贴完整的 Cookie 字符串...\n例如: sessionid=abc123; csrftoken=def456"
+								placeholder="填入auto以自动获取，或者粘贴完整的 Cookie 字符串。例如: sessionid=abc123; csrftoken=def456"
 								required
 								rows="4"
 							></textarea>
-							<p class="form-hint">从浏览器开发者工具的 Network 标签页中复制完整 Cookie</p>
+							<p class="form-hint">填入"auto"或者从浏览器开发者工具的Network标签页中复制完整 Cookie</p>
 						</div>
 
 						<div class="modal-actions">
@@ -277,7 +278,6 @@ async function saveCookie() {
 							<button type="submit" class="btn btn-primary" :disabled="savingCookie">
 								<LoadingSpinner v-if="savingCookie" size="small"/>
 								<template v-else>
-									<span class="btn-icon"></span>
 									保存
 								</template>
 							</button>
@@ -420,7 +420,7 @@ async function saveCookie() {
 }
 
 .btn-primary:hover:not(:disabled) {
-	transform: translateY(-2px);
+	transform: translateY(-1px);
 	box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);
 }
 

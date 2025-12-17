@@ -42,7 +42,7 @@
 
 ### POST /nassav/api/source/cookie
 
-设置指定源的 Cookie（持久化到数据库）。
+设置指定源的 Cookie（持久化到数据库）。当cookie为"auto"时，会尝试自动获取。
 
 **请求体：**
 

@@ -6,7 +6,7 @@ from typing import Optional
 from curl_cffi import requests
 from loguru import logger
 
-from nassav.services import HEADERS
+from nassav.constants import HEADERS
 
 
 class ScraperBase:

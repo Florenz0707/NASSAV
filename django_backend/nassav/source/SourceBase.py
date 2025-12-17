@@ -5,7 +5,7 @@ from curl_cffi import requests
 from loguru import logger
 
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.services import HEADERS
+from nassav.constants import HEADERS
 
 
 class SourceBase:
@@ -26,6 +26,99 @@ class SourceBase:
 
     def get_source_name(self) -> str:
         raise NotImplementedError
+
+    def _get_home_url(self) -> str:
+        """获取首页URL，用于cookie获取。子类可以重写此方法"""
+        if not self.domain:
+            raise ValueError(f"{self.get_source_name()} 未设置domain")
+        return f'https://{self.domain}/'
+
+    def set_cookie_auto(self, force_refresh: bool = False) -> bool:
+        """
+        自动获取cookie并存储到数据库
+
+        Args:
+            force_refresh: 是否强制刷新cookie，即使数据库中已存在
+
+        Returns:
+            bool: 是否成功获取并设置cookie
+        """
+        try:
+            from nassav.models import SourceCookie
+
+            source_name = self.get_source_name()
+
+            # 如果不强制刷新，先尝试从数据库加载
+            if not force_refresh:
+                try:
+                    cookie_obj = SourceCookie.objects.get(source_name=source_name)
+                    self.cookie = cookie_obj.cookie
+                    logger.info(f"{source_name}: 从数据库加载cookie")
+                    return True
+                except SourceCookie.DoesNotExist:
+                    logger.info(f"{source_name}: 数据库中无cookie，开始自动获取")
+
+            # 创建session获取cookie
+            session = requests.Session()
+            home_url = self._get_home_url()
+
+            logger.info(f"{source_name}: 正在访问 {home_url} 获取cookie...")
+
+            headers = HEADERS.copy()
+            response = session.get(
+                home_url,
+                proxies=self.proxies,
+                headers=headers,
+                timeout=self.timeout,
+                impersonate="chrome110",
+            )
+            response.raise_for_status()
+
+            # 获取cookie字符串
+            cookies = session.cookies.get_dict()
+            if not cookies:
+                logger.warning(f"{source_name}: 未获取到任何cookie")
+                return False
+
+            cookie_str = '; '.join([f"{k}={v}" for k, v in cookies.items()])
+            logger.info(f"{source_name}: 成功获取cookie: {list(cookies.keys())}")
+
+            # 保存到数据库
+            SourceCookie.objects.update_or_create(
+                source_name=source_name,
+                defaults={'cookie': cookie_str}
+            )
+            logger.info(f"{source_name}: Cookie已保存到数据库")
+
+            # 设置到当前实例
+            self.cookie = cookie_str
+
+            return True
+
+        except Exception as e:
+            logger.error(f"{self.get_source_name()}: 自动获取cookie失败: {str(e)}")
+            import traceback
+            logger.debug(traceback.format_exc())
+            return False
+
+    def load_cookie_from_db(self) -> bool:
+        """
+        从数据库加载cookie
+
+        Returns:
+            bool: 是否成功加载
+        """
+        try:
+            from nassav.models import SourceCookie
+
+            source_name = self.get_source_name()
+            cookie_obj = SourceCookie.objects.get(source_name=source_name)
+            self.cookie = cookie_obj.cookie
+            logger.info(f"{source_name}: 从数据库加载cookie成功")
+            return True
+        except Exception as e:
+            logger.debug(f"{self.get_source_name()}: 从数据库加载cookie失败: {str(e)}")
+            return False
 
     def get_html(self, avid: str) -> Optional[str]:
         raise NotImplementedError

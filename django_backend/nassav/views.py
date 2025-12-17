@@ -63,7 +63,49 @@ class SourceCookieView(APIView):
                 }
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # 设置 cookie
+        # 如果 cookie 为 "auto"，自动获取
+        if cookie.lower() == "auto":
+            try:
+                # 获取源实例（不区分大小写）
+                source_instance = None
+                for name, source in source_manager.sources.items():
+                    if name.lower() == source_name.lower():
+                        source_instance = source
+                        break
+
+                if not source_instance:
+                    return Response({
+                        'code': 500,
+                        'message': f'无法获取 {source_name} 实例',
+                        'data': None
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+                # 自动获取cookie
+                success = source_instance.set_cookie_auto(force_refresh=True)
+                if success:
+                    return Response({
+                        'code': 200,
+                        'message': 'Cookie自动获取成功',
+                        'data': {
+                            'source': source_name,
+                            'cookie_set': True
+                        }
+                    })
+                else:
+                    return Response({
+                        'code': 500,
+                        'message': 'Cookie自动获取失败',
+                        'data': None
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            except Exception as e:
+                logger.error(f"自动获取Cookie失败: {e}")
+                return Response({
+                    'code': 500,
+                    'message': f'自动获取Cookie失败: {str(e)}',
+                    'data': None
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 手动设置 cookie
         success = source_manager.set_source_cookie(source_name, cookie)
         if success:
             return Response({
@@ -71,7 +113,8 @@ class SourceCookieView(APIView):
                 'message': 'success',
                 'data': {
                     'source': source_name,
-                    'cookie_set': True
+                    'cookie_set': True,
+                    'auto_fetched': False
                 }
             })
         else:
