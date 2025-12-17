@@ -328,7 +328,7 @@ class ResourceMetadataView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NewResourceView(APIView):
+class ResourceView(APIView):
     """
     POST /api/resource/new
     通过avid获取资源信息并保存（HTML、封面、元数据）

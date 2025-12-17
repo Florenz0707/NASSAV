@@ -25,11 +25,9 @@ defineProps({
 <style scoped>
 .loading-container {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
 	align-items: center;
 	justify-content: center;
-	gap: 1rem;
-	padding: 2rem;
 }
 
 .spinner {
@@ -40,18 +38,18 @@ defineProps({
 }
 
 .small .spinner {
+	width: 12px;
+	height: 12px;
+}
+
+.medium .spinner {
 	width: 24px;
 	height: 24px;
 }
 
-.medium .spinner {
+.large .spinner {
 	width: 48px;
 	height: 48px;
-}
-
-.large .spinner {
-	width: 72px;
-	height: 72px;
 }
 
 .spinner-ring {

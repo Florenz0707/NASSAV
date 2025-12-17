@@ -21,7 +21,7 @@ urlpatterns = [
     path('api/resource/metadata', views.ResourceMetadataView.as_view(), name='resource-metadata'),
 
     # POST /api/resource/new - 通过avid获取资源信息（可指定source）
-    path('api/resource', views.NewResourceView.as_view(), name='resource-new'),
+    path('api/resource', views.ResourceView.as_view(), name='resource-new'),
 
     # POST /api/resource/refresh/{avid} - 刷新已有资源的元数据和m3u8链接
     path('api/resource/refresh/<str:avid>', views.RefreshResourceView.as_view(), name='resource-refresh'),

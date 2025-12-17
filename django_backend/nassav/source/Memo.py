@@ -20,13 +20,11 @@ class Memo(SourceBase):
         return "Memo"
 
     def get_html(self, avid: str) -> Optional[str]:
-        avid_lower = avid.lower()
         avid_upper = avid.upper()
         urls = [
-            f'https://{self.domain}/video/{avid_lower}',
             f'https://{self.domain}/video/{avid_upper}',
-            f'https://{self.domain}/cn/{avid_lower}',
-            f'https://{self.domain}/{avid_lower}',
+            f'https://{self.domain}/cn/{avid_upper}',
+            f'https://{self.domain}/{avid_upper}',
         ]
         for url in urls:
             content = self.fetch_html(url)
@@ -39,21 +37,6 @@ class Memo(SourceBase):
         info.source = self.get_source_name()
 
         try:
-            # 提取m3u8
-            m3u8_patterns = [
-                r'downloader:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
-                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
-                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
-            ]
-            for pattern in m3u8_patterns:
-                match = re.search(pattern, html)
-                if match:
-                    info.m3u8 = match.group(1)
-                    break
-
-            if not info.m3u8:
-                return None
-
             # 提取标题
             title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
             if title_match:
@@ -63,6 +46,9 @@ class Memo(SourceBase):
             avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
             if avid_match:
                 info.avid = avid_match.group(1).upper()
+
+            # 提取m3u8
+            info.m3u8 = f"https://video10.memojav.net/stream/{info.avid.upper()}/master.m3u8"
 
             return info
         except Exception as e:
