@@ -46,9 +46,9 @@ class SourceManager:
                 self.sources[source.get_source_name()] = source
 
         # 从数据库加载 cookie
-        sync_to_async(self._load_cookies_from_db)
+        sync_to_async(self.load_cookies_from_db)
 
-    def _load_cookies_from_db(self):
+    def load_cookies_from_db(self):
         """从数据库加载所有源的 cookie"""
         try:
             from nassav.models import SourceCookie
@@ -59,7 +59,7 @@ class SourceManager:
                 for name, source in self.sources.items():
                     if name.lower() == source_name:
                         source.set_cookie(cookie_obj.cookie)
-                        logger.debug(f"从数据库加载 {name} 的 Cookie")
+                        logger.info(f"从数据库加载 {name} 的 Cookie")
                         break
         except Exception as e:
             logger.warning(f"从数据库加载 Cookie 失败: {e}")

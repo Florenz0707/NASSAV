@@ -3,6 +3,7 @@ import {computed, ref, onMounted, onUnmounted} from 'vue'
 import {resourceApi, downloadApi} from '../api'
 import {useToastStore} from '../stores/toast'
 import {RouterLink} from 'vue-router'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps({
 	resource: {
@@ -21,6 +22,8 @@ const statusClass = computed(() => ({
 
 const toastStore = useToastStore()
 const showDeleteMenu = ref(false)
+const showConfirmDialog = ref(false)
+const pendingDeleteOption = ref(null)
 
 // 生成删除菜单选项
 const deleteOptions = computed(() => {
@@ -40,9 +43,16 @@ const deleteOptions = computed(() => {
 	return baseOptions
 })
 
-// 点击删除选项后的确认与执行
-async function handleDeleteOption(option) {
-	if (!confirm(option.confirm)) return
+function handleDeleteOption(option) {
+	pendingDeleteOption.value = option
+	showConfirmDialog.value = true
+	showDeleteMenu.value = false
+}
+
+// 确认删除操作
+async function confirmDelete() {
+	const option = pendingDeleteOption.value
+	if (!option) return
 
 	try {
 		if (option.action === 'deleteFile') {
@@ -54,10 +64,16 @@ async function handleDeleteOption(option) {
 			toastStore.success('资源已删除')
 			emit('delete', props.resource.avid)
 		}
-		showDeleteMenu.value = false
 	} catch (err) {
 		toastStore.error(err.message || `删除${option.action === 'deleteFile' ? '视频' : '资源'}失败`)
+	} finally {
+		pendingDeleteOption.value = null
 	}
+}
+
+// 取消删除操作
+function cancelDelete() {
+	pendingDeleteOption.value = null
 }
 
 // 点击外部关闭菜单
@@ -85,9 +101,6 @@ onUnmounted(() => {
 				<RouterLink :to="`/resource/${resource.avid}`" class="btn-view">
 					查看详情
 				</RouterLink>
-			</div>
-			<div class="status-badge" :class="{ downloaded: resource.has_video }">
-				{{ resource.has_video ? '已下载' : '未下载' }}
 			</div>
 		</div>
 
@@ -159,6 +172,18 @@ onUnmounted(() => {
 				</div>
 			</div>
 		</div>
+
+		<!-- 确认对话框 -->
+		<ConfirmDialog
+			v-model:show="showConfirmDialog"
+			:title="pendingDeleteOption?.action === 'deleteFile' ? '删除视频文件' : '删除资源'"
+			:message="pendingDeleteOption?.confirm || ''"
+			:type="'danger'"
+			confirm-text="确认删除"
+			cancel-text="取消"
+			@confirm="confirmDelete"
+			@cancel="cancelDelete"
+		/>
 	</div>
 </template>
 
@@ -188,7 +213,7 @@ onUnmounted(() => {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
-	transition: transform 0.5s ease;
+	transition: transform 0.2s ease;
 }
 
 .resource-card:hover .card-cover img {
@@ -231,10 +256,13 @@ onUnmounted(() => {
 }
 
 .meta-head {
-	display: grid;
+	display: flex;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 1rem;
 	margin-bottom: 10px;
+	justify-content: left;
+	align-items: center;
+	position: relative;
 }
 
 .card-avid {
@@ -280,7 +308,7 @@ onUnmounted(() => {
 .card-meta {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.75rem;
+	gap: 2rem;
 	margin-bottom: 1rem;
 	justify-content: left;
 }

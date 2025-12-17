@@ -84,14 +84,15 @@ async function jumpPlay() {
 	try {
 		const resp = await downloadApi.getFilePath(avid.value)
 		if (!resp || (typeof resp.code === 'number' && (resp.code < 200 || resp.code >= 300))) {
-			throw new Error(resp?.message || '获取路径失败')
+			toastStore.error(resp.message || '获取路径失败')
 		}
 
 		const path = resp.data.abspath
-		if (!path) throw new Error('未返回文件路径')
+		if (!path)
+			toastStore.error('未返回文件路径')
 
 		const fileUrl = `file:/${path}`
-		navigator.clipboard.writeText(fileUrl)
+		await navigator.clipboard.writeText(fileUrl)
 		toastStore.success('视频路径已复制到剪贴板')
 	} catch (err) {
 		toastStore.error(err.message)
@@ -173,6 +174,21 @@ async function jumpPlay() {
 						>
 							<span class="btn-icon">{{ refreshing ? '◷' : '↻' }}</span>
 							{{ refreshing ? '刷新中...' : '刷新信息' }}
+						</button>
+						<button
+							class="btn btn-secondary"
+							@click="deleteMetadata"
+						>
+							<span class="btn-icon">✕</span>
+							删除全部
+						</button>
+						<button
+							v-if="metadata.file_exists"
+							class="btn btn-secondary"
+							@click="deleteFile"
+						>
+							<span class="btn-icon">✕</span>
+							删除视频
 						</button>
 					</div>
 				</div>

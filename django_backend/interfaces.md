@@ -487,13 +487,15 @@
 }
 ```
 
+---
+
 ### GET /nassav/api/downloads/abspath
 
 返回视频文件的绝对路径。
 
-由于本项目主要作为NAS工具，所以不提供视频传输功能，可以将绝对路径粘贴到浏览器中观看视频。
+本项目主要作为NAS工具，不提供视频传输功能，可以将绝对路径粘贴到浏览器中观看。
 
-Config.UrlPrefix：路径前缀（如：在windows中查看wsl子系统的文件，UrlPrefix=/wsl.localhost/Ubuntu-${version}）。
+UrlPrefix：在config.yaml中配置，作为路径前缀（如：在windows中查看wsl子系统的文件，UrlPrefix=/wsl.localhost/Ubuntu-${version}）。
 
 **查询参数：**
 

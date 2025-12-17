@@ -108,7 +108,7 @@ async function saveCookie() {
 		const result = await response.json()
 
 		if (!response.ok || (result.code && (result.code < 200 || result.code >= 300))) {
-			throw new Error(result.message || `HTTP ${response.status}`)
+			toastStore.error(result.message || `HTTP ${response.status}`)
 		}
 
 		toastStore.success(`${cookieForm.value.source} Cookie 已保存`)

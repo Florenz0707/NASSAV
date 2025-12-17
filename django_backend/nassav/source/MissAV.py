@@ -25,6 +25,7 @@ class MissAV(SourceBase):
         avid_lower = avid.lower()
         urls = [
             f'https://{self.domain}/cn/{avid_lower}-chinese-subtitle',
+            f'https://{self.domain}/{avid_lower}-chinese-subtitle',
             f'https://{self.domain}/cn/{avid_lower}-uncensored-leak',
             f'https://{self.domain}/cn/{avid_lower}',
             f'https://{self.domain}/dm76/cn/{avid_lower}',
