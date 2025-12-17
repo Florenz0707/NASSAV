@@ -26,6 +26,9 @@ urlpatterns = [
     # POST /api/resource/refresh/{avid} - 刷新已有资源的元数据和m3u8链接
     path('api/resource/refresh/<str:avid>', views.RefreshResourceView.as_view(), name='resource-refresh'),
 
+    # DELETE /api/resource/{avid} - 删除整个资源目录
+    path('api/resource/<str:avid>', views.DeleteResourceView.as_view(), name='resource-delete'),
+
     # GET /api/downloads/list - 获取已下载的所有视频的avid
     path('api/downloads/list', views.DownloadsListView.as_view(), name='downloads-list'),
 
@@ -33,11 +36,8 @@ urlpatterns = [
     path('api/downloads/abspath', views.DownloadAbspathView.as_view(), name='downloads-abspath'),
 
     # POST /api/downloads/{avid} - 通过avid下载视频
-    path('api/downloads/<str:avid>', views.NewDownloadView.as_view(), name='downloads-new'),
+    path('api/downloads/<str:avid>', views.DownloadView.as_view(), name='downloads-new'),
 
     # DELETE /api/downloads/{avid} - 删除已下载的视频
-    path('api/downloads/<str:avid>', views.DeleteDownloadView.as_view(), name='downloads-delete'),
-
-    # DELETE /api/resource/{avid} - 删除整个资源目录
-    path('api/resource/<str:avid>', views.DeleteResourceView.as_view(), name='resource-delete'),
+    path('api/downloads/<str:avid>', views.DownloadView.as_view(), name='downloads-delete'),
 ]

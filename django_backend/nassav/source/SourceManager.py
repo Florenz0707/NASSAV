@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from loguru import logger
 
@@ -45,7 +46,7 @@ class SourceManager:
                 self.sources[source.get_source_name()] = source
 
         # 从数据库加载 cookie
-        self._load_cookies_from_db()
+        sync_to_async(self._load_cookies_from_db)
 
     def _load_cookies_from_db(self):
         """从数据库加载所有源的 cookie"""
@@ -158,7 +159,7 @@ class SourceManager:
         resource_dir.mkdir(parents=True, exist_ok=True)
         return resource_dir
 
-    def save_all_resources(self, avid: str, info: AVDownloadInfo, downloader: SourceBase, html: str) -> dict:
+    def save_all_resources(self, avid: str, info: AVDownloadInfo, source: SourceBase, html: str) -> dict:
         """
         一次性保存所有资源到 resource/{avid}/ 目录
         包括: HTML缓存、封面、元数据
@@ -184,11 +185,11 @@ class SourceManager:
             logger.error(f"保存 HTML 失败: {e}")
 
         # 2. 下载封面
-        cover_url = downloader.get_cover_url(html)
+        cover_url = source.get_cover_url(html)
         if cover_url:
             logger.info(f"封面下载地址: {cover_url}")
             cover_path = resource_dir / f"{avid}.jpg"
-            if downloader.download_file(cover_url, str(cover_path)):
+            if source.download_file(cover_url, str(cover_path)):
                 result['cover_saved'] = True
             else:
                 logger.warning(f"封面下载失败: {avid}")

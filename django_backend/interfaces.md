@@ -53,10 +53,10 @@
 }
 ```
 
-| 参数     | 类型     | 必填 | 说明           |
-|--------|--------|----|--------------|
+| 参数     | 类型     | 必填 | 说明          |
+|--------|--------|----|-------------|
 | source | string | 是  | 源名称（不区分大小写） |
-| cookie | string | 是  | Cookie 字符串   |
+| cookie | string | 是  | Cookie 字符串  |
 
 **成功响应 (200)：**
 
@@ -483,6 +483,42 @@
 {
     "code": 404,
     "message": "视频 SSIS-469 不存在",
+    "data": null
+}
+```
+
+### GET /nassav/api/downloads/abspath
+
+返回视频文件的绝对路径。
+
+由于本项目主要作为NAS工具，所以不提供视频传输功能，可以将绝对路径粘贴到浏览器中观看视频。
+
+Config.UrlPrefix：路径前缀（如：在windows中查看wsl子系统的文件，UrlPrefix=/wsl.localhost/Ubuntu-${version}）。
+
+**查询参数：**
+
+| 参数   | 类型     | 必填 | 说明   |
+|------|--------|----|------|
+| avid | string | 是  | 视频编号 |
+
+**成功响应 (200)：**
+
+```json
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "abspath": "UrlPrefix/file_path"
+    }
+}
+```
+
+**视频不存在响应 (404)：**
+
+```json
+{
+    "code": 404,
+    "message": "视频 xxx 不存在",
     "data": null
 }
 ```

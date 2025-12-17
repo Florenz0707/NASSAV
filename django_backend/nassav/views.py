@@ -1,4 +1,3 @@
-
 """
 API视图：实现资源管理接口
 所有信息以 resource 目录中的实际资源为准
@@ -378,13 +377,12 @@ class NewResourceView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class NewDownloadView(APIView):
-    """
-    POST /api/resource/downloads
-    通过avid下载视频，此avid的元数据必须已存在于 resource 目录中
-    """
-
+class DownloadView(APIView):
     def post(self, request, avid):
+        """
+        POST /api/resource/downloads
+        通过avid下载视频，此avid的元数据必须已存在于 resource 目录中
+        """
         avid = avid.upper()
 
         # 检查元数据是否存在
@@ -434,6 +432,43 @@ class NewDownloadView(APIView):
                 'file_size': None
             }
         }, status=status.HTTP_202_ACCEPTED)
+
+    def delete(self, request, avid):
+        """
+        DELETE /api/downloads/{avid}
+        删除已下载的视频文件
+        """
+        avid = avid.upper()
+        resource_dir = settings.RESOURCE_DIR / avid
+        mp4_path = resource_dir / f"{avid}.mp4"
+
+        if not mp4_path.exists():
+            return Response({
+                'code': 404,
+                'message': f'视频 {avid} 不存在',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            file_size = mp4_path.stat().st_size
+            mp4_path.unlink()
+            logger.info(f"已删除视频: {avid}")
+            return Response({
+                'code': 200,
+                'message': 'success',
+                'data': {
+                    'avid': avid,
+                    'deleted_file': f"{avid}.mp4",
+                    'file_size': file_size
+                }
+            })
+        except Exception as e:
+            logger.error(f"删除视频失败: {e}")
+            return Response({
+                'code': 500,
+                'message': f'删除失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class RefreshResourceView(APIView):
@@ -502,46 +537,6 @@ class RefreshResourceView(APIView):
                 'scraped': save_result.get('scraped', False)
             }
         })
-
-
-class DeleteDownloadView(APIView):
-    """
-    DELETE /api/downloads/{avid}
-    删除已下载的视频文件
-    """
-
-    def delete(self, request, avid):
-        avid = avid.upper()
-        resource_dir = settings.RESOURCE_DIR / avid
-        mp4_path = resource_dir / f"{avid}.mp4"
-
-        if not mp4_path.exists():
-            return Response({
-                'code': 404,
-                'message': f'视频 {avid} 不存在',
-                'data': None
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            file_size = mp4_path.stat().st_size
-            mp4_path.unlink()
-            logger.info(f"已删除视频: {avid}")
-            return Response({
-                'code': 200,
-                'message': 'success',
-                'data': {
-                    'avid': avid,
-                    'deleted_file': f"{avid}.mp4",
-                    'file_size': file_size
-                }
-            })
-        except Exception as e:
-            logger.error(f"删除视频失败: {e}")
-            return Response({
-                'code': 500,
-                'message': f'删除失败: {str(e)}',
-                'data': None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DeleteResourceView(APIView):
