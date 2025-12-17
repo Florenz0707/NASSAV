@@ -1,3 +1,4 @@
+
 """
 API视图：实现资源管理接口
 所有信息以 resource 目录中的实际资源为准
@@ -379,7 +380,7 @@ class NewResourceView(APIView):
 
 class NewDownloadView(APIView):
     """
-    POST /api/resource/downloads/new
+    POST /api/resource/downloads
     通过avid下载视频，此avid的元数据必须已存在于 resource 目录中
     """
 
@@ -410,35 +411,29 @@ class NewDownloadView(APIView):
                 }
             })
 
-        # 检查是否已有相同任务在队列中
-        from .services import redis_task_queue_lock
-        with redis_task_queue_lock(avid) as can_submit:
-            if not can_submit:
-                return Response({
-                    'code': 409,
-                    'message': '该视频的下载任务已在队列中，请等待执行完成',
-                    'data': {
-                        'avid': avid,
-                        'task_id': None,
-                        'status': 'already_queued',
-                        'file_size': None
-                    }
-                }, status=status.HTTP_409_CONFLICT)
+        # 使用Celery异步下载（带去重检查）
+        from .tasks import submit_download_task
+        task_result, is_duplicate = submit_download_task(avid)
 
-            # 使用Celery异步下载
-            from .tasks import download_video_task
-            task = download_video_task.delay(avid)
-
+        if is_duplicate:
             return Response({
-                'code': 202,
-                'message': '下载任务已提交',
-                'data': {
-                    'avid': avid,
-                    'task_id': task.id,
-                    'status': 'pending',
-                    'file_size': None
-                }
-            }, status=status.HTTP_202_ACCEPTED)
+                'code': 409,
+                'message': '下载任务已存在',
+                'data': None
+            })
+
+        task = task_result
+
+        return Response({
+            'code': 202,
+            'message': '下载任务已提交',
+            'data': {
+                'avid': avid,
+                'task_id': task.id,
+                'status': 'pending',
+                'file_size': None
+            }
+        }, status=status.HTTP_202_ACCEPTED)
 
 
 class RefreshResourceView(APIView):
@@ -590,55 +585,3 @@ class DeleteResourceView(APIView):
                 'message': f'删除失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class TaskStatusView(APIView):
-    """
-    GET /api/task/status
-    查看当前任务队列状态和下载锁状态
-    """
-
-    def get(self, request):
-        import redis
-        from django.conf import settings
-
-        redis_client = redis.from_url(settings.CELERY_BROKER_URL)
-
-        # 获取下载锁状态
-        download_lock_key = "nassav:download_lock"
-        download_lock_info = redis_client.get(download_lock_key)
-        download_lock_status = None
-        if download_lock_info:
-            download_lock_status = {
-                'locked': True,
-                'lock_info': download_lock_info.decode(),
-                'ttl': redis_client.ttl(download_lock_key)
-            }
-        else:
-            download_lock_status = {'locked': False}
-
-        # 获取任务队列状态
-        task_pattern = "nassav:task_queue:*"
-        task_keys = redis_client.keys(task_pattern)
-        queued_tasks = []
-
-        for key in task_keys:
-            key_str = key.decode() if isinstance(key, bytes) else key
-            avid = key_str.split(':')[-1]  # 从 "nassav:task_queue:AVID" 中提取 AVID
-            task_info = redis_client.get(key)
-            ttl = redis_client.ttl(key)
-
-            queued_tasks.append({
-                'avid': avid,
-                'task_info': task_info.decode() if task_info else None,
-                'ttl': ttl
-            })
-
-        return Response({
-            'code': 200,
-            'message': 'success',
-            'data': {
-                'download_lock': download_lock_status,
-                'queued_tasks_count': len(queued_tasks),
-                'queued_tasks': queued_tasks
-            }
-        })

@@ -3,6 +3,96 @@ Celery异步任务定义
 """
 from celery import shared_task
 from loguru import logger
+from django_project.celery import app as celery_app
+import redis
+from django.conf import settings
+
+
+def get_redis_client():
+    """获取Redis客户端"""
+    return redis.from_url(settings.CELERY_BROKER_URL)
+
+
+def is_task_existed(avid: str):
+    """
+    检查任务是否已存在于队列中
+
+    Args:
+        avid: 视频ID
+
+    Returns:
+        bool: 如果任务已存在返回True，否则返回False
+    """
+    avid = avid.upper()
+    task_name = 'nassav.tasks.download_video_task'
+
+    # 检查Redis锁
+    redis_client = get_redis_client()
+    lock_key = f"nassav:task_lock:{avid}"
+    if redis_client.exists(lock_key):
+        return True
+
+    # 检查Celery队列中的任务
+    insp = celery_app.control.inspect()
+
+    # 检查正在执行的任务
+    active_tasks = insp.active() or {}
+    for worker, tasks in active_tasks.items():
+        for task in tasks:
+            if (task.get('name') == task_name and
+                task.get('args') and
+                len(task['args']) > 0 and
+                task['args'][0].upper() == avid):
+                return True
+
+    # 检查队列中等待的任务
+    scheduled_tasks = insp.scheduled() or {}
+    for worker, tasks in scheduled_tasks.items():
+        for task in tasks:
+            task_info = task.get('request', {})
+            if (task_info.get('task') == task_name and
+                task_info.get('args') and
+                len(task_info['args']) > 0 and
+                task_info['args'][0].upper() == avid):
+                return True
+
+    # 检查保留的任务（reserved tasks）
+    reserved_tasks = insp.reserved() or {}
+    for worker, tasks in reserved_tasks.items():
+        for task in tasks:
+            if (task.get('name') == task_name and
+                task.get('args') and
+                len(task['args']) > 0 and
+                task['args'][0].upper() == avid):
+                return True
+
+    return False
+
+
+def create_task_lock(avid: str, task_id: str, expire_time: int = 3600):
+    """
+    创建任务锁
+
+    Args:
+        avid: 视频ID
+        task_id: 任务ID
+        expire_time: 锁过期时间（秒）
+    """
+    redis_client = get_redis_client()
+    lock_key = f"nassav:task_lock:{avid.upper()}"
+    redis_client.setex(lock_key, expire_time, task_id)
+
+
+def remove_task_lock(avid: str):
+    """
+    移除任务锁
+
+    Args:
+        avid: 视频ID
+    """
+    redis_client = get_redis_client()
+    lock_key = f"nassav:task_lock:{avid.upper()}"
+    redis_client.delete(lock_key)
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -17,14 +107,12 @@ def download_video_task(self, avid: str):
         dict: 下载结果
     """
     from .services import video_download_service
-    import redis
-    from django.conf import settings
 
-    # Redis客户端用于清理队列锁
-    redis_client = redis.from_url(settings.CELERY_BROKER_URL)
-    task_key = f"nassav:task_queue:{avid.upper()}"
+    avid = avid.upper()
+    logger.info(f"开始执行下载任务: {avid}, 任务ID: {self.request.id}")
 
-    logger.info(f"开始执行下载任务: {avid}")
+    # 创建任务锁，防止重复执行
+    create_task_lock(avid, self.request.id)
 
     try:
         success = video_download_service.download_video(avid)
@@ -58,44 +146,33 @@ def download_video_task(self, avid: str):
     finally:
         # 任务完成后清理队列锁（无论成功或失败）
         try:
-            redis_client.delete(task_key)
-            logger.info(f"清理任务队列锁: {avid}")
+            remove_task_lock(avid)
+            logger.info(f"已清理任务锁: {avid}")
         except Exception as e:
-            logger.warning(f"清理任务队列锁失败 {avid}: {str(e)}")
+            logger.error(f"清理任务锁失败 {avid}: {str(e)}")
 
 
-@shared_task
-def batch_download_task(avid_list: list):
+def submit_download_task(avid: str):
     """
-    批量下载视频任务
+    提交下载任务（带去重检查）
 
     Args:
-        avid_list: 视频编号列表
+        avid: 视频ID
 
     Returns:
-        dict: 批量下载结果
+        tuple: (task_result, is_duplicate)
+            task_result: 任务结果或None
+            is_duplicate: 是否为重复任务
     """
-    from .services import redis_task_queue_lock
+    avid = avid.upper()
 
-    results = []
-    for avid in avid_list:
-        # 检查是否已有相同任务在队列中
-        with redis_task_queue_lock(avid) as can_submit:
-            if can_submit:
-                result = download_video_task.delay(avid)
-                results.append({
-                    'avid': avid,
-                    'task_id': result.id,
-                    'status': 'submitted'
-                })
-            else:
-                results.append({
-                    'avid': avid,
-                    'task_id': None,
-                    'status': 'already_queued'
-                })
+    # 检查任务是否已存在
+    if is_task_existed(avid):
+        logger.warning(f"任务 {avid} 已存在于队列中，跳过提交")
+        return None, True
 
-    return {
-        'status': 'processed',
-        'tasks': results
-    }
+    # 提交任务
+    logger.info(f"提交下载任务: {avid}")
+    task_result = download_video_task.delay(avid)
+
+    return task_result, False

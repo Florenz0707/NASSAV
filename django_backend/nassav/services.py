@@ -1,12 +1,8 @@
 """
 服务层：封装下载器和刮削器逻辑
 """
-import os
-import time
-from contextlib import contextmanager
 from typing import Optional
 
-import redis
 from django.conf import settings
 from loguru import logger
 
@@ -32,100 +28,6 @@ HEADERS = {
 
 from nassav.source.SourceManager import SourceManager, source_manager
 from nassav.m3u8downloader import M3u8DownloaderBase, N_m3u8DL_RE
-
-# Redis 分布式锁 - 跨进程有效
-_redis_client = redis.from_url(settings.CELERY_BROKER_URL)
-_DOWNLOAD_LOCK_KEY = "nassav:download_lock"
-_TASK_QUEUE_KEY = "nassav:task_queue:{avid}"  # 每个avid的任务队列锁
-_DOWNLOAD_LOCK_TIMEOUT = 7200  # 锁超时时间：2小时（防止死锁）
-_TASK_QUEUE_TIMEOUT = 3600  # 任务队列锁超时时间：1小时
-
-
-@contextmanager
-def redis_download_lock(avid: str, timeout: int = _DOWNLOAD_LOCK_TIMEOUT):
-    """
-    Redis 分布式锁，确保同时只有一个下载任务运行
-    使用阻塞等待模式，后续任务会排队等待
-    """
-    lock_acquired = False
-    lock_value = f"{avid}:{os.getpid()}:{time.time()}"
-
-    try:
-        # 尝试获取锁，阻塞等待直到获取成功
-        while not lock_acquired:
-            # 使用 SET NX EX 原子操作
-            lock_acquired = _redis_client.set(
-                _DOWNLOAD_LOCK_KEY,
-                lock_value,
-                nx=True,  # 只在 key 不存在时设置
-                ex=timeout  # 设置过期时间防止死锁
-            )
-            if not lock_acquired:
-                # 获取当前持有锁的任务信息
-                current_lock_info = _redis_client.get(_DOWNLOAD_LOCK_KEY)
-                if current_lock_info:
-                    logger.info(f"等待下载锁释放，当前锁持有者: {current_lock_info.decode()}")
-                time.sleep(5)  # 等待 5 秒后重试
-
-        logger.info(f"获取下载锁成功: {avid}")
-        yield
-
-    finally:
-        if lock_acquired:
-            # 只释放自己持有的锁
-            current_value = _redis_client.get(_DOWNLOAD_LOCK_KEY)
-            if current_value and current_value.decode() == lock_value:
-                _redis_client.delete(_DOWNLOAD_LOCK_KEY)
-                logger.info(f"释放下载锁: {avid}")
-
-
-def check_task_in_queue(avid: str) -> bool:
-    """
-    检查指定avid的任务是否已在队列中
-
-    Args:
-        avid: 视频编号
-
-    Returns:
-        bool: True表示任务已在队列中，False表示可以添加新任务
-    """
-    task_key = _TASK_QUEUE_KEY.format(avid=avid.upper())
-    return _redis_client.exists(task_key)
-
-
-@contextmanager
-def redis_task_queue_lock(avid: str, timeout: int = _TASK_QUEUE_TIMEOUT):
-    """
-    Redis 任务队列锁，防止同一avid重复提交任务
-
-    Args:
-        avid: 视频编号
-        timeout: 锁超时时间
-
-    Yields:
-        bool: True表示成功获取锁（可以提交任务），False表示任务已存在
-    """
-    avid = avid.upper()
-    task_key = _TASK_QUEUE_KEY.format(avid=avid)
-    lock_value = f"{avid}:{os.getpid()}:{time.time()}"
-
-    # 尝试设置任务队列锁
-    lock_acquired = _redis_client.set(
-        task_key,
-        lock_value,
-        nx=True,  # 只在 key 不存在时设置
-        ex=timeout  # 设置过期时间
-    )
-
-    try:
-        yield lock_acquired
-    finally:
-        if lock_acquired:
-            # 只释放自己持有的锁
-            current_value = _redis_client.get(task_key)
-            if current_value and current_value.decode() == lock_value:
-                _redis_client.delete(task_key)
-
 
 
 class VideoDownloadService:
@@ -177,10 +79,9 @@ class VideoDownloadService:
         duration_seconds = self._parse_duration(info.duration) if info.duration else None
 
         # 下载m3u8视频（使用 Redis 分布式锁确保只有一个下载任务运行）
-        with redis_download_lock(avid):
-            result = self._download_m3u8(info.m3u8, avid, domain, duration_seconds)
-            logger.info(f"[{avid}] 下载{'成功' if result else '失败'}")
-            return result
+        result = self._download_m3u8(info.m3u8, avid, domain, duration_seconds)
+        logger.info(f"[{avid}] 下载{'成功' if result else '失败'}")
+        return result
 
     def _parse_duration(self, duration_str: str) -> Optional[int]:
         """解析时长字符串，返回秒数"""
