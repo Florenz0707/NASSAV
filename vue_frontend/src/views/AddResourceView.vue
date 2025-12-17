@@ -277,7 +277,7 @@ async function saveCookie() {
 							<button type="submit" class="btn btn-primary" :disabled="savingCookie">
 								<LoadingSpinner v-if="savingCookie" size="small"/>
 								<template v-else>
-									<span class="btn-icon">💾</span>
+									<span class="btn-icon"></span>
 									保存
 								</template>
 							</button>
