@@ -6,6 +6,7 @@ import {downloadApi} from '../api'
 import {useResourceStore} from '../stores/resource'
 import {useToastStore} from '../stores/toast'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +19,8 @@ const loading = ref(true)
 const error = ref(null)
 const downloading = ref(false)
 const refreshing = ref(false)
+const showConfirmDialog = ref(false)
+const pendingDeleteAction = ref(null)
 
 const coverUrl = computed(() => resourceApi.getCoverUrl(avid.value))
 
@@ -98,6 +101,54 @@ async function jumpPlay() {
 		toastStore.error(err.message)
 	}
 }
+
+// 删除全部数据
+function deleteMetadata() {
+	pendingDeleteAction.value = {
+		action: 'delete',
+		title: '删除全部数据',
+		message: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？此操作不可恢复！'
+	}
+	showConfirmDialog.value = true
+}
+
+// 删除视频文件
+function deleteFile() {
+	pendingDeleteAction.value = {
+		action: 'deleteFile',
+		title: '删除视频文件',
+		message: '确定要删除视频文件吗？元数据和封面将保留。'
+	}
+	showConfirmDialog.value = true
+}
+
+// 确认删除操作
+async function confirmDelete() {
+	const action = pendingDeleteAction.value
+	if (!action) return
+
+	try {
+		if (action.action === 'deleteFile') {
+			await downloadApi.deleteFile(avid.value)
+			toastStore.success('视频文件已删除')
+			await fetchMetadata() // 刷新元数据以更新状态
+		} else {
+			await resourceApi.delete(avid.value)
+			toastStore.success('资源已删除')
+			// 删除后返回上一页
+			setTimeout(() => router.back(), 500)
+		}
+	} catch (err) {
+		toastStore.error(err.message || `删除${action.action === 'deleteFile' ? '视频' : '资源'}失败`)
+	} finally {
+		pendingDeleteAction.value = null
+	}
+}
+
+// 取消删除操作
+function cancelDelete() {
+	pendingDeleteAction.value = null
+}
 </script>
 
 <template>
@@ -176,19 +227,19 @@ async function jumpPlay() {
 							{{ refreshing ? '刷新中...' : '刷新信息' }}
 						</button>
 						<button
-							class="btn btn-secondary"
-							@click="deleteMetadata"
-						>
-							<span class="btn-icon">✕</span>
-							删除全部
-						</button>
-						<button
 							v-if="metadata.file_exists"
-							class="btn btn-secondary"
+							class="btn btn-deleteFile"
 							@click="deleteFile"
 						>
 							<span class="btn-icon">✕</span>
 							删除视频
+						</button>
+						<button
+							class="btn btn-deleteMetadata"
+							@click="deleteMetadata"
+						>
+							<span class="btn-icon">✕</span>
+							删除全部
 						</button>
 					</div>
 				</div>
@@ -236,6 +287,18 @@ async function jumpPlay() {
 				</section>
 			</div>
 		</template>
+
+		<!-- 确认对话框 -->
+		<ConfirmDialog
+			v-model:show="showConfirmDialog"
+			:title="pendingDeleteAction?.title || '确认操作'"
+			:message="pendingDeleteAction?.message || ''"
+			:type="'danger'"
+			confirm-text="确认删除"
+			cancel-text="取消"
+			@confirm="confirmDelete"
+			@cancel="cancelDelete"
+		/>
 	</div>
 </template>
 
@@ -463,6 +526,26 @@ async function jumpPlay() {
 	display: flex;
 	flex-direction: column;
 	gap: 2rem;
+}
+
+.btn-deleteFile {
+	background: linear-gradient(135deg, #dc3558, #ff5252);
+	color: white;
+}
+
+.btn-deleteMetadata{
+	background: linear-gradient(135deg, #ff0000, #dc3558);
+	color: white;
+}
+
+.btn-deleteFile:hover:not(:disabled) {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.btn-deleteMetadata:hover:not(:disabled) {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
 }
 
 .detail-section {
