@@ -131,6 +131,9 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Shanghai'
+# 限制并发数为1，确保同一时间只有一个下载任务在执行
+CELERY_WORKER_CONCURRENCY = 1
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 # Resource paths - 统一存储到 resource/{avid}/ 目录
 RESOURCE_DIR = BASE_DIR / 'resource'

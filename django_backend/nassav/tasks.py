@@ -95,6 +95,55 @@ def remove_task_lock(avid: str):
     redis_client.delete(lock_key)
 
 
+def acquire_global_download_lock(timeout: int = 3600):
+    """
+    获取全局下载锁，确保同一时间只有一个下载任务在执行
+
+    Args:
+        timeout: 锁超时时间（秒）
+
+    Returns:
+        bool: 成功获取锁返回True，否则返回False
+    """
+    redis_client = get_redis_client()
+    lock_key = "nassav:global_download_lock"
+    # 使用 set nx ex 原子操作获取锁
+    return redis_client.set(lock_key, "locked", nx=True, ex=timeout)
+
+
+def release_global_download_lock():
+    """
+    释放全局下载锁
+    """
+    redis_client = get_redis_client()
+    lock_key = "nassav:global_download_lock"
+    redis_client.delete(lock_key)
+
+
+def wait_for_global_download_lock(max_wait_time: int = 600, check_interval: int = 5):
+    """
+    等待获取全局下载锁
+
+    Args:
+        max_wait_time: 最大等待时间（秒）
+        check_interval: 检查间隔（秒）
+
+    Returns:
+        bool: 成功获取锁返回True，超时返回False
+    """
+    import time
+    elapsed = 0
+    while elapsed < max_wait_time:
+        if acquire_global_download_lock():
+            logger.info(f"成功获取全局下载锁，等待时间: {elapsed}秒")
+            return True
+        logger.debug(f"等待全局下载锁释放...已等待 {elapsed}秒")
+        time.sleep(check_interval)
+        elapsed += check_interval
+    logger.warning(f"等待全局下载锁超时: {max_wait_time}秒")
+    return False
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def download_video_task(self, avid: str):
     """
@@ -113,6 +162,18 @@ def download_video_task(self, avid: str):
 
     # 创建任务锁，防止重复执行
     create_task_lock(avid, self.request.id)
+
+    # 等待并获取全局下载锁，确保同一时间只有一个下载任务在执行
+    if not wait_for_global_download_lock(max_wait_time=1800):  # 最多等待30分钟
+        logger.error(f"获取全局下载锁超时: {avid}")
+        remove_task_lock(avid)
+        return {
+            'status': 'failed',
+            'avid': avid,
+            'message': '获取下载锁超时，可能有其他下载任务正在执行'
+        }
+
+    logger.info(f"已获取全局下载锁，开始下载: {avid}")
 
     try:
         success = video_download_service.download_video(avid)
@@ -144,7 +205,13 @@ def download_video_task(self, avid: str):
                 'message': f'下载失败，已达最大重试次数: {str(e)}'
             }
     finally:
-        # 任务完成后清理队列锁（无论成功或失败）
+        # 任务完成后清理队列锁和全局下载锁（无论成功或失败）
+        try:
+            release_global_download_lock()
+            logger.info(f"已释放全局下载锁: {avid}")
+        except Exception as e:
+            logger.error(f"释放全局下载锁失败 {avid}: {str(e)}")
+
         try:
             remove_task_lock(avid)
             logger.info(f"已清理任务锁: {avid}")
