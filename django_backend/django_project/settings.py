@@ -3,9 +3,17 @@ Django settings for django_project project.
 """
 
 import os
+import warnings
 from pathlib import Path
 
 import yaml
+
+# 过滤 StreamingHttpResponse 的 ASGI 警告
+warnings.filterwarnings(
+    'ignore',
+    message='.*StreamingHttpResponse.*synchronous iterators.*',
+    category=Warning
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

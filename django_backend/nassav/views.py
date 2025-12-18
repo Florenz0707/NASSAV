@@ -198,9 +198,11 @@ class ResourceCoverView(APIView):
                 'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
+        # 使用 as_attachment=False 确保正确的流式处理
         return FileResponse(
             open(cover_path, 'rb'),
-            content_type='image/jpeg'
+            content_type='image/jpeg',
+            as_attachment=False
         )
 
 

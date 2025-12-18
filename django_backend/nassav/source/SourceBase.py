@@ -2,6 +2,7 @@ import os
 from typing import Optional
 
 from curl_cffi import requests
+from curl_cffi.requests.exceptions import HTTPError
 from loguru import logger
 
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
@@ -15,6 +16,7 @@ class SourceBase:
         self.proxy = proxy
         self.proxies = {'http': proxy, 'https': proxy} if proxy else None
         self.cookie = None
+        self.cookie_retry_times = 5
         self.timeout = timeout
         self.domain = ""
 
@@ -44,6 +46,7 @@ class SourceBase:
             bool: 是否成功获取并设置cookie
         """
         try:
+            from time import sleep
             from nassav.models import SourceCookie
 
             source_name = self.get_source_name()
@@ -58,48 +61,46 @@ class SourceBase:
                 except SourceCookie.DoesNotExist:
                     logger.info(f"{source_name}: 数据库中无cookie，开始自动获取")
 
-            # 创建session获取cookie
-            session = requests.Session()
             home_url = self._get_home_url()
-
-            logger.info(f"{source_name}: 正在访问 {home_url} 获取cookie...")
-
             headers = HEADERS.copy()
-            response = session.get(
-                home_url,
-                proxies=self.proxies,
-                headers=headers,
-                timeout=self.timeout,
-                impersonate="chrome110",
-            )
-            response.raise_for_status()
+            for i in range(self.cookie_retry_times):
+                session = requests.Session()
+                logger.info(f"{source_name}: 正在访问 {home_url} 获取cookie... 重试次数：{i + 1}")
+                response = session.get(
+                    home_url,
+                    proxies=self.proxies,
+                    headers=headers,
+                    timeout=self.timeout,
+                    impersonate="edge",
+                )
+                try:
+                    response.raise_for_status()
+                except HTTPError as err:
+                    logger.info(f"{source_name}: 获取失败，进行重试...")
+                    sleep(0.5)
+                    continue
 
-            # 获取cookie字符串
-            cookies = session.cookies.get_dict()
-            if not cookies:
-                logger.warning(f"{source_name}: 未获取到任何cookie")
-                return False
+                # 获取cookie字符串
+                cookies = session.cookies.get_dict()
+                if not cookies:
+                    logger.info(f"{source_name}: 获取失败，进行重试...")
+                    sleep(0.5)
+                else:
+                    cookie_str = '; '.join([f"{k}={v}" for k, v in cookies.items()])
+                    logger.info(f"{source_name}: 成功获取cookie: {list(cookies.keys())}")
 
-            cookie_str = '; '.join([f"{k}={v}" for k, v in cookies.items()])
-            logger.info(f"{source_name}: 成功获取cookie: {list(cookies.keys())}")
-
-            # 保存到数据库
-            SourceCookie.objects.update_or_create(
-                source_name=source_name,
-                defaults={'cookie': cookie_str}
-            )
-            logger.info(f"{source_name}: Cookie已保存到数据库")
-
-            # 设置到当前实例
-            self.cookie = cookie_str
-
-            return True
-
+                    SourceCookie.objects.update_or_create(
+                        source_name=source_name,
+                        defaults={'cookie': cookie_str}
+                    )
+                    logger.info(f"{source_name}: Cookie已保存到数据库")
+                    self.cookie = cookie_str
+                    return True
         except Exception as e:
             logger.error(f"{self.get_source_name()}: 自动获取cookie失败: {str(e)}")
-            import traceback
-            logger.debug(traceback.format_exc())
             return False
+        logger.info(f"{source_name}：达到最大重试次数，cookie获取失败。")
+        return False
 
     def load_cookie_from_db(self) -> bool:
         """

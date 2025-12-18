@@ -40,9 +40,9 @@ def is_task_existed(avid: str):
     for worker, tasks in active_tasks.items():
         for task in tasks:
             if (task.get('name') == task_name and
-                task.get('args') and
-                len(task['args']) > 0 and
-                task['args'][0].upper() == avid):
+                    task.get('args') and
+                    len(task['args']) > 0 and
+                    task['args'][0].upper() == avid):
                 return True
 
     # 检查队列中等待的任务
@@ -51,9 +51,9 @@ def is_task_existed(avid: str):
         for task in tasks:
             task_info = task.get('request', {})
             if (task_info.get('task') == task_name and
-                task_info.get('args') and
-                len(task_info['args']) > 0 and
-                task_info['args'][0].upper() == avid):
+                    task_info.get('args') and
+                    len(task_info['args']) > 0 and
+                    task_info['args'][0].upper() == avid):
                 return True
 
     # 检查保留的任务（reserved tasks）
@@ -61,9 +61,9 @@ def is_task_existed(avid: str):
     for worker, tasks in reserved_tasks.items():
         for task in tasks:
             if (task.get('name') == task_name and
-                task.get('args') and
-                len(task['args']) > 0 and
-                task['args'][0].upper() == avid):
+                    task.get('args') and
+                    len(task['args']) > 0 and
+                    task['args'][0].upper() == avid):
                 return True
 
     return False

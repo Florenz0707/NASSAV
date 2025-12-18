@@ -22,17 +22,18 @@ class MissAV(SourceBase):
 
     def get_html(self, avid: str) -> Optional[str]:
         """根据avid获取HTML"""
+        import time
         avid_lower = avid.lower()
         urls = [
             f'https://{self.domain}/cn/{avid_lower}-chinese-subtitle',
             f'https://{self.domain}/{avid_lower}-chinese-subtitle',
             f'https://{self.domain}/cn/{avid_lower}-uncensored-leak',
             f'https://{self.domain}/cn/{avid_lower}',
-            f'https://{self.domain}/dm76/cn/{avid_lower}',
-            f'https://{self.domain}/dm52/cn/{avid_lower}',
+            f'https://{self.domain}/dm194/cn/{avid_lower}',
         ]
         for url in urls:
             content = self.fetch_html(url)
+            time.sleep(0.5)
             if content:
                 return content
         return None

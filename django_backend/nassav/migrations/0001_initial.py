@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -14,7 +13,8 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='SourceCookie',
             fields=[
-                ('source_name', models.CharField(max_length=50, primary_key=True, serialize=False, unique=True, verbose_name='源名称')),
+                ('source_name', models.CharField(max_length=50, primary_key=True, serialize=False, unique=True,
+                                                 verbose_name='源名称')),
                 ('cookie', models.TextField(verbose_name='Cookie')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
             ],
