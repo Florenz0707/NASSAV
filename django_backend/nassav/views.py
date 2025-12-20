@@ -145,12 +145,23 @@ class ResourceListView(APIView):
                         try:
                             with open(metadata_path, 'r', encoding='utf-8') as f:
                                 metadata = json.load(f)
+
+                            # 获取元数据文件的创建时间
+                            metadata_create_time = metadata_path.stat().st_ctime
+
+                            # 检查视频文件是否存在并获取创建时间
+                            video_path = item / f"{avid}.mp4"
+                            has_video = video_path.exists()
+                            video_create_time = video_path.stat().st_ctime if has_video else None
+
                             resources.append({
                                 'avid': avid,
                                 'title': metadata.get('title', ''),
                                 'source': metadata.get('source', ''),
                                 'release_date': metadata.get('release_date', ''),
-                                'has_video': (item / f"{avid}.mp4").exists()
+                                'has_video': has_video,
+                                'metadata_create_time': metadata_create_time,
+                                'video_create_time': video_create_time
                             })
                         except Exception as e:
                             logger.error(f"读取 {avid} 元数据失败: {e}")

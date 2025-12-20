@@ -39,6 +39,11 @@ const filteredResources = computed(() => {
 		result = result.filter(r => !r.has_video)
 	}
 
+	// 按最新下载排序时，只显示已下载的资源
+	if (sortBy.value === 'latest_downloaded') {
+		result = result.filter(r => r.has_video && r.video_create_time)
+	}
+
 	// 排序
 	if (sortBy.value === 'date') {
 		result.sort((a, b) => new Date(b.release_date) - new Date(a.release_date))
@@ -46,6 +51,10 @@ const filteredResources = computed(() => {
 		result.sort((a, b) => a.avid.localeCompare(b.avid))
 	} else if (sortBy.value === 'source') {
 		result.sort((a, b) => a.source.localeCompare(b.source))
+	} else if (sortBy.value === 'latest_fetched') {
+		result.sort((a, b) => (b.metadata_create_time || 0) - (a.metadata_create_time || 0))
+	} else if (sortBy.value === 'latest_downloaded') {
+		result.sort((a, b) => (b.video_create_time || 0) - (a.video_create_time || 0))
 	}
 
 	return result
@@ -130,7 +139,9 @@ async function handleManualRefresh() {
 				</select>
 
 				<select v-model="sortBy" class="filter-select">
-					<option value="date">按日期</option>
+					<option value="date">按发行日期</option>
+					<option value="latest_fetched">按最新获取</option>
+					<option value="latest_downloaded">按最新下载</option>
 					<option value="avid">按编号</option>
 					<option value="source">按来源</option>
 				</select>

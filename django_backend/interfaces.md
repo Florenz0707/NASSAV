@@ -103,7 +103,9 @@
             "title": "视频标题",
             "source": "Jable",
             "release_date": "2024-01-01",
-            "has_video": true
+            "has_video": true,
+            "metadata_create_time": 1703145600.123456,
+            "video_create_time": 1703231234.567890
         }
     ]
 }
@@ -111,13 +113,15 @@
 
 **data 字段说明：**
 
-| 字段           | 类型      | 说明      |
-|--------------|---------|---------|
-| avid         | string  | 视频编号    |
-| title        | string  | 视频标题    |
-| source       | string  | 下载来源    |
-| release_date | string  | 发行日期    |
-| has_video    | boolean | 是否已下载视频 |
+| 字段                   | 类型      | 说明                        |
+|----------------------|---------|---------------------------|
+| avid                 | string  | 视频编号                      |
+| title                | string  | 视频标题                      |
+| source               | string  | 下载来源                      |
+| release_date         | string  | 发行日期                      |
+| has_video            | boolean | 是否已下载视频                   |
+| metadata_create_time | float   | 元数据获取时间（Unix时间戳）          |
+| video_create_time    | float   | 视频下载时间（Unix时间戳），未下载时为null |
 
 ---
 
