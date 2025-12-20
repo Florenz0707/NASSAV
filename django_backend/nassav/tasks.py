@@ -6,6 +6,7 @@ from loguru import logger
 from django_project.celery import app as celery_app
 import redis
 from django.conf import settings
+from typing import List, Dict, Any
 
 
 def get_redis_client():
@@ -67,6 +68,76 @@ def is_task_existed(avid: str):
                 return True
 
     return False
+
+
+def get_task_queue_status() -> Dict[str, Any]:
+    """
+    获取当前任务队列状态
+
+    Returns:
+        dict: 包含活跃任务、等待任务和保留任务的信息
+    """
+    task_name = 'nassav.tasks.download_video_task'
+    insp = celery_app.control.inspect()
+
+    result = {
+        'active_tasks': [],
+        'scheduled_tasks': [],
+        'reserved_tasks': []
+    }
+
+    # 获取正在执行的任务
+    active_tasks = insp.active() or {}
+    for worker, tasks in active_tasks.items():
+        for task in tasks:
+            if task.get('name') == task_name and task.get('args') and len(task['args']) > 0:
+                result['active_tasks'].append({
+                    'task_id': task.get('id'),
+                    'avid': task['args'][0].upper(),
+                    'worker': worker,
+                    'time_start': task.get('time_start')
+                })
+
+    # 获取计划中的任务
+    scheduled_tasks = insp.scheduled() or {}
+    for worker, tasks in scheduled_tasks.items():
+        for task in tasks:
+            task_info = task.get('request', {})
+            if task_info.get('task') == task_name and task_info.get('args') and len(task_info['args']) > 0:
+                result['scheduled_tasks'].append({
+                    'task_id': task_info.get('id'),
+                    'avid': task_info['args'][0].upper(),
+                    'worker': worker
+                })
+
+    # 获取保留的任务
+    reserved_tasks = insp.reserved() or {}
+    for worker, tasks in reserved_tasks.items():
+        for task in tasks:
+            if task.get('name') == task_name and task.get('args') and len(task['args']) > 0:
+                result['reserved_tasks'].append({
+                    'task_id': task.get('id'),
+                    'avid': task['args'][0].upper(),
+                    'worker': worker
+                })
+
+    return result
+
+
+def notify_task_update(update_type: str, data: dict):
+    """
+    发送任务更新通知到WebSocket
+
+    Args:
+        update_type: 更新类型 ('task_started', 'task_completed', 'task_failed', 'queue_status')
+        data: 任务数据
+    """
+    try:
+        from .consumers import send_task_update
+        send_task_update(update_type, data)
+        logger.debug(f"已发送任务更新通知: {update_type}, {data}")
+    except Exception as e:
+        logger.error(f"发送任务更新通知失败: {str(e)}")
 
 
 def create_task_lock(avid: str, task_id: str, expire_time: int = 3600):
@@ -163,10 +234,30 @@ def download_video_task(self, avid: str):
     # 创建任务锁，防止重复执行
     create_task_lock(avid, self.request.id)
 
+    # 发送任务开始通知
+    notify_task_update('task_started', {
+        'task_id': self.request.id,
+        'avid': avid,
+        'status': 'started'
+    })
+
+    # 发送更新后的队列状态
+    notify_task_update('queue_status', get_task_queue_status())
+
     # 等待并获取全局下载锁，确保同一时间只有一个下载任务在执行
     if not wait_for_global_download_lock(max_wait_time=1800):  # 最多等待30分钟
         logger.error(f"获取全局下载锁超时: {avid}")
         remove_task_lock(avid)
+
+        # 发送任务失败通知
+        notify_task_update('task_failed', {
+            'task_id': self.request.id,
+            'avid': avid,
+            'status': 'failed',
+            'message': '获取下载锁超时，可能有其他下载任务正在执行'
+        })
+        notify_task_update('queue_status', get_task_queue_status())
+
         return {
             'status': 'failed',
             'avid': avid,
@@ -180,6 +271,16 @@ def download_video_task(self, avid: str):
 
         if success:
             logger.info(f"视频 {avid} 下载成功")
+
+            # 发送任务完成通知
+            notify_task_update('task_completed', {
+                'task_id': self.request.id,
+                'avid': avid,
+                'status': 'success',
+                'message': '下载完成'
+            })
+            notify_task_update('queue_status', get_task_queue_status())
+
             return {
                 'status': 'success',
                 'avid': avid,
@@ -187,6 +288,16 @@ def download_video_task(self, avid: str):
             }
         else:
             logger.error(f"视频 {avid} 下载失败")
+
+            # 发送任务失败通知
+            notify_task_update('task_failed', {
+                'task_id': self.request.id,
+                'avid': avid,
+                'status': 'failed',
+                'message': '下载失败'
+            })
+            notify_task_update('queue_status', get_task_queue_status())
+
             return {
                 'status': 'failed',
                 'avid': avid,
@@ -195,6 +306,16 @@ def download_video_task(self, avid: str):
 
     except Exception as e:
         logger.error(f"视频 {avid} 下载异常: {str(e)}")
+
+        # 发送任务失败通知
+        notify_task_update('task_failed', {
+            'task_id': self.request.id,
+            'avid': avid,
+            'status': 'failed',
+            'message': f'下载异常: {str(e)}'
+        })
+        notify_task_update('queue_status', get_task_queue_status())
+
         # 重试
         try:
             raise self.retry(exc=e)
@@ -217,6 +338,9 @@ def download_video_task(self, avid: str):
             logger.info(f"已清理任务锁: {avid}")
         except Exception as e:
             logger.error(f"清理任务锁失败 {avid}: {str(e)}")
+
+        # 发送最终队列状态
+        notify_task_update('queue_status', get_task_queue_status())
 
 
 def submit_download_task(avid: str) -> tuple[bool | None, bool]:
@@ -241,5 +365,8 @@ def submit_download_task(avid: str) -> tuple[bool | None, bool]:
     # 提交任务
     logger.info(f"提交下载任务: {avid}")
     task_result = download_video_task.delay(avid)
+
+    # 发送队列状态更新
+    notify_task_update('queue_status', get_task_queue_status())
 
     return task_result, False

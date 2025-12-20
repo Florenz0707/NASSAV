@@ -40,4 +40,7 @@ urlpatterns = [
 
     # DELETE /api/downloads/{avid} - 删除已下载的视频
     path('api/downloads/<str:avid>', views.DownloadView.as_view(), name='downloads-delete'),
+
+    # GET /api/tasks/queue/status - 获取任务队列状态
+    path('api/tasks/queue/status', views.TaskQueueStatusView.as_view(), name='task-queue-status'),
 ]

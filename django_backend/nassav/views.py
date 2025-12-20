@@ -625,3 +625,28 @@ class DeleteResourceView(APIView):
                 'message': f'删除失败: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TaskQueueStatusView(APIView):
+    """
+    GET /api/tasks/queue/status
+    获取当前任务队列状态
+    """
+
+    def get(self, request):
+        from .tasks import get_task_queue_status
+
+        try:
+            queue_status = get_task_queue_status()
+            return Response({
+                'code': 200,
+                'message': 'success',
+                'data': queue_status
+            })
+        except Exception as e:
+            logger.error(f"获取任务队列状态失败: {e}")
+            return Response({
+                'code': 500,
+                'message': f'获取队列状态失败: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

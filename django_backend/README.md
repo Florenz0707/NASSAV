@@ -11,6 +11,8 @@
 - 🚦 **全局下载锁**：确保同一时间只有一个下载任务执行，避免 N_m3u8DL-RE 多实例并发
 - ⚡ **并发控制**：Celery Worker 配置为单并发，下载任务串行执行
 - 📁 **统一资源管理**：所有资源按 AVID 分目录存储
+- 🔌 **WebSocket 实时通知**：前端可实时接收任务队列状态和任务完成通知
+- 📡 **Redis 消息支持**：基于 Redis 的消息队列和实时通信
 
 ## 技术栈
 
@@ -19,8 +21,9 @@
 | Python | 3.12+ | 运行环境 |
 | Django | 5.1+ | Web 框架 |
 | Django REST Framework | 3.15+ | API 框架 |
+| Django Channels | 4.3+ | WebSocket 支持 |
 | Celery | 5.4+ | 异步任务队列 |
-| Redis | - | 消息队列 & 分布式锁 |
+| Redis | - | 消息队列 & 分布式锁 & Channel Layer |
 | curl_cffi | - | HTTP 请求（绕过反爬） |
 | N_m3u8DL-RE | - | M3U8 下载工具 |
 
@@ -122,12 +125,23 @@ brew services start redis
 
 #### 启动 Django 服务
 
+**方式一：使用 ASGI 服务器（推荐，支持 WebSocket）**
+
 ```bash
-# 使用原生django
-uv run python manage.py runserver 0.0.0.0:8000
-# 或者使用uvicorn
-uv run uvicorn django_backend.asgi:application
+# 使用 Uvicorn（推荐）
+uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --reload
+
+# 或使用 Daphne
+uv run daphne -b 0.0.0.0 -p 8000 django_project.asgi:application
 ```
+
+**方式二：使用 Django 开发服务器（不支持 WebSocket）**
+
+```bash
+uv run python manage.py runserver 0.0.0.0:8000
+```
+
+**注意**：如果要使用 WebSocket 实时通知功能，必须使用 ASGI 服务器（Uvicorn 或 Daphne）。
 
 #### 启动 Celery Worker（异步下载）
 
@@ -148,6 +162,8 @@ uv run celery -A django_project worker -l info --concurrency=1
 
 详细接口说明请参考 [interfaces.md](./interfaces.md)
 
+### REST API 端点
+
 | 方法 | 端点 | 说明 |
 |------|------|------|
 | GET | `/api/source/list` | 获取可用下载源列表 |
@@ -159,6 +175,21 @@ uv run celery -A django_project worker -l info --concurrency=1
 | GET | `/api/downloads/list` | 获取已下载列表 |
 | GET | `/api/downloads/metadata` | 获取下载元数据 |
 | POST | `/api/downloads` | 提交下载任务 |
+| GET | `/api/tasks/queue/status` | 获取任务队列状态 |
+
+### WebSocket 端点
+
+| 端点 | 说明 |
+|------|------|
+| `ws://localhost:8000/ws/tasks/` | 实时任务队列通知 |
+
+WebSocket 支持以下消息类型：
+- `task_started`: 任务开始通知
+- `task_completed`: 任务完成通知
+- `task_failed`: 任务失败通知
+- `queue_status`: 队列状态更新
+
+详细使用说明请参考 [WEBSOCKET_GUIDE.md](./WEBSOCKET_GUIDE.md)
 
 ## 任务去重与并发控制
 
