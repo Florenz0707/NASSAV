@@ -219,7 +219,7 @@ def download_video_task(self, avid: str):
             logger.error(f"清理任务锁失败 {avid}: {str(e)}")
 
 
-def submit_download_task(avid: str):
+def submit_download_task(avid: str) -> tuple[bool | None, bool]:
     """
     提交下载任务（带去重检查）
 

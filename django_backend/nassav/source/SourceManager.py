@@ -126,31 +126,32 @@ class SourceManager:
                     return info, source, html
         return None
 
-    def get_info_from_source(self, avid: str, source: str) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:
+    def get_info_from_source(self, avid: str, source_str: str) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:
         """
         从指定源获取信息
-        返回: (info, downloader, html) 或 None
+        返回: (info, source, html) 或 None
         """
         # 查找对应的下载器（不区分大小写）
-        downloader = None
+        source = None
         for name, dl in self.sources.items():
-            if name.lower() == source.lower():
-                downloader = dl
+            if name.lower() == source_str.lower():
+                source = dl
                 break
 
-        if not downloader:
-            logger.warning(f"未找到源 {source} 对应的下载器")
+        if not source:
+            logger.warning(f"未找到源 {source_str} 对应的下载器")
             return None
 
-        logger.info(f"从 {source} 刷新 {avid}")
-        html = downloader.get_html(avid)
+        logger.info(f"从 {source_str} 刷新 {avid}")
+        html = source.get_html(avid)
         if html:
-            info = downloader.parse_html(html)
+            logger.info(f"成功从源 {source_str} 获取 html")
+            info = source.parse_html(html)
             if info:
                 info.avid = avid.upper()
-                return info, downloader, html
+                return info, source, html
 
-        logger.warning(f"从 {source} 获取 {avid} 失败")
+        logger.warning(f"从 {source_str} 获取 {avid} 失败")
         return None
 
     def get_resource_dir(self, avid: str) -> Path:

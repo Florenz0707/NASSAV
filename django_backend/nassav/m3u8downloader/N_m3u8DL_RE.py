@@ -61,8 +61,6 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 "-H", f"User-Agent: {user_agent}",
             ]
 
-            logger.debug(f"执行命令: {' '.join(cmd)}")
-
             # 设置环境变量（代理）
             env = os.environ.copy()
             if self.proxy:
@@ -70,7 +68,6 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 env['https_proxy'] = self.proxy
                 env['HTTP_PROXY'] = self.proxy
                 env['HTTPS_PROXY'] = self.proxy
-                logger.debug(f"使用代理: {self.proxy}")
 
             # 直接运行，让工具输出到终端显示进度
             result = subprocess.run(

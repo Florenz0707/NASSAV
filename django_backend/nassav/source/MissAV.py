@@ -27,9 +27,7 @@ class MissAV(SourceBase):
         urls = [
             f'https://{self.domain}/cn/{avid_lower}-chinese-subtitle',
             f'https://{self.domain}/{avid_lower}-chinese-subtitle',
-            f'https://{self.domain}/cn/{avid_lower}-uncensored-leak',
             f'https://{self.domain}/cn/{avid_lower}',
-            f'https://{self.domain}/dm194/cn/{avid_lower}',
         ]
         for url in urls:
             content = self.fetch_html(url)

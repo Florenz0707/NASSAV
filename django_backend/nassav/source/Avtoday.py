@@ -20,17 +20,14 @@ class Avtoday(SourceBase):
         return "Avtoday"
 
     def get_html(self, avid: str) -> Optional[str]:
-        avid_lower = avid.lower()
         avid_upper = avid.upper()
         urls = [
-            f'https://{self.domain}/video/{avid_lower}',
             f'https://{self.domain}/video/{avid_upper}',
-            f'https://{self.domain}/watch/{avid_lower}',
-            f'https://{self.domain}/{avid_lower}',
         ]
         for url in urls:
             content = self.fetch_html(url)
             if content:
+                logger.info(f"成功获取Avtoday页面: {content}")
                 return content
         return None
 
@@ -41,11 +38,7 @@ class Avtoday(SourceBase):
         try:
             # 提取m3u8 - Avtoday 特定格式: var m3u8_url = 'https://avtoday.io/streaming/XXX/xxx.m3u8';
             m3u8_patterns = [
-                r"var\s+m3u8_url\s*=\s*['\"]([^'\"]+\.m3u8)['\"]",  # Avtoday 特定格式
-                r'downloader:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
-                r'file:\s*["\']([^"\']+\.m3u8[^"\']*)["\']',
-                r'hlsUrl\s*[=:]\s*["\']([^"\']+)["\']',
-                r'["\']([^"\']+\.m3u8[^"\']*)["\']',
+                r"var\s+m3u8_url\s*=\s*['\"]([^'\"]+\.m3u8)['\"]"  # Avtoday 特定格式
             ]
             for pattern in m3u8_patterns:
                 match = re.search(pattern, html)
@@ -54,10 +47,13 @@ class Avtoday(SourceBase):
                     break
 
             if not info.m3u8:
+                logger.info("m3u8匹配失败")
                 return None
 
             # 提取标题
-            title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            # title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            title_match = re.search(r'<span>标题:</span>\n<span>([^"]+)</span>', html)
+
             if title_match:
                 info.title = title_match.group(1).strip()
 
@@ -66,7 +62,7 @@ class Avtoday(SourceBase):
             if avid_match:
                 info.avid = avid_match.group(1).upper()
             elif info.title:
-                avid_match = re.search(r'([A-Z]+-\d+)', info.title, re.IGNORECASE)
+                avid_match = re.search(r'<span>番号:</span>\n<span>([^"]+)</span>', html)
                 if avid_match:
                     info.avid = avid_match.group(1).upper()
 
