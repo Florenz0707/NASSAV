@@ -12,7 +12,7 @@ const toastStore = useToastStore()
 
 const searchQuery = ref('')
 const filterStatus = ref('all')
-const sortBy = ref('date')
+const sortBy = ref('latest_fetched')
 const refreshing = ref(false)
 
 onMounted(async () => {

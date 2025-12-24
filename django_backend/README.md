@@ -16,16 +16,16 @@
 
 ## 技术栈
 
-| 组件 | 版本 | 说明 |
-|------|------|------|
-| Python | 3.12+ | 运行环境 |
-| Django | 5.1+ | Web 框架 |
-| Django REST Framework | 3.15+ | API 框架 |
-| Django Channels | 4.3+ | WebSocket 支持 |
-| Celery | 5.4+ | 异步任务队列 |
-| Redis | - | 消息队列 & 分布式锁 & Channel Layer |
-| curl_cffi | - | HTTP 请求（绕过反爬） |
-| N_m3u8DL-RE | - | M3U8 下载工具 |
+| 组件                    | 版本    | 说明                          |
+|-----------------------|-------|-----------------------------|
+| Python                | 3.12+ | 运行环境                        |
+| Django                | 5.1+  | Web 框架                      |
+| Django REST Framework | 3.15+ | API 框架                      |
+| Django Channels       | 4.3+  | WebSocket 支持                |
+| Celery                | 5.4+  | 异步任务队列                      |
+| Redis                 | -     | 消息队列 & 分布式锁 & Channel Layer |
+| curl_cffi             | -     | HTTP 请求（绕过反爬）               |
+| N_m3u8DL-RE           | -     | M3U8 下载工具                   |
 
 ## 项目结构
 
@@ -160,27 +160,27 @@ uv run celery -A django_project worker -l info --concurrency=1
 
 ## API 文档
 
-详细接口说明请参考 [interfaces.md](./interfaces.md)
+详细接口说明请参考 [interfaces.md](interfaces.md)
 
 ### REST API 端点
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/source/list` | 获取可用下载源列表 |
-| POST | `/api/source/cookie` | 设置下载源cookie |
-| GET | `/api/resource/list` | 获取所有资源列表 |
-| GET | `/api/resource/cover` | 获取封面图片 |
-| POST | `/api/resource` | 添加新资源 |
-| POST | `/api/resource/refresh` | 刷新资源元数据 |
-| GET | `/api/downloads/list` | 获取已下载列表 |
-| GET | `/api/downloads/metadata` | 获取下载元数据 |
-| POST | `/api/downloads` | 提交下载任务 |
-| GET | `/api/tasks/queue/status` | 获取任务队列状态 |
+| 方法   | 端点                        | 说明          |
+|------|---------------------------|-------------|
+| GET  | `/api/source/list`        | 获取可用下载源列表   |
+| POST | `/api/source/cookie`      | 设置下载源cookie |
+| GET  | `/api/resource/list`      | 获取所有资源列表    |
+| GET  | `/api/resource/cover`     | 获取封面图片      |
+| POST | `/api/resource`           | 添加新资源       |
+| POST | `/api/resource/refresh`   | 刷新资源元数据     |
+| GET  | `/api/downloads/list`     | 获取已下载列表     |
+| GET  | `/api/downloads/metadata` | 获取下载元数据     |
+| POST | `/api/downloads`          | 提交下载任务      |
+| GET  | `/api/tasks/queue/status` | 获取任务队列状态    |
 
 ### WebSocket 端点
 
-| 端点 | 说明 |
-|------|------|
+| 端点                              | 说明       |
+|---------------------------------|----------|
 | `ws://localhost:8000/ws/tasks/` | 实时任务队列通知 |
 
 WebSocket 支持以下消息类型：
@@ -188,8 +188,6 @@ WebSocket 支持以下消息类型：
 - `task_completed`: 任务完成通知
 - `task_failed`: 任务失败通知
 - `queue_status`: 队列状态更新
-
-详细使用说明请参考 [WEBSOCKET_GUIDE.md](./WEBSOCKET_GUIDE.md)
 
 ## 任务去重与并发控制
 

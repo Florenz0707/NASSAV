@@ -286,7 +286,7 @@ A: 修改 `vue_frontend/vite.config.js` 中的 `server.port`。
 
 **Q: 哪些源比较好用？**
 
-A: 就目前来说，**missav**品类最全但是需要手动获取设置cookie，jable其次并且可以自动获取cookie，memo不需要设置cookie但是没有中文字幕，其余的源缺乏良好支持。
+A: 就目前来说，**missav**品类最全但是需要手动获取设置cookie，**jable**其次并且可以自动获取cookie，**memo**不需要设置cookie但是没有中文字幕，其余的源缺乏良好支持。
 
 ## 开发指南
 
