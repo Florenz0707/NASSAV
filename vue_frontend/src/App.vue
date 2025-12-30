@@ -1,7 +1,16 @@
 <script setup>
+import {onMounted} from 'vue'
 import {RouterView} from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Toast from './components/Toast.vue'
+import {useWebSocketStore} from './stores/websocket'
+
+const wsStore = useWebSocketStore()
+
+// 应用启动时立即连接 WebSocket
+onMounted(() => {
+	wsStore.connect()
+})
 </script>
 
 <template>

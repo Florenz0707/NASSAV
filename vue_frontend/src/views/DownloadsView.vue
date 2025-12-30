@@ -1,36 +1,86 @@
 <script setup>
-import {ref, onMounted, onUnmounted, onBeforeUnmount} from 'vue'
+import {ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch} from 'vue'
 import {useResourceStore} from '../stores/resource'
+import {useWebSocketStore} from '../stores/websocket'
 import {resourceApi, taskApi} from '../api'
 
 const resourceStore = useResourceStore()
+const wsStore = useWebSocketStore()
 
 const loading = ref(true)
 const downloadedResources = ref([])
 const pollingTimer = ref(null)
 
-// 任务状态
-const activeTasks = ref([])
-const pendingTasks = ref([])
-const scheduledTasks = ref([])  // 为了兼容模板
-const notifications = ref([])  // 为了兼容模板
-const activeCount = ref(0)
-const pendingCount = ref(0)
-const totalCount = ref(0)
+const POLLING_INTERVAL = 1000  // API 轮询间隔
+
+// 调试模式 - 设为 true 显示样例数据
+const DEBUG_MODE = false
+
+// 基于资源列表生成模拟任务
+const mockActiveTasks = computed(() => {
+	const resources = resourceStore.resources.slice(0, 2)
+	return resources.map((r, i) => ({
+		task_id: `mock-active-${i + 1}`,
+		avid: r.avid,
+		title: r.title,
+		state: 'STARTED',
+		progress: { percent: i === 0 ? 45.2 : 78.9, speed: i === 0 ? '5.2MB/s' : '3.8MB/s' }
+	}))
+})
+
+const mockPendingTasks = computed(() => {
+	const resources = resourceStore.resources.slice(2, 5)
+	return resources.map((r, i) => ({
+		task_id: `mock-pending-${i + 1}`,
+		avid: r.avid,
+		title: r.title
+	}))
+})
+
+// 合并所有任务为单一列表
+const allTasks = computed(() => {
+	const active = DEBUG_MODE && wsStore.activeTasks.length === 0 ? mockActiveTasks.value : wsStore.activeTasks
+	const pending = DEBUG_MODE && wsStore.pendingTasks.length === 0 ? mockPendingTasks.value : wsStore.pendingTasks
+	return [
+		...active.map(t => ({ ...t, isActive: true })),
+		...pending.map(t => ({ ...t, isActive: false }))
+	]
+})
+
+// 显示用的计数
+const displayActiveCount = computed(() => DEBUG_MODE && wsStore.activeCount === 0 ? mockActiveTasks.value.length : wsStore.activeCount)
+const displayPendingCount = computed(() => DEBUG_MODE && wsStore.pendingCount === 0 ? mockPendingTasks.value.length : wsStore.pendingCount)
+const displayTotalCount = computed(() => displayActiveCount.value + displayPendingCount.value)
 
 onMounted(() => {
 	// 不阻塞地加载下载列表
 	loadDownloads()
-	// 立即启动轮询
-	startPolling()
+	// 如果 WebSocket 未连接，启动轮询
+	if (!wsStore.connected) {
+		startPolling()
+	}
 })
 
 onBeforeUnmount(() => {
+	// 离开下载页时停止轮询
 	stopPolling()
 })
 
 onUnmounted(() => {
 	stopPolling()
+})
+
+// 监听 WebSocket 连接状态变化
+watch(() => wsStore.connected, (isConnected) => {
+	if (isConnected) {
+		// WebSocket 连接成功，停止轮询
+		console.log('[DownloadsView] WebSocket 已连接，停止轮询')
+		stopPolling()
+	} else {
+		// WebSocket 断开，启动轮询
+		console.log('[DownloadsView] WebSocket 断开，启动轮询')
+		startPolling()
+	}
 })
 
 async function loadDownloads() {
@@ -46,41 +96,48 @@ async function loadDownloads() {
 	}
 }
 
-// 获取任务队列状态
+// 获取任务队列状态（API 轮询）
 async function fetchQueueStatus() {
 	try {
 		const response = await taskApi.getQueueStatus()
-		// 后端直接返回数据对象，不包装在 code/data 中
 		const data = response.data
 		if (data) {
-			activeTasks.value = data.active_tasks || []
-			pendingTasks.value = data.pending_tasks || []
-			scheduledTasks.value = data.pending_tasks || []  // 使用 pending_tasks 作为 scheduledTasks
-			activeCount.value = data.active_count || 0
-			pendingCount.value = data.pending_count || 0
-			totalCount.value = data.total_count || 0
+			// 通过 store 更新数据
+			wsStore.updateTaskData(data)
 		}
 	} catch (error) {
 		console.error('获取任务队列状态失败:', error)
 	}
 }
 
-// 开始轮询
+// 开始轮询（仅在下载页且 WebSocket 未连接时使用）
 function startPolling() {
+	// 如果 WebSocket 已连接，不启动轮询
+	if (wsStore.connected) {
+		console.log('[DownloadsView] WebSocket 已连接，跳过轮询')
+		return
+	}
+
 	// 先停止之前的轮询
 	stopPolling()
+	console.log('[DownloadsView] 启动 API 轮询')
 	// 立即获取一次
 	fetchQueueStatus()
-	// 每 0.5 秒轮询一次
+	// 定时轮询
 	pollingTimer.value = setInterval(() => {
+		// 再次检查 WebSocket 状态，如果已连接则停止轮询
+		if (wsStore.connected) {
+			stopPolling()
+			return
+		}
 		fetchQueueStatus()
-	}, 1000)
+	}, POLLING_INTERVAL)
 }
 
 // 停止轮询
 function stopPolling() {
 	if (pollingTimer.value) {
-		console.log('停止轮询')
+		console.log('[DownloadsView] 停止轮询')
 		clearInterval(pollingTimer.value)
 		pollingTimer.value = null
 	}
@@ -98,90 +155,66 @@ function stopPolling() {
 		<!-- 任务队列统计 -->
 		<div class="stats-bar">
 			<div class="stat stat-active">
-				<span class="stat-value">{{ activeCount }}</span>
+				<span class="stat-value">{{ displayActiveCount }}</span>
 				<span class="stat-label">正在下载</span>
 			</div>
 			<div class="stat stat-waiting">
-				<span class="stat-value">{{ pendingCount }}</span>
+				<span class="stat-value">{{ displayPendingCount }}</span>
 				<span class="stat-label">等待中</span>
 			</div>
 			<div class="stat stat-total">
-				<span class="stat-value">{{ totalCount }}</span>
+				<span class="stat-value">{{ displayTotalCount }}</span>
 				<span class="stat-label">总任务数</span>
 			</div>
 		</div>
 
-		<!-- 正在下载的任务 -->
-		<div v-if="activeTasks.length > 0" class="task-section">
-			<h2 class="section-title">
-				正在下载 ({{ activeTasks.length }})
-			</h2>
-			<div class="tasks-grid">
-				<div v-for="task in activeTasks" :key="task.task_id" class="task-card downloading">
-					<div class="task-cover">
-						<img :src="resourceApi.getCoverUrl(task.avid)" :alt="task.avid" loading="lazy"/>
-						<div v-if="task.progress" class="task-overlay">
-							<span class="task-badge downloading">{{ task.progress.percent?.toFixed(1) || 0 }}%</span>
-						</div>
-					</div>
-					<div class="task-content">
-						<div class="task-avid">{{ task.avid }}</div>
-						<div v-if="task.progress" class="progress-bar">
-							<div class="progress-fill" :style="{ width: (task.progress.percent || 0) + '%' }"></div>
-						</div>
-						<div v-if="task.progress" class="task-status-text">
-							{{ task.progress.speed || '计算中...' }}
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<!-- 等待下载的任务 -->
-		<div v-if="scheduledTasks.length > 0" class="task-section">
-			<h2 class="section-title">
-				<span class="title-icon">⏳</span>
-				等待队列 ({{ scheduledTasks.length }})
-			</h2>
-			<div class="tasks-grid">
-				<div v-for="task in scheduledTasks" :key="task.task_id" class="task-card waiting">
-					<div class="task-cover">
-						<img :src="resourceApi.getCoverUrl(task.avid)" :alt="task.avid" loading="lazy"/>
-						<div class="task-overlay">
-							<span class="task-badge">等待中</span>
-						</div>
-					</div>
-					<div class="task-content">
-						<div class="task-avid">{{ task.avid }}</div>
-						<div class="progress-bar">
-							<div class="progress-fill pending"></div>
-						</div>
-						<div class="task-status-text">排队等待...</div>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<!-- 最近通知 -->
-		<div v-if="notifications.length > 0" class="task-section">
-			<h2 class="section-title">
-				<span class="title-icon">🔔</span>
-				最近通知 ({{ notifications.length }})
-			</h2>
-			<div class="notifications-list">
+		<!-- 下载任务列表 -->
+		<div v-if="allTasks.length > 0" class="task-section">
+			<h2 class="section-title">下载队列</h2>
+			<div class="tasks-list">
 				<div
-					v-for="(notif, index) in notifications.slice(0, 10)"
-					:key="index"
-					class="notification-item"
-					:class="notif.type"
+					v-for="task in allTasks"
+					:key="task.task_id"
+					class="task-row"
+					:class="{ 'is-active': task.isActive }"
 				>
-					<span class="notification-icon">
-						{{ notif.type === 'success' ? '✓' : notif.type === 'error' ? '✗' : 'ℹ' }}
-					</span>
-					<span class="notification-message">{{ notif.message }}</span>
-					<span class="notification-time">{{ notif.time }}</span>
+					<!-- 左侧封面 -->
+					<div class="task-cover">
+						<img :src="resourceApi.getCoverUrl(task.avid)" :alt="task.avid" loading="lazy"/>
+					</div>
+
+					<!-- 右侧信息 -->
+					<div class="task-info">
+						<div class="task-header">
+							<span class="task-avid">{{ task.avid }}</span>
+							<div v-if="task.isActive" class="task-status-badge active">
+								<span class="pulse-dot"></span>
+								下载中
+							</div>
+							<div v-else class="task-status-badge pending">等待中</div>
+						</div>
+						<div class="task-title">{{ task.title || '加载中...' }}</div>
+						<div class="task-progress">
+							<div class="progress-bar">
+								<div
+									class="progress-fill"
+									:class="{ 'is-active': task.isActive }"
+									:style="{ width: task.isActive ? (task.progress?.percent || 0) + '%' : '0%' }"
+								></div>
+							</div>
+							<span v-if="task.isActive && task.progress" class="progress-text">{{ task.progress.percent?.toFixed(1) || 0 }}%</span>
+							<span v-else class="progress-text pending">排队中</span>
+						</div>
+					</div>
 				</div>
 			</div>
+		</div>
+
+		<!-- 空状态 -->
+		<div v-else class="empty-state">
+			<div class="empty-icon">📥</div>
+			<div class="empty-text">暂无下载任务</div>
+			<div class="empty-hint">在资源详情页点击下载按钮添加任务</div>
 		</div>
 
 	</div>
@@ -193,17 +226,12 @@ function stopPolling() {
 }
 
 @keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 
 .page-header {
 	margin-bottom: 2rem;
-	position: relative;
 }
 
 .page-title {
@@ -216,49 +244,12 @@ function stopPolling() {
 .page-subtitle {
 	color: var(--text-muted);
 	font-size: 1rem;
-	margin-bottom: 1rem;
 }
 
-.ws-status {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem 1rem;
-	background: rgba(0, 0, 0, 0.2);
-	border-radius: 8px;
-	font-size: 0.85rem;
-}
-
-.ws-indicator {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: #ff4757;
-	animation: pulse-red 2s infinite;
-}
-
-.ws-indicator.connected {
-	background: #2ed573;
-	animation: pulse-green 2s infinite;
-}
-
-@keyframes pulse-red {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.5; }
-}
-
-@keyframes pulse-green {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.6; }
-}
-
-.ws-text {
-	color: var(--text-muted);
-}
-
+/* 统计栏 */
 .stats-bar {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	grid-template-columns: repeat(3, 1fr);
 	gap: 1rem;
 	margin-bottom: 2rem;
 }
@@ -278,21 +269,9 @@ function stopPolling() {
 	transform: translateY(-2px);
 }
 
-.stat-active {
-	border-color: rgba(46, 213, 115, 0.3);
-}
-
-.stat-waiting {
-	border-color: rgba(255, 159, 67, 0.3);
-}
-
-.stat-total {
-	border-color: rgba(86, 204, 242, 0.3);
-}
-
-.stat-completed {
-	border-color: rgba(72, 219, 251, 0.3);
-}
+.stat-active { border-color: rgba(46, 213, 115, 0.3); }
+.stat-waiting { border-color: rgba(255, 159, 67, 0.3); }
+.stat-total { border-color: rgba(86, 204, 242, 0.3); }
 
 .stat-value {
 	font-size: 2.5rem;
@@ -307,100 +286,123 @@ function stopPolling() {
 	color: var(--text-muted);
 }
 
+/* 任务区块 */
 .task-section {
-	margin-bottom: 2.5rem;
+	margin-bottom: 2rem;
 }
 
 .section-title {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
 	font-size: 1.25rem;
 	font-weight: 600;
 	color: var(--text-primary);
 	margin-bottom: 1rem;
 }
 
-.title-icon {
-	font-size: 1.5rem;
+/* 任务列表 - 长条状布局 */
+.tasks-list {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
 }
 
-.tasks-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-	gap: 1.25rem;
-}
-
-.task-card {
-	background: var(--card-bg);
-	border-radius: 16px;
-	overflow: hidden;
-	border: 1px solid var(--border-color);
+.task-row {
+	display: flex;
+	align-items: stretch;
+	background: transparent;
+	border-radius: 12px;
+	border: 2px solid var(--border-color);
+	overflow: visible;
 	transition: all 0.3s ease;
 }
 
-.task-card.downloading {
-	border-color: rgba(46, 213, 115, 0.3);
+.task-row:hover {
+	border-color: rgba(255, 107, 107, 0.3);
+	transform: translateX(4px);
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
 }
 
-.task-card.waiting {
-	border-color: rgba(255, 159, 67, 0.3);
+.task-row.is-active {
+	border-color: rgba(46, 213, 115, 0.4);
 }
 
-.task-card:hover {
-	transform: translateY(-4px);
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+.task-row.is-active:hover {
+	border-color: rgba(46, 213, 115, 0.6);
 }
 
+/* 任务封面 */
 .task-cover {
 	position: relative;
+	width: 180px;
+	min-width: 180px;
 	aspect-ratio: 16 / 9;
 	overflow: hidden;
 	background: rgba(0, 0, 0, 0.3);
+	flex-shrink: 0;
+	border-radius: 10px;
+	margin: 0.5rem;
 }
 
 .task-cover img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
+	border-radius: 10px;
 	transition: transform 0.3s ease;
 }
 
-.task-card:hover .task-cover img {
+.task-row:hover .task-cover img {
 	transform: scale(1.05);
 }
 
-.task-overlay {
-	position: absolute;
-	inset: 0;
-	background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7));
+/* 状态徽章 - 现在在 header 中 */
+.task-status-badge {
+	padding: 4px 10px;
+	border-radius: 6px;
+	font-size: 0.75rem;
+	font-weight: 600;
 	display: flex;
 	align-items: center;
-	justify-content: center;
+	gap: 6px;
 }
 
-.task-duration {
-	font-size: 1.5rem;
+.task-status-badge.active {
+	background: rgba(46, 213, 115, 0.9);
 	color: white;
-	font-family: 'JetBrains Mono', monospace;
-	font-weight: 700;
-	text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
-.task-badge {
-	padding: 0.5rem 1rem;
+.task-status-badge.pending {
 	background: rgba(255, 159, 67, 0.9);
 	color: white;
-	border-radius: 6px;
-	font-size: 0.85rem;
-	font-weight: 600;
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-.task-content {
+.pulse-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: white;
+	animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* 任务信息 */
+.task-info {
+	flex: 1;
 	display: flex;
+	flex-direction: column;
 	justify-content: center;
-	padding: 1rem;
+	padding: 1rem 1.5rem;
+	min-width: 0;
+}
+
+.task-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 0.5rem;
 }
 
 .task-avid {
@@ -408,42 +410,53 @@ function stopPolling() {
 	font-size: 0.9rem;
 	font-weight: 600;
 	color: var(--accent-primary);
-	margin-bottom: 0.2rem;
 	background: rgba(255, 107, 107, 0.15);
 	border-radius: 6px;
-	width: fit-content;
-	padding: 4px 8px;
+	padding: 4px 10px;
+}
+
+.task-speed {
+	font-family: 'JetBrains Mono', monospace;
+	font-size: 0.85rem;
+	color: #2ed573;
+	font-weight: 500;
+}
+
+.task-title {
+	font-size: 1rem;
+	color: var(--text-primary);
+	margin-bottom: 0.75rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* 进度条 */
+.task-progress {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
 }
 
 .progress-bar {
-	width: 100%;
-	height: 6px;
-	background: rgba(0, 0, 0, 0.3);
-	border-radius: 3px;
+	flex: 1;
+	height: 8px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
 	overflow: hidden;
-	margin-bottom: 0.75rem;
 }
 
 .progress-fill {
 	height: 100%;
-	border-radius: 3px;
+	border-radius: 4px;
+	background: rgba(100, 100, 100, 0.5);
 	transition: width 0.3s ease;
 }
 
-.progress-fill.active {
-	width: 100%;
-	background: linear-gradient(90deg,
-		#2ed573 0%,
-		#7bed9f 50%,
-		#2ed573 100%
-	);
+.progress-fill.is-active {
+	background: linear-gradient(90deg, #2ed573, #7bed9f, #2ed573);
 	background-size: 200% 100%;
 	animation: shimmer 2s infinite;
-}
-
-.progress-fill.pending {
-	width: 20%;
-	background: rgba(255, 159, 67, 0.5);
 }
 
 @keyframes shimmer {
@@ -451,240 +464,86 @@ function stopPolling() {
 	100% { background-position: -200% 0; }
 }
 
-.task-status-text {
-	font-size: 0.85rem;
-	color: var(--text-muted);
-	font-weight: 500;
-}
-
-.notifications-list {
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-}
-
-.notification-item {
-	display: flex;
-	align-items: center;
-	gap: 1rem;
-	padding: 1rem 1.25rem;
-	background: var(--card-bg);
-	border-radius: 10px;
-	border-left: 3px solid;
-	transition: all 0.2s ease;
-	animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-	from {
-		opacity: 0;
-		transform: translateX(-20px);
-	}
-	to {
-		opacity: 1;
-		transform: translateX(0);
-	}
-}
-
-.notification-item.success {
-	border-left-color: #2ed573;
-	background: rgba(46, 213, 115, 0.05);
-}
-
-.notification-item.error {
-	border-left-color: #ff4757;
-	background: rgba(255, 71, 87, 0.05);
-}
-
-.notification-item.info {
-	border-left-color: #56ccf2;
-	background: rgba(86, 204, 242, 0.05);
-}
-
-.notification-item:hover {
-	transform: translateX(4px);
-}
-
-.notification-icon {
-	font-size: 1.25rem;
-	font-weight: bold;
-	flex-shrink: 0;
-}
-
-.notification-item.success .notification-icon {
-	color: #2ed573;
-}
-
-.notification-item.error .notification-icon {
-	color: #ff4757;
-}
-
-.notification-item.info .notification-icon {
-	color: #56ccf2;
-}
-
-.notification-message {
-	flex: 1;
-	color: var(--text-primary);
-	font-size: 0.9rem;
-}
-
-.notification-time {
-	color: var(--text-muted);
-	font-size: 0.8rem;
+.progress-text {
 	font-family: 'JetBrains Mono', monospace;
-	flex-shrink: 0;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #2ed573;
+	min-width: 50px;
+	text-align: right;
 }
 
-.downloads-list {
+.progress-text.pending {
+	color: var(--text-muted);
+}
+
+/* 空状态 */
+.empty-state {
 	display: flex;
 	flex-direction: column;
-	gap: 1rem;
-}
-
-.download-item {
-	display: flex;
 	align-items: center;
-	gap: 1.25rem;
-	padding: 1rem;
+	justify-content: center;
+	padding: 4rem 2rem;
 	background: var(--card-bg);
 	border-radius: 16px;
-	border: 1px solid var(--border-color);
-	text-decoration: none;
-	transition: all 0.2s ease;
+	border: 1px dashed var(--border-color);
 }
 
-.download-item:hover {
-	border-color: rgba(46, 213, 115, 0.3);
-	transform: translateX(4px);
+.empty-icon {
+	font-size: 4rem;
+	margin-bottom: 1rem;
+	opacity: 0.5;
 }
 
-.download-cover {
-	width: 120px;
-	height: 68px;
-	object-fit: cover;
-	border-radius: 10px;
-	background: rgba(0, 0, 0, 0.3);
-	flex-shrink: 0;
-}
-
-.download-info {
-	flex: 1;
-	min-width: 0;
-}
-
-.download-avid {
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 0.9rem;
-	font-weight: 600;
-	color: var(--accent-primary);
-	margin-bottom: 0.35rem;
-}
-
-.download-title {
-	font-size: 1rem;
+.empty-text {
+	font-size: 1.25rem;
 	color: var(--text-primary);
 	margin-bottom: 0.5rem;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
-.download-meta {
-	display: flex;
-	gap: 0.5rem;
-}
-
-.meta-tag {
-	padding: 0.25rem 0.6rem;
-	background: rgba(255, 255, 255, 0.05);
-	border-radius: 4px;
-	font-size: 0.75rem;
+.empty-hint {
+	font-size: 0.9rem;
 	color: var(--text-muted);
 }
 
-.meta-tag.source {
-	background: rgba(255, 159, 67, 0.15);
-	color: var(--accent-secondary);
-}
-
-.download-status {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 0.25rem;
-	padding: 0.75rem 1rem;
-	background: rgba(46, 213, 115, 0.1);
-	border-radius: 10px;
-	flex-shrink: 0;
-}
-
-.status-icon {
-	font-size: 1.25rem;
-	color: #2ed573;
-}
-
-.status-text {
-	font-size: 0.75rem;
-	color: #2ed573;
-	font-weight: 500;
-}
-
-.btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.75rem 1.5rem;
-	border: none;
-	border-radius: 10px;
-	font-size: 0.95rem;
-	font-weight: 500;
-	text-decoration: none;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.btn-primary {
-	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
-	color: white;
-}
-
-.btn-primary:hover {
-	transform: translateY(-2px);
-}
-
+/* 响应式 */
 @media (max-width: 768px) {
 	.stats-bar {
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0.5rem;
 	}
 
-	.tasks-list {
+	.stat {
+		padding: 1rem;
+	}
+
+	.stat-value {
+		font-size: 1.75rem;
+	}
+
+	.task-row {
+		flex-direction: column;
+	}
+
+	.task-cover {
+		width: 100%;
+		min-width: unset;
+	}
+
+	.task-info {
+		padding: 1rem;
+	}
+}
+
+@media (max-width: 480px) {
+	.stats-bar {
 		grid-template-columns: 1fr;
 	}
 
-	.notification-item {
+	.task-header {
 		flex-direction: column;
 		align-items: flex-start;
 		gap: 0.5rem;
-	}
-}
-
-@media (max-width: 640px) {
-	.download-item {
-		flex-direction: column;
-		align-items: flex-start;
-	}
-
-	.download-cover {
-		width: 100%;
-		height: auto;
-		aspect-ratio: 16 / 9;
-	}
-
-	.download-status {
-		width: 100%;
-		flex-direction: row;
-		justify-content: center;
 	}
 }
 </style>

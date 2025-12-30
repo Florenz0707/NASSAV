@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 8080,
     proxy: {
-      '/nassav': {
+      '/nassav/api': {
         target: 'http://localhost:8000',
         changeOrigin: true
       }
