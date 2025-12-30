@@ -39,8 +39,13 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
             user_agent: str,
             thread_count: int = 32,
             retry_count: int = 5,
+            progress_callback: Optional[callable] = None,
     ) -> bool:
-        """使用 N_m3u8DL-RE 下载 M3U8 视频"""
+        """使用 N_m3u8DL-RE 下载 M3U8 视频
+
+        Args:
+            progress_callback: 进度回调函数，参数为 (percent: float, speed: str, eta: str)
+        """
         output_dir.mkdir(parents=True, exist_ok=True)
         tmp_path = output_dir / "temp"
 
@@ -69,15 +74,43 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 env['HTTP_PROXY'] = self.proxy
                 env['HTTPS_PROXY'] = self.proxy
 
-            # 直接运行，让工具输出到终端显示进度
-            result = subprocess.run(
+            # 使用 Popen 实时读取输出
+            process = subprocess.Popen(
                 cmd,
                 env=env,
-                capture_output=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
             )
 
-            if result.returncode != 0:
-                logger.error(f"N_m3u8DL-RE 下载失败，退出码: {result.returncode}")
+            # 实时读取输出并解析进度
+            import re
+            for line in process.stdout:
+                # 输出到日志
+                if line.strip():
+                    logger.debug(f"[N_m3u8DL-RE] {line.strip()}")
+
+                # 解析进度信息（示例格式: "已下载: 45.2% | 速度: 5.2MB/s"）
+                if progress_callback:
+                    # 尝试匹配百分比
+                    percent_match = re.search(r'(\d+\.?\d*)%', line)
+                    # 尝试匹配速度
+                    speed_match = re.search(r'([\d.]+\s*[KMG]?B/s)', line, re.IGNORECASE)
+
+                    if percent_match:
+                        percent = float(percent_match.group(1))
+                        speed = speed_match.group(1) if speed_match else "N/A"
+                        try:
+                            progress_callback(percent, speed, "")
+                        except Exception as e:
+                            logger.error(f"进度回调失败: {e}")
+
+            # 等待进程完成
+            returncode = process.wait()
+
+            if returncode != 0:
+                logger.error(f"N_m3u8DL-RE 下载失败，退出码: {returncode}")
                 return False
 
             # 检查输出文件

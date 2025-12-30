@@ -41,10 +41,14 @@ class VideoDownloadService:
         self.manager = resource_manager
         self.m3u8_downloader = m3u8_downloader
 
-    def download_video(self, avid: str) -> bool:
+    def download_video(self, avid: str, progress_callback: Optional[callable] = None) -> bool:
         """
         下载视频
         优先从缓存的元数据读取 m3u8 URL，避免重复 fetch_html
+
+        Args:
+            avid: 视频编号
+            progress_callback: 进度回调函数
         """
         avid = avid.upper()
         self.manager.get_resource_dir(avid)
@@ -72,7 +76,7 @@ class VideoDownloadService:
         duration_seconds = self._parse_duration(info.duration) if info.duration else None
 
         # 下载m3u8视频（使用 Redis 分布式锁确保只有一个下载任务运行）
-        result = self._download_m3u8(info.m3u8, avid, domain, duration_seconds)
+        result = self._download_m3u8(info.m3u8, avid, domain, duration_seconds, progress_callback)
         logger.info(f"[{avid}] 下载{'成功' if result else '失败'}")
         return result
 
@@ -97,7 +101,8 @@ class VideoDownloadService:
         source_config = settings.SOURCE_CONFIG.get(source_lower, {})
         return source_config.get('domain', source_lower + '.com')
 
-    def _download_m3u8(self, url: str, avid: str, domain: str, total_duration: Optional[int] = None) -> bool:
+    def _download_m3u8(self, url: str, avid: str, domain: str, total_duration: Optional[int] = None,
+                      progress_callback: Optional[callable] = None) -> bool:
         """使用注入的 M3U8 下载器下载视频"""
         avid_upper = avid.upper()
         resource_dir = settings.RESOURCE_DIR / avid_upper
@@ -115,6 +120,7 @@ class VideoDownloadService:
             user_agent=HEADERS["User-Agent"],
             thread_count=32,
             retry_count=5,
+            progress_callback=progress_callback,
         )
 
         if success:

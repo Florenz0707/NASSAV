@@ -33,6 +33,7 @@ class M3u8DownloaderBase(ABC):
             user_agent: str,
             thread_count: int = 32,
             retry_count: int = 5,
+            progress_callback: Optional[callable] = None,
     ) -> bool:
         """
         下载 M3U8 视频
@@ -45,6 +46,7 @@ class M3u8DownloaderBase(ABC):
             user_agent: User-Agent 头
             thread_count: 下载线程数
             retry_count: 重试次数
+            progress_callback: 进度回调函数，参数为 (percent: float, speed: str, eta: str)
 
         Returns:
             是否下载成功

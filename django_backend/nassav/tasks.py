@@ -70,58 +70,123 @@ def is_task_existed(avid: str):
     return False
 
 
+def set_task_progress(avid: str, percent: float, speed: str = "N/A"):
+    """
+    设置任务下载进度
+
+    Args:
+        avid: 视频ID
+        percent: 下载百分比 (0-100)
+        speed: 下载速度字符串
+    """
+    redis_client = get_redis_client()
+    progress_key = f"nassav:task_progress:{avid.upper()}"
+    progress_data = {
+        'percent': percent,
+        'speed': speed,
+        'updated_at': __import__('time').time()
+    }
+    # 设置过期时间为1小时
+    redis_client.setex(progress_key, 3600, __import__('json').dumps(progress_data))
+
+
+def get_task_progress(avid: str) -> Dict[str, Any]:
+    """
+    获取任务下载进度
+
+    Args:
+        avid: 视频ID
+
+    Returns:
+        dict: 包含 percent, speed, updated_at 的字典，如果不存在则返回 None
+    """
+    redis_client = get_redis_client()
+    progress_key = f"nassav:task_progress:{avid.upper()}"
+    progress_str = redis_client.get(progress_key)
+    if progress_str:
+        return __import__('json').loads(progress_str)
+    return None
+
+
+def remove_task_progress(avid: str):
+    """
+    移除任务进度信息
+
+    Args:
+        avid: 视频ID
+    """
+    redis_client = get_redis_client()
+    progress_key = f"nassav:task_progress:{avid.upper()}"
+    redis_client.delete(progress_key)
+
+
 def get_task_queue_status() -> Dict[str, Any]:
     """
     获取当前任务队列状态
 
     Returns:
-        dict: 包含活跃任务、等待任务和保留任务的信息
+        dict: 包含活跃任务、等待任务的信息，以及任务计数
     """
     task_name = 'nassav.tasks.download_video_task'
     insp = celery_app.control.inspect()
 
-    result = {
-        'active_tasks': [],
-        'scheduled_tasks': [],
-        'reserved_tasks': []
-    }
+    active_tasks_list = []
+    pending_tasks_list = []
 
     # 获取正在执行的任务
     active_tasks = insp.active() or {}
     for worker, tasks in active_tasks.items():
         for task in tasks:
             if task.get('name') == task_name and task.get('args') and len(task['args']) > 0:
-                result['active_tasks'].append({
+                avid = task['args'][0].upper()
+                task_info = {
                     'task_id': task.get('id'),
-                    'avid': task['args'][0].upper(),
+                    'avid': avid,
+                    'state': 'STARTED',
                     'worker': worker,
                     'time_start': task.get('time_start')
-                })
+                }
+                # 添加进度信息
+                progress = get_task_progress(avid)
+                if progress:
+                    task_info['progress'] = {
+                        'percent': progress['percent'],
+                        'speed': progress['speed']
+                    }
+                active_tasks_list.append(task_info)
 
-    # 获取计划中的任务
+    # 获取计划中的任务（pending）
     scheduled_tasks = insp.scheduled() or {}
     for worker, tasks in scheduled_tasks.items():
         for task in tasks:
             task_info = task.get('request', {})
             if task_info.get('task') == task_name and task_info.get('args') and len(task_info['args']) > 0:
-                result['scheduled_tasks'].append({
+                pending_tasks_list.append({
                     'task_id': task_info.get('id'),
-                    'avid': task_info['args'][0].upper(),
-                    'worker': worker
+                    'avid': task_info['args'][0].upper()
                 })
 
-    # 获取保留的任务
+    # 获取保留的任务（也算 pending）
     reserved_tasks = insp.reserved() or {}
     for worker, tasks in reserved_tasks.items():
         for task in tasks:
             if task.get('name') == task_name and task.get('args') and len(task['args']) > 0:
-                result['reserved_tasks'].append({
+                pending_tasks_list.append({
                     'task_id': task.get('id'),
-                    'avid': task['args'][0].upper(),
-                    'worker': worker
+                    'avid': task['args'][0].upper()
                 })
 
-    return result
+    # 计算统计数据
+    active_count = len(active_tasks_list)
+    pending_count = len(pending_tasks_list)
+
+    return {
+        'active_tasks': active_tasks_list,
+        'pending_tasks': pending_tasks_list,
+        'active_count': active_count,
+        'pending_count': pending_count,
+        'total_count': active_count + pending_count
+    }
 
 
 def notify_task_update(update_type: str, data: dict):
@@ -266,8 +331,20 @@ def download_video_task(self, avid: str):
 
     logger.info(f"已获取全局下载锁，开始下载: {avid}")
 
+    # 定义进度回调函数
+    def progress_callback(percent: float, speed: str, eta: str):
+        """更新下载进度并通知 WebSocket"""
+        set_task_progress(avid, percent, speed)
+        # 通知 WebSocket 客户端
+        notify_task_update('progress_update', {
+            'task_id': self.request.id,
+            'avid': avid,
+            'percent': percent,
+            'speed': speed
+        })
+
     try:
-        success = video_download_service.download_video(avid)
+        success = video_download_service.download_video(avid, progress_callback=progress_callback)
 
         if success:
             logger.info(f"视频 {avid} 下载成功")
@@ -338,6 +415,13 @@ def download_video_task(self, avid: str):
             logger.info(f"已清理任务锁: {avid}")
         except Exception as e:
             logger.error(f"清理任务锁失败 {avid}: {str(e)}")
+
+        # 清理进度信息
+        try:
+            remove_task_progress(avid)
+            logger.info(f"已清理任务进度: {avid}")
+        except Exception as e:
+            logger.error(f"清理任务进度失败 {avid}: {str(e)}")
 
         # 发送最终队列状态
         notify_task_update('queue_status', get_task_queue_status())

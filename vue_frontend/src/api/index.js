@@ -66,3 +66,9 @@ export const downloadApi = {
     // 删除下载的视频
     deleteFile: (avid) => api.delete(`/downloads/${encodeURIComponent(avid)}`),
 }
+
+// 任务管理
+export const taskApi = {
+    // 获取任务队列状态
+    getQueueStatus: () => api.get('/tasks/queue/status')
+}

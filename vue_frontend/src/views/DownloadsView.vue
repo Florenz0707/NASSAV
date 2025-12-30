@@ -1,30 +1,36 @@
 <script setup>
-import {ref, onMounted, onUnmounted, computed} from 'vue'
+import {ref, onMounted, onUnmounted, onBeforeUnmount} from 'vue'
 import {useResourceStore} from '../stores/resource'
-import {resourceApi} from '../api'
+import {resourceApi, taskApi} from '../api'
 
 const resourceStore = useResourceStore()
 
 const loading = ref(true)
 const downloadedResources = ref([])
-const ws = ref(null)
-const wsConnected = ref(false)
+const pollingTimer = ref(null)
 
-// WebSocket 任务状态
+// 任务状态
 const activeTasks = ref([])
-const scheduledTasks = ref([])
-const reservedTasks = ref([])
-const notifications = ref([])
+const pendingTasks = ref([])
+const scheduledTasks = ref([])  // 为了兼容模板
+const notifications = ref([])  // 为了兼容模板
+const activeCount = ref(0)
+const pendingCount = ref(0)
+const totalCount = ref(0)
 
-onMounted(async () => {
-	await loadDownloads()
-	connectWebSocket()
+onMounted(() => {
+	// 不阻塞地加载下载列表
+	loadDownloads()
+	// 立即启动轮询
+	startPolling()
+})
+
+onBeforeUnmount(() => {
+	stopPolling()
 })
 
 onUnmounted(() => {
-	if (ws.value) {
-		ws.value.close()
-	}
+	stopPolling()
 })
 
 async function loadDownloads() {
@@ -40,75 +46,43 @@ async function loadDownloads() {
 	}
 }
 
-
-const connectWebSocket = () => {
-	// 从环境变量或默认值获取 WebSocket URL
-	const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/tasks/'
-
-	ws.value = new WebSocket(wsUrl)
-
-	ws.value.onopen = () => {
-		console.log('WebSocket 已连接')
-		wsConnected.value = true
-
-		// 请求当前队列状态
-		ws.value.send(JSON.stringify({
-			action: 'get_queue_status'
-		}))
-	}
-
-	ws.value.onmessage = (event) => {
-		const message = JSON.parse(event.data)
-
-		switch(message.type) {
-			case 'task_started':
-				notifications.value.unshift({
-					type: 'info',
-					message: `开始下载: ${message.data.avid}`,
-					time: new Date().toLocaleTimeString()
-				})
-				break
-
-			case 'task_completed':
-				notifications.value.unshift({
-					type: 'success',
-					message: `下载完成: ${message.data.avid}`,
-					time: new Date().toLocaleTimeString()
-				})
-				// 刷新下载列表
-				loadDownloads()
-				break
-
-			case 'task_failed':
-				notifications.value.unshift({
-					type: 'error',
-					message: `下载失败: ${message.data.avid} - ${message.data.message}`,
-					time: new Date().toLocaleTimeString()
-				})
-				break
-
-			case 'queue_status':
-				activeTasks.value = message.data.active_tasks || []
-				scheduledTasks.value = message.data.scheduled_tasks || []
-				reservedTasks.value = message.data.reserved_tasks || []
-				break
+// 获取任务队列状态
+async function fetchQueueStatus() {
+	try {
+		const response = await taskApi.getQueueStatus()
+		// 后端直接返回数据对象，不包装在 code/data 中
+		const data = response.data
+		if (data) {
+			activeTasks.value = data.active_tasks || []
+			pendingTasks.value = data.pending_tasks || []
+			scheduledTasks.value = data.pending_tasks || []  // 使用 pending_tasks 作为 scheduledTasks
+			activeCount.value = data.active_count || 0
+			pendingCount.value = data.pending_count || 0
+			totalCount.value = data.total_count || 0
 		}
-
-		// 保留最近20条通知
-		if (notifications.value.length > 20) {
-			notifications.value.pop()
-		}
+	} catch (error) {
+		console.error('获取任务队列状态失败:', error)
 	}
+}
 
-	ws.value.onerror = (error) => {
-		console.error('WebSocket 错误:', error)
-		wsConnected.value = false
-	}
+// 开始轮询
+function startPolling() {
+	// 先停止之前的轮询
+	stopPolling()
+	// 立即获取一次
+	fetchQueueStatus()
+	// 每 0.5 秒轮询一次
+	pollingTimer.value = setInterval(() => {
+		fetchQueueStatus()
+	}, 1000)
+}
 
-	ws.value.onclose = () => {
-		console.log('WebSocket 连接关闭，5秒后重连...')
-		wsConnected.value = false
-		setTimeout(connectWebSocket, 5000)
+// 停止轮询
+function stopPolling() {
+	if (pollingTimer.value) {
+		console.log('停止轮询')
+		clearInterval(pollingTimer.value)
+		pollingTimer.value = null
 	}
 }
 
@@ -119,37 +93,45 @@ const connectWebSocket = () => {
 		<div class="page-header">
 			<h1 class="page-title">下载管理</h1>
 			<p class="page-subtitle">实时监控下载任务与已下载视频</p>
-			<div class="ws-status">
-				<span class="ws-indicator" :class="{ connected: wsConnected }"></span>
-				<span class="ws-text">{{ wsConnected ? 'WebSocket 已连接' : 'WebSocket 未连接' }}</span>
-			</div>
 		</div>
 
 		<!-- 任务队列统计 -->
 		<div class="stats-bar">
 			<div class="stat stat-active">
-				<span class="stat-value">{{ activeTasks.length }}</span>
+				<span class="stat-value">{{ activeCount }}</span>
 				<span class="stat-label">正在下载</span>
 			</div>
 			<div class="stat stat-waiting">
-				<span class="stat-value">{{ scheduledTasks.length }}</span>
+				<span class="stat-value">{{ pendingCount }}</span>
 				<span class="stat-label">等待中</span>
+			</div>
+			<div class="stat stat-total">
+				<span class="stat-value">{{ totalCount }}</span>
+				<span class="stat-label">总任务数</span>
 			</div>
 		</div>
 
 		<!-- 正在下载的任务 -->
 		<div v-if="activeTasks.length > 0" class="task-section">
 			<h2 class="section-title">
-				<span class="title-icon">⬇️</span>
 				正在下载 ({{ activeTasks.length }})
 			</h2>
 			<div class="tasks-grid">
 				<div v-for="task in activeTasks" :key="task.task_id" class="task-card downloading">
 					<div class="task-cover">
 						<img :src="resourceApi.getCoverUrl(task.avid)" :alt="task.avid" loading="lazy"/>
+						<div v-if="task.progress" class="task-overlay">
+							<span class="task-badge downloading">{{ task.progress.percent?.toFixed(1) || 0 }}%</span>
+						</div>
 					</div>
 					<div class="task-content">
 						<div class="task-avid">{{ task.avid }}</div>
+						<div v-if="task.progress" class="progress-bar">
+							<div class="progress-fill" :style="{ width: (task.progress.percent || 0) + '%' }"></div>
+						</div>
+						<div v-if="task.progress" class="task-status-text">
+							{{ task.progress.speed || '计算中...' }}
+						</div>
 					</div>
 				</div>
 			</div>

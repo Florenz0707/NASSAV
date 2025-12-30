@@ -6,12 +6,13 @@
 
 - 🎬 **多源资源获取**：支持 8+ 视频源，自动按权重遍历获取
 - 📥 **异步视频下载**：基于 Celery 的异步下载队列，支持 M3U8 流媒体
+- � **实时进度追踪**：从 N_m3u8DL-RE 解析下载进度，支持 REST API 查询和 WebSocket 实时推送
 - 🔍 **元数据刮削**：从 JavBus 等站点获取详细元数据（发行日期、演员、类别等）
 - 🔒 **智能去重机制**：多层去重检查（Redis 锁 + Celery 队列检查），确保同一 AVID 在队列中只出现一次
 - 🚦 **全局下载锁**：确保同一时间只有一个下载任务执行，避免 N_m3u8DL-RE 多实例并发
 - ⚡ **并发控制**：Celery Worker 配置为单并发，下载任务串行执行
 - 📁 **统一资源管理**：所有资源按 AVID 分目录存储
-- 🔌 **WebSocket 实时通知**：前端可实时接收任务队列状态和任务完成通知
+- 🔌 **WebSocket 实时通知**：前端可实时接收任务状态、下载进度、完成通知
 - 📡 **Redis 消息支持**：基于 Redis 的消息队列和实时通信
 
 ## 技术栈
@@ -179,11 +180,12 @@ uv run celery -A django_project worker -l info --concurrency=1
 
 ### WebSocket 端点
 
-| 端点                              | 说明       |
-|---------------------------------|----------|
-| `ws://localhost:8000/ws/tasks/` | 实时任务队列通知 |
+| 端点                              | 说明                 |
+|---------------------------------|--------------------|
+| `ws://localhost:8000/ws/tasks/` | 实时任务队列通知和下载进度推送 |
 
 WebSocket 支持以下消息类型：
+- `progress_update`: 下载进度实时更新（百分比、速度）
 - `task_started`: 任务开始通知
 - `task_completed`: 任务完成通知
 - `task_failed`: 任务失败通知
@@ -233,6 +235,101 @@ uv run python manage.py check
 # 查看 Celery 队列状态
 uv run celery -A django_project inspect active
 uv run celery -A django_project inspect scheduled
+```
+
+## 实时进度追踪
+
+### 工作原理
+
+系统通过以下方式实现下载进度的实时追踪：
+
+1. **进度解析**：从 N_m3u8DL-RE 的标准输出实时解析进度信息（百分比、速度）
+2. **Redis 存储**：将进度数据存储到 Redis，键名格式：`nassav:task_progress:{AVID}`
+3. **WebSocket 推送**：每次进度更新时通过 Channel Layer 推送到所有连接的客户端
+4. **REST API 查询**：通过 `GET /api/tasks/queue/status` 查询当前任务进度
+5. **自动清理**：任务完成后自动删除进度数据，或 1 小时后自动过期
+
+### 前端集成示例
+
+#### WebSocket 实时订阅（推荐）
+
+```javascript
+const ws = new WebSocket('ws://localhost:8000/nassav/ws/tasks/');
+
+ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+
+    switch (message.type) {
+        case 'progress_update':
+            // 实时进度更新
+            const { avid, percent, speed } = message.data;
+            console.log(`${avid}: ${percent}% @ ${speed}`);
+            updateProgressBar(avid, percent);
+            break;
+
+        case 'task_completed':
+            // 下载完成
+            console.log(`Task ${message.data.avid} completed`);
+            break;
+
+        case 'queue_status':
+            // 队列状态更新
+            updateQueueDisplay(message.data);
+            break;
+    }
+};
+```
+
+#### REST API 轮询（备选）
+
+```javascript
+// 定期查询任务状态（包含进度信息）
+setInterval(async () => {
+    const response = await fetch('/nassav/api/tasks/queue/status');
+    const { data } = await response.json();
+
+    data.active_tasks.forEach(task => {
+        if (task.progress) {
+            console.log(`${task.avid}: ${task.progress.percent}%`);
+            updateProgressBar(task.avid, task.progress.percent);
+        }
+    });
+}, 2000); // 每 2 秒查询一次
+```
+
+### 数据格式
+
+**进度更新消息（WebSocket）：**
+```json
+{
+    "type": "progress_update",
+    "data": {
+        "task_id": "abc123-def456-...",
+        "avid": "SSIS-469",
+        "percent": 45.2,
+        "speed": "5.2MB/s"
+    }
+}
+```
+
+**任务状态查询响应（REST API）：**
+```json
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "active_tasks": [
+            {
+                "task_id": "abc123",
+                "avid": "SSIS-469",
+                "progress": {
+                    "percent": 45.2,
+                    "speed": "5.2MB/s"
+                }
+            }
+        ]
+    }
+}
 ```
 
 ## License
