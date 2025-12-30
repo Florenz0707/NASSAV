@@ -94,76 +94,107 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div class="resource-card" :class="statusClass">
-		<div class="card-cover">
-			<img :src="coverUrl" :alt="resource.title" loading="lazy"/>
-			<div class="cover-overlay">
-				<RouterLink :to="`/resource/${resource.avid}`" class="btn-view">
+	<div
+		class="bg-[rgba(18,18,28,0.8)] rounded-2xl overflow-hidden border border-white/[0.08] transition-all duration-300 hover:-translate-y-1 hover:border-[rgba(255,107,107,0.3)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
+		:class="statusClass"
+	>
+		<!-- 封面图 -->
+		<div class="relative aspect-video overflow-hidden bg-black/30 group">
+			<img
+				:src="coverUrl"
+				:alt="resource.title"
+				loading="lazy"
+				class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+			/>
+			<div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+				<RouterLink
+					:to="`/resource/${resource.avid}`"
+					class="px-6 py-3 bg-[#ff6b6b] text-white rounded-lg font-medium text-sm transition-transform hover:scale-105"
+				>
 					查看详情
 				</RouterLink>
 			</div>
 		</div>
 
-		<div class="card-content">
-			<div class="meta-head">
-				<div class="card-avid">{{ resource.avid }}</div>
-				<div class="card-download" :class="{ downloaded: resource.has_video }">
+		<!-- 卡片内容 -->
+		<div class="p-5 relative">
+			<!-- 元数据头部 -->
+			<div class="flex gap-4 mb-2.5 items-center">
+				<div class="font-['JetBrains_Mono',monospace] text-[0.85rem] text-[#ff6b6b] font-semibold bg-[#ff6b6b]/15 rounded-md w-fit px-2 py-1">
+					{{ resource.avid }}
+				</div>
+				<div
+					class="font-['JetBrains_Mono',monospace] text-[0.85rem] font-semibold rounded-md w-fit px-2 py-1"
+					:class="resource.has_video ? 'text-[#ff6b6b] bg-[#ff6b6b]/15' : 'text-[#ff9f43] bg-[#ff6b6b]/15'"
+				>
 					{{ resource.has_video ? '已下载' : '未下载' }}
 				</div>
 			</div>
-			<h3 class="card-title" :title="resource.title">{{ resource.title }}</h3>
 
-			<div class="card-meta">
-        <span class="meta-item">
-          <span class="meta-icon">◉</span>
-          {{ resource.source }}
-        </span>
-				<span class="meta-item" v-if="resource.release_date">
-          <span class="meta-icon">◷</span>
-          {{ resource.release_date }}
-        </span>
+			<!-- 标题 -->
+			<h3
+				class="text-base font-medium text-[#f4f4f5] leading-[1.4] mb-3 line-clamp-2"
+				:title="resource.title"
+			>
+				{{ resource.title }}
+			</h3>
+
+			<!-- 元信息 -->
+			<div class="flex flex-wrap gap-8 mb-4">
+				<span class="flex items-center gap-1.5 text-[0.8rem] text-[#71717a]">
+					<span class="text-[0.7rem] opacity-70">◉</span>
+					{{ resource.source }}
+				</span>
+				<span
+					v-if="resource.release_date"
+					class="flex items-center gap-1.5 text-[0.8rem] text-[#71717a]"
+				>
+					<span class="text-[0.7rem] opacity-70">◷</span>
+					{{ resource.release_date }}
+				</span>
 			</div>
 
-			<div class="card-actions">
+			<!-- 操作按钮 -->
+			<div class="flex gap-2 justify-between items-center relative">
 				<button
-					class="btn btn-secondary btn-small"
+					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.8rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#a1a1aa] hover:bg-white/[0.12] hover:text-[#f4f4f5]"
 					@click="emit('refresh', resource.avid)"
 				>
-					<span class="btn-icon">↻</span>
+					<span class="text-[0.9rem]">↻</span>
 					刷新
 				</button>
 
 				<button
 					v-if="!resource.has_video"
-					class="btn btn-primary btn-small"
+					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.8rem] font-medium cursor-pointer transition-all duration-200 bg-[#ff6b6b] text-white hover:bg-[#ff5252] hover:-translate-y-0.5"
 					@click="emit('download', resource.avid)"
 				>
-					<span class="btn-icon">⬇</span>
+					<span class="text-[0.9rem]">⬇</span>
 					下载
 				</button>
 
 				<!-- 删除按钮容器 -->
-				<div class="delete-container" @click.stop>
+				<div class="relative" @click.stop>
 					<button
-						class="btn delete-btn btn-small"
+						class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.8rem] font-medium cursor-pointer transition-all duration-200 bg-[#ef476f]/10 text-[#ef476f] border border-[#ef476f]/20 hover:bg-[#ef476f]/20 hover:text-[#ff5252]"
 						:data-avid="resource.avid"
 						@click="showDeleteMenu = !showDeleteMenu"
 						title="删除"
 					>
-						<span class="btn-icon">✕</span>
+						<span class="text-[0.9rem]">✕</span>
 						删除
 					</button>
 
-					<!-- 下拉菜单（定位到按钮上方） -->
+					<!-- 下拉菜单 -->
 					<div
-						class="delete-menu"
 						v-if="showDeleteMenu"
 						:data-avid="resource.avid"
+						class="absolute bottom-[calc(100%+0.5rem)] right-0 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto"
 					>
 						<button
 							v-for="option in deleteOptions"
 							:key="option.action"
-							class="delete-menu-item"
+							class="w-full px-4 py-2.5 text-center bg-[#ef476f]/20 border-none text-[#ef476f] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[#ef476f]/10"
 							@click="handleDeleteOption(option)"
 						>
 							{{ option.text }}
@@ -188,263 +219,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.resource-card {
-	background: var(--card-bg);
-	border-radius: 16px;
-	overflow: hidden;
-	border: 1px solid var(--border-color);
-	transition: all 0.3s ease;
-}
-
-.resource-card:hover {
-	transform: translateY(-4px);
-	border-color: rgba(255, 107, 107, 0.3);
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-}
-
-.card-cover {
-	position: relative;
-	aspect-ratio: 16 / 9;
-	overflow: hidden;
-	background: rgba(0, 0, 0, 0.3);
-}
-
-.card-cover img {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-	transition: transform 0.2s ease;
-}
-
-.resource-card:hover .card-cover img {
-	transform: scale(1.05);
-}
-
-.cover-overlay {
-	position: absolute;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.6);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	opacity: 0;
-	transition: opacity 0.3s ease;
-}
-
-.resource-card:hover .cover-overlay {
-	opacity: 1;
-}
-
-.btn-view {
-	padding: 0.75rem 1.5rem;
-	background: var(--accent-primary);
-	color: white;
-	border-radius: 8px;
-	text-decoration: none;
-	font-weight: 500;
-	font-size: 0.9rem;
-	transition: transform 0.2s ease;
-}
-
-.btn-view:hover {
-	transform: scale(1.05);
-}
-
-.card-content {
-	padding: 1.25rem;
-	position: relative; /* 确保菜单不会超出卡片 */
-}
-
-.meta-head {
-	display: flex;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 1rem;
-	margin-bottom: 10px;
-	justify-content: left;
-	align-items: center;
-	position: relative;
-}
-
-.card-avid {
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 0.85rem;
-	color: var(--accent-primary);
-	font-weight: 600;
-	margin-bottom: 0.5rem;
-	background: rgba(255, 107, 107, 0.15);
-	border-radius: 6px;
-	width: fit-content;
-	padding: 4px 8px;
-}
-
-.card-download {
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 0.85rem;
-	color: var(--accent-secondary);
-	font-weight: 600;
-	margin-bottom: 0.5rem;
-	background: rgba(255, 107, 107, 0.15);
-	border-radius: 6px;
-	width: fit-content;
-	padding: 4px 8px;
-}
-
-.card-download.downloaded {
-	color: var(--accent-primary);
-}
-
-.card-title {
-	font-size: 1rem;
-	font-weight: 500;
-	color: var(--text-primary);
-	line-height: 1.4;
-	margin-bottom: 0.75rem;
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-}
-
-.card-meta {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 2rem;
-	margin-bottom: 1rem;
-	justify-content: left;
-}
-
-.meta-item {
-	display: flex;
-	align-items: center;
-	gap: 0.35rem;
-	font-size: 0.8rem;
-	color: var(--text-muted);
-}
-
-.meta-icon {
-	font-size: 0.7rem;
-	opacity: 0.7;
-}
-
-.card-actions {
-	display: flex;
-	gap: 0.5rem;
-	justify-content: space-between;
-	align-items: center;
-	position: relative;
-}
-
-.btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.4rem;
-	padding: 0.6rem 1rem;
-	border: none;
-	border-radius: 8px;
-	font-size: 0.85rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.btn-small {
-	padding: 0.5rem 0.85rem;
-	font-size: 0.8rem;
-}
-
-.btn-primary {
-	background: var(--accent-primary);
-	color: white;
-}
-
-.btn-primary:hover {
-	background: #ff5252;
-	transform: translateY(-1px);
-}
-
-.btn-secondary {
-	background: rgba(255, 255, 255, 0.08);
-	color: var(--text-secondary);
-}
-
-.btn-secondary:hover {
-	background: rgba(255, 255, 255, 0.12);
-	color: var(--text-primary);
-}
-
-.btn-icon {
-	font-size: 0.9rem;
-}
-
-/* 删除按钮容器 */
-.delete-container {
-	position: relative;
-}
-
-/* 删除按钮样式 */
-.delete-btn {
-	background: rgba(239, 71, 111, 0.1);
-	color: #ef476f;
-	border: 1px solid rgba(239, 71, 111, 0.2);
-}
-
-.delete-btn:hover {
-	background: rgba(239, 71, 111, 0.2);
-	color: #ff5252;
-}
-
-/* 下拉菜单（核心修改：定位到按钮上方） */
-.delete-menu {
-	position: absolute;
-	bottom: calc(100% + 0.5rem); /* 改为底部对齐按钮顶部，向上展开 */
-	right: 0; /* 右对齐按钮 */
-	background: var(--card-bg);
-	border: 1px solid var(--border-color);
-	border-radius: 8px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-	min-width: 85px;
-	z-index: 100;
-	overflow: hidden;
-	/* 防止菜单超出卡片 */
-	max-height: calc(100vh - 20px);
-	overflow-y: auto;
-}
-
-/* 菜单选项样式 */
-.delete-menu-item {
-	width: 100%;
-	padding: 0.6rem 1rem;
-	text-align: center;
-	background: rgba(239, 71, 111, 0.2);
-	border: none;
-	color: #ef476f;
-	font-size: 0.8rem;
-	cursor: pointer;
-	transition: background 0.2s ease;
-}
-
-.delete-menu-item:hover {
-	background: rgba(239, 71, 111, 0.1);
-	color: #ef476f;
-}
-
-/* 响应式调整 */
+/* 响应式调整 - 仅保留必要的媒体查询 */
 @media (max-width: 480px) {
-	.card-actions .btn span:not(.btn-icon) {
+	.card-actions button span:not(:first-child) {
 		display: none;
 	}
 
-	.card-actions .btn {
+	.card-actions button {
 		padding: 0.5rem;
-	}
-
-	.delete-menu {
-		min-width: 100px;
-	}
-
-	.delete-menu-item {
-		padding: 0.5rem 0.8rem;
-		font-size: 0.8rem;
 	}
 }
 </style>

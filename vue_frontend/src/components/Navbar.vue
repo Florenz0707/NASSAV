@@ -18,22 +18,23 @@ const isActive = (path) => {
 </script>
 
 <template>
-	<nav class="navbar">
-		<div class="navbar-inner">
-			<RouterLink to="/" class="logo">
-				<span class="logo-icon">▶</span>
-				<span class="logo-text">NASSAV</span>
+	<nav class="bg-[rgba(18,18,24,0.85)] backdrop-blur-xl border-b border-white/[0.06] sticky top-0 z-[100]">
+		<div class="max-w-[1400px] mx-auto px-8 h-16 flex items-center justify-between">
+			<RouterLink to="/" class="flex items-center gap-3 no-underline text-[#f4f4f5] font-semibold text-xl tracking-wide">
+				<span class="w-9 h-9 bg-gradient-to-br from-[#ff6b6b] to-[#ff9f43] rounded-[10px] flex items-center justify-center text-base text-white shadow-[0_4px_12px_rgba(255,107,107,0.3)]">▶</span>
+				<span class="bg-gradient-to-br from-[#ff6b6b] to-[#ff9f43] bg-clip-text text-transparent">NASSAV</span>
 			</RouterLink>
 
-			<div class="nav-links">
+			<div class="flex gap-2">
 				<RouterLink
 					v-for="item in navItems"
 					:key="item.path"
 					:to="item.path"
-					:class="['nav-link', { active: isActive(item.path) }]"
+					class="flex items-center gap-2 py-2.5 px-4 rounded-lg no-underline text-[#a1a1aa] text-sm font-medium transition-all duration-200 hover:text-[#f4f4f5] hover:bg-white/5"
+					:class="{ 'text-[#ff6b6b] bg-[#ff6b6b]/10': isActive(item.path) }"
 				>
-					<span class="nav-icon">{{ item.icon }}</span>
-					<span class="nav-text">{{ item.name }}</span>
+					<span class="text-base" :class="{ 'opacity-100': isActive(item.path), 'opacity-80': !isActive(item.path) }">{{ item.icon }}</span>
+					<span class="hidden md:inline">{{ item.name }}</span>
 				</RouterLink>
 			</div>
 		</div>
@@ -41,108 +42,10 @@ const isActive = (path) => {
 </template>
 
 <style scoped>
-.navbar {
-	background: rgba(18, 18, 24, 0.85);
-	backdrop-filter: blur(20px);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-	position: sticky;
-	top: 0;
-	z-index: 100;
-}
-
-.navbar-inner {
-	max-width: 1400px;
-	margin: 0 auto;
-	padding: 0 2rem;
-	height: 64px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-}
-
-.logo {
-	display: flex;
-	align-items: center;
-	gap: 0.75rem;
-	text-decoration: none;
-	color: var(--text-primary);
-	font-weight: 600;
-	font-size: 1.25rem;
-	letter-spacing: 0.5px;
-}
-
-.logo-icon {
-	width: 36px;
-	height: 36px;
-	background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-	border-radius: 10px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 1rem;
-	color: white;
-	box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-}
-
-.logo-text {
-	background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-}
-
-.nav-links {
-	display: flex;
-	gap: 0.5rem;
-}
-
-.nav-link {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.6rem 1rem;
-	border-radius: 8px;
-	text-decoration: none;
-	color: var(--text-secondary);
-	font-size: 0.9rem;
-	font-weight: 500;
-	transition: all 0.2s ease;
-}
-
-.nav-link:hover {
-	color: var(--text-primary);
-	background: rgba(255, 255, 255, 0.05);
-}
-
-.nav-link.active {
-	color: var(--accent-primary);
-	background: rgba(255, 107, 107, 0.1);
-}
-
-.nav-icon {
-	font-size: 1rem;
-	opacity: 0.8;
-}
-
-.nav-link.active .nav-icon {
-	opacity: 1;
-}
-
+/* 仅保留必要的响应式样式 */
 @media (max-width: 768px) {
 	.navbar-inner {
 		padding: 0 1rem;
-	}
-
-	.nav-text {
-		display: none;
-	}
-
-	.nav-link {
-		padding: 0.6rem;
-	}
-
-	.nav-icon {
-		font-size: 1.2rem;
 	}
 }
 </style>

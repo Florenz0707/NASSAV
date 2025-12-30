@@ -152,129 +152,168 @@ function cancelDelete() {
 </script>
 
 <template>
-	<div class="detail-view">
-		<button class="back-btn" @click="goBack">
-			<span class="back-icon">←</span>
+	<div class="animate-[fadeIn_0.5s_ease]">
+		<!-- 返回按钮 -->
+		<button
+			class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-white/[0.08] rounded-lg text-[#a1a1aa] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[#f4f4f5]"
+			@click="goBack"
+		>
+			<span class="text-[1.1rem]">←</span>
 			返回
 		</button>
 
+		<!-- 加载状态 -->
 		<LoadingSpinner v-if="loading" size="large" text="加载详情中..."/>
 
-		<div v-else-if="error" class="error-state">
-			<div class="error-icon">✕</div>
-			<h2>加载失败</h2>
-			<p>{{ error }}</p>
-			<button class="btn btn-primary" @click="fetchMetadata">重试</button>
+		<!-- 错误状态 -->
+		<div v-else-if="error" class="text-center py-16 px-8">
+			<div class="w-16 h-16 mx-auto mb-6 bg-[#ff6b6b]/10 rounded-full flex items-center justify-center text-2xl text-[#ff6b6b]">
+				✕
+			</div>
+			<h2 class="text-xl text-[#f4f4f5] mb-2">加载失败</h2>
+			<p class="text-[#71717a] mb-6">{{ error }}</p>
+			<button
+				class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+				@click="fetchMetadata"
+			>
+				重试
+			</button>
 		</div>
 
+		<!-- 详情内容 -->
 		<template v-else-if="metadata">
-			<div class="detail-header">
-				<div class="cover-wrapper">
-					<img :src="coverUrl" :alt="metadata.title" class="cover-image"/>
+			<!-- 头部信息 -->
+			<div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-10 mb-12">
+				<!-- 封面 -->
+				<div class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex justify-center items-center">
+					<img
+						:src="coverUrl"
+						:alt="metadata.title"
+						class="h-full aspect-auto object-cover block"
+					/>
 				</div>
 
-				<div class="header-info">
-					<div class="meta-head">
-						<div class="avid-badge">{{ metadata.avid }}</div>
-						<div class="download-status" :class="{ downloaded: metadata.file_exists }">
+				<!-- 右侧信息 -->
+				<div class="flex flex-col justify-center">
+					<!-- AVID 和状态 -->
+					<div class="grid grid-cols-2 gap-4 mb-2.5">
+						<div class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[#ff6b6b] w-fit">
+							{{ metadata.avid }}
+						</div>
+						<div
+							class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold w-fit"
+							:class="metadata.file_exists ? 'text-[#ff6b6b]' : 'text-[#ff9f43]'"
+						>
 							{{ metadata.file_exists ? '已下载' : '未下载' }}
 						</div>
 					</div>
-					<h1 class="title">{{ metadata.title }}</h1>
 
-					<div class="meta-grid">
-						<div class="meta-item" v-if="metadata.release_date">
-							<span class="meta-label">发行日期</span>
-							<span class="meta-value">{{ metadata.release_date }}</span>
+					<!-- 标题 -->
+					<h1 class="text-[1.75rem] font-semibold text-[#f4f4f5] leading-[1.4] mb-6">
+						{{ metadata.title }}
+					</h1>
+
+					<!-- 元数据网格 -->
+					<div class="grid grid-cols-2 gap-4 mb-8">
+						<div v-if="metadata.release_date" class="flex flex-col gap-1">
+							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">发行日期</span>
+							<span class="text-base text-[#f4f4f5]">{{ metadata.release_date }}</span>
 						</div>
-						<div class="meta-item" v-if="metadata.duration">
-							<span class="meta-label">时长</span>
-							<span class="meta-value">{{ metadata.duration }}</span>
+						<div v-if="metadata.duration" class="flex flex-col gap-1">
+							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">时长</span>
+							<span class="text-base text-[#f4f4f5]">{{ metadata.duration }}</span>
 						</div>
-						<div class="meta-item">
-							<span class="meta-label">来源</span>
-							<span class="meta-value source">{{ metadata.source }}</span>
+						<div class="flex flex-col gap-1">
+							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">来源</span>
+							<span class="text-base text-[#ff9f43] font-medium">{{ metadata.source }}</span>
 						</div>
-						<div class="meta-item" v-if="fileSize">
-							<span class="meta-label">文件大小</span>
-							<span class="meta-value">{{ fileSize }}</span>
+						<div v-if="fileSize" class="flex flex-col gap-1">
+							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">文件大小</span>
+							<span class="text-base text-[#f4f4f5]">{{ fileSize }}</span>
 						</div>
 					</div>
 
-					<div class="action-buttons">
+					<!-- 操作按钮 -->
+					<div class="flex flex-wrap gap-4">
 						<button
 							v-if="!metadata.file_exists"
-							class="btn btn-primary"
+							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
 							:disabled="downloading"
 							@click="handleDownload"
 						>
-							<span class="btn-icon">{{ downloading ? '◷' : '⬇' }}</span>
+							<span class="text-[1.1rem]">{{ downloading ? '◷' : '⬇' }}</span>
 							{{ downloading ? '提交中...' : '下载视频' }}
 						</button>
 						<button
 							v-if="metadata.file_exists"
-							class="btn btn-primary"
+							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
 							@click="jumpPlay"
 						>
-							<span class="btn-icon">▶</span>
+							<span class="text-[1.1rem]">▶</span>
 							点击播放
 						</button>
 						<button
-							class="btn btn-secondary"
+							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#f4f4f5] border border-white/[0.08] hover:bg-white/[0.12] disabled:opacity-60 disabled:cursor-not-allowed"
 							:disabled="refreshing"
 							@click="handleRefresh"
 						>
-							<span class="btn-icon">{{ refreshing ? '◷' : '↻' }}</span>
+							<span class="text-[1.1rem]">{{ refreshing ? '◷' : '↻' }}</span>
 							{{ refreshing ? '刷新中...' : '刷新信息' }}
 						</button>
 						<button
 							v-if="metadata.file_exists"
-							class="btn btn-deleteFile"
+							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#dc3558] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
 							@click="deleteFile"
 						>
-							<span class="btn-icon">✕</span>
+							<span class="text-[1.1rem]">✕</span>
 							删除视频
 						</button>
 						<button
-							class="btn btn-deleteMetadata"
+							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff0000] to-[#dc3558] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
 							@click="deleteMetadata"
 						>
-							<span class="btn-icon">✕</span>
+							<span class="text-[1.1rem]">✕</span>
 							删除全部
 						</button>
 					</div>
 				</div>
 			</div>
 
-			<div class="detail-sections">
-				<section class="detail-section" v-if="metadata.director || metadata.studio || metadata.label">
-					<h2 class="section-title">制作信息</h2>
-					<div class="info-list">
-					<div class="info-item" v-if="metadata.actors && metadata.actors.length > 0">
-						<span class="info-label">演员</span>
-						<div class="info-value">
-							<div v-for="actor in metadata.actors" :key="actor">{{ actor }}</div>
+			<!-- 详细信息区域 -->
+			<div class="flex flex-col gap-8">
+				<section
+					v-if="metadata.director || metadata.studio || metadata.label || metadata.actors?.length || metadata.series || metadata.genres?.length"
+					class="bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] p-6"
+				>
+					<h2 class="text-[1.1rem] font-semibold text-[#f4f4f5] mb-5 pb-3 border-b border-white/[0.08]">
+						制作信息
+					</h2>
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+						<div v-if="metadata.actors && metadata.actors.length > 0" class="flex flex-col gap-1.5">
+							<span class="text-[0.8rem] text-[#71717a]">演员</span>
+							<div class="text-[0.95rem] text-[#f4f4f5]">
+								<div v-for="actor in metadata.actors" :key="actor">{{ actor }}</div>
+							</div>
 						</div>
+						<div v-if="metadata.series" class="flex flex-col gap-1.5">
+							<span class="text-[0.8rem] text-[#71717a]">系列</span>
+							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.series }}</span>
 						</div>
-						<div class="info-item" v-if="metadata.series">
-							<span class="info-label">系列</span>
-							<span class="info-value">{{ metadata.series }}</span>
+						<div v-if="metadata.director" class="flex flex-col gap-1.5">
+							<span class="text-[0.8rem] text-[#71717a]">导演</span>
+							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.director }}</span>
 						</div>
-						<div class="info-item" v-if="metadata.director">
-							<span class="info-label">导演</span>
-							<span class="info-value">{{ metadata.director }}</span>
+						<div v-if="metadata.studio" class="flex flex-col gap-1.5">
+							<span class="text-[0.8rem] text-[#71717a]">制作商</span>
+							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.studio }}</span>
 						</div>
-						<div class="info-item" v-if="metadata.studio">
-							<span class="info-label">制作商</span>
-							<span class="info-value">{{ metadata.studio }}</span>
+						<div v-if="metadata.label" class="flex flex-col gap-1.5">
+							<span class="text-[0.8rem] text-[#71717a]">发行商</span>
+							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.label }}</span>
 						</div>
-						<div class="info-item" v-if="metadata.label">
-							<span class="info-label">发行商</span>
-							<span class="info-value">{{ metadata.label }}</span>
-						</div>
-					<div class="info-item" v-if="metadata.genres && metadata.genres.length > 0">
-							<span class="info-label">类别</span>
-							<span class="info-value">{{ metadata.genres }}</span>
+						<div v-if="metadata.genres && metadata.genres.length > 0" class="flex flex-col gap-1.5">
+							<span class="text-[0.8rem] text-[#71717a]">类别</span>
+							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.genres }}</span>
 						</div>
 					</div>
 				</section>
@@ -296,334 +335,9 @@ function cancelDelete() {
 </template>
 
 <style scoped>
-.detail-view {
-	animation: fadeIn 0.5s ease;
-}
-
+/* 自定义动画 */
 @keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
-.back-btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.6rem 1rem;
-	background: transparent;
-	border: 1px solid var(--border-color);
-	border-radius: 8px;
-	color: var(--text-secondary);
-	font-size: 0.9rem;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	margin-bottom: 2rem;
-}
-
-.back-btn:hover {
-	background: rgba(255, 255, 255, 0.05);
-	color: var(--text-primary);
-}
-
-.back-icon {
-	font-size: 1.1rem;
-}
-
-.error-state {
-	text-align: center;
-	padding: 4rem 2rem;
-}
-
-.error-icon {
-	width: 64px;
-	height: 64px;
-	margin: 0 auto 1.5rem;
-	background: rgba(255, 107, 107, 0.1);
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 1.5rem;
-	color: var(--accent-primary);
-}
-
-.error-state h2 {
-	font-size: 1.25rem;
-	color: var(--text-primary);
-	margin-bottom: 0.5rem;
-}
-
-.error-state p {
-	color: var(--text-muted);
-	margin-bottom: 1.5rem;
-}
-
-.detail-header {
-	display: grid;
-	grid-template-columns: 400px 1fr;
-	gap: 2.5rem;
-	margin-bottom: 3rem;
-}
-
-.cover-wrapper {
-	position: relative;
-	height: 310px;
-	border-radius: 16px;
-	overflow: hidden;
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
-	display: flex;
-	justify-content: center;
-	align-items: center;
-}
-
-.cover-image {
-	height: 100%;
-	aspect-ratio: auto;
-	object-fit: cover;
-	display: block;
-}
-
-.header-info {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-}
-
-.meta-head {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 1rem;
-	margin-bottom: 10px;
-}
-
-.avid-badge {
-	display: inline-block;
-	padding: 0.4rem 0.85rem;
-	background: rgba(255, 107, 107, 0.15);
-	border-radius: 6px;
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 0.9rem;
-	font-weight: 600;
-	color: var(--accent-primary);
-	margin-bottom: 1rem;
-	width: fit-content;
-}
-
-.download-status {
-	display: inline-block;
-	padding: 0.4rem 0.85rem;
-	background: rgba(255, 107, 107, 0.15);
-	border-radius: 6px;
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 0.9rem;
-	font-weight: 600;
-	color: var(--accent-secondary);
-	margin-bottom: 1rem;
-	width: fit-content;
-}
-
-.download-status.downloaded {
-	color: var(--accent-primary);
-}
-
-.title {
-	font-size: 1.75rem;
-	font-weight: 600;
-	color: var(--text-primary);
-	line-height: 1.4;
-	margin-bottom: 1.5rem;
-}
-
-.meta-grid {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 1rem;
-	margin-bottom: 2rem;
-}
-
-.meta-item {
-	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
-}
-
-.meta-label {
-	font-size: 0.8rem;
-	color: var(--text-muted);
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-}
-
-.meta-value {
-	font-size: 1rem;
-	color: var(--text-primary);
-}
-
-.meta-value.source {
-	color: var(--accent-secondary);
-	font-weight: 500;
-}
-
-.action-buttons {
-	display: flex;
-	gap: 1rem;
-}
-
-.btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.875rem 1.5rem;
-	border: none;
-	border-radius: 10px;
-	font-size: 0.95rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.btn:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-.btn-primary {
-	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
-	color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-	transform: translateY(-2px);
-	box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-}
-
-.btn-secondary {
-	background: rgba(255, 255, 255, 0.08);
-	color: var(--text-primary);
-	border: 1px solid var(--border-color);
-}
-
-.btn-secondary:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.12);
-}
-
-.btn-icon {
-	font-size: 1.1rem;
-}
-
-.detail-sections {
-	display: flex;
-	flex-direction: column;
-	gap: 2rem;
-}
-
-.btn-deleteFile {
-	background: linear-gradient(135deg, #dc3558, #ff5252);
-	color: white;
-}
-
-.btn-deleteMetadata {
-	background: linear-gradient(135deg, #ff0000, #dc3558);
-	color: white;
-}
-
-.btn-deleteFile:hover:not(:disabled) {
-	transform: translateY(-2px);
-	box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-}
-
-.btn-deleteMetadata:hover:not(:disabled) {
-	transform: translateY(-2px);
-	box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-}
-
-.detail-section {
-	background: var(--card-bg);
-	border-radius: 16px;
-	border: 1px solid var(--border-color);
-	padding: 1.5rem;
-}
-
-.section-title {
-	font-size: 1.1rem;
-	font-weight: 600;
-	color: var(--text-primary);
-	margin-bottom: 1.25rem;
-	padding-bottom: 0.75rem;
-	border-bottom: 1px solid var(--border-color);
-}
-
-.info-list {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-	gap: 1.25rem;
-}
-
-.info-item {
-	display: flex;
-	flex-direction: column;
-	gap: 0.3rem;
-}
-
-.info-label {
-	font-size: 0.8rem;
-	color: var(--text-muted);
-}
-
-.info-value {
-	font-size: 0.95rem;
-	color: var(--text-primary);
-}
-
-.tags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem;
-}
-
-.tag {
-	padding: 0.4rem 0.85rem;
-	border-radius: 20px;
-	font-size: 0.85rem;
-	font-weight: 500;
-}
-
-.tag.actor {
-	background: rgba(78, 205, 196, 0.15);
-	color: var(--accent-tertiary);
-}
-
-.tag.genre {
-	background: rgba(255, 159, 67, 0.15);
-	color: var(--accent-secondary);
-}
-
-@media (max-width: 900px) {
-	.detail-header {
-		grid-template-columns: 1fr;
-		gap: 1.5rem;
-	}
-
-	.cover-wrapper {
-		max-width: 500px;
-	}
-
-	.meta-grid {
-		grid-template-columns: 1fr 1fr;
-	}
-}
-
-@media (max-width: 500px) {
-	.action-buttons {
-		flex-direction: column;
-	}
-
-	.btn {
-		justify-content: center;
-	}
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 </style>

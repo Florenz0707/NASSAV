@@ -17,84 +17,97 @@ const recentResources = computed(() => {
 </script>
 
 <template>
-	<div class="home-view">
-		<section class="hero">
-			<div class="hero-content">
-				<h1 class="hero-title">
-					<span class="title-accent">NASSAV</span>
-					<span class="title-sub">视频资源管理系统</span>
+	<div class="animate-[fadeIn_0.5s_ease]">
+		<!-- Hero Section -->
+		<section class="relative py-16 mb-12 overflow-hidden">
+			<div class="relative z-10">
+				<h1 class="flex flex-col gap-2 mb-6">
+					<span class="text-6xl font-bold bg-gradient-to-br from-[#ff6b6b] to-[#ff9f43] bg-clip-text text-transparent tracking-wider">NASSAV</span>
+					<span class="text-2xl font-normal text-[#a1a1aa]">视频资源管理系统</span>
 				</h1>
-				<p class="hero-description">
+				<p class="text-lg text-[#71717a] max-w-[500px] leading-relaxed mb-8">
 					高效管理您的视频资源，支持多下载源、自动刮削元数据
 				</p>
-				<div class="hero-actions">
-					<RouterLink to="/add" class="btn btn-primary btn-large">
-						<span class="btn-icon">⊕</span>
+				<div class="flex gap-4 flex-wrap">
+					<RouterLink
+						to="/add"
+						class="inline-flex items-center gap-2 px-8 py-4 border-none rounded-[10px] text-base font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-[0_4px_15px_rgba(255,107,107,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(255,107,107,0.4)]"
+					>
+						<span class="text-[1.2rem]">⊕</span>
 						添加资源
 					</RouterLink>
-					<RouterLink to="/resources" class="btn btn-secondary btn-large">
-						<span class="btn-icon">▣</span>
+					<RouterLink
+						to="/resources"
+						class="inline-flex items-center gap-2 px-8 py-4 border-none rounded-[10px] text-base font-medium no-underline cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#f4f4f5] border border-white/10 hover:bg-white/[0.12] hover:border-white/20"
+					>
+						<span class="text-[1.2rem]">▣</span>
 						浏览资源库
 					</RouterLink>
 				</div>
 			</div>
 
-			<div class="hero-visual">
-				<div class="visual-shape shape-1"></div>
-				<div class="visual-shape shape-2"></div>
-				<div class="visual-shape shape-3"></div>
+			<!-- Visual Shapes -->
+			<div class="absolute right-0 top-1/2 -translate-y-1/2 w-[400px] h-[400px] pointer-events-none hidden md:block">
+				<div class="absolute w-[300px] h-[300px] rounded-full opacity-50 blur-[60px] bg-[#ff6b6b] top-0 right-0 animate-[float1_8s_ease-in-out_infinite]"></div>
+				<div class="absolute w-[200px] h-[200px] rounded-full opacity-50 blur-[60px] bg-[#ff9f43] bottom-[20%] right-[20%] animate-[float2_6s_ease-in-out_infinite]"></div>
+				<div class="absolute w-[150px] h-[150px] rounded-full opacity-50 blur-[60px] bg-[#4ecdc4] top-[30%] right-[30%] animate-[float3_7s_ease-in-out_infinite]"></div>
 			</div>
 		</section>
 
-		<section class="stats-section">
-			<div class="stat-card">
-				<div class="stat-icon">▣</div>
-				<div class="stat-content">
-					<div class="stat-value">{{ resourceStore.stats.total }}</div>
-					<div class="stat-label">总资源数</div>
+		<!-- Stats Section -->
+		<section class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6 mb-12">
+			<div class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
+				<div class="w-12 h-12 flex items-center justify-center bg-[#ff6b6b]/10 rounded-xl text-xl text-[#ff6b6b]">▣</div>
+				<div>
+					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">{{ resourceStore.stats.total }}</div>
+					<div class="text-sm text-[#71717a]">总资源数</div>
 				</div>
 			</div>
-			<div class="stat-card">
-				<div class="stat-icon success">✓</div>
-				<div class="stat-content">
-					<div class="stat-value">{{ resourceStore.stats.downloaded }}</div>
-					<div class="stat-label">已下载</div>
+			<div class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
+				<div class="w-12 h-12 flex items-center justify-center bg-[#2ed573]/10 rounded-xl text-xl text-[#2ed573]">✓</div>
+				<div>
+					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">{{ resourceStore.stats.downloaded }}</div>
+					<div class="text-sm text-[#71717a]">已下载</div>
 				</div>
 			</div>
-			<div class="stat-card">
-				<div class="stat-icon warning">◷</div>
-				<div class="stat-content">
-					<div class="stat-value">{{ resourceStore.stats.pending }}</div>
-					<div class="stat-label">待下载</div>
+			<div class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
+				<div class="w-12 h-12 flex items-center justify-center bg-[#ffc107]/10 rounded-xl text-xl text-[#ffc107]">◷</div>
+				<div>
+					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">{{ resourceStore.stats.pending }}</div>
+					<div class="text-sm text-[#71717a]">待下载</div>
 				</div>
 			</div>
 		</section>
 
-		<section class="recent-section" v-if="!resourceStore.loading && recentResources.length > 0">
-			<div class="section-header">
-				<h2 class="section-title">最近添加</h2>
-				<RouterLink to="/resources" class="section-link">
+		<!-- Recent Resources -->
+		<section v-if="!resourceStore.loading && recentResources.length > 0">
+			<div class="flex items-center justify-between mb-6">
+				<h2 class="text-2xl font-semibold text-[#f4f4f5]">最近添加</h2>
+				<RouterLink to="/resources" class="text-sm text-[#ff6b6b] no-underline transition-opacity hover:opacity-80">
 					查看全部 →
 				</RouterLink>
 			</div>
 
-			<div class="recent-grid">
+			<div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
 				<RouterLink
 					v-for="resource in recentResources"
 					:key="resource.avid"
 					:to="`/resource/${resource.avid}`"
-					class="recent-item"
+					class="flex items-center gap-4 p-3 bg-[rgba(18,18,28,0.8)] rounded-xl border border-white/[0.08] no-underline transition-all duration-200 hover:border-[rgba(255,107,107,0.3)] hover:translate-x-1"
 				>
 					<img
 						:src="`/nassav/api/resource/cover?avid=${resource.avid}`"
 						:alt="resource.title"
-						class="recent-cover"
+						class="w-20 h-[45px] object-cover rounded-lg bg-black/30"
 					/>
-					<div class="recent-info">
-						<span class="recent-avid">{{ resource.avid }}</span>
-						<span class="recent-title">{{ resource.title }}</span>
+					<div class="flex-1 min-w-0 flex flex-col gap-1">
+						<span class="font-['JetBrains_Mono',monospace] text-xs text-[#ff6b6b] font-semibold">{{ resource.avid }}</span>
+						<span class="text-[0.85rem] text-[#a1a1aa] whitespace-nowrap overflow-hidden text-ellipsis">{{ resource.title }}</span>
 					</div>
-					<div class="recent-status" :class="{ downloaded: resource.has_video }">
+					<div
+						class="w-7 h-7 flex items-center justify-center rounded-full text-xs"
+						:class="resource.has_video ? 'bg-[#2ed573]/15 text-[#2ed573]' : 'bg-[#ffc107]/15 text-[#ffc107]'"
+					>
 						{{ resource.has_video ? '✓' : '◷' }}
 					</div>
 				</RouterLink>
@@ -106,10 +119,7 @@ const recentResources = computed(() => {
 </template>
 
 <style scoped>
-.home-view {
-	animation: fadeIn 0.5s ease;
-}
-
+/* 自定义动画 */
 @keyframes fadeIn {
 	from {
 		opacity: 0;
@@ -121,338 +131,18 @@ const recentResources = computed(() => {
 	}
 }
 
-.hero {
-	position: relative;
-	padding: 4rem 0;
-	margin-bottom: 3rem;
-	overflow: hidden;
-}
-
-.hero-content {
-	position: relative;
-	z-index: 1;
-}
-
-.hero-title {
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-	margin-bottom: 1.5rem;
-}
-
-.title-accent {
-	font-size: 4rem;
-	font-weight: 700;
-	background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-	letter-spacing: 2px;
-}
-
-.title-sub {
-	font-size: 1.5rem;
-	font-weight: 400;
-	color: var(--text-secondary);
-}
-
-.hero-description {
-	font-size: 1.1rem;
-	color: var(--text-muted);
-	max-width: 500px;
-	line-height: 1.7;
-	margin-bottom: 2rem;
-}
-
-.hero-actions {
-	display: flex;
-	gap: 1rem;
-	flex-wrap: wrap;
-}
-
-.btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.75rem 1.5rem;
-	border: none;
-	border-radius: 10px;
-	font-size: 0.95rem;
-	font-weight: 500;
-	text-decoration: none;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.btn-large {
-	padding: 1rem 2rem;
-	font-size: 1rem;
-}
-
-.btn-primary {
-	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
-	color: white;
-	box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-}
-
-.btn-primary:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
-}
-
-.btn-secondary {
-	background: rgba(255, 255, 255, 0.08);
-	color: var(--text-primary);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn-secondary:hover {
-	background: rgba(255, 255, 255, 0.12);
-	border-color: rgba(255, 255, 255, 0.2);
-}
-
-.btn-icon {
-	font-size: 1.1rem;
-}
-
-.hero-visual {
-	position: absolute;
-	right: 0;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 400px;
-	height: 400px;
-	pointer-events: none;
-}
-
-.visual-shape {
-	position: absolute;
-	border-radius: 50%;
-	opacity: 0.5;
-	filter: blur(60px);
-}
-
-.shape-1 {
-	width: 300px;
-	height: 300px;
-	background: var(--accent-primary);
-	top: 0;
-	right: 0;
-	animation: float1 8s ease-in-out infinite;
-}
-
-.shape-2 {
-	width: 200px;
-	height: 200px;
-	background: var(--accent-secondary);
-	bottom: 20%;
-	right: 20%;
-	animation: float2 6s ease-in-out infinite;
-}
-
-.shape-3 {
-	width: 150px;
-	height: 150px;
-	background: var(--accent-tertiary);
-	top: 30%;
-	right: 30%;
-	animation: float3 7s ease-in-out infinite;
-}
-
 @keyframes float1 {
-	0%, 100% {
-		transform: translate(0, 0);
-	}
-	50% {
-		transform: translate(-20px, 20px);
-	}
+	0%, 100% { transform: translate(0, 0); }
+	50% { transform: translate(-20px, 20px); }
 }
 
 @keyframes float2 {
-	0%, 100% {
-		transform: translate(0, 0);
-	}
-	50% {
-		transform: translate(15px, -15px);
-	}
+	0%, 100% { transform: translate(0, 0); }
+	50% { transform: translate(15px, -15px); }
 }
 
 @keyframes float3 {
-	0%, 100% {
-		transform: translate(0, 0);
-	}
-	50% {
-		transform: translate(-10px, -20px);
-	}
-}
-
-.stats-section {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-	gap: 1.5rem;
-	margin-bottom: 3rem;
-}
-
-.stat-card {
-	display: flex;
-	align-items: center;
-	gap: 1rem;
-	padding: 1.5rem;
-	background: var(--card-bg);
-	border-radius: 16px;
-	border: 1px solid var(--border-color);
-	transition: all 0.3s ease;
-}
-
-.stat-card:hover {
-	transform: translateY(-2px);
-	border-color: rgba(255, 255, 255, 0.15);
-}
-
-.stat-icon {
-	width: 48px;
-	height: 48px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: rgba(255, 107, 107, 0.1);
-	border-radius: 12px;
-	font-size: 1.25rem;
-	color: var(--accent-primary);
-}
-
-.stat-icon.success {
-	background: rgba(46, 213, 115, 0.1);
-	color: #2ed573;
-}
-
-.stat-icon.warning {
-	background: rgba(255, 193, 7, 0.1);
-	color: #ffc107;
-}
-
-.stat-value {
-	font-size: 2rem;
-	font-weight: 700;
-	color: var(--text-primary);
-	font-family: 'JetBrains Mono', monospace;
-}
-
-.stat-label {
-	font-size: 0.9rem;
-	color: var(--text-muted);
-}
-
-.section-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 1.5rem;
-}
-
-.section-title {
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: var(--text-primary);
-}
-
-.section-link {
-	font-size: 0.9rem;
-	color: var(--accent-primary);
-	text-decoration: none;
-	transition: opacity 0.2s;
-}
-
-.section-link:hover {
-	opacity: 0.8;
-}
-
-.recent-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-	gap: 1rem;
-}
-
-.recent-item {
-	display: flex;
-	align-items: center;
-	gap: 1rem;
-	padding: 0.75rem;
-	background: var(--card-bg);
-	border-radius: 12px;
-	border: 1px solid var(--border-color);
-	text-decoration: none;
-	transition: all 0.2s ease;
-}
-
-.recent-item:hover {
-	border-color: rgba(255, 107, 107, 0.3);
-	transform: translateX(4px);
-}
-
-.recent-cover {
-	width: 80px;
-	height: 45px;
-	object-fit: cover;
-	border-radius: 8px;
-	background: rgba(0, 0, 0, 0.3);
-}
-
-.recent-info {
-	flex: 1;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
-}
-
-.recent-avid {
-	font-family: 'JetBrains Mono', monospace;
-	font-size: 0.8rem;
-	color: var(--accent-primary);
-	font-weight: 600;
-}
-
-.recent-title {
-	font-size: 0.85rem;
-	color: var(--text-secondary);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.recent-status {
-	width: 28px;
-	height: 28px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 50%;
-	background: rgba(255, 193, 7, 0.15);
-	color: #ffc107;
-	font-size: 0.8rem;
-}
-
-.recent-status.downloaded {
-	background: rgba(46, 213, 115, 0.15);
-	color: #2ed573;
-}
-
-@media (max-width: 768px) {
-	.hero {
-		padding: 2rem 0;
-	}
-
-	.title-accent {
-		font-size: 2.5rem;
-	}
-
-	.title-sub {
-		font-size: 1.1rem;
-	}
-
-	.hero-visual {
-		display: none;
-	}
+	0%, 100% { transform: translate(0, 0); }
+	50% { transform: translate(-10px, -20px); }
 }
 </style>

@@ -114,31 +114,41 @@ async function handleManualRefresh() {
 </script>
 
 <template>
-	<div class="resources-view">
-		<div class="page-header">
-			<h1 class="page-title">资源库</h1>
-			<p class="page-subtitle">管理您的所有视频资源</p>
+	<div class="animate-[fadeIn_0.5s_ease]">
+		<!-- Page Header -->
+		<div class="mb-8">
+			<h1 class="text-[2rem] font-bold text-[#f4f4f5] mb-2">资源库</h1>
+			<p class="text-[#71717a] text-base">管理您的所有视频资源</p>
 		</div>
 
-		<div class="controls">
-			<div class="search-box">
-				<span class="search-icon">⌕</span>
+		<!-- Controls -->
+		<div class="flex gap-4 mb-6 flex-wrap">
+			<!-- Search Box -->
+			<div class="flex-1 min-w-[250px] relative">
+				<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
 				<input
 					v-model="searchQuery"
 					type="text"
 					placeholder="搜索 AVID、标题、来源..."
-					class="search-input"
+					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]"
 				/>
 			</div>
 
-			<div class="filters">
-				<select v-model="filterStatus" class="filter-select">
+			<!-- Filters -->
+			<div class="flex gap-3">
+				<select
+					v-model="filterStatus"
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
+				>
 					<option value="all">全部状态</option>
 					<option value="downloaded">已下载</option>
 					<option value="pending">未下载</option>
 				</select>
 
-				<select v-model="sortBy" class="filter-select">
+				<select
+					v-model="sortBy"
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
+				>
 					<option value="date">按发行日期</option>
 					<option value="latest_fetched">按最新获取</option>
 					<option value="latest_downloaded">按最新下载</option>
@@ -148,12 +158,15 @@ async function handleManualRefresh() {
 			</div>
 		</div>
 
-		<div class="results-info" v-if="!resourceStore.loading">
+		<!-- Results Info -->
+		<div v-if="!resourceStore.loading" class="mb-6 text-[#71717a] text-sm">
 			<span>共 {{ filteredResources.length }} 个资源</span>
 		</div>
 
+		<!-- Loading State -->
 		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..."/>
 
+		<!-- Empty State -->
 		<EmptyState
 			v-else-if="filteredResources.length === 0"
 			icon="◇"
@@ -161,32 +174,39 @@ async function handleManualRefresh() {
 			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
 		>
 			<template #action>
-				<RouterLink to="/add" class="btn btn-primary">
+				<RouterLink
+					to="/add"
+					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5"
+				>
 					添加资源
 				</RouterLink>
 			</template>
 		</EmptyState>
 
-		<div v-else class="resources-grid">
+		<!-- Resources Grid -->
+		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
 			<ResourceCard
 				v-for="resource in filteredResources"
 				:key="resource.avid"
 				:resource="resource"
 				@download="handleDownload"
 				@refresh="handleRefresh"
-				@deleteResource="handleDeleteResource"
+				@delete="handleDeleteResource"
 				@deleteFile="handleDeleteFile"
 			/>
 		</div>
 
-		<!-- 悬浮刷新按钮 -->
+		<!-- Floating Refresh Button -->
 		<button
-			class="floating-refresh-btn"
+			class="fixed bottom-8 right-8 w-[60px] h-[60px] rounded-full bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-none shadow-[0_4px_20px_rgba(255,107,107,0.3)] cursor-pointer transition-all duration-300 z-[1000] flex items-center justify-center text-white text-xl hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
 			:disabled="refreshing"
 			@click="handleManualRefresh"
 			:title="refreshing ? '刷新中...' : '刷新资源列表'"
 		>
-			<span class="refresh-icon" :class="{ spinning: refreshing }">
+			<span
+				class="block transition-transform duration-300"
+				:class="{ 'animate-spin': refreshing }"
+			>
 				{{ refreshing ? '◷' : '↻' }}
 			</span>
 		</button>
@@ -194,201 +214,25 @@ async function handleManualRefresh() {
 </template>
 
 <style scoped>
-.resources-view {
-	animation: fadeIn 0.5s ease;
-}
-
+/* 自定义动画 */
 @keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
-.page-header {
-	margin-bottom: 2rem;
-}
-
-.page-title {
-	font-size: 2rem;
-	font-weight: 700;
-	color: var(--text-primary);
-	margin-bottom: 0.5rem;
-}
-
-.page-subtitle {
-	color: var(--text-muted);
-	font-size: 1rem;
-}
-
-.controls {
-	display: flex;
-	gap: 1rem;
-	margin-bottom: 1.5rem;
-	flex-wrap: wrap;
-}
-
-.search-box {
-	flex: 1;
-	min-width: 250px;
-	position: relative;
-}
-
-.search-icon {
-	position: absolute;
-	left: 1rem;
-	top: 50%;
-	transform: translateY(-50%);
-	color: var(--text-muted);
-	font-size: 1.1rem;
-}
-
-.search-input {
-	width: 100%;
-	padding: 0.875rem 1rem 0.875rem 2.75rem;
-	background: var(--card-bg);
-	border: 1px solid var(--border-color);
-	border-radius: 12px;
-	color: var(--text-primary);
-	font-size: 0.95rem;
-	transition: all 0.2s ease;
-}
-
-.search-input:focus {
-	outline: none;
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
-}
-
-.search-input::placeholder {
-	color: var(--text-muted);
-}
-
-.filters {
-	display: flex;
-	gap: 0.75rem;
-}
-
-.filter-select {
-	padding: 0.875rem 1rem;
-	background: var(--card-bg);
-	border: 1px solid var(--border-color);
-	border-radius: 12px;
-	color: var(--text-primary);
-	font-size: 0.9rem;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.filter-select:focus {
-	outline: none;
-	border-color: var(--accent-primary);
-}
-
-.filter-select option {
-	background: var(--bg-primary);
-	color: var(--text-primary);
-}
-
-.results-info {
-	margin-bottom: 1.5rem;
-	color: var(--text-muted);
-	font-size: 0.9rem;
-}
-
-.resources-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-	gap: 1.5rem;
-}
-
-.btn {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.75rem 1.5rem;
-	border: none;
-	border-radius: 10px;
-	font-size: 0.95rem;
-	font-weight: 500;
-	text-decoration: none;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.btn-primary {
-	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
-	color: white;
-}
-
-.btn-primary:hover {
-	transform: translateY(-2px);
-}
-
-/* 悬浮刷新按钮 */
-.floating-refresh-btn {
-	position: fixed;
-	bottom: 2rem;
-	right: 2rem;
-	width: 60px;
-	height: 60px;
-	border-radius: 50%;
-	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
-	border: none;
-	box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
-	cursor: pointer;
-	transition: all 0.3s ease;
-	z-index: 1000;
-	display: block;
-	align-items: center;
-	justify-content: center;
-	color: white;
-	font-size: 1.2rem;
-}
-
-.floating-refresh-btn:hover:not(:disabled) {
-	transform: translateY(-3px);
-	box-shadow: 0 6px 25px rgba(255, 107, 107, 0.4);
-}
-
-.floating-refresh-btn:disabled {
-	opacity: 0.7;
-	cursor: not-allowed;
-}
-
-.refresh-icon {
-	display: block;
-	transition: transform 0.3s ease;
-}
-
-.refresh-icon.spinning {
-	animation: spin 1s linear infinite;
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 
 @keyframes spin {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
 }
 
+/* select样式 */
+select option {
+	background: #0d0d14;
+	color: #f4f4f5;
+}
+
+/* 响应式 */
 @media (max-width: 768px) {
-	.controls {
-		flex-direction: column;
-	}
-
-	.filters {
-		width: 100%;
-	}
-
-	.filter-select {
-		flex: 1;
-	}
-
 	.floating-refresh-btn {
 		bottom: 1.5rem;
 		right: 1.5rem;
