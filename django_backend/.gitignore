@@ -3,7 +3,8 @@ __pycache__/
 
 log/
 resource/
-tools/
+tools/*
+!tools/.keep
 
 config/config.yaml
 db.sqlite3

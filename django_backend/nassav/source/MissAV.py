@@ -37,11 +37,14 @@ class MissAV(SourceBase):
         return None
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
-        """解析HTML获取下载信息"""
+        """解析 HTML 获取核心下载信息（m3u8、avid、title）
+
+        其他元数据（发行日期、时长、演员等）由 JavBus Scraper 提供
+        """
         info = AVDownloadInfo()
         info.source = self.get_source_name()
 
-        # 提取m3u8
+        # 1. 提取 m3u8（必需）
         uuid = self._extract_uuid(html)
         if uuid:
             playlist_url = f"https://surrit.com/{uuid}/playlist.m3u8"
@@ -54,10 +57,10 @@ class MissAV(SourceBase):
                 logger.error("未找到有效视频流")
                 return None
         else:
-            logger.error("未找到有效uuid")
+            logger.error("未找到有效 uuid")
             return None
 
-        # 提取基本信息
+        # 2. 提取标题和 AVID
         if not self._extract_metadata(html, info):
             return None
 
@@ -76,10 +79,12 @@ class MissAV(SourceBase):
 
     @staticmethod
     def _extract_metadata(html: str, metadata: AVDownloadInfo) -> bool:
+        """提取核心元数据：AVID 和标题"""
         try:
             og_title = re.search(r'<meta property="og:title" content="(.*?)"', html)
             if og_title:
                 title_content = og_title.group(1)
+                # 尝试从标题中分离 AVID
                 code_match = re.search(r'^([A-Z]+(?:-[A-Z]+)*-\d+)', title_content)
                 if code_match:
                     metadata.avid = code_match.group(1)
@@ -88,7 +93,7 @@ class MissAV(SourceBase):
                     metadata.title = title_content.strip()
             return True
         except Exception as e:
-            logger.error(f"元数据解析异常: {str(e)}")
+            logger.error(f"核心元数据解析异常: {str(e)}")
             return False
 
     @staticmethod

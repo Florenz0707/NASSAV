@@ -10,7 +10,16 @@ from nassav.constants import HEADERS
 
 
 class SourceBase:
-    """下载源基类"""
+    """下载源基类
+
+    Source 的职责：
+    1. 提供 M3U8 视频流地址
+    2. 提供 AVID 和标题
+    3. 提供封面图片 URL
+
+    不负责：
+    - 详细元数据（发行日期、时长、演员等）由 Scraper（JavBus）提供
+    """
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         self.proxy = proxy

@@ -6,8 +6,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from loguru import logger
 
-from nassav.source import MissAV, Jable, Hohoj, Memo, \
-    Kanav, Avtoday, Netflav, Kissav, SourceBase
+from nassav.source import SourceBase, MissAV, Jable, Memo
 from nassav.scraper import ScraperManager, AVDownloadInfo
 
 
@@ -18,12 +17,7 @@ class SourceManager:
     SOURCE_CLASSES = {
         'missav': MissAV,
         'jable': Jable,
-        'hohoj': Hohoj,
-        'memo': Memo,
-        'kanav': Kanav,
-        'avtoday': Avtoday,
-        'netflav': Netflav,
-        'kissav': Kissav,
+        'memo': Memo
     }
 
     def __init__(self):
@@ -197,12 +191,14 @@ class SourceManager:
         else:
             logger.warning(f"未找到封面URL: {avid}")
 
-        # 3. 从刮削器获取额外元数据
+        # 3. 从 JavBus 刮削器获取完整元数据
         scraped_data = self.scraper.scrape(avid)
         if scraped_data:
-            info.update_from_scrapper(scraped_data)
+            info.update_from_scraper(scraped_data)
             result['scraped'] = True
-            logger.info(f"已从刮削器获取 {avid} 的额外元数据")
+            logger.info(f"已从 JavBus 获取 {avid} 的完整元数据（发行日期、时长、演员等）")
+        else:
+            logger.warning(f"未能从 JavBus 获取 {avid} 的元数据，将只保存 Source 提供的基本信息")
 
         # 4. 保存元数据
         try:

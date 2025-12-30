@@ -19,21 +19,6 @@ Source:
   jable:
     domain: jable.tv
     weight: 800
-  hohoj:
-    domain: hohoj.tv
-    weight: 700
   memo:
     domain: memojav.com
     weight: 600
-  kanav:
-    domain: kanav.info
-    weight: 500
-  avtoday:
-    domain: avtoday.io
-    weight: 400
-  netflav:
-    domain: netflav.com
-    weight: 300
-  kissav:
-    domain: f15.bzraizy.cc
-    weight: 200

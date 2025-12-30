@@ -8,12 +8,18 @@ from loguru import logger
 
 @dataclass
 class AVDownloadInfo:
-    """下载信息数据类"""
+    """下载信息数据类
+
+    Source 只负责提供核心下载信息：m3u8、avid、title
+    其他元数据由 Scraper（如 JavBus）补充
+    """
+    # Source 提供的核心信息
     m3u8: str = ""
     title: str = ""
     avid: str = ""
-    source: str = ""
-    # 扩展元数据字段
+    source: str = ""  # 来源名称（如 Jable、MissAV）
+
+    # Scraper 补充的扩展元数据
     release_date: str = ""  # 发行日期
     duration: str = ""  # 时长
     director: str = ""  # 导演
@@ -40,24 +46,30 @@ class AVDownloadInfo:
             logger.error(f"JSON序列化失败: {str(e)}")
             return False
 
-    def update_from_scrapper(self, scrapped_data: dict) -> None:
-        """从刮削器数据更新元数据"""
-        if scrapped_data.get('release_date'):
-            self.release_date = scrapped_data['release_date']
-        if scrapped_data.get('duration'):
-            self.duration = scrapped_data['duration']
-        if scrapped_data.get('director'):
-            self.director = scrapped_data['director']
-        if scrapped_data.get('studio'):
-            self.studio = scrapped_data['studio']
-        if scrapped_data.get('label'):
-            self.label = scrapped_data['label']
-        if scrapped_data.get('series'):
-            self.series = scrapped_data['series']
-        if scrapped_data.get('genres'):
-            self.genres = scrapped_data['genres']
-        if scrapped_data.get('actors'):
-            self.actors = scrapped_data['actors']
-        # 如果刮削器有更好的标题，可以选择更新
-        if scrapped_data.get('title') and not self.title:
-            self.title = scrapped_data['title']
+    def update_from_scraper(self, scraped_data: dict) -> None:
+        """从刮削器数据更新元数据
+
+        Args:
+            scraped_data: 从 Scraper（如 JavBus）获取的元数据字典
+        """
+        # 更新所有扩展元数据字段
+        if scraped_data.get('release_date'):
+            self.release_date = scraped_data['release_date']
+        if scraped_data.get('duration'):
+            self.duration = scraped_data['duration']
+        if scraped_data.get('director'):
+            self.director = scraped_data['director']
+        if scraped_data.get('studio'):
+            self.studio = scraped_data['studio']
+        if scraped_data.get('label'):
+            self.label = scraped_data['label']
+        if scraped_data.get('series'):
+            self.series = scraped_data['series']
+        if scraped_data.get('genres'):
+            self.genres = scraped_data['genres']
+        if scraped_data.get('actors'):
+            self.actors = scraped_data['actors']
+
+        # 如果 Source 没有提供标题，使用 Scraper 的标题
+        if scraped_data.get('title') and not self.title:
+            self.title = scraped_data['title']

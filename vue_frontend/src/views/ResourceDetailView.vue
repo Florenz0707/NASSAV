@@ -177,7 +177,8 @@ function cancelDelete() {
 					<div class="meta-head">
 						<div class="avid-badge">{{ metadata.avid }}</div>
 						<div class="download-status" :class="{ downloaded: metadata.file_exists }">
-							{{ metadata.file_exists ? '已下载' : '未下载' }}</div>
+							{{ metadata.file_exists ? '已下载' : '未下载' }}
+						</div>
 					</div>
 					<h1 class="title">{{ metadata.title }}</h1>
 
@@ -249,6 +250,16 @@ function cancelDelete() {
 				<section class="detail-section" v-if="metadata.director || metadata.studio || metadata.label">
 					<h2 class="section-title">制作信息</h2>
 					<div class="info-list">
+					<div class="info-item" v-if="metadata.actors && metadata.actors.length > 0">
+						<span class="info-label">演员</span>
+						<div class="info-value">
+							<div v-for="actor in metadata.actors" :key="actor">{{ actor }}</div>
+						</div>
+						</div>
+						<div class="info-item" v-if="metadata.series">
+							<span class="info-label">系列</span>
+							<span class="info-value">{{ metadata.series }}</span>
+						</div>
 						<div class="info-item" v-if="metadata.director">
 							<span class="info-label">导演</span>
 							<span class="info-value">{{ metadata.director }}</span>
@@ -261,28 +272,10 @@ function cancelDelete() {
 							<span class="info-label">发行商</span>
 							<span class="info-value">{{ metadata.label }}</span>
 						</div>
-						<div class="info-item" v-if="metadata.series">
-							<span class="info-label">系列</span>
-							<span class="info-value">{{ metadata.series }}</span>
+					<div class="info-item" v-if="metadata.genres && metadata.genres.length > 0">
+							<span class="info-label">类别</span>
+							<span class="info-value">{{ metadata.genres }}</span>
 						</div>
-					</div>
-				</section>
-
-				<section class="detail-section" v-if="metadata.actors?.length">
-					<h2 class="section-title">演员</h2>
-					<div class="tags">
-            <span class="tag actor" v-for="actor in metadata.actors" :key="actor">
-              {{ actor }}
-            </span>
-					</div>
-				</section>
-
-				<section class="detail-section" v-if="metadata.genres?.length">
-					<h2 class="section-title">类别</h2>
-					<div class="tags">
-            <span class="tag genre" v-for="genre in metadata.genres" :key="genre">
-              {{ genre }}
-            </span>
 					</div>
 				</section>
 			</div>
@@ -533,7 +526,7 @@ function cancelDelete() {
 	color: white;
 }
 
-.btn-deleteMetadata{
+.btn-deleteMetadata {
 	background: linear-gradient(135deg, #ff0000, #dc3558);
 	color: white;
 }
