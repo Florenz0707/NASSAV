@@ -129,12 +129,29 @@ class ResourceListView(APIView):
     """
     GET /api/resource/list
     获取所有已保存资源的(avid, title)
+    支持排序和分页
+    参数:
+        sort_by: 排序字段（avid, metadata_create_time, video_create_time, source）
+        order: 排序方式（asc, desc）
+        page: 页码（默认1）
+        page_size: 每页数量（默认20）
     从 resource 目录读取元数据
     """
 
     def get(self, request):
         resource_dir = settings.RESOURCE_DIR
         resources = []
+
+        # 获取排序和分页参数
+        sort_by = request.query_params.get('sort_by', 'avid')
+        order = request.query_params.get('order', 'desc')
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        valid_sort_fields = {'avid', 'metadata_create_time', 'video_create_time', 'source'}
+        if sort_by not in valid_sort_fields:
+            sort_by = 'avid'
+        order_reverse = (order == 'desc')
 
         if resource_dir.exists():
             for item in resource_dir.iterdir():
@@ -146,10 +163,7 @@ class ResourceListView(APIView):
                             with open(metadata_path, 'r', encoding='utf-8') as f:
                                 metadata = json.load(f)
 
-                            # 获取元数据文件的创建时间
                             metadata_create_time = metadata_path.stat().st_ctime
-
-                            # 检查视频文件是否存在并获取创建时间
                             video_path = item / f"{avid}.mp4"
                             has_video = video_path.exists()
                             video_create_time = video_path.stat().st_ctime if has_video else None
@@ -166,13 +180,25 @@ class ResourceListView(APIView):
                         except Exception as e:
                             logger.error(f"读取 {avid} 元数据失败: {e}")
 
-        # 按 avid 排序
-        resources.sort(key=lambda x: x['avid'], reverse=True)
+        # 排序
+        resources.sort(key=lambda x: x.get(sort_by) if x.get(sort_by) is not None else '', reverse=order_reverse)
+
+        # 分页
+        total = len(resources)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paged_resources = resources[start:end]
 
         return Response({
             'code': 200,
             'message': 'success',
-            'data': resources
+            'data': paged_resources,
+            'pagination': {
+                'total': total,
+                'page': page,
+                'page_size': page_size,
+                'pages': (total + page_size - 1) // page_size
+            }
         })
 
 

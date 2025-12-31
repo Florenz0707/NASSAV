@@ -87,11 +87,8 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
             # 实时读取输出并解析进度
             import re
             for line in process.stdout:
-                # 输出到日志
-                if line.strip():
-                    logger.debug(f"[N_m3u8DL-RE] {line.strip()}")
-
                 # 解析进度信息（示例格式: "已下载: 45.2% | 速度: 5.2MB/s"）
+                line = line.strip()
                 if progress_callback:
                     # 尝试匹配百分比
                     percent_match = re.search(r'(\d+\.?\d*)%', line)

@@ -200,7 +200,6 @@ def notify_task_update(update_type: str, data: dict):
     try:
         from .consumers import send_task_update
         send_task_update(update_type, data)
-        logger.debug(f"已发送任务更新通知: {update_type}, {data}")
     except Exception as e:
         logger.error(f"发送任务更新通知失败: {str(e)}")
 
@@ -273,7 +272,6 @@ def wait_for_global_download_lock(max_wait_time: int = 600, check_interval: int 
         if acquire_global_download_lock():
             logger.info(f"成功获取全局下载锁，等待时间: {elapsed}秒")
             return True
-        logger.debug(f"等待全局下载锁释放...已等待 {elapsed}秒")
         time.sleep(check_interval)
         elapsed += check_interval
     logger.warning(f"等待全局下载锁超时: {max_wait_time}秒")
@@ -331,17 +329,24 @@ def download_video_task(self, avid: str):
 
     logger.info(f"已获取全局下载锁，开始下载: {avid}")
 
+    # 创建节流器，限制 WebSocket 通知频率（每秒最多1次）
+    from nassav.utils import Throttler
+    ws_throttler = Throttler(min_interval=1.0)
+
     # 定义进度回调函数
     def progress_callback(percent: float, speed: str, eta: str):
-        """更新下载进度并通知 WebSocket"""
+        """更新下载进度并通知 WebSocket（带节流）"""
+        # Redis 进度更新保持原频率（供 API 查询）
         set_task_progress(avid, percent, speed)
-        # 通知 WebSocket 客户端
-        notify_task_update('progress_update', {
-            'task_id': self.request.id,
-            'avid': avid,
-            'percent': percent,
-            'speed': speed
-        })
+
+        # WebSocket 通知使用节流：100% 时强制发送
+        if ws_throttler.should_execute(force=(percent >= 100)):
+            notify_task_update('progress_update', {
+                'task_id': self.request.id,
+                'avid': avid,
+                'percent': percent,
+                'speed': speed
+            })
 
     try:
         success = video_download_service.download_video(avid, progress_callback=progress_callback)

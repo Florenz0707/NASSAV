@@ -23,6 +23,7 @@ dependencies = [
     "bs4>=0.0.2",
     "websockets>=15.0.1",
     "django-cors-headers>=4.9.0",
+    "pre-commit>=4.5.1",
 ]
 
 [[tool.uv.index]]

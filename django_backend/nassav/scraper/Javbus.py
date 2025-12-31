@@ -36,7 +36,7 @@ class Javbus(ScraperBase):
             'producer': '',
             'publisher': '',
             'series': '',
-            'category': '',
+            'genres': [],
             'actors': [],
         }
 
@@ -100,13 +100,13 @@ class Javbus(ScraperBase):
                 scrape_data['series'] = series_match.group(1).strip()
 
             # 提取類別（categories）
-            category_matches = re.findall(r'<span class="genre"><label><input[^>]*><a[^>]*>([^<]+)</a></label></span>',
+            genres_matches = re.findall(r'<span class="genre"><label><input[^>]*><a[^>]*>([^<]+)</a></label></span>',
                                           html)
-            if category_matches:
+            if genres_matches:
                 # 过滤掉一些技术性标签
-                filtered_categories = [cat for cat in category_matches if
+                filtered_genres = [cat for cat in genres_matches if
                                        cat not in ['フルハイビジョン(FHD)', 'MGSだけのおまけ映像付き']]
-                scrape_data['category'] = ', '.join(filtered_categories)
+                scrape_data['genres'] = filtered_genres
 
             # 提取導演（director）
             director_match = re.search(r'<span class="header">導演:</span>\s*<a[^>]*>([^<]+)</a>', html)

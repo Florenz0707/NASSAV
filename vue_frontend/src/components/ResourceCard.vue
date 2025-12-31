@@ -133,7 +133,7 @@ onUnmounted(() => {
 
 			<!-- 标题 -->
 			<h3
-				class="text-base font-medium text-[#f4f4f5] leading-[1.4] mb-3 line-clamp-2"
+				class="text-base font-medium text-[#f4f4f5] leading-[1.4] mb-3 line-clamp-2 min-h-[2.8em]"
 				:title="resource.title"
 			>
 				{{ resource.title }}

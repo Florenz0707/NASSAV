@@ -11,11 +11,11 @@ const api = axios.create({
 // 响应拦截器
 api.interceptors.response.use(
     response => {
-        const {code, message, data} = response.data
+        const {code, message, data, pagination} = response.data
         if (code >= 200 && code < 300) {
-            return {code, message, data}
+            return {code, message, data, pagination}
         }
-        return Promise.reject({code, message, data})
+        return Promise.reject({code, message, data, pagination})
     },
     error => {
         if (error.response) {
@@ -34,7 +34,7 @@ export const sourceApi = {
 // 资源管理
 export const resourceApi = {
     // 获取所有已保存资源列表
-    getList: () => api.get('/resource/list'),
+    getList: (params = {}) => api.get('/resource/list', { params }),
 
     // 获取资源元数据
     getMetadata: (avid) => api.get('/resource/metadata', {params: {avid}}),

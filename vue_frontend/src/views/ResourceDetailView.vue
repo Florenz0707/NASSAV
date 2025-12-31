@@ -24,6 +24,18 @@ const pendingDeleteAction = ref(null)
 
 const coverUrl = computed(() => resourceApi.getCoverUrl(avid.value))
 
+const actorsText = computed(() => {
+	const list = metadata.value?.actors
+	if (!Array.isArray(list) || list.length === 0) return null
+	return list.join(', ')
+})
+
+const genresText = computed(() => {
+	const list = metadata.value?.genres
+	if (!Array.isArray(list) || list.length === 0) return null
+	return list.join(', ')
+})
+
 const fileSize = computed(() => {
 	if (!metadata.value?.file_size) return null
 	const bytes = metadata.value.file_size
@@ -289,11 +301,9 @@ function cancelDelete() {
 						制作信息
 					</h2>
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-						<div v-if="metadata.actors && metadata.actors.length > 0" class="flex flex-col gap-1.5">
+						<div v-if="actorsText" class="flex flex-col gap-1.5">
 							<span class="text-[0.8rem] text-[#71717a]">演员</span>
-							<div class="text-[0.95rem] text-[#f4f4f5]">
-								<div v-for="actor in metadata.actors" :key="actor">{{ actor }}</div>
-							</div>
+							<div class="text-[0.95rem] text-[#f4f4f5]">{{ actorsText }}</div>
 						</div>
 						<div v-if="metadata.series" class="flex flex-col gap-1.5">
 							<span class="text-[0.8rem] text-[#71717a]">系列</span>
@@ -311,9 +321,9 @@ function cancelDelete() {
 							<span class="text-[0.8rem] text-[#71717a]">发行商</span>
 							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.label }}</span>
 						</div>
-						<div v-if="metadata.genres && metadata.genres.length > 0" class="flex flex-col gap-1.5">
+						<div v-if="genresText" class="flex flex-col gap-1.5">
 							<span class="text-[0.8rem] text-[#71717a]">类别</span>
-							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.genres }}</span>
+							<span class="text-[0.95rem] text-[#f4f4f5]">{{ genresText }}</span>
 						</div>
 					</div>
 				</section>

@@ -89,7 +89,16 @@
 
 ### GET /nassav/api/resource/list
 
-获取所有已保存资源的列表（从 resource 目录读取）。
+获取所有已保存资源的列表（从 resource 目录读取），支持排序和分页。
+
+**查询参数：**
+
+| 参数         | 类型   | 必填 | 说明                                                         |
+|------------|------|----|------------------------------------------------------------|
+| sort_by    | string| 否  | 排序字段：avid、metadata_create_time、video_create_time、source |
+| order      | string| 否  | 排序方式：asc（升序）、desc（降序），默认 desc                |
+| page       | int   | 否  | 页码，默认 1                                                |
+| page_size  | int   | 否  | 每页数量，默认 20                                            |
 
 **响应示例：**
 
@@ -107,7 +116,13 @@
             "metadata_create_time": 1703145600.123456,
             "video_create_time": 1703231234.567890
         }
-    ]
+    ],
+    "pagination": {
+        "total": 100,
+        "page": 1,
+        "page_size": 20,
+        "pages": 5
+    }
 }
 ```
 
