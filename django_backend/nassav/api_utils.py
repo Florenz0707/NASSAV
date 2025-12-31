@@ -13,14 +13,18 @@ STATUS_MAP = {
 }
 
 
-def build_response(code: int, message: str, data=None):
+def build_response(code: int, message: str, data=None, pagination: dict = None):
     """Return a DRF Response using project's envelope and mapped HTTP status.
 
-    All views should call this helper to produce consistent responses.
+    All views should call this helper to produce consistent responses. Optionally
+    include a `pagination` dict when returning paged list results.
     """
     http_status = STATUS_MAP.get(code, status.HTTP_200_OK)
-    return Response({
+    body = {
         'code': code,
         'message': message,
         'data': data
-    }, status=http_status)
+    }
+    if pagination is not None:
+        body['pagination'] = pagination
+    return Response(body, status=http_status)

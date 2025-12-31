@@ -92,3 +92,80 @@ class Throttler:
         if self.should_execute(force=force):
             return func(*args, **kwargs)
         return None
+
+
+def generate_thumbnail(source_path, dest_path, width: int):
+    """Generate a JPEG thumbnail with given width while preserving aspect ratio.
+
+    Args:
+        source_path (str or Path): path to source image
+        dest_path (str or Path): path to save thumbnail (parent dirs will be created)
+        width (int): target width in pixels
+
+    Returns:
+        bool: True on success, False otherwise
+    """
+    try:
+        from PIL import Image
+    except Exception:
+        return False
+
+
+def generate_etag_from_text(text: str) -> str:
+    """Return a quoted ETag string computed from input text."""
+    try:
+        import hashlib
+        h = hashlib.md5()
+        h.update(text.encode('utf-8'))
+        return '"' + h.hexdigest() + '"'
+    except Exception:
+        return '"0"'
+
+
+def generate_etag_for_file(path) -> str:
+    """Generate an ETag from file mtime and size (quoted string)."""
+    from pathlib import Path
+    p = Path(path)
+    try:
+        st = p.stat()
+        # use mtime_ns for higher precision
+        return '"%s-%s"' % (st.st_mtime_ns, st.st_size)
+    except Exception:
+        return '"0"'
+
+
+def parse_http_if_modified_since(header_value):
+    """Parse If-Modified-Since header value to epoch seconds (int) or None."""
+    if not header_value:
+        return None
+    try:
+        from django.utils.http import parse_http_date_safe
+        val = parse_http_date_safe(header_value)
+        return val
+    except Exception:
+        return None
+
+    from pathlib import Path
+    sp = Path(source_path)
+    dp = Path(dest_path)
+    dp.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with Image.open(sp) as im:
+            # convert to RGB to ensure JPEG compatibility
+            if im.mode in ("RGBA", "P"):
+                im = im.convert("RGB")
+
+            w, h = im.size
+            if w <= width:
+                # just save a copy as JPEG
+                im.save(dp, format='JPEG', quality=85)
+                return True
+
+            ratio = width / float(w)
+            new_h = int(h * ratio)
+            im = im.resize((width, new_h), Image.LANCZOS)
+            im.save(dp, format='JPEG', quality=85)
+            return True
+    except Exception:
+        return False

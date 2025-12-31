@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
 import ResourceCard from '../components/ResourceCard.vue'
@@ -9,6 +9,83 @@ import { downloadApi, resourceApi } from "../api/index.js";
 
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()
+
+const selectedAvids = ref(new Set())
+const batchLoading = ref(false)
+const batchMode = ref(false)
+
+const selectedCount = computed(() => selectedAvids.value.size)
+
+function toggleSelect(avid, checked) {
+	if (!avid) return
+	if (checked) selectedAvids.value.add(avid)
+	else selectedAvids.value.delete(avid)
+	// trigger reactivity for Set
+	selectedAvids.value = new Set(selectedAvids.value)
+}
+
+function toggleSelectAll(checked) {
+	if (checked) {
+		const arr = filteredResources.value.map(r => r.avid)
+		selectedAvids.value = new Set(arr)
+	} else {
+		selectedAvids.value = new Set()
+	}
+}
+
+function toggleBatchMode() {
+	batchMode.value = !batchMode.value
+	if (!batchMode.value) selectedAvids.value = new Set()
+}
+
+async function handleBatchDownload() {
+	if (selectedAvids.value.size === 0) return
+	batchLoading.value = true
+	try {
+		const avids = Array.from(selectedAvids.value)
+		await resourceStore.batchSubmitDownload(avids)
+		toastStore.success(`已提交 ${avids.length} 个下载任务`)
+		selectedAvids.value = new Set()
+		await fetchResourceList()
+	} catch (err) {
+		toastStore.error(err.message || '批量提交下载失败')
+	} finally {
+		batchLoading.value = false
+	}
+}
+
+async function handleBatchRefresh() {
+	if (selectedAvids.value.size === 0) return
+	batchLoading.value = true
+	try {
+		const avids = Array.from(selectedAvids.value)
+		await resourceStore.batchRefresh(avids)
+		toastStore.success(`已刷新 ${avids.length} 个资源`)
+		selectedAvids.value = new Set()
+		await fetchResourceList()
+	} catch (err) {
+		toastStore.error(err.message || '批量刷新失败')
+	} finally {
+		batchLoading.value = false
+	}
+}
+
+async function handleBatchDelete() {
+	if (selectedAvids.value.size === 0) return
+	if (!confirm(`确认删除 ${selectedAvids.value.size} 个资源？此操作不可恢复！`)) return
+	batchLoading.value = true
+	try {
+		const avids = Array.from(selectedAvids.value)
+		await resourceStore.batchDelete(avids)
+		toastStore.success(`已删除 ${avids.length} 个资源`)
+		selectedAvids.value = new Set()
+		await fetchResourceList()
+	} catch (err) {
+		toastStore.error(err.message || '批量删除失败')
+	} finally {
+		batchLoading.value = false
+	}
+}
 
 const searchQuery = ref('')
 const filterStatus = ref('all')
@@ -24,57 +101,44 @@ onMounted(async () => {
 })
 
 async function fetchResourceList() {
-	console.debug('[view] fetchResourceList called', { sort_by: sortBy.value, order: sortOrder.value, page: page.value, page_size: pageSize.value })
+	console.debug('[view] fetchResourceList called', { sort_by: sortBy.value, order: sortOrder.value, page: page.value, page_size: pageSize.value, search: searchQuery.value, status: filterStatus.value })
 	await resourceStore.fetchResources({
 		sort_by: sortBy.value,
 		order: sortOrder.value,
 		page: page.value,
-		page_size: pageSize.value
+		page_size: pageSize.value,
+		search: searchQuery.value,
+		status: filterStatus.value
 	})
 }
 
+// Use server-side filtered/sorted resources. Normalize the response shape to an array.
 const filteredResources = computed(() => {
-	// resourceStore.resources may be a proxied array or a ref; normalize to a plain array
 	const raw = resourceStore.resources && resourceStore.resources.value !== undefined ? resourceStore.resources.value : resourceStore.resources
-	const baseList = Array.isArray(raw) ? raw : []
-	let result = [...baseList]
+	if (Array.isArray(raw)) return raw
+	if (raw && Array.isArray(raw.results)) return raw.results
+	if (raw && Array.isArray(raw.data)) return raw.data
+	return []
+})
 
-	// 搜索过滤
-	if (searchQuery.value) {
-		const query = searchQuery.value.toLowerCase()
-		result = result.filter(r =>
-			r.avid.toLowerCase().includes(query) ||
-			r.title.toLowerCase().includes(query) ||
-			r.source.toLowerCase().includes(query)
-		)
-	}
+// debounce search input to avoid frequent requests
+let _searchTimer = null
+watch(searchQuery, (val) => {
+	if (_searchTimer) clearTimeout(_searchTimer)
+	_searchTimer = setTimeout(() => {
+		page.value = 1
+		fetchResourceList()
+	}, 300)
+})
 
-	// 状态过滤
-	if (filterStatus.value === 'downloaded') {
-		result = result.filter(r => r.has_video)
-	} else if (filterStatus.value === 'pending') {
-		result = result.filter(r => !r.has_video)
-	}
+// trigger when filter status changes
+watch(filterStatus, () => {
+	page.value = 1
+	fetchResourceList()
+})
 
-	// 按最新下载排序时，只显示已下载的资源
-	if (sortBy.value === 'latest_downloaded') {
-		result = result.filter(r => r.has_video && r.video_create_time)
-	}
-
-	// 排序
-	if (sortBy.value === 'date') {
-		result.sort((a, b) => new Date(b.release_date) - new Date(a.release_date))
-	} else if (sortBy.value === 'avid') {
-		result.sort((a, b) => a.avid.localeCompare(b.avid))
-	} else if (sortBy.value === 'source') {
-		result.sort((a, b) => a.source.localeCompare(b.source))
-	} else if (sortBy.value === 'latest_fetched') {
-		result.sort((a, b) => (b.metadata_create_time || 0) - (a.metadata_create_time || 0))
-	} else if (sortBy.value === 'latest_downloaded') {
-		result.sort((a, b) => (b.video_create_time || 0) - (a.video_create_time || 0))
-	}
-
-	return result
+onBeforeUnmount(() => {
+	if (_searchTimer) clearTimeout(_searchTimer)
 })
 
 async function handleDownload(avid) {
@@ -203,6 +267,52 @@ const visiblePages = vueComputed(() => {
 			</div>
 		</div>
 
+		<!-- Batch mode toggle placed near controls -->
+		<div class="mb-4">
+			<button @click="toggleBatchMode"
+				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-white/6 text-[#f4f4f5] hover:bg-white/10">
+				<span class="text-sm">{{ batchMode ? '退出批量' : '批量操作' }}</span>
+			</button>
+		</div>
+
+		<!-- Batch action bar (only visible in batch mode) -->
+		<div v-if="batchMode" class="mb-4 flex items-center gap-3">
+			<label class="inline-flex items-center gap-3 text-sm text-[#bcbcbc]">
+				<!-- custom checkbox -->
+				<label class="inline-flex items-center cursor-pointer">
+					<input type="checkbox" class="sr-only"
+						:checked="selectedCount === filteredResources.length && filteredResources.length > 0"
+						@change="toggleSelectAll($event.target.checked)" />
+					<span
+						:class="['w-5 h-5 flex items-center justify-center rounded-md transition border-2', (selectedCount === filteredResources.length && filteredResources.length > 0) ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
+						<svg v-if="selectedCount === filteredResources.length && filteredResources.length > 0"
+							class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"
+							xmlns="http://www.w3.org/2000/svg">
+							<path fill-rule="evenodd" clip-rule="evenodd"
+								d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z" />
+						</svg>
+					</span>
+				</label>
+				<span>已选择 {{ selectedCount }} 项</span>
+			</label>
+			<button
+				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-white/6 text-[#ffffff] hover:bg-white/10 disabled:opacity-60"
+				:disabled="batchLoading" @click="handleBatchRefresh">
+				批量刷新
+			</button>
+			<button
+				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow hover:brightness-105 disabled:opacity-60"
+				:disabled="batchLoading" @click="handleBatchDownload">
+				批量下载
+			</button>
+
+			<button
+				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-gradient-to-br from-[#dc3545] to-[#ff5252] text-white shadow hover:brightness-95 disabled:opacity-60"
+				:disabled="batchLoading" @click="handleBatchDelete">
+				批量删除
+			</button>
+		</div>
+
 		<!-- Results Info -->
 		<div v-if="!resourceStore.loading" class="mb-6 text-[#71717a] text-sm">
 			<span>共 {{ resourceStore.pagination.total }} 个资源，页码 {{ resourceStore.pagination.page }}/{{
@@ -226,26 +336,45 @@ const visiblePages = vueComputed(() => {
 		<!-- Resources Grid -->
 		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
 			<ResourceCard v-for="resource in filteredResources" :key="resource.avid" :resource="resource"
+				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)" @toggle-select="toggleSelect"
 				@download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
 				@deleteFile="handleDeleteFile" />
 		</div>
-		<div v-if="resourceStore.pagination.pages > 1" class="mt-8 flex flex-col items-center gap-4">
-			<div class="flex flex-wrap gap-2 justify-center">
-				<button :disabled="page === 1" @click="changePage(page - 1)"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white font-medium shadow-md disabled:opacity-50 disabled:translate-y-0 transition-transform hover:-translate-y-1">上一页</button>
-				<button v-for="p in visiblePages" :key="p" @click="changePage(p)"
-					:class="['px-3 py-1 rounded-md min-w-[36px] text-sm', p === page ? 'bg-[#ff6b6b] text-white font-semibold' : 'bg-[rgba(255,255,255,0.03)] text-[#f4f4f5] hover:bg-white/5']">{{
-						p }}</button>
-				<button :disabled="page === resourceStore.pagination.pages" @click="changePage(page + 1)"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white font-medium shadow-md disabled:opacity-50 disabled:translate-y-0 transition-transform hover:-translate-y-1">下一页</button>
+		<div v-if="resourceStore.pagination.pages > 1" class="mt-8 w-full">
+			<!-- First row: start, prev, current/total, next, end -->
+			<div class="flex items-center justify-center gap-3 mb-3">
+				<button @click="changePage(1)" :disabled="page === 1"
+					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+					跳转开头
+				</button>
+				<button @click="changePage(page - 1)" :disabled="page === 1"
+					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+					上一页
+				</button>
+				<div class="px-4 py-2 rounded-md bg-[rgba(255,255,255,0.03)] text-[#f4f4f5]">第 {{ page }} / 共 {{ resourceStore.pagination.pages }} 页</div>
+				<button @click="changePage(page + 1)" :disabled="page === resourceStore.pagination.pages"
+					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+					下一页
+				</button>
+				<button @click="changePage(resourceStore.pagination.pages)" :disabled="page === resourceStore.pagination.pages"
+					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+					跳转末尾
+				</button>
 			</div>
+			<!-- Second row: jump to page input and page size input -->
+			<div class="flex items-center justify-center gap-4">
+				<div class="flex items-center gap-2">
+					<button class="px-3 py-1 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md" @click="changePage(page)">跳转至第</button>
+					<input v-model.number="page" @keydown.enter="changePage(page)" type="number" min="1"
+						:max="resourceStore.pagination.pages" class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center" />
+					<label class="text-sm text-[#bcbcbc]">页</label>
 
-			<div class="flex items-center gap-3 justify-center">
-				<label class="text-sm text-[#bcbcbc]">每页显示</label>
-				<select v-model="pageSize" @change="onPageSizeChange"
-					class="px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40">
-					<option v-for="size in [12, 18, 24, 30]" :key="size" :value="size">{{ size }}</option>
-				</select>
+				</div>
+				<div class="flex items-center gap-2">
+					<label class="text-sm text-[#bcbcbc]">每页显示</label>
+					<input v-model.number="pageSize" @change="onPageSizeChange" type="number" min="1" class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center" />
+					<label class="text-sm text-[#bcbcbc]">个资源卡</label>
+				</div>
 			</div>
 		</div>
 

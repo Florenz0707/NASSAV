@@ -6,6 +6,7 @@ from pathlib import Path
 from django.conf import settings
 from loguru import logger
 from django.core.paginator import Paginator
+from django.db.models import Q
 
 # 初始化日志
 LOG_DIR = settings.LOG_DIR
@@ -153,6 +154,16 @@ def list_resources(params):
     if qs is None:
         qs = AVResource.objects.all()
 
+    # support status: downloaded/pending/all (alias to file_exists)
+    status = params.get('status')
+    if status:
+        s = str(status).lower()
+        if s == 'downloaded':
+            qs = qs.filter(file_exists=True)
+        elif s == 'pending':
+            qs = qs.filter(file_exists=False)
+
+    # legacy/file_exists parameter (boolean-like)
     fe = params.get('file_exists')
     if fe is not None:
         if str(fe).lower() in ('1', 'true', 'yes'):
@@ -164,6 +175,12 @@ def list_resources(params):
     if source:
         sources = [s.strip() for s in str(source).split(',') if s.strip()]
         qs = qs.filter(source__in=sources)
+
+    # search parameter: match avid or title (case-insensitive contains)
+    search = params.get('search')
+    if search:
+        q = str(search).strip()
+        qs = qs.filter(Q(avid__icontains=q) | Q(title__icontains=q))
 
     ordering = params.get('ordering')
     if ordering:

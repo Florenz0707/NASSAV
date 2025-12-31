@@ -10,9 +10,22 @@ const props = defineProps({
 		type: Object,
 		required: true
 	}
+	,
+	selectable: {
+		type: Boolean,
+		default: false
+	},
+	selected: {
+		type: Boolean,
+		default: false
+	}
 })
 
-const emit = defineEmits(['download', 'refresh', 'delete', 'deleteFile'])
+const emit = defineEmits(['download', 'refresh', 'delete', 'deleteFile', 'toggle-select'])
+// add toggle-select event if selectable
+if (typeof emit === 'function') {
+	// nothing, emit already available
+}
 
 const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 const coverUrl = ref(placeholder)
@@ -126,11 +139,28 @@ onUnmounted(() => {
 
 <template>
 	<div
-		class="bg-[rgba(18,18,28,0.8)] rounded-2xl overflow-hidden border border-white/[0.08] transition-all duration-300 hover:-translate-y-1 hover:border-[rgba(255,107,107,0.3)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
+		class="relative bg-[rgba(18,18,28,0.8)] rounded-2xl overflow-hidden border border-white/[0.08] transition-all duration-300 hover:-translate-y-1 hover:border-[rgba(255,107,107,0.3)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
 		:class="statusClass"
 	>
+		<!-- 选择复选框（可选） -> 放到封面内以保证可见性 -->
 		<!-- 封面图 -->
 		<div class="relative aspect-video overflow-hidden bg-black/30 group">
+			<!-- checkbox placed over cover for visibility -->
+			<template v-if="selectable">
+				<label class="absolute z-30 top-3 left-3 inline-flex items-center cursor-pointer" aria-label="选择资源">
+					<input
+						type="checkbox"
+						class="sr-only"
+						:checked="selected"
+						@change.stop="$emit('toggle-select', resource.avid, $event.target.checked)"
+					/>
+					<span :class="['w-6 h-6 flex items-center justify-center rounded-md transition border-2', selected ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow-lg' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
+						<svg v-if="selected" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+							<path fill-rule="evenodd" clip-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z" />
+						</svg>
+					</span>
+				</label>
+			</template>
 			<img
 				:data-avid="resource.avid"
 				:src="coverUrl"
@@ -189,31 +219,28 @@ onUnmounted(() => {
 			<!-- 操作按钮 -->
 			<div class="flex gap-2 justify-between items-center relative">
 				<button
-					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.8rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#a1a1aa] hover:bg-white/[0.12] hover:text-[#f4f4f5]"
+					class="inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#a1a1aa] hover:bg-white/[0.12] hover:text-[#f4f4f5]"
 					@click="emit('refresh', resource.avid)"
 				>
-					<span class="text-[0.9rem]">↻</span>
 					刷新
 				</button>
 
 				<button
 					v-if="!resource.has_video"
-					class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.8rem] font-medium cursor-pointer transition-all duration-200 bg-[#ff6b6b] text-white hover:bg-[#ff5252] hover:-translate-y-0.5"
+					class="inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-[#ff6b6b] text-white hover:bg-[#ff5252] hover:-translate-y-0.5"
 					@click="emit('download', resource.avid)"
 				>
-					<span class="text-[0.9rem]">⬇</span>
 					下载
 				</button>
 
 				<!-- 删除按钮容器 -->
 				<div class="relative" @click.stop>
 					<button
-						class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.8rem] font-medium cursor-pointer transition-all duration-200 bg-[#ef476f]/10 text-[#ef476f] border border-[#ef476f]/20 hover:bg-[#ef476f]/20 hover:text-[#ff5252]"
+						class="inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-[#ef476f]/10 text-[#ef476f] border border-[#ef476f]/20 hover:bg-[#ef476f]/20 hover:text-[#ff5252]"
 						:data-avid="resource.avid"
 						@click="showDeleteMenu = !showDeleteMenu"
 						title="删除"
 					>
-						<span class="text-[0.9rem]">✕</span>
 						删除
 					</button>
 

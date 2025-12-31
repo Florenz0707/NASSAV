@@ -19,6 +19,12 @@ urlpatterns = [
 
     # GET /api/resource/cover?avid= - 根据avid获取封面图片
     path('api/resource/cover', views.ResourceCoverView.as_view(), name='resource-cover'),
+    # GET /api/resource/{avid}/preview - 详情首屏预览（metadata + thumbnail_url）
+    path('api/resource/<str:avid>/preview', views.ResourcePreviewView.as_view(), name='resource-preview'),
+    # POST /api/resources/batch - 批量资源操作（add/delete/refresh）
+    path('api/resources/batch', views.ResourcesBatchView.as_view(), name='resources-batch'),
+    # POST /api/downloads/batch_submit - 批量提交下载任务
+    path('api/downloads/batch_submit', views.DownloadsBatchSubmitView.as_view(), name='downloads-batch-submit'),
 
     # GET /api/resource/metadata?avid= - 根据avid获取视频元数据
     path('api/resource/metadata', views.ResourceMetadataView.as_view(), name='resource-metadata'),

@@ -9,35 +9,35 @@
   - 路由：`/`
   - 预览：
 
-    ![Home](public/home.png)
+    ![Home](public/preview/home.png)
 
 - 资源库（搜索/过滤/排序/批量浏览）
   - 功能：支持按 AVID/标题/来源搜索；按状态（已下载/未下载）过滤；按日期/编号/来源排序；卡片操作（下载、刷新、删除资源、删除视频文件）；一键刷新列表悬浮按钮。
   - 路由：`/resources`
   - 预览：
 
-    ![Resources](public/resource.png)
+    ![Resources](public/preview/resource.png)
 
 - 资源详情（元数据与操作）
   - 功能：展示封面、标题、发行日期、时长、来源、文件大小、演员、类别等；提交下载、复制本地文件路径用于播放、刷新元信息。
   - 路由：`/resource/:avid`
   - 预览：
 
-    ![Resource Detail](public/resourceDetail.png)
+    ![Resource Detail](public/preview/resourceDetail.png)
 
 - 添加资源（支持选择下载源与 Cookie 设置）
   - 功能：输入 AVID 并选择下载源（或自动），提交后回显封面下载/元数据保存/信息刮削状态；支持继续添加/查看详情；提供 Cookie 设置弹窗（用于部分源需要认证）。
   - 路由：`/add`
   - 预览：
 
-    ![Add Resource](public/addResource.png)
+    ![Add Resource](public/preview/addResource.png)
 
 - 下载管理（已下载清单）
   - 功能：统计已下载与待下载数量；展示已下载列表，支持跳转到资源详情。
   - 路由：`/downloads`
   - 预览：
 
-    ![Downloads](public/downloads.png)
+    ![Downloads](public/preview/downloads.png)
 
 ## 技术栈
 

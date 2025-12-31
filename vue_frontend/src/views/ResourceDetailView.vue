@@ -23,31 +23,18 @@ const showConfirmDialog = ref(false)
 const pendingDeleteAction = ref(null)
 
 const coverUrl = ref(null)
-let currentBlobUrl = null
 
 async function loadCover() {
 	if (!avid.value) return
-	// revoke previous
-	if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
-		URL.revokeObjectURL(currentBlobUrl)
-		currentBlobUrl = null
-	}
 	try {
 		const obj = await resourceApi.getCoverObjectUrl(avid.value)
 		coverUrl.value = obj
-		if (typeof obj === 'string' && obj.startsWith('blob:')) currentBlobUrl = obj
 	} catch (e) {
 		coverUrl.value = resourceApi.getCoverUrl(avid.value)
 	}
 }
 
 watch(avid, () => loadCover(), { immediate: true })
-onBeforeUnmount(() => {
-	if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
-		URL.revokeObjectURL(currentBlobUrl)
-		currentBlobUrl = null
-	}
-})
 
 const actorsText = computed(() => {
 	const list = metadata.value?.actors
@@ -274,11 +261,10 @@ function cancelDelete() {
 					<div class="flex flex-wrap gap-4">
 						<button
 							v-if="!metadata.file_exists"
-							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
 							:disabled="downloading"
 							@click="handleDownload"
 						>
-							<span class="text-[1.1rem]">{{ downloading ? '◷' : '⬇' }}</span>
 							{{ downloading ? '提交中...' : '下载视频' }}
 						</button>
 						<button
@@ -290,26 +276,23 @@ function cancelDelete() {
 							点击播放
 						</button>
 						<button
-							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#f4f4f5] border border-white/[0.08] hover:bg-white/[0.12] disabled:opacity-60 disabled:cursor-not-allowed"
+							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#f4f4f5] border border-white/[0.08] hover:bg-white/[0.12] disabled:opacity-60 disabled:cursor-not-allowed"
 							:disabled="refreshing"
 							@click="handleRefresh"
 						>
-							<span class="text-[1.1rem]">{{ refreshing ? '◷' : '↻' }}</span>
 							{{ refreshing ? '刷新中...' : '刷新信息' }}
 						</button>
 						<button
 							v-if="metadata.file_exists"
-							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#dc3558] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#dc3558] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
 							@click="deleteFile"
 						>
-							<span class="text-[1.1rem]">✕</span>
 							删除视频
 						</button>
 						<button
-							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff0000] to-[#dc3558] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff0000] to-[#dc3558] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
 							@click="deleteMetadata"
 						>
-							<span class="text-[1.1rem]">✕</span>
 							删除全部
 						</button>
 					</div>

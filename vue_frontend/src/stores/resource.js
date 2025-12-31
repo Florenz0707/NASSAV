@@ -12,12 +12,16 @@ export const useResourceStore = defineStore('resource', () => {
     // 获取资源列表
     // 支持分页和排序
     const pagination = ref({ total: 0, page: 1, page_size: 20, pages: 1 })
-    async function fetchResources({ sort_by = 'metadata_create_time', order = 'desc', page = 1, page_size = 20 } = {}) {
+    async function fetchResources({ sort_by = 'metadata_create_time', order = 'desc', page = 1, page_size = 20, search = '', status = 'all' } = {}) {
         loading.value = true
         error.value = null
         try {
-            console.debug('[resource] fetchResources params:', { sort_by, order, page, page_size })
-            const response = await resourceApi.getList({ sort_by, order, page, page_size })
+            console.debug('[resource] fetchResources params:', { sort_by, order, page, page_size, search, status })
+            const params = { sort_by, order, page, page_size }
+            if (search) params.search = search
+            if (status && status !== 'all') params.status = status
+            console.debug('[resource] fetchResources request params:', params)
+            const response = await resourceApi.getList(params)
             console.debug('[resource] fetchResources response:', response)
 
             // 后端可能返回多种格式：
@@ -121,12 +125,49 @@ export const useResourceStore = defineStore('resource', () => {
         }
     }
 
+    // 批量刷新/删除等，使用后端批量接口
+    async function batchRefresh(avids = []) {
+        if (!Array.isArray(avids) || avids.length === 0) return
+        try {
+            const payload = { action: 'refresh', avids }
+            const resp = await resourceApi.batch(payload)
+            // 刷新当前页结果
+            await fetchResources({ page: pagination.value.page, page_size: pagination.value.page_size })
+            return resp
+        } catch (err) {
+            throw err
+        }
+    }
+
+    async function batchDelete(avids = []) {
+        if (!Array.isArray(avids) || avids.length === 0) return
+        try {
+            const payload = { action: 'delete', avids }
+            const resp = await resourceApi.batch(payload)
+            await fetchResources({ page: pagination.value.page, page_size: pagination.value.page_size })
+            return resp
+        } catch (err) {
+            throw err
+        }
+    }
+
     // 提交下载
     async function submitDownload(avid) {
         try {
             const response = await downloadApi.submitDownload(avid)
             await fetchDownloads()
             return response
+        } catch (err) {
+            throw err
+        }
+    }
+
+    async function batchSubmitDownload(avids = []) {
+        if (!Array.isArray(avids) || avids.length === 0) return
+        try {
+            const resp = await downloadApi.batchSubmit(avids)
+            await fetchDownloads()
+            return resp
         } catch (err) {
             throw err
         }
@@ -167,6 +208,9 @@ export const useResourceStore = defineStore('resource', () => {
         fetchDownloads,
         addResource,
         refreshResource,
-        submitDownload
+        submitDownload,
+        batchRefresh,
+        batchDelete,
+        batchSubmitDownload
     }
 })

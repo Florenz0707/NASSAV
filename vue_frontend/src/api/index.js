@@ -119,6 +119,9 @@ export const resourceApi = {
 
     // 删除资源
     delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`)
+    ,
+    // 批量操作：body 应包含 { action: 'delete'|'refresh'|'add' , avids: [] } 或自定义格式
+    batch: (payload) => api.post('/resources/batch', payload)
 }
 
 // 下载管理
@@ -134,6 +137,8 @@ export const downloadApi = {
 
     // 删除下载的视频
     deleteFile: (avid) => api.delete(`/downloads/${encodeURIComponent(avid)}`),
+    // 批量提交下载任务
+    batchSubmit: (avids) => api.post('/downloads/batch_submit', { avids })
 }
 
 // 任务管理
