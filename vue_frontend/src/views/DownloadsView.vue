@@ -14,7 +14,7 @@ const pollingTimer = ref(null)
 const POLLING_INTERVAL = 1000  // API 轮询间隔
 
 // 调试模式 - 设为 true 显示样例数据
-const DEBUG_MODE = false
+const DEBUG_MODE = true
 
 // helper to normalize resources array (store may expose a ref)
 function getResourcesArray() {
@@ -186,7 +186,7 @@ function stopPolling() {
 				>
 					<!-- 左侧封面 -->
 					<div class="task-cover">
-						<img :src="resourceApi.getCoverUrl(task.avid)" :alt="task.avid" loading="lazy"/>
+						<img :src="resourceApi.getCoverUrl(task.avid, 'small')" :alt="task.avid" loading="lazy"/>
 					</div>
 
 					<!-- 右侧信息 -->

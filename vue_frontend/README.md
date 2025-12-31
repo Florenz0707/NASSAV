@@ -137,3 +137,15 @@ server {
   - 确认生产反向代理 `/nassav` 指向正确后端；或开启后端 CORS 并调整前端 API 地址。
 - 端口冲突（开发）
   - 修改 [vite.config.js](vite.config.js) 中的 `server.port`，或释放 8080 端口。
+
+## 封面与缩略图策略（前端）
+
+- 后端现在支持缩略图接口与 `thumbnail_url` 字段，前端优先使用后端在资源对象中返回的 `thumbnail_url`（如果存在），以便浏览器直接使用 Cache-Control / ETag / Last-Modified 并命中 304。
+- 页面尺寸约定：
+  - 下载页（`/downloads`）：使用 `size=small`（节省带宽、显示小图）。
+  - 资源库（`/resources`）：使用 `size=medium`（卡片视图平衡清晰度与流量）。
+  - 详情页（`/resource/:avid`）：使用原图（无 `size` 参数），以保证最高质量预览。
+- 前端 API：`src/api/index.js` 的 `resourceApi.getCoverUrl(avid, size)` 已支持 `size` 参数（`small|medium|large`）。组件 `ResourceCard` 会优先读取 `resource.thumbnail_url`，若缺失则使用 `resourceApi.getCoverUrl(avid, size)` 回退，只有在极端情况下才以 blob 形式下载原始封面。
+- 验证方法：打开浏览器开发者工具的网络面板，刷新资源列表或下载页，检查图片请求 URL 是否包含 `size=small|medium` 或使用后端返回的 `thumbnail_url`，并观察返回头部是否包含 `304` / `Cache-Control`。
+
+如果你希望更改不同页面的尺寸策略，可在 `ResourceCard` 的 `coverSize` 属性处调整或在视图中传入不同 `size` 参数。

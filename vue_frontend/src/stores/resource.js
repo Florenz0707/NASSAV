@@ -104,7 +104,11 @@ export const useResourceStore = defineStore('resource', () => {
         error.value = null
         try {
             const response = await resourceApi.addNew(avid, source)
-            await fetchResources()
+            // backend returns { data: { resource: {...} } }
+            const resObj = response && response.data && response.data.resource ? response.data.resource : null
+            if (resObj) {
+                _mergeOrUpsertResource(resObj)
+            }
             return response
         } catch (err) {
             error.value = err.message || '添加资源失败'
@@ -118,7 +122,8 @@ export const useResourceStore = defineStore('resource', () => {
     async function refreshResource(avid) {
         try {
             const response = await resourceApi.refresh(avid)
-            await fetchResources()
+            const resObj = response && response.data && response.data.resource ? response.data.resource : null
+            if (resObj) _mergeOrUpsertResource(resObj)
             return response
         } catch (err) {
             throw err
@@ -131,8 +136,15 @@ export const useResourceStore = defineStore('resource', () => {
         try {
             const payload = { action: 'refresh', avids }
             const resp = await resourceApi.batch(payload)
-            // 刷新当前页结果
-            await fetchResources({ page: pagination.value.page, page_size: pagination.value.page_size })
+            // 合并返回的资源对象（如果有的话），避免整页刷新
+            const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
+            if (Array.isArray(results)) {
+                for (const r of results) {
+                    if (r && r.resource) _mergeOrUpsertResource(r.resource)
+                }
+            } else if (resp && resp.data && resp.data.resource) {
+                _mergeOrUpsertResource(resp.data.resource)
+            }
             return resp
         } catch (err) {
             throw err
@@ -144,7 +156,17 @@ export const useResourceStore = defineStore('resource', () => {
         try {
             const payload = { action: 'delete', avids }
             const resp = await resourceApi.batch(payload)
-            await fetchResources({ page: pagination.value.page, page_size: pagination.value.page_size })
+            // 根据返回结果局部删除/合并
+            const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
+            if (Array.isArray(results)) {
+                for (const r of results) {
+                    if (r && r.action === 'delete' && r.avid) {
+                        _removeResourceByAvid(r.avid)
+                    } else if (r && r.resource) {
+                        _mergeOrUpsertResource(r.resource)
+                    }
+                }
+            }
             return resp
         } catch (err) {
             throw err
@@ -180,6 +202,47 @@ export const useResourceStore = defineStore('resource', () => {
         if (raw && Array.isArray(raw.results)) return raw.results
         if (raw && Array.isArray(raw.data)) return raw.data
         return []
+    }
+
+    // helper: merge or upsert a single resource object into current list
+    function _mergeOrUpsertResource(resObj) {
+        if (!resObj || !resObj.avid) return
+        const arr = _resourcesArray()
+        const idx = arr.findIndex(r => r.avid === resObj.avid)
+        if (idx !== -1) {
+            // merge fields
+            arr[idx] = Object.assign({}, arr[idx], resObj)
+        } else {
+            // if current view is page 1, insert at top, otherwise ignore
+            if (pagination.value && pagination.value.page === 1) {
+                arr.unshift(resObj)
+                // respect page_size
+                const max = pagination.value && pagination.value.page_size ? pagination.value.page_size : 20
+                if (arr.length > max) arr.splice(max)
+            }
+        }
+        // write back depending on original resources shape
+        if (Array.isArray(resources.value)) resources.value = arr
+        else if (resources.value && Array.isArray(resources.value.results)) resources.value.results = arr
+        else if (resources.value && Array.isArray(resources.value.data)) resources.value.data = arr
+        else resources.value = arr
+    }
+
+    function _removeResourceByAvid(avid) {
+        if (!avid) return
+        const arr = _resourcesArray()
+        const idx = arr.findIndex(r => r.avid === avid)
+        if (idx !== -1) {
+            arr.splice(idx, 1)
+        }
+        if (Array.isArray(resources.value)) resources.value = arr
+        else if (resources.value && Array.isArray(resources.value.results)) resources.value.results = arr
+        else if (resources.value && Array.isArray(resources.value.data)) resources.value.data = arr
+        else resources.value = arr
+        // adjust pagination total if present
+        if (pagination.value && typeof pagination.value.total === 'number') {
+            pagination.value.total = Math.max(0, pagination.value.total - 1)
+        }
     }
 
     // 统计信息

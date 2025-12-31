@@ -26,12 +26,8 @@ const coverUrl = ref(null)
 
 async function loadCover() {
 	if (!avid.value) return
-	try {
-		const obj = await resourceApi.getCoverObjectUrl(avid.value)
-		coverUrl.value = obj
-	} catch (e) {
-		coverUrl.value = resourceApi.getCoverUrl(avid.value)
-	}
+	// For detail view prefer the original/full cover URL (no size)
+	coverUrl.value = resourceApi.getCoverUrl(avid.value)
 }
 
 watch(avid, () => loadCover(), { immediate: true })

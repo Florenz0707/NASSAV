@@ -338,7 +338,7 @@ const visiblePages = vueComputed(() => {
 			<ResourceCard v-for="resource in filteredResources" :key="resource.avid" :resource="resource"
 				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)" @toggle-select="toggleSelect"
 				@download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
-				@deleteFile="handleDeleteFile" />
+				@deleteFile="handleDeleteFile" :coverSize="'medium'" />
 		</div>
 		<div v-if="resourceStore.pagination.pages > 1" class="mt-8 w-full">
 			<!-- First row: start, prev, current/total, next, end -->

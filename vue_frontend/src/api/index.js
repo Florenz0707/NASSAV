@@ -59,7 +59,13 @@ export const resourceApi = {
     getMetadata: (avid) => api.get('/resource/metadata', {params: {avid}}),
 
     // 获取封面图片URL（基于 axios 实例的 baseURL）
-    getCoverUrl: (avid) => `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover?avid=${encodeURIComponent(avid)}`,
+    // size: 'small'|'medium'|'large' or undefined for original
+    getCoverUrl: (avid, size) => {
+        const base = api.defaults.baseURL.replace(/\/$/, '')
+        let url = `${base}/resource/cover?avid=${encodeURIComponent(avid)}`
+        if (size) url += `&size=${encodeURIComponent(size)}`
+        return url
+    },
     // 简单的 LRU 缓存用于封面 object URLs，避免重复下载并支持自动回收
     // keyed by avid -> objectUrl
     _coverCache: new Map(),

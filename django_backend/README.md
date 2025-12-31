@@ -176,6 +176,10 @@ uv run celery -A django_project worker -l info --concurrency=1
 | GET  | `/api/resource/cover`     | 获取封面图片      |
 | POST | `/api/resource`           | 添加新资源       |
 | POST | `/api/resource/refresh`   | 刷新资源元数据     |
+| GET  | `/api/resources/`         | 资源列表（支持搜索/筛选/分页/排序） |
+| GET  | `/api/resource/<avid>/preview` | 资源详情首屏预览（metadata + thumbnail_url） |
+| POST | `/api/resources/batch`    | 批量资源操作（add/refresh/delete） |
+| POST | `/api/downloads/batch_submit` | 批量提交下载任务 |
 | GET  | `/api/downloads/list`     | 获取已下载列表     |
 | GET  | `/api/downloads/metadata` | 获取下载元数据     |
 | POST | `/api/downloads`          | 提交下载任务      |
@@ -194,6 +198,8 @@ WebSocket 支持以下消息类型：
 - `task_completed`: 任务完成通知
 - `task_failed`: 任务失败通知
 - `queue_status`: 队列状态更新
+
+注意：封面与缩略图现在支持按需生成与多尺寸返回（`size=small|medium|large`），并在响应中提供 `ETag` 与 `Last-Modified`，前端可使用 `If-None-Match` / `If-Modified-Since` 来减少带宽。
 
 ## 任务去重与并发控制
 

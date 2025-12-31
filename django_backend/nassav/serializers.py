@@ -52,12 +52,28 @@ class ResourceSummarySerializer(serializers.Serializer):
     metadata_create_time = LocalSerializerMethodField()
     video_create_time = LocalSerializerMethodField()
     file_size = serializers.IntegerField(allow_null=True)
+    thumbnail_url = LocalSerializerMethodField()
 
     def get_metadata_create_time(self, obj):
         return obj.metadata_saved_at.timestamp() if getattr(obj, 'metadata_saved_at', None) else None
 
     def get_video_create_time(self, obj):
         return obj.video_saved_at.timestamp() if getattr(obj, 'video_saved_at', None) else None
+
+    def get_thumbnail_url(self, obj):
+        try:
+            from django.conf import settings
+            from pathlib import Path
+            cover_root = Path(settings.COVER_DIR)
+            cover_name = obj.cover_filename or f"{obj.avid}.jpg"
+            cover_path = cover_root / cover_name
+            if cover_path.exists():
+                v = int(cover_path.stat().st_mtime)
+                return f"/nassav/api/resource/cover?avid={obj.avid}&size=medium&v={v}"
+            else:
+                return f"/nassav/api/resource/cover?avid={obj.avid}&size=medium"
+        except Exception:
+            return f"/nassav/api/resource/cover?avid={obj.avid}&size=medium"
 
 
 class ResourceSerializer(serializers.Serializer):

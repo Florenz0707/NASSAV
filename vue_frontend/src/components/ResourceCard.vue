@@ -19,6 +19,12 @@ const props = defineProps({
 		type: Boolean,
 		default: false
 	}
+	,
+	// preferred cover size for this card: 'small'|'medium'|'large' or undefined for original
+	coverSize: {
+		type: String,
+		default: 'medium'
+	}
 })
 
 const emit = defineEmits(['download', 'refresh', 'delete', 'deleteFile', 'toggle-select'])
@@ -33,11 +39,29 @@ let observer = null
 let imgEl = null
 
 async function loadCover() {
+	// Prefer backend-provided thumbnail_url or cover_url if present
+	if (props.resource) {
+		if (props.resource.thumbnail_url) {
+			coverUrl.value = props.resource.thumbnail_url
+			return
+		}
+		if (props.resource.cover_url) {
+			coverUrl.value = props.resource.cover_url
+			return
+		}
+	}
+	// fallback: request server thumbnail of preferred size (avoids blob downloads)
 	try {
-		const obj = await resourceApi.getCoverObjectUrl(props.resource.avid)
-		if (obj) coverUrl.value = obj
+		const url = resourceApi.getCoverUrl(props.resource.avid, props.coverSize)
+		coverUrl.value = url
 	} catch (e) {
-		coverUrl.value = resourceApi.getCoverUrl(props.resource.avid)
+		// last-resort: blob object URL
+		try {
+			const obj = await resourceApi.getCoverObjectUrl(props.resource.avid)
+			if (obj) coverUrl.value = obj
+		} catch (err) {
+			coverUrl.value = resourceApi.getCoverUrl(props.resource.avid)
+		}
 	}
 }
 
