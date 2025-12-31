@@ -47,12 +47,12 @@ django_backend/
 │   ├── tasks.py                  # Celery 异步任务
 │   ├── urls.py                   # API 路由
 │   └── views.py                  # API 视图
-├── resource/                      # 资源目录
-│   └── {AVID}/                   # 按 AVID 分目录存储
-│       ├── {AVID}.html          # HTML 源码缓存
-│       ├── {AVID}.jpg           # 封面图片
-│       ├── {AVID}.json          # 元数据
-│       └── {AVID}.mp4           # 视频文件
+├── resource/                      # 资源目录（新布局）
+│   ├── cover/                     # 封面图片，文件名格式为 {AVID}.jpg
+│   │   └── {AVID}.jpg
+│   ├── video/                     # 视频文件，文件名格式为 {AVID}.mp4
+│   │   └── {AVID}.mp4
+│   └── resource_backup/           # 旧的按 AVID 子目录备份（保留原始 HTML/JSON/MP4）
 ├── tools/                         # 工具目录
 │   └── N_m3u8DL-RE              # M3U8 下载工具
 └── log/                          # 日志目录
@@ -81,6 +81,8 @@ cp config/template-config.yaml config/config.yaml
 Proxy:
   Enable: true
   url: http://127.0.0.1:3000
+
+UrlPrefix: null
 
 # 刮削器配置（从 JavBus 获取详细元数据）
 Scraper:
@@ -155,13 +157,14 @@ uv run celery -A django_project worker -l info --concurrency=1
 ```
 
 **重要说明：**
+
 - Worker 已配置为单并发模式（`CELERY_WORKER_CONCURRENCY=1`）
 - 全局下载锁确保同一时间只有一个 N_m3u8DL-RE 实例在运行
 - 任务去重机制防止同一 AVID 重复提交到队列
 
 ## API 文档
 
-详细接口说明请参考 [interfaces.md](interfaces.md)
+详细接口说明请参考 [doc/interface.md](doc/interface.md)。数据库模型与表结构说明请参考 [doc/database.md](doc/database.md)。
 
 ### REST API 端点
 
@@ -180,11 +183,12 @@ uv run celery -A django_project worker -l info --concurrency=1
 
 ### WebSocket 端点
 
-| 端点                              | 说明                 |
-|---------------------------------|--------------------|
-| `ws://localhost:8000/ws/tasks/` | 实时任务队列通知和下载进度推送 |
+| 端点                                     | 说明              |
+|----------------------------------------|-----------------|
+| `ws://localhost:8000/nassav/ws/tasks/` | 实时任务队列通知和下载进度推送 |
 
 WebSocket 支持以下消息类型：
+
 - `progress_update`: 下载进度实时更新（百分比、速度）
 - `task_started`: 任务开始通知
 - `task_completed`: 任务完成通知
@@ -213,7 +217,7 @@ WebSocket 支持以下消息类型：
 ### Celery 配置
 
 ```python
-CELERY_WORKER_CONCURRENCY = 1          # 单并发
+CELERY_WORKER_CONCURRENCY = 1  # 单并发
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # 每次只预取一个任务
 ```
 
@@ -262,7 +266,7 @@ ws.onmessage = (event) => {
     switch (message.type) {
         case 'progress_update':
             // 实时进度更新
-            const { avid, percent, speed } = message.data;
+            const {avid, percent, speed} = message.data;
             console.log(`${avid}: ${percent}% @ ${speed}`);
             updateProgressBar(avid, percent);
             break;
@@ -286,7 +290,7 @@ ws.onmessage = (event) => {
 // 定期查询任务状态（包含进度信息）
 setInterval(async () => {
     const response = await fetch('/nassav/api/tasks/queue/status');
-    const { data } = await response.json();
+    const {data} = await response.json();
 
     data.active_tasks.forEach(task => {
         if (task.progress) {
@@ -300,35 +304,37 @@ setInterval(async () => {
 ### 数据格式
 
 **进度更新消息（WebSocket）：**
+
 ```json
 {
-    "type": "progress_update",
-    "data": {
-        "task_id": "abc123-def456-...",
-        "avid": "SSIS-469",
-        "percent": 45.2,
-        "speed": "5.2MB/s"
-    }
+  "type": "progress_update",
+  "data": {
+    "task_id": "abc123-def456-...",
+    "avid": "SSIS-469",
+    "percent": 45.2,
+    "speed": "5.2MB/s"
+  }
 }
 ```
 
 **任务状态查询响应（REST API）：**
+
 ```json
 {
-    "code": 200,
-    "message": "success",
-    "data": {
-        "active_tasks": [
-            {
-                "task_id": "abc123",
-                "avid": "SSIS-469",
-                "progress": {
-                    "percent": 45.2,
-                    "speed": "5.2MB/s"
-                }
-            }
-        ]
-    }
+  "code": 200,
+  "message": "success",
+  "data": {
+    "active_tasks": [
+      {
+        "task_id": "abc123",
+        "avid": "SSIS-469",
+        "progress": {
+          "percent": 45.2,
+          "speed": "5.2MB/s"
+        }
+      }
+    ]
+  }
 }
 ```
 

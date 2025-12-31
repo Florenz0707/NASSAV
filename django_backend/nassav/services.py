@@ -2,7 +2,7 @@
 服务层：封装下载器和刮削器逻辑
 """
 from typing import Optional
-
+from pathlib import Path
 from django.conf import settings
 from loguru import logger
 
@@ -102,10 +102,11 @@ class VideoDownloadService:
         return source_config.get('domain', source_lower + '.com')
 
     def _download_m3u8(self, url: str, avid: str, domain: str, total_duration: Optional[int] = None,
-                      progress_callback: Optional[callable] = None) -> bool:
+                       progress_callback: Optional[callable] = None) -> bool:
         """使用注入的 M3U8 下载器下载视频"""
         avid_upper = avid.upper()
-        resource_dir = settings.RESOURCE_DIR / avid_upper
+        # 输出到新的 VIDEO_DIR，文件命名为 {AVID}.mp4
+        resource_dir = Path(settings.VIDEO_DIR)
 
         duration_str = f"{total_duration // 60}分钟" if total_duration else "未知"
         logger.info(f"开始下载 {avid_upper} (预计时长: {duration_str})")

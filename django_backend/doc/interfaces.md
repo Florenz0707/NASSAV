@@ -93,12 +93,12 @@
 
 **查询参数：**
 
-| 参数         | 类型   | 必填 | 说明                                                         |
-|------------|------|----|------------------------------------------------------------|
-| sort_by    | string| 否  | 排序字段：avid、metadata_create_time、video_create_time、source |
-| order      | string| 否  | 排序方式：asc（升序）、desc（降序），默认 desc                |
-| page       | int   | 否  | 页码，默认 1                                                |
-| page_size  | int   | 否  | 每页数量，默认 20                                            |
+| 参数        | 类型     | 必填 | 说明                                                      |
+|-----------|--------|----|---------------------------------------------------------|
+| sort_by   | string | 否  | 排序字段：avid、metadata_create_time、video_create_time、source |
+| order     | string | 否  | 排序方式：asc（升序）、desc（降序），默认 desc                           |
+| page      | int    | 否  | 页码，默认 1                                                 |
+| page_size | int    | 否  | 每页数量，默认 20                                              |
 
 **响应示例：**
 
@@ -398,15 +398,17 @@
 
 提交视频下载任务（异步执行）。需要先调用 `POST /api/resource` 添加资源。
 **任务去重机制：**
+
 - 同一 AVID 在整个任务队列中只会出现一次
 - 检查范围包括：正在执行、等待执行、已预取的任务
 - 使用 Redis 锁和 Celery 队列双重检查
 
 **全局下载锁：**
+
 - 同一时间只有一个下载任务在执行 N_m3u8DL-RE
 - 其他任务会在队列中等待（最多等待 30 分钟）
 - 确保下载工具不会出现多实例并发
-**请求体：**
+  **请求体：**
 
 ```json
 {
@@ -514,7 +516,8 @@
 
 本项目主要作为NAS工具，不提供视频传输功能，可以将绝对路径粘贴到浏览器中观看。
 
-UrlPrefix：在config.yaml中配置，作为路径前缀（如：在windows中查看wsl子系统的文件，UrlPrefix=/wsl.localhost/Ubuntu-${version}）。
+UrlPrefix：在config.yaml中配置，作为路径前缀（如：在windows中查看wsl子系统的文件，UrlPrefix=/wsl.localhost/Ubuntu-$
+{version}）。
 
 **查询参数：**
 
@@ -608,29 +611,29 @@ UrlPrefix：在config.yaml中配置，作为路径前缀（如：在windows中�
 
 **data 字段说明：**
 
-| 字段            | 类型    | 说明                          |
-|---------------|-------|-----------------------------|
-| active_tasks  | array | 正在执行的任务列表                   |
-| pending_tasks | array | 等待执行的任务列表                   |
-| active_count  | int   | 正在执行的任务数量                   |
-| pending_count | int   | 等待执行的任务数量                   |
-| total_count   | int   | 总任务数量（active + pending）     |
+| 字段            | 类型    | 说明                      |
+|---------------|-------|-------------------------|
+| active_tasks  | array | 正在执行的任务列表               |
+| pending_tasks | array | 等待执行的任务列表               |
+| active_count  | int   | 正在执行的任务数量               |
+| pending_count | int   | 等待执行的任务数量               |
+| total_count   | int   | 总任务数量（active + pending） |
 
 **任务对象字段（active_tasks）：**
 
-| 字段       | 类型     | 说明                                  |
-|----------|--------|-------------------------------------|
-| task_id  | string | Celery 任务 ID                        |
-| avid     | string | 视频编号                                |
-| state    | string | 任务状态（如 STARTED）                    |
-| progress | object | 下载进度信息（可选，仅在正在下载时存在）              |
+| 字段       | 类型     | 说明                   |
+|----------|--------|----------------------|
+| task_id  | string | Celery 任务 ID         |
+| avid     | string | 视频编号                 |
+| state    | string | 任务状态（如 STARTED）      |
+| progress | object | 下载进度信息（可选，仅在正在下载时存在） |
 
 **进度对象字段（progress）：**
 
-| 字段      | 类型    | 说明                     |
-|---------|-------|------------------------|
-| percent | float | 下载进度百分比（0-100）         |
-| speed   | string | 当前下载速度（如 "5.2MB/s"）   |
+| 字段      | 类型     | 说明                  |
+|---------|--------|---------------------|
+| percent | float  | 下载进度百分比（0-100）      |
+| speed   | string | 当前下载速度（如 "5.2MB/s"） |
 
 **任务对象字段（pending_tasks）：**
 

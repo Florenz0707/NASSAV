@@ -388,6 +388,32 @@ def download_video_task(self, avid: str):
             })
             notify_task_update('queue_status', get_task_queue_status())
 
+            # 更新数据库：标记文件存在并写入文件大小/时间戳
+            try:
+                from django.utils import timezone
+                from django.conf import settings
+                from django.db import transaction
+                from pathlib import Path
+                from nassav.models import AVResource
+
+                mp4_file = Path(settings.VIDEO_DIR) / f"{avid.upper()}.mp4"
+                with transaction.atomic():
+                    if mp4_file.exists():
+                        file_size = mp4_file.stat().st_size
+                        AVResource.objects.filter(avid=avid).update(
+                            file_exists=True,
+                            file_size=file_size,
+                            video_saved_at=timezone.now()
+                        )
+                    else:
+                        AVResource.objects.filter(avid=avid).update(
+                            file_exists=False,
+                            file_size=None,
+                            video_saved_at=None
+                        )
+            except Exception as e:
+                logger.warning(f"下载完成后更新 AVResource 失败: {e}")
+
             return {
                 'status': 'success',
                 'avid': avid,
@@ -404,6 +430,17 @@ def download_video_task(self, avid: str):
                 'message': '下载失败'
             })
             notify_task_update('queue_status', get_task_queue_status())
+
+            # 标记数据库为未完成
+            try:
+                from django.db import transaction
+                from nassav.models import AVResource
+                with transaction.atomic():
+                    AVResource.objects.filter(avid=avid).update(
+                        file_exists=False
+                    )
+            except Exception as e:
+                logger.warning(f"下载失败后更新 AVResource 失败: {e}")
 
             return {
                 'status': 'failed',
@@ -427,6 +464,15 @@ def download_video_task(self, avid: str):
         try:
             raise self.retry(exc=e)
         except self.MaxRetriesExceededError:
+            try:
+                from django.db import transaction
+                from nassav.models import AVResource
+                with transaction.atomic():
+                    AVResource.objects.filter(avid=avid).update(
+                        file_exists=False
+                    )
+            except Exception:
+                pass
             return {
                 'status': 'failed',
                 'avid': avid,
@@ -484,3 +530,20 @@ def submit_download_task(avid: str) -> tuple[bool | None, bool]:
     notify_task_update('queue_status', get_task_queue_status())
 
     return task_result, False
+
+
+@shared_task(bind=True, name='nassav.tasks.run_db_disk_consistency', ignore_result=True)
+def run_db_disk_consistency(self, apply_changes: bool = False, limit: int | None = None, report: str | None = None):
+    """调用管理命令 `check_db_disk_consistency` 以在 worker 中运行一致性检查（供 Celery Beat 调度）。"""
+    try:
+        from django.core.management import call_command
+        args = []
+        if apply_changes:
+            args.append('--apply')
+        if limit:
+            args.extend(['--limit', str(limit)])
+        if report:
+            args.extend(['--report', report])
+        call_command('check_db_disk_consistency', *args)
+    except Exception as e:
+        logger.error(f"运行一致性检查任务失败: {e}")

@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 import yaml
+from celery.schedules import crontab
 
 # 过滤 StreamingHttpResponse 的 ASGI 警告
 warnings.filterwarnings(
@@ -170,9 +171,20 @@ CELERY_TIMEZONE = 'Asia/Shanghai'
 CELERY_WORKER_CONCURRENCY = 1
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
-# Resource paths - 统一存储到 resource/{avid}/ 目录
+# Resource paths - 新的布局：
+# - 封面: resource/cover/{AVID}.jpg
+# - 视频:  resource/video/{AVID}.mp4
 RESOURCE_DIR = BASE_DIR / 'resource'
 RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
+
+# 兼容旧布局的备份目录（用户已重命名为 resource_backup）
+RESOURCE_BACKUP_DIR = BASE_DIR / 'resource_backup'
+
+# 新的子目录
+COVER_DIR = RESOURCE_DIR / 'cover'
+VIDEO_DIR = RESOURCE_DIR / 'video'
+COVER_DIR.mkdir(parents=True, exist_ok=True)
+VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 
 # Log directory
 LOG_DIR = BASE_DIR / 'log'
@@ -209,3 +221,12 @@ SOURCE_CONFIG = CONFIG.get('Source', {})
 
 # Scraper configurations (e.g., JavBus, Busdmm, Dmmsee)
 SCRAPER_CONFIG = CONFIG.get('Scraper', {})
+
+# Celery Beat schedule: daily consistency check between DB and disk at 03:00 server time
+CELERY_BEAT_SCHEDULE = {
+    'db-disk-consistency-daily': {
+        'task': 'nassav.tasks.run_db_disk_consistency',
+        'schedule': crontab(hour=3, minute=0),
+        'args': (False, None, None),
+    }
+}

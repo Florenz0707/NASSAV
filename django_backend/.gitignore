@@ -3,6 +3,7 @@ __pycache__/
 
 log/
 resource/
+resource_backup/
 tools/*
 !tools/.keep
 

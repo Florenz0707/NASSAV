@@ -149,10 +149,15 @@ class SourceManager:
         return None
 
     def get_resource_dir(self, avid: str) -> Path:
-        """获取资源目录路径"""
-        resource_dir = settings.RESOURCE_DIR / avid.upper()
-        resource_dir.mkdir(parents=True, exist_ok=True)
-        return resource_dir
+        """确保新的资源子目录存在并返回资源根目录
+
+        注意：新的布局将封面和视频分开保存在 COVER_DIR/VIDEO_DIR，
+        该方法保持兼容性，确保相关目录存在。返回值为资源根目录。"""
+        cover_dir = Path(settings.COVER_DIR)
+        video_dir = Path(settings.VIDEO_DIR)
+        cover_dir.mkdir(parents=True, exist_ok=True)
+        video_dir.mkdir(parents=True, exist_ok=True)
+        return Path(settings.RESOURCE_DIR)
 
     def save_all_resources(self, avid: str, info: AVDownloadInfo, source: SourceBase, html: str) -> dict:
         """
@@ -169,21 +174,15 @@ class SourceManager:
             'scraped': False,
         }
 
-        # 1. 保存 HTML
-        try:
-            html_path = resource_dir / f"{avid}.html"
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(html)
-            logger.debug(f"HTML 已保存: {html_path}")
-            result['html_saved'] = True
-        except Exception as e:
-            logger.error(f"保存 HTML 失败: {e}")
+        # NOTE: 不再将 HTML/JSON 持久化到磁盘，元数据将保存到数据库。
+        # 如果需要保留 HTML 缓存，可在配置中添加开关；当前行为是跳过写入 HTML 文件。
+        result['html_saved'] = False
 
-        # 2. 下载封面
+        # 2. 下载封面到新的 COVER_DIR
         cover_url = source.get_cover_url(html)
         if cover_url:
             logger.info(f"封面下载地址: {cover_url}")
-            cover_path = resource_dir / f"{avid}.jpg"
+            cover_path = Path(settings.COVER_DIR) / f"{avid}.jpg"
             if source.download_file(cover_url, str(cover_path)):
                 result['cover_saved'] = True
             else:
@@ -200,21 +199,92 @@ class SourceManager:
         else:
             logger.warning(f"未能从 JavBus 获取 {avid} 的元数据，将只保存 Source 提供的基本信息")
 
-        # 4. 保存元数据
+        # 4. 保存元数据到数据库（AVResource），不再保存为 JSON 文件
         try:
-            metadata_path = resource_dir / f"{avid}.json"
-            info.to_json(str(metadata_path))
-            result['metadata_saved'] = True
-            logger.debug(f"元数据已保存: {metadata_path}")
+            from nassav.models import AVResource, Actor, Genre
+
+            # 更新 info（scraper 已可能补充信息）
+            source_name = ''
+            try:
+                source_name = source.get_source_name()
+            except Exception:
+                source_name = getattr(info, 'source', '') or ''
+
+            defaults = {
+                'title': getattr(info, 'title', '') or '',
+                'source': source_name or getattr(info, 'source', '') or '',
+                'release_date': getattr(info, 'release_date', '') or '',
+                'duration': None,
+                'metadata': None,
+                'm3u8': getattr(info, 'm3u8', '') or '',
+                'cover_filename': None,
+                'file_exists': False,
+                'file_size': None,
+            }
+
+            # 尝试解析 duration 为秒数（若可用）
+            try:
+                if getattr(info, 'duration', None):
+                    # 解析类似 '120分' 或 '120' 等格式为秒
+                    import re
+                    m = re.search(r"(\d+)", str(info.duration))
+                    if m:
+                        mins = int(m.group(1))
+                        defaults['duration'] = mins * 60
+            except Exception:
+                pass
+
+            # 保存/更新资源基础记录
+            resource_obj, created = AVResource.objects.update_or_create(avid=avid, defaults=defaults)
+
+            # actors
+            try:
+                resource_obj.actors.clear()
+                for actor_name in getattr(info, 'actors', []) or []:
+                    if not actor_name:
+                        continue
+                    actor_obj, _ = Actor.objects.get_or_create(name=actor_name)
+                    resource_obj.actors.add(actor_obj)
+            except Exception:
+                logger.exception(f"保存 actors 失败: {avid}")
+
+            # genres
+            try:
+                resource_obj.genres.clear()
+                for genre_name in getattr(info, 'genres', []) or []:
+                    if not genre_name:
+                        continue
+                    genre_obj, _ = Genre.objects.get_or_create(name=genre_name)
+                    resource_obj.genres.add(genre_obj)
+            except Exception:
+                logger.exception(f"保存 genres 失败: {avid}")
+
+                # 封面文件名写入（如果刚下载成功）
+            try:
+                if result['cover_saved']:
+                    cover_path = Path(settings.COVER_DIR) / f"{avid}.jpg"
+                    if cover_path.exists():
+                        resource_obj.cover_filename = cover_path.name
+                resource_obj.metadata = info.__dict__ if hasattr(info, '__dict__') else None
+                resource_obj.m3u8 = getattr(info, 'm3u8', '') or ''
+                resource_obj.save()
+                result['metadata_saved'] = True
+            except Exception as e:
+                logger.error(f"写入数据库元数据失败: {e}")
+                result['metadata_saved'] = False
+
+            logger.debug(f"元数据已保存到数据库: {avid} (created={created})")
         except Exception as e:
-            logger.error(f"保存元数据失败: {e}")
+            logger.error(f"保存元数据到数据库失败: {e}")
+            result['metadata_saved'] = False
 
         return result
 
     def load_cached_html(self, avid: str) -> Optional[str]:
         """从缓存加载 HTML"""
         avid = avid.upper()
-        html_path = settings.RESOURCE_DIR / avid / f"{avid}.html"
+        # HTML 缓存如果存在于旧的 per-avid 目录（resource_backup/{avid}/{avid}.html），优先从备份目录读取
+        html_path = Path(settings.RESOURCE_BACKUP_DIR) / avid / f"{avid}.html"
         if html_path.exists():
             try:
                 with open(html_path, 'r', encoding='utf-8') as f:
@@ -226,21 +296,35 @@ class SourceManager:
     def load_cached_metadata(self, avid: str) -> Optional[AVDownloadInfo]:
         """从缓存加载元数据"""
         avid = avid.upper()
-        metadata_path = settings.RESOURCE_DIR / avid / f"{avid}.json"
-        if metadata_path.exists():
+        # 优先从数据库加载元数据（不再依赖 resource/*/*.json 文件）
+        try:
+            from nassav.models import AVResource
+            resource = AVResource.objects.filter(avid=avid).first()
+            if not resource:
+                return None
+
+            info = AVDownloadInfo(
+                m3u8=resource.m3u8 or '',
+                title=resource.title or '',
+                avid=resource.avid or '',
+                source=resource.source or ''
+            )
+
+            # 从 metadata JSON 字段恢复 actors/genres/release_date/duration 等（若存在）
             try:
-                with open(metadata_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    info = AVDownloadInfo(
-                        m3u8=data.get('m3u8', ''),
-                        title=data.get('title', ''),
-                        avid=data.get('avid', ''),
-                        source=data.get('downloader', '')
-                    )
-                    return info
-            except Exception as e:
-                logger.error(f"读取缓存元数据失败: {e}")
-        return None
+                md = resource.metadata or {}
+                if isinstance(md, dict):
+                    info.release_date = md.get('release_date', resource.release_date or '')
+                    info.duration = md.get('duration', resource.duration or '')
+                    info.actors = md.get('actors', []) or []
+                    info.genres = md.get('genres', []) or []
+            except Exception:
+                pass
+
+            return info
+        except Exception as e:
+            logger.error(f"从数据库加载元数据失败: {e}")
+            return None
 
 
 source_manager = SourceManager()

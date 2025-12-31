@@ -37,92 +37,67 @@ class SourceListView(APIView):
 class SourceCookieView(APIView):
     """
     POST /api/source/cookie
-    设置指定源的 Cookie
+    设置或自动获取指定源的 Cookie。
+
+    Request JSON:
+      - source: 源名称 (required)
+      - cookie: 手动设置的 cookie (optional)
+      - auto: 是否自动获取 cookie (boolean, optional)
     """
 
     def post(self, request):
-        serializer = SourceCookieSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response({
-                'code': 400,
-                'message': '参数错误',
-                'data': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data or {}
+        source_name = data.get('source')
+        cookie = data.get('cookie')
+        auto = bool(data.get('auto', False))
 
-        source_name = serializer.validated_data['source']
-        cookie = serializer.validated_data['cookie']
+        if not source_name:
+            return Response({'code': 400, 'message': 'source 参数缺失', 'data': None},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        # 检查源是否存在
-        available_sources = [s.lower() for s in source_manager.sources.keys()]
-        if source_name.lower() not in available_sources:
-            return Response({
-                'code': 404,
-                'message': f'源 {source_name} 不存在',
-                'data': {
-                    'available_sources': list(source_manager.sources.keys())
-                }
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        # 如果 cookie 为 "auto"，自动获取
-        if cookie.lower() == "auto":
+        # 如果请求自动获取 cookie
+        if auto:
             try:
-                # 获取源实例（不区分大小写）
+                # 找到对应的 source 实例并尝试自动获取 cookie
                 source_instance = None
-                for name, source in source_manager.sources.items():
+                for name, inst in source_manager.sources.items():
                     if name.lower() == source_name.lower():
-                        source_instance = source
+                        source_instance = inst
                         break
 
                 if not source_instance:
-                    return Response({
-                        'code': 500,
-                        'message': f'无法获取 {source_name} 实例',
-                        'data': None
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    return Response({'code': 404, 'message': f'无法获取 {source_name} 实例', 'data': None},
+                                    status=status.HTTP_404_NOT_FOUND)
 
-                # 自动获取cookie
-                success = source_instance.set_cookie_auto(force_refresh=True)
+                success = False
+                try:
+                    success = source_instance.set_cookie_auto(force_refresh=True)
+                except Exception as e:
+                    logger.error(f"自动获取 Cookie 失败: {e}")
+
                 if success:
-                    return Response({
-                        'code': 200,
-                        'message': 'Cookie自动获取成功',
-                        'data': {
-                            'source': source_name,
-                            'cookie_set': True
-                        }
-                    })
+                    return Response({'code': 200, 'message': 'Cookie 自动获取成功',
+                                     'data': {'source': source_name, 'cookie_set': True}})
                 else:
-                    return Response({
-                        'code': 500,
-                        'message': 'Cookie自动获取失败',
-                        'data': None
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    return Response({'code': 500, 'message': 'Cookie 自动获取失败', 'data': None},
+                                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             except Exception as e:
-                logger.error(f"自动获取Cookie失败: {e}")
-                return Response({
-                    'code': 500,
-                    'message': f'自动获取Cookie失败: {str(e)}',
-                    'data': None
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                logger.error(f"自动获取 Cookie 异常: {e}")
+                return Response({'code': 500, 'message': f'自动获取 Cookie 异常: {str(e)}', 'data': None},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # 手动设置 cookie
-        success = source_manager.set_source_cookie(source_name, cookie)
-        if success:
-            return Response({
-                'code': 200,
-                'message': 'success',
-                'data': {
-                    'source': source_name,
-                    'cookie_set': True,
-                    'auto_fetched': False
-                }
-            })
-        else:
-            return Response({
-                'code': 500,
-                'message': '设置 Cookie 失败',
-                'data': None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # 否则如果提供了 cookie 则手动设置并保存到 DB
+        if cookie:
+            success = source_manager.set_source_cookie(source_name, cookie)
+            if success:
+                return Response({'code': 200, 'message': 'success',
+                                 'data': {'source': source_name, 'cookie_set': True, 'auto_fetched': False}})
+            else:
+                return Response({'code': 500, 'message': '设置 Cookie 失败', 'data': None},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'code': 400, 'message': '未提供 cookie 且 auto 未设置为 True', 'data': None},
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
 class ResourceListView(APIView):
@@ -139,8 +114,8 @@ class ResourceListView(APIView):
     """
 
     def get(self, request):
-        resource_dir = settings.RESOURCE_DIR
-        resources = []
+        # 使用数据库查询 AVResource，提高性能并支持排序/分页
+        from nassav.models import AVResource
 
         # 获取排序和分页参数
         sort_by = request.query_params.get('sort_by', 'avid')
@@ -148,51 +123,37 @@ class ResourceListView(APIView):
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 20))
 
-        valid_sort_fields = {'avid', 'metadata_create_time', 'video_create_time', 'source'}
-        if sort_by not in valid_sort_fields:
-            sort_by = 'avid'
-        order_reverse = (order == 'desc')
+        sort_map = {
+            'avid': 'avid',
+            'metadata_create_time': 'metadata_saved_at',
+            'video_create_time': 'video_saved_at',
+            'source': 'source'
+        }
+        sort_field = sort_map.get(sort_by, 'avid')
+        if order == 'desc':
+            sort_field = f'-{sort_field}'
 
-        if resource_dir.exists():
-            for item in resource_dir.iterdir():
-                if item.is_dir():
-                    avid = item.name
-                    metadata_path = item / f"{avid}.json"
-                    if metadata_path.exists():
-                        try:
-                            with open(metadata_path, 'r', encoding='utf-8') as f:
-                                metadata = json.load(f)
-
-                            metadata_create_time = metadata_path.stat().st_ctime
-                            video_path = item / f"{avid}.mp4"
-                            has_video = video_path.exists()
-                            video_create_time = video_path.stat().st_ctime if has_video else None
-
-                            resources.append({
-                                'avid': avid,
-                                'title': metadata.get('title', ''),
-                                'source': metadata.get('source', ''),
-                                'release_date': metadata.get('release_date', ''),
-                                'has_video': has_video,
-                                'metadata_create_time': metadata_create_time,
-                                'video_create_time': video_create_time
-                            })
-                        except Exception as e:
-                            logger.error(f"读取 {avid} 元数据失败: {e}")
-
-        # 排序
-        resources.sort(key=lambda x: x.get(sort_by) if x.get(sort_by) is not None else '', reverse=order_reverse)
-
-        # 分页
-        total = len(resources)
+        qs = AVResource.objects.all().order_by(sort_field)
+        total = qs.count()
         start = (page - 1) * page_size
-        end = start + page_size
-        paged_resources = resources[start:end]
+        paged = qs[start:start + page_size]
+
+        data = []
+        for r in paged:
+            data.append({
+                'avid': r.avid,
+                'title': r.title or '',
+                'source': r.source or '',
+                'release_date': r.release_date or '',
+                'has_video': bool(r.file_exists),
+                'metadata_create_time': r.metadata_saved_at.timestamp() if r.metadata_saved_at else None,
+                'video_create_time': r.video_saved_at.timestamp() if r.video_saved_at else None,
+            })
 
         return Response({
             'code': 200,
             'message': 'success',
-            'data': paged_resources,
+            'data': data,
             'pagination': {
                 'total': total,
                 'page': page,
@@ -217,13 +178,14 @@ class ResourceCoverView(APIView):
                 'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 查找封面文件 - 路径: resource/{avid}/{avid}.jpg
-        resource_dir = settings.RESOURCE_DIR / avid
-        cover_path = resource_dir / f"{avid}.jpg"
+        # 查找封面文件 - 新布局: COVER_DIR/{avid}.{ext}
+        from pathlib import Path
+        import mimetypes
+
+        cover_path = Path(settings.COVER_DIR) / f"{avid}.jpg"
         if not cover_path.exists():
-            # 尝试其他格式
-            for ext in ['.png', '.jpeg', '.webp']:
-                alt_path = resource_dir / f"{avid}{ext}"
+            for ext in ['.png', '.jpeg', '.webp', '.jpg']:
+                alt_path = Path(settings.COVER_DIR) / f"{avid}{ext}"
                 if alt_path.exists():
                     cover_path = alt_path
                     break
@@ -235,12 +197,11 @@ class ResourceCoverView(APIView):
                 'data': None
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # 使用 as_attachment=False 确保正确的流式处理
-        return FileResponse(
-            open(cover_path, 'rb'),
-            content_type='image/jpeg',
-            as_attachment=False
-        )
+        # 使用 as_attachment=False 确保正确的流式处理，自动设置 content_type
+        ctype, _ = mimetypes.guess_type(str(cover_path))
+        if not ctype:
+            ctype = 'application/octet-stream'
+        return FileResponse(open(cover_path, 'rb'), content_type=ctype, as_attachment=False)
 
 
 class DownloadsListView(APIView):
@@ -250,17 +211,8 @@ class DownloadsListView(APIView):
     """
 
     def get(self, request):
-        resource_dir = settings.RESOURCE_DIR
-        downloaded_avids = []
-
-        if resource_dir.exists():
-            for item in resource_dir.iterdir():
-                if item.is_dir():
-                    # 检查是否存在mp4文件
-                    mp4_file = item / f"{item.name}.mp4"
-                    if mp4_file.exists():
-                        downloaded_avids.append(item.name)
-
+        from nassav.models import AVResource
+        downloaded_avids = list(AVResource.objects.filter(file_exists=True).values_list('avid', flat=True))
         return Response({
             'code': 200,
             'message': 'success',
@@ -283,7 +235,8 @@ class DownloadAbspathView(APIView):
                 'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        resource_dir = settings.RESOURCE_DIR / avid
+        from pathlib import Path
+        resource_dir = Path(settings.VIDEO_DIR)
         mp4_path = resource_dir / f"{avid}.mp4"
 
         if not mp4_path.exists():
@@ -331,27 +284,32 @@ class ResourceMetadataView(APIView):
                 'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 查找元数据文件 - 路径: resource/{avid}/{avid}.json
-        resource_dir = settings.RESOURCE_DIR / avid
-        metadata_path = resource_dir / f"{avid}.json"
-        if not metadata_path.exists():
-            return Response({
-                'code': 404,
-                'message': f'资源 {avid} 的元数据不存在',
-                'data': None
-            }, status=status.HTTP_404_NOT_FOUND)
-
+        # 从数据库读取元数据
         try:
-            with open(metadata_path, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
+            from nassav.models import AVResource
+            resource = AVResource.objects.filter(avid=avid).first()
+            if not resource:
+                return Response({
+                    'code': 404,
+                    'message': f'资源 {avid} 的元数据不存在',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
 
-            # 添加额外信息
-            mp4_path = resource_dir / f"{avid}.mp4"
-            if mp4_path.exists():
-                metadata['file_size'] = mp4_path.stat().st_size
-                metadata['file_exists'] = True
-            else:
-                metadata['file_exists'] = False
+            # 基于 DB 的 metadata 字段或各字段构建返回值
+            metadata = resource.metadata if resource.metadata else {
+                'avid': resource.avid,
+                'title': resource.title,
+                'source': resource.source,
+                'release_date': resource.release_date,
+                'duration': resource.duration,
+                'actors': [a.name for a in resource.actors.all()],
+                'genres': [g.name for g in resource.genres.all()],
+                'm3u8': resource.m3u8,
+            }
+
+            # 添加文件信息
+            metadata['file_exists'] = bool(resource.file_exists)
+            metadata['file_size'] = resource.file_size if resource.file_size else None
 
             return Response({
                 'code': 200,
@@ -389,28 +347,26 @@ class ResourceView(APIView):
         avid = serializer.validated_data['avid'].upper()
         source = serializer.validated_data.get('source', 'any').lower()
 
-        # 检查资源是否已存在（基于 resource 目录）
-        resource_dir = settings.RESOURCE_DIR / avid
-        metadata_path = resource_dir / f"{avid}.json"
-        if metadata_path.exists():
-            try:
-                with open(metadata_path, 'r', encoding='utf-8') as f:
-                    metadata = json.load(f)
+        # 检查资源是否已存在（基于数据库）
+        try:
+            from nassav.models import AVResource
+            existing = AVResource.objects.filter(avid=avid).first()
+            if existing:
                 return Response({
                     'code': 409,
                     'message': '资源已存在',
                     'data': {
-                        'avid': avid,
-                        'title': metadata.get('title', ''),
-                        'source': metadata.get('source', ''),
-                        'cover_downloaded': True,
-                        'html_saved': True,
+                        'avid': existing.avid,
+                        'title': existing.title or '',
+                        'source': existing.source or '',
+                        'cover_downloaded': bool(existing.cover_filename),
+                        'html_saved': False,
                         'metadata_saved': True,
-                        'scraped': bool(metadata.get('release_date'))
+                        'scraped': bool(existing.release_date)
                     }
                 })
-            except Exception:
-                pass  # 元数据损坏，重新获取
+        except Exception:
+            pass
 
         # 根据 downloader 参数选择获取方式
         if source == 'any':
@@ -467,29 +423,35 @@ class DownloadView(APIView):
         """
         avid = avid.upper()
 
-        # 检查元数据是否存在
-        resource_dir = settings.RESOURCE_DIR / avid
-        metadata_path = resource_dir / f"{avid}.json"
-        if not metadata_path.exists():
-            return Response({
-                'code': 404,
-                'message': f'{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源',
-                'data': None
-            }, status=status.HTTP_404_NOT_FOUND)
+        # 检查元数据是否存在（数据库）
+        try:
+            from nassav.models import AVResource
+            resource = AVResource.objects.filter(avid=avid).first()
+            if not resource:
+                return Response({
+                    'code': 404,
+                    'message': f'{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
 
-        # 检查是否已下载 - 路径: resource/{avid}/{avid}.mp4
-        mp4_path = resource_dir / f"{avid}.mp4"
-        if mp4_path.exists():
+            # 检查是否已下载
+            if resource.file_exists:
+                return Response({
+                    'code': 409,
+                    'message': '视频已下载',
+                    'data': {
+                        'avid': avid,
+                        'task_id': None,
+                        'status': 'completed',
+                        'file_size': resource.file_size
+                    }
+                })
+        except Exception:
             return Response({
-                'code': 409,
-                'message': '视频已下载',
-                'data': {
-                    'avid': avid,
-                    'task_id': None,
-                    'status': 'completed',
-                    'file_size': mp4_path.stat().st_size
-                }
-            })
+                'code': 500,
+                'message': '服务器内部错误',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # 使用Celery异步下载（带去重检查）
         from .tasks import submit_download_task
@@ -521,8 +483,8 @@ class DownloadView(APIView):
         删除已下载的视频文件
         """
         avid = avid.upper()
-        resource_dir = settings.RESOURCE_DIR / avid
-        mp4_path = resource_dir / f"{avid}.mp4"
+        from pathlib import Path
+        mp4_path = Path(settings.VIDEO_DIR) / f"{avid}.mp4"
 
         if not mp4_path.exists():
             return Response({
@@ -534,6 +496,11 @@ class DownloadView(APIView):
         try:
             file_size = mp4_path.stat().st_size
             mp4_path.unlink()
+            try:
+                from nassav.models import AVResource
+                AVResource.objects.filter(avid=avid).update(file_exists=False, file_size=None, video_saved_at=None)
+            except Exception as e:
+                logger.warning(f"删除 mp4 后更新 DB 失败: {e}")
             logger.info(f"已删除视频: {avid}")
             return Response({
                 'code': 200,
@@ -562,21 +529,17 @@ class RefreshResourceView(APIView):
     def post(self, request, avid):
         avid = avid.upper()
 
-        # 检查资源是否存在
-        resource_dir = settings.RESOURCE_DIR / avid
-        metadata_path = resource_dir / f"{avid}.json"
-        if not metadata_path.exists():
-            return Response({
-                'code': 404,
-                'message': f'{avid} 的资源不存在，请先调用 /api/resource/new 添加资源',
-                'data': None
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        # 读取现有元数据获取 source
+        # 检查资源是否存在（数据库），并根据 DB 中的 source 刷新
         try:
-            with open(metadata_path, 'r', encoding='utf-8') as f:
-                old_metadata = json.load(f)
-            source = old_metadata.get('source', '')
+            from nassav.models import AVResource
+            resource = AVResource.objects.filter(avid=avid).first()
+            if not resource:
+                return Response({
+                    'code': 404,
+                    'message': f'{avid} 的资源不存在，请先调用 /api/resource/new 添加资源',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            source = resource.source or ''
         except Exception as e:
             logger.error(f"读取现有元数据失败: {e}")
             return Response({
@@ -630,9 +593,21 @@ class DeleteResourceView(APIView):
     def delete(self, request, avid):
         import shutil
         avid = avid.upper()
-        resource_dir = settings.RESOURCE_DIR / avid
+        from pathlib import Path
+        cover_root = Path(settings.COVER_DIR)
+        video_root = Path(settings.VIDEO_DIR)
+        backup_root = Path(getattr(settings, 'RESOURCE_BACKUP_DIR', Path(settings.BASE_DIR) / 'resource_backup'))
 
-        if not resource_dir.exists():
+        cover_candidates = []
+        for ext in ['.jpg', '.jpeg', '.png', '.webp']:
+            p = cover_root / f"{avid}{ext}"
+            if p.exists():
+                cover_candidates.append(p)
+
+        mp4_path = video_root / f"{avid}.mp4"
+        backup_dir = backup_root / avid
+
+        if not cover_candidates and not mp4_path.exists() and not backup_dir.exists():
             return Response({
                 'code': 404,
                 'message': f'资源 {avid} 不存在',
@@ -640,13 +615,38 @@ class DeleteResourceView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            # 收集删除的文件信息
             deleted_files = []
-            for f in resource_dir.iterdir():
-                deleted_files.append(f.name)
+            for p in cover_candidates:
+                deleted_files.append(p.name)
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
 
-            shutil.rmtree(resource_dir)
-            logger.info(f"已删除资源目录: {avid}")
+            if mp4_path.exists():
+                deleted_files.append(mp4_path.name)
+                try:
+                    mp4_path.unlink()
+                except Exception:
+                    pass
+
+            # 删除备份旧目录（若存在）
+            if backup_dir.exists():
+                try:
+                    for f in backup_dir.iterdir():
+                        deleted_files.append(f.name)
+                    shutil.rmtree(backup_dir)
+                except Exception:
+                    pass
+
+            # 同步删除数据库中的记录（若存在）
+            try:
+                from nassav.models import AVResource
+                AVResource.objects.filter(avid=avid).delete()
+            except Exception as e:
+                logger.warning(f"删除数据库记录失败: {e}")
+
+            logger.info(f"已删除资源: {avid}")
             return Response({
                 'code': 200,
                 'message': 'success',
@@ -656,7 +656,7 @@ class DeleteResourceView(APIView):
                 }
             })
         except Exception as e:
-            logger.error(f"删除资源目录失败: {e}")
+            logger.error(f"删除资源失败: {e}")
             return Response({
                 'code': 500,
                 'message': f'删除失败: {str(e)}',

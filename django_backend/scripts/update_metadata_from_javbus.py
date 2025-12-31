@@ -35,13 +35,13 @@ sys.path.insert(0, str(project_root))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
 
 import django
+
 django.setup()
 
 from loguru import logger
 from django.conf import settings
 
 from nassav.scraper.Javbus import Javbus
-
 
 # 配置 loguru
 logger.remove()
@@ -61,7 +61,7 @@ def get_proxy() -> str | None:
 
 
 def get_resource_dirs(resource_path: Path) -> list[Path]:
-    """获取所有资源目录"""
+    """兼容函数（旧逻辑）。在 DB-first 模式下通常不使用该函数。"""
     if not resource_path.exists():
         logger.error(f"资源目录不存在: {resource_path}")
         return []
@@ -73,22 +73,77 @@ def get_resource_dirs(resource_path: Path) -> list[Path]:
     return sorted(dirs)
 
 
-def load_metadata(json_path: Path) -> dict | None:
-    """加载现有的元数据 JSON"""
-    if not json_path.exists():
+def load_metadata_from_db(avid: str) -> dict | None:
+    """从数据库加载 `AVResource` 的元数据并构造字典（回退到字段值）。"""
+    from nassav.models import AVResource
+    resource = AVResource.objects.filter(avid=avid).first()
+    if not resource:
         return None
+    md = resource.metadata.copy() if resource.metadata else {}
+    # Ensure common keys exist
+    md.setdefault('avid', resource.avid)
+    md.setdefault('title', resource.title)
+    md.setdefault('source', resource.source)
+    md.setdefault('release_date', resource.release_date)
+    md.setdefault('duration', resource.duration)
+    md.setdefault('m3u8', resource.m3u8)
+    md.setdefault('actors', [a.name for a in resource.actors.all()])
+    md.setdefault('genres', [g.name for g in resource.genres.all()])
+    return md
+
+
+def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -> bool:
+    """把合并后的元数据写回到 `AVResource`（包括 actors/genres M2M）。"""
+    from nassav.models import AVResource, Actor, Genre
+    from django.db import transaction
     try:
-        with open(json_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
-        logger.error(f"解析 JSON 失败 {json_path}: {e}")
-        return None
+        with transaction.atomic():
+            resource_obj, _ = AVResource.objects.update_or_create(
+                avid=avid,
+                defaults={
+                    'title': merged_metadata.get('title', '') or '',
+                    'source': merged_metadata.get('source', '') or '',
+                    'release_date': merged_metadata.get('release_date', '') or '',
+                    'duration': None,
+                    'metadata': merged_metadata,
+                    'm3u8': merged_metadata.get('m3u8', '') or '',
+                }
+            )
 
+            # duration: try to normalize if numeric-like (keep as-is otherwise)
+            try:
+                raw_dur = merged_metadata.get('duration')
+                if raw_dur is None:
+                    resource_obj.duration = None
+                else:
+                    import re
+                    m = re.search(r"(\d+)", str(raw_dur))
+                    if m:
+                        resource_obj.duration = int(m.group(1)) * 60
+            except Exception:
+                pass
 
-def save_metadata(json_path: Path, metadata: dict):
-    """保存元数据到 JSON"""
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, ensure_ascii=False, indent=2)
+            # actors
+            resource_obj.actors.clear()
+            for a in merged_metadata.get('actors', []) or []:
+                if not a:
+                    continue
+                actor_obj, _ = Actor.objects.get_or_create(name=a)
+                resource_obj.actors.add(actor_obj)
+
+            # genres
+            resource_obj.genres.clear()
+            for g in merged_metadata.get('genres', []) or []:
+                if not g:
+                    continue
+                genre_obj, _ = Genre.objects.get_or_create(name=g)
+                resource_obj.genres.add(genre_obj)
+
+            resource_obj.save()
+        return True
+    except Exception as e:
+        logger.error(f"保存元数据到 DB 失败 {avid}: {e}")
+        return False
 
 
 def merge_metadata(original: dict, scraped: dict, force: bool = False) -> dict:
@@ -109,15 +164,15 @@ def merge_metadata(original: dict, scraped: dict, force: bool = False) -> dict:
         'title': 'title',
         'release_date': 'release_date',
         'duration': 'duration',
-        'producer': 'studio',      # Javbus 的 producer 对应 studio
-        'publisher': 'label',      # Javbus 的 publisher 对应 label
+        'producer': 'studio',  # Javbus 的 producer 对应 studio
+        'publisher': 'label',  # Javbus 的 publisher 对应 label
         'series': 'series',
         'genres': 'genres',
         'actors': 'actors',
         'director': 'director',
     }
 
-    result = original.copy()
+    result = original.copy() if original else {}
 
     for scraped_key, local_key in field_mapping.items():
         scraped_value = scraped.get(scraped_key)
@@ -146,29 +201,21 @@ def merge_metadata(original: dict, scraped: dict, force: bool = False) -> dict:
 
 
 def update_single_resource(
-    avid: str,
-    resource_path: Path,
-    scraper: Javbus,
-    dry_run: bool = False,
-    force: bool = False
+        avid: str,
+        resource_path: Path,
+        scraper: Javbus,
+        dry_run: bool = False,
+        force: bool = False
 ) -> bool:
     """
     更新单个资源的元数据
 
     返回是否成功更新
     """
-    resource_dir = resource_path / avid
-    json_path = resource_dir / f"{avid}.json"
-
-    # 检查资源目录是否存在
-    if not resource_dir.exists():
-        logger.warning(f"资源目录不存在: {resource_dir}")
-        return False
-
-    # 加载现有元数据
-    original_metadata = load_metadata(json_path)
+    # 使用数据库中的 AVResource 作为原始元数据
+    original_metadata = load_metadata_from_db(avid)
     if original_metadata is None:
-        logger.warning(f"未找到元数据文件: {json_path}")
+        logger.warning(f"数据库中未找到元数据: {avid}")
         return False
 
     # 从 Javbus 刮削元数据
@@ -190,12 +237,18 @@ def update_single_resource(
         if old_val != new_val:
             logger.info(f"  {key}: {old_val} -> {new_val}")
 
-    # 保存（如果不是预览模式）
+    # 保存到数据库（如果不是预览模式）
     if not dry_run:
-        save_metadata(json_path, merged_metadata)
-        logger.info(f"✓ 已更新 {avid} 的元数据")
+        ok = save_metadata_to_db(avid, merged_metadata, force=force)
+        if ok:
+            logger.info(f"✓ 已更新 {avid} 的元数据到数据库")
+            return True
+        else:
+            logger.error(f"保存 {avid} 到数据库失败")
+            return False
     else:
-        logger.info(f"[预览] 将更新 {avid} 的元数据")
+        logger.info(f"[预览] 将更新 {avid} 的元数据到数据库: {list(merged_metadata.keys())}")
+        return True
 
     return True
 
@@ -217,10 +270,11 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='预览模式，不实际写入文件')
     parser.add_argument('--force', action='store_true', help='强制更新所有字段')
     parser.add_argument('--delay', type=float, default=2.0, help='每次请求之间的延迟（秒）')
+    parser.add_argument('--limit', type=int, default=0, help='只处理前 N 个资源（0 表示不限制）')
 
     args = parser.parse_args()
 
-    # 资源目录
+    # 资源目录（保留用于可能的本地文件操作）
     resource_path = project_root / 'resource'
 
     # 初始化刮削器
@@ -234,12 +288,17 @@ def main():
     logger.info(f"请求延迟: {args.delay}秒")
     logger.info("-" * 50)
 
-    # 确定要处理的资源列表
+    # 确定要处理的资源列表（DB-first）
+    from nassav.models import AVResource
     if args.avid:
         avids = [args.avid.upper()]
     else:
-        resource_dirs = get_resource_dirs(resource_path)
-        avids = [d.name for d in resource_dirs]
+        # 列出数据库中的所有 AVResource 记录
+        avids = list(AVResource.objects.values_list('avid', flat=True))
+
+    # 应用限制（如果设置了 --limit）
+    if args.limit and args.limit > 0:
+        avids = avids[: args.limit]
 
     logger.info(f"将处理 {len(avids)} 个资源")
 
@@ -251,20 +310,15 @@ def main():
     for i, avid in enumerate(avids, 1):
         logger.info(f"\n[{i}/{len(avids)}] 处理 {avid}")
 
-        # 检查是否存在 JSON 文件
-        json_path = resource_path / avid / f"{avid}.json"
-        if not json_path.exists():
-            logger.info(f"跳过 {avid}：无元数据文件")
-            skip_count += 1
-            continue
+        # 在 DB-first 模式下直接处理 AVResource 记录
 
         try:
             if update_single_resource(
-                avid=avid,
-                resource_path=resource_path,
-                scraper=scraper,
-                dry_run=args.dry_run,
-                force=args.force
+                    avid=avid,
+                    resource_path=resource_path,
+                    scraper=scraper,
+                    dry_run=args.dry_run,
+                    force=args.force
             ):
                 success_count += 1
             else:

@@ -71,11 +71,11 @@ class Throttler:
         self._last_execute_time = None
 
     def execute_if_allowed(
-        self,
-        func: Callable[..., Any],
-        *args,
-        force: bool = False,
-        **kwargs
+            self,
+            func: Callable[..., Any],
+            *args,
+            force: bool = False,
+            **kwargs
     ) -> Optional[Any]:
         """
         如果通过节流检查，则执行函数
