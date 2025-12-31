@@ -3,6 +3,7 @@ Django settings for django_project project.
 """
 
 import warnings
+import os
 from pathlib import Path
 
 import yaml
@@ -22,13 +23,38 @@ CONFIG_PATH = BASE_DIR / 'config' / 'config.yaml'
 with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
     CONFIG = yaml.safe_load(f)
 
+# Load environment variables from .env if present (simple parser, no extra dependency)
+ENV_PATH = BASE_DIR / '.env'
+if ENV_PATH.exists():
+    try:
+        with open(ENV_PATH, 'r', encoding='utf-8') as ef:
+            for line in ef:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    k, v = line.split('=', 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    # don't override existing environment variables
+                    os.environ.setdefault(k, v)
+    except Exception:
+        pass
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-nassav-backend-secret-key-change-in-production'
+# Load from environment first, fallback to insecure default for development only
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-nassav-backend-secret-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Accept common truthy values from env vars
+DEBUG = str(os.getenv('DEBUG', 'False')).lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
+# ALLOWED_HOSTS can be provided via env var, comma-separated. Default to localhost only.
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS')
+if allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 # Redis Configuration
 REDIS_URL = "redis://localhost:6379/0"

@@ -33,8 +33,8 @@ class Javbus(ScraperBase):
             'title': '',
             'release_date': '',
             'duration': '',
-            'producer': '',
-            'publisher': '',
+            'studio': '',
+            'label': '',
             'series': '',
             'genres': [],
             'actors': [],
@@ -84,15 +84,15 @@ class Javbus(ScraperBase):
                 title = re.sub(rf'^{avid}\s*', '', title, flags=re.IGNORECASE)
                 scrape_data['title'] = title.strip()
 
-            # 提取製作商（producer）
-            producer_match = re.search(r'<span class="header">製作商:</span>\s*<a[^>]*>([^<]+)</a>', html)
-            if producer_match:
-                scrape_data['producer'] = producer_match.group(1).strip()
+            # 提取製作商（studio）
+            studio_match = re.search(r'<span class="header">製作商:</span>\s*<a[^>]*>([^<]+)</a>', html)
+            if studio_match:
+                scrape_data['studio'] = studio_match.group(1).strip()
 
-            # 提取發行商（publisher）
-            publisher_match = re.search(r'<span class="header">發行商:</span>\s*<a[^>]*>([^<]+)</a>', html)
-            if publisher_match:
-                scrape_data['publisher'] = publisher_match.group(1).strip()
+            # 提取發行商（label）
+            label_match = re.search(r'<span class="header">發行商:</span>\s*<a[^>]*>([^<]+)</a>', html)
+            if label_match:
+                scrape_data['label'] = label_match.group(1).strip()
 
             # 提取系列（series）
             series_match = re.search(r'<span class="header">系列:</span>\s*<a[^>]*>([^<]+)</a>', html)

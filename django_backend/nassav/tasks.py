@@ -27,45 +27,70 @@ def is_task_existed(avid: str):
     avid = avid.upper()
     task_name = 'nassav.tasks.download_video_task'
 
-    # 检查Redis锁
-    redis_client = get_redis_client()
     lock_key = f"nassav:task_lock:{avid}"
-    if redis_client.exists(lock_key):
-        return True
 
-    # 检查Celery队列中的任务
-    insp = celery_app.control.inspect()
+    # 检查Redis锁（容错）
+    try:
+        redis_client = get_redis_client()
+        try:
+            if redis_client.exists(lock_key):
+                return True
+        except Exception as e:
+            logger.error(f"检查 Redis 锁失败: {e}")
+    except Exception as e:
+        logger.error(f"获取 Redis 客户端失败: {e}")
+
+    # 检查Celery队列中的任务（inspect 可能失败或返回 None）
+    try:
+        insp = celery_app.control.inspect()
+    except Exception as e:
+        logger.error(f"获取 Celery inspector 失败: {e}")
+        insp = None
+
+    if insp is None:
+        # 如果无法检查 Celery 状态，依赖 Redis 锁判断（已检查），无法进一步判断时返回 False
+        logger.info("无法获取 Celery inspector，跳过队列检查 (依赖 Redis 锁)。")
+        return False
 
     # 检查正在执行的任务
-    active_tasks = insp.active() or {}
-    for worker, tasks in active_tasks.items():
-        for task in tasks:
-            if (task.get('name') == task_name and
-                    task.get('args') and
-                    len(task['args']) > 0 and
-                    task['args'][0].upper() == avid):
-                return True
+    try:
+        active_tasks = insp.active() or {}
+        for worker, tasks in active_tasks.items():
+            for task in tasks:
+                if (task.get('name') == task_name and
+                        task.get('args') and
+                        len(task['args']) > 0 and
+                        task['args'][0].upper() == avid):
+                    return True
+    except Exception as e:
+        logger.error(f"检查 active 任务失败: {e}")
 
     # 检查队列中等待的任务
-    scheduled_tasks = insp.scheduled() or {}
-    for worker, tasks in scheduled_tasks.items():
-        for task in tasks:
-            task_info = task.get('request', {})
-            if (task_info.get('task') == task_name and
-                    task_info.get('args') and
-                    len(task_info['args']) > 0 and
-                    task_info['args'][0].upper() == avid):
-                return True
+    try:
+        scheduled_tasks = insp.scheduled() or {}
+        for worker, tasks in scheduled_tasks.items():
+            for task in tasks:
+                task_info = task.get('request', {})
+                if (task_info.get('task') == task_name and
+                        task_info.get('args') and
+                        len(task_info['args']) > 0 and
+                        task_info['args'][0].upper() == avid):
+                    return True
+    except Exception as e:
+        logger.error(f"检查 scheduled 任务失败: {e}")
 
     # 检查保留的任务（reserved tasks）
-    reserved_tasks = insp.reserved() or {}
-    for worker, tasks in reserved_tasks.items():
-        for task in tasks:
-            if (task.get('name') == task_name and
-                    task.get('args') and
-                    len(task['args']) > 0 and
-                    task['args'][0].upper() == avid):
-                return True
+    try:
+        reserved_tasks = insp.reserved() or {}
+        for worker, tasks in reserved_tasks.items():
+            for task in tasks:
+                if (task.get('name') == task_name and
+                        task.get('args') and
+                        len(task['args']) > 0 and
+                        task['args'][0].upper() == avid):
+                    return True
+    except Exception as e:
+        logger.error(f"检查 reserved 任务失败: {e}")
 
     return False
 

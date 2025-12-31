@@ -6,5 +6,7 @@ resource/
 tools/*
 !tools/.keep
 
+.env
+
 config/config.yaml
 db.sqlite3
