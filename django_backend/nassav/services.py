@@ -5,6 +5,7 @@ from typing import Optional
 from pathlib import Path
 from django.conf import settings
 from loguru import logger
+from django.core.paginator import Paginator
 
 # 初始化日志
 LOG_DIR = settings.LOG_DIR
@@ -138,3 +139,52 @@ video_download_service = VideoDownloadService(
         proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None
     )
 )
+
+
+def list_resources(params):
+    """Return (objects, pagination) for resources list based on params dict/querydict.
+
+    Supported params: file_exists (true/false), source (comma separated), ordering,
+    page, page_size.
+    """
+    qs = source_manager.get_queryset() if hasattr(source_manager, 'get_queryset') else None
+    # fallback to direct model import
+    from nassav.models import AVResource
+    if qs is None:
+        qs = AVResource.objects.all()
+
+    fe = params.get('file_exists')
+    if fe is not None:
+        if str(fe).lower() in ('1', 'true', 'yes'):
+            qs = qs.filter(file_exists=True)
+        else:
+            qs = qs.filter(file_exists=False)
+
+    source = params.get('source')
+    if source:
+        sources = [s.strip() for s in str(source).split(',') if s.strip()]
+        qs = qs.filter(source__in=sources)
+
+    ordering = params.get('ordering')
+    if ordering:
+        qs = qs.order_by(ordering)
+
+    # pagination
+    try:
+        page = int(params.get('page', 1))
+    except Exception:
+        page = 1
+    try:
+        page_size = int(params.get('page_size', 20))
+    except Exception:
+        page_size = 20
+
+    paginator = Paginator(qs, page_size)
+    page_obj = paginator.get_page(page)
+
+    return page_obj.object_list, {
+        'total': paginator.count,
+        'page': page_obj.number,
+        'page_size': page_size,
+        'pages': paginator.num_pages
+    }

@@ -1,8 +1,9 @@
 <script setup>
-import {onMounted, computed} from 'vue'
+import {onMounted, computed, ref, watch, onBeforeUnmount} from 'vue'
 import {useResourceStore} from '../stores/resource'
 import {RouterLink} from 'vue-router'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import { resourceApi } from '../api'
 
 const resourceStore = useResourceStore()
 
@@ -12,7 +13,60 @@ onMounted(async () => {
 })
 
 const recentResources = computed(() => {
-	return resourceStore.resources.slice(0, 6)
+	const raw = resourceStore.resources && resourceStore.resources.value !== undefined ? resourceStore.resources.value : resourceStore.resources
+	const arr = Array.isArray(raw) ? raw : []
+	return arr.slice(0, 6)
+})
+
+// cover object URLs map: { [avid]: string }
+const coverMap = ref({})
+
+// track created blob URLs so we can revoke them
+const createdBlobUrls = new Set()
+
+// single shared IntersectionObserver for list lazy-loading
+let observer = null
+function ensureObserver() {
+	if (observer) return observer
+	observer = new IntersectionObserver(async (entries) => {
+		for (const ent of entries) {
+			if (!ent.isIntersecting) continue
+			const avid = ent.target.dataset?.avid
+			if (!avid) {
+				observer.unobserve(ent.target)
+				continue
+			}
+			// if already loaded, just unobserve
+			if (coverMap.value[avid]) {
+				observer.unobserve(ent.target)
+				continue
+			}
+			try {
+				const obj = await resourceApi.getCoverObjectUrl(avid)
+				coverMap.value = { ...coverMap.value, [avid]: obj }
+				if (typeof obj === 'string' && obj.startsWith('blob:')) createdBlobUrls.add(obj)
+			} catch (e) {
+				coverMap.value = { ...coverMap.value, [avid]: resourceApi.getCoverUrl(avid) }
+			}
+			observer.unobserve(ent.target)
+		}
+	}, { rootMargin: '200px' })
+	return observer
+}
+
+function registerObserver(el, avid) {
+	if (!el) return
+	el.dataset.avid = avid
+	ensureObserver().observe(el)
+}
+
+onBeforeUnmount(() => {
+	if (observer) {
+		observer.disconnect()
+		observer = null
+	}
+	for (const url of createdBlobUrls) try { URL.revokeObjectURL(url) } catch (e) {}
+	createdBlobUrls.clear()
 })
 </script>
 
@@ -76,41 +130,6 @@ const recentResources = computed(() => {
 					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">{{ resourceStore.stats.pending }}</div>
 					<div class="text-sm text-[#71717a]">待下载</div>
 				</div>
-			</div>
-		</section>
-
-		<!-- Recent Resources -->
-		<section v-if="!resourceStore.loading && recentResources.length > 0">
-			<div class="flex items-center justify-between mb-6">
-				<h2 class="text-2xl font-semibold text-[#f4f4f5]">最近添加</h2>
-				<RouterLink to="/resources" class="text-sm text-[#ff6b6b] no-underline transition-opacity hover:opacity-80">
-					查看全部 →
-				</RouterLink>
-			</div>
-
-			<div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-				<RouterLink
-					v-for="resource in recentResources"
-					:key="resource.avid"
-					:to="`/resource/${resource.avid}`"
-					class="flex items-center gap-4 p-3 bg-[rgba(18,18,28,0.8)] rounded-xl border border-white/[0.08] no-underline transition-all duration-200 hover:border-[rgba(255,107,107,0.3)] hover:translate-x-1"
-				>
-					<img
-						:src="`/nassav/api/resource/cover?avid=${resource.avid}`"
-						:alt="resource.title"
-						class="w-20 h-[45px] object-cover rounded-lg bg-black/30"
-					/>
-					<div class="flex-1 min-w-0 flex flex-col gap-1">
-						<span class="font-['JetBrains_Mono',monospace] text-xs text-[#ff6b6b] font-semibold">{{ resource.avid }}</span>
-						<span class="text-[0.85rem] text-[#a1a1aa] whitespace-nowrap overflow-hidden text-ellipsis">{{ resource.title }}</span>
-					</div>
-					<div
-						class="w-7 h-7 flex items-center justify-center rounded-full text-xs"
-						:class="resource.has_video ? 'bg-[#2ed573]/15 text-[#2ed573]' : 'bg-[#ffc107]/15 text-[#ffc107]'"
-					>
-						{{ resource.has_video ? '✓' : '◷' }}
-					</div>
-				</RouterLink>
 			</div>
 		</section>
 

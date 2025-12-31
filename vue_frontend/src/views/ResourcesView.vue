@@ -34,7 +34,10 @@ async function fetchResourceList() {
 }
 
 const filteredResources = computed(() => {
-	let result = [...resourceStore.resources]
+	// resourceStore.resources may be a proxied array or a ref; normalize to a plain array
+	const raw = resourceStore.resources && resourceStore.resources.value !== undefined ? resourceStore.resources.value : resourceStore.resources
+	const baseList = Array.isArray(raw) ? raw : []
+	let result = [...baseList]
 
 	// 搜索过滤
 	if (searchQuery.value) {
@@ -222,7 +225,7 @@ const visiblePages = vueComputed(() => {
 
 		<!-- Resources Grid -->
 		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
-			<ResourceCard v-for="resource in resourceStore.resources" :key="resource.avid" :resource="resource"
+			<ResourceCard v-for="resource in filteredResources" :key="resource.avid" :resource="resource"
 				@download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
 				@deleteFile="handleDeleteFile" />
 		</div>

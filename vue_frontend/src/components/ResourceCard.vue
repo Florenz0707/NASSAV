@@ -1,5 +1,5 @@
 <script setup>
-import {computed, ref, onMounted, onUnmounted} from 'vue'
+import {computed, ref, onMounted, onUnmounted, nextTick} from 'vue'
 import {resourceApi, downloadApi} from '../api'
 import {useToastStore} from '../stores/toast'
 import {RouterLink} from 'vue-router'
@@ -14,7 +14,32 @@ const props = defineProps({
 
 const emit = defineEmits(['download', 'refresh', 'delete', 'deleteFile'])
 
-const coverUrl = computed(() => resourceApi.getCoverUrl(props.resource.avid))
+const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+const coverUrl = ref(placeholder)
+let observer = null
+let imgEl = null
+
+async function loadCover() {
+	try {
+		const obj = await resourceApi.getCoverObjectUrl(props.resource.avid)
+		if (obj) coverUrl.value = obj
+	} catch (e) {
+		coverUrl.value = resourceApi.getCoverUrl(props.resource.avid)
+	}
+}
+
+function ensureObserver() {
+	if (observer) return observer
+	observer = new IntersectionObserver((entries) => {
+		for (const ent of entries) {
+			if (ent.isIntersecting) {
+				loadCover()
+				if (imgEl) observer.unobserve(imgEl)
+			}
+		}
+	}, { rootMargin: '200px' })
+	return observer
+}
 const statusClass = computed(() => ({
 	downloaded: props.resource.has_video,
 	pending: !props.resource.has_video
@@ -87,9 +112,15 @@ function closeMenuOnOutsideClick(event) {
 
 onMounted(() => {
 	document.addEventListener('click', closeMenuOnOutsideClick)
+	// wait for DOM
+	nextTick(() => {
+		imgEl = document.querySelector(`img[data-avid="${props.resource.avid}"]`)
+		if (imgEl) ensureObserver().observe(imgEl)
+	})
 })
 onUnmounted(() => {
 	document.removeEventListener('click', closeMenuOnOutsideClick)
+	if (observer && imgEl) observer.unobserve(imgEl)
 })
 </script>
 
@@ -101,6 +132,7 @@ onUnmounted(() => {
 		<!-- 封面图 -->
 		<div class="relative aspect-video overflow-hidden bg-black/30 group">
 			<img
+				:data-avid="resource.avid"
 				:src="coverUrl"
 				:alt="resource.title"
 				loading="lazy"

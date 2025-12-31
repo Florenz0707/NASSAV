@@ -14,6 +14,9 @@ urlpatterns = [
     # GET /api/resource/list - 获取所有已保存资源
     path('api/resource/list', views.ResourceListView.as_view(), name='resource-list'),
 
+    # GET /api/resources/ - 统一资源列表（过滤/分页）
+    path('api/resources/', views.ResourcesListView.as_view(), name='resources-list'),
+
     # GET /api/resource/cover?avid= - 根据avid获取封面图片
     path('api/resource/cover', views.ResourceCoverView.as_view(), name='resource-cover'),
 
@@ -43,4 +46,5 @@ urlpatterns = [
 
     # GET /api/tasks/queue/status - 获取任务队列状态
     path('api/tasks/queue/status', views.TaskQueueStatusView.as_view(), name='task-queue-status'),
+    # Schema endpoints for OpenAPI (drf-spectacular)
 ]

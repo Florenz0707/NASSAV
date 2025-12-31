@@ -1,0 +1,225 @@
+openapi: 3.0.3
+info:
+  title: ''
+  version: 0.0.0
+paths:
+  /nassav/api/downloads/{avid}:
+    post:
+      operationId: downloads_create
+      description: |-
+        POST /api/resource/downloads
+        通过avid下载视频，此avid的元数据必须已存在于 resource 目录中
+      parameters:
+      - in: path
+        name: avid
+        schema:
+          type: string
+        required: true
+      tags:
+      - downloads
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: downloads_destroy
+      description: |-
+        DELETE /api/downloads/{avid}
+        删除已下载的视频文件
+      parameters:
+      - in: path
+        name: avid
+        schema:
+          type: string
+        required: true
+      tags:
+      - downloads
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /nassav/api/downloads/abspath:
+    get:
+      operationId: downloads_abspath_retrieve
+      description: |-
+        GET /api/downloads/abspath?avid=
+        返回视频文件的绝对路径，并在前面拼接 config.UrlPrefix 作为前缀
+      tags:
+      - downloads
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/downloads/list:
+    get:
+      operationId: downloads_list_retrieve
+      description: |-
+        GET /api/resource/downloads/list
+        获取已下载的所有视频的avid
+      tags:
+      - downloads
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/resource:
+    post:
+      operationId: resource_create
+      description: |-
+        POST /api/resource/new
+        通过avid获取资源信息并保存（HTML、封面、元数据）
+
+        请求参数:
+            avid: 视频编号
+            downloader: 指定源名称，默认 "any" 表示尝试所有源
+      tags:
+      - resource
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/resource/{avid}:
+    delete:
+      operationId: resource_destroy
+      description: |-
+        DELETE /api/resource/{avid}
+        删除整个资源目录（包括 HTML、封面、元数据、视频）
+      parameters:
+      - in: path
+        name: avid
+        schema:
+          type: string
+        required: true
+      tags:
+      - resource
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /nassav/api/resource/cover:
+    get:
+      operationId: resource_cover_retrieve
+      description: |-
+        GET /api/resource/cover?avid=
+        根据avid获取封面图片
+      tags:
+      - resource
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/resource/list:
+    get:
+      operationId: resource_list_retrieve
+      description: |-
+        GET /api/resource/list
+        获取所有已保存资源的(avid, title)
+        支持排序和分页
+        参数:
+            sort_by: 排序字段（avid, metadata_create_time, video_create_time, source）
+            order: 排序方式（asc, desc）
+            page: 页码（默认1）
+            page_size: 每页数量（默认20）
+        从 resource 目录读取元数据
+      tags:
+      - resource
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/resource/metadata:
+    get:
+      operationId: resource_metadata_retrieve
+      description: |-
+        GET /api/resource/downloads/metadata?avid=
+        根据avid获取视频元数据
+      tags:
+      - resource
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/resource/refresh/{avid}:
+    post:
+      operationId: resource_refresh_create
+      description: |-
+        POST /api/resource/refresh/{avid}
+        刷新已有资源的元数据和m3u8链接，使用原有source获取
+      parameters:
+      - in: path
+        name: avid
+        schema:
+          type: string
+        required: true
+      tags:
+      - resource
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/resources/:
+    get:
+      operationId: resources_retrieve
+      description: GET /api/resources/ - consolidated resource listing with filters/pagination
+      tags:
+      - resources
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/source/cookie:
+    post:
+      operationId: source_cookie_create
+      description: |-
+        POST /api/source/cookie
+        设置或自动获取指定源的 Cookie。
+
+        Request JSON:
+          - source: 源名称 (required)
+          - cookie: 手动设置的 cookie (optional)
+          - auto: 是否自动获取 cookie (boolean, optional)
+      tags:
+      - source
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/source/list:
+    get:
+      operationId: source_list_retrieve
+      description: |-
+        GET /api/source/list
+        获取所有可用的下载源名称列表
+      tags:
+      - source
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /nassav/api/tasks/queue/status:
+    get:
+      operationId: tasks_queue_status_retrieve
+      description: |-
+        GET /api/tasks/queue/status
+        获取当前任务队列状态
+      tags:
+      - tasks
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+components: {}

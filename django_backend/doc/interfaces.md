@@ -87,18 +87,21 @@
 
 ## 资源管理
 
-### GET /nassav/api/resource/list
+### GET /nassav/api/resources/
 
-获取所有已保存资源的列表（从 resource 目录读取），支持排序和分页。
+获取已保存资源的统一列表（使用服务层聚合，可按条件过滤、排序与分页）。推荐前端优先使用此接口。
 
 **查询参数：**
 
 | 参数        | 类型     | 必填 | 说明                                                      |
 |-----------|--------|----|---------------------------------------------------------|
-| sort_by   | string | 否  | 排序字段：avid、metadata_create_time、video_create_time、source |
-| order     | string | 否  | 排序方式：asc（升序）、desc（降序），默认 desc                           |
+| sort_by   | string | 否  | 兼容旧参数，取值：avid、metadata_create_time、video_create_time、source （会映射为后端 `ordering`） |
+| order     | string | 否  | 兼容旧参数，取值：asc（升序）、desc（降序），默认 desc。若同时提供 `ordering` 则 `ordering` 优先。 |
+| ordering  | string | 否  | 直接指定 Django ORM 的 ordering 字符串，例如 `-metadata_saved_at` 或 `source` |
 | page      | int    | 否  | 页码，默认 1                                                 |
 | page_size | int    | 否  | 每页数量，默认 20                                              |
+| source    | string | 否  | 按来源过滤，可逗号分隔多个来源（例如 `jable,missav`）                    |
+| file_exists| int/bool| 否 | 过滤是否存在文件，支持 `1/0` 或 `true/false`                              |
 
 **响应示例：**
 
@@ -106,27 +109,33 @@
 {
     "code": 200,
     "message": "success",
-    "data": [
-        {
-            "avid": "SSIS-469",
-            "title": "视频标题",
-            "source": "Jable",
-            "release_date": "2024-01-01",
-            "has_video": true,
-            "metadata_create_time": 1703145600.123456,
-            "video_create_time": 1703231234.567890
-        }
-    ],
-    "pagination": {
-        "total": 100,
-        "page": 1,
-        "page_size": 20,
-        "pages": 5
+    "data": {
+        "metadata": [
+            {
+                "avid": "SSIS-469",
+                "title": "视频标题",
+                "source": "Jable",
+                "release_date": "2024-01-01",
+                "has_video": true,
+                "metadata_create_time": 1703145600.123456,
+                "video_create_time": 1703231234.567890
+            }
+        ],
+        "total_pages": 5,
+        "total_num": 100
     }
 }
 ```
 
 **data 字段说明：**
+
+| 字段        | 类型      | 说明                        |
+|------------|---------|---------------------------|
+| metadata   | array   | 资源元数据数组（每项结构见下）     |
+| total_pages      | int     | 总页数                       |
+| total_num  | int     | 总资源数                      |
+
+每项 `metadata` 的字段与之前 `resource/list` 返回项相同：
 
 | 字段                   | 类型      | 说明                        |
 |----------------------|---------|---------------------------|
@@ -136,7 +145,9 @@
 | release_date         | string  | 发行日期                      |
 | has_video            | boolean | 是否已下载视频                   |
 | metadata_create_time | float   | 元数据获取时间（Unix时间戳）          |
-| video_create_time    | float   | 视频下载时间（Unix时间戳），未下载时为null |
+| video_create_time    | float   | 视频下载时间（Unix时间戳），未下载时为 null |
+
+> 说明：接口保持与旧参数的兼容性（`sort_by` + `order`），但会将其映射为 `ordering` 后端处理。前端请以 `data.metadata` 为主数据源，使用 `data.pages` 和 `data.total_num` 渲染分页控件。
 
 ---
 
@@ -188,6 +199,11 @@
 | avid | string | 是  | 视频编号 |
 
 **成功响应：** 图片文件 (image/jpeg)
+
+成功响应说明：
+
+- 成功时直接返回图片二进制流（Content-Type 对应图片类型，如 image/jpeg），不使用 JSON envelope；
+- 失败时返回统一 JSON envelope（参见文档顶部的响应格式）。
 
 **错误响应：**
 
@@ -299,6 +315,8 @@
         "avid": "SSIS-469",
         "title": "视频标题",
         "source": "Jable",
+
+安全说明：此接口会返回服务器上的绝对文件路径，可能泄露主机文件系统结构或敏感信息。仅在受信任或本地环境使用，生产环境建议改用受限的相对路径、静态文件服务（如 nginx）或生成带过期时间的签名 URL 来替代。
         "cover_downloaded": true,
         "html_saved": true,
         "metadata_saved": true,
@@ -312,7 +330,7 @@
 ```json
 {
     "code": 404,
-    "message": "SSIS-469 的资源不存在，请先调用 /api/resource/new 添加资源",
+    "message": "SSIS-469 的资源不存在，请先调用 /nassav/api/resource 添加资源",
     "data": null
 }
 ```
@@ -394,9 +412,9 @@
 
 ---
 
-### POST /nassav/api/downloads
+### POST /nassav/api/downloads/{avid}
 
-提交视频下载任务（异步执行）。需要先调用 `POST /api/resource` 添加资源。
+通过 Path 参数提交视频下载任务（异步执行），例如 `POST /nassav/api/downloads/SSIS-469`。需要先调用 `POST /nassav/api/resource` 添加资源。
 **任务去重机制：**
 
 - 同一 AVID 在整个任务队列中只会出现一次
@@ -408,17 +426,11 @@
 - 同一时间只有一个下载任务在执行 N_m3u8DL-RE
 - 其他任务会在队列中等待（最多等待 30 分钟）
 - 确保下载工具不会出现多实例并发
-  **请求体：**
-
-```json
-{
-    "avid": "SSIS-469"
-}
-```
+**路径参数：**
 
 | 参数   | 类型     | 必填 | 说明   |
 |------|--------|----|------|
-| avid | string | 是  | 视频编号 |
+| avid | string | 是  | 视频编号 (path parameter) |
 
 **任务提交成功响应 (202)：**
 
@@ -467,7 +479,7 @@
 ```json
 {
     "code": 404,
-    "message": "SSIS-469 的元数据不存在，请先调用 /api/resource/new 添加资源",
+    "message": "SSIS-469 的元数据不存在，请先调用 /nassav/api/resource 添加资源",
     "data": null
 }
 ```

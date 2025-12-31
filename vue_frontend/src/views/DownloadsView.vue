@@ -16,9 +16,15 @@ const POLLING_INTERVAL = 1000  // API 轮询间隔
 // 调试模式 - 设为 true 显示样例数据
 const DEBUG_MODE = false
 
+// helper to normalize resources array (store may expose a ref)
+function getResourcesArray() {
+	const raw = resourceStore.resources && resourceStore.resources.value !== undefined ? resourceStore.resources.value : resourceStore.resources
+	return Array.isArray(raw) ? raw : []
+}
+
 // 基于资源列表生成模拟任务
 const mockActiveTasks = computed(() => {
-	const resources = resourceStore.resources.slice(0, 2)
+	const resources = getResourcesArray().slice(0, 2)
 	return resources.map((r, i) => ({
 		task_id: `mock-active-${i + 1}`,
 		avid: r.avid,
@@ -29,7 +35,7 @@ const mockActiveTasks = computed(() => {
 })
 
 const mockPendingTasks = computed(() => {
-	const resources = resourceStore.resources.slice(2, 5)
+	const resources = getResourcesArray().slice(2, 5)
 	return resources.map((r, i) => ({
 		task_id: `mock-pending-${i + 1}`,
 		avid: r.avid,
@@ -90,7 +96,7 @@ async function loadDownloads() {
 		await resourceStore.fetchDownloads()
 
 		// 获取已下载资源的详情
-		downloadedResources.value = resourceStore.resources.filter(r => r.has_video)
+		downloadedResources.value = getResourcesArray().filter(r => r.has_video)
 	} finally {
 		loading.value = false
 	}

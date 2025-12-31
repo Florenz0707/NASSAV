@@ -19,9 +19,52 @@ export const useResourceStore = defineStore('resource', () => {
             console.debug('[resource] fetchResources params:', { sort_by, order, page, page_size })
             const response = await resourceApi.getList({ sort_by, order, page, page_size })
             console.debug('[resource] fetchResources response:', response)
-            resources.value = response.data || []
-            if (response.pagination) {
-                pagination.value = response.pagination
+
+            // 后端可能返回多种格式：
+            // 1) envelope with data as an array -> { data: [ ... ], pagination?: {...} }
+            // 2) envelope with data.results and data.pagination -> { data: { results: [...], pagination: {...} } }
+            // 3) legacy or other -> response.data may already be the array
+            let results = []
+            let paginationObj = null
+
+            if (response) {
+                // case: response.data is array
+                if (Array.isArray(response.data)) {
+                    results = response.data
+                    paginationObj = response.pagination || null
+                }
+                // case: response.data.metadata exists (new backend shape)
+                else if (response.data && Array.isArray(response.data.metadata)) {
+                    results = response.data.metadata
+                    // map backend pagination fields to our pagination shape
+                    paginationObj = {
+                        total: response.data.total_num || (response.data.pagination && response.data.pagination.total) || response.pagination && response.pagination.total || 0,
+                        pages: response.data.total_pages || (response.data.pagination && response.data.pagination.pages) || response.pagination && response.pagination.pages || 1,
+                        page: page,
+                        page_size: page_size
+                    }
+                }
+                // case: response.data.results exists
+                else if (response.data && Array.isArray(response.data.results)) {
+                    results = response.data.results
+                    paginationObj = response.data.pagination || response.pagination || null
+                }
+                // case: response itself is an array (unlikely)
+                else if (Array.isArray(response)) {
+                    results = response
+                } else {
+                    results = response.data || []
+                    paginationObj = response.pagination || (response.data && response.data.pagination) || null
+                }
+            }
+
+            resources.value = results || []
+            if (paginationObj) {
+                pagination.value = Object.assign({}, pagination.value, paginationObj)
+            } else {
+                // ensure pagination.page at least matches request
+                pagination.value.page = page
+                pagination.value.page_size = page_size
             }
         } catch (err) {
             error.value = err.message || '获取资源列表失败'
@@ -89,12 +132,27 @@ export const useResourceStore = defineStore('resource', () => {
         }
     }
 
+    // helper: normalize resources to an array
+    function _resourcesArray() {
+        const raw = resources.value
+        if (Array.isArray(raw)) return raw
+        if (raw && Array.isArray(raw.results)) return raw.results
+        if (raw && Array.isArray(raw.data)) return raw.data
+        return []
+    }
+
     // 统计信息
-    const stats = computed(() => ({
-        total: resources.value.length,
-        downloaded: resources.value.filter(r => r.has_video).length,
-        pending: resources.value.filter(r => !r.has_video).length
-    }))
+    const stats = computed(() => {
+        const arr = _resourcesArray()
+        const total = (pagination.value && pagination.value.total) || arr.length
+        const downloadedCount = Array.isArray(downloads.value) ? downloads.value.length : arr.filter(r => r.has_video).length
+        const pendingCount = Math.max(total - downloadedCount, arr.filter(r => !r.has_video).length)
+        return {
+            total,
+            downloaded: downloadedCount,
+            pending: pendingCount
+        }
+    })
 
     return {
         resources,

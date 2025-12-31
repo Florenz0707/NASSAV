@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, refactor/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || pip install -e .
+      - name: Run tests
+        env:
+          DJANGO_SETTINGS_MODULE: django_project.settings
+        run: |
+          python manage.py test -v 2

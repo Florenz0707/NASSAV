@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, computed} from 'vue'
+import {ref, onMounted, computed, watch, onBeforeUnmount} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {resourceApi} from '../api'
 import {downloadApi} from '../api'
@@ -22,7 +22,32 @@ const refreshing = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteAction = ref(null)
 
-const coverUrl = computed(() => resourceApi.getCoverUrl(avid.value))
+const coverUrl = ref(null)
+let currentBlobUrl = null
+
+async function loadCover() {
+	if (!avid.value) return
+	// revoke previous
+	if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
+		URL.revokeObjectURL(currentBlobUrl)
+		currentBlobUrl = null
+	}
+	try {
+		const obj = await resourceApi.getCoverObjectUrl(avid.value)
+		coverUrl.value = obj
+		if (typeof obj === 'string' && obj.startsWith('blob:')) currentBlobUrl = obj
+	} catch (e) {
+		coverUrl.value = resourceApi.getCoverUrl(avid.value)
+	}
+}
+
+watch(avid, () => loadCover(), { immediate: true })
+onBeforeUnmount(() => {
+	if (currentBlobUrl && currentBlobUrl.startsWith('blob:')) {
+		URL.revokeObjectURL(currentBlobUrl)
+		currentBlobUrl = null
+	}
+})
 
 const actorsText = computed(() => {
 	const list = metadata.value?.actors

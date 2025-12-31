@@ -3,6 +3,7 @@ import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
 import {useResourceStore} from '../stores/resource'
 import {useToastStore} from '../stores/toast'
+import { sourceApi } from '../api'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const router = useRouter()
@@ -93,29 +94,17 @@ async function saveCookie() {
 
 	savingCookie.value = true
 	try {
-		const response = await fetch('/nassav/api/source/cookie', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'credentials': 'same-origin'
-			},
-			body: JSON.stringify({
-				source: cookieForm.value.source,
-				cookie: cookieForm.value.cookie
-			})
-		})
-
-		const result = await response.json()
-
-		if (!response.ok || (result.code && (result.code < 200 || result.code >= 300))) {
-			toastStore.error(result.message || `HTTP ${response.status}`)
-		}
-		else {
+		const resp = await sourceApi.setCookie({ source: cookieForm.value.source, cookie: cookieForm.value.cookie })
+		if (resp && resp.code === 0) {
 			toastStore.success(`${cookieForm.value.source} Cookie 已保存`)
+			closeCookieModal()
+		} else {
+			toastStore.error((resp && resp.message) || '保存失败')
 		}
-		closeCookieModal()
 	} catch (err) {
-		if (err.name === 'TypeError' && err.message.includes('fetch')) {
+		if (err && err.httpStatus) {
+			toastStore.error(err.message || `HTTP ${err.httpStatus}`)
+		} else if (err && err.name === 'TypeError' && err.message.includes('fetch')) {
 			toastStore.error('网络连接失败，请检查服务器状态')
 		} else {
 			toastStore.error(err.message || '保存失败')
