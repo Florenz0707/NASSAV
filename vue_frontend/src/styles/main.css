@@ -229,13 +229,24 @@ a {
 
 /* Pulsing highlight for important buttons (used by pagination primary actions) */
 @keyframes pulse-slow {
-    0% { opacity: 1; transform: translateY(0); }
-    50% { opacity: 0.92; transform: translateY(-2px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    50% {
+        opacity: 0.92;
+        transform: translateY(-2px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
+
 .animate-pulse-slow {
     animation: pulse-slow 2.4s ease-in-out infinite;
 }
+
 @media (prefers-reduced-motion: reduce) {
     .animate-pulse-slow {
         animation: none;

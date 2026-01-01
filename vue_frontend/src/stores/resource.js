@@ -1,6 +1,6 @@
 import {defineStore} from 'pinia'
-import {ref, computed} from 'vue'
-import {resourceApi, sourceApi, downloadApi} from '../api'
+import {computed, ref} from 'vue'
+import {downloadApi, resourceApi, sourceApi} from '../api'
 
 export const useResourceStore = defineStore('resource', () => {
     const resources = ref([])
@@ -11,13 +11,23 @@ export const useResourceStore = defineStore('resource', () => {
 
     // 获取资源列表
     // 支持分页和排序
-    const pagination = ref({ total: 0, page: 1, page_size: 20, pages: 1 })
-    async function fetchResources({ sort_by = 'metadata_create_time', order = 'desc', page = 1, page_size = 20, search = '', status = 'all', actor = undefined, genre = undefined } = {}) {
+    const pagination = ref({total: 0, page: 1, page_size: 20, pages: 1})
+
+    async function fetchResources({
+                                      sort_by = 'metadata_create_time',
+                                      order = 'desc',
+                                      page = 1,
+                                      page_size = 20,
+                                      search = '',
+                                      status = 'all',
+                                      actor = undefined,
+                                      genre = undefined
+                                  } = {}) {
         loading.value = true
         error.value = null
         try {
-            console.debug('[resource] fetchResources params:', { sort_by, order, page, page_size, search, status })
-            const params = { sort_by, order, page, page_size }
+            console.debug('[resource] fetchResources params:', {sort_by, order, page, page_size, search, status})
+            const params = {sort_by, order, page, page_size}
             if (search) params.search = search
             if (status && status !== 'all') params.status = status
             if (typeof actor !== 'undefined' && actor !== null && actor !== '') params.actor = actor
@@ -136,7 +146,7 @@ export const useResourceStore = defineStore('resource', () => {
     async function batchRefresh(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
         try {
-            const payload = { action: 'refresh', avids }
+            const payload = {action: 'refresh', avids}
             const resp = await resourceApi.batch(payload)
             // 合并返回的资源对象（如果有的话），避免整页刷新
             const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
@@ -156,7 +166,7 @@ export const useResourceStore = defineStore('resource', () => {
     async function batchDelete(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
         try {
-            const payload = { action: 'delete', avids }
+            const payload = {action: 'delete', avids}
             const resp = await resourceApi.batch(payload)
             // 根据返回结果局部删除/合并
             const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])

@@ -1,9 +1,9 @@
 <script setup>
-import {ref, onMounted} from 'vue'
+import {onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {useResourceStore} from '../stores/resource'
 import {useToastStore} from '../stores/toast'
-import { sourceApi, resourceApi } from '../api'
+import {resourceApi, sourceApi} from '../api'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const router = useRouter()
@@ -48,7 +48,8 @@ async function handleSubmit() {
 					data = Object.assign({}, data, metaResp.data)
 				}
 			}
-		} catch (e) {}
+		} catch (e) {
+		}
 
 		result.value = {
 			success: true,
@@ -108,7 +109,7 @@ async function saveCookie() {
 
 	savingCookie.value = true
 	try {
-		const resp = await sourceApi.setCookie({ source: cookieForm.value.source, cookie: cookieForm.value.cookie })
+		const resp = await sourceApi.setCookie({source: cookieForm.value.source, cookie: cookieForm.value.cookie})
 		const isSuccessCode = resp && (resp.code === 0 || (typeof resp.code === 'number' && resp.code >= 200 && resp.code < 300))
 		if (isSuccessCode) {
 			toastStore.success(`${cookieForm.value.source} Cookie 已保存`)

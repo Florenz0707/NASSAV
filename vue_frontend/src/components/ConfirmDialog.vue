@@ -65,7 +65,9 @@ watch(isVisible, (val) => {
 <template>
 	<Teleport to="body">
 		<Transition name="dialog">
-			<div v-if="isVisible" class="fixed inset-0 bg-black/75 backdrop-blur flex items-center justify-center z-[10000] p-4" @click.self="handleCancel">
+			<div v-if="isVisible"
+				 class="fixed inset-0 bg-black/75 backdrop-blur flex items-center justify-center z-[10000] p-4"
+				 @click.self="handleCancel">
 				<div
 					class="bg-[#12121a] rounded-2xl border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden"
 					:class="`confirm-${type}`"

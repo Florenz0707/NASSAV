@@ -1,5 +1,5 @@
 <script setup>
-import {ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch} from 'vue'
+import {computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useResourceStore} from '../stores/resource'
 import {useWebSocketStore} from '../stores/websocket'
 import {resourceApi, taskApi} from '../api'
@@ -30,7 +30,7 @@ const mockActiveTasks = computed(() => {
 		avid: r.avid,
 		title: r.title,
 		state: 'STARTED',
-		progress: { percent: i === 0 ? 45.2 : 78.9, speed: i === 0 ? '5.2MB/s' : '3.8MB/s' }
+		progress: {percent: i === 0 ? 45.2 : 78.9, speed: i === 0 ? '5.2MB/s' : '3.8MB/s'}
 	}))
 })
 
@@ -48,8 +48,8 @@ const allTasks = computed(() => {
 	const active = DEBUG_MODE && wsStore.activeTasks.length === 0 ? mockActiveTasks.value : wsStore.activeTasks
 	const pending = DEBUG_MODE && wsStore.pendingTasks.length === 0 ? mockPendingTasks.value : wsStore.pendingTasks
 	return [
-		...active.map(t => ({ ...t, isActive: true })),
-		...pending.map(t => ({ ...t, isActive: false }))
+		...active.map(t => ({...t, isActive: true})),
+		...pending.map(t => ({...t, isActive: false}))
 	]
 })
 
@@ -208,7 +208,8 @@ function stopPolling() {
 									:style="{ width: task.isActive ? (task.progress?.percent || 0) + '%' : '0%' }"
 								></div>
 							</div>
-							<span v-if="task.isActive && task.progress" class="progress-text">{{ task.progress.percent?.toFixed(1) || 0 }}%</span>
+							<span v-if="task.isActive && task.progress"
+								  class="progress-text">{{ task.progress.percent?.toFixed(1) || 0 }}%</span>
 							<span v-else class="progress-text pending">排队中</span>
 						</div>
 					</div>
@@ -232,8 +233,12 @@ function stopPolling() {
 }
 
 @keyframes fadeIn {
-	from { opacity: 0; }
-	to { opacity: 1; }
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
 
 .page-header {
@@ -275,9 +280,17 @@ function stopPolling() {
 	transform: translateY(-2px);
 }
 
-.stat-active { border-color: rgba(46, 213, 115, 0.3); }
-.stat-waiting { border-color: rgba(255, 159, 67, 0.3); }
-.stat-total { border-color: rgba(86, 204, 242, 0.3); }
+.stat-active {
+	border-color: rgba(46, 213, 115, 0.3);
+}
+
+.stat-waiting {
+	border-color: rgba(255, 159, 67, 0.3);
+}
+
+.stat-total {
+	border-color: rgba(86, 204, 242, 0.3);
+}
 
 .stat-value {
 	font-size: 2.5rem;
@@ -390,8 +403,14 @@ function stopPolling() {
 }
 
 @keyframes pulse {
-	0%, 100% { opacity: 1; transform: scale(1); }
-	50% { opacity: 0.5; transform: scale(0.8); }
+	0%, 100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.5;
+		transform: scale(0.8);
+	}
 }
 
 /* 任务信息 */
@@ -466,8 +485,12 @@ function stopPolling() {
 }
 
 @keyframes shimmer {
-	0% { background-position: 200% 0; }
-	100% { background-position: -200% 0; }
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
 }
 
 .progress-text {

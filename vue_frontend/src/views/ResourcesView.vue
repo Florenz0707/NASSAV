@@ -1,14 +1,14 @@
 <script setup>
-import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
-import { useResourceStore } from '../stores/resource'
-import { useToastStore } from '../stores/toast'
+import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
+import {useResourceStore} from '../stores/resource'
+import {useToastStore} from '../stores/toast'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import ResourceCard from '../components/ResourceCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import BatchControls from '../components/BatchControls.vue'
-import { downloadApi, resourceApi } from "../api/index.js";
+import {downloadApi, resourceApi} from "../api/index.js";
 
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()
@@ -106,7 +106,14 @@ onMounted(async () => {
 })
 
 async function fetchResourceList() {
-	console.debug('[view] fetchResourceList called', { sort_by: sortBy.value, order: sortOrder.value, page: page.value, page_size: pageSize.value, search: searchQuery.value, status: filterStatus.value })
+	console.debug('[view] fetchResourceList called', {
+		sort_by: sortBy.value,
+		order: sortOrder.value,
+		page: page.value,
+		page_size: pageSize.value,
+		search: searchQuery.value,
+		status: filterStatus.value
+	})
 	await resourceStore.fetchResources({
 		sort_by: sortBy.value,
 		order: sortOrder.value,
@@ -252,29 +259,29 @@ function onPageSizeChange(newSize) {
 			<div class="flex-1 min-w-[250px] relative">
 				<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
 				<input v-model="searchQuery" type="text" placeholder="搜索 AVID、标题、来源..."
-					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]" />
+					   class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]"/>
 			</div>
 
 			<!-- Filters -->
 			<div class="flex gap-3">
 				<select v-model="filterStatus"
-					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]">
+						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]">
 					<option value="all">全部状态</option>
 					<option value="downloaded">已下载</option>
 					<option value="pending">未下载</option>
 				</select>
 
 				<select v-model="sortBy"
-					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
-					@change="onSortChange">
+						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
+						@change="onSortChange">
 					<option value="avid">按编号</option>
 					<option value="metadata_create_time">按元数据获取时间</option>
 					<option value="video_create_time">按视频下载时间</option>
 					<option value="source">按来源</option>
 				</select>
 				<select v-model="sortOrder"
-					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
-					@change="onSortChange">
+						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
+						@change="onSortChange">
 					<option value="desc">降序</option>
 					<option value="asc">升序</option>
 				</select>
@@ -295,14 +302,14 @@ function onPageSizeChange(newSize) {
 		/>
 
 		<!-- Loading State -->
-		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
+		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..."/>
 
 		<!-- Empty State -->
 		<EmptyState v-else-if="filteredResources.length === 0" icon="◇" title="暂无资源"
-			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
+					:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
 			<template #action>
 				<RouterLink to="/add"
-					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5">
+							class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5">
 					添加资源
 				</RouterLink>
 			</template>
@@ -311,12 +318,14 @@ function onPageSizeChange(newSize) {
 		<!-- Resources Grid -->
 		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
 			<ResourceCard v-for="resource in filteredResources" :key="resource.avid" :resource="resource"
-				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)" @toggle-select="toggleSelect"
-				@download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
-				@deleteFile="handleDeleteFile" :coverSize="'medium'" />
+						  :selectable="batchMode" :selected="selectedAvids.has(resource.avid)"
+						  @toggle-select="toggleSelect"
+						  @download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
+						  @deleteFile="handleDeleteFile" :coverSize="'medium'"/>
 		</div>
 		<ResourcePagination :page="page" :pages="resourceStore.pagination.pages" :pageSize="pageSize"
-			:total="resourceStore.pagination.total" @change-page="changePage" @change-page-size="onPageSizeChange" />
+							:total="resourceStore.pagination.total" @change-page="changePage"
+							@change-page-size="onPageSizeChange"/>
 
 		<!-- Floating Refresh Button -->
 		<button

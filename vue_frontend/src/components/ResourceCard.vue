@@ -1,6 +1,6 @@
 <script setup>
-import {computed, ref, onMounted, onUnmounted, nextTick} from 'vue'
-import {resourceApi, downloadApi} from '../api'
+import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue'
+import {downloadApi, resourceApi} from '../api'
 import {useToastStore} from '../stores/toast'
 import {RouterLink} from 'vue-router'
 import ConfirmDialog from './ConfirmDialog.vue'
@@ -74,9 +74,10 @@ function ensureObserver() {
 				if (imgEl) observer.unobserve(imgEl)
 			}
 		}
-	}, { rootMargin: '200px' })
+	}, {rootMargin: '200px'})
 	return observer
 }
+
 const statusClass = computed(() => ({
 	downloaded: props.resource.has_video,
 	pending: !props.resource.has_video
@@ -178,9 +179,12 @@ onUnmounted(() => {
 						:checked="selected"
 						@change.stop="$emit('toggle-select', resource.avid, $event.target.checked)"
 					/>
-					<span :class="['w-6 h-6 flex items-center justify-center rounded-md transition border-2', selected ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow-lg' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
-						<svg v-if="selected" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-							<path fill-rule="evenodd" clip-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z" />
+					<span
+						:class="['w-6 h-6 flex items-center justify-center rounded-md transition border-2', selected ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow-lg' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
+						<svg v-if="selected" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"
+							 xmlns="http://www.w3.org/2000/svg">
+							<path fill-rule="evenodd" clip-rule="evenodd"
+								  d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z"/>
 						</svg>
 					</span>
 				</label>
@@ -192,7 +196,8 @@ onUnmounted(() => {
 				loading="lazy"
 				class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
 			/>
-			<div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+			<div
+				class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
 				<RouterLink
 					:to="`/resource/${resource.avid}`"
 					class="px-6 py-3 bg-[#ff6b6b] text-white rounded-lg font-medium text-sm transition-transform hover:scale-105"
@@ -206,7 +211,8 @@ onUnmounted(() => {
 		<div class="p-5 relative">
 			<!-- 元数据头部 -->
 			<div class="flex gap-4 mb-2.5 items-center">
-				<div class="font-['JetBrains_Mono',monospace] text-[0.85rem] text-[#ff6b6b] font-semibold bg-[#ff6b6b]/15 rounded-md w-fit px-2 py-1">
+				<div
+					class="font-['JetBrains_Mono',monospace] text-[0.85rem] text-[#ff6b6b] font-semibold bg-[#ff6b6b]/15 rounded-md w-fit px-2 py-1">
 					{{ resource.avid }}
 				</div>
 				<div

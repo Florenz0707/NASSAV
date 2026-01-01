@@ -1,8 +1,7 @@
 <script setup>
-import {ref, onMounted, computed, watch, onBeforeUnmount} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
-import {resourceApi} from '../api'
-import {downloadApi} from '../api'
+import {downloadApi, resourceApi} from '../api'
 import {useResourceStore} from '../stores/resource'
 import {useToastStore} from '../stores/toast'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -30,7 +29,7 @@ async function loadCover() {
 	coverUrl.value = resourceApi.getCoverUrl(avid.value)
 }
 
-watch(avid, () => loadCover(), { immediate: true })
+watch(avid, () => loadCover(), {immediate: true})
 
 const actorsText = computed(() => {
 	const list = metadata.value?.actors
@@ -187,7 +186,8 @@ function cancelDelete() {
 
 		<!-- 错误状态 -->
 		<div v-else-if="error" class="text-center py-16 px-8">
-			<div class="w-16 h-16 mx-auto mb-6 bg-[#ff6b6b]/10 rounded-full flex items-center justify-center text-2xl text-[#ff6b6b]">
+			<div
+				class="w-16 h-16 mx-auto mb-6 bg-[#ff6b6b]/10 rounded-full flex items-center justify-center text-2xl text-[#ff6b6b]">
 				✕
 			</div>
 			<h2 class="text-xl text-[#f4f4f5] mb-2">加载失败</h2>
@@ -205,7 +205,8 @@ function cancelDelete() {
 			<!-- 头部信息 -->
 			<div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-10 mb-12">
 				<!-- 封面 -->
-				<div class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex justify-center items-center">
+				<div
+					class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex justify-center items-center">
 					<img
 						:src="coverUrl"
 						:alt="metadata.title"
@@ -217,7 +218,8 @@ function cancelDelete() {
 				<div class="flex flex-col justify-center">
 					<!-- AVID 和状态 -->
 					<div class="grid grid-cols-2 gap-4 mb-2.5">
-						<div class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[#ff6b6b] w-fit">
+						<div
+							class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[#ff6b6b] w-fit">
 							{{ metadata.avid }}
 						</div>
 						<div
@@ -351,7 +353,11 @@ function cancelDelete() {
 <style scoped>
 /* 自定义动画 */
 @keyframes fadeIn {
-	from { opacity: 0; }
-	to { opacity: 1; }
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
 }
 </style>

@@ -21,24 +21,34 @@ api.interceptors.response.use(
                 if (success) {
                     const data = envelope.data
                     const pagination = envelope.pagination || (data && data.pagination) || null
-                    return { code: envelope.code, message: envelope.message, data, pagination }
+                    return {code: envelope.code, message: envelope.message, data, pagination}
                 }
-                return Promise.reject({ httpStatus: response.status, code: envelope.code, message: envelope.message, data: envelope.data })
+                return Promise.reject({
+                    httpStatus: response.status,
+                    code: envelope.code,
+                    message: envelope.message,
+                    data: envelope.data
+                })
             }
             // 非 envelope（例如二进制文件响应）直接返回原始 response
             return response
         }
-        return Promise.reject({ httpStatus: response.status, data: envelope })
+        return Promise.reject({httpStatus: response.status, data: envelope})
     },
     error => {
         if (error.response) {
             const env = error.response.data
             if (env && typeof env.code !== 'undefined') {
-                return Promise.reject({ httpStatus: error.response.status, code: env.code, message: env.message, data: env.data })
+                return Promise.reject({
+                    httpStatus: error.response.status,
+                    code: env.code,
+                    message: env.message,
+                    data: env.data
+                })
             }
-            return Promise.reject({ httpStatus: error.response.status, data: env })
+            return Promise.reject({httpStatus: error.response.status, data: env})
         }
-        return Promise.reject({ code: 500, message: '网络错误', data: null })
+        return Promise.reject({code: 500, message: '网络错误', data: null})
     }
 )
 
@@ -53,7 +63,7 @@ export const sourceApi = {
 // 资源管理
 export const resourceApi = {
     // 获取所有已保存资源列表（推荐使用新的 /resources/ 统一入口）
-    getList: (params = {}) => api.get('/resources/', { params }),
+    getList: (params = {}) => api.get('/resources/', {params}),
 
     // 获取资源元数据
     getMetadata: (avid) => api.get('/resource/metadata', {params: {avid}}),
@@ -72,7 +82,7 @@ export const resourceApi = {
     _maxCoverCache: 100,
     // 以 blob 形式获取封面（服务器返回 FileResponse / 二进制）
     fetchCoverBlob: async (avid) => {
-        const resp = await api.get('/resource/cover', { params: { avid }, responseType: 'blob' })
+        const resp = await api.get('/resource/cover', {params: {avid}, responseType: 'blob'})
         if (resp && typeof resp.code !== 'undefined') {
             if (resp.code === 0) return resp.data
             throw resp
@@ -99,7 +109,10 @@ export const resourceApi = {
             if (resourceApi._coverCache.size > resourceApi._maxCoverCache) {
                 const firstKey = resourceApi._coverCache.keys().next().value
                 const firstUrl = resourceApi._coverCache.get(firstKey)
-                try { URL.revokeObjectURL(firstUrl) } catch (e) {}
+                try {
+                    URL.revokeObjectURL(firstUrl)
+                } catch (e) {
+                }
                 resourceApi._coverCache.delete(firstKey)
             }
             return obj
@@ -112,7 +125,10 @@ export const resourceApi = {
     revokeCoverObjectUrl: (avid) => {
         if (resourceApi._coverCache.has(avid)) {
             const url = resourceApi._coverCache.get(avid)
-            try { URL.revokeObjectURL(url) } catch (e) {}
+            try {
+                URL.revokeObjectURL(url)
+            } catch (e) {
+            }
             resourceApi._coverCache.delete(avid)
         }
     },
@@ -144,7 +160,7 @@ export const downloadApi = {
     // 删除下载的视频
     deleteFile: (avid) => api.delete(`/downloads/${encodeURIComponent(avid)}`),
     // 批量提交下载任务
-    batchSubmit: (avids) => api.post('/downloads/batch_submit', { avids })
+    batchSubmit: (avids) => api.post('/downloads/batch_submit', {avids})
 }
 
 // 任务管理

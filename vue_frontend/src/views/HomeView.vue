@@ -1,9 +1,9 @@
 <script setup>
-import {onMounted, computed, ref, watch, onBeforeUnmount} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import {useResourceStore} from '../stores/resource'
 import {RouterLink} from 'vue-router'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
-import { resourceApi } from '../api'
+import {resourceApi} from '../api'
 
 const resourceStore = useResourceStore()
 
@@ -26,6 +26,7 @@ const createdBlobUrls = new Set()
 
 // single shared IntersectionObserver for list lazy-loading
 let observer = null
+
 function ensureObserver() {
 	if (observer) return observer
 	observer = new IntersectionObserver(async (entries) => {
@@ -43,14 +44,14 @@ function ensureObserver() {
 			}
 			try {
 				const obj = await resourceApi.getCoverObjectUrl(avid)
-				coverMap.value = { ...coverMap.value, [avid]: obj }
+				coverMap.value = {...coverMap.value, [avid]: obj}
 				if (typeof obj === 'string' && obj.startsWith('blob:')) createdBlobUrls.add(obj)
 			} catch (e) {
-				coverMap.value = { ...coverMap.value, [avid]: resourceApi.getCoverUrl(avid) }
+				coverMap.value = {...coverMap.value, [avid]: resourceApi.getCoverUrl(avid)}
 			}
 			observer.unobserve(ent.target)
 		}
-	}, { rootMargin: '200px' })
+	}, {rootMargin: '200px'})
 	return observer
 }
 
@@ -65,7 +66,10 @@ onBeforeUnmount(() => {
 		observer.disconnect()
 		observer = null
 	}
-	for (const url of createdBlobUrls) try { URL.revokeObjectURL(url) } catch (e) {}
+	for (const url of createdBlobUrls) try {
+		URL.revokeObjectURL(url)
+	} catch (e) {
+	}
 	createdBlobUrls.clear()
 })
 </script>
@@ -76,7 +80,8 @@ onBeforeUnmount(() => {
 		<section class="relative py-16 mb-12 overflow-hidden">
 			<div class="relative z-10">
 				<h1 class="flex flex-col gap-2 mb-6">
-					<span class="text-6xl font-bold bg-gradient-to-br from-[#ff6b6b] to-[#ff9f43] bg-clip-text text-transparent tracking-wider">NASSAV</span>
+					<span
+						class="text-6xl font-bold bg-gradient-to-br from-[#ff6b6b] to-[#ff9f43] bg-clip-text text-transparent tracking-wider">NASSAV</span>
 					<span class="text-2xl font-normal text-[#a1a1aa]">视频资源管理系统</span>
 				</h1>
 				<p class="text-lg text-[#71717a] max-w-[500px] leading-relaxed mb-8">
@@ -101,33 +106,55 @@ onBeforeUnmount(() => {
 			</div>
 
 			<!-- Visual Shapes -->
-			<div class="absolute right-0 top-1/2 -translate-y-1/2 w-[400px] h-[400px] pointer-events-none hidden md:block">
-				<div class="absolute w-[300px] h-[300px] rounded-full opacity-50 blur-[60px] bg-[#ff6b6b] top-0 right-0 animate-[float1_8s_ease-in-out_infinite]"></div>
-				<div class="absolute w-[200px] h-[200px] rounded-full opacity-50 blur-[60px] bg-[#ff9f43] bottom-[20%] right-[20%] animate-[float2_6s_ease-in-out_infinite]"></div>
-				<div class="absolute w-[150px] h-[150px] rounded-full opacity-50 blur-[60px] bg-[#4ecdc4] top-[30%] right-[30%] animate-[float3_7s_ease-in-out_infinite]"></div>
+			<div
+				class="absolute right-0 top-1/2 -translate-y-1/2 w-[400px] h-[400px] pointer-events-none hidden md:block">
+				<div
+					class="absolute w-[300px] h-[300px] rounded-full opacity-50 blur-[60px] bg-[#ff6b6b] top-0 right-0 animate-[float1_8s_ease-in-out_infinite]"></div>
+				<div
+					class="absolute w-[200px] h-[200px] rounded-full opacity-50 blur-[60px] bg-[#ff9f43] bottom-[20%] right-[20%] animate-[float2_6s_ease-in-out_infinite]"></div>
+				<div
+					class="absolute w-[150px] h-[150px] rounded-full opacity-50 blur-[60px] bg-[#4ecdc4] top-[30%] right-[30%] animate-[float3_7s_ease-in-out_infinite]"></div>
 			</div>
 		</section>
 
 		<!-- Stats Section -->
 		<section class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6 mb-12">
-			<div class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
-				<div class="w-12 h-12 flex items-center justify-center bg-[#ff6b6b]/10 rounded-xl text-xl text-[#ff6b6b]">▣</div>
+			<div
+				class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
+				<div
+					class="w-12 h-12 flex items-center justify-center bg-[#ff6b6b]/10 rounded-xl text-xl text-[#ff6b6b]">
+					▣
+				</div>
 				<div>
-					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">{{ resourceStore.stats.total }}</div>
+					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">
+						{{ resourceStore.stats.total }}
+					</div>
 					<div class="text-sm text-[#71717a]">总资源数</div>
 				</div>
 			</div>
-			<div class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
-				<div class="w-12 h-12 flex items-center justify-center bg-[#2ed573]/10 rounded-xl text-xl text-[#2ed573]">✓</div>
+			<div
+				class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
+				<div
+					class="w-12 h-12 flex items-center justify-center bg-[#2ed573]/10 rounded-xl text-xl text-[#2ed573]">
+					✓
+				</div>
 				<div>
-					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">{{ resourceStore.stats.downloaded }}</div>
+					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">
+						{{ resourceStore.stats.downloaded }}
+					</div>
 					<div class="text-sm text-[#71717a]">已下载</div>
 				</div>
 			</div>
-			<div class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
-				<div class="w-12 h-12 flex items-center justify-center bg-[#ffc107]/10 rounded-xl text-xl text-[#ffc107]">◷</div>
+			<div
+				class="flex items-center gap-4 p-6 bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/15">
+				<div
+					class="w-12 h-12 flex items-center justify-center bg-[#ffc107]/10 rounded-xl text-xl text-[#ffc107]">
+					◷
+				</div>
 				<div>
-					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">{{ resourceStore.stats.pending }}</div>
+					<div class="text-[2rem] font-bold text-[#f4f4f5] font-['JetBrains_Mono',monospace]">
+						{{ resourceStore.stats.pending }}
+					</div>
 					<div class="text-sm text-[#71717a]">待下载</div>
 				</div>
 			</div>
@@ -151,17 +178,29 @@ onBeforeUnmount(() => {
 }
 
 @keyframes float1 {
-	0%, 100% { transform: translate(0, 0); }
-	50% { transform: translate(-20px, 20px); }
+	0%, 100% {
+		transform: translate(0, 0);
+	}
+	50% {
+		transform: translate(-20px, 20px);
+	}
 }
 
 @keyframes float2 {
-	0%, 100% { transform: translate(0, 0); }
-	50% { transform: translate(15px, -15px); }
+	0%, 100% {
+		transform: translate(0, 0);
+	}
+	50% {
+		transform: translate(15px, -15px);
+	}
 }
 
 @keyframes float3 {
-	0%, 100% { transform: translate(0, 0); }
-	50% { transform: translate(-10px, -20px); }
+	0%, 100% {
+		transform: translate(0, 0);
+	}
+	50% {
+		transform: translate(-10px, -20px);
+	}
 }
 </style>
