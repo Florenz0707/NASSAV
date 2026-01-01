@@ -5,28 +5,11 @@
 
 /* ===== Local fonts (public/font) ===== */
 @font-face {
-    font-family: 'AppEn';
-    src: url('/font/en/Oxanium-Regular.ttf') format('truetype');
+    font-family: 'TheWriteRight';
+    src: url('/font/the-write-right-font.ttf') format('truetype');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
-    unicode-range: U+000-024F, U+1E00-1EFF; /* Latin + extended */
-}
-@font-face {
-    font-family: 'AppJp';
-    src: url('/font/jp/KURIYAMAKOUCHIFONT_N.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-    unicode-range: U+3040-30FF, U+31F0-31FF, U+4E00-9FFF; /* Hiragana/Katakana/Kanji */
-}
-@font-face {
-    font-family: 'AppCn';
-    src: url('/font/cn/tokyo_street.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-    unicode-range: U+4E00-9FFF, U+3000-303F; /* CJK Unified Ideographs + punctuation */
 }
 
 /* ===== CSS Variables ===== */
@@ -71,8 +54,7 @@ html {
 }
 
 body {
-    /* 本地字体优先：英文 -> 日文 -> 中文 -> 系统字体 */
-    font-family: 'AppEn', 'AppJp', 'AppCn', 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'TheWriteRight', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;

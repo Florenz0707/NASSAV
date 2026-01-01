@@ -26,8 +26,8 @@ export default {
         'lg': '0 10px 15px rgba(0, 0, 0, 0.4)',
       },
       fontFamily: {
-        sans: ['Noto Sans SC', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['TheWriteRight', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['TheWriteRight', 'monospace'],
       },
     },
   },
