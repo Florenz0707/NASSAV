@@ -226,20 +226,6 @@ function onPageSizeChange(newSize) {
 	fetchResourceList()
 }
 
-import { computed as vueComputed } from 'vue'
-
-const visiblePages = vueComputed(() => {
-	const total = resourceStore.pagination && resourceStore.pagination.pages ? resourceStore.pagination.pages : 1
-	const cur = page.value || 1
-	const maxButtons = 9
-	let start = Math.max(1, cur - Math.floor(maxButtons / 2))
-	let end = Math.min(total, start + maxButtons - 1)
-	start = Math.max(1, end - maxButtons + 1)
-	const res = []
-	for (let i = start; i <= end; i++) res.push(i)
-	return res
-})
-
 </script>
 
 <template>
@@ -255,7 +241,7 @@ const visiblePages = vueComputed(() => {
 
 		<div class="mb-4 flex items-center gap-4">
 			<span class="text-sm text-[#bcbcbc]">分类：</span>
-			<RouterLink to="/actors" class="text-sm text-[#f4f4f5] hover:underline">按女优</RouterLink>
+			<RouterLink to="/resources/actors" class="text-sm text-[#f4f4f5] hover:underline">按女优</RouterLink>
 			<RouterLink to="/tags" class="text-sm text-[#71717a] hover:underline">按标签</RouterLink>
 		</div>
 

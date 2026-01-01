@@ -1,5 +1,5 @@
 <template>
-  <div v-if="pages > 1" class="mt-8 w-full">
+  <div class="mt-8 w-full">
     <div class="flex items-center justify-center gap-3 mb-3">
       <button @click="goFirst" :disabled="page === 1"
         class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">

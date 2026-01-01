@@ -12,7 +12,7 @@ const routes = [
         component: () => import('../views/ResourcesView.vue')
     },
     {
-        path: '/actors',
+        path: '/resources/actors',
         name: 'Actors',
         component: () => import('../views/ActorsView.vue')
     },
@@ -24,10 +24,8 @@ const routes = [
     {
         path: '/actors/:actorId',
         name: 'ActorResources',
-        redirect: to => {
-            const id = to.params.actorId
-            return { path: '/resources', query: { actor: id } }
-        }
+        component: () => import('../views/ActorDetailView.vue'),
+        props: true
     },
     {
         path: '/resource/:avid',

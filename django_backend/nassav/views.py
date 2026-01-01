@@ -236,6 +236,15 @@ class ActorsListView(APIView):
         search = (request.query_params.get('search') or '').strip()
 
         qs = Actor.objects.annotate(resource_count=Count('resources'))
+        # optional exact id filter for actor detail requests
+        actor_id = request.query_params.get('id')
+        if actor_id:
+            try:
+                aid = int(actor_id)
+                qs = qs.filter(id=aid)
+            except Exception:
+                pass
+
         if search:
             qs = qs.filter(name__icontains=search)
 

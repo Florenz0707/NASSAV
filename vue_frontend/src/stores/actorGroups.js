@@ -1,15 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { resourceApi } from '../api/index.js'
 
 export const useActorGroupsStore = defineStore('actorGroups', () => {
   const groups = ref([])
-  const pagination = ref({ total: 0, page: 1, page_size: 20, pages: 1 })
+  const pagination = ref({ total: 0, page: 1, page_size: 15, pages: 1 })
   const loading = ref(false)
   const error = ref(null)
 
   // direct call to /actors/ to get groups
-  async function load({ page = 1, page_size = 20, order_by = 'count', order = 'desc', search } = {}) {
+  async function load({ page = 1, page_size = 15, order_by = 'count', order = 'desc', search } = {}) {
     loading.value = true
     error.value = null
     try {

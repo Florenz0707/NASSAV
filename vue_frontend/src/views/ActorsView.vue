@@ -85,8 +85,8 @@ export default {
     components: { ActorGroupCard },
     setup() {
         const store = useActorGroupsStore()
-        const pageSizeOptions = [12, 16, 20]
-        const pageSize = ref(12)
+        const pageSizeOptions = [15, 20, 25]
+        const pageSize = ref(15)
         const page = ref(1)
         const searchQuery = ref('')
         const sortBy = ref('count')
@@ -94,7 +94,7 @@ export default {
 
         async function loadPage(p = 1) {
             // ensure we pass plain numbers
-            const ps = Number(pageSize.value || 16)
+            const ps = Number(pageSize.value || 15)
             const pg = Number(p || 1)
             page.value = pg
             await store.load({ page: pg, page_size: ps, order_by: sortBy.value || 'count', order: sortOrder.value || 'desc', search: searchQuery.value || undefined })
@@ -153,7 +153,7 @@ export default {
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     row-gap: 28px;
     column-gap: 24px
 }
