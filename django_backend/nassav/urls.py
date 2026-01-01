@@ -16,6 +16,8 @@ urlpatterns = [
 
     # GET /api/resources/ - 统一资源列表（过滤/分页）
     path('api/resources/', views.ResourcesListView.as_view(), name='resources-list'),
+    # GET /api/actors/ - 演员列表及作品数（分页）
+    path('api/actors/', views.ActorsListView.as_view(), name='actors-list'),
 
     # GET /api/resource/cover?avid= - 根据avid获取封面图片
     path('api/resource/cover', views.ResourceCoverView.as_view(), name='resource-cover'),

@@ -36,7 +36,6 @@ class SourceManager:
             # 只有配置了有效权重的源才会被注册
             if weight:
                 source = source_class(proxy)
-                logger.debug(f"注册下载器: {source.get_source_name()}, 权重: {weight}")
                 self.sources[source.get_source_name()] = source
 
         # 从数据库加载 cookie
@@ -87,7 +86,6 @@ class SourceManager:
                 source_name=actual_name.lower(),
                 defaults={'cookie': cookie}
             )
-            logger.debug(f"已保存 {actual_name} 的 Cookie 到数据库")
             return True
         except Exception as e:
             logger.error(f"保存 Cookie 到数据库失败: {e}")
@@ -282,7 +280,6 @@ class SourceManager:
                 logger.error(f"写入数据库元数据失败: {e}")
                 result['metadata_saved'] = False
 
-            logger.debug(f"元数据已保存到数据库: {avid} (created={created})")
         except Exception as e:
             logger.error(f"保存元数据到数据库失败: {e}")
             result['metadata_saved'] = False

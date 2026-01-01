@@ -34,7 +34,6 @@ class ScraperManager:
             if domain:
                 scraper = scraper_class(proxy)
                 self.scrapers[scraper.get_scraper_name()] = scraper
-                logger.debug(f"注册刮削器: {scraper.get_scraper_name()}, 域名: {domain}")
 
     def get_scrapers(self) -> List[Tuple[str, ScraperBase]]:
         """获取所有已注册的刮削器列表"""

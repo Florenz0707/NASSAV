@@ -11,6 +11,7 @@ from loguru import logger
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db.models import Count
 
 from .serializers import (
     NewResourceSerializer,
@@ -212,6 +213,52 @@ class ResourcesListView(APIView):
 
         # return standardized envelope with pagination field
         return build_response(200, 'success', serializer.data, pagination=pagination)
+
+
+class ActorsListView(APIView):
+    """GET /api/actors/ - 返回演员列表及每个演员的作品数，支持分页"""
+
+    def get(self, request):
+        from nassav.models import Actor
+        # pagination params
+        try:
+            page = int(request.query_params.get('page', 1))
+        except Exception:
+            page = 1
+        try:
+            page_size = int(request.query_params.get('page_size', 20))
+        except Exception:
+            page_size = 20
+
+        # ordering: 'count' (默认) 或 'name'
+        order_by = request.query_params.get('order_by', 'count')
+        qs = Actor.objects.annotate(resource_count=Count('resources'))
+        if order_by == 'name':
+            qs = qs.order_by('name')
+        else:
+            qs = qs.order_by('-resource_count', 'name')
+
+        # pagination
+        from django.core.paginator import Paginator
+        paginator = Paginator(qs, page_size)
+        page_obj = paginator.get_page(page)
+
+        data = []
+        for a in page_obj.object_list:
+            data.append({
+                'id': a.id,
+                'name': a.name,
+                'resource_count': getattr(a, 'resource_count', 0)
+            })
+
+        pagination = {
+            'total': paginator.count,
+            'page': page_obj.number,
+            'page_size': page_size,
+            'pages': paginator.num_pages
+        }
+
+        return build_response(200, 'success', data, pagination=pagination)
 
 
 class ResourceCoverView(APIView):

@@ -182,6 +182,18 @@ def list_resources(params):
         q = str(search).strip()
         qs = qs.filter(Q(avid__icontains=q) | Q(title__icontains=q))
 
+    # filter by actor (accept actor id or name fragment)
+    actor = params.get('actor')
+    if actor:
+        try:
+            aid = int(actor)
+            qs = qs.filter(actors__id=aid)
+        except Exception:
+            a = str(actor).strip()
+            if a:
+                qs = qs.filter(actors__name__icontains=a)
+        qs = qs.distinct()
+
     ordering = params.get('ordering')
     if ordering:
         qs = qs.order_by(ordering)
