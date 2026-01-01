@@ -45,7 +45,7 @@ class SourceCookieSerializer(serializers.Serializer):
 class ResourceSummarySerializer(serializers.Serializer):
     """列表视图使用的资源摘要序列化器（显式字段，避免 ModelSerializer 自动映射）"""
     avid = serializers.CharField()
-    title = serializers.CharField(allow_blank=True)
+    title = LocalSerializerMethodField()  # 按优先级返回标题
     source = serializers.CharField(allow_blank=True)
     release_date = serializers.CharField(allow_blank=True)
     has_video = serializers.BooleanField(source='file_exists')
@@ -53,6 +53,14 @@ class ResourceSummarySerializer(serializers.Serializer):
     video_create_time = LocalSerializerMethodField()
     file_size = serializers.IntegerField(allow_null=True)
     thumbnail_url = LocalSerializerMethodField()
+
+    def get_title(self, obj):
+        """按优先级返回标题: translated_title > source_title > title"""
+        if getattr(obj, 'translated_title', None):
+            return obj.translated_title
+        if getattr(obj, 'source_title', None):
+            return obj.source_title
+        return obj.title or ''
 
     def get_metadata_create_time(self, obj):
         return obj.metadata_saved_at.timestamp() if getattr(obj, 'metadata_saved_at', None) else None
@@ -79,7 +87,11 @@ class ResourceSummarySerializer(serializers.Serializer):
 class ResourceSerializer(serializers.Serializer):
     """完整资源元数据序列化器（用于 detail/metadata）"""
     avid = serializers.CharField()
-    title = serializers.CharField(allow_blank=True)
+    title = LocalSerializerMethodField()  # 按优先级返回标题
+    original_title = LocalSerializerMethodField()  # 原始日语标题
+    source_title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    translated_title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    translation_status = serializers.CharField(allow_blank=True, required=False)  # 翻译状态
     m3u8 = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     source = serializers.CharField(allow_blank=True, required=False)
     release_date = serializers.CharField(allow_blank=True, required=False)
@@ -92,6 +104,27 @@ class ResourceSerializer(serializers.Serializer):
     genres = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
     file_size = serializers.IntegerField(allow_null=True, required=False)
     file_exists = serializers.BooleanField(required=False)
+
+    def get_title(self, obj):
+        """按优先级返回标题: translated_title > source_title > original_title"""
+        if isinstance(obj, dict):
+            if obj.get('translated_title'):
+                return obj['translated_title']
+            if obj.get('source_title'):
+                return obj['source_title']
+            return obj.get('title', '')
+        else:
+            if getattr(obj, 'translated_title', None):
+                return obj.translated_title
+            if getattr(obj, 'source_title', None):
+                return obj.source_title
+            return obj.title or ''
+
+    def get_original_title(self, obj):
+        """返回原始日语标题（Scraper 获取的标题）"""
+        if isinstance(obj, dict):
+            return obj.get('title', '')
+        return obj.title or ''
 
 
 class ResourceCreateSerializer(serializers.Serializer):

@@ -10,16 +10,18 @@ from loguru import logger
 class AVDownloadInfo:
     """下载信息数据类
 
-    Source 只负责提供核心下载信息：m3u8、avid、title
-    其他元数据由 Scraper（如 JavBus）补充
+    职责划分：
+    - Source 提供：m3u8、source_title（备用标题）
+    - Scraper 提供：title（规范标题）、其他元数据
     """
     # Source 提供的核心信息
     m3u8: str = ""
-    title: str = ""
+    source_title: str = ""  # Source 获取的标题（备用）
     avid: str = ""
     source: str = ""  # 来源名称（如 Jable、MissAV）
 
     # Scraper 补充的扩展元数据
+    title: str = ""  # Scraper 获取的规范标题（通常为日语）
     release_date: str = ""  # 发行日期
     duration: str = ""  # 时长
     director: str = ""  # 导演
@@ -52,6 +54,10 @@ class AVDownloadInfo:
         Args:
             scraped_data: 从 Scraper（如 JavBus）获取的元数据字典
         """
+        # 更新 Scraper 提供的规范标题
+        if scraped_data.get('title'):
+            self.title = scraped_data['title']
+
         # 更新所有扩展元数据字段
         if scraped_data.get('release_date'):
             self.release_date = scraped_data['release_date']
@@ -69,7 +75,3 @@ class AVDownloadInfo:
             self.genres = scraped_data['genres']
         if scraped_data.get('actors'):
             self.actors = scraped_data['actors']
-
-        # 如果 Source 没有提供标题，使用 Scraper 的标题
-        if scraped_data.get('title') and not self.title:
-            self.title = scraped_data['title']

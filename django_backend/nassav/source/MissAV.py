@@ -51,7 +51,6 @@ class MissAV(SourceBase):
             result = self._get_highest_quality_m3u8(playlist_url)
             if result:
                 m3u8_url, resolution = result
-                logger.debug(f"最高清晰度: {resolution}\nM3U8链接: {m3u8_url}")
                 info.m3u8 = m3u8_url
             else:
                 logger.error("未找到有效视频流")
@@ -66,8 +65,7 @@ class MissAV(SourceBase):
 
         return info
 
-    @staticmethod
-    def _extract_uuid(html: str) -> Optional[str]:
+    def _extract_uuid(self,html: str) -> Optional[str]:
         try:
             match = re.search(r"m3u8\|([a-f0-9|]+)\|com\|surrit\|https\|video", html)
             if match:
@@ -77,9 +75,8 @@ class MissAV(SourceBase):
             logger.error(f"UUID提取异常: {str(e)}")
             return None
 
-    @staticmethod
-    def _extract_metadata(html: str, metadata: AVDownloadInfo) -> bool:
-        """提取核心元数据：AVID 和标题"""
+    def _extract_metadata(self,html: str, metadata: AVDownloadInfo) -> bool:
+        """提取核心元数据：AVID 和 source_title（备用标题）"""
         try:
             og_title = re.search(r'<meta property="og:title" content="(.*?)"', html)
             if og_title:
@@ -88,16 +85,15 @@ class MissAV(SourceBase):
                 code_match = re.search(r'^([A-Z]+(?:-[A-Z]+)*-\d+)', title_content)
                 if code_match:
                     metadata.avid = code_match.group(1)
-                    metadata.title = title_content.replace(metadata.avid, '').strip()
+                    metadata.source_title = title_content.replace(metadata.avid, '').strip()
                 else:
-                    metadata.title = title_content.strip()
+                    metadata.source_title = title_content.strip()
             return True
         except Exception as e:
             logger.error(f"核心元数据解析异常: {str(e)}")
             return False
 
-    @staticmethod
-    def _get_highest_quality_m3u8(playlist_url: str) -> Optional[Tuple[str, str]]:
+    def _get_highest_quality_m3u8(self,playlist_url: str) -> Optional[Tuple[str, str]]:
         try:
             response = requests.get(playlist_url, timeout=10, impersonate="chrome110")
             response.raise_for_status()
@@ -115,7 +111,6 @@ class MissAV(SourceBase):
                 streams.append((bandwidth, resolution, url))
 
             streams.sort(reverse=True, key=lambda x: x[0])
-            logger.debug(streams)
 
             if streams:
                 best_stream = streams[0]

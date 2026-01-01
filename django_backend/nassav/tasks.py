@@ -547,3 +547,224 @@ def run_db_disk_consistency(self, apply_changes: bool = False, limit: int | None
         call_command('check_db_disk_consistency', *args)
     except Exception as e:
         logger.error(f"运行一致性检查任务失败: {e}")
+
+
+# ============================================================
+# 翻译相关任务
+# ============================================================
+
+@shared_task(bind=True, name='nassav.tasks.translate_title_task', ignore_result=False)
+def translate_title_task(self, avid: str):
+    """
+    异步翻译资源标题任务
+
+    Args:
+        avid: 资源 AVID
+
+    Returns:
+        dict: 包含翻译结果的字典
+    """
+    avid = avid.upper()
+    logger.info(f"[翻译任务] 开始翻译 {avid} 的标题")
+
+    try:
+        from nassav.models import AVResource
+        from nassav.translator import translator_manager
+
+        # 获取资源
+        resource = AVResource.objects.filter(avid=avid).first()
+        if not resource:
+            logger.warning(f"[翻译任务] 资源 {avid} 不存在")
+            return {'success': False, 'error': f'资源 {avid} 不存在', 'avid': avid}
+
+        # 检查是否已有翻译
+        if resource.translated_title and resource.translation_status == 'completed':
+            logger.info(f"[翻译任务] {avid} 已有翻译，跳过")
+            return {
+                'success': True,
+                'skipped': True,
+                'avid': avid,
+                'translation_status': 'completed',
+                'translated_title': resource.translated_title
+            }
+
+        # 获取待翻译的标题
+        title_to_translate = resource.title or resource.source_title
+        if not title_to_translate:
+            logger.warning(f"[翻译任务] {avid} 没有可翻译的标题")
+            resource.translation_status = 'skipped'
+            resource.save(update_fields=['translation_status'])
+            return {
+                'success': False,
+                'error': '没有可翻译的标题',
+                'avid': avid,
+                'translation_status': 'skipped'
+            }
+
+        # 更新状态为翻译中
+        resource.translation_status = 'translating'
+        resource.save(update_fields=['translation_status'])
+
+        # 执行翻译
+        translated = translator_manager.translate(title_to_translate)
+
+        if translated:
+            resource.translated_title = translated
+            resource.translation_status = 'completed'
+            resource.save(update_fields=['translated_title', 'translation_status'])
+            logger.info(f"[翻译任务] {avid} 翻译成功")
+            logger.debug(f"  原文: {title_to_translate[:50]}...")
+            logger.debug(f"  译文: {translated[:50]}...")
+            return {
+                'success': True,
+                'avid': avid,
+                'translation_status': 'completed',
+                'original': title_to_translate,
+                'translated_title': translated
+            }
+        else:
+            resource.translation_status = 'failed'
+            resource.save(update_fields=['translation_status'])
+            logger.warning(f"[翻译任务] {avid} 翻译返回空结果")
+            return {
+                'success': False,
+                'error': '翻译返回空结果',
+                'avid': avid,
+                'translation_status': 'failed'
+            }
+
+    except Exception as e:
+        logger.error(f"[翻译任务] {avid} 翻译失败: {e}")
+        # 尝试更新状态为失败
+        try:
+            from nassav.models import AVResource
+            resource = AVResource.objects.filter(avid=avid).first()
+            if resource:
+                resource.translation_status = 'failed'
+                resource.save(update_fields=['translation_status'])
+        except Exception:
+            pass
+        return {
+            'success': False,
+            'error': str(e),
+            'avid': avid,
+            'translation_status': 'failed'
+        }
+
+
+@shared_task(bind=True, name='nassav.tasks.batch_translate_titles_task', ignore_result=False)
+def batch_translate_titles_task(self, avids: List[str] = None, skip_existing: bool = True):
+    """
+    批量翻译资源标题任务
+
+    Args:
+        avids: 要翻译的 AVID 列表，为空则翻译所有未翻译的
+        skip_existing: 是否跳过已有翻译的记录
+
+    Returns:
+        dict: 包含批量翻译结果的统计
+    """
+    logger.info(f"[批量翻译任务] 开始批量翻译")
+
+    try:
+        from django.db.models import Q
+        from nassav.models import AVResource
+        from nassav.translator import translator_manager
+
+        # 构建查询
+        if avids:
+            avids = [a.upper() for a in avids]
+            query = Q(avid__in=avids)
+        else:
+            query = Q()
+
+        # 只翻译有标题的记录
+        query &= (Q(title__isnull=False) & ~Q(title='')) | (Q(source_title__isnull=False) & ~Q(source_title=''))
+
+        if skip_existing:
+            # 跳过已完成的翻译
+            query &= ~Q(translation_status='completed')
+
+        resources = AVResource.objects.filter(query)
+        total = resources.count()
+
+        if total == 0:
+            logger.info("[批量翻译任务] 没有需要翻译的记录")
+            return {'success': True, 'total': 0, 'translated': 0, 'failed': 0, 'skipped': 0}
+
+        logger.info(f"[批量翻译任务] 需要翻译 {total} 条记录")
+
+        # 批量更新状态为翻译中
+        resources.update(translation_status='translating')
+
+        # 准备翻译文本
+        texts = []
+        resource_list = list(AVResource.objects.filter(query))  # 重新获取
+        for r in resource_list:
+            texts.append(r.title or r.source_title or '')
+
+        # 批量翻译
+        results = translator_manager.batch_translate(texts)
+
+        # 保存结果
+        translated_count = 0
+        failed_count = 0
+        skipped_count = 0
+
+        for idx, translation in enumerate(results):
+            resource = resource_list[idx]
+            if not (resource.title or resource.source_title):
+                resource.translation_status = 'skipped'
+                resource.save(update_fields=['translation_status'])
+                skipped_count += 1
+            elif translation:
+                resource.translated_title = translation
+                resource.translation_status = 'completed'
+                resource.save(update_fields=['translated_title', 'translation_status'])
+                translated_count += 1
+            else:
+                resource.translation_status = 'failed'
+                resource.save(update_fields=['translation_status'])
+                failed_count += 1
+
+        logger.info(f"[批量翻译任务] 完成: 成功 {translated_count}, 失败 {failed_count}, 跳过 {skipped_count}")
+
+        return {
+            'success': True,
+            'total': total,
+            'translated': translated_count,
+            'failed': failed_count,
+            'skipped': skipped_count
+        }
+
+    except Exception as e:
+        logger.error(f"[批量翻译任务] 失败: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+def submit_translate_task(avid: str, async_mode: bool = True):
+    """
+    提交翻译任务的辅助函数
+
+    Args:
+        avid: 资源 AVID
+        async_mode: 是否异步执行（True=Celery异步, False=同步执行）
+
+    Returns:
+        tuple: (task_result, is_async)
+    """
+    avid = avid.upper()
+
+    if async_mode:
+        try:
+            task_result = translate_title_task.delay(avid)
+            logger.info(f"已提交异步翻译任务: {avid}, task_id={task_result.id}")
+            return task_result, True
+        except Exception as e:
+            logger.warning(f"提交异步翻译任务失败，回退到同步模式: {e}")
+            # 回退到同步模式
+            result = translate_title_task(avid)
+            return result, False
+    else:
+        result = translate_title_task(avid)
+        return result, False

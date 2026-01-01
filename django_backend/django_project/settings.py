@@ -225,6 +225,9 @@ SOURCE_CONFIG = CONFIG.get('Source', {})
 # Scraper configurations (e.g., JavBus, Busdmm, Dmmsee)
 SCRAPER_CONFIG = CONFIG.get('Scraper', {})
 
+# Translator configurations (e.g., Ollama)
+TRANSLATOR_CONFIG = CONFIG.get('Translator', {})
+
 # Celery Beat schedule: daily consistency check between DB and disk at 03:00 server time
 CELERY_BEAT_SCHEDULE = {
     'db-disk-consistency-daily': {

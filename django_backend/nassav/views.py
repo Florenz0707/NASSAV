@@ -575,17 +575,33 @@ class ResourceMetadataView(APIView):
             if not resource:
                 return build_response(404, f'资源 {avid} 的元数据不存在', None)
 
-            # 基于 DB 的 metadata 字段或各字段构建返回值
-            metadata = resource.metadata if resource.metadata else {
+            # 构建返回值，优先使用数据库独立字段，title 按优先级返回
+            display_title = resource.translated_title or resource.source_title or resource.title or ''
+
+            metadata = {
                 'avid': resource.avid,
-                'title': resource.title,
-                'source': resource.source,
-                'release_date': resource.release_date,
-                'duration': resource.duration,
+                'title': display_title,
+                'original_title': resource.title or '',  # 原始日语标题
+                'source_title': resource.source_title or '',
+                'translated_title': resource.translated_title or '',
+                'translation_status': resource.translation_status or 'pending',  # 翻译状态
+                'source': resource.source or '',
+                'release_date': resource.release_date or '',
+                'duration': f"{resource.duration // 60}分钟" if resource.duration else '',
+                'director': '',
+                'studio': '',
+                'label': '',
+                'series': '',
                 'actors': [a.name for a in resource.actors.all()],
                 'genres': [g.name for g in resource.genres.all()],
-                'm3u8': resource.m3u8,
+                'm3u8': resource.m3u8 or '',
             }
+
+            # 从 metadata JSON 补充额外字段（如 director, studio 等）
+            if resource.metadata and isinstance(resource.metadata, dict):
+                for key in ['director', 'studio', 'label', 'series']:
+                    if resource.metadata.get(key):
+                        metadata[key] = resource.metadata[key]
 
             # 添加文件信息
             metadata['file_exists'] = bool(resource.file_exists)

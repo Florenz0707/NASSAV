@@ -1,9 +1,12 @@
+# 代理配置
 Proxy:
   Enable: false
   url: http://127.0.0.1:443
 
+# URL 前缀配置
 UrlPrefix: null
 
+# 元数据抓取器配置
 Scraper:
   javbus:
     domain: www.javbus.com
@@ -12,6 +15,7 @@ Scraper:
   dmmsee:
     domain: www.dmmsee.bond
 
+# 视频下载源配置
 Source:
   missav:
     domain: missav.ai
@@ -22,3 +26,28 @@ Source:
   memo:
     domain: memojav.com
     weight: 600
+
+# 翻译器配置
+# 用于将日语标题翻译为中文
+Translator:
+  ollama:
+    # Ollama 服务地址
+    url: http://localhost:11434
+
+    # 使用的模型
+    # 推荐模型：
+    #   - qwen2.5:7b (中文翻译质量最好，推荐)
+    #   - llama3.2:3b (速度快，资源占用小)
+    #   - gemma2:9b (平衡性能和质量)
+    model: qwen2.5:7b
+
+    # 请求超时时间（秒）
+    timeout: 30
+
+    # 最大重试次数
+    max_retries: 3
+
+    # 翻译提示模板
+    # {text} 会被替换为待翻译的文本
+    # 简洁版本，避免 Ollama 解析错误
+    prompt_template: "你是专业的日语-中文翻译专家。请将以下日语标题翻译成简体中文。\n\n翻译规则：1)保留人名不翻译 2)保留番号和系列名 3)使用自然流畅的中文 4)保持原文情境 5)只返回翻译结果\n\n日语标题：{text}\n\n中文翻译："

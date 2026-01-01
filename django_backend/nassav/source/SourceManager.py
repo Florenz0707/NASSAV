@@ -193,7 +193,7 @@ class SourceManager:
         if scraped_data:
             info.update_from_scraper(scraped_data)
             result['scraped'] = True
-            logger.info(f"已从 JavBus 获取 {avid} 的完整元数据（发行日期、时长、演员等）")
+            logger.info(f"已从 JavBus 获取 {avid} 的完整元数据（标题、发行日期、时长、演员等）")
         else:
             logger.warning(f"未能从 JavBus 获取 {avid} 的元数据，将只保存 Source 提供的基本信息")
 
@@ -209,7 +209,9 @@ class SourceManager:
                 source_name = getattr(info, 'source', '') or ''
 
             defaults = {
-                'title': getattr(info, 'title', '') or '',
+                'title': getattr(info, 'title', '') or '',  # Scraper 提供的规范标题（日语）
+                'source_title': getattr(info, 'source_title', '') or '',  # Source 提供的备用标题
+                'translation_status': 'pending',  # 初始状态为待翻译
                 'source': source_name or getattr(info, 'source', '') or '',
                 'release_date': getattr(info, 'release_date', '') or '',
                 'duration': None,
@@ -276,6 +278,30 @@ class SourceManager:
                 resource_obj.m3u8 = getattr(info, 'm3u8', '') or ''
                 resource_obj.save()
                 result['metadata_saved'] = True
+
+                # 5. 提交异步翻译任务（Celery）
+                result['translate_task_submitted'] = False
+                title_to_translate = resource_obj.title or resource_obj.source_title
+                if title_to_translate and not resource_obj.translated_title:
+                    try:
+                        from nassav.tasks import submit_translate_task
+                        task_result, is_async = submit_translate_task(avid, async_mode=True)
+                        result['translate_task_submitted'] = True
+                        if is_async:
+                            result['translate_task_id'] = task_result.id
+                            logger.info(f"已提交异步翻译任务: {avid}")
+                        else:
+                            # 同步执行的结果
+                            result['translated'] = task_result.get('success', False)
+                            logger.info(f"同步翻译完成: {avid}")
+                    except Exception as e:
+                        logger.warning(f"提交翻译任务失败: {avid}, 错误: {e}")
+                elif resource_obj.translated_title:
+                    logger.debug(f"跳过翻译（已有译文）: {avid}")
+                    result['translated'] = True
+                else:
+                    logger.debug(f"跳过翻译（无标题）: {avid}")
+
             except Exception as e:
                 logger.error(f"写入数据库元数据失败: {e}")
                 result['metadata_saved'] = False

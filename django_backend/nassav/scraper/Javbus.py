@@ -74,15 +74,16 @@ class Javbus(ScraperBase):
                 if duration_match:
                     scrape_data['duration'] = duration_match.group(1) + "分钟"
 
-            # 从页面标题提取标题（作为备选）
-            title_tag_match = re.search(r'<title>([^<]+)</title>', html)
-            if title_tag_match:
-                title = title_tag_match.group(1)
-                # 移除网站名称后缀
-                title = re.sub(r'\s*[-|]\s*JavBus.*$', '', title, flags=re.IGNORECASE)
-                # 移除 AVID 前缀
-                title = re.sub(rf'^{avid}\s*', '', title, flags=re.IGNORECASE)
-                scrape_data['title'] = title.strip()
+            # 从页面标题提取标题（作为备选，仅当 meta 中未获取到时）
+            if not scrape_data['title']:
+                title_tag_match = re.search(r'<title>([^<]+)</title>', html)
+                if title_tag_match:
+                    title = title_tag_match.group(1)
+                    # 移除网站名称后缀
+                    title = re.sub(r'\s*[-|]\s*JavBus.*$', '', title, flags=re.IGNORECASE)
+                    # 移除 AVID 前缀（包括可能的空格）
+                    title = re.sub(rf'^{avid}\s*', '', title, flags=re.IGNORECASE)
+                    scrape_data['title'] = title.strip()
 
             # 提取製作商（studio）
             studio_match = re.search(r'<span class="header">製作商:</span>\s*<a[^>]*>([^<]+)</a>', html)
