@@ -232,11 +232,25 @@ class ActorsListView(APIView):
 
         # ordering: 'count' (默认) 或 'name'
         order_by = request.query_params.get('order_by', 'count')
+        order = request.query_params.get('order', 'desc')
+        search = (request.query_params.get('search') or '').strip()
+
         qs = Actor.objects.annotate(resource_count=Count('resources'))
+        if search:
+            qs = qs.filter(name__icontains=search)
+
+        # apply ordering
         if order_by == 'name':
-            qs = qs.order_by('name')
+            if order == 'desc':
+                qs = qs.order_by('-name')
+            else:
+                qs = qs.order_by('name')
         else:
-            qs = qs.order_by('-resource_count', 'name')
+            # order by resource_count, tie-breaker by name
+            if order == 'asc':
+                qs = qs.order_by('resource_count', 'name')
+            else:
+                qs = qs.order_by('-resource_count', 'name')
 
         # pagination
         from django.core.paginator import Paginator

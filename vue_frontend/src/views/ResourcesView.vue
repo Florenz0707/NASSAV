@@ -1,7 +1,9 @@
 <script setup>
 import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
+import ResourcePagination from '../components/ResourcePagination.vue'
 import ResourceCard from '../components/ResourceCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -93,6 +95,8 @@ const sortBy = ref('metadata_create_time')
 const sortOrder = ref('desc')
 const page = ref(1)
 const pageSize = ref(18)
+const route = useRoute()
+const actorParam = ref(route.query && route.query.actor ? route.query.actor : '')
 // 使用 store 中的 pagination（模板中自动解包）
 const refreshing = ref(false)
 
@@ -108,9 +112,20 @@ async function fetchResourceList() {
 		page: page.value,
 		page_size: pageSize.value,
 		search: searchQuery.value,
-		status: filterStatus.value
+		status: filterStatus.value,
+		actor: actorParam.value || undefined
 	})
 }
+
+// include actor filter if provided in query
+watch(
+	() => route.query.actor,
+	(v) => {
+		actorParam.value = v || ''
+		page.value = 1
+		fetchResourceList()
+	}
+)
 
 // Use server-side filtered/sorted resources. Normalize the response shape to an array.
 const filteredResources = computed(() => {
@@ -199,11 +214,14 @@ function onSortChange() {
 }
 
 function changePage(newPage) {
-	page.value = newPage
+	page.value = Number(newPage) || 1
 	fetchResourceList()
 }
 
-function onPageSizeChange() {
+function onPageSizeChange(newSize) {
+	if (typeof newSize !== 'undefined' && newSize !== null) {
+		pageSize.value = Number(newSize) || pageSize.value
+	}
 	page.value = 1
 	fetchResourceList()
 }
@@ -229,7 +247,16 @@ const visiblePages = vueComputed(() => {
 		<!-- Page Header -->
 		<div class="mb-8">
 			<h1 class="text-[2rem] font-bold text-[#f4f4f5] mb-2">资源库</h1>
-			<p class="text-[#71717a] text-base">管理您的所有视频资源</p>
+			<!-- Results Info -->
+			<div v-if="!resourceStore.loading" class="mb-6 text-[#71717a] text-sm">
+				<span>管理您的 {{ resourceStore.pagination.total }} 个资源。</span>
+			</div>
+		</div>
+
+		<div class="mb-4 flex items-center gap-4">
+			<span class="text-sm text-[#bcbcbc]">分类：</span>
+			<RouterLink to="/actors" class="text-sm text-[#f4f4f5] hover:underline">按女优</RouterLink>
+			<RouterLink to="/tags" class="text-sm text-[#71717a] hover:underline">按标签</RouterLink>
 		</div>
 
 		<!-- Controls -->
@@ -267,56 +294,49 @@ const visiblePages = vueComputed(() => {
 			</div>
 		</div>
 
-		<!-- Batch mode toggle placed near controls -->
-		<div class="mb-4">
-			<button @click="toggleBatchMode"
-				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-white/6 text-[#f4f4f5] hover:bg-white/10">
-				<span class="text-sm">{{ batchMode ? '退出批量' : '批量操作' }}</span>
-			</button>
-		</div>
+		<!-- Batch controls: toggle on left, actions on right -->
+		<div class="mb-4 flex items-center justify-between">
+			<div>
+				<button @click="toggleBatchMode"
+					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-white/6 text-[#f4f4f5] hover:bg-white/10">
+					<span class="text-sm">{{ batchMode ? '退出批量' : '批量操作' }}</span>
+				</button>
+			</div>
 
-		<!-- Batch action bar (only visible in batch mode) -->
-		<div v-if="batchMode" class="mb-4 flex items-center gap-3">
-			<label class="inline-flex items-center gap-3 text-sm text-[#bcbcbc]">
-				<!-- custom checkbox -->
-				<label class="inline-flex items-center cursor-pointer">
-					<input type="checkbox" class="sr-only"
-						:checked="selectedCount === filteredResources.length && filteredResources.length > 0"
-						@change="toggleSelectAll($event.target.checked)" />
-					<span
-						:class="['w-5 h-5 flex items-center justify-center rounded-md transition border-2', (selectedCount === filteredResources.length && filteredResources.length > 0) ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
-						<svg v-if="selectedCount === filteredResources.length && filteredResources.length > 0"
-							class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"
-							xmlns="http://www.w3.org/2000/svg">
-							<path fill-rule="evenodd" clip-rule="evenodd"
-								d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z" />
-						</svg>
-					</span>
+			<div v-if="batchMode" class="flex items-center gap-3">
+				<label class="inline-flex items-center gap-3 text-sm text-[#bcbcbc]">
+					<label class="inline-flex items-center cursor-pointer">
+						<input type="checkbox" class="sr-only"
+							:checked="selectedCount === filteredResources.length && filteredResources.length > 0"
+							@change="toggleSelectAll($event.target.checked)" />
+						<span
+							:class="['w-5 h-5 flex items-center justify-center rounded-md transition border-2', (selectedCount === filteredResources.length && filteredResources.length > 0) ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
+							<svg v-if="selectedCount === filteredResources.length && filteredResources.length > 0"
+								class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"
+								xmlns="http://www.w3.org/2000/svg">
+								<path fill-rule="evenodd" clip-rule="evenodd"
+									d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z" />
+							</svg>
+						</span>
+					</label>
+					<span>已选择 {{ selectedCount }} 项</span>
 				</label>
-				<span>已选择 {{ selectedCount }} 项</span>
-			</label>
-			<button
-				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-white/6 text-[#ffffff] hover:bg-white/10 disabled:opacity-60"
-				:disabled="batchLoading" @click="handleBatchRefresh">
-				批量刷新
-			</button>
-			<button
-				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow hover:brightness-105 disabled:opacity-60"
-				:disabled="batchLoading" @click="handleBatchDownload">
-				批量下载
-			</button>
-
-			<button
-				class="inline-flex items-center justify-center px-3 py-2 rounded-md bg-gradient-to-br from-[#dc3545] to-[#ff5252] text-white shadow hover:brightness-95 disabled:opacity-60"
-				:disabled="batchLoading" @click="handleBatchDelete">
-				批量删除
-			</button>
-		</div>
-
-		<!-- Results Info -->
-		<div v-if="!resourceStore.loading" class="mb-6 text-[#71717a] text-sm">
-			<span>共 {{ resourceStore.pagination.total }} 个资源，页码 {{ resourceStore.pagination.page }}/{{
-				resourceStore.pagination.pages }}</span>
+				<button
+					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-white/6 text-[#ffffff] hover:bg-white/10 disabled:opacity-60"
+					:disabled="batchLoading" @click="handleBatchRefresh">
+					批量刷新
+				</button>
+				<button
+					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow hover:brightness-105 disabled:opacity-60"
+					:disabled="batchLoading" @click="handleBatchDownload">
+					批量下载
+				</button>
+				<button
+					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-gradient-to-br from-[#dc3545] to-[#ff5252] text-white shadow hover:brightness-95 disabled:opacity-60"
+					:disabled="batchLoading" @click="handleBatchDelete">
+					批量删除
+				</button>
+			</div>
 		</div>
 
 		<!-- Loading State -->
@@ -340,43 +360,8 @@ const visiblePages = vueComputed(() => {
 				@download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
 				@deleteFile="handleDeleteFile" :coverSize="'medium'" />
 		</div>
-		<div v-if="resourceStore.pagination.pages > 1" class="mt-8 w-full">
-			<!-- First row: start, prev, current/total, next, end -->
-			<div class="flex items-center justify-center gap-3 mb-3">
-				<button @click="changePage(1)" :disabled="page === 1"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
-					跳转开头
-				</button>
-				<button @click="changePage(page - 1)" :disabled="page === 1"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
-					上一页
-				</button>
-				<div class="px-4 py-2 rounded-md bg-[rgba(255,255,255,0.03)] text-[#f4f4f5]">第 {{ page }} / 共 {{ resourceStore.pagination.pages }} 页</div>
-				<button @click="changePage(page + 1)" :disabled="page === resourceStore.pagination.pages"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
-					下一页
-				</button>
-				<button @click="changePage(resourceStore.pagination.pages)" :disabled="page === resourceStore.pagination.pages"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
-					跳转末尾
-				</button>
-			</div>
-			<!-- Second row: jump to page input and page size input -->
-			<div class="flex items-center justify-center gap-4">
-				<div class="flex items-center gap-2">
-					<button class="px-3 py-1 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md" @click="changePage(page)">跳转至第</button>
-					<input v-model.number="page" @keydown.enter="changePage(page)" type="number" min="1"
-						:max="resourceStore.pagination.pages" class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center" />
-					<label class="text-sm text-[#bcbcbc]">页</label>
-
-				</div>
-				<div class="flex items-center gap-2">
-					<label class="text-sm text-[#bcbcbc]">每页显示</label>
-					<input v-model.number="pageSize" @change="onPageSizeChange" type="number" min="1" class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center" />
-					<label class="text-sm text-[#bcbcbc]">个资源卡</label>
-				</div>
-			</div>
-		</div>
+		<ResourcePagination :page="page" :pages="resourceStore.pagination.pages" :pageSize="pageSize"
+			:total="resourceStore.pagination.total" @change-page="changePage" @change-page-size="onPageSizeChange" />
 
 		<!-- Floating Refresh Button -->
 		<button

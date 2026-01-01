@@ -12,6 +12,24 @@ const routes = [
         component: () => import('../views/ResourcesView.vue')
     },
     {
+        path: '/actors',
+        name: 'Actors',
+        component: () => import('../views/ActorsView.vue')
+    },
+    {
+        path: '/tags',
+        name: 'Tags',
+        component: () => import('../views/TagsView.vue')
+    },
+    {
+        path: '/actors/:actorId',
+        name: 'ActorResources',
+        redirect: to => {
+            const id = to.params.actorId
+            return { path: '/resources', query: { actor: id } }
+        }
+    },
+    {
         path: '/resource/:avid',
         name: 'ResourceDetail',
         component: () => import('../views/ResourceDetailView.vue'),

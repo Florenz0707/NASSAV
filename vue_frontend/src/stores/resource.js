@@ -12,7 +12,7 @@ export const useResourceStore = defineStore('resource', () => {
     // 获取资源列表
     // 支持分页和排序
     const pagination = ref({ total: 0, page: 1, page_size: 20, pages: 1 })
-    async function fetchResources({ sort_by = 'metadata_create_time', order = 'desc', page = 1, page_size = 20, search = '', status = 'all' } = {}) {
+    async function fetchResources({ sort_by = 'metadata_create_time', order = 'desc', page = 1, page_size = 20, search = '', status = 'all', actor = undefined } = {}) {
         loading.value = true
         error.value = null
         try {
@@ -20,6 +20,7 @@ export const useResourceStore = defineStore('resource', () => {
             const params = { sort_by, order, page, page_size }
             if (search) params.search = search
             if (status && status !== 'all') params.status = status
+            if (typeof actor !== 'undefined' && actor !== null && actor !== '') params.actor = actor
             console.debug('[resource] fetchResources request params:', params)
             const response = await resourceApi.getList(params)
             console.debug('[resource] fetchResources response:', response)
