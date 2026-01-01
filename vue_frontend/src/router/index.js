@@ -17,6 +17,11 @@ const routes = [
         component: () => import('../views/ActorsView.vue')
     },
     {
+        path: '/resources/genres',
+        name: 'Genres',
+        component: () => import('../views/GenresView.vue')
+    },
+    {
         path: '/tags',
         name: 'Tags',
         component: () => import('../views/TagsView.vue')
@@ -25,6 +30,12 @@ const routes = [
         path: '/actors/:actorId',
         name: 'ActorResources',
         component: () => import('../views/ActorDetailView.vue'),
+        props: true
+    },
+    {
+        path: '/genres/:genreId',
+        name: 'GenreResources',
+        component: () => import('../views/GenreDetailView.vue'),
         props: true
     },
     {

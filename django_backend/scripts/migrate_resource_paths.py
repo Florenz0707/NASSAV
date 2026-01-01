@@ -102,7 +102,8 @@ def main():
         cover_src = find_cover_in_dir(d)
         mp4_src = find_mp4_in_dir(d)
 
-        item = {'avid': avid_upper, 'cover_src': str(cover_src) if cover_src else None, 'mp4_src': str(mp4_src) if mp4_src else None, 'actions': []}
+        item = {'avid': avid_upper, 'cover_src': str(cover_src) if cover_src else None,
+                'mp4_src': str(mp4_src) if mp4_src else None, 'actions': []}
 
         if not cover_src and not mp4_src:
             item['note'] = 'no_files'
@@ -117,7 +118,9 @@ def main():
             if cover_dest.exists() and not do_force:
                 item['actions'].append({'type': 'cover', 'action': 'skip', 'dest': str(cover_dest)})
             else:
-                item['actions'].append({'type': 'cover', 'action': 'copy' if do_apply else 'would_copy', 'src': str(cover_src), 'dest': str(cover_dest)})
+                item['actions'].append(
+                    {'type': 'cover', 'action': 'copy' if do_apply else 'would_copy', 'src': str(cover_src),
+                     'dest': str(cover_dest)})
                 if do_apply:
                     try:
                         shutil.copy2(cover_src, cover_dest)
@@ -131,7 +134,9 @@ def main():
             if mp4_dest.exists() and not do_force:
                 item['actions'].append({'type': 'mp4', 'action': 'skip', 'dest': str(mp4_dest)})
             else:
-                item['actions'].append({'type': 'mp4', 'action': 'copy' if do_apply else 'would_copy', 'src': str(mp4_src), 'dest': str(mp4_dest)})
+                item['actions'].append(
+                    {'type': 'mp4', 'action': 'copy' if do_apply else 'would_copy', 'src': str(mp4_src),
+                     'dest': str(mp4_dest)})
                 if do_apply:
                     try:
                         shutil.copy2(mp4_src, mp4_dest)

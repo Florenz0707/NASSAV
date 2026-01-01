@@ -7,6 +7,7 @@ import ResourcePagination from '../components/ResourcePagination.vue'
 import ResourceCard from '../components/ResourceCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
+import BatchControls from '../components/BatchControls.vue'
 import { downloadApi, resourceApi } from "../api/index.js";
 
 const resourceStore = useResourceStore()
@@ -242,7 +243,7 @@ function onPageSizeChange(newSize) {
 		<div class="mb-4 flex items-center gap-4">
 			<span class="text-sm text-[#bcbcbc]">分类：</span>
 			<RouterLink to="/resources/actors" class="text-sm text-[#f4f4f5] hover:underline">按女优</RouterLink>
-			<RouterLink to="/tags" class="text-sm text-[#71717a] hover:underline">按标签</RouterLink>
+			<RouterLink to="/resources/genres" class="text-sm text-[#f4f4f5] hover:underline">按类别</RouterLink>
 		</div>
 
 		<!-- Controls -->
@@ -280,50 +281,18 @@ function onPageSizeChange(newSize) {
 			</div>
 		</div>
 
-		<!-- Batch controls: toggle on left, actions on right -->
-		<div class="mb-4 flex items-center justify-between">
-			<div>
-				<button @click="toggleBatchMode"
-					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-white/6 text-[#f4f4f5] hover:bg-white/10">
-					<span class="text-sm">{{ batchMode ? '退出批量' : '批量操作' }}</span>
-				</button>
-			</div>
-
-			<div v-if="batchMode" class="flex items-center gap-3">
-				<label class="inline-flex items-center gap-3 text-sm text-[#bcbcbc]">
-					<label class="inline-flex items-center cursor-pointer">
-						<input type="checkbox" class="sr-only"
-							:checked="selectedCount === filteredResources.length && filteredResources.length > 0"
-							@change="toggleSelectAll($event.target.checked)" />
-						<span
-							:class="['w-5 h-5 flex items-center justify-center rounded-md transition border-2', (selectedCount === filteredResources.length && filteredResources.length > 0) ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
-							<svg v-if="selectedCount === filteredResources.length && filteredResources.length > 0"
-								class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"
-								xmlns="http://www.w3.org/2000/svg">
-								<path fill-rule="evenodd" clip-rule="evenodd"
-									d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z" />
-							</svg>
-						</span>
-					</label>
-					<span>已选择 {{ selectedCount }} 项</span>
-				</label>
-				<button
-					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-white/6 text-[#ffffff] hover:bg-white/10 disabled:opacity-60"
-					:disabled="batchLoading" @click="handleBatchRefresh">
-					批量刷新
-				</button>
-				<button
-					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow hover:brightness-105 disabled:opacity-60"
-					:disabled="batchLoading" @click="handleBatchDownload">
-					批量下载
-				</button>
-				<button
-					class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-gradient-to-br from-[#dc3545] to-[#ff5252] text-white shadow hover:brightness-95 disabled:opacity-60"
-					:disabled="batchLoading" @click="handleBatchDelete">
-					批量删除
-				</button>
-			</div>
-		</div>
+		<!-- Batch controls -->
+		<BatchControls
+			:batch-mode="batchMode"
+			:batch-loading="batchLoading"
+			:selected-count="selectedCount"
+			:total-count="filteredResources.length"
+			@toggle-batch-mode="toggleBatchMode"
+			@toggle-select-all="toggleSelectAll"
+			@batch-refresh="handleBatchRefresh"
+			@batch-download="handleBatchDownload"
+			@batch-delete="handleBatchDelete"
+		/>
 
 		<!-- Loading State -->
 		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />

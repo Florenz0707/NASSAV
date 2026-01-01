@@ -1,27 +1,27 @@
 <template>
-    <div class="actor-card" @click="$emit('click')">
-        <div class="avatar">
-            <div class="avatar-circle" :style="{ backgroundColor: bgColor }">{{ initial }}</div>
+    <div class="genre-card" @click="$emit('click')">
+        <div class="genre-icon">
+            <div class="icon-circle" :style="{ backgroundColor: bgColor }">
+                <span class="icon-text">{{ iconText }}</span>
+            </div>
         </div>
-        <div class="actor-name">{{ actor.name }}</div>
-        <div class="actor-count">共有 {{ actor.resource_count }} 部作品</div>
+        <div class="genre-name">{{ genre.name }}</div>
+        <div class="genre-count">共有 {{ genre.resource_count }} 部作品</div>
     </div>
 </template>
 
 <script>
 export default {
-    name: 'ActorGroupCard',
+    name: 'GenreGroupCard',
     props: {
-        actor: { type: Object, required: true },
-        thumbs: { type: Array, default: () => [] }
+        genre: { type: Object, required: true }
     },
     computed: {
-        initial() {
-            const n = this.actor && this.actor.name ? this.actor.name.trim() : ''
-            return n ? n.substring(0, 2) : '?'
+        iconText() {
+            const n = this.genre && this.genre.name ? this.genre.name.trim() : ''
+            return n ? n.substring(0, 2) : '类别'
         },
         bgColor() {
-            // use a unified dark background for all avatars
             return '#1f2937'
         }
     }
@@ -29,7 +29,7 @@ export default {
 </script>
 
 <style scoped>
-.actor-card {
+.genre-card {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -41,11 +41,11 @@ export default {
     transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 
-.avatar {
-    margin-bottom: 10px
+.genre-icon {
+    margin-bottom: 10px;
 }
 
-.avatar-circle {
+.icon-circle {
     width: 72px;
     height: 72px;
     border-radius: 50%;
@@ -57,19 +57,19 @@ export default {
     font-size: 24px
 }
 
-.actor-name {
+.genre-name {
     font-weight: 600;
     margin-bottom: 6px;
-    text-align: center
+    text-align: center;
 }
 
-.actor-count {
+.genre-count {
     color: #9ca3af;
     font-size: 13px;
-    text-align: center
+    text-align: center;
 }
 
-.actor-card:hover {
+.genre-card:hover {
     transform: translateY(-6px);
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.45);
     background-color: rgba(255,255,255,0.02);

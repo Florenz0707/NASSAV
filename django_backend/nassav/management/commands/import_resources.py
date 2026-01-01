@@ -46,7 +46,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--dry-run', action='store_true', help='Do not write to DB, only simulate')
         parser.add_argument('--backup', action='store_true', help='Backup original json/html to resource_backup/')
-        parser.add_argument('--limit', type=int, default=0, help='Limit number of resources to import (0 means no limit)')
+        parser.add_argument('--limit', type=int, default=0,
+                            help='Limit number of resources to import (0 means no limit)')
         parser.add_argument('--skip-missing-json', action='store_true', help='Skip directories without JSON files')
         parser.add_argument('--force', action='store_true', help='Force overwrite existing DB records')
 
@@ -165,9 +166,11 @@ class Command(BaseCommand):
 
             if dry_run:
                 if data is not None:
-                    self.stdout.write(f'[dry-run] 导入 {avid}: title="{title}", actors={actors_list}, genres={genres_list}, file_exists={file_exists}')
+                    self.stdout.write(
+                        f'[dry-run] 导入 {avid}: title="{title}", actors={actors_list}, genres={genres_list}, file_exists={file_exists}')
                 else:
-                    self.stdout.write(f'[dry-run] 更新文件状态 {avid}: file_exists={file_exists}, cover={cover_filename}')
+                    self.stdout.write(
+                        f'[dry-run] 更新文件状态 {avid}: file_exists={file_exists}, cover={cover_filename}')
                 processed += 1
                 continue
 

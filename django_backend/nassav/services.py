@@ -194,6 +194,18 @@ def list_resources(params):
                 qs = qs.filter(actors__name__icontains=a)
         qs = qs.distinct()
 
+    # filter by genre (accept genre id or name fragment)
+    genre = params.get('genre')
+    if genre:
+        try:
+            gid = int(genre)
+            qs = qs.filter(genres__id=gid)
+        except Exception:
+            g = str(genre).strip()
+            if g:
+                qs = qs.filter(genres__name__icontains=g)
+        qs = qs.distinct()
+
     ordering = params.get('ordering')
     if ordering:
         qs = qs.order_by(ordering)

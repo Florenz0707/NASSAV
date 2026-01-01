@@ -18,6 +18,8 @@ urlpatterns = [
     path('api/resources/', views.ResourcesListView.as_view(), name='resources-list'),
     # GET /api/actors/ - 演员列表及作品数（分页）
     path('api/actors/', views.ActorsListView.as_view(), name='actors-list'),
+    # GET /api/genres/ - 类别列表及作品数（分页）
+    path('api/genres/', views.GenresListView.as_view(), name='genres-list'),
 
     # GET /api/resource/cover?avid= - 根据avid获取封面图片
     path('api/resource/cover', views.ResourceCoverView.as_view(), name='resource-cover'),

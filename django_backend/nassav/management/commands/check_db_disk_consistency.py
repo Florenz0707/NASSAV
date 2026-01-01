@@ -95,4 +95,5 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stderr.write(f'Failed to write report: {e}')
 
-        self.stdout.write(self.style.SUCCESS(f"Checked: {summary['checked']}, Fixed: {summary['fixed']}, Errors: {len(summary['errors'])}"))
+        self.stdout.write(self.style.SUCCESS(
+            f"Checked: {summary['checked']}, Fixed: {summary['fixed']}, Errors: {len(summary['errors'])}"))

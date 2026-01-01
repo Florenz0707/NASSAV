@@ -11,7 +11,6 @@ from loguru import logger
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Count
 
 from .serializers import (
     NewResourceSerializer,
@@ -220,59 +219,116 @@ class ActorsListView(APIView):
 
     def get(self, request):
         from nassav.models import Actor
-        # pagination params
-        try:
-            page = int(request.query_params.get('page', 1))
-        except Exception:
-            page = 1
-        try:
-            page_size = int(request.query_params.get('page_size', 20))
-        except Exception:
-            page_size = 20
+        from django.db.models import Count
+        from django.core.paginator import Paginator
 
-        # ordering: 'count' (默认) 或 'name'
+        # 获取参数
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
         order_by = request.query_params.get('order_by', 'count')
         order = request.query_params.get('order', 'desc')
-        search = (request.query_params.get('search') or '').strip()
+        search = request.query_params.get('search', '').strip()
+        actor_id = request.query_params.get('id', '').strip()
 
+        # 构建查询
         qs = Actor.objects.annotate(resource_count=Count('resources'))
-        # optional exact id filter for actor detail requests
-        actor_id = request.query_params.get('id')
+
+        # ID 过滤（精确匹配）
         if actor_id:
             try:
                 aid = int(actor_id)
                 qs = qs.filter(id=aid)
-            except Exception:
+            except ValueError:
                 pass
 
+        # 搜索过滤
         if search:
             qs = qs.filter(name__icontains=search)
 
-        # apply ordering
+        # 排序
         if order_by == 'name':
+            qs = qs.order_by('name' if order == 'asc' else '-name')
+        else:  # count
             if order == 'desc':
-                qs = qs.order_by('-name')
-            else:
-                qs = qs.order_by('name')
-        else:
-            # order by resource_count, tie-breaker by name
-            if order == 'asc':
-                qs = qs.order_by('resource_count', 'name')
-            else:
                 qs = qs.order_by('-resource_count', 'name')
+            else:
+                qs = qs.order_by('resource_count', 'name')
 
-        # pagination
-        from django.core.paginator import Paginator
+        # 分页
         paginator = Paginator(qs, page_size)
         page_obj = paginator.get_page(page)
 
-        data = []
-        for a in page_obj.object_list:
-            data.append({
+        data = [
+            {
                 'id': a.id,
                 'name': a.name,
                 'resource_count': getattr(a, 'resource_count', 0)
-            })
+            }
+            for a in page_obj.object_list
+        ]
+
+        pagination = {
+            'total': paginator.count,
+            'page': page_obj.number,
+            'page_size': page_size,
+            'pages': paginator.num_pages
+        }
+
+        return build_response(200, 'success', data, pagination=pagination)
+
+
+class GenresListView(APIView):
+    """GET /api/genres/ - 返回类别列表及每个类别的作品数，支持分页"""
+
+    def get(self, request):
+        from nassav.models import Genre
+        from django.db.models import Count
+        from django.core.paginator import Paginator
+
+        # 获取参数
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+        order_by = request.query_params.get('order_by', 'count')
+        order = request.query_params.get('order', 'desc')
+        search = request.query_params.get('search', '').strip()
+        genre_id = request.query_params.get('id', '').strip()
+
+        # 构建查询
+        qs = Genre.objects.annotate(resource_count=Count('resources'))
+
+        # ID 过滤（精确匹配）
+        if genre_id:
+            try:
+                gid = int(genre_id)
+                qs = qs.filter(id=gid)
+            except ValueError:
+                pass
+
+        # 搜索过滤
+        if search:
+            qs = qs.filter(name__icontains=search)
+
+        # 排序
+        if order_by == 'name':
+            qs = qs.order_by('name' if order == 'asc' else '-name')
+        else:  # count
+            if order == 'desc':
+                qs = qs.order_by('-resource_count', 'name')
+            else:
+                qs = qs.order_by('resource_count', 'name')
+
+        # 分页
+        paginator = Paginator(qs, page_size)
+        page_obj = paginator.get_page(page)
+
+        data = [
+            {
+                'id': g.id,
+                'name': g.name,
+                'resource_count': getattr(g, 'resource_count', 0)
+            }
+            for g in page_obj.object_list
+        ]
 
         pagination = {
             'total': paginator.count,
@@ -556,7 +612,8 @@ class ResourceMetadataView(APIView):
 
             # If-Modified-Since match
             ims_ts = parse_http_if_modified_since(ims)
-            if ims_ts is not None and resource.metadata_saved_at and int(resource.metadata_saved_at.timestamp()) <= ims_ts:
+            if ims_ts is not None and resource.metadata_saved_at and int(
+                    resource.metadata_saved_at.timestamp()) <= ims_ts:
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
                 resp['ETag'] = etag
                 resp['Last-Modified'] = http_date(resource.metadata_saved_at.timestamp())
@@ -914,7 +971,8 @@ class ResourcesBatchView(APIView):
                         result = source_manager.get_info_from_source(avid, source)
 
                     if not result:
-                        results.append({'action': 'add', 'avid': avid, 'code': 404, 'message': '获取信息失败', 'resource': None})
+                        results.append(
+                            {'action': 'add', 'avid': avid, 'code': 404, 'message': '获取信息失败', 'resource': None})
                         continue
 
                     info, src, html = result
@@ -923,7 +981,8 @@ class ResourcesBatchView(APIView):
                     from nassav.models import AVResource
                     resource_obj = AVResource.objects.filter(avid=avid).first()
                     resource_data = _serialize_resource_obj(resource_obj) if resource_obj else None
-                    results.append({'action': 'add', 'avid': avid, 'code': 201, 'message': 'added', 'resource': resource_data})
+                    results.append(
+                        {'action': 'add', 'avid': avid, 'code': 201, 'message': 'added', 'resource': resource_data})
 
                 elif action == 'delete':
                     # perform delete similar to DeleteResourceView
@@ -931,7 +990,8 @@ class ResourcesBatchView(APIView):
                     from pathlib import Path
                     cover_root = Path(settings.COVER_DIR)
                     video_root = Path(settings.VIDEO_DIR)
-                    backup_root = Path(getattr(settings, 'RESOURCE_BACKUP_DIR', Path(settings.BASE_DIR) / 'resource_backup'))
+                    backup_root = Path(
+                        getattr(settings, 'RESOURCE_BACKUP_DIR', Path(settings.BASE_DIR) / 'resource_backup'))
 
                     cover_candidates = []
                     for ext in ['.jpg', '.jpeg', '.png', '.webp']:
@@ -943,7 +1003,8 @@ class ResourcesBatchView(APIView):
                     backup_dir = backup_root / avid
 
                     if not cover_candidates and not mp4_path.exists() and not backup_dir.exists():
-                        results.append({'action': 'delete', 'avid': avid, 'code': 404, 'message': '资源不存在', 'resource': None})
+                        results.append(
+                            {'action': 'delete', 'avid': avid, 'code': 404, 'message': '资源不存在', 'resource': None})
                         continue
 
                     deleted_files = []
@@ -980,33 +1041,40 @@ class ResourcesBatchView(APIView):
                     except Exception:
                         pass
 
-                    results.append({'action': 'delete', 'avid': avid, 'code': 200, 'message': 'deleted', 'resource': resource_data, 'deleted_files': deleted_files})
+                    results.append(
+                        {'action': 'delete', 'avid': avid, 'code': 200, 'message': 'deleted', 'resource': resource_data,
+                         'deleted_files': deleted_files})
 
                 elif action == 'refresh':
                     # similar to RefreshResourceView
                     from nassav.models import AVResource
                     resource = AVResource.objects.filter(avid=avid).first()
                     if not resource:
-                        results.append({'action': 'refresh', 'avid': avid, 'code': 404, 'message': '资源不存在', 'resource': None})
+                        results.append(
+                            {'action': 'refresh', 'avid': avid, 'code': 404, 'message': '资源不存在', 'resource': None})
                         continue
                     source = resource.source or ''
                     if not source:
-                        results.append({'action': 'refresh', 'avid': avid, 'code': 400, 'message': '没有 source 信息', 'resource': None})
+                        results.append({'action': 'refresh', 'avid': avid, 'code': 400, 'message': '没有 source 信息',
+                                        'resource': None})
                         continue
 
                     result = source_manager.get_info_from_source(avid, source)
                     if not result:
-                        results.append({'action': 'refresh', 'avid': avid, 'code': 502, 'message': '刷新失败', 'resource': None})
+                        results.append(
+                            {'action': 'refresh', 'avid': avid, 'code': 502, 'message': '刷新失败', 'resource': None})
                         continue
 
                     info, downloader, html = result
                     save_result = source_manager.save_all_resources(avid, info, downloader, html)
                     resource_obj = AVResource.objects.filter(avid=avid).first()
                     resource_data = _serialize_resource_obj(resource_obj) if resource_obj else None
-                    results.append({'action': 'refresh', 'avid': avid, 'code': 200, 'message': 'refreshed', 'resource': resource_data})
+                    results.append({'action': 'refresh', 'avid': avid, 'code': 200, 'message': 'refreshed',
+                                    'resource': resource_data})
 
                 else:
-                    results.append({'action': action, 'avid': avid, 'code': 400, 'message': '未知 action', 'resource': None})
+                    results.append(
+                        {'action': action, 'avid': avid, 'code': 400, 'message': '未知 action', 'resource': None})
 
             except Exception as e:
                 logger.exception(f"批量操作失败: {e}")

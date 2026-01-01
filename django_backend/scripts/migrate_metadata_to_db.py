@@ -138,7 +138,8 @@ def migrate(dry_run=True, limit=None, report_path=None, force=False):
                 # 模拟：仅记录操作
                 processed += 1
                 report['processed'] = processed
-                print(f"[DRY] 处理 {avid} -> title={title} actors={len(actors)} genres={len(genres)} file_exists={file_exists}")
+                print(
+                    f"[DRY] 处理 {avid} -> title={title} actors={len(actors)} genres={len(genres)} file_exists={file_exists}")
             else:
                 with transaction.atomic():
                     obj, created_flag = AVResource.objects.update_or_create(

@@ -37,8 +37,8 @@ class SerializersTest(TestCase):
             'source': 'MissAV',
             'release_date': '2025-02-02',
             'duration': 3600,
-            'actors': ['A','B'],
-            'genres': ['G'] ,
+            'actors': ['A', 'B'],
+            'genres': ['G'],
             'file_size': 54321,
             'file_exists': False
         }

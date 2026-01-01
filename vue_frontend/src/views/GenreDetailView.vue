@@ -13,13 +13,13 @@ const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
 
-const actorId = ref(route.params.actorId || '')
+const genreId = ref(route.params.genreId || '')
 const page = ref(1)
 const pageSize = ref(18)
 const sortBy = ref('metadata_create_time')
 const sortOrder = ref('desc')
-const loadingActor = ref(false)
-const actor = ref({ id: actorId.value, name: '', resource_count: 0 })
+const loadingGenre = ref(false)
+const genre = ref({ id: genreId.value, name: '', resource_count: 0 })
 const toastStore = useToastStore()
 
 // batch & search state (reuse logic from ResourcesView)
@@ -101,29 +101,29 @@ async function handleBatchDelete() {
   }
 }
 
-async function loadActorInfo(id) {
-  loadingActor.value = true
+async function loadGenreInfo(id) {
+  loadingGenre.value = true
   try {
     const qs = new URLSearchParams({ id: String(id), page: '1', page_size: '1' })
-    const r = await fetch(`/nassav/api/actors/?${qs.toString()}`)
+    const r = await fetch(`/nassav/api/genres/?${qs.toString()}`)
     const body = await r.json()
     if (body && body.code === 200 && Array.isArray(body.data) && body.data.length > 0) {
-      actor.value = body.data[0]
+      genre.value = body.data[0]
     } else {
       // fallback: set id and empty name
-      actor.value = { id, name: String(id), resource_count: 0 }
+      genre.value = { id, name: String(id), resource_count: 0 }
     }
   } catch (err) {
-    actor.value = { id, name: String(id), resource_count: 0 }
+    genre.value = { id, name: String(id), resource_count: 0 }
   } finally {
-    loadingActor.value = false
+    loadingGenre.value = false
   }
 }
 
 async function fetchResources(p = 1) {
   const pg = Number(p || 1)
   page.value = pg
-  await resourceStore.fetchResources({ page: pg, page_size: pageSize.value, actor: actorId.value, search: searchQuery.value, sort_by: sortBy.value, order: sortOrder.value })
+  await resourceStore.fetchResources({ page: pg, page_size: pageSize.value, genre: genreId.value, search: searchQuery.value, sort_by: sortBy.value, order: sortOrder.value })
 }
 
 function onSortChange() {
@@ -182,14 +182,14 @@ async function handleManualRefresh() {
 }
 
 onMounted(async () => {
-  actorId.value = route.params.actorId
-  await loadActorInfo(actorId.value)
+  genreId.value = route.params.genreId
+  await loadGenreInfo(genreId.value)
   await fetchResources(1)
 })
 
-watch(() => route.params.actorId, async (v) => {
-  actorId.value = v
-  await loadActorInfo(actorId.value)
+watch(() => route.params.genreId, async (v) => {
+  genreId.value = v
+  await loadGenreInfo(genreId.value)
   page.value = 1
   await fetchResources(1)
 })
@@ -229,13 +229,13 @@ const displayedResources = computed(() => {
   return []
 })
 
-const initialChar = computed(() => {
-  if (!actor.value || !actor.value.name) return ''
-  return actor.value.name.trim().slice(0, 1)
+const iconText = computed(() => {
+  if (!genre.value || !genre.value.name) return '类'
+  return genre.value.name.trim().slice(0, 2)
 })
 
 const displayedCount = computed(() => {
-  const rc = actor.value && typeof actor.value.resource_count !== 'undefined' ? actor.value.resource_count : null
+  const rc = genre.value && typeof genre.value.resource_count !== 'undefined' ? genre.value.resource_count : null
   if (rc !== null && rc !== undefined) return rc
   return resourceStore.pagination && resourceStore.pagination.total ? resourceStore.pagination.total : 0
 })
@@ -244,11 +244,11 @@ const displayedCount = computed(() => {
 <template>
   <div class="p-6">
     <div class="mb-6 flex items-center gap-6">
-      <div class="w-28 h-28 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl text-white">
-        {{ initialChar }}
+      <div class="w-28 h-28 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl font-bold text-white">
+        {{ iconText }}
       </div>
       <div class="flex-1">
-        <div class="text-2xl font-semibold text-[#f4f4f5]">{{ actor.name }}</div>
+        <div class="text-2xl font-semibold text-[#f4f4f5]">{{ genre.name }}</div>
         <div class="text-sm text-[#71717a]">共有 {{ displayedCount }} 部作品</div>
       </div>
     </div>
@@ -259,20 +259,20 @@ const displayedCount = computed(() => {
       <div class="flex-1 min-w-[250px] relative">
         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
         <input v-model="searchQuery" type="text" placeholder="搜索 AVID、标题、来源..."
-          class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]" />
+          class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#3b82f6] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)] placeholder:text-[#71717a]" />
       </div>
 
       <!-- Filters -->
       <div class="flex gap-3">
         <select v-model="filterStatus"
-          class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]">
+          class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6]">
           <option value="all">全部状态</option>
           <option value="downloaded">已下载</option>
           <option value="pending">未下载</option>
         </select>
 
         <select v-model="sortBy"
-          class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
+          class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6]"
           @change="onSortChange">
           <option value="avid">按编号</option>
           <option value="metadata_create_time">按元数据获取时间</option>
@@ -280,7 +280,7 @@ const displayedCount = computed(() => {
           <option value="source">按来源</option>
         </select>
         <select v-model="sortOrder"
-          class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
+          class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6] ml-2"
           @change="onSortChange">
           <option value="desc">降序</option>
           <option value="asc">升序</option>
@@ -309,7 +309,7 @@ const displayedCount = computed(() => {
       :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
       <template #action>
         <RouterLink to="/add"
-          class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5">
+          class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white hover:-translate-y-0.5">
           添加资源
         </RouterLink>
       </template>

@@ -79,7 +79,10 @@ def main():
 
     for i, obj in enumerate(qs, start=1):
         avid = obj.avid.upper()
-        item = {'avid': avid, 'db': {'cover_filename': obj.cover_filename, 'file_exists': obj.file_exists, 'file_size': obj.file_size, 'video_saved_at': obj.video_saved_at.isoformat() if obj.video_saved_at else None}, 'disk': {}, 'actions': []}
+        item = {'avid': avid,
+                'db': {'cover_filename': obj.cover_filename, 'file_exists': obj.file_exists, 'file_size': obj.file_size,
+                       'video_saved_at': obj.video_saved_at.isoformat() if obj.video_saved_at else None}, 'disk': {},
+                'actions': []}
 
         # find disk files
         cover_path = find_cover(avid, cover_root)
@@ -159,7 +162,8 @@ def main():
 
     # final
     print('\nSummary:')
-    print(f"total: {summary['total']}, checked: {summary['checked']}, updated: {summary['updated']}, skipped: {summary['skipped']}, errors: {len(summary['errors'])}")
+    print(
+        f"total: {summary['total']}, checked: {summary['checked']}, updated: {summary['updated']}, skipped: {summary['skipped']}, errors: {len(summary['errors'])}")
 
     if report_path:
         try:
