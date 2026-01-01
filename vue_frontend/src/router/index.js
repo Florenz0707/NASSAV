@@ -22,11 +22,6 @@ const routes = [
         component: () => import('../views/GenresView.vue')
     },
     {
-        path: '/tags',
-        name: 'Tags',
-        component: () => import('../views/TagsView.vue')
-    },
-    {
         path: '/actors/:actorId',
         name: 'ActorResources',
         component: () => import('../views/ActorDetailView.vue'),
