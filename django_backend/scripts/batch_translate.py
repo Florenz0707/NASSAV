@@ -21,6 +21,10 @@
     # 查看状态统计
     uv run python scripts/batch_translate.py --status
 
+    # 预览模式（不实际翻译，仅显示预处理结果）
+    uv run python scripts/batch_translate.py --sync --dry-run
+    uv run python scripts/batch_translate.py --sync --dry-run --limit 5
+
 注意: 使用 Celery 异步模式前需要启动 worker:
     uv run celery -A django_project worker -l info
 """
@@ -152,6 +156,55 @@ def run_sync_translation(resources, verbose=True):
     return {'success': success, 'failed': failed}
 
 
+def run_dry_run(resources, verbose=True):
+    """
+    预览模式 - 显示原标题、原译文和预览译文（实际调用翻译但不保存）
+
+    Args:
+        resources: 资源列表
+        verbose: 是否显示详细信息
+    """
+    from nassav.translator import translator_manager
+
+    total = len(resources)
+    print(f"\n🔍 预览模式 (dry-run) - 共 {total} 条记录\n")
+    print("=" * 80)
+
+    for idx, resource in enumerate(resources, 1):
+        title = resource.title or resource.source_title
+        avid = resource.avid
+        current_translation = resource.translated_title
+
+        print(f"\n[{idx}/{total}] {avid}")
+
+        if not title:
+            print(f"  ⏭️  无标题，将跳过")
+            continue
+
+        print(f"  原标题: {title}")
+
+        if current_translation:
+            print(f"  原译文: {current_translation}")
+        else:
+            print(f"  原译文: (无)")
+
+        # 调用翻译器获取预览译文
+        try:
+            preview_translation = translator_manager.translate(title)
+            if preview_translation:
+                print(f"  预览译文: {preview_translation}")
+                if current_translation and current_translation != preview_translation:
+                    print(f"  📝 译文有变化")
+            else:
+                print(f"  预览译文: ❌ 翻译失败")
+        except Exception as e:
+            print(f"  预览译文: ❌ 错误: {e}")
+
+    print("\n" + "=" * 80)
+    print(f"\n📊 预览完成: 共 {total} 条记录")
+    print("   使用 --sync 参数（不带 --dry-run）执行实际翻译\n")
+
+
 def run_async_translation(resources=None, avids=None, skip_existing=True):
     """
     异步模式翻译（使用 Celery）
@@ -225,6 +278,7 @@ def main():
   %(prog)s --limit 10           # 只翻译前 10 条
   %(prog)s --avids ABC-001      # 翻译指定 AVID
   %(prog)s --sync               # 同步模式（不使用 Celery）
+  %(prog)s --sync --dry-run     # 预览模式，显示预处理结果
   %(prog)s --status             # 只显示状态统计
   %(prog)s --force              # 重新翻译已完成的
         """
@@ -268,6 +322,12 @@ def main():
         help='静默模式，减少输出'
     )
 
+    parser.add_argument(
+        '--dry-run', '-d',
+        action='store_true',
+        help='预览模式，显示预处理结果但不实际翻译（需配合 --sync 使用）'
+    )
+
     args = parser.parse_args()
 
     # 显示当前状态
@@ -302,6 +362,14 @@ def main():
             print(f"  - {r.avid}: {title[:50]}...")
         if len(resources) > 5:
             print(f"  ... 还有 {len(resources) - 5} 条")
+
+    # dry-run 模式检查
+    if args.dry_run:
+        if not args.sync:
+            print("⚠️  --dry-run 需要配合 --sync 使用")
+            return
+        run_dry_run(resources, verbose=not args.quiet)
+        return
 
     # 确认执行
     if not args.quiet:

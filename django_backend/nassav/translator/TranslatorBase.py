@@ -74,7 +74,6 @@ class TranslatorBase(ABC):
                 result = self.translate(text, source_lang, target_lang)
 
                 if result:
-                    logger.info(f"{translator_name}: 翻译成功")
                     return result
                 else:
                     logger.warning(f"{translator_name}: 翻译返回空结果")

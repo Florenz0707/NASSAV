@@ -57,10 +57,10 @@ class OllamaTranslator(TranslatorBase):
                 model_names = [m.get('name', '') for m in models]
 
                 if self.model in model_names:
-                    logger.info(f"Ollama 服务可用，模型 {self.model} 已加载")
+                    logger.info(f"Ollama 服务可用，加载模型 {self.model}")
                     return True
                 else:
-                    logger.warning(f"Ollama 服务可用，但模型 {self.model} 未找到")
+                    logger.warning(f"Ollama 服务可用，但未找到模型 {self.model} ")
                     logger.info(f"可用模型: {model_names}")
                     return False
             else:
@@ -99,9 +99,9 @@ class OllamaTranslator(TranslatorBase):
                     'stream': False,
                     'options': {
                         'temperature': 0.1,  # 极低随机性，提高翻译一致性
-                        'top_p': 0.8,
+                        'top_p': 0.9,
                         'top_k': 20,  # 限制采样范围
-                        'repeat_penalty': 1.1,  # 降低重复
+                        'repeat_penalty': 0.8,  # 降低重复
                     }
                 },
                 timeout=self.timeout
@@ -115,9 +115,6 @@ class OllamaTranslator(TranslatorBase):
             translated = result.get('response', '').strip()
 
             if translated:
-                logger.debug(f"翻译耗时: {elapsed:.2f}秒")
-                logger.debug(f"原文: {text[:50]}...")
-                logger.debug(f"译文: {translated[:50]}...")
                 return translated
             else:
                 logger.warning("Ollama 返回空翻译结果")

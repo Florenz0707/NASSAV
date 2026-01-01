@@ -64,28 +64,46 @@ class TranslatorManager:
         else:
             pass
 
-    def _apply_fixed_translations(self, text: str) -> str:
+    def _preprocess_fixed_terms(self, text: str) -> tuple[str, list]:
         """
-        应用固定词汇翻译字典
+        预处理：将原文中的固定翻译词汇直接替换为目标中文
 
-        对翻译结果中的特定词汇进行标准化替换，确保一致性
+        这样 LLM 在翻译时会直接保留这些中文词汇
+
+        Args:
+            text: 原始日文文本
+
+        Returns:
+            (处理后的文本, 已替换的词汇列表用于日志)
+        """
+        if not text or not TRANSLATION_DICT:
+            return text, []
+
+        result = text
+        replaced_terms = []  # 记录已替换的词汇
+
+        # 按词汇长度降序排序，优先匹配长词
+        sorted_terms = sorted(TRANSLATION_DICT.items(), key=lambda x: len(x[0]), reverse=True)
+
+        for jp_term, zh_term in sorted_terms:
+            if jp_term in result:
+                result = result.replace(jp_term, zh_term)
+                replaced_terms.append((jp_term, zh_term))
+
+        return result, replaced_terms
+
+    def _postprocess_fixed_terms(self, text: str, replaced_terms: list) -> str:
+        """
+        后处理：目前采用直接替换策略，无需后处理
 
         Args:
             text: 翻译后的文本
+            replaced_terms: 已替换的词汇列表（仅用于兼容性）
 
         Returns:
-            应用固定翻译后的文本
+            原文本
         """
-        if not text or not TRANSLATION_DICT:
-            return text
-
-        result = text
-        for source, target in TRANSLATION_DICT.items():
-            # 使用正则进行不区分大小写的替换（保留原始大小写模式）
-            pattern = re.compile(re.escape(source), re.IGNORECASE)
-            result = pattern.sub(target, result)
-
-        return result
+        return text
 
     def get_translators(self) -> List[Tuple[str, TranslatorBase]]:
         """
@@ -117,19 +135,22 @@ class TranslatorManager:
             logger.error("没有可用的翻译器")
             return None
 
+        # 预处理：将固定翻译词汇替换为占位符
+        processed_text, placeholder_map = self._preprocess_fixed_terms(text)
+
         # 轮询所有翻译器
         for name, translator in self.get_translators():
             try:
                 result = translator.translate_with_retry(
-                    text,
+                    processed_text,
                     max_retries=max_retries,
                     source_lang=source_lang,
                     target_lang=target_lang
                 )
 
                 if result:
-                    # 应用固定词汇翻译
-                    result = self._apply_fixed_translations(result)
+                    # 后处理：将占位符还原为目标中文词汇
+                    result = self._postprocess_fixed_terms(result, placeholder_map)
                     return result
                 else:
                     logger.warning(f"{name} 翻译失败，尝试下一个翻译器")
@@ -161,16 +182,19 @@ class TranslatorManager:
         if not translator:
             return None
 
+        # 预处理：将固定翻译词汇替换为占位符
+        processed_text, placeholder_map = self._preprocess_fixed_terms(text)
+
         result = translator.translate_with_retry(
-            text,
+            processed_text,
             max_retries=max_retries,
             source_lang=source_lang,
             target_lang=target_lang
         )
 
-        # 应用固定词汇翻译
+        # 后处理：将占位符还原为目标中文词汇
         if result:
-            result = self._apply_fixed_translations(result)
+            result = self._postprocess_fixed_terms(result, placeholder_map)
 
         return result
 
@@ -195,6 +219,14 @@ class TranslatorManager:
             logger.error("没有可用的翻译器")
             return [None] * len(texts)
 
+        # 预处理所有文本
+        processed_texts = []
+        placeholder_maps = []
+        for text in texts:
+            processed_text, placeholder_map = self._preprocess_fixed_terms(text)
+            processed_texts.append(processed_text)
+            placeholder_maps.append(placeholder_map)
+
         results = []
 
         # 优先使用第一个可用的翻译器进行批量翻译
@@ -204,7 +236,7 @@ class TranslatorManager:
 
             if first_translator:
                 try:
-                    results = first_translator.batch_translate(texts, source_lang, target_lang)
+                    results = first_translator.batch_translate(processed_texts, source_lang, target_lang)
 
                     # 检查是否有失败的项，对失败的项尝试其他翻译器
                     failed_indices = [i for i, r in enumerate(results) if r is None]
@@ -212,13 +244,13 @@ class TranslatorManager:
                     if failed_indices and len(self.translator_priority) > 1:
 
                         for idx in failed_indices:
-                            text = texts[idx]
+                            processed_text = processed_texts[idx]
                             # 尝试其他翻译器
                             for translator_name in self.translator_priority[1:]:
                                 translator = self.translators.get(translator_name)
                                 if translator:
                                     retry_result = translator.translate_with_retry(
-                                        text,
+                                        processed_text,
                                         max_retries=max_retries,
                                         source_lang=source_lang,
                                         target_lang=target_lang
@@ -227,8 +259,11 @@ class TranslatorManager:
                                         results[idx] = retry_result
                                         break
 
-                    # 应用固定词汇翻译
-                    results = [self._apply_fixed_translations(r) if r else None for r in results]
+                    # 后处理：将占位符还原为目标中文词汇
+                    results = [
+                        self._postprocess_fixed_terms(r, placeholder_maps[i]) if r else None
+                        for i, r in enumerate(results)
+                    ]
 
                     success_count = sum(1 for r in results if r is not None)
                     logger.info(f"批量翻译完成: 成功 {success_count}/{len(texts)}")

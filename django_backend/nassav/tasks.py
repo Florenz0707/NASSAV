@@ -612,9 +612,8 @@ def translate_title_task(self, avid: str):
             resource.translated_title = translated
             resource.translation_status = 'completed'
             resource.save(update_fields=['translated_title', 'translation_status'])
-            logger.info(f"[翻译任务] {avid} 翻译成功")
-            logger.debug(f"  原文: {title_to_translate[:50]}...")
-            logger.debug(f"  译文: {translated[:50]}...")
+            logger.info(f"[翻译任务] {avid} 翻译成功： {title_to_translate} -> {translated}")
+
             return {
                 'success': True,
                 'avid': avid,
