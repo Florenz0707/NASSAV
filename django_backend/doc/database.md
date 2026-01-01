@@ -57,6 +57,12 @@
   - 按 `genres`：类似 `AVResource.objects.filter(genres__name__in=[...])`。
   - 全文/模糊匹配建议：对 `title` 使用数据库的全文/trigram 扩展（在 PostgreSQL 上）以提高搜索体验。
 
+- 聚合查询（Actors/Genres 列表）：
+  - 使用 `Actor.objects.annotate(resource_count=Count('resources'))` 获取演员及其作品数统计。
+  - 使用 `Genre.objects.annotate(resource_count=Count('resources'))` 获取类别及其作品数统计。
+  - 支持按 `resource_count` 或 `name` 排序，可实现"最热演员"或"作品最多类别"等功能。
+  - 在过滤 M2M 关系时使用 `distinct()` 避免重复记录（如同时按 actor 和 genre 过滤时）。
+
 **监控与回滚**
 
 - 所有写入操作记录日志（`loguru`），出错时生成可审计的异常/报告（导入脚本会输出 `errors` 和 `mismatches` 报表）。

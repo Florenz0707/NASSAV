@@ -11,12 +11,32 @@
 
     ![Home](public/preview/home.png)
 
-- 资源库（搜索/过滤/排序/批量浏览）
-  - 功能：支持按 AVID/标题/来源搜索；按状态（已下载/未下载）过滤；按日期/编号/来源排序；卡片操作（下载、刷新、删除资源、删除视频文件）；一键刷新列表悬浮按钮。
+- 资源库（搜索/过滤/排序/批量操作）
+  - 功能：支持按 AVID/标题/来源搜索；按状态（已下载/未下载）过滤；按日期/编号/来源排序；批量操作（下载、刷新、删除）；支持按演员、类别分类浏览；卡片操作（下载、刷新、删除资源、删除视频文件）；一键刷新列表悬浮按钮。
   - 路由：`/resources`
   - 预览：
 
     ![Resources](public/preview/resource.png)
+
+- 演员库（按演员聚合浏览）
+  - 功能：展示所有演员及其作品数；支持搜索演员名称；按作品数或名称排序；分页浏览；点击演员卡片查看该演员的所有作品。
+  - 路由：`/resources/actors`
+  - 预览：
+
+    ![Actors](public/preview/actors.png)
+
+- 类别库（按类别聚合浏览）
+  - 功能：展示所有类别及其作品数；支持搜索类别名称；按作品数或名称排序；分页浏览；点击类别卡片查看该类别的所有作品。
+  - 路由：`/resources/genres`
+  - 预览：（与演员库界面类似，采用统一的卡片设计）
+
+- 演员详情（特定演员的作品列表）
+  - 功能：展示该演员的所有作品；支持搜索、排序、过滤；支持批量操作。
+  - 路由：`/actors/:actorId`
+
+- 类别详情（特定类别的作品列表）
+  - 功能：展示该类别的所有作品；支持搜索、排序、过滤；支持批量操作。
+  - 路由：`/genres/:genreId`
 
 - 资源详情（元数据与操作）
   - 功能：展示封面、标题、发行日期、时长、来源、文件大小、演员、类别等；提交下载、复制本地文件路径用于播放、刷新元信息。
@@ -123,11 +143,34 @@ server {
   - `server.proxy['/nassav'] -> http://localhost:8000`
   - `resolve.alias['@'] = '/src'`
 - 主要代码结构：
-  - 视图：`src/views/`（首页、资源库、详情、添加、下载）
-  - 组件：`src/components/`
+  - 视图：`src/views/`（首页、资源库、演员库、类别库、详情、添加、下载）
+  - 组件：`src/components/`（包括资源卡片、演员卡片、类别卡片、批处理控件等）
   - 路由：`src/router/index.js`
-  - 状态：`src/stores/`
+  - 状态：`src/stores/`（资源、演员、类别等状态管理）
   - 接口封装：`src/api/`
+
+## 新增功能（v1.1）
+
+### 演员与类别聚合浏览
+
+- **演员库**（`/resources/actors`）：展示所有演员及其作品数，支持搜索、排序（按名称/作品数）、分页浏览
+- **类别库**（`/resources/genres`）：展示所有类别及其作品数，支持搜索、排序（按名称/作品数）、分页浏览
+- **演员详情**（`/actors/:actorId`）：查看特定演员的所有作品，支持完整的搜索、排序、过滤和批量操作
+- **类别详情**（`/genres/:genreId`）：查看特定类别的所有作品，支持完整的搜索、排序、过滤和批量操作
+
+### 批处理操作组件化
+
+- 将批处理控件封装为独立的 `BatchControls` 组件，实现代码复用
+- 统一的蓝色系配色风格
+- 支持批量刷新、批量下载、批量删除操作
+- 在资源库、演员详情、类别详情页面中均可使用
+
+### 后端 API 支持
+
+- `GET /nassav/api/actors/` - 获取演员列表，支持分页、搜索、排序
+- `GET /nassav/api/genres/` - 获取类别列表，支持分页、搜索、排序
+- `GET /nassav/api/resources/?actor=<id|name>` - 按演员过滤资源
+- `GET /nassav/api/resources/?genre=<id|name>` - 按类别过滤资源
 
 ## 常见问题（FAQ）
 
@@ -137,15 +180,3 @@ server {
   - 确认生产反向代理 `/nassav` 指向正确后端；或开启后端 CORS 并调整前端 API 地址。
 - 端口冲突（开发）
   - 修改 [vite.config.js](vite.config.js) 中的 `server.port`，或释放 8080 端口。
-
-## 封面与缩略图策略（前端）
-
-- 后端现在支持缩略图接口与 `thumbnail_url` 字段，前端优先使用后端在资源对象中返回的 `thumbnail_url`（如果存在），以便浏览器直接使用 Cache-Control / ETag / Last-Modified 并命中 304。
-- 页面尺寸约定：
-  - 下载页（`/downloads`）：使用 `size=small`（节省带宽、显示小图）。
-  - 资源库（`/resources`）：使用 `size=medium`（卡片视图平衡清晰度与流量）。
-  - 详情页（`/resource/:avid`）：使用原图（无 `size` 参数），以保证最高质量预览。
-- 前端 API：`src/api/index.js` 的 `resourceApi.getCoverUrl(avid, size)` 已支持 `size` 参数（`small|medium|large`）。组件 `ResourceCard` 会优先读取 `resource.thumbnail_url`，若缺失则使用 `resourceApi.getCoverUrl(avid, size)` 回退，只有在极端情况下才以 blob 形式下载原始封面。
-- 验证方法：打开浏览器开发者工具的网络面板，刷新资源列表或下载页，检查图片请求 URL 是否包含 `size=small|medium` 或使用后端返回的 `thumbnail_url`，并观察返回头部是否包含 `304` / `Cache-Control`。
-
-如果你希望更改不同页面的尺寸策略，可在 `ResourceCard` 的 `coverSize` 属性处调整或在视图中传入不同 `size` 参数。

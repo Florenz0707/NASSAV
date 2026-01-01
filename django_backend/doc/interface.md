@@ -23,10 +23,16 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
   - `order`：`asc|desc`
   - `page`、`page_size`
   - `source`：逗号分隔的源列表
+  - `actor`：按演员过滤，可传演员 ID（精确匹配）或名称（模糊匹配）
+  - `genre`：按类别过滤，可传类别 ID（精确匹配）或名称（模糊匹配）
 
 示例请求：
 ```
 GET /nassav/api/resources/?search=abc&status=pending&sort_by=metadata_create_time&order=desc&page=1&page_size=18
+GET /nassav/api/resources/?actor=1                           # 按演员 ID 过滤
+GET /nassav/api/resources/?actor=桥本                         # 按演员名称模糊匹配
+GET /nassav/api/resources/?genre=中文字幕                      # 按类别名称模糊匹配
+GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
 ```
 
 返回：`data` 为数组（资源摘要），响应内含 `pagination` 字段：
@@ -37,6 +43,86 @@ GET /nassav/api/resources/?search=abc&status=pending&sort_by=metadata_create_tim
   "message": "success",
   "data": [ {"avid": "ABC-123", "title": "...", ...}, ... ],
   "pagination": { "total": 120, "page": 1, "page_size": 18, "pages": 7 }
+}
+```
+
+---
+
+## 演员列表（聚合统计）
+
+- 方法：GET
+- 路径：`/nassav/api/actors/`
+- 功能：返回所有演员及其作品数统计，支持分页、搜索和排序
+- 支持 Query 参数：
+  - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
+  - `order_by`：排序字段，`count`（作品数）或 `name`（演员名称），默认 `count`
+  - `order`：排序方向，`asc`（升序）或 `desc`（降序），默认 `desc`
+  - `search`：搜索关键词，模糊匹配演员名称
+  - `id`：演员 ID，精确查询单个演员信息
+
+示例请求：
+```
+GET /nassav/api/actors/?page=1&page_size=20&order_by=count&order=desc
+GET /nassav/api/actors/?search=桥本
+GET /nassav/api/actors/?id=1
+GET /nassav/api/actors/?order_by=name&order=asc
+```
+
+返回示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {"id": 1, "name": "桥本有菜", "resource_count": 85},
+    {"id": 2, "name": "三上悠亚", "resource_count": 72}
+  ],
+  "pagination": {
+    "total": 200,
+    "page": 1,
+    "page_size": 20,
+    "pages": 10
+  }
+}
+```
+
+---
+
+## 类别列表（聚合统计）
+
+- 方法：GET
+- 路径：`/nassav/api/genres/`
+- 功能：返回所有类别及其作品数统计，支持分页、搜索和排序
+- 支持 Query 参数：
+  - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
+  - `order_by`：排序字段，`count`（作品数）或 `name`（类别名称），默认 `count`
+  - `order`：排序方向，`asc`（升序）或 `desc`（降序），默认 `desc`
+  - `search`：搜索关键词，模糊匹配类别名称
+  - `id`：类别 ID，精确查询单个类别信息
+
+示例请求：
+```
+GET /nassav/api/genres/?page=1&page_size=20&order_by=count&order=desc
+GET /nassav/api/genres/?search=中文
+GET /nassav/api/genres/?id=1
+GET /nassav/api/genres/?order_by=name&order=asc
+```
+
+返回示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {"id": 1, "name": "中文字幕", "resource_count": 150},
+    {"id": 2, "name": "人妻", "resource_count": 120}
+  ],
+  "pagination": {
+    "total": 50,
+    "page": 1,
+    "page_size": 20,
+    "pages": 3
+  }
 }
 ```
 
