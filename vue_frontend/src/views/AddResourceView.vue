@@ -3,7 +3,7 @@ import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
 import {useResourceStore} from '../stores/resource'
 import {useToastStore} from '../stores/toast'
-import { sourceApi } from '../api'
+import { sourceApi, resourceApi } from '../api'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const router = useRouter()
@@ -36,9 +36,23 @@ async function handleSubmit() {
 
 	try {
 		const response = await resourceStore.addResource(avid.value.trim().toUpperCase(), source.value)
+		// normalize returned data: backend may put resource under data.resource
+		let data = response && response.data ? response.data : null
+		if (data && data.resource) data = data.resource
+
+		// try to fetch full metadata if needed
+		try {
+			if (data && data.avid) {
+				const metaResp = await resourceApi.getMetadata(data.avid)
+				if (metaResp && metaResp.data) {
+					data = Object.assign({}, data, metaResp.data)
+				}
+			}
+		} catch (e) {}
+
 		result.value = {
 			success: true,
-			data: response.data
+			data
 		}
 		toastStore.success(`${avid.value} 添加成功`)
 	} catch (err) {
@@ -46,7 +60,7 @@ async function handleSubmit() {
 			result.value = {
 				success: false,
 				exists: true,
-				data: err.data
+				data: (err && err.data && err.data.resource) ? err.data.resource : err.data
 			}
 			toastStore.info('资源已存在')
 		} else {
@@ -95,7 +109,8 @@ async function saveCookie() {
 	savingCookie.value = true
 	try {
 		const resp = await sourceApi.setCookie({ source: cookieForm.value.source, cookie: cookieForm.value.cookie })
-		if (resp && resp.code === 0) {
+		const isSuccessCode = resp && (resp.code === 0 || (typeof resp.code === 'number' && resp.code >= 200 && resp.code < 300))
+		if (isSuccessCode) {
 			toastStore.success(`${cookieForm.value.source} Cookie 已保存`)
 			closeCookieModal()
 		} else {

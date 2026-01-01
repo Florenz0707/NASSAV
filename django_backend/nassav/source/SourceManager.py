@@ -259,12 +259,21 @@ class SourceManager:
             except Exception:
                 logger.exception(f"保存 genres 失败: {avid}")
 
-                # 封面文件名写入（如果刚下载成功）
+            # 封面文件名写入（如果刚下载成功）
             try:
                 if result['cover_saved']:
                     cover_path = Path(settings.COVER_DIR) / f"{avid}.jpg"
                     if cover_path.exists():
                         resource_obj.cover_filename = cover_path.name
+                        # 生成缩略图（small/medium/large）到 COVER_DIR/thumbnails/{size}/{AVID}.jpg
+                        try:
+                            from nassav import utils as nassav_utils
+                            sizes = {'small': 200, 'medium': 600, 'large': 1200}
+                            for _name, _width in sizes.items():
+                                dest = Path(settings.COVER_DIR) / 'thumbnails' / _name / f"{avid}.jpg"
+                                nassav_utils.generate_thumbnail(cover_path, dest, _width)
+                        except Exception:
+                            logger.exception(f"生成缩略图失败: {avid}")
                 resource_obj.metadata = info.__dict__ if hasattr(info, '__dict__') else None
                 resource_obj.m3u8 = getattr(info, 'm3u8', '') or ''
                 resource_obj.save()

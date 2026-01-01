@@ -110,6 +110,29 @@ def generate_thumbnail(source_path, dest_path, width: int):
     except Exception:
         return False
 
+    from pathlib import Path
+    sp = Path(source_path)
+    dp = Path(dest_path)
+    dp.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with Image.open(sp) as im:
+            if im.mode in ("RGBA", "P"):
+                im = im.convert("RGB")
+
+            w, h = im.size
+            if w <= width:
+                im.save(dp, format='JPEG', quality=85)
+                return True
+
+            ratio = width / float(w)
+            new_h = int(h * ratio)
+            im = im.resize((width, new_h), Image.LANCZOS)
+            im.save(dp, format='JPEG', quality=85)
+            return True
+    except Exception:
+        return False
+
 
 def generate_etag_from_text(text: str) -> str:
     """Return a quoted ETag string computed from input text."""
@@ -144,28 +167,3 @@ def parse_http_if_modified_since(header_value):
         return val
     except Exception:
         return None
-
-    from pathlib import Path
-    sp = Path(source_path)
-    dp = Path(dest_path)
-    dp.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with Image.open(sp) as im:
-            # convert to RGB to ensure JPEG compatibility
-            if im.mode in ("RGBA", "P"):
-                im = im.convert("RGB")
-
-            w, h = im.size
-            if w <= width:
-                # just save a copy as JPEG
-                im.save(dp, format='JPEG', quality=85)
-                return True
-
-            ratio = width / float(w)
-            new_h = int(h * ratio)
-            im = im.resize((width, new_h), Image.LANCZOS)
-            im.save(dp, format='JPEG', quality=85)
-            return True
-    except Exception:
-        return False
