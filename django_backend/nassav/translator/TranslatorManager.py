@@ -2,14 +2,14 @@
 Translator 管理器 - 管理所有翻译器的注册和调用
 """
 import re
-from typing import Optional, Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from loguru import logger
-
-from .TranslatorBase import TranslatorBase
-from .OllamaTranslator import OllamaTranslator
 from nassav.constants import TRANSLATION_DICT
+
+from .OllamaTranslator import OllamaTranslator
+from .TranslatorBase import TranslatorBase
 
 
 class TranslatorManager:
@@ -17,7 +17,7 @@ class TranslatorManager:
 
     # 翻译器类映射
     TRANSLATOR_CLASSES = {
-        'ollama': OllamaTranslator,
+        "ollama": OllamaTranslator,
         # 未来可以添加其他翻译器：
         # 'google': GoogleTranslator,
         # 'deepl': DeepLTranslator,
@@ -36,13 +36,13 @@ class TranslatorManager:
         self.translator_priority: List[str] = []  # 翻译器优先级列表
 
         # 从配置中读取活动翻译器
-        translator_config = getattr(settings, 'TRANSLATOR_CONFIG', {})
-        active_translator = getattr(settings, 'ACTIVE_TRANSLATOR', 'ollama')
+        translator_config = getattr(settings, "TRANSLATOR_CONFIG", {})
+        active_translator = getattr(settings, "ACTIVE_TRANSLATOR", "ollama")
 
         # 只注册活动的翻译器
         if active_translator in translator_config:
             config = translator_config[active_translator]
-            translator_type = config.get('type', 'ollama')  # 读取 type 字段
+            translator_type = config.get("type", "ollama")  # 读取 type 字段
 
             # 根据 type 获取翻译器类
             translator_class = self.TRANSLATOR_CLASSES.get(translator_type)
@@ -52,15 +52,19 @@ class TranslatorManager:
 
             try:
                 # 提取超时配置（如果有）
-                timeout_val = config.get('timeout', self.timeout)
-                translator = translator_class(timeout=timeout_val, config_name=active_translator)
+                timeout_val = config.get("timeout", self.timeout)
+                translator = translator_class(
+                    timeout=timeout_val, config_name=active_translator
+                )
 
                 # 检查翻译器是否可用
                 if translator.is_available():
                     translator_display_name = translator.get_translator_name()
                     self.translators[translator_display_name] = translator
                     self.translator_priority.append(translator_display_name)
-                    logger.info(f"已加载翻译器: {active_translator} (type: {translator_type})")
+                    logger.info(
+                        f"已加载翻译器: {active_translator} (type: {translator_type})"
+                    )
                 else:
                     logger.warning(f"翻译器 {active_translator} 不可用")
             except Exception as e:
@@ -90,7 +94,9 @@ class TranslatorManager:
         replaced_terms = []  # 记录已替换的词汇
 
         # 按词汇长度降序排序，优先匹配长词
-        sorted_terms = sorted(TRANSLATION_DICT.items(), key=lambda x: len(x[0]), reverse=True)
+        sorted_terms = sorted(
+            TRANSLATION_DICT.items(), key=lambda x: len(x[0]), reverse=True
+        )
 
         for jp_term, zh_term in sorted_terms:
             if jp_term in result:
@@ -119,10 +125,19 @@ class TranslatorManager:
         Returns:
             翻译器列表 [(名称, 翻译器实例), ...]
         """
-        return [(name, self.translators[name]) for name in self.translator_priority if name in self.translators]
+        return [
+            (name, self.translators[name])
+            for name in self.translator_priority
+            if name in self.translators
+        ]
 
-    def translate(self, text: str, source_lang: str = 'ja', target_lang: str = 'zh',
-                 max_retries: int = 3) -> Optional[str]:
+    def translate(
+        self,
+        text: str,
+        source_lang: str = "ja",
+        target_lang: str = "zh",
+        max_retries: int = 3,
+    ) -> Optional[str]:
         """
         翻译文本，自动轮询所有可用翻译器直到成功
 
@@ -152,7 +167,7 @@ class TranslatorManager:
                     processed_text,
                     max_retries=max_retries,
                     source_lang=source_lang,
-                    target_lang=target_lang
+                    target_lang=target_lang,
                 )
 
                 if result:
@@ -169,9 +184,14 @@ class TranslatorManager:
         logger.error(f"所有翻译器都无法翻译: {text[:50]}...")
         return None
 
-    def translate_from_specific(self, text: str, translator_name: str,
-                                source_lang: str = 'ja', target_lang: str = 'zh',
-                                max_retries: int = 3) -> Optional[str]:
+    def translate_from_specific(
+        self,
+        text: str,
+        translator_name: str,
+        source_lang: str = "ja",
+        target_lang: str = "zh",
+        max_retries: int = 3,
+    ) -> Optional[str]:
         """
         使用指定的翻译器翻译文本
 
@@ -196,7 +216,7 @@ class TranslatorManager:
             processed_text,
             max_retries=max_retries,
             source_lang=source_lang,
-            target_lang=target_lang
+            target_lang=target_lang,
         )
 
         # 后处理：将占位符还原为目标中文词汇
@@ -205,8 +225,13 @@ class TranslatorManager:
 
         return result
 
-    def batch_translate(self, texts: List[str], source_lang: str = 'ja',
-                       target_lang: str = 'zh', max_retries: int = 3) -> List[Optional[str]]:
+    def batch_translate(
+        self,
+        texts: List[str],
+        source_lang: str = "ja",
+        target_lang: str = "zh",
+        max_retries: int = 3,
+    ) -> List[Optional[str]]:
         """
         批量翻译文本列表
 
@@ -243,13 +268,14 @@ class TranslatorManager:
 
             if first_translator:
                 try:
-                    results = first_translator.batch_translate(processed_texts, source_lang, target_lang)
+                    results = first_translator.batch_translate(
+                        processed_texts, source_lang, target_lang
+                    )
 
                     # 检查是否有失败的项，对失败的项尝试其他翻译器
                     failed_indices = [i for i, r in enumerate(results) if r is None]
 
                     if failed_indices and len(self.translator_priority) > 1:
-
                         for idx in failed_indices:
                             processed_text = processed_texts[idx]
                             # 尝试其他翻译器
@@ -260,7 +286,7 @@ class TranslatorManager:
                                         processed_text,
                                         max_retries=max_retries,
                                         source_lang=source_lang,
-                                        target_lang=target_lang
+                                        target_lang=target_lang,
                                     )
                                     if retry_result:
                                         results[idx] = retry_result
@@ -268,7 +294,9 @@ class TranslatorManager:
 
                     # 后处理：将占位符还原为目标中文词汇
                     results = [
-                        self._postprocess_fixed_terms(r, placeholder_maps[i]) if r else None
+                        self._postprocess_fixed_terms(r, placeholder_maps[i])
+                        if r
+                        else None
                         for i, r in enumerate(results)
                     ]
 

@@ -5,7 +5,6 @@ from typing import Optional
 
 from curl_cffi import requests
 from loguru import logger
-
 from nassav.constants import HEADERS
 
 
@@ -14,7 +13,7 @@ class ScraperBase:
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         self.proxy = proxy
-        self.proxies = {'http': proxy, 'https': proxy} if proxy else None
+        self.proxies = {"http": proxy, "https": proxy} if proxy else None
         self.timeout = timeout
         self.domain = ""
 

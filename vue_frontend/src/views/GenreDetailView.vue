@@ -32,17 +32,6 @@ const batchMode = ref(false)
 const selectedCount = computed(() => selectedAvids.value.size)
 const refreshing = ref(false)
 
-function goBack() {
-	const fromPath = route.query.from
-	if (fromPath) {
-		// 如果有来源页面，直接跳转回去（保留所有 query 参数）
-		router.push(fromPath)
-	} else {
-		// 否则使用浏览器后退
-		router.back()
-	}
-}
-
 function toggleSelect(avid, checked) {
 	if (!avid) return
 	if (checked) selectedAvids.value.add(avid)
@@ -125,7 +114,7 @@ async function loadGenreInfo(id) {
 			// fallback: set id and empty name
 			genre.value = {id, name: String(id), resource_count: 0}
 		}
-	} catch (err) {
+	} catch (_error) {
 		genre.value = {id, name: String(id), resource_count: 0}
 	} finally {
 		loadingGenre.value = false
@@ -242,7 +231,7 @@ function onPageSizeChange(newSize) {
 
 // debounce search
 let _searchTimer = null
-watch(searchQuery, (val) => {
+watch(searchQuery, () => {
 	if (_searchTimer) clearTimeout(_searchTimer)
 	_searchTimer = setTimeout(() => {
 		page.value = 1
@@ -276,15 +265,18 @@ const displayedCount = computed(() => {
 
 <template>
 	<div class="px-6 pt-4 pb-6">
-
 		<div class="mb-6 flex items-center gap-6">
 			<div
 				class="w-28 h-28 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl font-bold text-white">
 				{{ iconText }}
 			</div>
 			<div class="flex-1">
-				<div class="text-2xl font-semibold text-[#f4f4f5]">{{ genre.name }}</div>
-				<div class="text-sm text-[#71717a]">共有 {{ displayedCount }} 部作品</div>
+				<div class="text-2xl font-semibold text-[#f4f4f5]">
+					{{ genre.name }}
+				</div>
+				<div class="text-sm text-[#71717a]">
+					共有 {{ displayedCount }} 部作品
+				</div>
 			</div>
 		</div>
 
@@ -294,31 +286,49 @@ const displayedCount = computed(() => {
 			<div class="flex-1 min-w-[250px] relative">
 				<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
 				<input v-model="searchQuery" type="text" placeholder="搜索 AVID、标题、来源..."
-					   class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#3b82f6] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)] placeholder:text-[#71717a]"/>
+					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#3b82f6] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)] placeholder:text-[#71717a]">
 			</div>
 
 			<!-- Filters -->
 			<div class="flex gap-3">
 				<select v-model="filterStatus"
-						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6]">
-					<option value="all">全部状态</option>
-					<option value="downloaded">已下载</option>
-					<option value="pending">未下载</option>
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6]">
+					<option value="all">
+						全部状态
+					</option>
+					<option value="downloaded">
+						已下载
+					</option>
+					<option value="pending">
+						未下载
+					</option>
 				</select>
 
 				<select v-model="sortBy"
-						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6]"
-						@change="onSortChange">
-					<option value="avid">按编号</option>
-					<option value="metadata_create_time">按元数据获取时间</option>
-					<option value="video_create_time">按视频下载时间</option>
-					<option value="source">按来源</option>
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6]"
+					@change="onSortChange">
+					<option value="avid">
+						按编号
+					</option>
+					<option value="metadata_create_time">
+						按元数据获取时间
+					</option>
+					<option value="video_create_time">
+						按视频下载时间
+					</option>
+					<option value="source">
+						按来源
+					</option>
 				</select>
 				<select v-model="sortOrder"
-						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6] ml-2"
-						@change="onSortChange">
-					<option value="desc">降序</option>
-					<option value="asc">升序</option>
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#3b82f6] ml-2"
+					@change="onSortChange">
+					<option value="desc">
+						降序
+					</option>
+					<option value="asc">
+						升序
+					</option>
 				</select>
 			</div>
 		</div>
@@ -341,10 +351,10 @@ const displayedCount = computed(() => {
 
 		<!-- Empty State -->
 		<EmptyState v-else-if="displayedResources.length === 0" icon="◇" title="暂无资源"
-					:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
+			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
 			<template #action>
 				<RouterLink to="/add"
-							class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white hover:-translate-y-0.5">
+					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white hover:-translate-y-0.5">
 					添加资源
 				</RouterLink>
 			</template>
@@ -353,13 +363,13 @@ const displayedCount = computed(() => {
 		<!-- Resources Grid -->
 		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
 			<ResourceCard v-for="resource in displayedResources" :key="resource.avid" :resource="resource"
-						  :selectable="batchMode" :selected="selectedAvids.has(resource.avid)"
-						  @toggle-select="toggleSelect"
-						  @download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
-						  @deleteFile="handleDeleteFile" :coverSize="'medium'"/>
+				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)"
+				:coverSize="'medium'"
+				@toggle-select="toggleSelect" @download="handleDownload" @refresh="handleRefresh"
+				@delete="handleDeleteResource" @deleteFile="handleDeleteFile"/>
 		</div>
 		<ResourcePagination :page="page" :pages="resourceStore.pagination.pages" :pageSize="pageSize"
-							:total="resourceStore.pagination.total" @change-page="changePage"
-							@change-page-size="onPageSizeChange"/>
+			:total="resourceStore.pagination.total" @change-page="changePage"
+			@change-page-size="onPageSizeChange"/>
 	</div>
 </template>

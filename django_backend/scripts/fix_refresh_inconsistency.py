@@ -17,14 +17,15 @@ from pathlib import Path
 
 # 设置 Django 环境
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 import django
+
 django.setup()
 
-from nassav.models import AVResource
 from django.conf import settings
 from loguru import logger
+from nassav.models import AVResource
 
 
 def fix_file_exists():
@@ -43,7 +44,7 @@ def fix_file_exists():
             file_size = video_path.stat().st_size
             resource.file_exists = True
             resource.file_size = file_size
-            resource.save(update_fields=['file_exists', 'file_size'])
+            resource.save(update_fields=["file_exists", "file_size"])
             logger.info(f"修复 {resource.avid}: file_exists=True, size={file_size}")
             fixed_count += 1
 
@@ -56,15 +57,17 @@ def fix_translation_status():
     fixed_count = 0
 
     # 查找有译文但状态是 pending 的资源
-    resources = AVResource.objects.filter(
-        translation_status='pending'
-    ).exclude(translated_title__isnull=True).exclude(translated_title='')
+    resources = (
+        AVResource.objects.filter(translation_status="pending")
+        .exclude(translated_title__isnull=True)
+        .exclude(translated_title="")
+    )
 
     logger.info(f"检查 {resources.count()} 个有译文但状态为 pending 的资源...")
 
     for resource in resources:
-        resource.translation_status = 'completed'
-        resource.save(update_fields=['translation_status'])
+        resource.translation_status = "completed"
+        resource.save(update_fields=["translation_status"])
         logger.info(f"修复 {resource.avid}: translation_status=completed")
         fixed_count += 1
 
@@ -80,10 +83,12 @@ def main():
 
     total = file_count + trans_count
     if total > 0:
-        logger.success(f"修复完成！共修复 {total} 处不一致（file_exists: {file_count}, translation_status: {trans_count}）")
+        logger.success(
+            f"修复完成！共修复 {total} 处不一致（file_exists: {file_count}, translation_status: {trans_count}）"
+        )
     else:
         logger.info("未发现需要修复的数据")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

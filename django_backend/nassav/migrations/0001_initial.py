@@ -6,22 +6,32 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='SourceCookie',
+            name="SourceCookie",
             fields=[
-                ('source_name', models.CharField(max_length=50, primary_key=True, serialize=False, unique=True,
-                                                 verbose_name='源名称')),
-                ('cookie', models.TextField(verbose_name='Cookie')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
+                (
+                    "source_name",
+                    models.CharField(
+                        max_length=50,
+                        primary_key=True,
+                        serialize=False,
+                        unique=True,
+                        verbose_name="源名称",
+                    ),
+                ),
+                ("cookie", models.TextField(verbose_name="Cookie")),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="更新时间"),
+                ),
             ],
             options={
-                'verbose_name': '源Cookie配置',
-                'verbose_name_plural': '源Cookie配置',
-                'db_table': 'source_cookie',
+                "verbose_name": "源Cookie配置",
+                "verbose_name_plural": "源Cookie配置",
+                "db_table": "source_cookie",
             },
         ),
     ]

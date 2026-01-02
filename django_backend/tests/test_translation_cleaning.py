@@ -53,12 +53,12 @@ test_cases = [
         "input": """标题：因为被求婚的逢花是个"伪充真"的伪善者，真让人恼火，所以在婚礼前我想和她发生关系，让她多次为我怀孕。 山岸逢花
 
 （注：翻译中保留了"伪充真"的概念，因为这是日本AV标题中常见的表达，用来形容那些表面上伪善但实际上行为不端的女性。同时，使用了"发生关系"和"怀孕"等直白的表达，以符合日本AV标题的风格。）""",
-        "expected": "因为被求婚的逢花是个\"伪充真\"的伪善者，真让人恼火，所以在婚礼前我想和她发生关系，让她多次为我怀孕。 山岸逢花"
+        "expected": '因为被求婚的逢花是个"伪充真"的伪善者，真让人恼火，所以在婚礼前我想和她发生关系，让她多次为我怀孕。 山岸逢花',
     },
     {
         "name": "ABF-139",
         "input": """标题：在一无所有的乡村里，和青梅竹马一起每天进行汗流浃背的激烈性爱。案例13：泷本雫葉【附带MGS专属的额外映像，时长30分钟】""",
-        "expected": "在一无所有的乡村里，和青梅竹马一起每天进行汗流浃背的激烈性爱。案例13：泷本雫葉【附带MGS专属的额外映像，时长30分钟】"
+        "expected": "在一无所有的乡村里，和青梅竹马一起每天进行汗流浃背的激烈性爱。案例13：泷本雫葉【附带MGS专属的额外映像，时长30分钟】",
     },
     {
         "name": "MIDV-023",
@@ -70,18 +70,18 @@ test_cases = [
 3. 保留了原标题中的"8"（第8部），表示这是该系列中的第8部作品。
 4. 采用了中文常见的AV作品标题表达方式，如"天使之吻"和"爱情故事"，同时保持了标题的简洁和吸引力。
 5. 保持了原标题的中文表达风格，同时确保中文标题的流畅性和可读性。""",
-        "expected": "Angel Kiss：ビアンたちの愛情物語8"
+        "expected": "Angel Kiss：ビアンたちの愛情物語8",
     },
     {
         "name": "带注释的简单标题",
         "input": """在无所事事的乡下与青梅竹马的浓密性爱生活 (注: 这是一个测试注释)""",
-        "expected": "在无所事事的乡下与青梅竹马的浓密性爱生活"
+        "expected": "在无所事事的乡下与青梅竹马的浓密性爱生活",
     },
     {
         "name": "带中文括号注释",
         "input": """美少女的秘密恋情（注：保留了人名和地名）- 山田花子""",
-        "expected": "美少女的秘密恋情- 山田花子"
-    }
+        "expected": "美少女的秘密恋情- 山田花子",
+    },
 ]
 
 
@@ -103,18 +103,18 @@ def test_cleaning():
         print(f"\n测试用例: {test['name']}")
         print("-" * 80)
         print("输入:")
-        print(test['input'])
+        print(test["input"])
         print("\n期望输出:")
-        print(test['expected'])
+        print(test["expected"])
 
         # 执行清理
-        cleaned = translator._clean_translation(test['input'])
+        cleaned = translator._clean_translation(test["input"])
 
         print("\n实际输出:")
         print(cleaned)
 
         # 验证
-        if cleaned.strip() == test['expected'].strip():
+        if cleaned.strip() == test["expected"].strip():
             print("\n✅ 通过")
             passed += 1
         else:
@@ -123,8 +123,8 @@ def test_cleaning():
             print(f"  期望长度: {len(test['expected'].strip())}")
             print(f"  实际长度: {len(cleaned.strip())}")
             # 显示字符差异
-            expected_lines = test['expected'].strip().split('\n')
-            actual_lines = cleaned.strip().split('\n')
+            expected_lines = test["expected"].strip().split("\n")
+            actual_lines = cleaned.strip().split("\n")
             if len(expected_lines) != len(actual_lines):
                 print(f"  行数不同: 期望 {len(expected_lines)} 行, 实际 {len(actual_lines)} 行")
             failed += 1
@@ -135,11 +135,12 @@ def test_cleaning():
     return failed == 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import os
+
     import django
 
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
     django.setup()
 
     success = test_cleaning()

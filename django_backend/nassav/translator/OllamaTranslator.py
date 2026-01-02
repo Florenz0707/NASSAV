@@ -25,25 +25,26 @@ class OllamaTranslator(TranslatorBase):
         super().__init__(timeout)
 
         # 从配置中读取 Ollama 设置
-        translator_config = getattr(settings, 'TRANSLATOR_CONFIG', {})
+        translator_config = getattr(settings, "TRANSLATOR_CONFIG", {})
 
         # 如果指定了配置名称，使用该配置；否则使用默认的 ollama 配置
         if config_name and config_name in translator_config:
             ollama_config = translator_config[config_name]
             self.config_name = config_name
         else:
-            ollama_config = translator_config.get('ollama', {})
-            self.config_name = 'ollama'
+            ollama_config = translator_config.get("ollama", {})
+            self.config_name = "ollama"
 
-        self.url = ollama_config.get('url', 'http://localhost:11434')
-        self.model = ollama_config.get('model', 'qwen2.5:7b')
-        self.max_retries = ollama_config.get('max_retries', 3)
+        self.url = ollama_config.get("url", "http://localhost:11434")
+        self.model = ollama_config.get("model", "qwen2.5:7b")
+        self.max_retries = ollama_config.get("max_retries", 3)
         self.prompt_template = ollama_config.get(
-            'prompt_template',
-            '将以下日语标题翻译成简体中文，只返回翻译结果，不要添加任何解释或额外内容：\n{text}'
+            "prompt_template", "将以下日语标题翻译成简体中文，只返回翻译结果，不要添加任何解释或额外内容：\n{text}"
         )
 
-        logger.info(f"初始化 OllamaTranslator [{self.config_name}]: url={self.url}, model={self.model}")
+        logger.info(
+            f"初始化 OllamaTranslator [{self.config_name}]: url={self.url}, model={self.model}"
+        )
 
     def get_translator_name(self) -> str:
         return "Ollama"
@@ -65,58 +66,70 @@ class OllamaTranslator(TranslatorBase):
 
         # 1. 移除常见的标题前缀（包括"翻译结果："）
         prefixes = [
-            r'^\s*翻译结果[:：]\s*',
-            r'^\s*标题[:：]\s*',
-            r'^\s*译文[:：]\s*',
-            r'^\s*翻译[:：]\s*'
+            r"^\s*翻译结果[:：]\s*",
+            r"^\s*标题[:：]\s*",
+            r"^\s*译文[:：]\s*",
+            r"^\s*翻译[:：]\s*",
         ]
         for prefix in prefixes:
-            text = re.sub(prefix, '', text, flags=re.IGNORECASE)
+            text = re.sub(prefix, "", text, flags=re.IGNORECASE)
 
         # 2. 移除标题两端的引号（如果整个标题被引号包裹）
-        text = re.sub(r'^\s*["""](.+)["""]?\s*$', r'\1', text)
+        text = re.sub(r'^\s*["""](.+)["""]?\s*$', r"\1", text)
 
         # 3. 移除多余的星号标记（如 **标题**）
-        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+        text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
 
         # 4. 移除中文括号内的注释（如：（注：...）、（翻译说明：...））
-        text = re.sub(r'（[^）]*注[:：][^）]*）', '', text)
-        text = re.sub(r'（[^）]*翻译说明[:：][^）]*）', '', text)
+        text = re.sub(r"（[^）]*注[:：][^）]*）", "", text)
+        text = re.sub(r"（[^）]*翻译说明[:：][^）]*）", "", text)
 
         # 5. 移除英文括号内的注释（如：(注:...) 或 (Note: ...)）
-        text = re.sub(r'\([^)]*注[:：][^)]*\)', '', text)
-        text = re.sub(r'\([^)]*[Nn]ote[:：][^)]*\)', '', text)
+        text = re.sub(r"\([^)]*注[:：][^)]*\)", "", text)
+        text = re.sub(r"\([^)]*[Nn]ote[:：][^)]*\)", "", text)
 
         # 6. 移除"翻译说明"及其后面的所有内容
-        text = re.split(r'\n\s*翻译说明[:：]', text)[0]
-        text = re.split(r'\n\s*说明[:：]', text)[0]
-        text = re.split(r'\n\s*注[:：]', text)[0]
+        text = re.split(r"\n\s*翻译说明[:：]", text)[0]
+        text = re.split(r"\n\s*说明[:：]", text)[0]
+        text = re.split(r"\n\s*注[:：]", text)[0]
 
         # 7. 移除末尾的说明性语句（如：，并尽量保持...、，以保留...）
-        text = re.sub(r'，并尽量保持[^。！？\n]*[。）)]?$', '', text)
-        text = re.sub(r'，以保留[^。！？\n]*[。）)]?$', '', text)
-        text = re.sub(r'，使[^。！？\n]*更[^。！？\n]*[。）)]?$', '', text)
+        text = re.sub(r"，并尽量保持[^。！？\n]*[。）)]?$", "", text)
+        text = re.sub(r"，以保留[^。！？\n]*[。）)]?$", "", text)
+        text = re.sub(r"，使[^。！？\n]*更[^。！？\n]*[。）)]?$", "", text)
 
         # 8. 移除编号列表（如：1. 2. 3. 或 1） 2））
-        lines = text.split('\n')
+        lines = text.split("\n")
         cleaned_lines = []
         for line in lines:
             # 如果行以数字开头（如 "1. " 或 "1）"），且内容包含解释性文字，跳过
-            if re.match(r'^\s*\d+[.）)]\s*', line):
+            if re.match(r"^\s*\d+[.）)]\s*", line):
                 # 检查是否包含解释性关键词
-                if any(keyword in line for keyword in ['保留', '翻译', '使用', '采用', '表示', '符合', '常见', '风格', '以便']):
+                if any(
+                    keyword in line
+                    for keyword in [
+                        "保留",
+                        "翻译",
+                        "使用",
+                        "采用",
+                        "表示",
+                        "符合",
+                        "常见",
+                        "风格",
+                        "以便",
+                    ]
+                ):
                     continue
             cleaned_lines.append(line)
-        text = '\n'.join(cleaned_lines)
+        text = "\n".join(cleaned_lines)
 
         # 9. 移除多余的空白行
-        text = re.sub(r'\n\s*\n', '\n', text)
+        text = re.sub(r"\n\s*\n", "\n", text)
 
         # 10. 移除首尾空白
         text = text.strip()
 
         return text
-
 
     def is_available(self) -> bool:
         """
@@ -131,8 +144,8 @@ class OllamaTranslator(TranslatorBase):
             if response.status_code == 200:
                 # 检查模型是否存在
                 data = response.json()
-                models = data.get('models', [])
-                model_names = [m.get('name', '') for m in models]
+                models = data.get("models", [])
+                model_names = [m.get("name", "") for m in models]
 
                 if self.model in model_names:
                     logger.info(f"Ollama 服务可用，加载模型 {self.model}")
@@ -148,7 +161,9 @@ class OllamaTranslator(TranslatorBase):
             logger.error(f"检查 Ollama 服务可用性失败: {e}")
             return False
 
-    def translate(self, text: str, source_lang: str = 'ja', target_lang: str = 'zh') -> Optional[str]:
+    def translate(
+        self, text: str, source_lang: str = "ja", target_lang: str = "zh"
+    ) -> Optional[str]:
         """
         使用 Ollama 翻译文本
 
@@ -172,17 +187,17 @@ class OllamaTranslator(TranslatorBase):
             response = requests.post(
                 f"{self.url}/api/generate",
                 json={
-                    'model': self.model,
-                    'prompt': prompt,
-                    'stream': False,
-                    'options': {
-                        'temperature': 0.1,  # 极低随机性，提高翻译一致性
-                        'top_p': 0.9,
-                        'top_k': 20,  # 限制采样范围
-                        'repeat_penalty': 0.8,  # 降低重复
-                    }
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.1,  # 极低随机性，提高翻译一致性
+                        "top_p": 0.9,
+                        "top_k": 20,  # 限制采样范围
+                        "repeat_penalty": 0.8,  # 降低重复
+                    },
                 },
-                timeout=self.timeout
+                timeout=self.timeout,
             )
             elapsed = time.time() - start_time
 
@@ -190,7 +205,7 @@ class OllamaTranslator(TranslatorBase):
             result = response.json()
 
             # 提取翻译结果
-            translated = result.get('response', '').strip()
+            translated = result.get("response", "").strip()
 
             if translated:
                 # 清理翻译结果中的多余说明
@@ -210,8 +225,9 @@ class OllamaTranslator(TranslatorBase):
             logger.error(f"Ollama 翻译异常: {e}")
             return None
 
-    def batch_translate(self, texts: list[str], source_lang: str = 'ja',
-                       target_lang: str = 'zh') -> list[Optional[str]]:
+    def batch_translate(
+        self, texts: list[str], source_lang: str = "ja", target_lang: str = "zh"
+    ) -> list[Optional[str]]:
         """
         批量翻译（逐个翻译，保持顺序）
 
@@ -228,8 +244,12 @@ class OllamaTranslator(TranslatorBase):
 
         for i, text in enumerate(texts, 1):
             logger.info(f"翻译进度: {i}/{len(texts)}")
-            result = self.translate_with_retry(text, max_retries=self.max_retries,
-                                              source_lang=source_lang, target_lang=target_lang)
+            result = self.translate_with_retry(
+                text,
+                max_retries=self.max_retries,
+                source_lang=source_lang,
+                target_lang=target_lang,
+            )
             results.append(result)
 
             # 避免请求过快

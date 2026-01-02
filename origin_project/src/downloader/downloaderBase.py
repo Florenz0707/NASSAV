@@ -1,13 +1,16 @@
 # doc: 定义下载类的基础操作
-from abc import ABC, abstractmethod
 import json
-from loguru import logger
 import os
-from dataclasses import dataclass, asdict, field
-from typing import Optional, Tuple
+from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from ..comm import *
+from typing import Optional, Tuple
+
 from curl_cffi import requests
+from loguru import logger
+
+from ..comm import *
+
 
 # 下载信息，只保留最基础的信息。只需要填写avid，其他字段用于调试，选填
 @dataclass
@@ -29,18 +32,20 @@ class AVDownloadInfo:
             path = Path(file_path) if isinstance(file_path, str) else file_path
             path.parent.mkdir(parents=True, exist_ok=True)
 
-            with path.open('w', encoding='utf-8') as f:
+            with path.open("w", encoding="utf-8") as f:
                 json.dump(asdict(self), f, ensure_ascii=False, indent=indent)
             return True
         except (IOError, TypeError) as e:
             logger.error(f"JSON序列化失败: {str(e)}")
             return False
 
+
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5"
+    "Accept-Language": "en-US,en;q=0.5",
 }
+
 
 class Downloader(ABC):
     """
@@ -50,17 +55,15 @@ class Downloader(ABC):
     3. downloadIMG下载封面和演员头像
     4. genNFO生成nfo文件
     """
-    def __init__(self, path: str, proxy = None, timeout = 15):
+
+    def __init__(self, path: str, proxy=None, timeout=15):
         """
         :path: 配置的路径，如/vol2/user/missav
         :avid: 车牌号
         """
         self.path = path
         self.proxy = proxy
-        self.proxies = {
-            'http': proxy,
-            'https': proxy
-        } if proxy else None
+        self.proxies = {"http": proxy, "https": proxy} if proxy else None
         self.timeout = timeout
 
     def setDomain(self, domain: str) -> bool:
@@ -75,19 +78,19 @@ class Downloader(ABC):
 
     @abstractmethod
     def getHTML(self, avid: str) -> Optional[str]:
-        '''需要实现的方法：根据avid，构造url并请求，获取html, 返回字符串'''
+        """需要实现的方法：根据avid，构造url并请求，获取html, 返回字符串"""
         pass
 
     @abstractmethod
     def parseHTML(self, html: str, avid: str) -> Optional[AVDownloadInfo]:
-        '''
+        """
         需要实现的方法：根据html，解析出元数据，返回AVDownloadInfo
         注意：实现新的downloader，只需要获取到m3u8就行了(也可以多匹配点方便调试)，元数据统一使用MissAV
-        '''
+        """
         pass
 
     def downloadInfo(self, avid: str) -> Optional[AVDownloadInfo]:
-        '''将元数据download_info.json序列化到到对应位置，同时返回AVDownloadInfo'''
+        """将元数据download_info.json序列化到到对应位置，同时返回AVDownloadInfo"""
         # 获取html
         avid = avid.upper()
         print(os.path.join(self.path, avid))
@@ -96,7 +99,9 @@ class Downloader(ABC):
         if not html:
             logger.error("获取html失败")
             return None
-        with open(os.path.join(self.path, avid, avid+".html"), "w+", encoding='utf-8') as f:
+        with open(
+            os.path.join(self.path, avid, avid + ".html"), "w+", encoding="utf-8"
+        ) as f:
             f.write(html)
 
         # 从html中解析元数据，返回MissAVInfo结构体
@@ -105,12 +110,11 @@ class Downloader(ABC):
             logger.error("解析元数据失败")
             return None
 
-        info.avid = info.avid.upper() # 强制大写
+        info.avid = info.avid.upper()  # 强制大写
         info.to_json(os.path.join(self.path, avid, "download_info.json"))
         logger.info("已保存到 download_info.json")
 
         return info
-
 
     def downloadM3u8(self, url: str, avid: str) -> bool:
         """m3u8视频下载"""

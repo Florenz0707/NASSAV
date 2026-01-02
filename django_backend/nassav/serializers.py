@@ -8,12 +8,12 @@ from .models import AVResource
 class LocalSerializerMethodField(Field):
     def __init__(self, method_name=None, **kwargs):
         self.method_name = method_name
-        kwargs['read_only'] = True
+        kwargs["read_only"] = True
         super().__init__(**kwargs)
 
     def bind(self, field_name, parent):
         if self.method_name is None:
-            self.method_name = f'get_{field_name}'
+            self.method_name = f"get_{field_name}"
         super().bind(field_name, parent)
 
     def to_representation(self, value):
@@ -27,28 +27,32 @@ class LocalSerializerMethodField(Field):
 
 class NewResourceSerializer(serializers.Serializer):
     """新增资源请求序列化器"""
+
     avid = serializers.CharField(max_length=50)
-    source = serializers.CharField(max_length=50, default='any', required=False)
+    source = serializers.CharField(max_length=50, default="any", required=False)
 
 
 class DownloadRequestSerializer(serializers.Serializer):
     """下载请求序列化器"""
+
     avid = serializers.CharField(max_length=50)
 
 
 class SourceCookieSerializer(serializers.Serializer):
     """设置源Cookie请求序列化器"""
+
     source = serializers.CharField(max_length=50)
     cookie = serializers.CharField()
 
 
 class ResourceSummarySerializer(serializers.Serializer):
     """列表视图使用的资源摘要序列化器（显式字段，避免 ModelSerializer 自动映射）"""
+
     avid = serializers.CharField()
     title = LocalSerializerMethodField()  # 按优先级返回标题
     source = serializers.CharField(allow_blank=True)
     release_date = serializers.CharField(allow_blank=True)
-    has_video = serializers.BooleanField(source='file_exists')
+    has_video = serializers.BooleanField(source="file_exists")
     metadata_create_time = LocalSerializerMethodField()
     video_create_time = LocalSerializerMethodField()
     genres = LocalSerializerMethodField()  # 类别列表
@@ -57,21 +61,35 @@ class ResourceSummarySerializer(serializers.Serializer):
     def get_title(self, obj):
         """根据配置返回标题字段"""
         from django.conf import settings
-        display_title = getattr(settings, 'DISPLAY_TITLE', 'source_title')
+
+        display_title = getattr(settings, "DISPLAY_TITLE", "source_title")
 
         # 根据配置返回对应字段
-        if display_title == 'translated_title':
-            return getattr(obj, 'translated_title', None) or getattr(obj, 'source_title', None) or obj.title or ''
-        elif display_title == 'title':
-            return obj.title or getattr(obj, 'source_title', None) or ''
+        if display_title == "translated_title":
+            return (
+                getattr(obj, "translated_title", None)
+                or getattr(obj, "source_title", None)
+                or obj.title
+                or ""
+            )
+        elif display_title == "title":
+            return obj.title or getattr(obj, "source_title", None) or ""
         else:  # 默认 source_title
-            return getattr(obj, 'source_title', None) or obj.title or ''
+            return getattr(obj, "source_title", None) or obj.title or ""
 
     def get_metadata_create_time(self, obj):
-        return obj.metadata_saved_at.timestamp() if getattr(obj, 'metadata_saved_at', None) else None
+        return (
+            obj.metadata_saved_at.timestamp()
+            if getattr(obj, "metadata_saved_at", None)
+            else None
+        )
 
     def get_video_create_time(self, obj):
-        return obj.video_saved_at.timestamp() if getattr(obj, 'video_saved_at', None) else None
+        return (
+            obj.video_saved_at.timestamp()
+            if getattr(obj, "video_saved_at", None)
+            else None
+        )
 
     def get_genres(self, obj):
         """获取类别列表"""
@@ -82,8 +100,10 @@ class ResourceSummarySerializer(serializers.Serializer):
 
     def get_thumbnail_url(self, obj):
         try:
-            from django.conf import settings
             from pathlib import Path
+
+            from django.conf import settings
+
             cover_root = Path(settings.COVER_DIR)
             cover_name = obj.cover_filename or f"{obj.avid}.jpg"
             cover_path = cover_root / cover_name
@@ -98,11 +118,16 @@ class ResourceSummarySerializer(serializers.Serializer):
 
 class ResourceSerializer(serializers.Serializer):
     """完整资源元数据序列化器（用于 detail/metadata）"""
+
     avid = serializers.CharField()
     title = LocalSerializerMethodField()  # 按优先级返回标题
     original_title = LocalSerializerMethodField()  # 原始日语标题
-    source_title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    translated_title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    source_title = serializers.CharField(
+        allow_blank=True, allow_null=True, required=False
+    )
+    translated_title = serializers.CharField(
+        allow_blank=True, allow_null=True, required=False
+    )
     translation_status = serializers.CharField(allow_blank=True, required=False)  # 翻译状态
     m3u8 = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     source = serializers.CharField(allow_blank=True, required=False)
@@ -112,42 +137,57 @@ class ResourceSerializer(serializers.Serializer):
     studio = serializers.CharField(allow_blank=True, required=False)
     label = serializers.CharField(allow_blank=True, required=False)
     series = serializers.CharField(allow_blank=True, required=False)
-    actors = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
-    genres = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
+    actors = serializers.ListField(
+        child=serializers.CharField(), allow_empty=True, required=False
+    )
+    genres = serializers.ListField(
+        child=serializers.CharField(), allow_empty=True, required=False
+    )
     file_size = serializers.IntegerField(allow_null=True, required=False)
     file_exists = serializers.BooleanField(required=False)
 
     def get_title(self, obj):
         """根据配置返回标题字段"""
         from django.conf import settings
-        display_title = getattr(settings, 'DISPLAY_TITLE', 'source_title')
+
+        display_title = getattr(settings, "DISPLAY_TITLE", "source_title")
 
         if isinstance(obj, dict):
-            if display_title == 'translated_title':
-                return obj.get('translated_title') or obj.get('source_title') or obj.get('title', '')
-            elif display_title == 'title':
-                return obj.get('title', '') or obj.get('source_title') or ''
+            if display_title == "translated_title":
+                return (
+                    obj.get("translated_title")
+                    or obj.get("source_title")
+                    or obj.get("title", "")
+                )
+            elif display_title == "title":
+                return obj.get("title", "") or obj.get("source_title") or ""
             else:  # 默认 source_title
-                return obj.get('source_title') or obj.get('title', '')
+                return obj.get("source_title") or obj.get("title", "")
         else:
-            if display_title == 'translated_title':
-                return getattr(obj, 'translated_title', None) or getattr(obj, 'source_title', None) or obj.title or ''
-            elif display_title == 'title':
-                return obj.title or getattr(obj, 'source_title', None) or ''
+            if display_title == "translated_title":
+                return (
+                    getattr(obj, "translated_title", None)
+                    or getattr(obj, "source_title", None)
+                    or obj.title
+                    or ""
+                )
+            elif display_title == "title":
+                return obj.title or getattr(obj, "source_title", None) or ""
             else:  # 默认 source_title
-                return getattr(obj, 'source_title', None) or obj.title or ''
+                return getattr(obj, "source_title", None) or obj.title or ""
 
     def get_original_title(self, obj):
         """返回原始日语标题（Scraper 获取的标题）"""
         if isinstance(obj, dict):
-            return obj.get('title', '')
-        return obj.title or ''
+            return obj.get("title", "")
+        return obj.title or ""
 
 
 class ResourceCreateSerializer(serializers.Serializer):
     """用于创建资源的输入校验序列化器"""
+
     avid = serializers.CharField(max_length=50)
-    source = serializers.CharField(max_length=128, default='any', required=False)
+    source = serializers.CharField(max_length=128, default="any", required=False)
 
     def validate_avid(self, value):
         return value.strip().upper()

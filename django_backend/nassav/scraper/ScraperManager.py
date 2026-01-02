@@ -1,13 +1,13 @@
 """
 Scraper 管理器 - 管理所有刮削器的注册和调用
 """
-from typing import Optional, Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from loguru import logger
 
+from .Javbus import Busdmm, Dmmsee, Javbus
 from .ScraperBase import ScraperBase
-from .Javbus import Javbus, Busdmm, Dmmsee
 
 
 class ScraperManager:
@@ -15,9 +15,9 @@ class ScraperManager:
 
     # 刮削器类映射
     SCRAPER_CLASSES = {
-        'javbus': Javbus,
-        'busdmm': Busdmm,
-        'dmmsee': Dmmsee,
+        "javbus": Javbus,
+        "busdmm": Busdmm,
+        "dmmsee": Dmmsee,
     }
 
     def __init__(self, proxy: Optional[str] = None):
@@ -29,7 +29,7 @@ class ScraperManager:
 
         for scraper_name, scraper_class in self.SCRAPER_CLASSES.items():
             config = scraper_config.get(scraper_name, {})
-            domain = config.get('domain')
+            domain = config.get("domain")
             # 只有配置了域名的刮削器才会被注册
             if domain:
                 scraper = scraper_class(proxy)

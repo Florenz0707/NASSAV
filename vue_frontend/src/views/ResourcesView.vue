@@ -164,7 +164,7 @@ const filteredResources = computed(() => {
 
 // debounce search input to avoid frequent requests
 let _searchTimer = null
-watch(searchQuery, (val) => {
+watch(searchQuery, () => {
 	if (_searchTimer) clearTimeout(_searchTimer)
 	_searchTimer = setTimeout(() => {
 		page.value = 1
@@ -258,7 +258,9 @@ function onPageSizeChange(newSize) {
 	<div class="animate-[fadeIn_0.5s_ease]">
 		<!-- Page Header -->
 		<div class="mb-8">
-			<h1 class="text-[2rem] font-bold text-[#f4f4f5] mb-2">资源库</h1>
+			<h1 class="text-[2rem] font-bold text-[#f4f4f5] mb-2">
+				资源库
+			</h1>
 			<!-- Results Info -->
 			<div v-if="!resourceStore.loading" class="mb-6 text-[#71717a] text-sm">
 				<span>管理您的 {{ resourceStore.pagination.total }} 个资源</span>
@@ -271,31 +273,49 @@ function onPageSizeChange(newSize) {
 			<div class="flex-1 min-w-[250px] relative">
 				<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
 				<input v-model="searchQuery" type="text" placeholder="搜索 AVID、标题、来源..."
-					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]" />
+					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]" >
 			</div>
 
 			<!-- Filters -->
 			<div class="flex gap-3">
 				<select v-model="filterStatus"
 					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]">
-					<option value="all">全部状态</option>
-					<option value="downloaded">已下载</option>
-					<option value="pending">未下载</option>
+					<option value="all">
+						全部状态
+					</option>
+					<option value="downloaded">
+						已下载
+					</option>
+					<option value="pending">
+						未下载
+					</option>
 				</select>
 
 				<select v-model="sortBy"
 					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
 					@change="onSortChange">
-					<option value="avid">按编号</option>
-					<option value="metadata_create_time">按元数据获取时间</option>
-					<option value="video_create_time">按视频下载时间</option>
-					<option value="source">按来源</option>
+					<option value="avid">
+						按编号
+					</option>
+					<option value="metadata_create_time">
+						按元数据获取时间
+					</option>
+					<option value="video_create_time">
+						按视频下载时间
+					</option>
+					<option value="source">
+						按来源
+					</option>
 				</select>
 				<select v-model="sortOrder"
 					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
 					@change="onSortChange">
-					<option value="desc">降序</option>
-					<option value="asc">升序</option>
+					<option value="desc">
+						降序
+					</option>
+					<option value="asc">
+						升序
+					</option>
 				</select>
 			</div>
 		</div>
@@ -323,9 +343,9 @@ function onPageSizeChange(newSize) {
 		<!-- Resources Grid -->
 		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
 			<ResourceCard v-for="resource in filteredResources" :key="resource.avid" :resource="resource"
-				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)" @toggle-select="toggleSelect"
-				@download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
-				@deleteFile="handleDeleteFile" :coverSize="'medium'" />
+				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)" :coverSize="'medium'"
+				@toggle-select="toggleSelect" @download="handleDownload" @refresh="handleRefresh"
+				@delete="handleDeleteResource" @deleteFile="handleDeleteFile" />
 		</div>
 		<ResourcePagination :page="page" :pages="resourceStore.pagination.pages" :pageSize="pageSize"
 			:total="resourceStore.pagination.total" @change-page="changePage" @change-page-size="onPageSizeChange" />
@@ -333,7 +353,7 @@ function onPageSizeChange(newSize) {
 		<!-- Floating Refresh Button -->
 		<button
 			class="fixed bottom-8 right-8 w-[60px] h-[60px] rounded-full bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-none shadow-[0_4px_20px_rgba(255,107,107,0.3)] cursor-pointer transition-all duration-300 z-[1000] flex items-center justify-center text-white text-xl hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-			:disabled="refreshing" @click="handleManualRefresh" :title="refreshing ? '刷新中...' : '刷新资源列表'">
+			:disabled="refreshing" :title="refreshing ? '刷新中...' : '刷新资源列表'" @click="handleManualRefresh">
 			<span class="block transition-transform duration-300" :class="{ 'animate-spin': refreshing }">
 				{{ refreshing ? '◷' : '↻' }}
 			</span>

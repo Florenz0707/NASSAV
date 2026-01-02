@@ -15,13 +15,15 @@ defineProps({
 	<div class="flex flex-row items-center justify-center" :class="size">
 		<div class="relative flex items-center justify-center spinner">
 			<div
-				class="absolute rounded-full border-2 border-transparent border-t-[#ff6b6b] animate-spin spinner-ring"></div>
+				class="absolute rounded-full border-2 border-transparent border-t-[#ff6b6b] animate-spin spinner-ring"/>
 			<div
-				class="absolute rounded-full border-2 border-transparent border-t-[#ff9f43] animate-[spin_1.2s_linear_0.1s_infinite_reverse] spinner-ring-2"></div>
+				class="absolute rounded-full border-2 border-transparent border-t-[#ff9f43] animate-[spin_1.2s_linear_0.1s_infinite_reverse] spinner-ring-2"/>
 			<div
-				class="absolute rounded-full border-2 border-transparent border-t-[#4ecdc4] animate-[spin_1.2s_linear_0.2s_infinite] spinner-ring-3"></div>
+				class="absolute rounded-full border-2 border-transparent border-t-[#4ecdc4] animate-[spin_1.2s_linear_0.2s_infinite] spinner-ring-3"/>
 		</div>
-		<p v-if="text" class="text-sm text-[#71717a] ml-3 animate-pulse">{{ text }}</p>
+		<p v-if="text" class="text-sm text-[#71717a] ml-3 animate-pulse">
+			{{ text }}
+		</p>
 	</div>
 </template>
 

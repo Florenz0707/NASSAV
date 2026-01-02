@@ -29,18 +29,19 @@
     uv run celery -A django_project worker -l info
 """
 
+import argparse
 import os
 import sys
-import argparse
 import time
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Django 设置
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 import django
+
 django.setup()
 
 from nassav.models import AVResource
@@ -50,7 +51,7 @@ from nassav.tasks import batch_translate_titles_task, translate_title_task
 def get_status_stats():
     """获取翻译状态统计"""
     stats = {}
-    for status in ['pending', 'translating', 'completed', 'failed', 'skipped']:
+    for status in ["pending", "translating", "completed", "failed", "skipped"]:
         count = AVResource.objects.filter(translation_status=status).count()
         stats[status] = count
     return stats
@@ -85,11 +86,13 @@ def get_pending_resources(limit=None, force=False):
     from django.db.models import Q
 
     # 必须有标题
-    query = (Q(title__isnull=False) & ~Q(title='')) | (Q(source_title__isnull=False) & ~Q(source_title=''))
+    query = (Q(title__isnull=False) & ~Q(title="")) | (
+        Q(source_title__isnull=False) & ~Q(source_title="")
+    )
 
     if not force:
         # 只查询 pending 或 failed 状态的
-        query &= Q(translation_status__in=['pending', 'failed'])
+        query &= Q(translation_status__in=["pending", "failed"])
 
     resources = AVResource.objects.filter(query)
 
@@ -120,40 +123,40 @@ def run_sync_translation(resources, verbose=True):
         if not title:
             if verbose:
                 print(f"  [{idx}/{total}] ⏭️  {resource.avid}: 无标题，跳过")
-            resource.translation_status = 'skipped'
-            resource.save(update_fields=['translation_status'])
+            resource.translation_status = "skipped"
+            resource.save(update_fields=["translation_status"])
             continue
 
         # 更新状态为翻译中
-        resource.translation_status = 'translating'
-        resource.save(update_fields=['translation_status'])
+        resource.translation_status = "translating"
+        resource.save(update_fields=["translation_status"])
 
         try:
             translated = translator_manager.translate(title)
             if translated:
                 resource.translated_title = translated
-                resource.translation_status = 'completed'
-                resource.save(update_fields=['translated_title', 'translation_status'])
+                resource.translation_status = "completed"
+                resource.save(update_fields=["translated_title", "translation_status"])
                 success += 1
                 if verbose:
                     print(f"  [{idx}/{total}] ✅ {resource.avid}")
                     print(f"              原文: {title[:40]}...")
                     print(f"              译文: {translated[:40]}...")
             else:
-                resource.translation_status = 'failed'
-                resource.save(update_fields=['translation_status'])
+                resource.translation_status = "failed"
+                resource.save(update_fields=["translation_status"])
                 failed += 1
                 if verbose:
                     print(f"  [{idx}/{total}] ❌ {resource.avid}: 翻译返回空")
         except Exception as e:
-            resource.translation_status = 'failed'
-            resource.save(update_fields=['translation_status'])
+            resource.translation_status = "failed"
+            resource.save(update_fields=["translation_status"])
             failed += 1
             if verbose:
                 print(f"  [{idx}/{total}] ❌ {resource.avid}: {e}")
 
     print(f"\n✅ 同步翻译完成: 成功 {success}, 失败 {failed}\n")
-    return {'success': success, 'failed': failed}
+    return {"success": success, "failed": failed}
 
 
 def run_dry_run(resources, verbose=True):
@@ -216,9 +219,13 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
     if avids is None and resources:
         avids = [r.avid for r in resources]
 
-    total = len(avids) if avids else AVResource.objects.filter(
-        translation_status__in=['pending', 'failed']
-    ).count()
+    total = (
+        len(avids)
+        if avids
+        else AVResource.objects.filter(
+            translation_status__in=["pending", "failed"]
+        ).count()
+    )
 
     print(f"\n🚀 提交 Celery 异步翻译任务...")
     print(f"   待翻译数量: {total}")
@@ -226,8 +233,7 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
     try:
         # 提交批量翻译任务
         task_result = batch_translate_titles_task.delay(
-            avids=avids,
-            skip_existing=skip_existing
+            avids=avids, skip_existing=skip_existing
         )
 
         print(f"   任务 ID: {task_result.id}")
@@ -238,24 +244,28 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
         while not task_result.ready():
             elapsed = time.time() - start_time
             stats = get_status_stats()
-            print(f"\r   已用时间: {elapsed:.1f}s | "
-                  f"完成: {stats['completed']} | "
-                  f"翻译中: {stats['translating']} | "
-                  f"失败: {stats['failed']}", end='', flush=True)
+            print(
+                f"\r   已用时间: {elapsed:.1f}s | "
+                f"完成: {stats['completed']} | "
+                f"翻译中: {stats['translating']} | "
+                f"失败: {stats['failed']}",
+                end="",
+                flush=True,
+            )
             time.sleep(2)
 
         print()  # 换行
 
         result = task_result.result
 
-        if result and result.get('success'):
+        if result and result.get("success"):
             print(f"\n✅ 批量翻译任务完成!")
             print(f"   总计: {result.get('total', 0)}")
             print(f"   成功: {result.get('translated', 0)}")
             print(f"   失败: {result.get('failed', 0)}")
             print(f"   跳过: {result.get('skipped', 0)}")
         else:
-            error = result.get('error', '未知错误') if result else '任务返回空'
+            error = result.get("error", "未知错误") if result else "任务返回空"
             print(f"\n❌ 批量翻译任务失败: {error}")
 
         return result
@@ -269,7 +279,7 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='批量翻译资源标题',
+        description="批量翻译资源标题",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -280,51 +290,25 @@ def main():
   %(prog)s --sync --dry-run     # 预览模式，显示预处理结果
   %(prog)s --status             # 只显示状态统计
   %(prog)s --force              # 重新翻译已完成的
-        """
+        """,
     )
 
-    parser.add_argument(
-        '--limit', '-l',
-        type=int,
-        default=None,
-        help='限制翻译数量'
-    )
+    parser.add_argument("--limit", "-l", type=int, default=None, help="限制翻译数量")
+
+    parser.add_argument("--avids", "-a", nargs="+", default=None, help="指定要翻译的 AVID 列表")
 
     parser.add_argument(
-        '--avids', '-a',
-        nargs='+',
-        default=None,
-        help='指定要翻译的 AVID 列表'
+        "--sync", "-s", action="store_true", help="使用同步模式（不需要 Celery worker）"
     )
 
-    parser.add_argument(
-        '--sync', '-s',
-        action='store_true',
-        help='使用同步模式（不需要 Celery worker）'
-    )
+    parser.add_argument("--force", "-f", action="store_true", help="强制重新翻译（包括已翻译的）")
+
+    parser.add_argument("--status", action="store_true", help="只显示翻译状态统计")
+
+    parser.add_argument("--quiet", "-q", action="store_true", help="静默模式，减少输出")
 
     parser.add_argument(
-        '--force', '-f',
-        action='store_true',
-        help='强制重新翻译（包括已翻译的）'
-    )
-
-    parser.add_argument(
-        '--status',
-        action='store_true',
-        help='只显示翻译状态统计'
-    )
-
-    parser.add_argument(
-        '--quiet', '-q',
-        action='store_true',
-        help='静默模式，减少输出'
-    )
-
-    parser.add_argument(
-        '--dry-run', '-d',
-        action='store_true',
-        help='预览模式，显示预处理结果但不实际翻译（需配合 --sync 使用）'
+        "--dry-run", "-d", action="store_true", help="预览模式，显示预处理结果但不实际翻译（需配合 --sync 使用）"
     )
 
     args = parser.parse_args()
@@ -357,7 +341,7 @@ def main():
     if not args.quiet:
         print("\n待翻译资源预览:")
         for r in resources[:5]:
-            title = r.title or r.source_title or '无标题'
+            title = r.title or r.source_title or "无标题"
             print(f"  - {r.avid}: {title[:50]}...")
         if len(resources) > 5:
             print(f"  ... 还有 {len(resources) - 5} 条")
@@ -374,7 +358,7 @@ def main():
     if not args.quiet:
         try:
             confirm = input(f"\n确认开始翻译 {len(resources)} 条记录? [y/N]: ")
-            if confirm.lower() != 'y':
+            if confirm.lower() != "y":
                 print("已取消")
                 return
         except EOFError:
@@ -388,14 +372,11 @@ def main():
     else:
         # 异步模式
         avids = [r.avid for r in resources] if args.avids or args.limit else None
-        run_async_translation(
-            avids=avids,
-            skip_existing=not args.force
-        )
+        run_async_translation(avids=avids, skip_existing=not args.force)
 
     # 显示最终状态
     print_status()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

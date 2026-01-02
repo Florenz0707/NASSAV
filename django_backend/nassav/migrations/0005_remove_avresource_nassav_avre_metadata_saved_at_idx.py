@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('nassav', '0004_add_indexes'),
+        ("nassav", "0004_add_indexes"),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='avresource',
-            name='nassav_avre_metadata_saved_at_idx',
+            model_name="avresource",
+            name="nassav_avre_metadata_saved_at_idx",
         ),
     ]

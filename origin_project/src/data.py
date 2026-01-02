@@ -1,6 +1,8 @@
 import sqlite3
 from typing import List
+
 from .comm import *
+
 
 def initialize_db(db_path: str, table_name: str):
     logger.debug(f"db_path: {db_path}, table_name: {table_name}")
@@ -10,14 +12,17 @@ def initialize_db(db_path: str, table_name: str):
     cursor = conn.cursor()
 
     # 创建表（如果不存在）
-    cursor.execute(f'''
+    cursor.execute(
+        f"""
     CREATE TABLE IF NOT EXISTS {table_name} (
         bvid TEXT PRIMARY KEY
     )
-    ''')
+    """
+    )
 
     conn.commit()
     conn.close()
+
 
 def batch_insert_bvids(bvid_list: list[str], db_path: str, table_name: str):
     """批量插入BVID，自动忽略已存在的"""
@@ -27,8 +32,8 @@ def batch_insert_bvids(bvid_list: list[str], db_path: str, table_name: str):
     try:
         # 使用 INSERT OR IGNORE 避免重复插入
         cursor.executemany(
-            f'INSERT OR IGNORE INTO {table_name} (bvid) VALUES (?)',
-            [(bvid,) for bvid in bvid_list]
+            f"INSERT OR IGNORE INTO {table_name} (bvid) VALUES (?)",
+            [(bvid,) for bvid in bvid_list],
         )
         conn.commit()
         logger.info(f"成功插入 {cursor.rowcount}")
@@ -37,6 +42,7 @@ def batch_insert_bvids(bvid_list: list[str], db_path: str, table_name: str):
         conn.rollback()
     finally:
         conn.close()
+
 
 def find_in_db(bvid: str, db_path: str, table_name: str) -> bool:
     try:

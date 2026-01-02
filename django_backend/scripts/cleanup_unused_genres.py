@@ -31,12 +31,12 @@
     - 保留历史记录到 log/cleanup_genres_{timestamp}.log
 """
 
+import argparse
+import json
 import os
 import sys
-import json
-import argparse
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # 设置 Django 环境
 project_root = Path(__file__).resolve().parent.parent
@@ -44,6 +44,7 @@ sys.path.insert(0, str(project_root))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 import django
+
 django.setup()
 
 from django.db.models import Count
@@ -64,9 +65,9 @@ logger.add(log_file, level="DEBUG")
 
 def get_unused_genres():
     """获取没有关联任何资源的类别"""
-    unused = Genre.objects.annotate(
-        resource_count=Count('resources')
-    ).filter(resource_count=0)
+    unused = Genre.objects.annotate(resource_count=Count("resources")).filter(
+        resource_count=0
+    )
 
     return list(unused)
 
@@ -75,30 +76,25 @@ def get_statistics():
     """获取类别统计信息"""
     total_genres = Genre.objects.count()
 
-    genres_with_count = Genre.objects.annotate(
-        resource_count=Count('resources')
-    )
+    genres_with_count = Genre.objects.annotate(resource_count=Count("resources"))
 
     used_genres = genres_with_count.filter(resource_count__gt=0).count()
     unused_genres = genres_with_count.filter(resource_count=0).count()
 
     # 计算资源数量分布
     stats = {
-        'total': total_genres,
-        'used': used_genres,
-        'unused': unused_genres,
-        'usage_rate': f"{(used_genres / total_genres * 100) if total_genres > 0 else 0:.2f}%"
+        "total": total_genres,
+        "used": used_genres,
+        "unused": unused_genres,
+        "usage_rate": f"{(used_genres / total_genres * 100) if total_genres > 0 else 0:.2f}%",
     }
 
     # 获取 top 使用类别
-    top_genres = genres_with_count.filter(
-        resource_count__gt=0
-    ).order_by('-resource_count')[:10]
+    top_genres = genres_with_count.filter(resource_count__gt=0).order_by(
+        "-resource_count"
+    )[:10]
 
-    stats['top_10'] = [
-        {'name': g.name, 'count': g.resource_count}
-        for g in top_genres
-    ]
+    stats["top_10"] = [{"name": g.name, "count": g.resource_count} for g in top_genres]
 
     return stats
 
@@ -114,7 +110,7 @@ def print_statistics():
     logger.info(f"使用中的类别:   {stats['used']} ({stats['usage_rate']})")
     logger.info(f"未使用的类别:   {stats['unused']}")
     logger.info("\n📈 Top 10 使用最多的类别:")
-    for i, item in enumerate(stats['top_10'], 1):
+    for i, item in enumerate(stats["top_10"], 1):
         logger.info(f"  {i:2d}. {item['name']:30s} - {item['count']:4d} 个资源")
     logger.info("=" * 60 + "\n")
 
@@ -123,14 +119,14 @@ def export_genres(genres, filename):
     """导出类别列表到 JSON 文件"""
     data = [
         {
-            'id': g.id,
-            'name': g.name,
+            "id": g.id,
+            "name": g.name,
         }
         for g in genres
     ]
 
     output_path = Path(filename)
-    with output_path.open('w', encoding='utf-8') as f:
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     logger.info(f"✓ 已导出 {len(data)} 个类别到 {output_path}")
@@ -198,34 +194,16 @@ def cleanup_unused_genres(dry_run=True):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="清理数据库中未使用的类别"
-    )
+    parser = argparse.ArgumentParser(description="清理数据库中未使用的类别")
 
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
-        '--dry-run',
-        action='store_true',
-        default=True,
-        help='预览模式，不实际删除（默认）'
+        "--dry-run", action="store_true", default=True, help="预览模式，不实际删除（默认）"
     )
-    mode_group.add_argument(
-        '--execute',
-        action='store_true',
-        help='实际执行删除操作'
-    )
-    mode_group.add_argument(
-        '--stats',
-        action='store_true',
-        help='只显示统计信息'
-    )
+    mode_group.add_argument("--execute", action="store_true", help="实际执行删除操作")
+    mode_group.add_argument("--stats", action="store_true", help="只显示统计信息")
 
-    parser.add_argument(
-        '--export',
-        type=str,
-        metavar='FILE',
-        help='导出类别列表到 JSON 文件'
-    )
+    parser.add_argument("--export", type=str, metavar="FILE", help="导出类别列表到 JSON 文件")
 
     args = parser.parse_args()
 

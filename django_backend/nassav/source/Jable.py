@@ -3,7 +3,6 @@ from typing import Optional
 
 from django.conf import settings
 from loguru import logger
-
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -13,14 +12,14 @@ class Jable(SourceBase):
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         super().__init__(proxy, timeout)
-        source_config = settings.SOURCE_CONFIG.get('jable', {})
-        self.domain = source_config.get('domain', 'jable.tv')
+        source_config = settings.SOURCE_CONFIG.get("jable", {})
+        self.domain = source_config.get("domain", "jable.tv")
 
     def get_source_name(self) -> str:
         return "Jable"
 
     def get_html(self, avid: str) -> Optional[str]:
-        url = f'https://{self.domain}/videos/{avid.lower()}/'
+        url = f"https://{self.domain}/videos/{avid.lower()}/"
         return self.fetch_html(url)
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
@@ -41,13 +40,13 @@ class Jable(SourceBase):
 
             # 2. 提取 source_title（备用标题）- 优先从 <title> 标签提取
             # 格式: <title>AVID 标题内容 - Jable.TV | ...</title>
-            title_match = re.search(r'<title>(.+?)\s*-\s*Jable\.TV', html)
+            title_match = re.search(r"<title>(.+?)\s*-\s*Jable\.TV", html)
             if title_match:
                 full_title = title_match.group(1).strip()
                 info.source_title = full_title
 
                 # 3. 从标题中提取 AVID
-                avid_match = re.match(r'^([A-Z]+-\d+)\s+(.+)$', full_title)
+                avid_match = re.match(r"^([A-Z]+-\d+)\s+(.+)$", full_title)
                 if avid_match:
                     info.avid = avid_match.group(1)
                     info.source_title = avid_match.group(2).strip()
@@ -66,7 +65,9 @@ class Jable(SourceBase):
 
             # 如果 AVID 还未提取，单独查找
             if not info.avid:
-                avid_match = re.search(r'<span class="inactive-color">([A-Z]+-\d+)</span>', html)
+                avid_match = re.search(
+                    r'<span class="inactive-color">([A-Z]+-\d+)</span>', html
+                )
                 if avid_match:
                     info.avid = avid_match.group(1)
 

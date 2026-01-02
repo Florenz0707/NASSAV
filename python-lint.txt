@@ -1,0 +1,568 @@
+Trim Trailing Whitespace.................................................[42mPassed[m
+Fix End of Files.........................................................[42mPassed[m
+Check Yaml...............................................................[42mPassed[m
+black....................................................................[42mPassed[m
+flake8...................................................................[41mFailed[m
+[2m- hook id: flake8[m
+[2m- exit code: 1[m
+
+[1mdjango_backend/django_project/asgi.py[m[36m:[m17[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/django_project/celery.py[m[36m:[m18[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/django_project/celery.py[m[36m:[m19[36m:[m80[36m:[m [1m[31mE501[m line too long (120 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m27[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m46[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m48[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m55[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m58[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m132[36m:[m80[36m:[m [1m[31mE501[m line too long (91 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m135[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m138[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m141[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m206[36m:[m80[36m:[m [1m[31mE501[m line too long (110 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m208[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m221[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m223[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/django_project/settings.py[m[36m:[m250[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/api_utils.py[m[36m:[m16[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/api_utils.py[m[36m:[m19[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/constants.py[m[36m:[m7[36m:[m80[36m:[m [1m[31mE501[m line too long (118 > 79 characters)
+[1mdjango_backend/nassav/constants.py[m[36m:[m9[36m:[m80[36m:[m [1m[31mE501[m line too long (113 > 79 characters)
+[1mdjango_backend/nassav/consumers.py[m[36m:[m30[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/consumers.py[m[36m:[m36[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/consumers.py[m[36m:[m50[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/consumers.py[m[36m:[m54[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/consumers.py[m[36m:[m63[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/consumers.py[m[36m:[m72[36m:[m80[36m:[m [1m[31mE501[m line too long (101 > 79 characters)
+[1mdjango_backend/nassav/m3u8downloader/M3u8DownloaderBase.py[m[36m:[m49[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/m3u8downloader/M3u8DownloaderBase.py[m[36m:[m56[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/m3u8downloader/N_m3u8DL_RE.py[m[36m:[m47[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/management/commands/check_db_disk_consistency.py[m[36m:[m12[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/management/commands/check_db_disk_consistency.py[m[36m:[m13[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/management/commands/check_db_disk_consistency.py[m[36m:[m84[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/management/commands/check_db_disk_consistency.py[m[36m:[m110[36m:[m80[36m:[m [1m[31mE501[m line too long (109 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m49[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m68[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m106[36m:[m13[36m:[m [1m[31mF841[m local variable 'html_path' is assigned to but never used
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m141[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m145[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m162[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m197[36m:[m80[36m:[m [1m[31mE501[m line too long (134 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m201[36m:[m80[36m:[m [1m[31mE501[m line too long (101 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m223[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m236[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m255[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/management/commands/import_resources.py[m[36m:[m267[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m28[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m47[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m66[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m67[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m68[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m75[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m96[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/migrations/0002_avresource.py[m[36m:[m114[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/migrations/0004_add_indexes.py[m[36m:[m1[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/migrations/0004_add_indexes.py[m[36m:[m9[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/migrations/0004_add_indexes.py[m[36m:[m18[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/migrations/0004_add_indexes.py[m[36m:[m24[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/migrations/0004_add_indexes.py[m[36m:[m27[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/models.py[m[36m:[m50[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/nassav/models.py[m[36m:[m77[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/models.py[m[36m:[m93[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/models.py[m[36m:[m94[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/models.py[m[36m:[m97[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/openapi_config.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF401[m 'drf_spectacular.utils.extend_schema_view' imported but unused
+[1mdjango_backend/nassav/openapi_config.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF401[m 'drf_spectacular.utils.extend_schema' imported but unused
+[1mdjango_backend/nassav/openapi_config.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF401[m 'drf_spectacular.utils.OpenApiResponse' imported but unused
+[1mdjango_backend/nassav/openapi_config.py[m[36m:[m1[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/openapi_config.py[m[36m:[m3[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/scraper/Javbus.py[m[36m:[m70[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/scraper/Javbus.py[m[36m:[m93[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/scraper/Javbus.py[m[36m:[m119[36m:[m80[36m:[m [1m[31mE501[m line too long (93 > 79 characters)
+[1mdjango_backend/nassav/scraper/ScraperBase.py[m[36m:[m60[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/scraper/ScraperManager.py[m[36m:[m55[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/serializers.py[m[36m:[m4[36m:[m1[36m:[m [1m[31mF401[m '.models.AVResource' imported but unused
+[1mdjango_backend/nassav/serializers.py[m[36m:[m32[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/serializers.py[m[36m:[m111[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/serializers.py[m[36m:[m113[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/serializers.py[m[36m:[m130[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/serializers.py[m[36m:[m131[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/serializers.py[m[36m:[m189[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/services.py[m[36m:[m23[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/nassav/services.py[m[36m:[m24[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/nassav/services.py[m[36m:[m25[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/nassav/services.py[m[36m:[m32[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/services.py[m[36m:[m157[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/services.py[m[36m:[m159[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/source/Jable.py[m[36m:[m82[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/source/Memo.py[m[36m:[m54[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/source/Memo.py[m[36m:[m64[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/source/MissAV.py[m[36m:[m71[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/source/MissAV.py[m[36m:[m82[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/source/MissAV.py[m[36m:[m86[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/source/MissAV.py[m[36m:[m99[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/source/MissAV.py[m[36m:[m101[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/source/MissAV.py[m[36m:[m107[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/source/MissAV.py[m[36m:[m137[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/source/SourceBase.py[m[36m:[m66[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/source/SourceBase.py[m[36m:[m77[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/source/SourceBase.py[m[36m:[m87[36m:[m17[36m:[m [1m[31mF841[m local variable 'err' is assigned to but never used
+[1mdjango_backend/nassav/source/SourceBase.py[m[36m:[m98[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/source/SourceBase.py[m[36m:[m99[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/source/SourceBase.py[m[36m:[m102[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/source/SourceBase.py[m[36m:[m162[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF401[m 'json' imported but unused
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m191[36m:[m9[36m:[m [1m[31mF841[m local variable 'resource_dir' is assigned to but never used
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m244[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m245[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m265[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m266[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m314[36m:[m80[36m:[m [1m[31mE501[m line too long (91 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m318[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m340[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m354[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/source/SourceManager.py[m[36m:[m377[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m137[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m204[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m251[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m274[36m:[m80[36m:[m [1m[31mE501[m line too long (91 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m320[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m343[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m455[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m516[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m525[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m597[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m627[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m660[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m725[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m732[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m753[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m778[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m810[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m812[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m854[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m869[36m:[m17[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/nassav/tasks.py[m[36m:[m933[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m941[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m1001[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m1012[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/tasks.py[m[36m:[m1029[36m:[m57[36m:[m [1m[31mE228[m missing whitespace around modulo operator
+[1mdjango_backend/nassav/translator/OllamaTranslator.py[m[36m:[m46[36m:[m80[36m:[m [1m[31mE501[m line too long (92 > 79 characters)
+[1mdjango_backend/nassav/translator/OllamaTranslator.py[m[36m:[m202[36m:[m13[36m:[m [1m[31mF841[m local variable 'elapsed' is assigned to but never used
+[1mdjango_backend/nassav/translator/OllamaTranslator.py[m[36m:[m229[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorBase.py[m[36m:[m90[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorBase.py[m[36m:[m99[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m4[36m:[m1[36m:[m [1m[31mF401[m 're' imported but unused
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m66[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m175[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m258[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m276[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m282[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m283[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m285[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/translator/TranslatorManager.py[m[36m:[m311[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/urls.py[m[36m:[m9[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/urls.py[m[36m:[m11[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/urls.py[m[36m:[m13[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/urls.py[m[36m:[m20[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/urls.py[m[36m:[m68[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/utils.py[m[36m:[m94[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/utils.py[m[36m:[m98[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m6[36m:[m1[36m:[m [1m[31mF401[m 'json' imported but unused
+[1mdjango_backend/nassav/views.py[m[36m:[m15[36m:[m1[36m:[m [1m[31mF401[m '.serializers.SourceCookieSerializer' imported but unused
+[1mdjango_backend/nassav/views.py[m[36m:[m20[36m:[m1[36m:[m [1m[31mF401[m 'django.urls.reverse' imported but unused
+[1mdjango_backend/nassav/views.py[m[36m:[m105[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m114[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m119[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m125[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m151[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m157[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m185[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m328[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m349[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m374[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m395[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m410[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m416[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m419[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m422[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m441[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m460[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m498[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m503[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m578[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m598[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m615[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m619[36m:[m17[36m:[m [1m[31mF811[m redefinition of unused 'json' from line 6
+[1mdjango_backend/nassav/views.py[m[36m:[m622[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m714[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m730[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m808[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m839[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m915[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m968[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1077[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1081[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1098[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1119[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1199[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1201[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1255[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1269[36m:[m25[36m:[m [1m[31mF841[m local variable 'save_result' is assigned to but never used
+[1mdjango_backend/nassav/views.py[m[36m:[m1284[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1370[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/nassav/views.py[m[36m:[m1423[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m43[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m47[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m48[36m:[m1[36m:[m [1m[31mF401[m 'nassav.tasks.translate_title_task' imported but unused
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m48[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m139[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m184[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m192[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m199[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m200[36m:[m27[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m202[36m:[m23[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m230[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m240[36m:[m15[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m262[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m298[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m304[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m311[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/scripts/batch_translate.py[m[36m:[m374[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m19[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m46[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m50[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m51[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m52[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m79[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m89[36m:[m80[36m:[m [1m[31mE501[m line too long (94 > 79 characters)
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m97[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m164[36m:[m21[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/cleanup_unused_genres.py[m[36m:[m206[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m57[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m61[36m:[m1[36m:[m [1m[31mF401[m 'django.db.models.Q' imported but unused
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m61[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m62[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m63[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m64[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m65[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m80[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m81[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m87[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m143[36m:[m32[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m151[36m:[m32[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m158[36m:[m32[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m164[36m:[m36[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m172[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m181[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m183[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m189[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m197[36m:[m41[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m199[36m:[m41[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_avid_prefix_titles.py[m[36m:[m202[36m:[m40[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m23[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m52[36m:[m14[36m:[m [1m[31mE401[m multiple imports on one line
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m117[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m119[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m133[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m168[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m175[36m:[m80[36m:[m [1m[31mE501[m line too long (95 > 79 characters)
+[1mdjango_backend/scripts/fix_durations.py[m[36m:[m180[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/scripts/fix_refresh_inconsistency.py[m[36m:[m22[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_refresh_inconsistency.py[m[36m:[m26[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_refresh_inconsistency.py[m[36m:[m27[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_refresh_inconsistency.py[m[36m:[m28[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_refresh_inconsistency.py[m[36m:[m48[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/scripts/fix_refresh_inconsistency.py[m[36m:[m87[36m:[m80[36m:[m [1m[31mE501[m line too long (98 > 79 characters)
+[1mdjango_backend/scripts/fix_source_titles.py[m[36m:[m23[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/fix_source_titles.py[m[36m:[m46[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/scripts/fix_source_titles.py[m[36m:[m93[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/fix_source_titles.py[m[36m:[m127[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/generate_openapi.py[m[36m:[m38[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/generate_thumbnails.py[m[36m:[m90[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/scripts/generate_thumbnails.py[m[36m:[m93[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/generate_thumbnails.py[m[36m:[m111[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m27[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m39[36m:[m1[36m:[m [1m[31mF401[m 'collections.defaultdict' imported but unused
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m67[36m:[m5[36m:[m [1m[31mF841[m local variable 'e' is assigned to but never used
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m126[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m136[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m145[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m155[36m:[m32[36m:[m [1m[31mF821[m undefined name 'parse_duration_to_seconds'
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m170[36m:[m80[36m:[m [1m[31mE501[m line too long (123 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m179[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m266[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m270[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/scripts/migrate_metadata_to_db.py[m[36m:[m277[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/scripts/migrate_resource_paths.py[m[36m:[m27[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/scripts/migrate_resource_paths.py[m[36m:[m86[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/scripts/migrate_resource_paths.py[m[36m:[m89[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/scripts/migrate_resource_paths.py[m[36m:[m153[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/scripts/migrate_resource_paths.py[m[36m:[m199[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m31[36m:[m1[36m:[m [1m[31mF401[m 'typing.Optional' imported but unused
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m32[36m:[m1[36m:[m [1m[31mF401[m 'django.db.transaction' imported but unused
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m82[36m:[m28[36m:[m [1m[31mE203[m whitespace before ':'
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m83[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m101[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m104[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m107[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m112[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m128[36m:[m36[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m131[36m:[m29[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m137[36m:[m33[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m144[36m:[m21[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/migrate_titles_to_new_schema.py[m[36m:[m179[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/scripts/populate_media_fields.py[m[36m:[m28[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/scripts/populate_media_fields.py[m[36m:[m63[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/scripts/populate_media_fields.py[m[36m:[m74[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/scripts/populate_media_fields.py[m[36m:[m91[36m:[m5[36m:[m [1m[31mF401[m 'django.utils.timezone' imported but unused
+[1mdjango_backend/scripts/populate_media_fields.py[m[36m:[m214[36m:[m80[36m:[m [1m[31mE501[m line too long (163 > 79 characters)
+[1mdjango_backend/scripts/populate_media_fields.py[m[36m:[m220[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m23[36m:[m1[36m:[m [1m[31mF401[m 'json' imported but unused
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m37[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m41[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m42[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m44[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m50[36m:[m80[36m:[m [1m[31mE501[m line too long (109 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m87[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m88[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m98[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m117[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m119[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m153[36m:[m37[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m262[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m284[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m306[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m307[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/scripts/update_metadata_from_javbus.py[m[36m:[m371[36m:[m17[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_actors_api.py[m[36m:[m16[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/tests/test_actors_api.py[m[36m:[m61[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/tests/test_actors_api.py[m[36m:[m69[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/tests/test_genres_api.py[m[36m:[m17[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1mdjango_backend/tests/test_genres_api.py[m[36m:[m70[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/tests/test_genres_api.py[m[36m:[m81[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/tests/test_genres_api.py[m[36m:[m116[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m17[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m21[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m22[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m23[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m24[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m25[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m48[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_genres_filtering.py[m[36m:[m64[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_resources_list.py[m[36m:[m16[36m:[m80[36m:[m [1m[31mE501[m line too long (99 > 79 characters)
+[1mdjango_backend/tests/test_resources_list.py[m[36m:[m31[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/tests/test_resources_list.py[m[36m:[m35[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/tests/test_resources_list.py[m[36m:[m46[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1mdjango_backend/tests/test_resources_list.py[m[36m:[m58[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1mdjango_backend/tests/test_serializers.py[m[36m:[m17[36m:[m80[36m:[m [1m[31mE501[m line too long (111 > 79 characters)
+[1mdjango_backend/tests/test_translation_cleaning.py[m[36m:[m55[36m:[m80[36m:[m [1m[31mE501[m line too long (100 > 79 characters)
+[1mdjango_backend/tests/test_translation_cleaning.py[m[36m:[m60[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/tests/test_translation_cleaning.py[m[36m:[m61[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/tests/test_translation_cleaning.py[m[36m:[m69[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/tests/test_translation_cleaning.py[m[36m:[m122[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translation_cleaning.py[m[36m:[m129[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1mdjango_backend/tests/test_translator.py[m[36m:[m22[36m:[m1[36m:[m [1m[31mF401[m 'typing.List' imported but unused
+[1mdjango_backend/tests/test_translator.py[m[36m:[m22[36m:[m1[36m:[m [1m[31mF401[m 'typing.Tuple' imported but unused
+[1mdjango_backend/tests/test_translator.py[m[36m:[m35[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_translator.py[m[36m:[m36[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_translator.py[m[36m:[m37[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_translator.py[m[36m:[m54[36m:[m15[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m59[36m:[m15[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m76[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/tests/test_translator.py[m[36m:[m93[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m131[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m139[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m141[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1mdjango_backend/tests/test_translator.py[m[36m:[m146[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m149[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m154[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m155[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m189[36m:[m15[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m201[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1mdjango_backend/tests/test_translator.py[m[36m:[m239[36m:[m19[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m259[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator.py[m[36m:[m260[36m:[m11[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1mdjango_backend/tests/test_translator_manager.py[m[36m:[m26[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_translator_manager.py[m[36m:[m30[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_translator_manager.py[m[36m:[m31[36m:[m1[36m:[m [1m[31mE402[m module level import not at top of file
+[1mdjango_backend/tests/test_translator_manager.py[m[36m:[m118[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/tests/test_translator_manager.py[m[36m:[m158[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/tests/test_views_resource.py[m[36m:[m17[36m:[m80[36m:[m [1m[31mE501[m line too long (95 > 79 characters)
+[1mdjango_backend/tests/test_views_resource.py[m[36m:[m24[36m:[m1[36m:[m [1m[31mF401[m 'django.urls.reverse' imported but unused
+[1mdjango_backend/tests/test_views_resource.py[m[36m:[m28[36m:[m1[36m:[m [1m[31mF401[m 'shutil' imported but unused
+[1mdjango_backend/tests/test_views_resource.py[m[36m:[m45[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1mdjango_backend/tests/test_views_resource.py[m[36m:[m52[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/tests/test_views_resource.py[m[36m:[m65[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1mdjango_backend/tests/test_views_resource.py[m[36m:[m78[36m:[m80[36m:[m [1m[31mE501[m line too long (83 > 79 characters)
+[1mdjango_backend/tests/test_ws.py[m[36m:[m28[36m:[m1[36m:[m [1m[31mF401[m 'json' imported but unused
+[1morigin_project/main.py[m[36m:[m2[36m:[m1[36m:[m [1m[31mF403[m 'from src.comm import *' used; unable to detect undefined names
+[1morigin_project/main.py[m[36m:[m6[36m:[m1[36m:[m [1m[31mF403[m 'from metadata import *' used; unable to detect undefined names
+[1morigin_project/main.py[m[36m:[m28[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/main.py[m[36m:[m33[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m33[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1morigin_project/main.py[m[36m:[m42[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m45[36m:[m5[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m46[36m:[m5[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m48[36m:[m24[36m:[m [1m[31mF405[m 'downloaded_path' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m56[36m:[m34[36m:[m [1m[31mF405[m 'downloaded_path' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m57[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m60[36m:[m5[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m66[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m66[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/main.py[m[36m:[m67[36m:[m19[36m:[m [1m[31mF405[m 'queue_path' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m77[36m:[m16[36m:[m [1m[31mF405[m 'sorted_downloaders' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m78[36m:[m60[36m:[m [1m[31mF405[m 'sorted_downloaders' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m81[36m:[m19[36m:[m [1m[31mF405[m 'sorted_downloaders' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m85[36m:[m17[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m88[36m:[m17[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m90[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m96[36m:[m17[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m97[36m:[m33[36m:[m [1m[31mF405[m 'sorted_downloaders' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m100[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m102[36m:[m17[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m103[36m:[m33[36m:[m [1m[31mF405[m 'sorted_downloaders' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m109[36m:[m9[36m:[m [1m[31mF405[m 'gen_nfo' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m112[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m113[36m:[m36[36m:[m [1m[31mF405[m 'queue_path' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m114[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/main.py[m[36m:[m116[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: metadata, src.comm
+[1morigin_project/metadata.py[m[36m:[m2[36m:[m1[36m:[m [1m[31mF403[m 'from src.comm import *' used; unable to detect undefined names
+[1morigin_project/metadata.py[m[36m:[m29[36m:[m28[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: src.comm
+[1morigin_project/metadata.py[m[36m:[m30[36m:[m38[36m:[m [1m[31mF405[m 'downloaded_path' may be undefined, or defined from star imports: src.comm
+[1morigin_project/metadata.py[m[36m:[m36[36m:[m38[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: src.comm
+[1morigin_project/metadata.py[m[36m:[m44[36m:[m27[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: src.comm
+[1morigin_project/metadata.py[m[36m:[m44[36m:[m38[36m:[m [1m[31mF405[m 'myproxy' may be undefined, or defined from star imports: src.comm
+[1morigin_project/metadata.py[m[36m:[m51[36m:[m24[36m:[m [1m[31mF405[m 'downloaded_path' may be undefined, or defined from star imports: src.comm
+[1morigin_project/src/comm.py[m[36m:[m35[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1morigin_project/src/comm.py[m[36m:[m53[36m:[m15[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1morigin_project/src/data.py[m[36m:[m2[36m:[m1[36m:[m [1m[31mF401[m 'typing.List' imported but unused
+[1morigin_project/src/data.py[m[36m:[m3[36m:[m1[36m:[m [1m[31mF403[m 'from .comm import *' used; unable to detect undefined names
+[1morigin_project/src/data.py[m[36m:[m7[36m:[m5[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/data.py[m[36m:[m38[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/data.py[m[36m:[m40[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF403[m 'from .downloaderBase import *' used; unable to detect undefined names
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m7[36m:[m23[36m:[m [1m[31mF405[m 'Downloader' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m14[36m:[m37[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m17[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m19[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m28[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m37[36m:[m39[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m37[36m:[m48[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m39[36m:[m24[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m44[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m46[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m48[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/KanAVDownloader.py[m[36m:[m50[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m6[36m:[m1[36m:[m [1m[31mF401[m 'dataclasses.field' imported but unused
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m7[36m:[m1[36m:[m [1m[31mF401[m 'typing.Tuple' imported but unused
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m9[36m:[m1[36m:[m [1m[31mF403[m 'from ..comm import *' used; unable to detect undefined names
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m42[36m:[m80[36m:[m [1m[31mE501[m line too long (132 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m43[36m:[m80[36m:[m [1m[31mE501[m line too long (91 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m101[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m119[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m121[36m:[m16[36m:[m [1m[31mF405[m 'isNeedVideoProxy' may be undefined, or defined from star imports: ..comm
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m123[36m:[m30[36m:[m [1m[31mF405[m 'download_tool' may be undefined, or defined from star imports: ..comm
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m123[36m:[m80[36m:[m [1m[31mE501[m line too long (148 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m126[36m:[m30[36m:[m [1m[31mF405[m 'download_tool' may be undefined, or defined from star imports: ..comm
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m126[36m:[m80[36m:[m [1m[31mE501[m line too long (132 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m130[36m:[m24[36m:[m [1m[31mF405[m 'isNeedVideoProxy' may be undefined, or defined from star imports: ..comm
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m132[36m:[m34[36m:[m [1m[31mF405[m 'download_tool' may be undefined, or defined from star imports: ..comm
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m132[36m:[m80[36m:[m [1m[31mE501[m line too long (152 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m135[36m:[m34[36m:[m [1m[31mF405[m 'download_tool' may be undefined, or defined from star imports: ..comm
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m135[36m:[m80[36m:[m [1m[31mE501[m line too long (136 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m141[36m:[m26[36m:[m [1m[31mF405[m 'ffmpeg_tool' may be undefined, or defined from star imports: ..comm
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m141[36m:[m80[36m:[m [1m[31mE501[m line too long (145 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m145[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m148[36m:[m9[36m:[m [1m[31mE722[m do not use bare 'except'
+[1morigin_project/src/downloader/downloaderBase.py[m[36m:[m162[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF403[m 'from .downloaderBase import *' used; unable to detect undefined names
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m5[36m:[m23[36m:[m [1m[31mF405[m 'Downloader' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m12[36m:[m37[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m15[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m24[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m28[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m36[36m:[m39[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m36[36m:[m48[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m38[36m:[m24[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m44[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/hohoJDownloader.py[m[36m:[m46[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF403[m 'from .downloaderBase import *' used; unable to detect undefined names
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m5[36m:[m23[36m:[m [1m[31mF405[m 'Downloader' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m9[36m:[m37[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m12[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m18[36m:[m39[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m18[36m:[m48[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m20[36m:[m26[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m27[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m29[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m39[36m:[m48[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m42[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m46[36m:[m80[36m:[m [1m[31mE501[m line too long (87 > 79 characters)
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m48[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1morigin_project/src/downloader/jableDownloder.py[m[36m:[m53[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF403[m 'from .downloaderBase import *' used; unable to detect undefined names
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m14[36m:[m22[36m:[m [1m[31mF405[m 'Downloader' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m18[36m:[m37[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m20[36m:[m80[36m:[m [1m[31mE501[m line too long (98 > 79 characters)
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m21[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m27[36m:[m39[36m:[m [1m[31mF405[m 'Optional' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m27[36m:[m48[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m29[36m:[m9[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m30[36m:[m26[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/memoDownloader.py[m[36m:[m36[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m1[36m:[m1[36m:[m [1m[31mF403[m 'from .downloaderBase import *' used; unable to detect undefined names
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m6[36m:[m24[36m:[m [1m[31mF405[m 'Downloader' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m34[36m:[m48[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m36[36m:[m26[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m44[36m:[m17[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m47[36m:[m17[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m50[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m68[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m72[36m:[m48[36m:[m [1m[31mF405[m 'AVDownloadInfo' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m75[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m79[36m:[m80[36m:[m [1m[31mE501[m line too long (88 > 79 characters)
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m81[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m86[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m92[36m:[m80[36m:[m [1m[31mE501[m line too long (82 > 79 characters)
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m94[36m:[m24[36m:[m [1m[31mF405[m 'requests' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m94[36m:[m80[36m:[m [1m[31mE501[m line too long (86 > 79 characters)
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m100[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m111[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloader/missAVDownloader.py[m[36m:[m126[36m:[m13[36m:[m [1m[31mF405[m 'logger' may be undefined, or defined from star imports: .downloaderBase
+[1morigin_project/src/downloaderMgr.py[m[36m:[m7[36m:[m1[36m:[m [1m[31mF403[m 'from .comm import *' used; unable to detect undefined names
+[1morigin_project/src/downloaderMgr.py[m[36m:[m16[36m:[m39[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m16[36m:[m50[36m:[m [1m[31mF405[m 'myproxy' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m19[36m:[m38[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m19[36m:[m49[36m:[m [1m[31mF405[m 'myproxy' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m22[36m:[m38[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m22[36m:[m49[36m:[m [1m[31mF405[m 'myproxy' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m25[36m:[m37[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m25[36m:[m48[36m:[m [1m[31mF405[m 'myproxy' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m28[36m:[m38[36m:[m [1m[31mF405[m 'save_path' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/downloaderMgr.py[m[36m:[m28[36m:[m49[36m:[m [1m[31mF405[m 'myproxy' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/scraper.py[m[36m:[m6[36m:[m1[36m:[m [1m[31mF401[m 'typing.List' imported but unused
+[1morigin_project/src/scraper.py[m[36m:[m6[36m:[m1[36m:[m [1m[31mF401[m 'typing.Dict' imported but unused
+[1morigin_project/src/scraper.py[m[36m:[m8[36m:[m1[36m:[m [1m[31mF403[m 'from .comm import *' used; unable to detect undefined names
+[1morigin_project/src/scraper.py[m[36m:[m12[36m:[m1[36m:[m [1m[31mF401[m 'urllib.parse.urljoin' imported but unused
+[1morigin_project/src/scraper.py[m[36m:[m13[36m:[m1[36m:[m [1m[31mF401[m 'time' imported but unused
+[1morigin_project/src/scraper.py[m[36m:[m23[36m:[m5[36m:[m [1m[31mE722[m do not use bare 'except'
+[1morigin_project/src/scraper.py[m[36m:[m84[36m:[m80[36m:[m [1m[31mE501[m line too long (132 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m85[36m:[m80[36m:[m [1m[31mE501[m line too long (91 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m87[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m88[36m:[m16[36m:[m [1m[31mF405[m 'scraperDomain' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/scraper.py[m[36m:[m103[36m:[m23[36m:[m [1m[31mF405[m 'scraperDomain' may be undefined, or defined from star imports: .comm
+[1morigin_project/src/scraper.py[m[36m:[m123[36m:[m21[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1morigin_project/src/scraper.py[m[36m:[m127[36m:[m21[36m:[m [1m[31mF541[m f-string is missing placeholders
+[1morigin_project/src/scraper.py[m[36m:[m146[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m176[36m:[m80[36m:[m [1m[31mE501[m line too long (154 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m204[36m:[m9[36m:[m [1m[31mE722[m do not use bare 'except'
+[1morigin_project/src/scraper.py[m[36m:[m259[36m:[m80[36m:[m [1m[31mE501[m line too long (80 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m307[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m310[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/src/scraper.py[m[36m:[m347[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1morigin_project/tools/fix.py[m[36m:[m2[36m:[m1[36m:[m [1m[31mF401[m 'os' imported but unused
+[1morigin_project/tools/rebuild_metadata.py[m[36m:[m3[36m:[m1[36m:[m [1m[31mF401[m 'pathlib.Path' imported but unused
+[1morigin_project/tools/rebuild_metadata.py[m[36m:[m35[36m:[m80[36m:[m [1m[31mE501[m line too long (85 > 79 characters)
+[1morigin_project/tools/rebuild_metadata.py[m[36m:[m45[36m:[m80[36m:[m [1m[31mE501[m line too long (81 > 79 characters)
+[1morigin_project/tools/rebuild_metadata.py[m[36m:[m50[36m:[m80[36m:[m [1m[31mE501[m line too long (84 > 79 characters)
+[1morigin_project/tools/renamejpg.py[m[36m:[m2[36m:[m1[36m:[m [1m[31mF401[m 'os' imported but unused

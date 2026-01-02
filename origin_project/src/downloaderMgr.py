@@ -1,11 +1,13 @@
-from .downloader.downloaderBase import Downloader
-from .downloader.jableDownloder import JableDownloader
-from .downloader.missAVDownloader import MissAVDownloader
-from .downloader.hohoJDownloader import HohoJDownloader
-from .downloader.memoDownloader import MemoDownloader
-from .downloader.KanAVDownloader import KanAVDownloader
-from .comm import *
 from typing import Optional
+
+from .comm import *
+from .downloader.downloaderBase import Downloader
+from .downloader.hohoJDownloader import HohoJDownloader
+from .downloader.jableDownloder import JableDownloader
+from .downloader.KanAVDownloader import KanAVDownloader
+from .downloader.memoDownloader import MemoDownloader
+from .downloader.missAVDownloader import MissAVDownloader
+
 
 class DownloaderMgr:
     downloaders: dict = {}

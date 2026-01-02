@@ -7,21 +7,21 @@ import json
 
 from django.conf import settings
 from django.http import FileResponse
+from django.urls import reverse
+from django.utils.http import http_date
 from loguru import logger
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import (
-    NewResourceSerializer,
-    SourceCookieSerializer
-)
-from .services import source_manager, list_resources
 from .api_utils import build_response
-from .utils import generate_thumbnail
-from .utils import generate_etag_for_file, parse_http_if_modified_since
-from django.urls import reverse
-from django.utils.http import http_date
+from .serializers import NewResourceSerializer, SourceCookieSerializer
+from .services import list_resources, source_manager
+from .utils import (
+    generate_etag_for_file,
+    generate_thumbnail,
+    parse_http_if_modified_since,
+)
 
 
 def _serialize_resource_obj(resource):
@@ -36,16 +36,16 @@ def _serialize_resource_obj(resource):
         genres = []
 
     return {
-        'avid': resource.avid,
-        'title': resource.title or '',
-        'm3u8': resource.m3u8 or '',
-        'source': resource.source or '',
-        'release_date': resource.release_date or '',
-        'duration': resource.duration,
-        'actors': actors,
-        'genres': genres,
-        'file_size': resource.file_size,
-        'file_exists': bool(resource.file_exists),
+        "avid": resource.avid,
+        "title": resource.title or "",
+        "m3u8": resource.m3u8 or "",
+        "source": resource.source or "",
+        "release_date": resource.release_date or "",
+        "duration": resource.duration,
+        "actors": actors,
+        "genres": genres,
+        "file_size": resource.file_size,
+        "file_exists": bool(resource.file_exists),
     }
 
 
@@ -57,11 +57,7 @@ class SourceListView(APIView):
 
     def get(self, request):
         sources = list(source_manager.sources.keys())
-        return Response({
-            'code': 200,
-            'message': 'success',
-            'data': sources
-        })
+        return Response({"code": 200, "message": "success", "data": sources})
 
 
 class SourceCookieView(APIView):
@@ -77,13 +73,15 @@ class SourceCookieView(APIView):
 
     def post(self, request):
         data = request.data or {}
-        source_name = data.get('source')
-        cookie = data.get('cookie')
-        auto = (cookie == "auto")
+        source_name = data.get("source")
+        cookie = data.get("cookie")
+        auto = cookie == "auto"
 
         if not source_name:
-            return Response({'code': 400, 'message': 'source 参数缺失', 'data': None},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"code": 400, "message": "source 参数缺失", "data": None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # 如果请求自动获取 cookie
         if auto:
@@ -96,8 +94,14 @@ class SourceCookieView(APIView):
                         break
 
                 if not source_instance:
-                    return Response({'code': 404, 'message': f'无法获取 {source_name} 实例', 'data': None},
-                                    status=status.HTTP_404_NOT_FOUND)
+                    return Response(
+                        {
+                            "code": 404,
+                            "message": f"无法获取 {source_name} 实例",
+                            "data": None,
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
 
                 success = False
                 try:
@@ -106,28 +110,50 @@ class SourceCookieView(APIView):
                     logger.error(f"自动获取 Cookie 失败: {e}")
 
                 if success:
-                    return Response({'code': 200, 'message': 'Cookie 自动获取成功',
-                                     'data': {'source': source_name, 'cookie_set': True}})
+                    return Response(
+                        {
+                            "code": 200,
+                            "message": "Cookie 自动获取成功",
+                            "data": {"source": source_name, "cookie_set": True},
+                        }
+                    )
                 else:
-                    return Response({'code': 500, 'message': 'Cookie 自动获取失败', 'data': None},
-                                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    return Response(
+                        {"code": 500, "message": "Cookie 自动获取失败", "data": None},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
             except Exception as e:
                 logger.error(f"自动获取 Cookie 异常: {e}")
-                return Response({'code': 500, 'message': f'自动获取 Cookie 异常: {str(e)}', 'data': None},
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {"code": 500, "message": f"自动获取 Cookie 异常: {str(e)}", "data": None},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
         # 否则如果提供了 cookie 则手动设置并保存到 DB
         if cookie:
             success = source_manager.set_source_cookie(source_name, cookie)
             if success:
-                return Response({'code': 200, 'message': 'success',
-                                 'data': {'source': source_name, 'cookie_set': True, 'auto_fetched': False}})
+                return Response(
+                    {
+                        "code": 200,
+                        "message": "success",
+                        "data": {
+                            "source": source_name,
+                            "cookie_set": True,
+                            "auto_fetched": False,
+                        },
+                    }
+                )
             else:
-                return Response({'code': 500, 'message': '设置 Cookie 失败', 'data': None},
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {"code": 500, "message": "设置 Cookie 失败", "data": None},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
-        return Response({'code': 400, 'message': '未提供 cookie 且 auto 未设置为 True', 'data': None},
-                        status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"code": 400, "message": "未提供 cookie 且 auto 未设置为 True", "data": None},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 class ResourcesListView(APIView):
@@ -136,49 +162,50 @@ class ResourcesListView(APIView):
     def get(self, request):
         # support legacy sort_by / order params from older endpoints
         params = request.query_params.copy()
-        sort_by = params.get('sort_by')
-        order = params.get('order', 'desc')
+        sort_by = params.get("sort_by")
+        order = params.get("order", "desc")
         if sort_by:
             sort_map = {
-                'avid': 'avid',
-                'metadata_create_time': 'metadata_saved_at',
-                'video_create_time': 'video_saved_at',
-                'source': 'source'
+                "avid": "avid",
+                "metadata_create_time": "metadata_saved_at",
+                "video_create_time": "video_saved_at",
+                "source": "source",
             }
             sort_field = sort_map.get(sort_by, None)
             if sort_field:
-                if order == 'desc':
-                    params['ordering'] = f'-{sort_field}'
+                if order == "desc":
+                    params["ordering"] = f"-{sort_field}"
                 else:
-                    params['ordering'] = sort_field
+                    params["ordering"] = sort_field
 
         objs, pagination = list_resources(params)
         # reuse ResourceSummarySerializer
         from .serializers import ResourceSummarySerializer
+
         serializer = ResourceSummarySerializer(objs, many=True)
 
         # return standardized envelope with pagination field
-        return build_response(200, 'success', serializer.data, pagination=pagination)
+        return build_response(200, "success", serializer.data, pagination=pagination)
 
 
 class ActorsListView(APIView):
     """GET /api/actors/ - 返回演员列表及每个演员的作品数，支持分页"""
 
     def get(self, request):
-        from nassav.models import Actor
-        from django.db.models import Count
         from django.core.paginator import Paginator
+        from django.db.models import Count
+        from nassav.models import Actor
 
         # 获取参数
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 20))
-        order_by = request.query_params.get('order_by', 'count')
-        order = request.query_params.get('order', 'desc')
-        search = request.query_params.get('search', '').strip()
-        actor_id = request.query_params.get('id', '').strip()
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 20))
+        order_by = request.query_params.get("order_by", "count")
+        order = request.query_params.get("order", "desc")
+        search = request.query_params.get("search", "").strip()
+        actor_id = request.query_params.get("id", "").strip()
 
         # 构建查询
-        qs = Actor.objects.annotate(resource_count=Count('resources'))
+        qs = Actor.objects.annotate(resource_count=Count("resources"))
 
         # ID 过滤（精确匹配）
         if actor_id:
@@ -193,13 +220,13 @@ class ActorsListView(APIView):
             qs = qs.filter(name__icontains=search)
 
         # 排序
-        if order_by == 'name':
-            qs = qs.order_by('name' if order == 'asc' else '-name')
+        if order_by == "name":
+            qs = qs.order_by("name" if order == "asc" else "-name")
         else:  # count
-            if order == 'desc':
-                qs = qs.order_by('-resource_count', 'name')
+            if order == "desc":
+                qs = qs.order_by("-resource_count", "name")
             else:
-                qs = qs.order_by('resource_count', 'name')
+                qs = qs.order_by("resource_count", "name")
 
         # 分页
         paginator = Paginator(qs, page_size)
@@ -207,41 +234,41 @@ class ActorsListView(APIView):
 
         data = [
             {
-                'id': a.id,
-                'name': a.name,
-                'resource_count': getattr(a, 'resource_count', 0)
+                "id": a.id,
+                "name": a.name,
+                "resource_count": getattr(a, "resource_count", 0),
             }
             for a in page_obj.object_list
         ]
 
         pagination = {
-            'total': paginator.count,
-            'page': page_obj.number,
-            'page_size': page_size,
-            'pages': paginator.num_pages
+            "total": paginator.count,
+            "page": page_obj.number,
+            "page_size": page_size,
+            "pages": paginator.num_pages,
         }
 
-        return build_response(200, 'success', data, pagination=pagination)
+        return build_response(200, "success", data, pagination=pagination)
 
 
 class GenresListView(APIView):
     """GET /api/genres/ - 返回类别列表及每个类别的作品数，支持分页"""
 
     def get(self, request):
-        from nassav.models import Genre
-        from django.db.models import Count
         from django.core.paginator import Paginator
+        from django.db.models import Count
+        from nassav.models import Genre
 
         # 获取参数
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 20))
-        order_by = request.query_params.get('order_by', 'count')
-        order = request.query_params.get('order', 'desc')
-        search = request.query_params.get('search', '').strip()
-        genre_id = request.query_params.get('id', '').strip()
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 20))
+        order_by = request.query_params.get("order_by", "count")
+        order = request.query_params.get("order", "desc")
+        search = request.query_params.get("search", "").strip()
+        genre_id = request.query_params.get("id", "").strip()
 
         # 构建查询
-        qs = Genre.objects.annotate(resource_count=Count('resources'))
+        qs = Genre.objects.annotate(resource_count=Count("resources"))
 
         # 过滤掉没有关联资源的类别（除非明确指定 ID）
         if not genre_id:
@@ -260,13 +287,13 @@ class GenresListView(APIView):
             qs = qs.filter(name__icontains=search)
 
         # 排序
-        if order_by == 'name':
-            qs = qs.order_by('name' if order == 'asc' else '-name')
+        if order_by == "name":
+            qs = qs.order_by("name" if order == "asc" else "-name")
         else:  # count
-            if order == 'desc':
-                qs = qs.order_by('-resource_count', 'name')
+            if order == "desc":
+                qs = qs.order_by("-resource_count", "name")
             else:
-                qs = qs.order_by('resource_count', 'name')
+                qs = qs.order_by("resource_count", "name")
 
         # 分页
         paginator = Paginator(qs, page_size)
@@ -274,21 +301,21 @@ class GenresListView(APIView):
 
         data = [
             {
-                'id': g.id,
-                'name': g.name,
-                'resource_count': getattr(g, 'resource_count', 0)
+                "id": g.id,
+                "name": g.name,
+                "resource_count": getattr(g, "resource_count", 0),
             }
             for g in page_obj.object_list
         ]
 
         pagination = {
-            'total': paginator.count,
-            'page': page_obj.number,
-            'page_size': page_size,
-            'pages': paginator.num_pages
+            "total": paginator.count,
+            "page": page_obj.number,
+            "page_size": page_size,
+            "pages": paginator.num_pages,
         }
 
-        return build_response(200, 'success', data, pagination=pagination)
+        return build_response(200, "success", data, pagination=pagination)
 
 
 class ResourceCoverView(APIView):
@@ -298,96 +325,114 @@ class ResourceCoverView(APIView):
     """
 
     def get(self, request):
-        avid = request.query_params.get('avid', '').upper()
+        avid = request.query_params.get("avid", "").upper()
         if not avid:
-            return build_response(400, 'avid参数缺失', None)
+            return build_response(400, "avid参数缺失", None)
         # 支持 size 参数：small|medium|large（保存到 COVER_DIR/thumbnails/{size}/{avid}.jpg）
-        from pathlib import Path
         import mimetypes
+        from pathlib import Path
 
-        size = request.query_params.get('size')
+        size = request.query_params.get("size")
 
         cover_dir = Path(settings.COVER_DIR)
         # find original cover (any extension)
         cover_path = None
-        for ext in ['.jpg', '.jpeg', '.png', '.webp']:
+        for ext in [".jpg", ".jpeg", ".png", ".webp"]:
             p = cover_dir / f"{avid}{ext}"
             if p.exists():
                 cover_path = p
                 break
 
         if not cover_path:
-            return Response({
-                'code': 404,
-                'message': f'封面 {avid} 不存在',
-                'data': None
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"code": 404, "message": f"封面 {avid} 不存在", "data": None},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # if no size requested, return original file (with conditional handling)
         if not size:
             ctype, _ = mimetypes.guess_type(str(cover_path))
             if not ctype:
-                ctype = 'application/octet-stream'
+                ctype = "application/octet-stream"
             # ETag + Last-Modified
             try:
                 etag = generate_etag_for_file(cover_path)
             except Exception:
                 etag = '"0"'
 
-            ims = request.headers.get('If-Modified-Since') or request.META.get('HTTP_IF_MODIFIED_SINCE')
-            inm = request.headers.get('If-None-Match') or request.META.get('HTTP_IF_NONE_MATCH')
+            ims = request.headers.get("If-Modified-Since") or request.META.get(
+                "HTTP_IF_MODIFIED_SINCE"
+            )
+            inm = request.headers.get("If-None-Match") or request.META.get(
+                "HTTP_IF_NONE_MATCH"
+            )
             # check ETag
             if inm and etag and inm.strip() == etag:
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
-                resp['ETag'] = etag
-                resp['Last-Modified'] = http_date(cover_path.stat().st_mtime)
+                resp["ETag"] = etag
+                resp["Last-Modified"] = http_date(cover_path.stat().st_mtime)
                 return resp
             # check If-Modified-Since
             ims_ts = parse_http_if_modified_since(ims)
             if ims_ts is not None and int(cover_path.stat().st_mtime) <= ims_ts:
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
-                resp['ETag'] = etag
-                resp['Last-Modified'] = http_date(cover_path.stat().st_mtime)
+                resp["ETag"] = etag
+                resp["Last-Modified"] = http_date(cover_path.stat().st_mtime)
                 return resp
 
-            resp = FileResponse(open(cover_path, 'rb'), content_type=ctype, as_attachment=False)
+            resp = FileResponse(
+                open(cover_path, "rb"), content_type=ctype, as_attachment=False
+            )
             # Cache long
-            resp['Cache-Control'] = 'public, max-age=31536000'
-            resp['ETag'] = etag
-            resp['Last-Modified'] = http_date(cover_path.stat().st_mtime)
+            resp["Cache-Control"] = "public, max-age=31536000"
+            resp["ETag"] = etag
+            resp["Last-Modified"] = http_date(cover_path.stat().st_mtime)
             return resp
 
         size = str(size).lower()
-        sizes_map = {'small': 200, 'medium': 600, 'large': 1200}
+        sizes_map = {"small": 200, "medium": 600, "large": 1200}
         if size not in sizes_map:
-            return build_response(400, 'size 参数无效，支持 small|medium|large', None)
+            return build_response(400, "size 参数无效，支持 small|medium|large", None)
 
-        thumb_dir = Path(getattr(settings, 'THUMBNAIL_DIR', settings.COVER_DIR / 'thumbnails'))
+        thumb_dir = Path(
+            getattr(settings, "THUMBNAIL_DIR", settings.COVER_DIR / "thumbnails")
+        )
         thumb_path = thumb_dir / size / f"{avid}.jpg"
 
         # if thumbnail exists and up-to-date, serve it
         try:
-            if thumb_path.exists() and thumb_path.stat().st_mtime >= cover_path.stat().st_mtime:
+            if (
+                thumb_path.exists()
+                and thumb_path.stat().st_mtime >= cover_path.stat().st_mtime
+            ):
                 # Conditional checks
                 etag = generate_etag_for_file(thumb_path)
-                inm = request.headers.get('If-None-Match') or request.META.get('HTTP_IF_NONE_MATCH')
-                ims = request.headers.get('If-Modified-Since') or request.META.get('HTTP_IF_MODIFIED_SINCE')
+                inm = request.headers.get("If-None-Match") or request.META.get(
+                    "HTTP_IF_NONE_MATCH"
+                )
+                ims = request.headers.get("If-Modified-Since") or request.META.get(
+                    "HTTP_IF_MODIFIED_SINCE"
+                )
                 if inm and inm.strip() == etag:
                     resp = Response(status=status.HTTP_304_NOT_MODIFIED)
-                    resp['ETag'] = etag
-                    resp['Last-Modified'] = http_date(thumb_path.stat().st_mtime)
+                    resp["ETag"] = etag
+                    resp["Last-Modified"] = http_date(thumb_path.stat().st_mtime)
                     return resp
                 ims_ts = parse_http_if_modified_since(ims)
                 if ims_ts is not None and int(thumb_path.stat().st_mtime) <= ims_ts:
                     resp = Response(status=status.HTTP_304_NOT_MODIFIED)
-                    resp['ETag'] = etag
-                    resp['Last-Modified'] = http_date(thumb_path.stat().st_mtime)
+                    resp["ETag"] = etag
+                    resp["Last-Modified"] = http_date(thumb_path.stat().st_mtime)
                     return resp
 
-                resp = FileResponse(open(thumb_path, 'rb'), content_type='image/jpeg', as_attachment=False)
-                resp['Cache-Control'] = 'public, max-age=31536000'
-                resp['ETag'] = etag
-                resp['Last-Modified'] = http_date(thumb_path.stat().st_mtime)
+                resp = FileResponse(
+                    open(thumb_path, "rb"),
+                    content_type="image/jpeg",
+                    as_attachment=False,
+                )
+                resp["Cache-Control"] = "public, max-age=31536000"
+                resp["ETag"] = etag
+                resp["Last-Modified"] = http_date(thumb_path.stat().st_mtime)
                 return resp
         except Exception:
             pass
@@ -395,18 +440,22 @@ class ResourceCoverView(APIView):
         # try to generate thumbnail (best-effort)
         success = generate_thumbnail(cover_path, thumb_path, sizes_map[size])
         if success and thumb_path.exists():
-            resp = FileResponse(open(thumb_path, 'rb'), content_type='image/jpeg', as_attachment=False)
-            resp['Cache-Control'] = 'public, max-age=31536000'
-            resp['Last-Modified'] = http_date(thumb_path.stat().st_mtime)
+            resp = FileResponse(
+                open(thumb_path, "rb"), content_type="image/jpeg", as_attachment=False
+            )
+            resp["Cache-Control"] = "public, max-age=31536000"
+            resp["Last-Modified"] = http_date(thumb_path.stat().st_mtime)
             return resp
 
         # fallback: return original
         ctype, _ = mimetypes.guess_type(str(cover_path))
         if not ctype:
-            ctype = 'application/octet-stream'
-        resp = FileResponse(open(cover_path, 'rb'), content_type=ctype, as_attachment=False)
-        resp['Cache-Control'] = 'public, max-age=31536000'
-        resp['Last-Modified'] = http_date(cover_path.stat().st_mtime)
+            ctype = "application/octet-stream"
+        resp = FileResponse(
+            open(cover_path, "rb"), content_type=ctype, as_attachment=False
+        )
+        resp["Cache-Control"] = "public, max-age=31536000"
+        resp["Last-Modified"] = http_date(cover_path.stat().st_mtime)
         return resp
 
 
@@ -418,28 +467,34 @@ class ResourcePreviewView(APIView):
         # load metadata from DB if exists
         try:
             from nassav.models import AVResource
+
             resource = AVResource.objects.filter(avid=avid).first()
             if not resource:
-                return build_response(404, f'资源 {avid} 不存在', None)
+                return build_response(404, f"资源 {avid} 不存在", None)
 
-            metadata = resource.metadata if resource.metadata else {
-                'avid': resource.avid,
-                'title': resource.title,
-                'source': resource.source,
-                'release_date': resource.release_date,
-            }
+            metadata = (
+                resource.metadata
+                if resource.metadata
+                else {
+                    "avid": resource.avid,
+                    "title": resource.title,
+                    "source": resource.source,
+                    "release_date": resource.release_date,
+                }
+            )
             # thumbnail url (small)
             # use file mtime as version token
             from pathlib import Path
+
             cover_dir = Path(settings.COVER_DIR)
             cover_path = None
-            for ext in ['.jpg', '.jpeg', '.png', '.webp']:
+            for ext in [".jpg", ".jpeg", ".png", ".webp"]:
                 p = cover_dir / f"{avid}{ext}"
                 if p.exists():
                     cover_path = p
                     break
 
-            v = ''
+            v = ""
             if cover_path and cover_path.exists():
                 v = str(int(cover_path.stat().st_mtime))
 
@@ -447,10 +502,12 @@ class ResourcePreviewView(APIView):
             if v:
                 thumbnail_url += f"&v={v}"
 
-            return build_response(200, 'success', {'metadata': metadata, 'thumbnail_url': thumbnail_url})
+            return build_response(
+                200, "success", {"metadata": metadata, "thumbnail_url": thumbnail_url}
+            )
         except Exception as e:
             logger.error(f"生成 preview 失败: {e}")
-            return build_response(500, f'生成 preview 失败: {str(e)}', None)
+            return build_response(500, f"生成 preview 失败: {str(e)}", None)
 
 
 class DownloadAbspathView(APIView):
@@ -460,36 +517,40 @@ class DownloadAbspathView(APIView):
     """
 
     def get(self, request):
-        avid = request.query_params.get('avid', '').upper()
+        avid = request.query_params.get("avid", "").upper()
         if not avid:
-            return Response({
-                'code': 400,
-                'message': 'avid参数缺失',
-                'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"code": 400, "message": "avid参数缺失", "data": None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from pathlib import Path
+
         resource_dir = Path(settings.VIDEO_DIR)
         mp4_path = resource_dir / f"{avid}.mp4"
 
         if not mp4_path.exists():
-            return build_response(404, f'视频 {avid} 不存在', None)
+            return build_response(404, f"视频 {avid} 不存在", None)
 
         try:
             abs_path = str(mp4_path.resolve())
         except Exception:
             abs_path = str(mp4_path.absolute())
 
-        url_prefix = ''
+        url_prefix = ""
         try:
-            url_prefix = settings.CONFIG.get('UrlPrefix', '') if hasattr(settings, 'CONFIG') else ''
+            url_prefix = (
+                settings.CONFIG.get("UrlPrefix", "")
+                if hasattr(settings, "CONFIG")
+                else ""
+            )
         except Exception:
-            url_prefix = ''
+            url_prefix = ""
 
         # 拼接前缀和绝对路径
         prefixed = f"{url_prefix}{abs_path}"
 
-        return build_response(200, 'success', {"abspath": prefixed})
+        return build_response(200, "success", {"abspath": prefixed})
 
 
 class ResourceMetadataView(APIView):
@@ -499,93 +560,114 @@ class ResourceMetadataView(APIView):
     """
 
     def get(self, request):
-        avid = request.query_params.get('avid', '').upper()
+        avid = request.query_params.get("avid", "").upper()
         if not avid:
-            return Response({
-                'code': 400,
-                'message': 'avid参数缺失',
-                'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"code": 400, "message": "avid参数缺失", "data": None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # 从数据库读取元数据
         try:
             from nassav.models import AVResource
+
             resource = AVResource.objects.filter(avid=avid).first()
             if not resource:
-                return build_response(404, f'资源 {avid} 的元数据不存在', None)
+                return build_response(404, f"资源 {avid} 的元数据不存在", None)
 
             # 构建返回值，title 根据 DisplayTitle 配置返回
             from django.conf import settings
-            display_title_config = getattr(settings, 'DISPLAY_TITLE', 'source_title')
+
+            display_title_config = getattr(settings, "DISPLAY_TITLE", "source_title")
 
             # 根据配置返回 title
-            if display_title_config == 'translated_title':
-                display_title = resource.translated_title or resource.source_title or resource.title or ''
-            elif display_title_config == 'title':
-                display_title = resource.title or resource.source_title or ''
+            if display_title_config == "translated_title":
+                display_title = (
+                    resource.translated_title
+                    or resource.source_title
+                    or resource.title
+                    or ""
+                )
+            elif display_title_config == "title":
+                display_title = resource.title or resource.source_title or ""
             else:  # 默认 source_title
-                display_title = resource.source_title or resource.title or ''
+                display_title = resource.source_title or resource.title or ""
 
             metadata = {
-                'avid': resource.avid,
-                'title': display_title,
-                'source': resource.source or '',
-                'release_date': resource.release_date or '',
-                'duration': f"{resource.duration // 60}分钟" if resource.duration else '',
-                'director': '',
-                'studio': '',
-                'label': '',
-                'series': '',
-                'actors': [a.name for a in resource.actors.all()],
-                'genres': [g.name for g in resource.genres.all()],
+                "avid": resource.avid,
+                "title": display_title,
+                "source": resource.source or "",
+                "release_date": resource.release_date or "",
+                "duration": f"{resource.duration // 60}分钟" if resource.duration else "",
+                "director": "",
+                "studio": "",
+                "label": "",
+                "series": "",
+                "actors": [a.name for a in resource.actors.all()],
+                "genres": [g.name for g in resource.genres.all()],
             }
 
             # 从 metadata JSON 补充额外字段（如 director, studio 等）
             if resource.metadata and isinstance(resource.metadata, dict):
-                for key in ['director', 'studio', 'label', 'series']:
+                for key in ["director", "studio", "label", "series"]:
                     if resource.metadata.get(key):
                         metadata[key] = resource.metadata[key]
 
             # 添加文件信息
-            metadata['file_exists'] = bool(resource.file_exists)
-            metadata['file_size'] = resource.file_size if resource.file_size else None
+            metadata["file_exists"] = bool(resource.file_exists)
+            metadata["file_size"] = resource.file_size if resource.file_size else None
 
             # Conditional request handling: ETag + Last-Modified
             try:
                 import json
+
                 from .utils import generate_etag_from_text
+
                 etag = generate_etag_from_text(json.dumps(metadata, sort_keys=True))
             except Exception:
                 etag = '"0"'
 
-            ims = request.headers.get('If-Modified-Since') or request.META.get('HTTP_IF_MODIFIED_SINCE')
-            inm = request.headers.get('If-None-Match') or request.META.get('HTTP_IF_NONE_MATCH')
+            ims = request.headers.get("If-Modified-Since") or request.META.get(
+                "HTTP_IF_MODIFIED_SINCE"
+            )
+            inm = request.headers.get("If-None-Match") or request.META.get(
+                "HTTP_IF_NONE_MATCH"
+            )
 
             # ETag match
             if inm and inm.strip() == etag:
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
-                resp['ETag'] = etag
+                resp["ETag"] = etag
                 if resource.metadata_saved_at:
-                    resp['Last-Modified'] = http_date(resource.metadata_saved_at.timestamp())
+                    resp["Last-Modified"] = http_date(
+                        resource.metadata_saved_at.timestamp()
+                    )
                 return resp
 
             # If-Modified-Since match
             ims_ts = parse_http_if_modified_since(ims)
-            if ims_ts is not None and resource.metadata_saved_at and int(
-                    resource.metadata_saved_at.timestamp()) <= ims_ts:
+            if (
+                ims_ts is not None
+                and resource.metadata_saved_at
+                and int(resource.metadata_saved_at.timestamp()) <= ims_ts
+            ):
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
-                resp['ETag'] = etag
-                resp['Last-Modified'] = http_date(resource.metadata_saved_at.timestamp())
+                resp["ETag"] = etag
+                resp["Last-Modified"] = http_date(
+                    resource.metadata_saved_at.timestamp()
+                )
                 return resp
 
-            resp = build_response(200, 'success', metadata)
-            resp['ETag'] = etag
+            resp = build_response(200, "success", metadata)
+            resp["ETag"] = etag
             if resource.metadata_saved_at:
-                resp['Last-Modified'] = http_date(resource.metadata_saved_at.timestamp())
+                resp["Last-Modified"] = http_date(
+                    resource.metadata_saved_at.timestamp()
+                )
             return resp
         except Exception as e:
             logger.error(f"读取元数据失败: {e}")
-            return build_response(500, f'读取元数据失败: {str(e)}', None)
+            return build_response(500, f"读取元数据失败: {str(e)}", None)
 
 
 class ResourceView(APIView):
@@ -601,40 +683,47 @@ class ResourceView(APIView):
     def post(self, request):
         serializer = NewResourceSerializer(data=request.data)
         if not serializer.is_valid():
-            return build_response(400, '参数错误', serializer.errors)
+            return build_response(400, "参数错误", serializer.errors)
 
-        avid = serializer.validated_data['avid'].upper()
-        source = serializer.validated_data.get('source', 'any').lower()
+        avid = serializer.validated_data["avid"].upper()
+        source = serializer.validated_data.get("source", "any").lower()
 
         # 检查资源是否已存在（基于数据库）
         try:
             from nassav.models import AVResource
+
             existing = AVResource.objects.filter(avid=avid).first()
             if existing:
-                return build_response(409, '资源已存在', {
-                    'avid': existing.avid,
-                    'title': existing.title or '',
-                    'source': existing.source or '',
-                    'cover_downloaded': bool(existing.cover_filename),
-                    'metadata_saved': True,
-                    'scraped': bool(existing.release_date)
-                })
+                return build_response(
+                    409,
+                    "资源已存在",
+                    {
+                        "avid": existing.avid,
+                        "title": existing.title or "",
+                        "source": existing.source or "",
+                        "cover_downloaded": bool(existing.cover_filename),
+                        "metadata_saved": True,
+                        "scraped": bool(existing.release_date),
+                    },
+                )
         except Exception:
             pass
 
         # 根据 downloader 参数选择获取方式
-        if source == 'any':
+        if source == "any":
             result = source_manager.get_info_from_any_source(avid)
-            error_msg = f'无法从任何源获取 {avid} 的信息'
+            error_msg = f"无法从任何源获取 {avid} 的信息"
         else:
             # 检查指定源是否存在
             available_sources = [s.lower() for s in source_manager.sources.keys()]
             if source not in available_sources:
-                return build_response(400, f'源 {source} 不存在', {
-                    'available_sources': list(source_manager.sources.keys())
-                })
+                return build_response(
+                    400,
+                    f"源 {source} 不存在",
+                    {"available_sources": list(source_manager.sources.keys())},
+                )
             result = source_manager.get_info_from_source(avid, source)
-            error_msg = f'从 {source} 获取 {avid} 失败'
+            error_msg = f"从 {source} 获取 {avid} 失败"
 
         if not result:
             return build_response(404, error_msg, None)
@@ -643,23 +732,30 @@ class ResourceView(APIView):
 
         # 一次性保存所有资源（HTML、封面、元数据）到 resource/{avid}/
         save_result = source_manager.save_all_resources(avid, info, source, html)
-        if not save_result['cover_saved']:
+        if not save_result["cover_saved"]:
             logger.warning(f"封面下载失败: {avid}")
 
         # 返回保存后的资源对象，便于前端局部刷新
         try:
             from nassav.models import AVResource
+
             resource_obj = AVResource.objects.filter(avid=avid).first()
-            resource_data = _serialize_resource_obj(resource_obj) if resource_obj else None
+            resource_data = (
+                _serialize_resource_obj(resource_obj) if resource_obj else None
+            )
         except Exception:
             resource_data = None
 
-        return build_response(201, 'success', {
-            'resource': resource_data,
-            'cover_downloaded': save_result['cover_saved'],
-            'metadata_saved': save_result['metadata_saved'],
-            'scraped': save_result.get('scraped', False)
-        })
+        return build_response(
+            201,
+            "success",
+            {
+                "resource": resource_data,
+                "cover_downloaded": save_result["cover_saved"],
+                "metadata_saved": save_result["metadata_saved"],
+                "scraped": save_result.get("scraped", False),
+            },
+        )
 
         # (clean) end of ResourceView.post
 
@@ -675,40 +771,46 @@ class DownloadView(APIView):
         # 检查元数据是否存在（数据库）
         try:
             from nassav.models import AVResource
+
             resource = AVResource.objects.filter(avid=avid).first()
             if not resource:
-                return build_response(404, f'{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源', None)
+                return build_response(
+                    404, f"{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源", None
+                )
 
             # 检查是否已下载
             if resource.file_exists:
-                return build_response(409, '视频已下载', {
-                    'avid': avid,
-                    'task_id': None,
-                    'status': 'completed',
-                    'file_size': resource.file_size
-                })
+                return build_response(
+                    409,
+                    "视频已下载",
+                    {
+                        "avid": avid,
+                        "task_id": None,
+                        "status": "completed",
+                        "file_size": resource.file_size,
+                    },
+                )
         except Exception:
-            return Response({
-                'code': 500,
-                'message': '服务器内部错误',
-                'data': None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"code": 500, "message": "服务器内部错误", "data": None},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         # 使用Celery异步下载（带去重检查）
         from .tasks import submit_download_task
+
         task_result, is_duplicate = submit_download_task(avid)
 
         if is_duplicate:
-            return build_response(409, '下载任务已存在', None)
+            return build_response(409, "下载任务已存在", None)
 
         task = task_result
 
-        return build_response(202, '下载任务已提交', {
-            'avid': avid,
-            'task_id': task.id,
-            'status': 'pending',
-            'file_size': None
-        })
+        return build_response(
+            202,
+            "下载任务已提交",
+            {"avid": avid, "task_id": task.id, "status": "pending", "file_size": None},
+        )
 
     def delete(self, request, avid):
         """
@@ -717,28 +819,32 @@ class DownloadView(APIView):
         """
         avid = avid.upper()
         from pathlib import Path
+
         mp4_path = Path(settings.VIDEO_DIR) / f"{avid}.mp4"
 
         if not mp4_path.exists():
-            return build_response(404, f'视频 {avid} 不存在', None)
+            return build_response(404, f"视频 {avid} 不存在", None)
 
         try:
             file_size = mp4_path.stat().st_size
             mp4_path.unlink()
             try:
                 from nassav.models import AVResource
-                AVResource.objects.filter(avid=avid).update(file_exists=False, file_size=None, video_saved_at=None)
+
+                AVResource.objects.filter(avid=avid).update(
+                    file_exists=False, file_size=None, video_saved_at=None
+                )
             except Exception as e:
                 logger.warning(f"删除 mp4 后更新 DB 失败: {e}")
             logger.info(f"已删除视频: {avid}")
-            return build_response(200, 'success', {
-                'avid': avid,
-                'deleted_file': f"{avid}.mp4",
-                'file_size': file_size
-            })
+            return build_response(
+                200,
+                "success",
+                {"avid": avid, "deleted_file": f"{avid}.mp4", "file_size": file_size},
+            )
         except Exception as e:
             logger.error(f"删除视频失败: {e}")
-            return build_response(500, f'删除失败: {str(e)}', None)
+            return build_response(500, f"删除失败: {str(e)}", None)
 
 
 class RefreshResourceView(APIView):
@@ -758,23 +864,24 @@ class RefreshResourceView(APIView):
         avid = avid.upper()
 
         # 解析参数，默认全部刷新
-        refresh_m3u8 = request.data.get('refresh_m3u8', True)
-        refresh_metadata = request.data.get('refresh_metadata', True)
-        retranslate = request.data.get('retranslate', False)
+        refresh_m3u8 = request.data.get("refresh_m3u8", True)
+        refresh_metadata = request.data.get("refresh_metadata", True)
+        retranslate = request.data.get("retranslate", False)
 
         # 检查资源是否存在（数据库），并根据 DB 中的 source 刷新
         try:
             from nassav.models import AVResource
+
             resource = AVResource.objects.filter(avid=avid).first()
             if not resource:
-                return build_response(404, f'{avid} 的资源不存在', None)
-            source = resource.source or ''
+                return build_response(404, f"{avid} 的资源不存在", None)
+            source = resource.source or ""
         except Exception as e:
             logger.error(f"读取现有元数据失败: {e}")
-            return build_response(500, f'读取现有元数据失败: {str(e)}', None)
+            return build_response(500, f"读取现有元数据失败: {str(e)}", None)
 
         if not source:
-            return build_response(400, f'{avid} 的元数据中没有 source 信息，无法刷新', None)
+            return build_response(400, f"{avid} 的元数据中没有 source 信息，无法刷新", None)
 
         result_info = {}
 
@@ -783,18 +890,20 @@ class RefreshResourceView(APIView):
             # 使用原有 source 获取新信息
             result = source_manager.get_info_from_source(avid, source)
             if not result:
-                return build_response(502, f'从 {source} 刷新 {avid} 失败', None)
+                return build_response(502, f"从 {source} 刷新 {avid} 失败", None)
 
             info, downloader, html = result
 
             # 保存新资源（覆盖旧资源）
-            save_result = source_manager.save_all_resources(avid, info, downloader, html)
+            save_result = source_manager.save_all_resources(
+                avid, info, downloader, html
+            )
 
-            result_info['cover_downloaded'] = save_result['cover_saved']
-            result_info['metadata_saved'] = save_result['metadata_saved']
-            result_info['scraped'] = save_result.get('scraped', False)
-            result_info['metadata_refreshed'] = refresh_metadata
-            result_info['m3u8_refreshed'] = refresh_m3u8
+            result_info["cover_downloaded"] = save_result["cover_saved"]
+            result_info["metadata_saved"] = save_result["metadata_saved"]
+            result_info["scraped"] = save_result.get("scraped", False)
+            result_info["metadata_refreshed"] = refresh_metadata
+            result_info["m3u8_refreshed"] = refresh_m3u8
 
         # 重新翻译（必须在元数据刷新之后执行，确保使用最新的标题）
         if retranslate:
@@ -804,17 +913,18 @@ class RefreshResourceView(APIView):
 
                 # 重置翻译状态并提交翻译任务
                 from nassav.tasks import translate_title_task
-                resource.translation_status = 'pending'
+
+                resource.translation_status = "pending"
                 resource.translated_title = None
-                resource.save(update_fields=['translation_status', 'translated_title'])
+                resource.save(update_fields=["translation_status", "translated_title"])
 
                 # 异步翻译
                 translate_title_task.delay(avid)
-                result_info['translation_queued'] = True
+                result_info["translation_queued"] = True
                 logger.info(f"已提交 {avid} 的翻译任务")
             except Exception as e:
                 logger.error(f"提交翻译任务失败: {e}")
-                result_info['translation_error'] = str(e)
+                result_info["translation_error"] = str(e)
 
         # 返回刷新后的资源对象，便于前端局部刷新
         try:
@@ -824,8 +934,8 @@ class RefreshResourceView(APIView):
             logger.error(f"序列化资源对象失败: {e}")
             resource_data = None
 
-        result_info['resource'] = resource_data
-        return build_response(200, 'success', result_info)
+        result_info["resource"] = resource_data
+        return build_response(200, "success", result_info)
 
 
 class DeleteResourceView(APIView):
@@ -836,14 +946,22 @@ class DeleteResourceView(APIView):
 
     def delete(self, request, avid):
         import shutil
+
         avid = avid.upper()
         from pathlib import Path
+
         cover_root = Path(settings.COVER_DIR)
         video_root = Path(settings.VIDEO_DIR)
-        backup_root = Path(getattr(settings, 'RESOURCE_BACKUP_DIR', Path(settings.BASE_DIR) / 'resource_backup'))
+        backup_root = Path(
+            getattr(
+                settings,
+                "RESOURCE_BACKUP_DIR",
+                Path(settings.BASE_DIR) / "resource_backup",
+            )
+        )
 
         cover_candidates = []
-        for ext in ['.jpg', '.jpeg', '.png', '.webp']:
+        for ext in [".jpg", ".jpeg", ".png", ".webp"]:
             p = cover_root / f"{avid}{ext}"
             if p.exists():
                 cover_candidates.append(p)
@@ -852,7 +970,7 @@ class DeleteResourceView(APIView):
         backup_dir = backup_root / avid
 
         if not cover_candidates and not mp4_path.exists() and not backup_dir.exists():
-            return build_response(404, f'资源 {avid} 不存在', None)
+            return build_response(404, f"资源 {avid} 不存在", None)
 
         try:
             deleted_files = []
@@ -883,6 +1001,7 @@ class DeleteResourceView(APIView):
             resource_data = None
             try:
                 from nassav.models import AVResource
+
                 resource_obj = AVResource.objects.filter(avid=avid).first()
                 if resource_obj:
                     resource_data = _serialize_resource_obj(resource_obj)
@@ -891,14 +1010,18 @@ class DeleteResourceView(APIView):
                 logger.warning(f"删除数据库记录失败: {e}")
 
             logger.info(f"已删除资源: {avid}")
-            return build_response(200, 'success', {
-                'resource': resource_data,
-                'avid': avid,
-                'deleted_files': deleted_files
-            })
+            return build_response(
+                200,
+                "success",
+                {
+                    "resource": resource_data,
+                    "avid": avid,
+                    "deleted_files": deleted_files,
+                },
+            )
         except Exception as e:
             logger.error(f"删除资源失败: {e}")
-            return build_response(500, f'删除失败: {str(e)}', None)
+            return build_response(500, f"删除失败: {str(e)}", None)
 
 
 class TaskQueueStatusView(APIView):
@@ -915,10 +1038,10 @@ class TaskQueueStatusView(APIView):
 
         try:
             queue_status = get_full_task_queue()
-            return build_response(200, 'success', queue_status)
+            return build_response(200, "success", queue_status)
         except Exception as e:
             logger.error(f"获取任务队列状态失败: {e}")
-            return build_response(500, f'获取队列状态失败: {str(e)}', None)
+            return build_response(500, f"获取队列状态失败: {str(e)}", None)
 
 
 class ResourcesBatchView(APIView):
@@ -932,65 +1055,100 @@ class ResourcesBatchView(APIView):
 
     def post(self, request):
         data = request.data or {}
-        actions = data.get('actions') or []
+        actions = data.get("actions") or []
         results = []
 
         for act in actions:
-            action = (act.get('action') or '').lower()
-            avid = (act.get('avid') or '').upper()
+            action = (act.get("action") or "").lower()
+            avid = (act.get("avid") or "").upper()
             if not avid:
-                results.append({'action': action, 'avid': None, 'code': 400, 'message': 'avid 缺失', 'resource': None})
+                results.append(
+                    {
+                        "action": action,
+                        "avid": None,
+                        "code": 400,
+                        "message": "avid 缺失",
+                        "resource": None,
+                    }
+                )
                 continue
 
             try:
-                if action == 'add':
+                if action == "add":
                     # 先检查资源是否已存在
                     from nassav.models import AVResource
+
                     existing_resource = AVResource.objects.filter(avid=avid).first()
 
                     if existing_resource:
                         # 资源已存在，返回现有数据
                         resource_data = _serialize_resource_obj(existing_resource)
-                        results.append({
-                            'action': 'add',
-                            'avid': avid,
-                            'code': 200,
-                            'message': 'already exists',
-                            'resource': resource_data
-                        })
+                        results.append(
+                            {
+                                "action": "add",
+                                "avid": avid,
+                                "code": 200,
+                                "message": "already exists",
+                                "resource": resource_data,
+                            }
+                        )
                         continue
 
                     # 资源不存在，执行添加操作
-                    source = (act.get('source') or 'any').lower()
-                    if source == 'any':
+                    source = (act.get("source") or "any").lower()
+                    if source == "any":
                         result = source_manager.get_info_from_any_source(avid)
                     else:
                         result = source_manager.get_info_from_source(avid, source)
 
                     if not result:
                         results.append(
-                            {'action': 'add', 'avid': avid, 'code': 404, 'message': '获取信息失败', 'resource': None})
+                            {
+                                "action": "add",
+                                "avid": avid,
+                                "code": 404,
+                                "message": "获取信息失败",
+                                "resource": None,
+                            }
+                        )
                         continue
 
                     info, src, html = result
-                    save_result = source_manager.save_all_resources(avid, info, src, html)
+                    save_result = source_manager.save_all_resources(
+                        avid, info, src, html
+                    )
                     # load serialized resource
                     resource_obj = AVResource.objects.filter(avid=avid).first()
-                    resource_data = _serialize_resource_obj(resource_obj) if resource_obj else None
+                    resource_data = (
+                        _serialize_resource_obj(resource_obj) if resource_obj else None
+                    )
                     results.append(
-                        {'action': 'add', 'avid': avid, 'code': 201, 'message': 'created', 'resource': resource_data})
+                        {
+                            "action": "add",
+                            "avid": avid,
+                            "code": 201,
+                            "message": "created",
+                            "resource": resource_data,
+                        }
+                    )
 
-                elif action == 'delete':
+                elif action == "delete":
                     # perform delete similar to DeleteResourceView
                     import shutil
                     from pathlib import Path
+
                     cover_root = Path(settings.COVER_DIR)
                     video_root = Path(settings.VIDEO_DIR)
                     backup_root = Path(
-                        getattr(settings, 'RESOURCE_BACKUP_DIR', Path(settings.BASE_DIR) / 'resource_backup'))
+                        getattr(
+                            settings,
+                            "RESOURCE_BACKUP_DIR",
+                            Path(settings.BASE_DIR) / "resource_backup",
+                        )
+                    )
 
                     cover_candidates = []
-                    for ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                    for ext in [".jpg", ".jpeg", ".png", ".webp"]:
                         p = cover_root / f"{avid}{ext}"
                         if p.exists():
                             cover_candidates.append(p)
@@ -998,9 +1156,20 @@ class ResourcesBatchView(APIView):
                     mp4_path = video_root / f"{avid}.mp4"
                     backup_dir = backup_root / avid
 
-                    if not cover_candidates and not mp4_path.exists() and not backup_dir.exists():
+                    if (
+                        not cover_candidates
+                        and not mp4_path.exists()
+                        and not backup_dir.exists()
+                    ):
                         results.append(
-                            {'action': 'delete', 'avid': avid, 'code': 404, 'message': '资源不存在', 'resource': None})
+                            {
+                                "action": "delete",
+                                "avid": avid,
+                                "code": 404,
+                                "message": "资源不存在",
+                                "resource": None,
+                            }
+                        )
                         continue
 
                     deleted_files = []
@@ -1028,6 +1197,7 @@ class ResourcesBatchView(APIView):
 
                     # serialize and delete DB record
                     from nassav.models import AVResource
+
                     resource_data = None
                     try:
                         resource_obj = AVResource.objects.filter(avid=avid).first()
@@ -1038,27 +1208,49 @@ class ResourcesBatchView(APIView):
                         pass
 
                     results.append(
-                        {'action': 'delete', 'avid': avid, 'code': 200, 'message': 'deleted', 'resource': resource_data,
-                         'deleted_files': deleted_files})
+                        {
+                            "action": "delete",
+                            "avid": avid,
+                            "code": 200,
+                            "message": "deleted",
+                            "resource": resource_data,
+                            "deleted_files": deleted_files,
+                        }
+                    )
 
-                elif action == 'refresh':
+                elif action == "refresh":
                     # 支持细粒度刷新参数
                     from nassav.models import AVResource
+
                     resource = AVResource.objects.filter(avid=avid).first()
                     if not resource:
                         results.append(
-                            {'action': 'refresh', 'avid': avid, 'code': 404, 'message': '资源不存在', 'resource': None})
+                            {
+                                "action": "refresh",
+                                "avid": avid,
+                                "code": 404,
+                                "message": "资源不存在",
+                                "resource": None,
+                            }
+                        )
                         continue
-                    source = resource.source or ''
+                    source = resource.source or ""
                     if not source:
-                        results.append({'action': 'refresh', 'avid': avid, 'code': 400, 'message': '没有 source 信息',
-                                        'resource': None})
+                        results.append(
+                            {
+                                "action": "refresh",
+                                "avid": avid,
+                                "code": 400,
+                                "message": "没有 source 信息",
+                                "resource": None,
+                            }
+                        )
                         continue
 
                     # 解析细粒度参数
-                    refresh_m3u8 = act.get('refresh_m3u8', True)
-                    refresh_metadata = act.get('refresh_metadata', True)
-                    retranslate = act.get('retranslate', False)
+                    refresh_m3u8 = act.get("refresh_m3u8", True)
+                    refresh_metadata = act.get("refresh_metadata", True)
+                    retranslate = act.get("retranslate", False)
 
                     refresh_info = {}
 
@@ -1067,44 +1259,78 @@ class ResourcesBatchView(APIView):
                         result = source_manager.get_info_from_source(avid, source)
                         if not result:
                             results.append(
-                                {'action': 'refresh', 'avid': avid, 'code': 502, 'message': '刷新失败', 'resource': None})
+                                {
+                                    "action": "refresh",
+                                    "avid": avid,
+                                    "code": 502,
+                                    "message": "刷新失败",
+                                    "resource": None,
+                                }
+                            )
                             continue
 
                         info, downloader, html = result
-                        save_result = source_manager.save_all_resources(avid, info, downloader, html)
-                        refresh_info['metadata_refreshed'] = refresh_metadata
-                        refresh_info['m3u8_refreshed'] = refresh_m3u8
+                        save_result = source_manager.save_all_resources(
+                            avid, info, downloader, html
+                        )
+                        refresh_info["metadata_refreshed"] = refresh_metadata
+                        refresh_info["m3u8_refreshed"] = refresh_m3u8
 
                     # 重新翻译（在元数据刷新之后）
                     if retranslate:
                         try:
                             resource.refresh_from_db()
                             from nassav.tasks import translate_title_task
-                            resource.translation_status = 'pending'
+
+                            resource.translation_status = "pending"
                             resource.translated_title = None
-                            resource.save(update_fields=['translation_status', 'translated_title'])
+                            resource.save(
+                                update_fields=["translation_status", "translated_title"]
+                            )
                             translate_title_task.delay(avid)
-                            refresh_info['translation_queued'] = True
+                            refresh_info["translation_queued"] = True
                         except Exception as e:
                             logger.error(f"提交翻译任务失败: {e}")
-                            refresh_info['translation_error'] = str(e)
+                            refresh_info["translation_error"] = str(e)
 
                     resource.refresh_from_db()
-                    resource_data = _serialize_resource_obj(resource) if resource else None
-                    result_item = {'action': 'refresh', 'avid': avid, 'code': 200, 'message': 'refreshed',
-                                   'resource': resource_data}
+                    resource_data = (
+                        _serialize_resource_obj(resource) if resource else None
+                    )
+                    result_item = {
+                        "action": "refresh",
+                        "avid": avid,
+                        "code": 200,
+                        "message": "refreshed",
+                        "resource": resource_data,
+                    }
                     result_item.update(refresh_info)
                     results.append(result_item)
 
                 else:
                     results.append(
-                        {'action': action, 'avid': avid, 'code': 400, 'message': '未知 action', 'resource': None})
+                        {
+                            "action": action,
+                            "avid": avid,
+                            "code": 400,
+                            "message": "未知 action",
+                            "resource": None,
+                        }
+                    )
 
             except Exception as e:
                 logger.exception(f"批量操作失败: {e}")
-                results.append({'action': action, 'avid': avid, 'code': 500, 'message': str(e), 'resource': None})
+                results.append(
+                    {
+                        "action": action,
+                        "avid": avid,
+                        "code": 500,
+                        "message": str(e),
+                        "resource": None,
+                    }
+                )
 
-        return build_response(200, 'success', {'results': results})
+        return build_response(200, "success", {"results": results})
 
 
 class DownloadsBatchSubmitView(APIView):
@@ -1115,7 +1341,7 @@ class DownloadsBatchSubmitView(APIView):
 
     def post(self, request):
         data = request.data or {}
-        avids = data.get('avids') or []
+        avids = data.get("avids") or []
         results = []
 
         from .tasks import submit_download_task
@@ -1125,14 +1351,30 @@ class DownloadsBatchSubmitView(APIView):
             try:
                 task_result, is_duplicate = submit_download_task(avid)
                 if is_duplicate:
-                    results.append({'avid': avid, 'code': 409, 'message': '下载任务已存在', 'task_id': None})
+                    results.append(
+                        {
+                            "avid": avid,
+                            "code": 409,
+                            "message": "下载任务已存在",
+                            "task_id": None,
+                        }
+                    )
                 else:
-                    results.append({'avid': avid, 'code': 202, 'message': 'submitted', 'task_id': task_result.id})
+                    results.append(
+                        {
+                            "avid": avid,
+                            "code": 202,
+                            "message": "submitted",
+                            "task_id": task_result.id,
+                        }
+                    )
             except Exception as e:
                 logger.exception(f"批量提交下载失败: {e}")
-                results.append({'avid': avid, 'code': 500, 'message': str(e), 'task_id': None})
+                results.append(
+                    {"avid": avid, "code": 500, "message": str(e), "task_id": None}
+                )
 
-        return build_response(200, 'success', {'results': results})
+        return build_response(200, "success", {"results": results})
 
 
 class MockDownloadView(APIView):
@@ -1154,45 +1396,50 @@ class MockDownloadView(APIView):
         """
         # 检查是否在 DEBUG 模式
         if not settings.DEBUG:
-            return build_response(403, '此接口仅在 DEBUG 模式下可用', None)
+            return build_response(403, "此接口仅在 DEBUG 模式下可用", None)
 
         avid = avid.upper()
         data = request.data or {}
-        duration = int(data.get('duration', 30))
+        duration = int(data.get("duration", 30))
 
         # 验证 duration 范围
         if duration < 1 or duration > 300:
-            return build_response(400, '持续时间必须在 1-300 秒之间', None)
+            return build_response(400, "持续时间必须在 1-300 秒之间", None)
 
         # 检查资源是否存在于数据库
         try:
             from nassav.models import AVResource
+
             resource = AVResource.objects.filter(avid=avid).first()
             if not resource:
-                return build_response(404, f'{avid} 的元数据不存在', None)
+                return build_response(404, f"{avid} 的元数据不存在", None)
         except Exception as e:
             logger.error(f"查询资源失败: {e}")
-            return Response({
-                'code': 500,
-                'message': '服务器内部错误',
-                'data': None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"code": 500, "message": "服务器内部错误", "data": None},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         # 提交模拟下载任务
         from .tasks import submit_mock_download_task
+
         try:
             task_result, is_duplicate = submit_mock_download_task(avid, duration)
 
             if is_duplicate:
-                return build_response(409, '下载任务已存在', None)
+                return build_response(409, "下载任务已存在", None)
 
-            return build_response(202, '模拟下载任务已提交', {
-                'avid': avid,
-                'task_id': task_result.id,
-                'status': 'pending',
-                'duration': duration,
-                'mock': True
-            })
+            return build_response(
+                202,
+                "模拟下载任务已提交",
+                {
+                    "avid": avid,
+                    "task_id": task_result.id,
+                    "status": "pending",
+                    "duration": duration,
+                    "mock": True,
+                },
+            )
         except Exception as e:
             logger.error(f"提交模拟下载任务失败: {e}")
-            return build_response(500, f'提交失败: {str(e)}', None)
+            return build_response(500, f"提交失败: {str(e)}", None)

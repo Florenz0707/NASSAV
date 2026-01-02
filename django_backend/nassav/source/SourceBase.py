@@ -4,9 +4,8 @@ from typing import Optional
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import HTTPError
 from loguru import logger
-
-from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.constants import HEADERS
+from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 
 
 class SourceBase:
@@ -23,7 +22,7 @@ class SourceBase:
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         self.proxy = proxy
-        self.proxies = {'http': proxy, 'https': proxy} if proxy else None
+        self.proxies = {"http": proxy, "https": proxy} if proxy else None
         self.cookie = None
         self.cookie_retry_times = 5
         self.timeout = timeout
@@ -42,7 +41,7 @@ class SourceBase:
         """获取首页URL，用于cookie获取。子类可以重写此方法"""
         if not self.domain:
             raise ValueError(f"{self.get_source_name()} 未设置domain")
-        return f'https://{self.domain}/'
+        return f"https://{self.domain}/"
 
     def set_cookie_auto(self, force_refresh: bool = False) -> bool:
         """
@@ -56,6 +55,7 @@ class SourceBase:
         """
         try:
             from time import sleep
+
             from nassav.models import SourceCookie
 
             source_name = self.get_source_name()
@@ -95,12 +95,11 @@ class SourceBase:
                     logger.info(f"{source_name}: 获取失败，进行重试...")
                     sleep(0.5)
                 else:
-                    cookie_str = '; '.join([f"{k}={v}" for k, v in cookies.items()])
+                    cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
                     logger.info(f"{source_name}: 成功获取cookie: {list(cookies.keys())}")
 
                     SourceCookie.objects.update_or_create(
-                        source_name=source_name,
-                        defaults={'cookie': cookie_str}
+                        source_name=source_name, defaults={"cookie": cookie_str}
                     )
                     logger.info(f"{source_name}: Cookie已保存到数据库")
                     self.cookie = cookie_str
@@ -176,12 +175,12 @@ class SourceBase:
                 proxies=self.proxies,
                 headers=headers,
                 timeout=self.timeout,
-                allow_redirects=True
+                allow_redirects=True,
             )
             response.raise_for_status()
 
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            with open(save_path, 'wb') as f:
+            with open(save_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)

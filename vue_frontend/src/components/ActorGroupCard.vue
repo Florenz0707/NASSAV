@@ -1,10 +1,16 @@
 <template>
 	<div class="actor-card" @click="$emit('click')">
 		<div class="avatar">
-			<div class="avatar-circle" :style="{ backgroundColor: bgColor }">{{ initial }}</div>
+			<div class="avatar-circle" :style="{ backgroundColor: bgColor }">
+				{{ initial }}
+			</div>
 		</div>
-		<div class="actor-name">{{ actor.name }}</div>
-		<div class="actor-count">共有 {{ actor.resource_count }} 部作品</div>
+		<div class="actor-name">
+			{{ actor.name }}
+		</div>
+		<div class="actor-count">
+			共有 {{ actor.resource_count }} 部作品
+		</div>
 	</div>
 </template>
 
@@ -15,6 +21,7 @@ export default {
 		actor: {type: Object, required: true},
 		thumbs: {type: Array, default: () => []}
 	},
+	emits: ['click'],
 	computed: {
 		initial() {
 			const n = this.actor && this.actor.name ? this.actor.name.trim() : ''

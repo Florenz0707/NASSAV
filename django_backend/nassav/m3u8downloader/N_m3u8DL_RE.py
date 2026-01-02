@@ -22,7 +22,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
 
         # 工具路径
         tools_dir = settings.BASE_DIR / "tools"
-        if platform.system() == 'Windows':
+        if platform.system() == "Windows":
             self.tool_path = str(tools_dir / "N_m3u8DL-RE.exe")
         else:
             self.tool_path = str(tools_dir / "N_m3u8DL-RE")
@@ -31,15 +31,15 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         return "N_m3u8DL-RE"
 
     def download(
-            self,
-            url: str,
-            output_dir: Path,
-            output_name: str,
-            referer: str,
-            user_agent: str,
-            thread_count: int = 32,
-            retry_count: int = 5,
-            progress_callback: Optional[callable] = None,
+        self,
+        url: str,
+        output_dir: Path,
+        output_name: str,
+        referer: str,
+        user_agent: str,
+        thread_count: int = 32,
+        retry_count: int = 5,
+        progress_callback: Optional[callable] = None,
     ) -> bool:
         """使用 N_m3u8DL-RE 下载 M3U8 视频
 
@@ -54,25 +54,32 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
             cmd = [
                 self.tool_path,
                 url,
-                "--tmp-dir", str(tmp_path),
-                "--save-dir", str(output_dir),
-                "--save-name", output_name,
-                "--thread-count", str(thread_count),
-                "--download-retry-count", str(retry_count),
+                "--tmp-dir",
+                str(tmp_path),
+                "--save-dir",
+                str(output_dir),
+                "--save-name",
+                output_name,
+                "--thread-count",
+                str(thread_count),
+                "--download-retry-count",
+                str(retry_count),
                 "--del-after-done",  # 下载完成后删除临时文件
                 "--auto-select",  # 自动选择最佳质量
                 "--no-log",  # 禁用日志文件
-                "-H", f"Referer: {referer}",
-                "-H", f"User-Agent: {user_agent}",
+                "-H",
+                f"Referer: {referer}",
+                "-H",
+                f"User-Agent: {user_agent}",
             ]
 
             # 设置环境变量（代理）
             env = os.environ.copy()
             if self.proxy:
-                env['http_proxy'] = self.proxy
-                env['https_proxy'] = self.proxy
-                env['HTTP_PROXY'] = self.proxy
-                env['HTTPS_PROXY'] = self.proxy
+                env["http_proxy"] = self.proxy
+                env["https_proxy"] = self.proxy
+                env["HTTP_PROXY"] = self.proxy
+                env["HTTPS_PROXY"] = self.proxy
 
             # 使用 Popen 实时读取输出
             process = subprocess.Popen(
@@ -81,19 +88,22 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
             )
 
             # 实时读取输出并解析进度
             import re
+
             for line in process.stdout:
                 # 解析进度信息（示例格式: "已下载: 45.2% | 速度: 5.2MB/s"）
                 line = line.strip()
                 if progress_callback:
                     # 尝试匹配百分比
-                    percent_match = re.search(r'(\d+\.?\d*)%', line)
+                    percent_match = re.search(r"(\d+\.?\d*)%", line)
                     # 尝试匹配速度
-                    speed_match = re.search(r'([\d.]+\s*[KMG]?B/s)', line, re.IGNORECASE)
+                    speed_match = re.search(
+                        r"([\d.]+\s*[KMG]?B/s)", line, re.IGNORECASE
+                    )
 
                     if percent_match:
                         percent = float(percent_match.group(1))

@@ -111,12 +111,13 @@ export const resourceApi = {
                 const firstUrl = resourceApi._coverCache.get(firstKey)
                 try {
                     URL.revokeObjectURL(firstUrl)
-                } catch (e) {
+                } catch {
+                    // Ignore revoke errors
                 }
                 resourceApi._coverCache.delete(firstKey)
             }
             return obj
-        } catch (e) {
+        } catch (_e) {
             // fallback to URL
             return `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover?avid=${encodeURIComponent(avid)}`
         }
@@ -127,7 +128,8 @@ export const resourceApi = {
             const url = resourceApi._coverCache.get(avid)
             try {
                 URL.revokeObjectURL(url)
-            } catch (e) {
+            } catch {
+                // Ignore revoke errors
             }
             resourceApi._coverCache.delete(avid)
         }

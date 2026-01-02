@@ -1,41 +1,43 @@
 <template>
 	<div class="mt-8 w-full">
 		<div class="flex items-center justify-center gap-3 mb-3">
-			<button @click="goFirst" :disabled="page === 1"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+			<button :disabled="page === 1" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				@click="goFirst">
 				跳转开头
 			</button>
-			<button @click="goPrev" :disabled="page === 1"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+			<button :disabled="page === 1" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				@click="goPrev">
 				上一页
 			</button>
-			<div class="px-4 py-2 rounded-md bg-[rgba(255,255,255,0.03)] text-[#f4f4f5]">第 {{ page }} 页 / 共 {{
+			<div class="px-4 py-2 rounded-md bg-[rgba(255,255,255,0.03)] text-[#f4f4f5]">
+				第 {{ page }} 页 / 共 {{
 					pages
 				}} 页
 			</div>
-			<button @click="goNext" :disabled="page === pages"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+			<button :disabled="page === pages" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				@click="goNext">
 				下一页
 			</button>
-			<button @click="goLast" :disabled="page === pages"
-					class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0">
+			<button :disabled="page === pages" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				@click="goLast">
 				跳转末尾
 			</button>
 		</div>
 		<div class="flex items-center justify-center gap-4">
 			<div class="flex items-center gap-2">
 				<button class="px-3 py-1 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md"
-						@click="emitGoTo(page)">跳转至第
+					@click="emitGoTo(page)">
+					跳转至第
 				</button>
-				<input v-model.number="localPage" @keydown.enter="emitGoTo(localPage)" type="number" min="1"
-					   :max="pages"
-					   class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center"/>
+				<input v-model.number="localPage" type="number" min="1" :max="pages"
+					class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center"
+					@keydown.enter="emitGoTo(localPage)">
 				<label class="text-sm text-[#bcbcbc]">页</label>
 			</div>
 			<div class="flex items-center gap-2">
 				<label class="text-sm text-[#bcbcbc]">每页显示</label>
-				<input v-model.number="localPageSize" @change="emitPageSizeChange" type="number" min="1"
-					   class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center"/>
+				<input v-model.number="localPageSize" type="number" min="1" class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center"
+					@change="emitPageSizeChange">
 				<label class="text-sm text-[#bcbcbc]">个资源卡</label>
 			</div>
 		</div>

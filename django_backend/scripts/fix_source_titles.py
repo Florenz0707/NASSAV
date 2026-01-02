@@ -8,16 +8,17 @@
     python scripts/fix_source_titles.py --stats   # 统计需要修复的资源数
 """
 
+import argparse
 import os
 import sys
-import django
-import argparse
 from pathlib import Path
+
+import django
 
 # 设置 Django 环境
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
 from nassav.models import AVResource
@@ -36,7 +37,9 @@ def normalize_source_title(avid: str, source_title: str) -> str:
 
 def get_resources_needing_fix():
     """获取需要修复的资源列表"""
-    resources = AVResource.objects.exclude(source_title__isnull=True).exclude(source_title='')
+    resources = AVResource.objects.exclude(source_title__isnull=True).exclude(
+        source_title=""
+    )
 
     need_fix = []
     for r in resources:
@@ -50,7 +53,11 @@ def get_resources_needing_fix():
 def show_statistics():
     """显示统计信息"""
     total = AVResource.objects.count()
-    with_source_title = AVResource.objects.exclude(source_title__isnull=True).exclude(source_title='').count()
+    with_source_title = (
+        AVResource.objects.exclude(source_title__isnull=True)
+        .exclude(source_title="")
+        .count()
+    )
     need_fix = len(get_resources_needing_fix())
 
     print("=" * 60)
@@ -102,7 +109,7 @@ def execute_fix():
     for r in resources:
         old_title = r.source_title
         r.source_title = normalize_source_title(r.avid, r.source_title)
-        r.save(update_fields=['source_title'])
+        r.save(update_fields=["source_title"])
         fixed += 1
 
         if fixed <= 10 or fixed % 100 == 0:  # 显示前 10 个和每 100 个
@@ -115,20 +122,12 @@ def execute_fix():
 def main():
     parser = argparse.ArgumentParser(
         description="修复资源的 source_title 格式（确保以 AVID 开头）",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument(
-        '--execute',
-        action='store_true',
-        help='执行修复操作（默认为预览模式）'
-    )
+    parser.add_argument("--execute", action="store_true", help="执行修复操作（默认为预览模式）")
 
-    parser.add_argument(
-        '--stats',
-        action='store_true',
-        help='显示统计信息'
-    )
+    parser.add_argument("--stats", action="store_true", help="显示统计信息")
 
     args = parser.parse_args()
 
@@ -140,5 +139,5 @@ def main():
         preview_fixes()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

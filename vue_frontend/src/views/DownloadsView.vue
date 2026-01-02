@@ -1,5 +1,5 @@
 <script setup>
-import {computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, onBeforeUnmount, onUnmounted, ref, watch} from 'vue'
 import {useResourceStore} from '../stores/resource'
 import {useWebSocketStore} from '../stores/websocket'
 import {resourceApi, taskApi} from '../api'
@@ -7,8 +7,6 @@ import {resourceApi, taskApi} from '../api'
 const resourceStore = useResourceStore()
 const wsStore = useWebSocketStore()
 
-const loading = ref(true)
-const downloadedResources = ref([])
 const pollingTimer = ref(null)
 
 const POLLING_INTERVAL = 1000  // API 轮询间隔
@@ -132,8 +130,12 @@ function stopPolling() {
 <template>
 	<div class="downloads-view">
 		<div class="page-header">
-			<h1 class="page-title">下载管理</h1>
-			<p class="page-subtitle">实时监控下载任务与已下载视频</p>
+			<h1 class="page-title">
+				下载管理
+			</h1>
+			<p class="page-subtitle">
+				实时监控下载任务与已下载视频
+			</p>
 		</div>
 
 		<!-- 任务队列统计 -->
@@ -154,7 +156,9 @@ function stopPolling() {
 
 		<!-- 下载任务列表 -->
 		<div v-if="allTasks.length > 0" class="task-section">
-			<h2 class="section-title">下载队列</h2>
+			<h2 class="section-title">
+				下载队列
+			</h2>
 			<div class="tasks-list">
 				<div
 					v-for="task in allTasks"
@@ -164,7 +168,7 @@ function stopPolling() {
 				>
 					<!-- 左侧封面 -->
 					<div class="task-cover">
-						<img :src="resourceApi.getCoverUrl(task.avid, 'small')" :alt="task.avid" loading="lazy"/>
+						<img :src="resourceApi.getCoverUrl(task.avid, 'small')" :alt="task.avid" loading="lazy">
 					</div>
 
 					<!-- 右侧信息 -->
@@ -172,22 +176,26 @@ function stopPolling() {
 						<div class="task-header">
 							<span class="task-avid">{{ task.avid }}</span>
 							<div v-if="task.isActive" class="task-status-badge active">
-								<span class="pulse-dot"></span>
+								<span class="pulse-dot"/>
 								下载中
 							</div>
-							<div v-else class="task-status-badge pending">等待中</div>
+							<div v-else class="task-status-badge pending">
+								等待中
+							</div>
 						</div>
-						<div class="task-title">{{ task.title || '加载中...' }}</div>
+						<div class="task-title">
+							{{ task.title || '加载中...' }}
+						</div>
 						<div class="task-progress">
 							<div class="progress-bar">
 								<div
 									class="progress-fill"
 									:class="{ 'is-active': task.isActive }"
 									:style="{ width: task.isActive ? (task.progress?.percent || 0) + '%' : '0%' }"
-								></div>
+								/>
 							</div>
 							<span v-if="task.isActive && task.progress"
-								  class="progress-text">{{ task.progress.percent?.toFixed(1) || 0 }}%</span>
+								class="progress-text">{{ task.progress.percent?.toFixed(1) || 0 }}%</span>
 							<span v-else class="progress-text pending">排队中</span>
 						</div>
 					</div>
@@ -197,11 +205,16 @@ function stopPolling() {
 
 		<!-- 空状态 -->
 		<div v-else class="empty-state">
-			<div class="empty-icon">📥</div>
-			<div class="empty-text">暂无下载任务</div>
-			<div class="empty-hint">在资源详情页点击下载按钮添加任务</div>
+			<div class="empty-icon">
+				📥
+			</div>
+			<div class="empty-text">
+				暂无下载任务
+			</div>
+			<div class="empty-hint">
+				在资源详情页点击下载按钮添加任务
+			</div>
 		</div>
-
 	</div>
 </template>
 

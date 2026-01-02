@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import List
 
@@ -14,6 +14,7 @@ class AVDownloadInfo:
     - Source 提供：m3u8、source_title（备用标题）
     - Scraper 提供：title（规范标题）、其他元数据
     """
+
     # Source 提供的核心信息
     m3u8: str = ""
     source_title: str = ""  # Source 获取的标题（备用）
@@ -41,7 +42,7 @@ class AVDownloadInfo:
         try:
             path = Path(file_path)
             path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open('w', encoding='utf-8') as f:
+            with path.open("w", encoding="utf-8") as f:
                 json.dump(asdict(self), f, ensure_ascii=False, indent=indent)
             return True
         except (IOError, TypeError) as e:
@@ -55,23 +56,23 @@ class AVDownloadInfo:
             scraped_data: 从 Scraper（如 JavBus）获取的元数据字典
         """
         # 更新 Scraper 提供的规范标题
-        if scraped_data.get('title'):
-            self.title = scraped_data['title']
+        if scraped_data.get("title"):
+            self.title = scraped_data["title"]
 
         # 更新所有扩展元数据字段
-        if scraped_data.get('release_date'):
-            self.release_date = scraped_data['release_date']
-        if scraped_data.get('duration'):
-            self.duration = scraped_data['duration']
-        if scraped_data.get('director'):
-            self.director = scraped_data['director']
-        if scraped_data.get('studio'):
-            self.studio = scraped_data['studio']
-        if scraped_data.get('label'):
-            self.label = scraped_data['label']
-        if scraped_data.get('series'):
-            self.series = scraped_data['series']
-        if scraped_data.get('genres'):
-            self.genres = scraped_data['genres']
-        if scraped_data.get('actors'):
-            self.actors = scraped_data['actors']
+        if scraped_data.get("release_date"):
+            self.release_date = scraped_data["release_date"]
+        if scraped_data.get("duration"):
+            self.duration = scraped_data["duration"]
+        if scraped_data.get("director"):
+            self.director = scraped_data["director"]
+        if scraped_data.get("studio"):
+            self.studio = scraped_data["studio"]
+        if scraped_data.get("label"):
+            self.label = scraped_data["label"]
+        if scraped_data.get("series"):
+            self.series = scraped_data["series"]
+        if scraped_data.get("genres"):
+            self.genres = scraped_data["genres"]
+        if scraped_data.get("actors"):
+            self.actors = scraped_data["actors"]

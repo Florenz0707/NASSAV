@@ -18,7 +18,7 @@ for fold in folders:
     print(fold)
     files = os.listdir(fold)
     for file in files:
-        if file.endswith('.nfo'):
+        if file.endswith(".nfo"):
             file_path = os.path.join(fold, file)
             try:
                 # 解析 XML 文件
@@ -28,8 +28,8 @@ for fold in folders:
                 modified = False
 
                 # 查找所有 actor 元素
-                for actor in root_elem.findall('.//actor'):
-                    thumb_elem = actor.find('thumb')
+                for actor in root_elem.findall(".//actor"):
+                    thumb_elem = actor.find("thumb")
                     if thumb_elem is not None and old_path in thumb_elem.text:
                         # 替换路径
                         thumb_elem.text = thumb_elem.text.replace(old_path, new_path)
@@ -38,14 +38,14 @@ for fold in folders:
                 # 如果有修改，保存文件
                 if modified:
                     # 保留原始 XML 声明和格式
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         original_content = f.read()
 
                     # 使用 ElementTree 生成修改后的内容
-                    tree.write(file_path, encoding='utf-8', xml_declaration=True)
+                    tree.write(file_path, encoding="utf-8", xml_declaration=True)
 
                     # 恢复原始格式（ElementTree 会改变格式）
-                    with open(file_path, 'r+', encoding='utf-8') as f:
+                    with open(file_path, "r+", encoding="utf-8") as f:
                         modified_content = f.read()
                         final_content = original_content.replace(old_path, new_path)
                         f.seek(0)

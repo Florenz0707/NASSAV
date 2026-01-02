@@ -132,79 +132,59 @@ export const useResourceStore = defineStore('resource', () => {
 
     // 刷新资源
     async function refreshResource(avid, params = null) {
-        try {
-            const response = await resourceApi.refresh(avid, params)
-            const resObj = response && response.data && response.data.resource ? response.data.resource : null
-            if (resObj) _mergeOrUpsertResource(resObj)
-            return response
-        } catch (err) {
-            throw err
-        }
+        const response = await resourceApi.refresh(avid, params)
+        const resObj = response && response.data && response.data.resource ? response.data.resource : null
+        if (resObj) _mergeOrUpsertResource(resObj)
+        return response
     }
 
     // 批量刷新/删除等，使用后端批量接口
     async function batchRefresh(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
-        try {
-            const payload = {action: 'refresh', avids}
-            const resp = await resourceApi.batch(payload)
-            // 合并返回的资源对象（如果有的话），避免整页刷新
-            const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
-            if (Array.isArray(results)) {
-                for (const r of results) {
-                    if (r && r.resource) _mergeOrUpsertResource(r.resource)
-                }
-            } else if (resp && resp.data && resp.data.resource) {
-                _mergeOrUpsertResource(resp.data.resource)
+        const payload = {action: 'refresh', avids}
+        const resp = await resourceApi.batch(payload)
+        // 合并返回的资源对象（如果有的话），避免整页刷新
+        const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
+        if (Array.isArray(results)) {
+            for (const r of results) {
+                if (r && r.resource) _mergeOrUpsertResource(r.resource)
             }
-            return resp
-        } catch (err) {
-            throw err
+        } else if (resp && resp.data && resp.data.resource) {
+            _mergeOrUpsertResource(resp.data.resource)
         }
+        return resp
     }
 
     async function batchDelete(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
-        try {
-            const payload = {action: 'delete', avids}
-            const resp = await resourceApi.batch(payload)
-            // 根据返回结果局部删除/合并
-            const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
-            if (Array.isArray(results)) {
-                for (const r of results) {
-                    if (r && r.action === 'delete' && r.avid) {
-                        _removeResourceByAvid(r.avid)
-                    } else if (r && r.resource) {
-                        _mergeOrUpsertResource(r.resource)
-                    }
+        const payload = {action: 'delete', avids}
+        const resp = await resourceApi.batch(payload)
+        // 根据返回结果局部删除/合并
+        const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
+        if (Array.isArray(results)) {
+            for (const r of results) {
+                if (r && r.action === 'delete' && r.avid) {
+                    _removeResourceByAvid(r.avid)
+                } else if (r && r.resource) {
+                    _mergeOrUpsertResource(r.resource)
                 }
             }
-            return resp
-        } catch (err) {
-            throw err
         }
+        return resp
     }
 
     // 提交下载
     async function submitDownload(avid) {
-        try {
-            const response = await downloadApi.submitDownload(avid)
-            await fetchDownloads()
-            return response
-        } catch (err) {
-            throw err
-        }
+        const response = await downloadApi.submitDownload(avid)
+        await fetchDownloads()
+        return response
     }
 
     async function batchSubmitDownload(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
-        try {
-            const resp = await downloadApi.batchSubmit(avids)
-            await fetchDownloads()
-            return resp
-        } catch (err) {
-            throw err
-        }
+        const resp = await downloadApi.batchSubmit(avids)
+        await fetchDownloads()
+        return resp
     }
 
     // helper: normalize resources to an array

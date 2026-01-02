@@ -42,11 +42,11 @@
     - 建议先使用 --list-only 查看问题资源
 """
 
-import os
-import sys
-import re
-import time
 import argparse
+import os
+import re
+import sys
+import time
 from pathlib import Path
 
 # 设置 Django 环境
@@ -55,6 +55,7 @@ sys.path.insert(0, str(project_root))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 import django
+
 django.setup()
 
 from django.db.models import Q
@@ -66,7 +67,12 @@ from nassav.translator import translator_manager
 
 def find_avid_prefix_resources():
     """查找所有标题以 AVID 开头的资源"""
-    resources = AVResource.objects.exclude(title__isnull=True).exclude(title='').exclude(translated_title__isnull=True).exclude(translated_title='')
+    resources = (
+        AVResource.objects.exclude(title__isnull=True)
+        .exclude(title="")
+        .exclude(translated_title__isnull=True)
+        .exclude(translated_title="")
+    )
 
     avid_prefix_resources = []
     for resource in resources:
@@ -103,6 +109,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
 
     # 初始化刮削器
     from django.conf import settings
+
     proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
     scraper = ScraperManager(proxy)
 
@@ -138,7 +145,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
                 time.sleep(delay)
                 continue
 
-            new_title = scraped_data.get('title', '')
+            new_title = scraped_data.get("title", "")
 
             if not new_title:
                 logger.warning(f"  ✗ 刮削结果无标题，跳过")
@@ -150,7 +157,9 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
             if new_title.upper().startswith(avid.upper()):
                 logger.warning(f"  ⚠️  新标题仍以 AVID 开头，尝试手动移除")
                 # 手动移除 AVID 前缀
-                new_title = re.sub(rf'^{avid}\s*', '', new_title, flags=re.IGNORECASE).strip()
+                new_title = re.sub(
+                    rf"^{avid}\s*", "", new_title, flags=re.IGNORECASE
+                ).strip()
                 if not new_title:
                     logger.warning(f"  ✗ 移除 AVID 后标题为空，跳过")
                     failed_count += 1
@@ -168,7 +177,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
             # 更新标题
             if not dry_run:
                 resource.title = new_title
-                resource.save(update_fields=['title'])
+                resource.save(update_fields=["title"])
                 logger.info(f"  ✓ 标题已更新")
             else:
                 logger.info(f"  [预览] 将更新标题")
@@ -184,7 +193,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
                         logger.info(f"  译文: {translated[:60]}...")
                         if not dry_run:
                             resource.translated_title = translated
-                            resource.save(update_fields=['translated_title'])
+                            resource.save(update_fields=["translated_title"])
                             logger.info(f"  ✓ 翻译已保存")
                         else:
                             logger.info(f"  [预览] 将保存翻译")

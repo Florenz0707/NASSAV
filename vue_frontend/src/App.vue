@@ -15,7 +15,7 @@ onMounted(() => {
 
 <template>
 	<div class="app">
-		<div class="background-pattern"></div>
+		<div class="background-pattern"/>
 		<Navbar/>
 		<main class="main-content">
 			<RouterView v-slot="{ Component }">

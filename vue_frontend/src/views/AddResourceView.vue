@@ -58,7 +58,9 @@ async function handleSubmit() {
 						data = Object.assign({}, data, metaResp.data)
 					}
 				}
-			} catch (e) {}
+			} catch {
+				// Ignore errors
+			}
 
 			result.value = {
 				success: [avids[0]],
@@ -212,12 +214,16 @@ async function saveCookie() {
 <template>
 	<div class="add-view">
 		<div class="page-header">
-			<h1 class="page-title">添加资源</h1>
-			<p class="page-subtitle">支持单个或批量输入视频编号（换行、逗号、空格分隔）</p>
+			<h1 class="page-title">
+				添加资源
+			</h1>
+			<p class="page-subtitle">
+				支持单个或批量输入视频编号（换行、逗号、空格分隔）
+			</p>
 		</div>
 
 		<div class="add-form-card">
-			<form @submit.prevent="handleSubmit" class="add-form">
+			<form class="add-form" @submit.prevent="handleSubmit">
 				<div class="form-group">
 					<label class="form-label">
 						视频编号 (AVID)
@@ -232,19 +238,25 @@ async function saveCookie() {
 						:disabled="submitting"
 						rows="5"
 						@input="avid = avid.toUpperCase()"
-					></textarea>
-					<p class="form-hint">支持换行、逗号、空格分隔，自动去重</p>
+					/>
+					<p class="form-hint">
+						支持换行、逗号、空格分隔，自动去重
+					</p>
 				</div>
 
 				<div class="form-group">
 					<label class="form-label">下载源</label>
 					<select v-model="source" class="form-select" :disabled="submitting">
-						<option value="any">自动</option>
+						<option value="any">
+							自动
+						</option>
 						<option v-for="s in resourceStore.sources" :key="s" :value="s.toLowerCase()">
 							{{ s }}
 						</option>
 					</select>
-					<p class="form-hint">选择自动将依次尝试所有可用源</p>
+					<p class="form-hint">
+						选择自动将依次尝试所有可用源
+					</p>
 				</div>
 
 				<button
@@ -265,7 +277,9 @@ async function saveCookie() {
 		<Transition name="result">
 			<div v-if="result && result.total === 1 && result.data" class="result-card" :class="{ success: result.success.length > 0, exists: result.exists.length > 0 }">
 				<div class="result-header">
-					<div class="result-icon">{{ result.success.length > 0 ? '✓' : result.exists.length > 0 ? 'ℹ' : '✕' }}</div>
+					<div class="result-icon">
+						{{ result.success.length > 0 ? '✓' : result.exists.length > 0 ? 'ℹ' : '✕' }}
+					</div>
 					<h3 class="result-title">
 						{{ result.success.length > 0 ? '添加成功' : result.exists.length > 0 ? '资源已存在' : '添加失败' }}
 					</h3>
@@ -276,15 +290,15 @@ async function saveCookie() {
 						<span class="result-label">编号</span>
 						<span class="result-value avid">{{ result.data.avid }}</span>
 					</div>
-					<div class="result-item" v-if="result.data.title">
+					<div v-if="result.data.title" class="result-item">
 						<span class="result-label">标题</span>
 						<span class="result-value">{{ result.data.title }}</span>
 					</div>
-					<div class="result-item" v-if="result.data.source">
+					<div v-if="result.data.source" class="result-item">
 						<span class="result-label">来源</span>
 						<span class="result-value source">{{ result.data.source }}</span>
 					</div>
-					<div class="result-checks" v-if="result.success.length > 0 || result.exists.length > 0">
+					<div v-if="result.success.length > 0 || result.exists.length > 0" class="result-checks">
 						<div class="check-item" :class="{ done: result.data.cover_downloaded }">
 							<span class="check-icon">{{ result.data.cover_downloaded ? '✓' : '○' }}</span>
 							封面下载
@@ -339,29 +353,35 @@ async function saveCookie() {
 
 				<div class="batch-result-details">
 					<div v-if="result.success.length > 0" class="result-group">
-						<h4 class="result-group-title success">✓ 成功添加 ({{ result.success.length }})</h4>
+						<h4 class="result-group-title success">
+							✓ 成功添加 ({{ result.success.length }})
+						</h4>
 						<div class="result-group-list">
-							<span v-for="avid in result.success" :key="avid" class="result-tag success">{{ avid }}</span>
+							<span v-for="successAvid in result.success" :key="successAvid" class="result-tag success">{{ successAvid }}</span>
 						</div>
 					</div>
 
 					<div v-if="result.exists.length > 0" class="result-group">
-						<h4 class="result-group-title exists">ℹ 已存在 ({{ result.exists.length }})</h4>
+						<h4 class="result-group-title exists">
+							ℹ 已存在 ({{ result.exists.length }})
+						</h4>
 						<div class="result-group-list">
-							<span v-for="avid in result.exists" :key="avid" class="result-tag exists">{{ avid }}</span>
+							<span v-for="existsAvid in result.exists" :key="existsAvid" class="result-tag exists">{{ existsAvid }}</span>
 						</div>
 					</div>
 
 					<div v-if="result.failed.length > 0" class="result-group">
-						<h4 class="result-group-title failed">✕ 添加失败 ({{ result.failed.length }})</h4>
+						<h4 class="result-group-title failed">
+							✕ 添加失败 ({{ result.failed.length }})
+						</h4>
 						<div class="result-group-list">
-							<span v-for="avid in result.failed" :key="avid" class="result-tag failed">{{ avid }}</span>
+							<span v-for="failedAvid in result.failed" :key="failedAvid" class="result-tag failed">{{ failedAvid }}</span>
 						</div>
 					</div>
 				</div>
 
 				<div class="result-actions">
-					<button class="btn btn-primary" @click="viewResource" v-if="result.success.length === 1">
+					<button v-if="result.success.length === 1" class="btn btn-primary" @click="viewResource">
 						查看详情
 					</button>
 					<button class="btn btn-secondary" @click="addAnother">
@@ -372,7 +392,9 @@ async function saveCookie() {
 		</Transition>
 
 		<div class="tips-section">
-			<h3 class="tips-title">使用提示</h3>
+			<h3 class="tips-title">
+				使用提示
+			</h3>
 			<ul class="tips-list">
 				<li>支持单个或批量输入，系统自动识别</li>
 				<li>批量添加支持换行、逗号、空格分隔</li>
@@ -387,7 +409,9 @@ async function saveCookie() {
 				<span class="btn-icon">🍪</span>
 				Cookie 设置
 			</button>
-			<p class="cookie-hint">某些源可能需要设置 Cookie 才能正常访问</p>
+			<p class="cookie-hint">
+				某些源可能需要设置 Cookie 才能正常访问
+			</p>
 		</div>
 
 		<!-- Cookie 设置模态框 -->
@@ -395,10 +419,14 @@ async function saveCookie() {
 			<div v-if="showCookieModal" class="modal-overlay" @click.self="closeCookieModal">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h3 class="modal-title">🍪 Cookie 设置</h3>
-						<button class="modal-close" @click="closeCookieModal">×</button>
+						<h3 class="modal-title">
+							🍪 Cookie 设置
+						</h3>
+						<button class="modal-close" @click="closeCookieModal">
+							×
+						</button>
 					</div>
-					<form @submit.prevent="saveCookie" class="modal-form">
+					<form class="modal-form" @submit.prevent="saveCookie">
 						<div class="form-group">
 							<label class="form-label">下载源</label>
 							<select v-model="cookieForm.source" class="form-select" :disabled="savingCookie">
@@ -415,12 +443,16 @@ async function saveCookie() {
 								placeholder="填入'auto'以自动获取，或者粘贴 Cookie 值"
 								rows="6"
 								:disabled="savingCookie"
-							></textarea>
-							<p class="form-hint">自动获取: 填入"auto" (目前不适用于MissAV)</p>
-							<p class="form-hint">手动获取: 在浏览器中打开对应网站，F12 → Network → 复制 Cookie</p>
+							/>
+							<p class="form-hint">
+								自动获取: 填入"auto" (目前不适用于MissAV)
+							</p>
+							<p class="form-hint">
+								手动获取: 在浏览器中打开对应网站，F12 → Network → 复制 Cookie
+							</p>
 						</div>
 						<div class="modal-actions">
-							<button type="button" class="btn btn-secondary" @click="closeCookieModal" :disabled="savingCookie">
+							<button type="button" class="btn btn-secondary" :disabled="savingCookie" @click="closeCookieModal">
 								取消
 							</button>
 							<button type="submit" class="btn btn-primary" :disabled="savingCookie">

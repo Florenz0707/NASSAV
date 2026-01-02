@@ -29,6 +29,7 @@
 import sys
 import time
 from typing import Optional
+
 from django.db import transaction
 from loguru import logger
 
@@ -58,28 +59,28 @@ def migrate_titles(dry_run: bool = True, batch_size: int = 10):
 
     # 统计信息
     stats = {
-        'total': 0,
-        'migrated_to_source_title': 0,
-        'scraped_success': 0,
-        'scraped_failed': 0,
-        'skipped': 0,
+        "total": 0,
+        "migrated_to_source_title": 0,
+        "scraped_success": 0,
+        "scraped_failed": 0,
+        "skipped": 0,
     }
 
     # 查询所有资源
-    resources = AVResource.objects.all().order_by('created_at')
-    stats['total'] = resources.count()
+    resources = AVResource.objects.all().order_by("created_at")
+    stats["total"] = resources.count()
 
     logger.info(f"共找到 {stats['total']} 个资源需要处理")
 
-    if stats['total'] == 0:
+    if stats["total"] == 0:
         logger.info("没有资源需要处理")
         return stats
 
     # 分批处理
     processed = 0
 
-    for i in range(0, stats['total'], batch_size):
-        batch = resources[i:i + batch_size]
+    for i in range(0, stats["total"], batch_size):
+        batch = resources[i : i + batch_size]
         logger.info(f"\n处理批次 {i//batch_size + 1}/{(stats['total']-1)//batch_size + 1}")
 
         for resource in batch:
@@ -88,37 +89,45 @@ def migrate_titles(dry_run: bool = True, batch_size: int = 10):
             old_title = resource.title
 
             logger.info(f"\n[{processed}/{stats['total']}] 处理资源: {avid}")
-            logger.info(f"  原标题: {old_title[:50]}..." if len(old_title) > 50 else f"  原标题: {old_title}")
+            logger.info(
+                f"  原标题: {old_title[:50]}..."
+                if len(old_title) > 50
+                else f"  原标题: {old_title}"
+            )
 
             # Step 1: 迁移现有 title 到 source_title
             if old_title and not resource.source_title:
                 if not dry_run:
                     resource.source_title = old_title
                 logger.info(f"  ✓ 已迁移到 source_title")
-                stats['migrated_to_source_title'] += 1
+                stats["migrated_to_source_title"] += 1
             elif resource.source_title:
                 logger.info(f"  - source_title 已存在，跳过迁移")
-                stats['skipped'] += 1
+                stats["skipped"] += 1
             else:
                 logger.info(f"  - 原标题为空，跳过")
-                stats['skipped'] += 1
+                stats["skipped"] += 1
 
             # Step 2: 从 Scraper 获取规范标题
             if not resource.title or resource.title == old_title:
                 logger.info(f"  尝试从 Scraper 获取规范标题...")
                 scraped_data = scraper_manager.scrape(avid)
 
-                if scraped_data and scraped_data.get('title'):
-                    new_title = scraped_data['title']
-                    logger.info(f"  ✓ 获取成功: {new_title[:50]}..." if len(new_title) > 50 else f"  ✓ 获取成功: {new_title}")
+                if scraped_data and scraped_data.get("title"):
+                    new_title = scraped_data["title"]
+                    logger.info(
+                        f"  ✓ 获取成功: {new_title[:50]}..."
+                        if len(new_title) > 50
+                        else f"  ✓ 获取成功: {new_title}"
+                    )
 
                     if not dry_run:
                         resource.title = new_title
 
-                    stats['scraped_success'] += 1
+                    stats["scraped_success"] += 1
                 else:
                     logger.warning(f"  ✗ 获取失败，保持原标题")
-                    stats['scraped_failed'] += 1
+                    stats["scraped_failed"] += 1
             else:
                 logger.info(f"  - title 字段已更新，跳过 Scraper")
 
@@ -163,7 +172,7 @@ def run():
     import sys
 
     # 检查命令行参数
-    dry_run = '--execute' not in sys.argv
+    dry_run = "--execute" not in sys.argv
 
     if dry_run:
         print("\n⚠️  试运行模式（默认）")
@@ -173,22 +182,23 @@ def run():
     migrate_titles(dry_run=dry_run)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 直接运行脚本
-    import django
     import os
     import sys
+
+    import django
 
     # 添加项目根目录到 Python 路径
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, project_root)
 
     # 设置 Django 环境
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
     django.setup()
 
     # 解析命令行参数
-    dry_run = '--execute' not in sys.argv
+    dry_run = "--execute" not in sys.argv
 
     if dry_run:
         print("\n⚠️  试运行模式（默认）")

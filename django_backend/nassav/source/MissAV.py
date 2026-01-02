@@ -4,7 +4,6 @@ from typing import Optional, Tuple
 from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
-
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -14,8 +13,8 @@ class MissAV(SourceBase):
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         super().__init__(proxy, timeout)
-        source_config = settings.SOURCE_CONFIG.get('missav', {})
-        self.domain = source_config.get('domain', 'missav.ai')
+        source_config = settings.SOURCE_CONFIG.get("missav", {})
+        self.domain = source_config.get("domain", "missav.ai")
 
     def get_source_name(self) -> str:
         return "MissAV"
@@ -23,11 +22,12 @@ class MissAV(SourceBase):
     def get_html(self, avid: str) -> Optional[str]:
         """根据avid获取HTML"""
         import time
+
         avid_lower = avid.lower()
         urls = [
-            f'https://{self.domain}/cn/{avid_lower}-chinese-subtitle',
-            f'https://{self.domain}/{avid_lower}-chinese-subtitle',
-            f'https://{self.domain}/cn/{avid_lower}',
+            f"https://{self.domain}/cn/{avid_lower}-chinese-subtitle",
+            f"https://{self.domain}/{avid_lower}-chinese-subtitle",
+            f"https://{self.domain}/cn/{avid_lower}",
         ]
         for url in urls:
             content = self.fetch_html(url)
@@ -65,7 +65,7 @@ class MissAV(SourceBase):
 
         return info
 
-    def _extract_uuid(self,html: str) -> Optional[str]:
+    def _extract_uuid(self, html: str) -> Optional[str]:
         try:
             match = re.search(r"m3u8\|([a-f0-9|]+)\|com\|surrit\|https\|video", html)
             if match:
@@ -75,17 +75,19 @@ class MissAV(SourceBase):
             logger.error(f"UUID提取异常: {str(e)}")
             return None
 
-    def _extract_metadata(self,html: str, metadata: AVDownloadInfo) -> bool:
+    def _extract_metadata(self, html: str, metadata: AVDownloadInfo) -> bool:
         """提取核心元数据：AVID 和 source_title（备用标题）"""
         try:
             og_title = re.search(r'<meta property="og:title" content="(.*?)"', html)
             if og_title:
                 title_content = og_title.group(1)
                 # 尝试从标题中分离 AVID
-                code_match = re.search(r'^([A-Z]+(?:-[A-Z]+)*-\d+)', title_content)
+                code_match = re.search(r"^([A-Z]+(?:-[A-Z]+)*-\d+)", title_content)
                 if code_match:
                     metadata.avid = code_match.group(1)
-                    metadata.source_title = title_content.replace(metadata.avid, '').strip()
+                    metadata.source_title = title_content.replace(
+                        metadata.avid, ""
+                    ).strip()
                 else:
                     metadata.source_title = title_content.strip()
             return True
@@ -93,7 +95,7 @@ class MissAV(SourceBase):
             logger.error(f"核心元数据解析异常: {str(e)}")
             return False
 
-    def _get_highest_quality_m3u8(self,playlist_url: str) -> Optional[Tuple[str, str]]:
+    def _get_highest_quality_m3u8(self, playlist_url: str) -> Optional[Tuple[str, str]]:
         try:
             response = requests.get(playlist_url, timeout=10, impersonate="chrome110")
             response.raise_for_status()
@@ -101,7 +103,7 @@ class MissAV(SourceBase):
 
             streams = []
             pattern = re.compile(
-                r'#EXT-X-STREAM-INF:BANDWIDTH=(\d+),.*?RESOLUTION=(\d+x\d+).*?\n(.*)'
+                r"#EXT-X-STREAM-INF:BANDWIDTH=(\d+),.*?RESOLUTION=(\d+x\d+).*?\n(.*)"
             )
 
             for match in pattern.finditer(playlist_content):
@@ -114,8 +116,12 @@ class MissAV(SourceBase):
 
             if streams:
                 best_stream = streams[0]
-                base_url = playlist_url.rsplit('/', 1)[0]
-                full_url = f"{base_url}/{best_stream[2]}" if not best_stream[2].startswith('http') else best_stream[2]
+                base_url = playlist_url.rsplit("/", 1)[0]
+                full_url = (
+                    f"{base_url}/{best_stream[2]}"
+                    if not best_stream[2].startswith("http")
+                    else best_stream[2]
+                )
                 return full_url, best_stream[1]
             return None
 

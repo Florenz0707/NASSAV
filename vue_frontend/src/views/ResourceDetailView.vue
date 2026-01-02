@@ -227,8 +227,12 @@ function cancelDelete() {
 				class="w-16 h-16 mx-auto mb-6 bg-[#ff6b6b]/10 rounded-full flex items-center justify-center text-2xl text-[#ff6b6b]">
 				✕
 			</div>
-			<h2 class="text-xl text-[#f4f4f5] mb-2">加载失败</h2>
-			<p class="text-[#71717a] mb-6">{{ error }}</p>
+			<h2 class="text-xl text-[#f4f4f5] mb-2">
+				加载失败
+			</h2>
+			<p class="text-[#71717a] mb-6">
+				{{ error }}
+			</p>
 			<button
 				class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
 				@click="fetchMetadata">
@@ -243,7 +247,7 @@ function cancelDelete() {
 				<!-- 封面 -->
 				<div
 					class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex justify-center items-center">
-					<img :src="coverUrl" :alt="metadata.title" class="h-full aspect-auto object-cover block" />
+					<img :src="coverUrl" :alt="metadata.title" class="h-full aspect-auto object-cover block" >
 				</div>
 
 				<!-- 右侧信息 -->
@@ -351,7 +355,9 @@ function cancelDelete() {
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 						<div v-if="actorsText" class="flex flex-col gap-1.5">
 							<span class="text-[0.8rem] text-[#71717a]">演员</span>
-							<div class="text-[0.95rem] text-[#f4f4f5]">{{ actorsText }}</div>
+							<div class="text-[0.95rem] text-[#f4f4f5]">
+								{{ actorsText }}
+							</div>
 						</div>
 						<div v-if="metadata.series" class="flex flex-col gap-1.5">
 							<span class="text-[0.8rem] text-[#71717a]">系列</span>

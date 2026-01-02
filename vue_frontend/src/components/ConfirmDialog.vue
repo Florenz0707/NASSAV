@@ -66,8 +66,8 @@ watch(isVisible, (val) => {
 	<Teleport to="body">
 		<Transition name="dialog">
 			<div v-if="isVisible"
-				 class="fixed inset-0 bg-black/75 backdrop-blur flex items-center justify-center z-[10000] p-4"
-				 @click.self="handleCancel">
+				class="fixed inset-0 bg-black/75 backdrop-blur flex items-center justify-center z-[10000] p-4"
+				@click.self="handleCancel">
 				<div
 					class="bg-[#12121a] rounded-2xl border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden"
 					:class="`confirm-${type}`"
@@ -86,12 +86,16 @@ watch(isVisible, (val) => {
 							<span v-else-if="type === 'danger'">✕</span>
 							<span v-else>ℹ</span>
 						</div>
-						<h3 class="text-xl font-semibold text-[#f4f4f5] text-center">{{ title }}</h3>
+						<h3 class="text-xl font-semibold text-[#f4f4f5] text-center">
+							{{ title }}
+						</h3>
 					</div>
 
 					<!-- Body -->
 					<div class="px-6 pb-6">
-						<p class="text-[0.95rem] text-[#a1a1aa] text-center leading-relaxed">{{ message }}</p>
+						<p class="text-[0.95rem] text-[#a1a1aa] text-center leading-relaxed">
+							{{ message }}
+						</p>
 					</div>
 
 					<!-- Footer -->

@@ -2,7 +2,7 @@
 工具类模块
 """
 import time
-from typing import Callable, Any, Optional
+from typing import Any, Callable, Optional
 
 
 class Throttler:
@@ -71,11 +71,7 @@ class Throttler:
         self._last_execute_time = None
 
     def execute_if_allowed(
-            self,
-            func: Callable[..., Any],
-            *args,
-            force: bool = False,
-            **kwargs
+        self, func: Callable[..., Any], *args, force: bool = False, **kwargs
     ) -> Optional[Any]:
         """
         如果通过节流检查，则执行函数
@@ -111,6 +107,7 @@ def generate_thumbnail(source_path, dest_path, width: int):
         return False
 
     from pathlib import Path
+
     sp = Path(source_path)
     dp = Path(dest_path)
     dp.parent.mkdir(parents=True, exist_ok=True)
@@ -122,13 +119,13 @@ def generate_thumbnail(source_path, dest_path, width: int):
 
             w, h = im.size
             if w <= width:
-                im.save(dp, format='JPEG', quality=85)
+                im.save(dp, format="JPEG", quality=85)
                 return True
 
             ratio = width / float(w)
             new_h = int(h * ratio)
             im = im.resize((width, new_h), Image.LANCZOS)
-            im.save(dp, format='JPEG', quality=85)
+            im.save(dp, format="JPEG", quality=85)
             return True
     except Exception:
         return False
@@ -138,8 +135,9 @@ def generate_etag_from_text(text: str) -> str:
     """Return a quoted ETag string computed from input text."""
     try:
         import hashlib
+
         h = hashlib.md5()
-        h.update(text.encode('utf-8'))
+        h.update(text.encode("utf-8"))
         return '"' + h.hexdigest() + '"'
     except Exception:
         return '"0"'
@@ -148,6 +146,7 @@ def generate_etag_from_text(text: str) -> str:
 def generate_etag_for_file(path) -> str:
     """Generate an ETag from file mtime and size (quoted string)."""
     from pathlib import Path
+
     p = Path(path)
     try:
         st = p.stat()
@@ -163,6 +162,7 @@ def parse_http_if_modified_since(header_value):
         return None
     try:
         from django.utils.http import parse_http_date_safe
+
         val = parse_http_date_safe(header_value)
         return val
     except Exception:

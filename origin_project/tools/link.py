@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 
+
 def create_symlinks(source_dir, target_dir):
     """为 source_dir 下的所有 mp4/ts/nfo 文件创建软链接到 target_dir"""
     source_dir = Path(source_dir).resolve()
@@ -12,7 +13,7 @@ def create_symlinks(source_dir, target_dir):
     target_dir.mkdir(parents=True, exist_ok=True)
 
     # 支持的扩展名
-    extensions = ('.mp4', '.ts', '.nfo', '.jpg')
+    extensions = (".mp4", ".ts", ".nfo", ".jpg")
 
     # 遍历源目录
     for root, _, files in os.walk(source_dir):
@@ -33,6 +34,7 @@ def create_symlinks(source_dir, target_dir):
                     print(f"创建链接: {dst_path} -> {src_path}")
                 except OSError as e:
                     print(f"错误: 无法创建链接 {dst_path}: {e}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

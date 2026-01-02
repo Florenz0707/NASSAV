@@ -1,12 +1,13 @@
 """
 服务层：封装下载器和刮削器逻辑
 """
-from typing import Optional
 from pathlib import Path
+from typing import Optional
+
 from django.conf import settings
-from loguru import logger
 from django.core.paginator import Paginator
 from django.db.models import Q
+from loguru import logger
 
 # 初始化日志
 LOG_DIR = settings.LOG_DIR
@@ -16,22 +17,20 @@ logger.add(
     retention="7 days",
     enqueue=False,
     level="DEBUG",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
+    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
 )
 
 # 导入常量（为了向后兼容，重新导出HEADERS）
 from nassav.constants import HEADERS
-from nassav.source.SourceManager import SourceManager, source_manager
 from nassav.m3u8downloader import M3u8DownloaderBase, N_m3u8DL_RE
+from nassav.source.SourceManager import SourceManager, source_manager
 
 
 class VideoDownloadService:
     """视频下载服务"""
 
     def __init__(
-            self,
-            resource_manager: SourceManager,
-            m3u8_downloader: M3u8DownloaderBase
+        self, resource_manager: SourceManager, m3u8_downloader: M3u8DownloaderBase
     ):
         """
         初始化视频下载服务
@@ -43,7 +42,9 @@ class VideoDownloadService:
         self.manager = resource_manager
         self.m3u8_downloader = m3u8_downloader
 
-    def download_video(self, avid: str, progress_callback: Optional[callable] = None) -> bool:
+    def download_video(
+        self, avid: str, progress_callback: Optional[callable] = None
+    ) -> bool:
         """
         下载视频
         优先从缓存的元数据读取 m3u8 URL，避免重复 fetch_html
@@ -75,24 +76,29 @@ class VideoDownloadService:
             self.manager.save_all_resources(avid, info, downloader, html)
 
         # 解析视频时长（用于日志显示）
-        duration_seconds = self._parse_duration(info.duration) if info.duration else None
+        duration_seconds = (
+            self._parse_duration(info.duration) if info.duration else None
+        )
 
         # 下载m3u8视频（使用 Redis 分布式锁确保只有一个下载任务运行）
-        result = self._download_m3u8(info.m3u8, avid, domain, duration_seconds, progress_callback)
+        result = self._download_m3u8(
+            info.m3u8, avid, domain, duration_seconds, progress_callback
+        )
         logger.info(f"[{avid}] 下载{'成功' if result else '失败'}")
         return result
 
     def _parse_duration(self, duration_str: str) -> Optional[int]:
         """解析时长字符串，返回秒数"""
         import re
+
         if not duration_str:
             return None
         # 尝试匹配 "120分钟" 或 "120分" 格式
-        match = re.search(r'(\d+)分', duration_str)
+        match = re.search(r"(\d+)分", duration_str)
         if match:
             return int(match.group(1)) * 60
         # 尝试匹配纯数字
-        match = re.search(r'(\d+)', duration_str)
+        match = re.search(r"(\d+)", duration_str)
         if match:
             return int(match.group(1)) * 60
         return None
@@ -101,10 +107,16 @@ class VideoDownloadService:
         """根据 downloader 名称获取对应的 domain"""
         source_lower = source.lower()
         source_config = settings.SOURCE_CONFIG.get(source_lower, {})
-        return source_config.get('domain', source_lower + '.com')
+        return source_config.get("domain", source_lower + ".com")
 
-    def _download_m3u8(self, url: str, avid: str, domain: str, total_duration: Optional[int] = None,
-                       progress_callback: Optional[callable] = None) -> bool:
+    def _download_m3u8(
+        self,
+        url: str,
+        avid: str,
+        domain: str,
+        total_duration: Optional[int] = None,
+        progress_callback: Optional[callable] = None,
+    ) -> bool:
         """使用注入的 M3U8 下载器下载视频"""
         avid_upper = avid.upper()
         # 输出到新的 VIDEO_DIR，文件命名为 {AVID}.mp4
@@ -138,7 +150,7 @@ video_download_service = VideoDownloadService(
     resource_manager=source_manager,
     m3u8_downloader=N_m3u8DL_RE(
         proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None
-    )
+    ),
 )
 
 
@@ -148,42 +160,47 @@ def list_resources(params):
     Supported params: file_exists (true/false), source (comma separated), ordering,
     page, page_size.
     """
-    qs = source_manager.get_queryset() if hasattr(source_manager, 'get_queryset') else None
+    qs = (
+        source_manager.get_queryset()
+        if hasattr(source_manager, "get_queryset")
+        else None
+    )
     # fallback to direct model import
     from nassav.models import AVResource
+
     if qs is None:
         qs = AVResource.objects.all()
 
     # support status: downloaded/pending/all (alias to file_exists)
-    status = params.get('status')
+    status = params.get("status")
     if status:
         s = str(status).lower()
-        if s == 'downloaded':
+        if s == "downloaded":
             qs = qs.filter(file_exists=True)
-        elif s == 'pending':
+        elif s == "pending":
             qs = qs.filter(file_exists=False)
 
     # legacy/file_exists parameter (boolean-like)
-    fe = params.get('file_exists')
+    fe = params.get("file_exists")
     if fe is not None:
-        if str(fe).lower() in ('1', 'true', 'yes'):
+        if str(fe).lower() in ("1", "true", "yes"):
             qs = qs.filter(file_exists=True)
         else:
             qs = qs.filter(file_exists=False)
 
-    source = params.get('source')
+    source = params.get("source")
     if source:
-        sources = [s.strip() for s in str(source).split(',') if s.strip()]
+        sources = [s.strip() for s in str(source).split(",") if s.strip()]
         qs = qs.filter(source__in=sources)
 
     # search parameter: match avid or title (case-insensitive contains)
-    search = params.get('search')
+    search = params.get("search")
     if search:
         q = str(search).strip()
         qs = qs.filter(Q(avid__icontains=q) | Q(title__icontains=q))
 
     # filter by actor (accept actor id or name fragment)
-    actor = params.get('actor')
+    actor = params.get("actor")
     if actor:
         try:
             aid = int(actor)
@@ -195,7 +212,7 @@ def list_resources(params):
         qs = qs.distinct()
 
     # filter by genre (accept genre id or name fragment)
-    genre = params.get('genre')
+    genre = params.get("genre")
     if genre:
         try:
             gid = int(genre)
@@ -206,17 +223,17 @@ def list_resources(params):
                 qs = qs.filter(genres__name__icontains=g)
         qs = qs.distinct()
 
-    ordering = params.get('ordering')
+    ordering = params.get("ordering")
     if ordering:
         qs = qs.order_by(ordering)
 
     # pagination
     try:
-        page = int(params.get('page', 1))
+        page = int(params.get("page", 1))
     except Exception:
         page = 1
     try:
-        page_size = int(params.get('page_size', 20))
+        page_size = int(params.get("page_size", 20))
     except Exception:
         page_size = 20
 
@@ -224,8 +241,8 @@ def list_resources(params):
     page_obj = paginator.get_page(page)
 
     return page_obj.object_list, {
-        'total': paginator.count,
-        'page': page_obj.number,
-        'page_size': page_size,
-        'pages': paginator.num_pages
+        "total": paginator.count,
+        "page": page_obj.number,
+        "page_size": page_size,
+        "pages": paginator.num_pages,
     }

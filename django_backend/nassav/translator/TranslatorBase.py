@@ -1,8 +1,8 @@
 """
 Translator 基类 - 定义翻译器的通用接口
 """
-from typing import Optional
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from loguru import logger
 
@@ -25,7 +25,9 @@ class TranslatorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def translate(self, text: str, source_lang: str = 'ja', target_lang: str = 'zh') -> Optional[str]:
+    def translate(
+        self, text: str, source_lang: str = "ja", target_lang: str = "zh"
+    ) -> Optional[str]:
         """
         翻译文本
 
@@ -49,8 +51,13 @@ class TranslatorBase(ABC):
         """
         raise NotImplementedError
 
-    def translate_with_retry(self, text: str, max_retries: int = 3,
-                            source_lang: str = 'ja', target_lang: str = 'zh') -> Optional[str]:
+    def translate_with_retry(
+        self,
+        text: str,
+        max_retries: int = 3,
+        source_lang: str = "ja",
+        target_lang: str = "zh",
+    ) -> Optional[str]:
         """
         带重试机制的翻译
 
@@ -79,15 +86,18 @@ class TranslatorBase(ABC):
                     logger.warning(f"{translator_name}: 翻译返回空结果")
 
             except Exception as e:
-                logger.error(f"{translator_name}: 翻译失败（第 {attempt + 1}/{max_retries} 次）: {e}")
+                logger.error(
+                    f"{translator_name}: 翻译失败（第 {attempt + 1}/{max_retries} 次）: {e}"
+                )
                 if attempt == max_retries - 1:
                     logger.error(f"{translator_name}: 已达最大重试次数，翻译失败")
                     return None
 
         return None
 
-    def batch_translate(self, texts: list[str], source_lang: str = 'ja',
-                       target_lang: str = 'zh') -> list[Optional[str]]:
+    def batch_translate(
+        self, texts: list[str], source_lang: str = "ja", target_lang: str = "zh"
+    ) -> list[Optional[str]]:
         """
         批量翻译（默认实现为逐个翻译，子类可重写以提高效率）
 
@@ -101,6 +111,8 @@ class TranslatorBase(ABC):
         """
         results = []
         for text in texts:
-            result = self.translate_with_retry(text, source_lang=source_lang, target_lang=target_lang)
+            result = self.translate_with_retry(
+                text, source_lang=source_lang, target_lang=target_lang
+            )
             results.append(result)
         return results

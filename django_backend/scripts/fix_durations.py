@@ -31,11 +31,11 @@
     - 使用 --apply 才会真正写入数据库
     - 建议先使用 --dry-run 查看效果
 """
+import argparse
+import json
 import os
 import sys
-import json
 from pathlib import Path
-import argparse
 
 
 def setup_django():
@@ -44,11 +44,13 @@ def setup_django():
         sys.path.insert(0, str(project_root))
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
     import django
+
     django.setup()
 
 
 def parse_duration_to_seconds(raw, mp4_path=None):
-    import re, subprocess
+    import re
+    import subprocess
     from pathlib import Path
 
     # 如果 mp4 存在，优先使用 ffprobe
@@ -57,8 +59,14 @@ def parse_duration_to_seconds(raw, mp4_path=None):
             mp4_path = Path(mp4_path)
             if mp4_path.exists():
                 cmd = [
-                    'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-                    '-of', 'default=noprint_wrappers=1:nokey=1', str(mp4_path)
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    str(mp4_path),
                 ]
                 proc = subprocess.run(cmd, capture_output=True, text=True)
                 if proc.returncode == 0 and proc.stdout:
@@ -106,24 +114,24 @@ def parse_duration_to_seconds(raw, mp4_path=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Fix AVResource.duration')
-    parser.add_argument('--apply', action='store_true', help='写入数据库（默认 dry-run）')
-    parser.add_argument('--limit', type=int, default=None, help='仅处理前 N 条记录')
-    parser.add_argument('--report', type=str, default=None, help='将报告写入 JSON 文件')
+    parser = argparse.ArgumentParser(description="Fix AVResource.duration")
+    parser.add_argument("--apply", action="store_true", help="写入数据库（默认 dry-run）")
+    parser.add_argument("--limit", type=int, default=None, help="仅处理前 N 条记录")
+    parser.add_argument("--report", type=str, default=None, help="将报告写入 JSON 文件")
     args = parser.parse_args()
 
     setup_django()
     from django.conf import settings
-    from nassav.models import AVResource
     from django.db import transaction
     from django.utils import timezone
+    from nassav.models import AVResource
 
-    qs = AVResource.objects.all().order_by('id')
+    qs = AVResource.objects.all().order_by("id")
     total = qs.count()
     if args.limit:
         qs = qs[: args.limit]
 
-    report = {'total': total, 'processed': 0, 'updated': 0, 'skipped': 0, 'errors': []}
+    report = {"total": total, "processed": 0, "updated": 0, "skipped": 0, "errors": []}
 
     for obj in qs:
         try:
@@ -140,17 +148,17 @@ def main():
             if new_secs is None:
                 md = obj.metadata or {}
                 # 常见字段
-                raw = md.get('duration') or md.get('time') or md.get('length')
+                raw = md.get("duration") or md.get("time") or md.get("length")
                 new_secs = parse_duration_to_seconds(raw)
 
-            report['processed'] += 1
+            report["processed"] += 1
 
             if new_secs is None:
-                report['skipped'] += 1
+                report["skipped"] += 1
                 continue
 
             if obj.duration == new_secs:
-                report['skipped'] += 1
+                report["skipped"] += 1
                 continue
 
             if args.apply:
@@ -158,28 +166,32 @@ def main():
                     with transaction.atomic():
                         obj.duration = new_secs
                         obj.metadata_saved_at = timezone.now()
-                        obj.save(update_fields=['duration', 'metadata_saved_at'])
-                        report['updated'] += 1
+                        obj.save(update_fields=["duration", "metadata_saved_at"])
+                        report["updated"] += 1
                         print(f"[APPLY] {avid} duration -> {new_secs}s")
                 except Exception as e:
-                    report['errors'].append({'avid': avid, 'error': str(e)})
+                    report["errors"].append({"avid": avid, "error": str(e)})
             else:
-                print(f"[DRY] {avid} would set duration -> {new_secs}s (current: {obj.duration})")
+                print(
+                    f"[DRY] {avid} would set duration -> {new_secs}s (current: {obj.duration})"
+                )
 
         except Exception as e:
-            report['errors'].append({'avid': obj.avid if 'obj' in locals() else None, 'error': str(e)})
+            report["errors"].append(
+                {"avid": obj.avid if "obj" in locals() else None, "error": str(e)}
+            )
 
-    print('\nSummary:')
+    print("\nSummary:")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
     if args.report:
         try:
-            with open(args.report, 'w', encoding='utf-8') as rf:
+            with open(args.report, "w", encoding="utf-8") as rf:
                 json.dump(report, rf, ensure_ascii=False, indent=2)
             print(f"Report written to {args.report}")
         except Exception as e:
             print(f"Failed to write report: {e}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

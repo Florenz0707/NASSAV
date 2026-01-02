@@ -5,17 +5,20 @@
 				<span class="icon-text">{{ iconText }}</span>
 			</div>
 		</div>
-		<div class="genre-name">{{ genre.name }}</div>
-		<div class="genre-count">共有 {{ genre.resource_count }} 部作品</div>
+		<div class="genre-name">
+			{{ genre.name }}
+		</div>
+		<div class="genre-count">
+			共有 {{ genre.resource_count }} 部作品
+		</div>
 	</div>
 </template>
 
 <script>
 export default {
-	name: 'GenreGroupCard',
-	props: {
+	name: 'GenreGroupCard',	props: {
 		genre: {type: Object, required: true}
-	},
+	},	emits: ['click'],
 	computed: {
 		iconText() {
 			const n = this.genre && this.genre.name ? this.genre.name.trim() : ''

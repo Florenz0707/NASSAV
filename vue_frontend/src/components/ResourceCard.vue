@@ -55,12 +55,12 @@ async function loadCover() {
 	try {
 		const url = resourceApi.getCoverUrl(props.resource.avid, props.coverSize)
 		coverUrl.value = url
-	} catch (e) {
+	} catch {
 		// last-resort: blob object URL
 		try {
 			const obj = await resourceApi.getCoverObjectUrl(props.resource.avid)
 			if (obj) coverUrl.value = obj
-		} catch (err) {
+		} catch {
 			coverUrl.value = resourceApi.getCoverUrl(props.resource.avid)
 		}
 	}
@@ -194,7 +194,7 @@ onUnmounted(() => {
 			<template v-if="selectable">
 				<label class="absolute z-30 top-3 left-3 inline-flex items-center cursor-pointer" aria-label="选择资源">
 					<input type="checkbox" class="sr-only" :checked="selected"
-						@change.stop="$emit('toggle-select', resource.avid, $event.target.checked)" />
+						@change.stop="$emit('toggle-select', resource.avid, $event.target.checked)" >
 					<span
 						:class="['w-6 h-6 flex items-center justify-center rounded-md transition border-2', selected ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow-lg' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
 						<svg v-if="selected" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"
@@ -206,7 +206,7 @@ onUnmounted(() => {
 				</label>
 			</template>
 			<img :data-avid="resource.avid" :src="coverUrl" :alt="resource.title" loading="lazy"
-				class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" />
+				class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" >
 			<div
 				class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
 				<RouterLink
@@ -228,7 +228,7 @@ onUnmounted(() => {
 					{{ resource.avid }}
 				</div>
 				<!-- 类别标签 -->
-				<div v-for="(genre, index) in (resource.genres || []).slice(0, 2)" :key="genre"
+				<div v-for="genre in (resource.genres || []).slice(0, 2)" :key="genre"
 					class="text-[0.85rem] text-[#cc99ff] font-normal bg-[#9933ff]/25 rounded-md w-fit px-2 py-1">
 					#{{ genre }}
 				</div>
@@ -259,8 +259,8 @@ onUnmounted(() => {
 					<button
 						class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#a1a1aa] hover:bg-white/[0.12] hover:text-[#f4f4f5]"
 						:data-avid="resource.avid"
-						@click="showRefreshMenu = !showRefreshMenu"
-						title="刷新资源">
+						title="刷新资源"
+						@click="showRefreshMenu = !showRefreshMenu">
 						刷新
 					</button>
 
@@ -276,11 +276,11 @@ onUnmounted(() => {
 				</div>
 
 				<button :class="[
-					'inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
-					resource.has_video
-						? 'bg-zinc-600 text-zinc-400 cursor-not-allowed opacity-60'
-						: 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5'
-				]" :disabled="resource.has_video" :title="resource.has_video ? '视频已下载' : '提交下载任务'"
+						'inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
+						resource.has_video
+							? 'bg-zinc-600 text-zinc-400 cursor-not-allowed opacity-60'
+							: 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5'
+					]" :disabled="resource.has_video" :title="resource.has_video ? '视频已下载' : '提交下载任务'"
 					@click="emit('download', resource.avid)">
 					{{ resource.has_video ? '✓ 已下载' : '↓ 下载' }}
 				</button>
@@ -289,7 +289,7 @@ onUnmounted(() => {
 				<div class="relative" @click.stop>
 					<button
 						class="delete-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-[#ef476f]/10 text-[#ef476f] border border-[#ef476f]/20 hover:bg-[#ef476f]/20 hover:text-[#ff5252]"
-						:data-avid="resource.avid" @click="showDeleteMenu = !showDeleteMenu" title="删除">
+						:data-avid="resource.avid" title="删除" @click="showDeleteMenu = !showDeleteMenu">
 						删除
 					</button>
 

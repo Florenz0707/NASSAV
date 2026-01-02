@@ -6,12 +6,6 @@ const route = useRoute()
 const router = useRouter()
 const showResourcesMenu = ref(false)
 
-const navItems = [
-	{ path: '/', name: '首页', icon: '◈' },
-	{ path: '/add', name: '添加资源', icon: '⊕' },
-	{ path: '/downloads', name: '下载管理', icon: '⬇' }
-]
-
 // 资源库子菜单
 const resourcesMenuItems = [
 	{ path: '/resources', name: '全部资源', icon: '▣' },
@@ -56,9 +50,9 @@ const goToResources = () => {
 				<!-- 资源库下拉菜单 -->
 				<div class="relative" @mouseenter="showResourcesMenu = true" @mouseleave="showResourcesMenu = false">
 					<button
-						@click="goToResources"
 						class="flex items-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 hover:text-[#f4f4f5] hover:bg-white/5 cursor-pointer border-none bg-transparent"
-						:class="{ 'text-[#ff6b6b] bg-[#ff6b6b]/10': isResourcesActive(), 'text-[#a1a1aa]': !isResourcesActive() }">
+						:class="{ 'text-[#ff6b6b] bg-[#ff6b6b]/10': isResourcesActive(), 'text-[#a1a1aa]': !isResourcesActive() }"
+						@click="goToResources">
 						<span class="text-base"
 							:class="{ 'opacity-100': isResourcesActive(), 'opacity-80': !isResourcesActive() }">▣</span>
 						<span class="hidden md:inline">资源库</span>

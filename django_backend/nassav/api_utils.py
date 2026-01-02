@@ -1,5 +1,5 @@
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
 
 STATUS_MAP = {
     200: status.HTTP_200_OK,
@@ -20,11 +20,7 @@ def build_response(code: int, message: str, data=None, pagination: dict = None):
     include a `pagination` dict when returning paged list results.
     """
     http_status = STATUS_MAP.get(code, status.HTTP_200_OK)
-    body = {
-        'code': code,
-        'message': message,
-        'data': data
-    }
+    body = {"code": code, "message": message, "data": data}
     if pagination is not None:
-        body['pagination'] = pagination
+        body["pagination"] = pagination
     return Response(body, status=http_status)

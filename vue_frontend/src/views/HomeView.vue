@@ -6,20 +6,16 @@ import { RouterLink } from 'vue-router'
 	<div class="animate-[fadeIn_0.5s_ease] min-h-full flex flex-col relative overflow-hidden">
 		<!-- Decorative Background Grid -->
 		<div class="fixed inset-0 z-[-1] opacity-[0.03] pointer-events-none"
-			style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 30px 30px;">
-		</div>
+			style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 30px 30px;"/>
 
 		<!-- Visual Shapes (Extended to full height) -->
 		<div class="fixed inset-0 z-[-1] pointer-events-none hidden lg:block opacity-60 overflow-hidden">
 			<div
-				class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] bg-[#ff6b6b] top-[-10%] right-[-5%] animate-[float1_10s_ease-in-out_infinite]">
-			</div>
+				class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] bg-[#ff6b6b] top-[-10%] right-[-5%] animate-[float1_10s_ease-in-out_infinite]"/>
 			<div
-				class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] bg-[#ff9f43] top-[40%] right-[-10%] animate-[float2_12s_ease-in-out_infinite]">
-			</div>
+				class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] bg-[#ff9f43] top-[40%] right-[-10%] animate-[float2_12s_ease-in-out_infinite]"/>
 			<div
-				class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bg-[#4ecdc4] bottom-[-10%] right-[-5%] animate-[float3_15s_ease-in-out_infinite]">
-			</div>
+				class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bg-[#4ecdc4] bottom-[-10%] right-[-5%] animate-[float3_15s_ease-in-out_infinite]"/>
 		</div>
 
 		<!-- Hero Section -->
@@ -33,7 +29,7 @@ import { RouterLink } from 'vue-router'
 					</h1>
 					<p class="text-xl text-[#71717a] leading-relaxed mb-10 max-w-[500px]">
 						打造您的私人影音库
-						<br />
+						<br >
 						<span class="text-sm opacity-70">高效管理 · 自动刮削 · 极速下载</span>
 					</p>
 					<div class="flex gap-5 flex-wrap">
@@ -62,7 +58,9 @@ import { RouterLink } from 'vue-router'
 						class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-blue-500/10">
 						<span class="text-3xl filter drop-shadow-lg">⚡</span>
 					</div>
-					<h3 class="text-xl font-semibold text-gray-200 mb-3">极速下载引擎</h3>
+					<h3 class="text-xl font-semibold text-gray-200 mb-3">
+						极速下载引擎
+					</h3>
 					<p class="text-gray-500 leading-relaxed text-sm">
 						内置多线程下载器，支持断点续传与自动合并。智能队列管理，让资源获取更高效。
 					</p>
@@ -75,7 +73,9 @@ import { RouterLink } from 'vue-router'
 						class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-emerald-500/10">
 						<span class="text-3xl filter drop-shadow-lg">🎯</span>
 					</div>
-					<h3 class="text-xl font-semibold text-gray-200 mb-3">智能元数据刮削</h3>
+					<h3 class="text-xl font-semibold text-gray-200 mb-3">
+						智能元数据刮削
+					</h3>
 					<p class="text-gray-500 leading-relaxed text-sm">
 						自动匹配影片信息，获取高清封面、演员阵容与标签分类。让您的媒体库井井有条。
 					</p>
@@ -88,7 +88,9 @@ import { RouterLink } from 'vue-router'
 						class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500/10 to-rose-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-orange-500/10">
 						<span class="text-3xl filter drop-shadow-lg">🎨</span>
 					</div>
-					<h3 class="text-xl font-semibold text-gray-200 mb-3">沉浸式体验</h3>
+					<h3 class="text-xl font-semibold text-gray-200 mb-3">
+						沉浸式体验
+					</h3>
 					<p class="text-gray-500 leading-relaxed text-sm">
 						精心设计的现代化 UI，流畅的交互动画。支持深色模式，提供舒适的视觉享受。
 					</p>

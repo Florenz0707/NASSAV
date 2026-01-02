@@ -32,15 +32,14 @@ project_root = script_dir.parent
 sys.path.insert(0, str(project_root))
 
 # 设置 Django 环境
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 import django
 
 django.setup()
 
-from loguru import logger
 from django.conf import settings
-
+from loguru import logger
 from nassav.scraper.Javbus import Javbus
 
 # 配置 loguru
@@ -48,15 +47,15 @@ logger.remove()
 logger.add(
     sys.stderr,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
-    level="INFO"
+    level="INFO",
 )
 
 
 def get_proxy() -> str | None:
     """从配置获取代理"""
-    proxy_config = settings.CONFIG.get('Proxy', {})
-    if proxy_config.get('Enable', False):
-        return proxy_config.get('url')
+    proxy_config = settings.CONFIG.get("Proxy", {})
+    if proxy_config.get("Enable", False):
+        return proxy_config.get("url")
     return None
 
 
@@ -76,21 +75,22 @@ def get_resource_dirs(resource_path: Path) -> list[Path]:
 def load_metadata_from_db(avid: str) -> dict | None:
     """从数据库加载 `AVResource` 的元数据并构造字典（回退到字段值）。"""
     from nassav.models import AVResource
+
     resource = AVResource.objects.filter(avid=avid).first()
     if not resource:
         return None
     md = resource.metadata.copy() if resource.metadata else {}
     # Ensure common keys exist
-    md.setdefault('avid', resource.avid)
-    md.setdefault('title', resource.title or '')  # Scraper 获取的原文标题
-    md.setdefault('source_title', resource.source_title or '')  # Source 获取的备用标题
-    md.setdefault('translated_title', resource.translated_title or '')  # 翻译后的标题
-    md.setdefault('source', resource.source)
-    md.setdefault('release_date', resource.release_date)
-    md.setdefault('duration', resource.duration)
-    md.setdefault('m3u8', resource.m3u8)
-    md.setdefault('actors', [a.name for a in resource.actors.all()])
-    md.setdefault('genres', [g.name for g in resource.genres.all()])
+    md.setdefault("avid", resource.avid)
+    md.setdefault("title", resource.title or "")  # Scraper 获取的原文标题
+    md.setdefault("source_title", resource.source_title or "")  # Source 获取的备用标题
+    md.setdefault("translated_title", resource.translated_title or "")  # 翻译后的标题
+    md.setdefault("source", resource.source)
+    md.setdefault("release_date", resource.release_date)
+    md.setdefault("duration", resource.duration)
+    md.setdefault("m3u8", resource.m3u8)
+    md.setdefault("actors", [a.name for a in resource.actors.all()])
+    md.setdefault("genres", [g.name for g in resource.genres.all()])
     return md
 
 
@@ -102,33 +102,34 @@ def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -
     - source_title: Source 获取的备用标题（保留不修改）
     - translated_title: 翻译后的标题（保留不修改）
     """
-    from nassav.models import AVResource, Actor, Genre
     from django.db import transaction
+    from nassav.models import Actor, AVResource, Genre
+
     try:
         with transaction.atomic():
             # 先获取现有记录（如果存在）
             resource_obj, created = AVResource.objects.get_or_create(
-                avid=avid,
-                defaults={}
+                avid=avid, defaults={}
             )
 
             # 更新字段（注意：只更新 title，不修改 source_title 和 translated_title）
-            resource_obj.title = merged_metadata.get('title', '') or ''  # Scraper 原文标题
-            resource_obj.source = merged_metadata.get('source', '') or ''
-            resource_obj.release_date = merged_metadata.get('release_date', '') or ''
+            resource_obj.title = merged_metadata.get("title", "") or ""  # Scraper 原文标题
+            resource_obj.source = merged_metadata.get("source", "") or ""
+            resource_obj.release_date = merged_metadata.get("release_date", "") or ""
             resource_obj.metadata = merged_metadata
-            resource_obj.m3u8 = merged_metadata.get('m3u8', '') or ''
+            resource_obj.m3u8 = merged_metadata.get("m3u8", "") or ""
 
             # 如果有 source_title 或 translated_title，保留原值（不要从 merged_metadata 覆盖）
             # source_title 和 translated_title 由其他流程维护，此脚本不修改
 
             # duration: try to normalize if numeric-like (keep as-is otherwise)
             try:
-                raw_dur = merged_metadata.get('duration')
+                raw_dur = merged_metadata.get("duration")
                 if raw_dur is None:
                     resource_obj.duration = None
                 else:
                     import re
+
                     m = re.search(r"(\d+)", str(raw_dur))
                     if m:
                         resource_obj.duration = int(m.group(1)) * 60
@@ -136,19 +137,23 @@ def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -
                 pass
 
             # 如果 scraper 更新后，title 有变化且之前有翻译，则重置翻译状态为 pending
-            if not created and merged_metadata.get('title'):
+            if not created and merged_metadata.get("title"):
                 # 重新查询获取旧值（避免缓存）
                 old_obj = AVResource.objects.filter(avid=avid).first()
-                if old_obj and old_obj.title and old_obj.title != merged_metadata.get('title'):
+                if (
+                    old_obj
+                    and old_obj.title
+                    and old_obj.title != merged_metadata.get("title")
+                ):
                     # 标题变了，重置翻译状态
                     if old_obj.translated_title:
-                        resource_obj.translation_status = 'pending'
+                        resource_obj.translation_status = "pending"
                         resource_obj.translated_title = None
                         logger.info(f"  标题已更新，重置翻译状态为 pending")
 
             # actors
             resource_obj.actors.clear()
-            for a in merged_metadata.get('actors', []) or []:
+            for a in merged_metadata.get("actors", []) or []:
                 if not a:
                     continue
                 actor_obj, _ = Actor.objects.get_or_create(name=a)
@@ -156,7 +161,7 @@ def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -
 
             # genres
             resource_obj.genres.clear()
-            for g in merged_metadata.get('genres', []) or []:
+            for g in merged_metadata.get("genres", []) or []:
                 if not g:
                     continue
                 genre_obj, _ = Genre.objects.get_or_create(name=g)
@@ -179,21 +184,21 @@ def merge_metadata(original: dict, scraped: dict, force: bool = False) -> dict:
     - 如果 force=True，用刮削的数据覆盖所有字段
     """
     # 需要保留的本地字段
-    local_fields = ['m3u8', 'source']
+    local_fields = ["m3u8", "source"]
 
     # 字段映射（Javbus -> 本地 JSON）
     # 注意：Javbus scraper 返回的 title 是原文（日语）
     field_mapping = {
-        'avid': 'avid',
-        'title': 'title',  # Scraper 原文标题（日语）- 对应 AVResource.title
-        'release_date': 'release_date',
-        'duration': 'duration',
-        'studio': 'studio',  # Javbus 的 studio
-        'label': 'label',  # Javbus 的 label
-        'series': 'series',
-        'genres': 'genres',
-        'actors': 'actors',
-        'director': 'director',
+        "avid": "avid",
+        "title": "title",  # Scraper 原文标题（日语）- 对应 AVResource.title
+        "release_date": "release_date",
+        "duration": "duration",
+        "studio": "studio",  # Javbus 的 studio
+        "label": "label",  # Javbus 的 label
+        "series": "series",
+        "genres": "genres",
+        "actors": "actors",
+        "director": "director",
     }
 
     result = original.copy() if original else {}
@@ -218,18 +223,20 @@ def merge_metadata(original: dict, scraped: dict, force: bool = False) -> dict:
             result[local_key] = scraped_value
         else:
             # 非强制模式：只更新空值
-            if not original_value or (isinstance(original_value, list) and len(original_value) == 0):
+            if not original_value or (
+                isinstance(original_value, list) and len(original_value) == 0
+            ):
                 result[local_key] = scraped_value
 
     return result
 
 
 def update_single_resource(
-        avid: str,
-        resource_path: Path,
-        scraper: Javbus,
-        dry_run: bool = False,
-        force: bool = False
+    avid: str,
+    resource_path: Path,
+    scraper: Javbus,
+    dry_run: bool = False,
+    force: bool = False,
 ) -> bool:
     """
     更新单个资源的元数据
@@ -281,7 +288,7 @@ def update_single_resource(
 
 def main():
     parser = argparse.ArgumentParser(
-        description='使用 Javbus 更新现有资源的元数据',
+        description="使用 Javbus 更新现有资源的元数据",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
@@ -290,18 +297,18 @@ def main():
   %(prog)s --dry-run                # 预览模式
   %(prog)s --force                  # 强制更新所有字段
   %(prog)s --delay 3                # 设置请求间隔为 3 秒
-        """
+        """,
     )
-    parser.add_argument('--avid', type=str, help='只更新指定的 AVID')
-    parser.add_argument('--dry-run', action='store_true', help='预览模式，不实际写入文件')
-    parser.add_argument('--force', action='store_true', help='强制更新所有字段')
-    parser.add_argument('--delay', type=float, default=2.0, help='每次请求之间的延迟（秒）')
-    parser.add_argument('--limit', type=int, default=0, help='只处理前 N 个资源（0 表示不限制）')
+    parser.add_argument("--avid", type=str, help="只更新指定的 AVID")
+    parser.add_argument("--dry-run", action="store_true", help="预览模式，不实际写入文件")
+    parser.add_argument("--force", action="store_true", help="强制更新所有字段")
+    parser.add_argument("--delay", type=float, default=2.0, help="每次请求之间的延迟（秒）")
+    parser.add_argument("--limit", type=int, default=0, help="只处理前 N 个资源（0 表示不限制）")
 
     args = parser.parse_args()
 
     # 资源目录（保留用于可能的本地文件操作）
-    resource_path = project_root / 'resource'
+    resource_path = project_root / "resource"
 
     # 初始化刮削器
     proxy = get_proxy()
@@ -316,11 +323,12 @@ def main():
 
     # 确定要处理的资源列表（DB-first）
     from nassav.models import AVResource
+
     if args.avid:
         avids = [args.avid.upper()]
     else:
         # 列出数据库中的所有 AVResource 记录
-        avids = list(AVResource.objects.values_list('avid', flat=True))
+        avids = list(AVResource.objects.values_list("avid", flat=True))
 
     # 应用限制（如果设置了 --limit）
     if args.limit and args.limit > 0:
@@ -340,11 +348,11 @@ def main():
 
         try:
             if update_single_resource(
-                    avid=avid,
-                    resource_path=resource_path,
-                    scraper=scraper,
-                    dry_run=args.dry_run,
-                    force=args.force
+                avid=avid,
+                resource_path=resource_path,
+                scraper=scraper,
+                dry_run=args.dry_run,
+                force=args.force,
             ):
                 success_count += 1
             else:
@@ -365,5 +373,5 @@ def main():
     logger.info(f"  跳过: {skip_count}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

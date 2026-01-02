@@ -13,17 +13,18 @@ TranslatorManager 测试脚本
     python scripts/test_translator_manager.py
 """
 
-import sys
 import os
+import sys
 
 # 添加项目根目录到 Python 路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 # 设置 Django 环境
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 import django
+
 django.setup()
 
 from loguru import logger
@@ -66,6 +67,7 @@ def test_global_instance():
 
     # 测试两次获取是否是同一个实例
     from nassav.translator import get_translator_manager
+
     manager1 = get_translator_manager()
     manager2 = get_translator_manager()
 
@@ -232,5 +234,5 @@ def main():
     print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -25,15 +25,15 @@ class M3u8DownloaderBase(ABC):
 
     @abstractmethod
     def download(
-            self,
-            url: str,
-            output_dir: Path,
-            output_name: str,
-            referer: str,
-            user_agent: str,
-            thread_count: int = 32,
-            retry_count: int = 5,
-            progress_callback: Optional[callable] = None,
+        self,
+        url: str,
+        output_dir: Path,
+        output_name: str,
+        referer: str,
+        user_agent: str,
+        thread_count: int = 32,
+        retry_count: int = 5,
+        progress_callback: Optional[callable] = None,
     ) -> bool:
         """
         下载 M3U8 视频
@@ -64,7 +64,7 @@ class M3u8DownloaderBase(ABC):
         Returns:
             输出文件路径，如果不存在返回 None
         """
-        possible_extensions = ['.mp4', '.ts', '.mkv']
+        possible_extensions = [".mp4", ".ts", ".mkv"]
         for ext in possible_extensions:
             file_path = output_dir / f"{output_name}{ext}"
             if file_path.exists():
@@ -87,7 +87,7 @@ class M3u8DownloaderBase(ABC):
             return None
 
         mp4_path = output_dir / f"{output_name}.mp4"
-        if output_file.suffix != '.mp4':
+        if output_file.suffix != ".mp4":
             output_file.rename(mp4_path)
             return mp4_path
         return output_file

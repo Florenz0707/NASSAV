@@ -15,13 +15,14 @@ sys.path.insert(0, str(project_root))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 
 import django
+
 django.setup()
 
-from django.test import RequestFactory
-from rest_framework.request import Request
 from django.db.models import Count
-from nassav.views import GenresListView
+from django.test import RequestFactory
 from nassav.models import Genre
+from nassav.views import GenresListView
+from rest_framework.request import Request
 
 
 def test_genres_filtering():
@@ -33,12 +34,16 @@ def test_genres_filtering():
 
     # 获取数据库统计
     total_genres = Genre.objects.count()
-    used_genres = Genre.objects.annotate(
-        resource_count=Count('resources')
-    ).filter(resource_count__gt=0).count()
-    unused_genres = Genre.objects.annotate(
-        resource_count=Count('resources')
-    ).filter(resource_count=0).count()
+    used_genres = (
+        Genre.objects.annotate(resource_count=Count("resources"))
+        .filter(resource_count__gt=0)
+        .count()
+    )
+    unused_genres = (
+        Genre.objects.annotate(resource_count=Count("resources"))
+        .filter(resource_count=0)
+        .count()
+    )
 
     print(f"\n数据库统计:")
     print(f"  总类别数:     {total_genres}")
@@ -47,21 +52,21 @@ def test_genres_filtering():
 
     # 测试 API 响应
     factory = RequestFactory()
-    django_request = factory.get('/api/genres/', {'page_size': 1000})
+    django_request = factory.get("/api/genres/", {"page_size": 1000})
     request = Request(django_request)
 
     view = GenresListView()
     response = view.get(request)
 
-    api_total = response.data['pagination']['total']
-    api_genres = response.data['data']
+    api_total = response.data["pagination"]["total"]
+    api_genres = response.data["data"]
 
     print(f"\nAPI 响应:")
     print(f"  返回类别数:   {api_total}")
     print(f"  实际记录数:   {len(api_genres)}")
 
     # 检查是否有 resource_count = 0 的类别
-    unused_in_api = [g for g in api_genres if g['resource_count'] == 0]
+    unused_in_api = [g for g in api_genres if g["resource_count"] == 0]
 
     print(f"\nAPI 中的未使用类别: {len(unused_in_api)}")
 
@@ -90,18 +95,19 @@ def test_genres_filtering():
 
     # 验证 3: 使用 ID 查询应该能返回未使用的类别
     if unused_genres > 0:
-        unused_genre = Genre.objects.annotate(
-            resource_count=Count('resources')
-        ).filter(resource_count=0).first()
+        unused_genre = (
+            Genre.objects.annotate(resource_count=Count("resources"))
+            .filter(resource_count=0)
+            .first()
+        )
 
         django_request_with_id = factory.get(
-            '/api/genres/',
-            {'id': unused_genre.id, 'page_size': 10}
+            "/api/genres/", {"id": unused_genre.id, "page_size": 10}
         )
         request_with_id = Request(django_request_with_id)
         response_with_id = view.get(request_with_id)
 
-        if response_with_id.data['pagination']['total'] == 1:
+        if response_with_id.data["pagination"]["total"] == 1:
             print("✅ 使用 ID 查询可以返回未使用的类别")
         else:
             print("❌ 使用 ID 查询失败")

@@ -24,6 +24,7 @@
 """
 import os
 import sys
+
 import django
 
 # Ensure project root is on sys.path so Django project package is importable
@@ -32,7 +33,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 # Ensure settings module is set
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
 from django.core.management import call_command
@@ -41,13 +42,13 @@ from django.core.management import call_command
 def main():
     """Generate OpenAPI documentation using drf-spectacular."""
     try:
-        call_command('spectacular', '--file', './doc/openapi.yaml')
-        print('✅ 成功生成 OpenAPI 文档: doc/openapi.yaml')
-        print('📝 可以使用 Swagger UI 或 Redoc 查看文档')
+        call_command("spectacular", "--file", "./doc/openapi.yaml")
+        print("✅ 成功生成 OpenAPI 文档: doc/openapi.yaml")
+        print("📝 可以使用 Swagger UI 或 Redoc 查看文档")
     except Exception as e:
-        print(f'❌ 生成 OpenAPI 文档失败: {e}')
+        print(f"❌ 生成 OpenAPI 文档失败: {e}")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

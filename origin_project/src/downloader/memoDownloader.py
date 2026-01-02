@@ -1,6 +1,8 @@
-from .downloaderBase import *
 import re
 from urllib.parse import unquote
+
+from .downloaderBase import *
+
 
 def decode_url(encoded_url):
     try:
@@ -9,20 +11,22 @@ def decode_url(encoded_url):
         print(f"解码失败: {e}")
         return None
 
+
 class MemoDownloader(Downloader):
     def getDownloaderName(self) -> str:
         return "Memo"
 
     def getHTML(self, avid: str) -> Optional[str]:
-        '''需要先搜索，获取到详情页url'''
+        """需要先搜索，获取到详情页url"""
         url = f"https://{self.domain}/hls/get_video_info.php?id={avid}&sig=NTg1NTczNg&sts=7264825"
         logger.debug(url)
         content = self._fetch_html(url, referer=f"https://{self.domain}")
-        if not content: return None
+        if not content:
+            return None
         return content
 
     def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
-        '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
+        """需要实现的方法：根据html，解析出元数据，返回AVMetadata"""
         logger.debug(html)
         missavMetadata = AVDownloadInfo()
         pattern = r'"url":"(https?%3A%2F%2F[^"]+)"'

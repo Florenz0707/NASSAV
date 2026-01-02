@@ -16,25 +16,25 @@ Ollama 翻译器测试脚本
     test_translator()
 """
 
+import argparse
+import os
 import sys
 import time
-import argparse
 from typing import List, Tuple
 
 import django
-import os
 
 # 添加项目根目录到 Python 路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 # 设置 Django 环境
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
 from loguru import logger
-from nassav.translator import OllamaTranslator
 from nassav.models import AVResource
+from nassav.translator import OllamaTranslator
 
 # 配置日志
 logger.remove()
@@ -109,7 +109,11 @@ def test_batch_translation(count: int = 5):
     print("=" * 60)
 
     # 从数据库随机选取资源
-    resources = AVResource.objects.filter(title__isnull=False).exclude(title='').order_by('?')[:count]
+    resources = (
+        AVResource.objects.filter(title__isnull=False)
+        .exclude(title="")
+        .order_by("?")[:count]
+    )
 
     if not resources:
         print("✗ 数据库中没有可用的标题数据")
@@ -172,7 +176,9 @@ def test_retry_mechanism():
     print(f"最大重试次数: {translator.max_retries}")
 
     start_time = time.time()
-    result = translator.translate_with_retry(test_text, max_retries=translator.max_retries)
+    result = translator.translate_with_retry(
+        test_text, max_retries=translator.max_retries
+    )
     elapsed = time.time() - start_time
 
     if result:
@@ -191,10 +197,12 @@ def test_database_samples(count: int = 10):
     print("=" * 60)
 
     # 选取既有 title（日语）又有 source_title（中文）的资源进行对比
-    resources = AVResource.objects.filter(
-        title__isnull=False,
-        source_title__isnull=False
-    ).exclude(title='').exclude(source_title='').order_by('?')[:count]
+    resources = (
+        AVResource.objects.filter(title__isnull=False, source_title__isnull=False)
+        .exclude(title="")
+        .exclude(source_title="")
+        .order_by("?")[:count]
+    )
 
     if not resources:
         print("✗ 数据库中没有同时包含 title 和 source_title 的数据")
@@ -217,32 +225,36 @@ def test_database_samples(count: int = 10):
         if translated:
             print(f"  AI翻译 (translated):      {translated}")
             print(f"  ✓ 翻译成功（耗时 {elapsed:.2f}秒）")
-            results.append({
-                'avid': resource.avid,
-                'title': resource.title,
-                'source_title': resource.source_title,
-                'translated': translated,
-                'success': True,
-                'time': elapsed
-            })
+            results.append(
+                {
+                    "avid": resource.avid,
+                    "title": resource.title,
+                    "source_title": resource.source_title,
+                    "translated": translated,
+                    "success": True,
+                    "time": elapsed,
+                }
+            )
         else:
             print(f"  ✗ 翻译失败")
-            results.append({
-                'avid': resource.avid,
-                'title': resource.title,
-                'source_title': resource.source_title,
-                'translated': None,
-                'success': False,
-                'time': elapsed
-            })
+            results.append(
+                {
+                    "avid": resource.avid,
+                    "title": resource.title,
+                    "source_title": resource.source_title,
+                    "translated": None,
+                    "success": False,
+                    "time": elapsed,
+                }
+            )
 
         # 避免请求过快
         if i < len(resources):
             time.sleep(0.5)
 
     # 统计
-    success_count = sum(1 for r in results if r['success'])
-    avg_time = sum(r['time'] for r in results) / len(results)
+    success_count = sum(1 for r in results if r["success"])
+    avg_time = sum(r["time"] for r in results) / len(results)
 
     print(f"\n" + "=" * 60)
     print(f"数据库样本测试完成")
@@ -255,11 +267,11 @@ def test_database_samples(count: int = 10):
 
 def main():
     """主测试函数"""
-    parser = argparse.ArgumentParser(description='测试 Ollama 翻译器')
-    parser.add_argument('--batch', action='store_true', help='运行批量翻译测试')
-    parser.add_argument('--count', type=int, default=5, help='批量翻译测试的数量')
-    parser.add_argument('--db-samples', action='store_true', help='测试数据库真实样本')
-    parser.add_argument('--all', action='store_true', help='运行所有测试')
+    parser = argparse.ArgumentParser(description="测试 Ollama 翻译器")
+    parser.add_argument("--batch", action="store_true", help="运行批量翻译测试")
+    parser.add_argument("--count", type=int, default=5, help="批量翻译测试的数量")
+    parser.add_argument("--db-samples", action="store_true", help="测试数据库真实样本")
+    parser.add_argument("--all", action="store_true", help="运行所有测试")
 
     args = parser.parse_args()
 
@@ -292,5 +304,5 @@ def main():
     print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,30 +1,32 @@
-from src import downloaderMgr
-from src.comm import *
-from src import data
-import sys
 import argparse
+import sys
+
 from metadata import *
+from src import data, downloaderMgr
+from src.comm import *
+
 
 def append_if_not_duplicate(filename, new_content):
     new_content = new_content.strip()
     try:
-        with open(filename, 'r', encoding='utf-8') as file:
+        with open(filename, "r", encoding="utf-8") as file:
             existing_lines = [line.strip() for line in file.readlines()]
     except FileNotFoundError:
         existing_lines = []
 
     if new_content not in existing_lines:
-        with open(filename, 'a', encoding='utf-8') as file:
-            file.write(new_content + '\n')
+        with open(filename, "a", encoding="utf-8") as file:
+            file.write(new_content + "\n")
         return True
     else:
         return False
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process some parameters.")
 
-    parser.add_argument('-f', '--force', action='store_true', help='跳过DB检查，强制执行')
-    parser.add_argument('-t', '--target', type=str, help='指定车牌号')
+    parser.add_argument("-f", "--force", action="store_true", help="跳过DB检查，强制执行")
+    parser.add_argument("-t", "--target", type=str, help="指定车牌号")
 
     args, unknown = parser.parse_known_args()
     if not args and not unknown:
@@ -32,7 +34,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # 获取位置参数
-    positional_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
+    positional_args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
 
     if len(positional_args) == 1:
         args.target = positional_args[0]
@@ -62,8 +64,8 @@ if __name__ == "__main__":
         content = f.read().strip()
     if content == "1":
         logger.info(f"A download task is running, save {avid} to download queue")
-        with open(queue_path, 'a') as f: # 记录到queue中，等待下载
-                f.write(f'{avid}\n')
+        with open(queue_path, "a") as f:  # 记录到queue中，等待下载
+            f.write(f"{avid}\n")
         exit(0)
 
     with open("work", "w") as f:
@@ -79,7 +81,7 @@ if __name__ == "__main__":
         for it in sorted_downloaders:
             count += 1
             downloader = mgr.GetDownloader(it["downloaderName"])
-            if not downloader.setDomain(it["domain"]): # 设置成配置中的域名
+            if not downloader.setDomain(it["domain"]):  # 设置成配置中的域名
                 logger.error(f"下载器 {downloader.getDownloaderName()} 的域名没有配置")
                 continue
             if downloader is None:
@@ -113,6 +115,6 @@ if __name__ == "__main__":
         else:
             logger.info(f"'{avid}' 已存在下载队列中。")
 
-    finally: # 一定要执行
+    finally:  # 一定要执行
         with open("work", "w") as f:
             f.write("0")
