@@ -296,6 +296,10 @@ class GenresListView(APIView):
         # 构建查询
         qs = Genre.objects.annotate(resource_count=Count('resources'))
 
+        # 过滤掉没有关联资源的类别（除非明确指定 ID）
+        if not genre_id:
+            qs = qs.filter(resource_count__gt=0)
+
         # ID 过滤（精确匹配）
         if genre_id:
             try:

@@ -2,9 +2,44 @@
 """
 修复以 AVID 开头的标题
 
-1. 查找所有标题以 AVID 开头的资源
-2. 重新从 Javbus 刮削获取正确的标题
-3. 使用 Ollama 翻译新标题
+功能：
+    查找并修复标题以 AVID 开头的资源记录（这通常是刮削失败的标志）
+
+处理流程：
+    1. 查找所有 title 字段以 AVID 开头的资源
+    2. 重新从 Javbus 刮削获取正确的标题
+    3. 可选：使用 Ollama 翻译新标题
+
+用法：
+    # 预览模式（列出问题资源，不修改）
+    uv run python scripts/fix_avid_prefix_titles.py --list-only
+
+    # 预览模式（显示将要执行的操作）
+    uv run python scripts/fix_avid_prefix_titles.py
+
+    # 实际执行修复（不翻译）
+    uv run python scripts/fix_avid_prefix_titles.py --execute --no-translate
+
+    # 实际执行修复并翻译
+    uv run python scripts/fix_avid_prefix_titles.py --execute
+
+    # 自定义请求延迟
+    uv run python scripts/fix_avid_prefix_titles.py --execute --delay 3.0
+
+选项：
+    --execute       实际执行修改（默认为预览模式）
+    --list-only     仅列出问题资源，不进行处理
+    --no-translate  不进行翻译
+    --delay SECONDS 每次请求之间的延迟（默认 2 秒）
+
+依赖：
+    - Javbus scraper
+    - Ollama (可选，用于翻译)
+
+注意：
+    - 默认为预览模式（dry-run），不会修改数据库
+    - 只更新 title 字段（Scraper原文），不影响 source_title 和 translated_title
+    - 建议先使用 --list-only 查看问题资源
 """
 
 import os

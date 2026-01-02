@@ -1,21 +1,36 @@
 #!/usr/bin/env python3
 """
-Populate AVResource media fields from files in resource/cover and resource/video.
-Usage:
-  python3 scripts/populate_media_fields.py    # dry-run (default)
-  python3 scripts/populate_media_fields.py --apply --limit 10
-  python3 scripts/populate_media_fields.py --apply --force --report report.json
+填充媒体文件字段脚本
 
-This will update fields:
-  - cover_filename (basename only)
-  - file_exists (bool)
-  - file_size (bytes)
-  - video_saved_at (from mp4 mtime)
+功能：
+    从 resource/cover 和 resource/video 目录扫描文件，更新 AVResource 的媒体相关字段
 
-Behavior:
-  - By default (dry-run) only prints planned changes.
-  - With --apply actually writes to the DB.
-  - With --force will overwrite existing values.
+更新字段：
+    - cover_filename: 封面文件名（只包含文件名，不含路径）
+    - file_exists: mp4 文件是否存在
+    - file_size: mp4 文件大小（字节）
+    - video_saved_at: mp4 文件修改时间
+
+用法：
+    # 预览模式（默认）
+    uv run python scripts/populate_media_fields.py
+
+    # 实际执行更新
+    uv run python scripts/populate_media_fields.py --apply
+
+    # 强制覆盖现有值
+    uv run python scripts/populate_media_fields.py --apply --force
+
+    # 限制处理数量
+    uv run python scripts/populate_media_fields.py --apply --limit 100
+
+    # 生成 JSON 报告
+    uv run python scripts/populate_media_fields.py --apply --report media_report.json
+
+注意：
+    - 默认为预览模式（dry-run），不会修改数据库
+    - 使用 --apply 才会写入数据库
+    - 使用 --force 会覆盖已存在的值
 """
 from __future__ import annotations
 import argparse

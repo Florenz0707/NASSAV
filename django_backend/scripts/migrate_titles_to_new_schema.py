@@ -1,21 +1,31 @@
 #!/usr/bin/env python
 """
-标题字段迁移脚本
+标题字段迁移脚本（历史脚本）
 
-功能：
-1. 将现有 AVResource.title 数据迁移到 source_title
-2. 从 Scraper 批量获取规范的日语标题填充到 title 字段
-3. 为后续的翻译功能做准备
+警告：
+    此脚本用于早期数据库结构迁移，已经不再需要。
+    现在的标题结构：
+    - title: Scraper 获取的原文标题（日语）
+    - source_title: Source 获取的备用标题
+    - translated_title: 翻译后的标题（中文）
 
-使用方法：
+原功能：
+    1. 将现有 AVResource.title 数据迁移到 source_title
+    2. 从 Scraper 批量获取规范的日语标题填充到 title 字段
+    3. 为后续的翻译功能做准备
+
+历史用法：
     python manage.py runscript migrate_titles_to_new_schema
 
     或者在 Django shell 中：
     from scripts.migrate_titles_to_new_schema import migrate_titles
     migrate_titles(dry_run=True)  # 先测试
     migrate_titles(dry_run=False)  # 正式执行
-"""
 
+注意：
+    - 新项目不需要执行此脚本
+    - 仅保留作为历史参考
+"""
 import sys
 import time
 from typing import Optional

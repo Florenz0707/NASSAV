@@ -1,13 +1,36 @@
 #!/usr/bin/env python3
 """
-Batch-generate thumbnails for existing cover images.
-Usage:
-  python3 scripts/generate_thumbnails.py [--force] [--sizes small,medium,large]
+生成封面缩略图脚本
 
-Requires: Pillow (`pip install pillow`)
+功能：
+    为 resource/cover/ 目录下的封面图片批量生成不同尺寸的缩略图
 
-This script looks for cover images under `resource/cover` and writes
-thumbnails into `resource/cover/thumbnails/{size}/{AVID}.jpg`.
+用法：
+    # 生成所有尺寸的缩略图（small, medium, large）
+    uv run python scripts/generate_thumbnails.py
+
+    # 强制重新生成（即使缩略图已存在）
+    uv run python scripts/generate_thumbnails.py --force
+
+    # 只生成特定尺寸
+    uv run python scripts/generate_thumbnails.py --sizes small,medium
+
+缩略图尺寸：
+    - small: 200px 宽
+    - medium: 600px 宽
+    - large: 1200px 宽
+
+输出路径：
+    resource/cover/thumbnails/{size}/{AVID}.jpg
+
+依赖：
+    - Pillow (PIL)
+    安装：uv add pillow
+
+注意：
+    - 只处理 .jpg, .jpeg, .png, .webp 格式
+    - 保持图片宽高比，按宽度缩放
+    - 输出为 JPEG 格式，质量 85%
 """
 import argparse
 from pathlib import Path

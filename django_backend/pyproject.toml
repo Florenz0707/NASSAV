@@ -28,6 +28,7 @@ dependencies = [
     "pytest-django>=4.11.1",
     "drf-spectacular>=0.28.1",
     "daphne>=4.2.1",
+    "coverage>=7.13.1",
 ]
 
 [[tool.uv.index]]

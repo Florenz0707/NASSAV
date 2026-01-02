@@ -82,18 +82,23 @@
 import ActorGroupCard from '../components/ActorGroupCard.vue'
 import {useActorGroupsStore} from '../stores/actorGroups'
 import {onMounted, ref, watch} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 
 export default {
 	name: 'ActorsView',
 	components: {ActorGroupCard},
 	setup() {
 		const store = useActorGroupsStore()
+		const route = useRoute()
+		const router = useRouter()
+
 		const pageSizeOptions = [15, 20, 25]
-		const pageSize = ref(15)
-		const page = ref(1)
-		const searchQuery = ref('')
-		const sortBy = ref('count')
-		const sortOrder = ref('desc')
+		// 从 URL query 初始化状态
+		const page = ref(parseInt(route.query.page) || 1)
+		const pageSize = ref(parseInt(route.query.pageSize) || 15)
+		const searchQuery = ref(route.query.search || '')
+		const sortBy = ref(route.query.sortBy || 'count')
+		const sortOrder = ref(route.query.order || 'desc')
 
 		async function loadPage(p = 1) {
 			// ensure we pass plain numbers
@@ -112,8 +117,11 @@ export default {
 		}
 
 		function openActor(a) {
-			// SPA navigation to actor resource list
-			window.location.href = `/actors/${a.id}`
+			// 保留当前页面状态作为 from 参数
+			router.push({
+				path: `/actors/${a.id}`,
+				query: { from: route.fullPath }
+			})
 		}
 
 		function prev() {
@@ -145,10 +153,28 @@ export default {
 			}, 300)
 		})
 
-		onMounted(() => loadPage(1))
+		onMounted(() => {
+			// 使用 URL 中的页码，而不是硬编码的 1
+			loadPage(page.value)
+		})
+
+		// 状态变化时同步到 URL（延迟触发避免初始化时覆盖）
+		watch([page, pageSize, searchQuery, sortBy, sortOrder], () => {
+			const query = {
+				page: page.value
+			}
+			if (pageSize.value !== 15) query.pageSize = pageSize.value
+			if (searchQuery.value) query.search = searchQuery.value
+			if (sortBy.value !== 'count') query.sortBy = sortBy.value
+			if (sortOrder.value !== 'desc') query.order = sortOrder.value
+
+			router.replace({ query })
+		}, { deep: true })
 
 		return {
 			store,
+			route,
+			router,
 			openActor,
 			prev,
 			next,

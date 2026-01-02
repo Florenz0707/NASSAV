@@ -1,16 +1,35 @@
 #!/usr/bin/env python3
 """
-修复数据库中 AVResource.duration 字段的脚本。
+修复视频时长字段脚本
+
+功能：
+    修复 AVResource.duration 字段的时长数据
 
 优先策略：
-- 若 `file_exists` 且 mp4 文件存在，使用 `ffprobe` 获取精确时长（秒）并写入。
-- 否则尝试从 `metadata['duration']`（或其他常见字段）解析字符串（如 "150分钟"）并按分钟转换为秒写入。
+    1. 如果 mp4 文件存在，使用 ffprobe 获取精确时长（秒）
+    2. 否则从 metadata 中解析字符串（如 "150分钟"）并转换为秒
 
-用法:
-  --dry-run (默认): 不写入，仅打印将要修改的记录
-  --apply         : 写入数据库
-  --limit N       : 只处理前 N 条记录
-  --report FILE   : 写入 JSON 报告
+用法：
+    # 预览模式（不写入数据库）
+    uv run python scripts/fix_durations.py --dry-run
+
+    # 实际执行修复
+    uv run python scripts/fix_durations.py --apply
+
+    # 限制处理数量
+    uv run python scripts/fix_durations.py --apply --limit 100
+
+    # 生成报告
+    uv run python scripts/fix_durations.py --dry-run --report duration_report.json
+
+依赖：
+    - ffprobe (ffmpeg 工具集)
+    安装：sudo apt install ffmpeg
+
+注意：
+    - 默认为 --dry-run 模式，不会修改数据库
+    - 使用 --apply 才会真正写入数据库
+    - 建议先使用 --dry-run 查看效果
 """
 import os
 import sys

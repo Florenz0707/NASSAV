@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { downloadApi, resourceApi } from '../api'
 import { useToastStore } from '../stores/toast'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps({
@@ -33,6 +33,7 @@ if (typeof emit === 'function') {
 	// nothing, emit already available
 }
 
+const route = useRoute()
 const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 const coverUrl = ref(placeholder)
 let observer = null
@@ -187,7 +188,11 @@ onUnmounted(() => {
 				class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" />
 			<div
 				class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-				<RouterLink :to="`/resource/${resource.avid}`"
+				<RouterLink
+					:to="{
+						path: `/resource/${resource.avid}`,
+						query: { from: route.fullPath }
+					}"
 					class="px-6 py-3 bg-[#ff6b6b] text-white rounded-lg font-medium text-sm transition-transform hover:scale-105">
 					查看详情
 				</RouterLink>
@@ -204,7 +209,7 @@ onUnmounted(() => {
 				<!-- 类别标签 -->
 				<div v-for="(genre, index) in (resource.genres || []).slice(0, 2)" :key="genre"
 					class="text-[0.85rem] text-[#cc99ff] font-normal bg-[#9933ff]/30 rounded-md w-fit px-2 py-1">
-					#{{ genre }}#
+					#{{ genre }}
 				</div>
 			</div>
 

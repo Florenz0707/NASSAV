@@ -99,7 +99,14 @@ async function handleRefresh() {
 }
 
 function goBack() {
-	router.back()
+	const fromPath = route.query.from
+	if (fromPath) {
+		// 如果有来源页面，直接跳转回去（保留所有 query 参数）
+		router.push(fromPath)
+	} else {
+		// 否则使用浏览器后退
+		router.back()
+	}
 }
 
 async function jumpPlay() {

@@ -1,20 +1,34 @@
 #!/usr/bin/env python3
 """
-迁移脚本（Python 版）：
-- 从 resource_backup/{AVID}/ 中寻找封面与 mp4
-- 将封面拷贝到 resource/cover/{AVID}.{ext}
-- 将视频拷贝到 resource/video/{AVID}.mp4
+资源文件迁移脚本（历史脚本）
 
-用法：
-  python3 scripts/migrate_resource_paths.py --dry-run
-  python3 scripts/migrate_resource_paths.py --apply --limit 10
-  python3 scripts/migrate_resource_paths.py --apply --force
+警告：
+    此脚本用于早期文件结构迁移，已经不再需要。
+    现在的文件结构：
+    - resource/cover/{AVID}.{ext}  - 封面图片
+    - resource/video/{AVID}.mp4    - 视频文件
 
-选项：
-  --apply    实际执行拷贝（默认仅 dry-run）
-  --force    覆盖已存在目标文件
-  --limit N  最多处理 N 个目录
-  --report f 将报告写成 JSON 文件
+原功能：
+    从 resource_backup/{AVID}/ 目录中迁移文件到新的结构：
+    - 封面拷贝到 resource/cover/{AVID}.{ext}
+    - 视频拷贝到 resource/video/{AVID}.mp4
+
+历史用法：
+    # 预览模式
+    python scripts/migrate_resource_paths.py --dry-run
+
+    # 实际执行
+    python scripts/migrate_resource_paths.py --apply
+
+    # 强制覆盖 + 限制数量
+    python scripts/migrate_resource_paths.py --apply --force --limit 10
+
+    # 生成报告
+    python scripts/migrate_resource_paths.py --apply --report migration_report.json
+
+注意：
+    - 新项目不需要执行此脚本
+    - 仅保留作为历史参考
 """
 
 from __future__ import annotations

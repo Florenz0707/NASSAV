@@ -1,8 +1,8 @@
 <script setup>
-import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
-import {useToastStore} from '../stores/toast'
-import {useRoute, useRouter} from 'vue-router'
-import {useResourceStore} from '../stores/resource'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useToastStore } from '../stores/toast'
+import { useRoute, useRouter } from 'vue-router'
+import { useResourceStore } from '../stores/resource'
 import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -14,22 +14,34 @@ const router = useRouter()
 const resourceStore = useResourceStore()
 
 const actorId = ref(route.params.actorId || '')
-const page = ref(1)
-const pageSize = ref(18)
-const sortBy = ref('metadata_create_time')
-const sortOrder = ref('desc')
-const loadingActor = ref(false)
-const actor = ref({id: actorId.value, name: '', resource_count: 0})
-const toastStore = useToastStore()
+// 从 URL query 初始化状态
+const page = ref(parseInt(route.query.page) || 1)
+const pageSize = ref(parseInt(route.query.pageSize) || 18)
+const sortBy = ref(route.query.sortBy || 'metadata_create_time')
+const sortOrder = ref(route.query.order || 'desc')
+const searchQuery = ref(route.query.search || '')
+const filterStatus = ref(route.query.status || 'all')
 
+const loadingActor = ref(false)
+const actor = ref({ id: actorId.value, name: '', resource_count: 0 })
+const toastStore = useToastStore()
 // batch & search state (reuse logic from ResourcesView)
 const selectedAvids = ref(new Set())
 const batchLoading = ref(false)
 const batchMode = ref(false)
 const selectedCount = computed(() => selectedAvids.value.size)
-const searchQuery = ref('')
-const filterStatus = ref('all')
 const refreshing = ref(false)
+
+function goBack() {
+	const fromPath = route.query.from
+	if (fromPath) {
+		// 如果有来源页面，直接跳转回去（保留所有 query 参数）
+		router.push(fromPath)
+	} else {
+		// 否则使用浏览器后退
+		router.back()
+	}
+}
 
 function toggleSelect(avid, checked) {
 	if (!avid) return
@@ -104,17 +116,17 @@ async function handleBatchDelete() {
 async function loadActorInfo(id) {
 	loadingActor.value = true
 	try {
-		const qs = new URLSearchParams({id: String(id), page: '1', page_size: '1'})
+		const qs = new URLSearchParams({ id: String(id), page: '1', page_size: '1' })
 		const r = await fetch(`/nassav/api/actors/?${qs.toString()}`)
 		const body = await r.json()
 		if (body && body.code === 200 && Array.isArray(body.data) && body.data.length > 0) {
 			actor.value = body.data[0]
 		} else {
 			// fallback: set id and empty name
-			actor.value = {id, name: String(id), resource_count: 0}
+			actor.value = { id, name: String(id), resource_count: 0 }
 		}
 	} catch (err) {
-		actor.value = {id, name: String(id), resource_count: 0}
+		actor.value = { id, name: String(id), resource_count: 0 }
 	} finally {
 		loadingActor.value = false
 	}
@@ -158,7 +170,7 @@ async function handleRefresh(avid) {
 
 async function handleDeleteResource(avid) {
 	try {
-		await fetch(`/nassav/api/resource/${avid}/`, {method: 'DELETE'})
+		await fetch(`/nassav/api/resource/${avid}/`, { method: 'DELETE' })
 		await handleManualRefresh()
 		toastStore.success(`${avid} 已被完全删除`)
 	} catch (err) {
@@ -168,7 +180,7 @@ async function handleDeleteResource(avid) {
 
 async function handleDeleteFile(avid) {
 	try {
-		await fetch(`/nassav/api/download/${avid}/file/`, {method: 'DELETE'})
+		await fetch(`/nassav/api/download/${avid}/file/`, { method: 'DELETE' })
 		await handleManualRefresh()
 		toastStore.success(`${avid} 已删除视频`)
 	} catch (err) {
@@ -193,6 +205,20 @@ onMounted(async () => {
 	await loadActorInfo(actorId.value)
 	await fetchResources(1)
 })
+
+// 状态变化时同步到 URL
+watch([page, pageSize, searchQuery, sortBy, sortOrder], () => {
+	const query = {
+		page: page.value
+	}
+	if (pageSize.value !== 18) query.pageSize = pageSize.value
+	if (searchQuery.value) query.search = searchQuery.value
+	if (sortBy.value !== 'metadata_create_time') query.sortBy = sortBy.value
+	if (sortOrder.value !== 'desc') query.order = sortOrder.value
+	if (route.query.from) query.from = route.query.from
+
+	router.replace({ query })
+}, { deep: true })
 
 watch(() => route.params.actorId, async (v) => {
 	actorId.value = v
@@ -249,13 +275,13 @@ const displayedCount = computed(() => {
 </script>
 
 <template>
-	<div class="p-6">
+	<div class="px-6 pt-4 pb-6">
 		<div class="mb-6 flex items-center gap-6">
-			<div class="w-28 h-28 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl text-white">
+			<div class="w-20 h-20 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl text-white">
 				{{ initialChar }}
 			</div>
 			<div class="flex-1">
-				<div class="text-2xl font-semibold text-[#f4f4f5]">{{ actor.name }}</div>
+				<div class="text-xl font-semibold text-[#f4f4f5]">{{ actor.name }}</div>
 				<div class="text-sm text-[#71717a]">共有 {{ displayedCount }} 部作品</div>
 			</div>
 		</div>
@@ -266,29 +292,29 @@ const displayedCount = computed(() => {
 			<div class="flex-1 min-w-[250px] relative">
 				<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
 				<input v-model="searchQuery" type="text" placeholder="搜索 AVID、标题、来源..."
-					   class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]"/>
+					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]" />
 			</div>
 
 			<!-- Filters -->
 			<div class="flex gap-3">
 				<select v-model="filterStatus"
-						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]">
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]">
 					<option value="all">全部状态</option>
 					<option value="downloaded">已下载</option>
 					<option value="pending">未下载</option>
 				</select>
 
 				<select v-model="sortBy"
-						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
-						@change="onSortChange">
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
+					@change="onSortChange">
 					<option value="avid">按编号</option>
 					<option value="metadata_create_time">按元数据获取时间</option>
 					<option value="video_create_time">按视频下载时间</option>
 					<option value="source">按来源</option>
 				</select>
 				<select v-model="sortOrder"
-						class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
-						@change="onSortChange">
+					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
+					@change="onSortChange">
 					<option value="desc">降序</option>
 					<option value="asc">升序</option>
 				</select>
@@ -296,27 +322,20 @@ const displayedCount = computed(() => {
 		</div>
 
 		<!-- Batch controls -->
-		<BatchControls
-			:batch-mode="batchMode"
-			:batch-loading="batchLoading"
-			:selected-count="selectedCount"
-			:total-count="displayedResources.length"
-			@toggle-batch-mode="toggleBatchMode"
-			@toggle-select-all="toggleSelectAll"
-			@batch-refresh="handleBatchRefresh"
-			@batch-download="handleBatchDownload"
-			@batch-delete="handleBatchDelete"
-		/>
+		<BatchControls :batch-mode="batchMode" :batch-loading="batchLoading" :selected-count="selectedCount"
+			:total-count="displayedResources.length" @toggle-batch-mode="toggleBatchMode"
+			@toggle-select-all="toggleSelectAll" @batch-refresh="handleBatchRefresh"
+			@batch-download="handleBatchDownload" @batch-delete="handleBatchDelete" />
 
 		<!-- Loading State -->
-		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..."/>
+		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
 
 		<!-- Empty State -->
 		<EmptyState v-else-if="displayedResources.length === 0" icon="◇" title="暂无资源"
-					:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
+			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
 			<template #action>
 				<RouterLink to="/add"
-							class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5">
+					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5">
 					添加资源
 				</RouterLink>
 			</template>
@@ -325,13 +344,11 @@ const displayedCount = computed(() => {
 		<!-- Resources Grid -->
 		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
 			<ResourceCard v-for="resource in displayedResources" :key="resource.avid" :resource="resource"
-						  :selectable="batchMode" :selected="selectedAvids.has(resource.avid)"
-						  @toggle-select="toggleSelect"
-						  @download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
-						  @deleteFile="handleDeleteFile" :coverSize="'medium'"/>
+				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)" @toggle-select="toggleSelect"
+				@download="handleDownload" @refresh="handleRefresh" @delete="handleDeleteResource"
+				@deleteFile="handleDeleteFile" :coverSize="'medium'" />
 		</div>
 		<ResourcePagination :page="page" :pages="resourceStore.pagination.pages" :pageSize="pageSize"
-							:total="resourceStore.pagination.total" @change-page="changePage"
-							@change-page-size="onPageSizeChange"/>
+			:total="resourceStore.pagination.total" @change-page="changePage" @change-page-size="onPageSizeChange" />
 	</div>
 </template>

@@ -1,14 +1,35 @@
 #!/usr/bin/env python3
 """
-迁移脚本：将现有 resource 下的 {avid}.json 元数据导入到数据库中的 AVResource（不会删除原始文件）。
+元数据迁移脚本（历史脚本）
 
-用法:
-  --dry-run   : 仅模拟（默认 True）
-  --apply     : 真正写入数据库
-  --limit N   : 只处理前 N 个条目
-  --report fn : 将报告写到文件（JSON）
+警告：
+    此脚本用于早期 JSON 元数据迁移到数据库，已经不再需要。
+    现在的项目采用 Database-First 架构，直接在数据库中管理元数据。
 
-脚本会在每个条目执行完整性校验：读取 JSON -> 写入（或模拟）-> 读回 DB -> 比较关键字段。
+原功能：
+    将 resource/{AVID}/{AVID}.json 元数据导入到 AVResource 模型中
+    （不会删除原始 JSON 文件）
+
+历史用法：
+    # 预览模式（默认）
+    python scripts/migrate_metadata_to_db.py --dry-run
+
+    # 实际执行迁移
+    python scripts/migrate_metadata_to_db.py --apply
+
+    # 限制处理数量
+    python scripts/migrate_metadata_to_db.py --apply --limit 100
+
+    # 强制覆盖现有数据
+    python scripts/migrate_metadata_to_db.py --apply --force
+
+    # 生成报告
+    python scripts/migrate_metadata_to_db.py --apply --report migration_report.json
+
+注意：
+    - 新项目不需要执行此脚本
+    - 仅保留作为历史参考
+    - 脚本会执行完整性校验：读取 JSON -> 写入 DB -> 读回比较
 """
 import os
 import sys

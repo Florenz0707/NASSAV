@@ -14,22 +14,34 @@ const router = useRouter()
 const resourceStore = useResourceStore()
 
 const genreId = ref(route.params.genreId || '')
-const page = ref(1)
-const pageSize = ref(18)
-const sortBy = ref('metadata_create_time')
-const sortOrder = ref('desc')
+// 从 URL query 初始化状态
+const page = ref(parseInt(route.query.page) || 1)
+const pageSize = ref(parseInt(route.query.pageSize) || 18)
+const sortBy = ref(route.query.sortBy || 'metadata_create_time')
+const sortOrder = ref(route.query.order || 'desc')
+const searchQuery = ref(route.query.search || '')
+const filterStatus = ref(route.query.status || 'all')
+
 const loadingGenre = ref(false)
 const genre = ref({id: genreId.value, name: '', resource_count: 0})
 const toastStore = useToastStore()
-
 // batch & search state (reuse logic from ResourcesView)
 const selectedAvids = ref(new Set())
 const batchLoading = ref(false)
 const batchMode = ref(false)
 const selectedCount = computed(() => selectedAvids.value.size)
-const searchQuery = ref('')
-const filterStatus = ref('all')
 const refreshing = ref(false)
+
+function goBack() {
+	const fromPath = route.query.from
+	if (fromPath) {
+		// 如果有来源页面，直接跳转回去（保留所有 query 参数）
+		router.push(fromPath)
+	} else {
+		// 否则使用浏览器后退
+		router.back()
+	}
+}
 
 function toggleSelect(avid, checked) {
 	if (!avid) return
@@ -194,6 +206,20 @@ onMounted(async () => {
 	await fetchResources(1)
 })
 
+// 状态变化时同步到 URL
+watch([page, pageSize, searchQuery, sortBy, sortOrder], () => {
+	const query = {
+		page: page.value
+	}
+	if (pageSize.value !== 18) query.pageSize = pageSize.value
+	if (searchQuery.value) query.search = searchQuery.value
+	if (sortBy.value !== 'metadata_create_time') query.sortBy = sortBy.value
+	if (sortOrder.value !== 'desc') query.order = sortOrder.value
+	if (route.query.from) query.from = route.query.from
+
+	router.replace({ query })
+}, { deep: true })
+
 watch(() => route.params.genreId, async (v) => {
 	genreId.value = v
 	await loadGenreInfo(genreId.value)
@@ -249,7 +275,8 @@ const displayedCount = computed(() => {
 </script>
 
 <template>
-	<div class="p-6">
+	<div class="px-6 pt-4 pb-6">
+
 		<div class="mb-6 flex items-center gap-6">
 			<div
 				class="w-28 h-28 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl font-bold text-white">
