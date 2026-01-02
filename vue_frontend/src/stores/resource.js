@@ -131,9 +131,9 @@ export const useResourceStore = defineStore('resource', () => {
     }
 
     // 刷新资源
-    async function refreshResource(avid) {
+    async function refreshResource(avid, params = null) {
         try {
-            const response = await resourceApi.refresh(avid)
+            const response = await resourceApi.refresh(avid, params)
             const resObj = response && response.data && response.data.resource ? response.data.resource : null
             if (resObj) _mergeOrUpsertResource(resObj)
             return response

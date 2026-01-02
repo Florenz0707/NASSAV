@@ -725,7 +725,6 @@ def translate_title_task(self, avid: str):
 
         # 检查是否已有翻译
         if resource.translated_title and resource.translation_status == 'completed':
-            logger.info(f"[翻译任务] {avid} 已有翻译，跳过")
             return {
                 'success': True,
                 'skipped': True,
@@ -758,7 +757,7 @@ def translate_title_task(self, avid: str):
             resource.translated_title = translated
             resource.translation_status = 'completed'
             resource.save(update_fields=['translated_title', 'translation_status'])
-            logger.info(f"[翻译任务] {avid} 翻译成功： {title_to_translate} -> {translated}")
+            logger.info(f"[翻译任务] {avid} 翻译成功\n 原文：{title_to_translate}\n 翻译：{translated}")
 
             return {
                 'success': True,

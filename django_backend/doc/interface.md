@@ -183,8 +183,34 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 
 - 新增资源：`POST /nassav/api/resource`（body: {avid, source?}）
   - 返回 `data.resource`：新增后的完整资源对象（可直接合并到列表或详情）
+
 - 刷新资源：`POST /nassav/api/resource/refresh/{avid}`
   - 返回 `data.resource`：刷新后的资源对象
+  - **支持细粒度刷新参数**（Body JSON，可选）：
+    - `refresh_m3u8`: 是否刷新 m3u8 链接（默认 `true`）
+    - `refresh_metadata`: 是否刷新元数据（从 source 重新抓取，默认 `true`）
+    - `retranslate`: 是否重新翻译标题（默认 `false`）
+  - 示例：
+    ```json
+    // 只刷新 m3u8 链接
+    POST /nassav/api/resource/refresh/ABC-123
+    {"refresh_m3u8": true, "refresh_metadata": false, "retranslate": false}
+
+    // 只重新翻译
+    POST /nassav/api/resource/refresh/ABC-123
+    {"refresh_m3u8": false, "refresh_metadata": false, "retranslate": true}
+
+    // 刷新元数据并重新翻译（注意：会先刷新元数据获取新标题，再执行翻译）
+    POST /nassav/api/resource/refresh/ABC-123
+    {"refresh_metadata": true, "retranslate": true}
+    ```
+  - 响应包含：
+    - `resource`: 更新后的资源对象
+    - `metadata_refreshed`: 是否刷新了元数据
+    - `m3u8_refreshed`: 是否刷新了 m3u8
+    - `translation_queued`: 是否已提交翻译任务（异步）
+    - `cover_downloaded`, `html_saved`, `metadata_saved`, `scraped`: 保存结果
+
 - 删除资源：`DELETE /nassav/api/resource/{avid}`
   - 返回 `data.resource`（删除前序列化对象）和 `deleted_files`
 
@@ -214,8 +240,21 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
   - 如果资源已存在，返回 `code: 200, message: "already exists"` 和现有资源数据
   - 如果资源不存在，从指定 source 获取并创建，返回 `code: 201, message: "created"`
   - 如果获取失败，返回 `code: 404, message: "获取信息失败"`
-- `refresh`：刷新资源（强制重新获取元数据、m3u8 和翻译）
-  - 返回 `code: 200, message: "refreshed"` 和更新后的资源数据
+- `refresh`：刷新资源
+  - **支持细粒度刷新参数**（可选，默认全部刷新）：
+    - `refresh_m3u8`: 是否刷新 m3u8 链接（默认 `true`）
+    - `refresh_metadata`: 是否刷新元数据（默认 `true`）
+    - `retranslate`: 是否重新翻译（默认 `false`）
+  - 示例：
+    ```json
+    {
+      "actions": [
+        {"action": "refresh", "avid": "ABC-123", "refresh_m3u8": true, "refresh_metadata": false},
+        {"action": "refresh", "avid": "DEF-456", "retranslate": true}
+      ]
+    }
+    ```
+  - 返回 `code: 200, message: "refreshed"`，`refresh_info` 包含操作结果，以及更新后的资源数据
 - `delete`：删除资源
   - 返回 `code: 200, message: "deleted"` 和删除前的资源数据
 

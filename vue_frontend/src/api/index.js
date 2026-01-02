@@ -137,7 +137,7 @@ export const resourceApi = {
     addNew: (avid, source = 'any') => api.post('/resource', {avid, source}),
 
     // 刷新资源
-    refresh: (avid) => api.post(`/resource/refresh/${encodeURIComponent(avid)}`),
+    refresh: (avid, params = null) => api.post(`/resource/refresh/${encodeURIComponent(avid)}`, params || {}),
 
     // 删除资源
     delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`)

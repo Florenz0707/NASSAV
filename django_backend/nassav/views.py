@@ -808,66 +808,88 @@ class RefreshResourceView(APIView):
     """
     POST /api/resource/refresh/{avid}
     刷新已有资源的元数据和m3u8链接，使用原有source获取
+
+    支持细粒度刷新参数：
+    - refresh_m3u8: 是否刷新 m3u8 链接（默认 true）
+    - refresh_metadata: 是否刷新元数据（默认 true）
+    - retranslate: 是否重新翻译标题（默认 false）
+
+    注意：当同时刷新元数据和重新翻译时，会先刷新元数据获取新标题，再执行翻译
     """
 
     def post(self, request, avid):
         avid = avid.upper()
+
+        # 解析参数，默认全部刷新
+        refresh_m3u8 = request.data.get('refresh_m3u8', True)
+        refresh_metadata = request.data.get('refresh_metadata', True)
+        retranslate = request.data.get('retranslate', False)
 
         # 检查资源是否存在（数据库），并根据 DB 中的 source 刷新
         try:
             from nassav.models import AVResource
             resource = AVResource.objects.filter(avid=avid).first()
             if not resource:
-                return Response({
-                    'code': 404,
-                    'message': f'{avid} 的资源不存在，请先调用 /api/resource/new 添加资源',
-                    'data': None
-                }, status=status.HTTP_404_NOT_FOUND)
+                return build_response(404, f'{avid} 的资源不存在', None)
             source = resource.source or ''
         except Exception as e:
             logger.error(f"读取现有元数据失败: {e}")
-            return Response({
-                'code': 500,
-                'message': f'读取现有元数据失败: {str(e)}',
-                'data': None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return build_response(500, f'读取现有元数据失败: {str(e)}', None)
 
         if not source:
-            return Response({
-                'code': 400,
-                'message': f'{avid} 的元数据中没有 source 信息，无法刷新',
-                'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return build_response(400, f'{avid} 的元数据中没有 source 信息，无法刷新', None)
 
-        # 使用原有 source获取新信息
-        result = source_manager.get_info_from_source(avid, source)
-        if not result:
-            return Response({
-                'code': 502,
-                'message': f'从 {source} 刷新 {avid} 失败',
-                'data': None
-            }, status=status.HTTP_502_BAD_GATEWAY)
+        result_info = {}
 
-        info, downloader, html = result
+        # 刷新元数据和/或 m3u8
+        if refresh_metadata or refresh_m3u8:
+            # 使用原有 source 获取新信息
+            result = source_manager.get_info_from_source(avid, source)
+            if not result:
+                return build_response(502, f'从 {source} 刷新 {avid} 失败', None)
 
-        # 保存新资源（覆盖旧资源）
-        save_result = source_manager.save_all_resources(avid, info, downloader, html)
+            info, downloader, html = result
+
+            # 保存新资源（覆盖旧资源）
+            save_result = source_manager.save_all_resources(avid, info, downloader, html)
+
+            result_info['cover_downloaded'] = save_result['cover_saved']
+            result_info['html_saved'] = save_result['html_saved']
+            result_info['metadata_saved'] = save_result['metadata_saved']
+            result_info['scraped'] = save_result.get('scraped', False)
+            result_info['metadata_refreshed'] = refresh_metadata
+            result_info['m3u8_refreshed'] = refresh_m3u8
+
+        # 重新翻译（必须在元数据刷新之后执行，确保使用最新的标题）
+        if retranslate:
+            try:
+                # 重新加载 resource 以获取最新的 title
+                resource.refresh_from_db()
+
+                # 重置翻译状态并提交翻译任务
+                from nassav.tasks import translate_title_task
+                resource.translation_status = 'pending'
+                resource.translated_title = None
+                resource.save(update_fields=['translation_status', 'translated_title'])
+
+                # 异步翻译
+                translate_title_task.delay(avid)
+                result_info['translation_queued'] = True
+                logger.info(f"已提交 {avid} 的翻译任务")
+            except Exception as e:
+                logger.error(f"提交翻译任务失败: {e}")
+                result_info['translation_error'] = str(e)
 
         # 返回刷新后的资源对象，便于前端局部刷新
         try:
-            from nassav.models import AVResource
-            resource_obj = AVResource.objects.filter(avid=avid).first()
-            resource_data = _serialize_resource_obj(resource_obj) if resource_obj else None
-        except Exception:
+            resource.refresh_from_db()
+            resource_data = _serialize_resource_obj(resource)
+        except Exception as e:
+            logger.error(f"序列化资源对象失败: {e}")
             resource_data = None
 
-        return build_response(200, 'success', {
-            'resource': resource_data,
-            'cover_downloaded': save_result['cover_saved'],
-            'html_saved': save_result['html_saved'],
-            'metadata_saved': save_result['metadata_saved'],
-            'scraped': save_result.get('scraped', False)
-        })
+        result_info['resource'] = resource_data
+        return build_response(200, 'success', result_info)
 
 
 class DeleteResourceView(APIView):
@@ -1084,7 +1106,7 @@ class ResourcesBatchView(APIView):
                          'deleted_files': deleted_files})
 
                 elif action == 'refresh':
-                    # similar to RefreshResourceView
+                    # 支持细粒度刷新参数
                     from nassav.models import AVResource
                     resource = AVResource.objects.filter(avid=avid).first()
                     if not resource:
@@ -1097,18 +1119,46 @@ class ResourcesBatchView(APIView):
                                         'resource': None})
                         continue
 
-                    result = source_manager.get_info_from_source(avid, source)
-                    if not result:
-                        results.append(
-                            {'action': 'refresh', 'avid': avid, 'code': 502, 'message': '刷新失败', 'resource': None})
-                        continue
+                    # 解析细粒度参数
+                    refresh_m3u8 = act.get('refresh_m3u8', True)
+                    refresh_metadata = act.get('refresh_metadata', True)
+                    retranslate = act.get('retranslate', False)
 
-                    info, downloader, html = result
-                    save_result = source_manager.save_all_resources(avid, info, downloader, html)
-                    resource_obj = AVResource.objects.filter(avid=avid).first()
-                    resource_data = _serialize_resource_obj(resource_obj) if resource_obj else None
-                    results.append({'action': 'refresh', 'avid': avid, 'code': 200, 'message': 'refreshed',
-                                    'resource': resource_data})
+                    refresh_info = {}
+
+                    # 刷新元数据和/或 m3u8
+                    if refresh_metadata or refresh_m3u8:
+                        result = source_manager.get_info_from_source(avid, source)
+                        if not result:
+                            results.append(
+                                {'action': 'refresh', 'avid': avid, 'code': 502, 'message': '刷新失败', 'resource': None})
+                            continue
+
+                        info, downloader, html = result
+                        save_result = source_manager.save_all_resources(avid, info, downloader, html)
+                        refresh_info['metadata_refreshed'] = refresh_metadata
+                        refresh_info['m3u8_refreshed'] = refresh_m3u8
+
+                    # 重新翻译（在元数据刷新之后）
+                    if retranslate:
+                        try:
+                            resource.refresh_from_db()
+                            from nassav.tasks import translate_title_task
+                            resource.translation_status = 'pending'
+                            resource.translated_title = None
+                            resource.save(update_fields=['translation_status', 'translated_title'])
+                            translate_title_task.delay(avid)
+                            refresh_info['translation_queued'] = True
+                        except Exception as e:
+                            logger.error(f"提交翻译任务失败: {e}")
+                            refresh_info['translation_error'] = str(e)
+
+                    resource.refresh_from_db()
+                    resource_data = _serialize_resource_obj(resource) if resource else None
+                    result_item = {'action': 'refresh', 'avid': avid, 'code': 200, 'message': 'refreshed',
+                                   'resource': resource_data}
+                    result_item.update(refresh_info)
+                    results.append(result_item)
 
                 else:
                     results.append(

@@ -1,9 +1,9 @@
 <script setup>
-import {computed, onMounted, ref, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
-import {downloadApi, resourceApi} from '../api'
-import {useResourceStore} from '../stores/resource'
-import {useToastStore} from '../stores/toast'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { downloadApi, resourceApi } from '../api'
+import { useResourceStore } from '../stores/resource'
+import { useToastStore } from '../stores/toast'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -18,8 +18,33 @@ const loading = ref(true)
 const error = ref(null)
 const downloading = ref(false)
 const refreshing = ref(false)
+const showRefreshMenu = ref(false)
+const showDeleteMenu = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteAction = ref(null)
+
+// 刷新菜单选项
+const refreshOptions = [
+	{ text: '全部刷新', params: { refresh_m3u8: true, refresh_metadata: true, retranslate: false } },
+	{ text: 'M3U8', params: { refresh_m3u8: true, refresh_metadata: false, retranslate: false } },
+	{ text: '元数据', params: { refresh_m3u8: false, refresh_metadata: true, retranslate: false } },
+	{ text: '翻译', params: { refresh_m3u8: false, refresh_metadata: false, retranslate: true } },
+	{ text: '元数据+翻译', params: { refresh_m3u8: false, refresh_metadata: true, retranslate: true } }
+]
+
+// 删除菜单选项（根据文件是否存在动态计算）
+const deleteOptions = computed(() => {
+	if (metadata.value?.file_exists) {
+		return [
+			{ text: '删除视频', action: 'deleteFile', title: '删除视频文件', message: '确定要删除视频文件吗？元数据和封面将保留。' },
+			{ text: '删除全部', action: 'delete', title: '删除全部数据', message: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？此操作不可恢复！' }
+		]
+	} else {
+		return [
+			{ text: '删除数据', action: 'delete', title: '删除数据', message: '确定要删除该资源的元数据和封面吗？此操作不可恢复！' }
+		]
+	}
+})
 
 const coverUrl = ref(null)
 
@@ -29,7 +54,7 @@ async function loadCover() {
 	coverUrl.value = resourceApi.getCoverUrl(avid.value)
 }
 
-watch(avid, () => loadCover(), {immediate: true})
+watch(avid, () => loadCover(), { immediate: true })
 
 const actorsText = computed(() => {
 	const list = metadata.value?.actors
@@ -52,8 +77,22 @@ const fileSize = computed(() => {
 	return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
 })
 
+// 点击外部关闭菜单
+function closeMenuOnOutsideClick(event) {
+	const menu = event.target.closest('.relative')
+	if (!menu || !menu.querySelector('button:disabled')) {
+		showRefreshMenu.value = false
+		showDeleteMenu.value = false
+	}
+}
+
 onMounted(async () => {
 	await fetchMetadata()
+	document.addEventListener('click', closeMenuOnOutsideClick)
+})
+
+onUnmounted(() => {
+	document.removeEventListener('click', closeMenuOnOutsideClick)
 })
 
 async function fetchMetadata() {
@@ -85,10 +124,11 @@ async function handleDownload() {
 	}
 }
 
-async function handleRefresh() {
+async function handleRefresh(params = null) {
+	showRefreshMenu.value = false
 	refreshing.value = true
 	try {
-		await resourceStore.refreshResource(avid.value)
+		await resourceStore.refreshResource(avid.value, params)
 		await fetchMetadata()
 		toastStore.success('刷新成功')
 	} catch (err) {
@@ -96,6 +136,10 @@ async function handleRefresh() {
 	} finally {
 		refreshing.value = false
 	}
+}
+
+function handleRefreshOption(option) {
+	handleRefresh(option.params)
 }
 
 function goBack() {
@@ -128,23 +172,10 @@ async function jumpPlay() {
 	}
 }
 
-// 删除全部数据
-function deleteMetadata() {
-	pendingDeleteAction.value = {
-		action: 'delete',
-		title: '删除全部数据',
-		message: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？此操作不可恢复！'
-	}
-	showConfirmDialog.value = true
-}
-
-// 删除视频文件
-function deleteFile() {
-	pendingDeleteAction.value = {
-		action: 'deleteFile',
-		title: '删除视频文件',
-		message: '确定要删除视频文件吗？元数据和封面将保留。'
-	}
+// 处理删除菜单选项
+function handleDeleteOption(option) {
+	showDeleteMenu.value = false
+	pendingDeleteAction.value = option
 	showConfirmDialog.value = true
 }
 
@@ -181,15 +212,14 @@ function cancelDelete() {
 	<div class="animate-[fadeIn_0.5s_ease]">
 		<!-- 返回按钮 -->
 		<button
-			class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-white/[0.08] rounded-lg text-[#a1a1aa] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[#f4f4f5]"
-			@click="goBack"
-		>
+			class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-white/[0] rounded-lg text-[#a1a1aa] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[#f4f4f5]"
+			@click="goBack">
 			<span class="text-[1.1rem]">←</span>
 			返回
 		</button>
 
 		<!-- 加载状态 -->
-		<LoadingSpinner v-if="loading" size="large" text="加载详情中..."/>
+		<LoadingSpinner v-if="loading" size="large" text="加载详情中..." />
 
 		<!-- 错误状态 -->
 		<div v-else-if="error" class="text-center py-16 px-8">
@@ -201,8 +231,7 @@ function cancelDelete() {
 			<p class="text-[#71717a] mb-6">{{ error }}</p>
 			<button
 				class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
-				@click="fetchMetadata"
-			>
+				@click="fetchMetadata">
 				重试
 			</button>
 		</div>
@@ -214,11 +243,7 @@ function cancelDelete() {
 				<!-- 封面 -->
 				<div
 					class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex justify-center items-center">
-					<img
-						:src="coverUrl"
-						:alt="metadata.title"
-						class="h-full aspect-auto object-cover block"
-					/>
+					<img :src="coverUrl" :alt="metadata.title" class="h-full aspect-auto object-cover block" />
 				</div>
 
 				<!-- 右侧信息 -->
@@ -229,10 +254,8 @@ function cancelDelete() {
 							class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[#ff6b6b] w-fit">
 							{{ metadata.avid }}
 						</div>
-						<div
-							class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold w-fit"
-							:class="metadata.file_exists ? 'text-[#ff6b6b]' : 'text-[#ff9f43]'"
-						>
+						<div class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold w-fit"
+							:class="metadata.file_exists ? 'text-[#ff6b6b]' : 'text-[#ff9f43]'">
 							{{ metadata.file_exists ? '已下载' : '未下载' }}
 						</div>
 					</div>
@@ -264,42 +287,55 @@ function cancelDelete() {
 
 					<!-- 操作按钮 -->
 					<div class="flex flex-wrap gap-4">
-						<button
-							v-if="!metadata.file_exists"
+						<button v-if="!metadata.file_exists"
 							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-							:disabled="downloading"
-							@click="handleDownload"
-						>
+							:disabled="downloading" @click="handleDownload">
 							{{ downloading ? '提交中...' : '下载视频' }}
 						</button>
-						<button
-							v-if="metadata.file_exists"
-							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
-							@click="jumpPlay"
-						>
+						<button v-if="metadata.file_exists"
+							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+							@click="jumpPlay">
 							<span class="text-[1.1rem]">▶</span>
 							点击播放
 						</button>
-						<button
-							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#f4f4f5] border border-white/[0.08] hover:bg-white/[0.12] disabled:opacity-60 disabled:cursor-not-allowed"
-							:disabled="refreshing"
-							@click="handleRefresh"
-						>
-							{{ refreshing ? '刷新中...' : '刷新信息' }}
-						</button>
-						<button
-							v-if="metadata.file_exists"
-							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#dc3558] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
-							@click="deleteFile"
-						>
-							删除视频
-						</button>
-						<button
-							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff0000] to-[#dc3558] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
-							@click="deleteMetadata"
-						>
-							删除全部
-						</button>
+
+						<!-- 刷新按钮容器 -->
+						<div class="relative" @click.stop>
+							<button
+								class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#f4f4f5] border border-white/[0.08] hover:bg-white/[0.12] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
+								:disabled="refreshing" @click="showRefreshMenu = !showRefreshMenu">
+								{{ refreshing ? '刷新中' : '刷新信息' }}
+							</button>
+
+							<!-- 刷新下拉菜单 -->
+							<div v-if="showRefreshMenu && !refreshing"
+								class="absolute bottom-[calc(100%+0.3rem)] left-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden">
+								<button v-for="option in refreshOptions" :key="option.text"
+									class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[#a1a1aa] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[#f4f4f5]"
+									@click="handleRefreshOption(option)">
+									{{ option.text }}
+								</button>
+							</div>
+						</div>
+
+						<!-- 删除按钮容器 -->
+						<div class="relative" @click.stop>
+							<button
+								class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ef476f] to-[#dc3558] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(239,71,111,0.3)] min-w-[120px]"
+								@click="showDeleteMenu = !showDeleteMenu">
+								删除数据
+							</button>
+
+							<!-- 删除下拉菜单 -->
+							<div v-if="showDeleteMenu"
+								class="absolute bottom-[calc(100%+0.3rem)] left-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden">
+								<button v-for="option in deleteOptions" :key="option.text"
+									class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[#ef476f] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[#ef476f]/10 min-w-[120px]"
+									@click="handleDeleteOption(option)">
+									{{ option.text }}
+								</button>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -308,8 +344,7 @@ function cancelDelete() {
 			<div class="flex flex-col gap-8">
 				<section
 					v-if="metadata.director || metadata.studio || metadata.label || metadata.actors?.length || metadata.series || metadata.genres?.length"
-					class="bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] p-6"
-				>
+					class="bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] p-6">
 					<h2 class="text-[1.1rem] font-semibold text-[#f4f4f5] mb-5 pb-3 border-b border-white/[0.08]">
 						制作信息
 					</h2>
@@ -344,16 +379,9 @@ function cancelDelete() {
 		</template>
 
 		<!-- 确认对话框 -->
-		<ConfirmDialog
-			v-model:show="showConfirmDialog"
-			:title="pendingDeleteAction?.title || '确认操作'"
-			:message="pendingDeleteAction?.message || ''"
-			:type="'danger'"
-			confirm-text="确认删除"
-			cancel-text="取消"
-			@confirm="confirmDelete"
-			@cancel="cancelDelete"
-		/>
+		<ConfirmDialog v-model:show="showConfirmDialog" :title="pendingDeleteAction?.title || '确认操作'"
+			:message="pendingDeleteAction?.message || ''" :type="'danger'" confirm-text="确认删除" cancel-text="取消"
+			@confirm="confirmDelete" @cancel="cancelDelete" />
 	</div>
 </template>
 
@@ -363,6 +391,7 @@ function cancelDelete() {
 	from {
 		opacity: 0;
 	}
+
 	to {
 		opacity: 1;
 	}

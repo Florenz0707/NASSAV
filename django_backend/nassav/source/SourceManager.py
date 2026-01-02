@@ -10,6 +10,26 @@ from nassav.source import SourceBase, MissAV, Jable, Memo
 from nassav.scraper import ScraperManager, AVDownloadInfo
 
 
+def normalize_source_title(avid: str, source_title: str) -> str:
+    """规范化 source_title，确保以 AVID 开头
+
+    Args:
+        avid: 资源编号
+        source_title: 原始标题
+
+    Returns:
+        规范化后的标题（以 AVID 开头）
+    """
+    if not source_title:
+        return source_title
+
+    avid_upper = avid.upper()
+    # 检查标题是否已经以 AVID 开头（不区分大小写）
+    if not source_title.upper().startswith(avid_upper):
+        return f"{avid_upper} {source_title}"
+    return source_title
+
+
 class SourceManager:
     """下载器管理器"""
 
@@ -211,9 +231,13 @@ class SourceManager:
             # 检查资源是否已存在，用于判断是新增还是刷新
             existing_resource = AVResource.objects.filter(avid=avid).first()
 
+            # 规范化 source_title（确保以 AVID 开头）
+            raw_source_title = getattr(info, 'source_title', '') or ''
+            normalized_source_title = normalize_source_title(avid, raw_source_title) if raw_source_title else ''
+
             defaults = {
                 'title': getattr(info, 'title', '') or '',  # Scraper 提供的规范标题（日语）
-                'source_title': getattr(info, 'source_title', '') or '',  # Source 提供的备用标题
+                'source_title': normalized_source_title,  # Source 提供的备用标题（已规范化）
                 'source': source_name or getattr(info, 'source', '') or '',
                 'release_date': getattr(info, 'release_date', '') or '',
                 'duration': None,

@@ -191,9 +191,9 @@ async function handleDownload(avid) {
 	}
 }
 
-async function handleRefresh(avid) {
+async function handleRefresh(avid, params = null) {
 	try {
-		await resourceStore.refreshResource(avid)
+		await resourceStore.refreshResource(avid, params)
 		toastStore.success(`${avid} 已刷新`)
 	} catch (err) {
 		toastStore.error(err.message || '刷新失败')

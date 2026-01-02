@@ -86,8 +86,23 @@ const statusClass = computed(() => ({
 
 const toastStore = useToastStore()
 const showDeleteMenu = ref(false)
+const showRefreshMenu = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteOption = ref(null)
+
+// 生成刷新菜单选项
+const refreshOptions = [
+	{ text: '全部刷新', params: { refresh_m3u8: true, refresh_metadata: true, retranslate: false } },
+	{ text: '刷新 M3U8', params: { refresh_m3u8: true, refresh_metadata: false, retranslate: false } },
+	{ text: '刷新元数据', params: { refresh_m3u8: false, refresh_metadata: true, retranslate: false } },
+	{ text: '重新翻译', params: { refresh_m3u8: false, refresh_metadata: false, retranslate: true } },
+	{ text: '元数据+翻译', params: { refresh_m3u8: false, refresh_metadata: true, retranslate: true } }
+]
+
+function handleRefreshOption(option) {
+	showRefreshMenu.value = false
+	emit('refresh', props.resource.avid, option.params)
+}
 
 // 生成删除菜单选项
 const deleteOptions = computed(() => {
@@ -142,10 +157,16 @@ function cancelDelete() {
 
 // 点击外部关闭菜单
 function closeMenuOnOutsideClick(event) {
-	const menu = document.querySelector(`.delete-menu[data-avid="${props.resource.avid}"]`)
-	const btn = document.querySelector(`.delete-btn[data-avid="${props.resource.avid}"]`)
-	if (menu && btn && !menu.contains(event.target) && !btn.contains(event.target)) {
+	const deleteMenu = document.querySelector(`.delete-menu[data-avid="${props.resource.avid}"]`)
+	const deleteBtn = document.querySelector(`.delete-btn[data-avid="${props.resource.avid}"]`)
+	if (deleteMenu && deleteBtn && !deleteMenu.contains(event.target) && !deleteBtn.contains(event.target)) {
 		showDeleteMenu.value = false
+	}
+
+	const refreshMenu = document.querySelector(`.refresh-menu[data-avid="${props.resource.avid}"]`)
+	const refreshBtn = document.querySelector(`.refresh-btn[data-avid="${props.resource.avid}"]`)
+	if (refreshMenu && refreshBtn && !refreshMenu.contains(event.target) && !refreshBtn.contains(event.target)) {
+		showRefreshMenu.value = false
 	}
 }
 
@@ -208,7 +229,7 @@ onUnmounted(() => {
 				</div>
 				<!-- 类别标签 -->
 				<div v-for="(genre, index) in (resource.genres || []).slice(0, 2)" :key="genre"
-					class="text-[0.85rem] text-[#cc99ff] font-normal bg-[#9933ff]/30 rounded-md w-fit px-2 py-1">
+					class="text-[0.85rem] text-[#cc99ff] font-normal bg-[#9933ff]/25 rounded-md w-fit px-2 py-1">
 					#{{ genre }}
 				</div>
 			</div>
@@ -221,11 +242,11 @@ onUnmounted(() => {
 
 			<!-- 元信息 -->
 			<div class="flex flex-wrap gap-8 mb-4">
-				<span class="flex items-center gap-1.5 text-[0.8rem] text-[#71717a]">
+				<span class="flex items-center gap-1.5 text-[0.9rem] text-[#71717a]">
 					<span class="text-[0.7rem] opacity-70">◉</span>
 					{{ resource.source }}
 				</span>
-				<span v-if="resource.release_date" class="flex items-center gap-1.5 text-[0.8rem] text-[#71717a]">
+				<span v-if="resource.release_date" class="flex items-center gap-1.5 text-[0.9rem] text-[#71717a]">
 					<span class="text-[0.7rem] opacity-70">◷</span>
 					{{ resource.release_date }}
 				</span>
@@ -233,11 +254,26 @@ onUnmounted(() => {
 
 			<!-- 操作按钮 -->
 			<div class="flex gap-2 justify-between items-center relative">
-				<button
-					class="inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#a1a1aa] hover:bg-white/[0.12] hover:text-[#f4f4f5]"
-					@click="emit('refresh', resource.avid)">
-					刷新
-				</button>
+				<!-- 刷新按钮容器 -->
+				<div class="relative" @click.stop>
+					<button
+						class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#a1a1aa] hover:bg-white/[0.12] hover:text-[#f4f4f5]"
+						:data-avid="resource.avid"
+						@click="showRefreshMenu = !showRefreshMenu"
+						title="刷新资源">
+						刷新
+					</button>
+
+					<!-- 刷新下拉菜单 -->
+					<div v-if="showRefreshMenu" :data-avid="resource.avid"
+						class="refresh-menu absolute bottom-[calc(100%+0.5rem)] left-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden">
+						<button v-for="option in refreshOptions" :key="option.text"
+							class="w-full px-4 py-2.5 text-left bg-transparent border-none text-[#a1a1aa] text-[0.85rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[#f4f4f5]"
+							@click="handleRefreshOption(option)">
+							{{ option.text }}
+						</button>
+					</div>
+				</div>
 
 				<button :class="[
 					'inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
@@ -252,14 +288,14 @@ onUnmounted(() => {
 				<!-- 删除按钮容器 -->
 				<div class="relative" @click.stop>
 					<button
-						class="inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-[#ef476f]/10 text-[#ef476f] border border-[#ef476f]/20 hover:bg-[#ef476f]/20 hover:text-[#ff5252]"
+						class="delete-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-[#ef476f]/10 text-[#ef476f] border border-[#ef476f]/20 hover:bg-[#ef476f]/20 hover:text-[#ff5252]"
 						:data-avid="resource.avid" @click="showDeleteMenu = !showDeleteMenu" title="删除">
 						删除
 					</button>
 
-					<!-- 下拉菜单 -->
+					<!-- 删除下拉菜单 -->
 					<div v-if="showDeleteMenu" :data-avid="resource.avid"
-						class="absolute bottom-[calc(100%+0.5rem)] right-0 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto">
+						class="delete-menu absolute bottom-[calc(100%+0.5rem)] right-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto">
 						<button v-for="option in deleteOptions" :key="option.action"
 							class="w-full px-4 py-2.5 text-center bg-[#ef476f]/20 border-none text-[#ef476f] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[#ef476f]/10"
 							@click="handleDeleteOption(option)">

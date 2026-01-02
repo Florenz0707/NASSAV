@@ -173,6 +173,9 @@ CELERY_TIMEZONE = 'Asia/Shanghai'
 # 限制并发数为1，确保同一时间只有一个下载任务在执行
 CELERY_WORKER_CONCURRENCY = 1
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# 禁用 Worker 的任务成功/失败日志
+CELERY_WORKER_SEND_TASK_EVENTS = False
+CELERY_TASK_SEND_SENT_EVENT = False
 
 # Resource paths - 新的布局：
 # - 封面: resource/cover/{AVID}.jpg
@@ -210,7 +213,7 @@ LOGGING = {
         "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
         # Celery and dependencies
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": True},
-        "celery.app.trace": {"handlers": ["console"], "level": "INFO", "propagate": True},
+        "celery.app.trace": {"handlers": [], "level": "CRITICAL", "propagate": False},  # 完全禁用任务执行日志
     }
 }
 

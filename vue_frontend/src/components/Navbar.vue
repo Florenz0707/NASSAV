@@ -68,7 +68,7 @@ const goToResources = () => {
 					<!-- 下拉菜单 -->
 					<div v-if="showResourcesMenu" class="absolute top-full left-0 pt-1 -mt-1">
 						<div
-							class="bg-[rgba(18,18,24,0.95)] backdrop-blur-xl border border-white/[0.08] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] min-w-[160px] overflow-hidden">
+							class="bg-[rgba(18,18,24,0.95)] backdrop-blur-xl border border-white/[0.08] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] min-w-[120px] overflow-hidden">
 							<RouterLink v-for="item in resourcesMenuItems" :key="item.path" :to="item.path"
 								class="flex items-center gap-3 py-2.5 px-4 no-underline text-[#a1a1aa] text-sm font-medium transition-all duration-200 hover:text-[#f4f4f5] hover:bg-white/5"
 								:class="{ 'text-[#ff6b6b] bg-[#ff6b6b]/10': isActive(item.path) }">
