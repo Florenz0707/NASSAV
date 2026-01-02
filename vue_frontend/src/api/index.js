@@ -142,8 +142,24 @@ export const resourceApi = {
     // 删除资源
     delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`)
     ,
-    // 批量操作：body 应包含 { action: 'delete'|'refresh'|'add' , avids: [] } 或自定义格式
-    batch: (payload) => api.post('/resources/batch', payload)
+    // 批量操作：body 应包含 { action: 'delete'|'refresh'|'add' , avids: [] } 或自定义格式（动态超时）
+    batch: (payload) => {
+        const avids = payload.avids || []
+        let baseTimeout = 15000  // 基础 15 秒
+        let timeoutPerItem = 3000  // 每个资源 3 秒
+
+        // 根据操作类型调整
+        if (payload.action === 'add') {
+            timeoutPerItem = 5000  // 添加操作需要抓取元数据，更耗时
+        } else if (payload.action === 'refresh') {
+            timeoutPerItem = 4000
+        }
+
+        const timeout = baseTimeout + avids.length * timeoutPerItem
+        console.log(`[API] 批量${payload.action} ${avids.length} 个任务，超时: ${timeout}ms`)
+
+        return api.post('/resources/batch', payload, {timeout})
+    }
 }
 
 // 下载管理
@@ -159,8 +175,13 @@ export const downloadApi = {
 
     // 删除下载的视频
     deleteFile: (avid) => api.delete(`/downloads/${encodeURIComponent(avid)}`),
-    // 批量提交下载任务
-    batchSubmit: (avids) => api.post('/downloads/batch_submit', {avids})
+    // 批量提交下载任务（动态超时）
+    batchSubmit: (avids) => {
+        // 基础超时 10 秒，每个任务增加 2 秒
+        const timeout = 10000 + avids.length * 2000
+        console.log(`[API] 批量下载 ${avids.length} 个任务，超时设置: ${timeout}ms`)
+        return api.post('/downloads/batch_submit', {avids}, {timeout})
+    }
 }
 
 // 任务管理

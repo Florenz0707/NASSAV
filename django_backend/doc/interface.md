@@ -209,6 +209,16 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 ```
 - 返回：`data.results` 为数组，每项包含 `action, avid, code, message, resource?, deleted_files?`。
 
+**操作说明**：
+- `add`：添加资源
+  - 如果资源已存在，返回 `code: 200, message: "already exists"` 和现有资源数据
+  - 如果资源不存在，从指定 source 获取并创建，返回 `code: 201, message: "created"`
+  - 如果获取失败，返回 `code: 404, message: "获取信息失败"`
+- `refresh`：刷新资源（强制重新获取元数据、m3u8 和翻译）
+  - 返回 `code: 200, message: "refreshed"` 和更新后的资源数据
+- `delete`：删除资源
+  - 返回 `code: 200, message: "deleted"` 和删除前的资源数据
+
 2) 批量下载提交
 - 方法：POST
 - 路径：`/nassav/api/downloads/batch_submit`

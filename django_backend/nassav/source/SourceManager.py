@@ -208,19 +208,33 @@ class SourceManager:
             except Exception:
                 source_name = getattr(info, 'source', '') or ''
 
+            # 检查资源是否已存在，用于判断是新增还是刷新
+            existing_resource = AVResource.objects.filter(avid=avid).first()
+
             defaults = {
                 'title': getattr(info, 'title', '') or '',  # Scraper 提供的规范标题（日语）
                 'source_title': getattr(info, 'source_title', '') or '',  # Source 提供的备用标题
-                'translation_status': 'pending',  # 初始状态为待翻译
                 'source': source_name or getattr(info, 'source', '') or '',
                 'release_date': getattr(info, 'release_date', '') or '',
                 'duration': None,
                 'metadata': None,
                 'm3u8': getattr(info, 'm3u8', '') or '',
                 'cover_filename': None,
-                'file_exists': False,
-                'file_size': None,
             }
+
+            # 对于新资源，设置初始状态
+            if not existing_resource:
+                defaults['translation_status'] = 'pending'
+                defaults['file_exists'] = False
+                defaults['file_size'] = None
+            # 对于已有资源（刷新操作），保留文件相关字段和翻译状态
+            else:
+                # 保留文件状态（刷新不应改变文件是否存在）
+                defaults['file_exists'] = existing_resource.file_exists
+                defaults['file_size'] = existing_resource.file_size
+                # 保留翻译相关字段（刷新不应重置翻译状态和译文）
+                defaults['translation_status'] = existing_resource.translation_status
+                defaults['translated_title'] = existing_resource.translated_title
 
             # 尝试解析 duration 为秒数（若可用）
             try:

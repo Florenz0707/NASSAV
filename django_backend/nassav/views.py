@@ -986,7 +986,23 @@ class ResourcesBatchView(APIView):
 
             try:
                 if action == 'add':
-                    # reuse source_manager.get_info_from_any_source or specific source
+                    # 先检查资源是否已存在
+                    from nassav.models import AVResource
+                    existing_resource = AVResource.objects.filter(avid=avid).first()
+
+                    if existing_resource:
+                        # 资源已存在，返回现有数据
+                        resource_data = _serialize_resource_obj(existing_resource)
+                        results.append({
+                            'action': 'add',
+                            'avid': avid,
+                            'code': 200,
+                            'message': 'already exists',
+                            'resource': resource_data
+                        })
+                        continue
+
+                    # 资源不存在，执行添加操作
                     source = (act.get('source') or 'any').lower()
                     if source == 'any':
                         result = source_manager.get_info_from_any_source(avid)
@@ -1001,11 +1017,10 @@ class ResourcesBatchView(APIView):
                     info, src, html = result
                     save_result = source_manager.save_all_resources(avid, info, src, html)
                     # load serialized resource
-                    from nassav.models import AVResource
                     resource_obj = AVResource.objects.filter(avid=avid).first()
                     resource_data = _serialize_resource_obj(resource_obj) if resource_obj else None
                     results.append(
-                        {'action': 'add', 'avid': avid, 'code': 201, 'message': 'added', 'resource': resource_data})
+                        {'action': 'add', 'avid': avid, 'code': 201, 'message': 'created', 'resource': resource_data})
 
                 elif action == 'delete':
                     # perform delete similar to DeleteResourceView
