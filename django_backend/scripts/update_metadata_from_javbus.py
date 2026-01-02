@@ -82,7 +82,9 @@ def load_metadata_from_db(avid: str) -> dict | None:
     md = resource.metadata.copy() if resource.metadata else {}
     # Ensure common keys exist
     md.setdefault('avid', resource.avid)
-    md.setdefault('title', resource.title)
+    md.setdefault('title', resource.title or '')  # Scraper 获取的原文标题
+    md.setdefault('source_title', resource.source_title or '')  # Source 获取的备用标题
+    md.setdefault('translated_title', resource.translated_title or '')  # 翻译后的标题
     md.setdefault('source', resource.source)
     md.setdefault('release_date', resource.release_date)
     md.setdefault('duration', resource.duration)
@@ -93,22 +95,32 @@ def load_metadata_from_db(avid: str) -> dict | None:
 
 
 def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -> bool:
-    """把合并后的元数据写回到 `AVResource`（包括 actors/genres M2M）。"""
+    """把合并后的元数据写回到 `AVResource`（包括 actors/genres M2M）。
+
+    注意：
+    - title: Scraper 获取的原文标题（日语）
+    - source_title: Source 获取的备用标题（保留不修改）
+    - translated_title: 翻译后的标题（保留不修改）
+    """
     from nassav.models import AVResource, Actor, Genre
     from django.db import transaction
     try:
         with transaction.atomic():
-            resource_obj, _ = AVResource.objects.update_or_create(
+            # 先获取现有记录（如果存在）
+            resource_obj, created = AVResource.objects.get_or_create(
                 avid=avid,
-                defaults={
-                    'title': merged_metadata.get('title', '') or '',
-                    'source': merged_metadata.get('source', '') or '',
-                    'release_date': merged_metadata.get('release_date', '') or '',
-                    'duration': None,
-                    'metadata': merged_metadata,
-                    'm3u8': merged_metadata.get('m3u8', '') or '',
-                }
+                defaults={}
             )
+
+            # 更新字段（注意：只更新 title，不修改 source_title 和 translated_title）
+            resource_obj.title = merged_metadata.get('title', '') or ''  # Scraper 原文标题
+            resource_obj.source = merged_metadata.get('source', '') or ''
+            resource_obj.release_date = merged_metadata.get('release_date', '') or ''
+            resource_obj.metadata = merged_metadata
+            resource_obj.m3u8 = merged_metadata.get('m3u8', '') or ''
+
+            # 如果有 source_title 或 translated_title，保留原值（不要从 merged_metadata 覆盖）
+            # source_title 和 translated_title 由其他流程维护，此脚本不修改
 
             # duration: try to normalize if numeric-like (keep as-is otherwise)
             try:
@@ -122,6 +134,17 @@ def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -
                         resource_obj.duration = int(m.group(1)) * 60
             except Exception:
                 pass
+
+            # 如果 scraper 更新后，title 有变化且之前有翻译，则重置翻译状态为 pending
+            if not created and merged_metadata.get('title'):
+                # 重新查询获取旧值（避免缓存）
+                old_obj = AVResource.objects.filter(avid=avid).first()
+                if old_obj and old_obj.title and old_obj.title != merged_metadata.get('title'):
+                    # 标题变了，重置翻译状态
+                    if old_obj.translated_title:
+                        resource_obj.translation_status = 'pending'
+                        resource_obj.translated_title = None
+                        logger.info(f"  标题已更新，重置翻译状态为 pending")
 
             # actors
             resource_obj.actors.clear()
@@ -159,13 +182,14 @@ def merge_metadata(original: dict, scraped: dict, force: bool = False) -> dict:
     local_fields = ['m3u8', 'source']
 
     # 字段映射（Javbus -> 本地 JSON）
+    # 注意：Javbus scraper 返回的 title 是原文（日语）
     field_mapping = {
         'avid': 'avid',
-        'title': 'title',
+        'title': 'title',  # Scraper 原文标题（日语）- 对应 AVResource.title
         'release_date': 'release_date',
         'duration': 'duration',
-        'producer': 'studio',  # Javbus 的 producer 对应 studio
-        'publisher': 'label',  # Javbus 的 publisher 对应 label
+        'studio': 'studio',  # Javbus 的 studio
+        'label': 'label',  # Javbus 的 label
         'series': 'series',
         'genres': 'genres',
         'actors': 'actors',
@@ -235,7 +259,9 @@ def update_single_resource(
         old_val = original_metadata.get(key)
         new_val = merged_metadata.get(key)
         if old_val != new_val:
-            logger.info(f"  {key}: {old_val} -> {new_val}")
+            logger.info(f"{key} 有变化: {old_val} -> {new_val}")
+        else:
+            logger.info(f"{key} 未变化: {old_val}")
 
     # 保存到数据库（如果不是预览模式）
     if not dry_run:

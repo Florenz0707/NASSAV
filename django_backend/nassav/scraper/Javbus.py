@@ -104,9 +104,13 @@ class Javbus(ScraperBase):
             genres_matches = re.findall(r'<span class="genre"><label><input[^>]*><a[^>]*>([^<]+)</a></label></span>',
                                         html)
             if genres_matches:
-                # 过滤掉一些技术性标签
-                filtered_genres = [cat for cat in genres_matches if
-                                   cat not in ['フルハイビジョン(FHD)', 'MGSだけのおまけ映像付き']]
+                # 过滤掉技术性标签
+                technical_tags = [
+                    'フルハイビジョン(FHD)', 'MGSだけのおまけ映像付き',
+                    '高畫質', '單體作品', 'DMM獨家', '4K',
+                    '薄馬賽克', '數位馬賽克', '企畫', '纪录片', '高'
+                ]
+                filtered_genres = [cat for cat in genres_matches if cat not in technical_tags]
                 scrape_data['genres'] = filtered_genres
 
             # 提取導演（director）

@@ -51,7 +51,7 @@ class ResourceSummarySerializer(serializers.Serializer):
     has_video = serializers.BooleanField(source='file_exists')
     metadata_create_time = LocalSerializerMethodField()
     video_create_time = LocalSerializerMethodField()
-    file_size = serializers.IntegerField(allow_null=True)
+    genres = LocalSerializerMethodField()  # 类别列表
     thumbnail_url = LocalSerializerMethodField()
 
     def get_title(self, obj):
@@ -67,6 +67,13 @@ class ResourceSummarySerializer(serializers.Serializer):
 
     def get_video_create_time(self, obj):
         return obj.video_saved_at.timestamp() if getattr(obj, 'video_saved_at', None) else None
+
+    def get_genres(self, obj):
+        """获取类别列表"""
+        try:
+            return [g.name for g in obj.genres.all()]
+        except Exception:
+            return []
 
     def get_thumbnail_url(self, obj):
         try:
