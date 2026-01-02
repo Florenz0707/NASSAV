@@ -202,7 +202,6 @@ def run_dry_run(resources, verbose=True):
 
     print("\n" + "=" * 80)
     print(f"\n📊 预览完成: 共 {total} 条记录")
-    print("   使用 --sync 参数（不带 --dry-run）执行实际翻译\n")
 
 
 def run_async_translation(resources=None, avids=None, skip_existing=True):
