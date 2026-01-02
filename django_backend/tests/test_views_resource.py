@@ -1,3 +1,25 @@
+#!/usr/bin/env python
+"""
+资源视图测试
+
+功能：
+1. 测试下载列表 API（/api/downloads/list）
+2. 测试资源元数据查询（/api/resource/metadata）
+3. 测试视频文件路径查询（/api/downloads/abspath）
+4. 测试不存在资源的错误处理
+5. 验证文件系统相关操作
+
+运行方式：
+    # 运行所有测试
+    python manage.py test tests.test_views_resource
+
+    # 运行单个测试
+    python manage.py test tests.test_views_resource.ViewsResourceTest.test_downloads_list_empty
+
+    # 使用 pytest
+    pytest tests/test_views_resource.py -v
+"""
+
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient

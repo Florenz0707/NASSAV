@@ -18,8 +18,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
     const pendingCount = ref(0)
     const totalCount = ref(0)
 
-    // 缓存已获取元数据的 avid，避免重复请求
-    const metadataCache = ref(new Set())
+    // 缓存已获取的标题数据，避免重复请求和标题闪烁
+    // Map<avid, { title: string, timestamp: number }>
+    const titleCache = ref(new Map())
 
     // 连接 WebSocket
     function connect() {
@@ -131,6 +132,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
             clearTimeout(reconnectTimer.value)
             reconnectTimer.value = null
         }
+        if (cleanupTimer) {
+            clearInterval(cleanupTimer)
+            cleanupTimer = null
+        }
         if (ws.value) {
             ws.value.close()
             ws.value = null
@@ -191,8 +196,17 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
     // 更新任务数据
     function updateTaskData(data) {
-        activeTasks.value = data.active_tasks || []
-        pendingTasks.value = data.pending_tasks || []
+        // 更新任务列表时，先从缓存应用标题
+        activeTasks.value = (data.active_tasks || []).map(task => ({
+            ...task,
+            title: task.title || titleCache.value.get(task.avid)?.title || null
+        }))
+
+        pendingTasks.value = (data.pending_tasks || []).map(task => ({
+            ...task,
+            title: task.title || titleCache.value.get(task.avid)?.title || null
+        }))
+
         activeCount.value = data.active_count || 0
         pendingCount.value = data.pending_count || 0
         totalCount.value = data.total_count || 0
@@ -206,35 +220,57 @@ export const useWebSocketStore = defineStore('websocket', () => {
         const allTasks = [...activeTasks.value, ...pendingTasks.value]
 
         for (const task of allTasks) {
-            // 如果任务没有 title 且还未获取过元数据
-            if (!task.title && task.avid && !metadataCache.value.has(task.avid)) {
-                // 标记为正在获取，避免重复请求
-                metadataCache.value.add(task.avid)
-
+            // 如果任务没有 title 且缓存中也没有
+            if (!task.title && task.avid && !titleCache.value.has(task.avid)) {
                 try {
                     console.log(`[WebSocket] 获取元数据: ${task.avid}`)
                     const response = await resourceApi.getMetadata(task.avid)
-                    if (response.data && response.data.title) {
-                        // 更新 activeTasks 中的任务
-                        const activeIndex = activeTasks.value.findIndex(t => t.avid === task.avid)
-                        if (activeIndex !== -1) {
-                            activeTasks.value[activeIndex].title = response.data.title
-                        }
 
-                        // 更新 pendingTasks 中的任务
-                        const pendingIndex = pendingTasks.value.findIndex(t => t.avid === task.avid)
-                        if (pendingIndex !== -1) {
-                            pendingTasks.value[pendingIndex].title = response.data.title
-                        }
+                    if (response.data && response.data.title) {
+                        // 存入缓存
+                        titleCache.value.set(task.avid, {
+                            title: response.data.title,
+                            timestamp: Date.now()
+                        })
+
+                        // 立即更新当前任务列表
+                        updateTaskTitle(task.avid, response.data.title)
                     }
                 } catch (error) {
                     console.error(`[WebSocket] 获取元数据失败 (${task.avid}):`, error)
-                    // 失败后从缓存中移除，允许下次重试
-                    metadataCache.value.delete(task.avid)
+                    // 失败后不存入缓存，允许下次重试
                 }
             }
         }
     }
+
+    // 辅助函数：更新指定 AVID 的标题
+    function updateTaskTitle(avid, title) {
+        const activeIndex = activeTasks.value.findIndex(t => t.avid === avid)
+        if (activeIndex !== -1) {
+            activeTasks.value[activeIndex].title = title
+        }
+
+        const pendingIndex = pendingTasks.value.findIndex(t => t.avid === avid)
+        if (pendingIndex !== -1) {
+            pendingTasks.value[pendingIndex].title = title
+        }
+    }
+
+    // 定期清理过期缓存（超过 1 小时的条目）
+    function cleanupCache() {
+        const now = Date.now()
+        const maxAge = 60 * 60 * 1000 // 1 小时
+
+        for (const [avid, data] of titleCache.value.entries()) {
+            if (now - data.timestamp > maxAge) {
+                titleCache.value.delete(avid)
+            }
+        }
+    }
+
+    // 每 10 分钟清理一次过期缓存
+    let cleanupTimer = setInterval(cleanupCache, 10 * 60 * 1000)
 
     return {
         // 连接状态
@@ -246,6 +282,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
         activeCount,
         pendingCount,
         totalCount,
+
+        // 缓存（供调试）
+        titleCache,
 
         // 方法
         connect,

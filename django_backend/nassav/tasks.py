@@ -25,7 +25,8 @@ def is_task_existed(avid: str):
         bool: 如果任务已存在返回True，否则返回False
     """
     avid = avid.upper()
-    task_name = 'nassav.tasks.download_video_task'
+    # 支持真实下载任务和模拟下载任务
+    task_names = ['nassav.tasks.download_video_task', 'nassav.tasks.mock_download_video_task']
 
     lock_key = f"nassav:task_lock:{avid}"
 
@@ -57,7 +58,7 @@ def is_task_existed(avid: str):
         active_tasks = insp.active() or {}
         for worker, tasks in active_tasks.items():
             for task in tasks:
-                if (task.get('name') == task_name and
+                if (task.get('name') in task_names and
                         task.get('args') and
                         len(task['args']) > 0 and
                         task['args'][0].upper() == avid):
@@ -71,7 +72,7 @@ def is_task_existed(avid: str):
         for worker, tasks in scheduled_tasks.items():
             for task in tasks:
                 task_info = task.get('request', {})
-                if (task_info.get('task') == task_name and
+                if (task_info.get('task') in task_names and
                         task_info.get('args') and
                         len(task_info['args']) > 0 and
                         task_info['args'][0].upper() == avid):
@@ -84,7 +85,7 @@ def is_task_existed(avid: str):
         reserved_tasks = insp.reserved() or {}
         for worker, tasks in reserved_tasks.items():
             for task in tasks:
-                if (task.get('name') == task_name and
+                if (task.get('name') in task_names and
                         task.get('args') and
                         len(task['args']) > 0 and
                         task['args'][0].upper() == avid):
@@ -95,7 +96,7 @@ def is_task_existed(avid: str):
     return False
 
 
-def set_task_progress(avid: str, percent: float, speed: str = "N/A"):
+def set_task_progress(avid: str, percent: float, speed: str = "N/A", eta: str = None, downloaded: str = None):
     """
     设置任务下载进度
 
@@ -103,6 +104,8 @@ def set_task_progress(avid: str, percent: float, speed: str = "N/A"):
         avid: 视频ID
         percent: 下载百分比 (0-100)
         speed: 下载速度字符串
+        eta: 预计剩余时间（可选）
+        downloaded: 已下载大小（可选）
     """
     redis_client = get_redis_client()
     progress_key = f"nassav:task_progress:{avid.upper()}"
@@ -111,6 +114,10 @@ def set_task_progress(avid: str, percent: float, speed: str = "N/A"):
         'speed': speed,
         'updated_at': __import__('time').time()
     }
+    if eta is not None:
+        progress_data['eta'] = eta
+    if downloaded is not None:
+        progress_data['downloaded'] = downloaded
     # 设置过期时间为1小时
     redis_client.setex(progress_key, 3600, __import__('json').dumps(progress_data))
 
@@ -152,7 +159,8 @@ def get_task_queue_status() -> Dict[str, Any]:
     Returns:
         dict: 包含活跃任务、等待任务的信息，以及任务计数
     """
-    task_name = 'nassav.tasks.download_video_task'
+    # 支持真实下载任务和模拟下载任务
+    task_names = ['nassav.tasks.download_video_task', 'nassav.tasks.mock_download_video_task']
     insp = celery_app.control.inspect()
 
     active_tasks_list = []
@@ -162,14 +170,15 @@ def get_task_queue_status() -> Dict[str, Any]:
     active_tasks = insp.active() or {}
     for worker, tasks in active_tasks.items():
         for task in tasks:
-            if task.get('name') == task_name and task.get('args') and len(task['args']) > 0:
+            if task.get('name') in task_names and task.get('args') and len(task['args']) > 0:
                 avid = task['args'][0].upper()
                 task_info = {
                     'task_id': task.get('id'),
                     'avid': avid,
                     'state': 'STARTED',
                     'worker': worker,
-                    'time_start': task.get('time_start')
+                    'time_start': task.get('time_start'),
+                    'task_type': 'mock' if task.get('name') == 'nassav.tasks.mock_download_video_task' else 'download'
                 }
                 # 添加进度信息
                 progress = get_task_progress(avid)
@@ -185,20 +194,22 @@ def get_task_queue_status() -> Dict[str, Any]:
     for worker, tasks in scheduled_tasks.items():
         for task in tasks:
             task_info = task.get('request', {})
-            if task_info.get('task') == task_name and task_info.get('args') and len(task_info['args']) > 0:
+            if task_info.get('task') in task_names and task_info.get('args') and len(task_info['args']) > 0:
                 pending_tasks_list.append({
                     'task_id': task_info.get('id'),
-                    'avid': task_info['args'][0].upper()
+                    'avid': task_info['args'][0].upper(),
+                    'task_type': 'mock' if task_info.get('task') == 'nassav.tasks.mock_download_video_task' else 'download'
                 })
 
     # 获取保留的任务（也算 pending）
     reserved_tasks = insp.reserved() or {}
     for worker, tasks in reserved_tasks.items():
         for task in tasks:
-            if task.get('name') == task_name and task.get('args') and len(task['args']) > 0:
+            if task.get('name') in task_names and task.get('args') and len(task['args']) > 0:
                 pending_tasks_list.append({
                     'task_id': task.get('id'),
-                    'avid': task['args'][0].upper()
+                    'avid': task['args'][0].upper(),
+                    'task_type': 'mock' if task.get('name') == 'nassav.tasks.mock_download_video_task' else 'download'
                 })
 
     # 计算统计数据
@@ -241,6 +252,124 @@ def create_task_lock(avid: str, task_id: str, expire_time: int = 3600):
     redis_client = get_redis_client()
     lock_key = f"nassav:task_lock:{avid.upper()}"
     redis_client.setex(lock_key, expire_time, task_id)
+
+
+def add_task_to_queue(avid: str, task_id: str, task_type: str = 'download'):
+    """
+    添加任务到 Redis 队列记录（用于追踪完整任务列表）
+
+    Args:
+        avid: 视频ID
+        task_id: 任务ID
+        task_type: 任务类型（'download' 或 'mock'）
+    """
+    import time
+    redis_client = get_redis_client()
+    queue_key = "nassav:task_queue"
+    task_data = {
+        'task_id': task_id,
+        'avid': avid.upper(),
+        'state': 'PENDING',
+        'task_type': task_type,
+        'created_at': time.time()
+    }
+    # 使用 HSET 存储，key 为 avid，value 为任务数据 JSON
+    redis_client.hset(queue_key, avid.upper(), __import__('json').dumps(task_data))
+    # 设置整个 hash 的过期时间（24小时）
+    redis_client.expire(queue_key, 86400)
+
+
+def update_task_state_in_queue(avid: str, state: str):
+    """
+    更新队列中任务的状态
+
+    Args:
+        avid: 视频ID
+        state: 任务状态（'PENDING', 'STARTED', 'SUCCESS', 'FAILURE'）
+    """
+    redis_client = get_redis_client()
+    queue_key = "nassav:task_queue"
+    avid_upper = avid.upper()
+
+    # 获取现有任务数据
+    task_data_str = redis_client.hget(queue_key, avid_upper)
+    if task_data_str:
+        task_data = __import__('json').loads(task_data_str)
+        task_data['state'] = state
+        task_data['updated_at'] = __import__('time').time()
+        redis_client.hset(queue_key, avid_upper, __import__('json').dumps(task_data))
+
+
+def remove_task_from_queue(avid: str):
+    """
+    从 Redis 队列记录中移除任务
+
+    Args:
+        avid: 视频ID
+    """
+    redis_client = get_redis_client()
+    queue_key = "nassav:task_queue"
+    redis_client.hdel(queue_key, avid.upper())
+
+
+def get_full_task_queue() -> Dict[str, Any]:
+    """
+    从 Redis 获取完整任务队列（包括所有 pending 和 active 任务）
+
+    Returns:
+        dict: 包含完整任务列表的字典
+    """
+    redis_client = get_redis_client()
+    queue_key = "nassav:task_queue"
+
+    try:
+        all_tasks_data = redis_client.hgetall(queue_key)
+
+        if not all_tasks_data:
+            return {
+                'active_tasks': [],
+                'pending_tasks': [],
+                'active_count': 0,
+                'pending_count': 0,
+                'total_count': 0
+            }
+
+        # 解析任务数据
+        all_tasks = []
+        for task_json in all_tasks_data.values():
+            try:
+                task = __import__('json').loads(task_json)
+
+                # 为每个任务添加进度信息（如果有）
+                progress = get_task_progress(task['avid'])
+                if progress:
+                    # 包含所有可用的进度字段
+                    task['progress'] = progress
+
+                all_tasks.append(task)
+            except Exception as e:
+                logger.error(f"解析任务数据失败: {e}")
+                continue
+
+        # 按状态分类
+        active_tasks = [t for t in all_tasks if t.get('state') == 'STARTED']
+        pending_tasks = [t for t in all_tasks if t.get('state') == 'PENDING']
+
+        # 按创建时间排序
+        active_tasks.sort(key=lambda x: x.get('created_at', 0))
+        pending_tasks.sort(key=lambda x: x.get('created_at', 0))
+
+        return {
+            'active_tasks': active_tasks,
+            'pending_tasks': pending_tasks,
+            'active_count': len(active_tasks),
+            'pending_count': len(pending_tasks),
+            'total_count': len(all_tasks)
+        }
+    except Exception as e:
+        logger.error(f"获取完整任务队列失败: {e}")
+        # 如果 Redis 队列失败，回退到原来的 Celery inspector 方法
+        return get_task_queue_status()
 
 
 def remove_task_lock(avid: str):
@@ -322,20 +451,11 @@ def download_video_task(self, avid: str):
     # 创建任务锁，防止重复执行
     create_task_lock(avid, self.request.id)
 
-    # 发送任务开始通知
-    notify_task_update('task_started', {
-        'task_id': self.request.id,
-        'avid': avid,
-        'status': 'started'
-    })
-
-    # 发送更新后的队列状态
-    notify_task_update('queue_status', get_task_queue_status())
-
     # 等待并获取全局下载锁，确保同一时间只有一个下载任务在执行
     if not wait_for_global_download_lock(max_wait_time=1800):  # 最多等待30分钟
         logger.error(f"获取全局下载锁超时: {avid}")
         remove_task_lock(avid)
+        remove_task_from_queue(avid)
 
         # 发送任务失败通知
         notify_task_update('task_failed', {
@@ -344,7 +464,7 @@ def download_video_task(self, avid: str):
             'status': 'failed',
             'message': '获取下载锁超时，可能有其他下载任务正在执行'
         })
-        notify_task_update('queue_status', get_task_queue_status())
+        notify_task_update('queue_status', get_full_task_queue())
 
         return {
             'status': 'failed',
@@ -354,6 +474,19 @@ def download_video_task(self, avid: str):
 
     logger.info(f"已获取全局下载锁，开始下载: {avid}")
 
+    # 更新 Redis 队列中的任务状态为 STARTED
+    update_task_state_in_queue(avid, 'STARTED')
+
+    # 发送任务开始通知
+    notify_task_update('task_started', {
+        'task_id': self.request.id,
+        'avid': avid,
+        'status': 'started'
+    })
+
+    # 发送更新后的队列状态（使用完整队列）
+    notify_task_update('queue_status', get_full_task_queue())
+
     # 创建节流器，限制 WebSocket 通知频率（每秒最多1次）
     from nassav.utils import Throttler
     ws_throttler = Throttler(min_interval=1.0)
@@ -362,7 +495,7 @@ def download_video_task(self, avid: str):
     def progress_callback(percent: float, speed: str, eta: str):
         """更新下载进度并通知 WebSocket（带节流）"""
         # Redis 进度更新保持原频率（供 API 查询）
-        set_task_progress(avid, percent, speed)
+        set_task_progress(avid, percent, speed, eta=eta)
 
         # WebSocket 通知使用节流：100% 时强制发送
         if ws_throttler.should_execute(force=(percent >= 100)):
@@ -370,7 +503,8 @@ def download_video_task(self, avid: str):
                 'task_id': self.request.id,
                 'avid': avid,
                 'percent': percent,
-                'speed': speed
+                'speed': speed,
+                'eta': eta
             })
 
     try:
@@ -379,6 +513,9 @@ def download_video_task(self, avid: str):
         if success:
             logger.info(f"视频 {avid} 下载成功")
 
+            # 从 Redis 队列中移除任务
+            remove_task_from_queue(avid)
+
             # 发送任务完成通知
             notify_task_update('task_completed', {
                 'task_id': self.request.id,
@@ -386,7 +523,7 @@ def download_video_task(self, avid: str):
                 'status': 'success',
                 'message': '下载完成'
             })
-            notify_task_update('queue_status', get_task_queue_status())
+            notify_task_update('queue_status', get_full_task_queue())
 
             # 更新数据库：标记文件存在并写入文件大小/时间戳
             try:
@@ -422,6 +559,9 @@ def download_video_task(self, avid: str):
         else:
             logger.error(f"视频 {avid} 下载失败")
 
+            # 从 Redis 队列中移除任务
+            remove_task_from_queue(avid)
+
             # 发送任务失败通知
             notify_task_update('task_failed', {
                 'task_id': self.request.id,
@@ -429,7 +569,7 @@ def download_video_task(self, avid: str):
                 'status': 'failed',
                 'message': '下载失败'
             })
-            notify_task_update('queue_status', get_task_queue_status())
+            notify_task_update('queue_status', get_full_task_queue())
 
             # 标记数据库为未完成
             try:
@@ -451,6 +591,9 @@ def download_video_task(self, avid: str):
     except Exception as e:
         logger.error(f"视频 {avid} 下载异常: {str(e)}")
 
+        # 从 Redis 队列中移除任务
+        remove_task_from_queue(avid)
+
         # 发送任务失败通知
         notify_task_update('task_failed', {
             'task_id': self.request.id,
@@ -458,7 +601,7 @@ def download_video_task(self, avid: str):
             'status': 'failed',
             'message': f'下载异常: {str(e)}'
         })
-        notify_task_update('queue_status', get_task_queue_status())
+        notify_task_update('queue_status', get_full_task_queue())
 
         # 重试
         try:
@@ -500,7 +643,7 @@ def download_video_task(self, avid: str):
             logger.error(f"清理任务进度失败 {avid}: {str(e)}")
 
         # 发送最终队列状态
-        notify_task_update('queue_status', get_task_queue_status())
+        notify_task_update('queue_status', get_full_task_queue())
 
 
 def submit_download_task(avid: str) -> tuple[bool | None, bool]:
@@ -526,8 +669,11 @@ def submit_download_task(avid: str) -> tuple[bool | None, bool]:
     logger.info(f"提交下载任务: {avid}")
     task_result = download_video_task.delay(avid)
 
-    # 发送队列状态更新
-    notify_task_update('queue_status', get_task_queue_status())
+    # 添加到 Redis 队列记录
+    add_task_to_queue(avid, task_result.id, task_type='download')
+
+    # 发送队列状态更新（使用完整队列）
+    notify_task_update('queue_status', get_full_task_queue())
 
     return task_result, False
 
@@ -767,3 +913,152 @@ def submit_translate_task(avid: str, async_mode: bool = True):
     else:
         result = translate_title_task(avid)
         return result, False
+
+
+@shared_task(bind=True)
+def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
+    """
+    模拟下载视频任务（仅用于测试）
+
+    Args:
+        avid: 视频编号
+        duration_seconds: 模拟下载持续时间（秒）
+
+    Returns:
+        dict: 下载结果
+    """
+    import time
+
+    avid = avid.upper()
+    logger.info(f"[测试] 开始模拟下载任务: {avid}, 任务ID: {self.request.id}, 持续时间: {duration_seconds}秒")
+
+    # 创建任务锁
+    create_task_lock(avid, self.request.id)
+
+    # 更新 Redis 队列中的任务状态为 STARTED
+    update_task_state_in_queue(avid, 'STARTED')
+
+    # 发送任务开始通知
+    notify_task_update('task_started', {
+        'task_id': self.request.id,
+        'avid': avid,
+        'status': 'started'
+    })
+
+    # 发送更新后的队列状态
+    notify_task_update('queue_status', get_full_task_queue())
+
+    try:
+        # 模拟下载过程，每秒更新进度
+        step = 100.0 / duration_seconds
+        for i in range(duration_seconds):
+            time.sleep(1)
+            percent = min(100.0, (i + 1) * step)
+            speed = f"{((i + 1) * 2):.1f} MB/s"  # 模拟速度
+            remaining = duration_seconds - (i + 1)
+            eta = f"00:00:{remaining:02d}" if remaining < 60 else f"00:{remaining//60:02d}:{remaining%60:02d}"
+
+            # 更新进度
+            set_task_progress(avid, percent, speed, eta=eta)
+
+            # 发送进度通知
+            notify_task_update('progress_update', {
+                'task_id': self.request.id,
+                'avid': avid,
+                'percent': percent,
+                'speed': speed,
+                'eta': eta
+            })
+
+            logger.debug(f"[测试] {avid} 下载进度: {percent:.1f}%")
+
+        # 模拟下载完成
+        logger.info(f"[测试] 模拟下载完成: {avid}")
+
+        # 清理进度和锁
+        remove_task_progress(avid)
+        remove_task_lock(avid)
+
+        # 从 Redis 队列中移除任务
+        remove_task_from_queue(avid)
+
+        # 发送任务完成通知
+        notify_task_update('task_completed', {
+            'task_id': self.request.id,
+            'avid': avid,
+            'status': 'completed',
+            'message': '模拟下载完成'
+        })
+
+        # 发送更新后的队列状态
+        notify_task_update('queue_status', get_full_task_queue())
+
+        return {
+            'status': 'completed',
+            'avid': avid,
+            'task_id': self.request.id,
+            'message': '模拟下载完成'
+        }
+
+    except Exception as e:
+        logger.error(f"[测试] 模拟下载失败: {avid}, 错误: {e}")
+
+        # 清理
+        remove_task_progress(avid)
+        remove_task_lock(avid)
+
+        # 从 Redis 队列中移除任务
+        remove_task_from_queue(avid)
+
+        # 发送任务失败通知
+        notify_task_update('task_failed', {
+            'task_id': self.request.id,
+            'avid': avid,
+            'status': 'failed',
+            'message': f'模拟下载失败: {str(e)}'
+        })
+
+        # 发送更新后的队列状态
+        notify_task_update('queue_status', get_full_task_queue())
+
+        return {
+            'status': 'failed',
+            'avid': avid,
+            'task_id': self.request.id,
+            'error': str(e)
+        }
+
+
+def submit_mock_download_task(avid: str, duration_seconds: int = 30):
+    """
+    提交模拟下载任务（仅用于测试）
+
+    Args:
+        avid: 视频编号
+        duration_seconds: 模拟下载持续时间（秒）
+
+    Returns:
+        tuple: (task_result, is_duplicate)
+    """
+    avid = avid.upper()
+
+    # 检查任务是否已存在
+    if is_task_existed(avid):
+        logger.warning(f"[测试] 模拟下载任务已存在: {avid}")
+        return None, True
+
+    # 提交任务
+    try:
+        task_result = mock_download_video_task.delay(avid, duration_seconds)
+        logger.info(f"[测试] 已提交模拟下载任务: {avid}, task_id={task_result.id}")
+
+        # 添加到 Redis 队列记录
+        add_task_to_queue(avid, task_result.id, task_type='mock')
+
+        # 发送队列状态更新（使用完整队列）
+        notify_task_update('queue_status', get_full_task_queue())
+
+        return task_result, False
+    except Exception as e:
+        logger.error(f"[测试] 提交模拟下载任务失败: {avid}, 错误: {e}")
+        raise

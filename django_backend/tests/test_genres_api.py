@@ -1,3 +1,25 @@
+#!/usr/bin/env python
+"""
+类别/标签 API 测试
+
+功能：
+1. 测试类别列表查询 API
+2. 测试按类别过滤资源
+3. 测试类别的模糊搜索
+4. 测试类别统计和排序功能
+5. 验证资源和类别的多对多关系
+
+运行方式：
+    # 运行所有测试
+    python manage.py test tests.test_genres_api
+
+    # 运行单个测试
+    python manage.py test tests.test_genres_api.GenresAPITest.test_genre_filter_by_name
+
+    # 使用 pytest
+    pytest tests/test_genres_api.py -v
+"""
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 

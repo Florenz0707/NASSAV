@@ -54,6 +54,9 @@ urlpatterns = [
     # DELETE /api/downloads/{avid} - 删除已下载的视频
     path('api/downloads/<str:avid>', views.DownloadView.as_view(), name='downloads-delete'),
 
+    # POST /api/downloads/mock/{avid} - 模拟下载任务（仅 DEBUG 模式）
+    path('api/downloads/mock/<str:avid>', views.MockDownloadView.as_view(), name='downloads-mock'),
+
     # GET /api/tasks/queue/status - 获取任务队列状态
     path('api/tasks/queue/status', views.TaskQueueStatusView.as_view(), name='task-queue-status'),
     # Schema endpoints for OpenAPI (drf-spectacular)

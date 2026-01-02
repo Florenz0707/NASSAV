@@ -1,3 +1,25 @@
+#!/usr/bin/env python
+"""
+序列化器测试
+
+功能：
+1. 测试 ResourceSummarySerializer（资源摘要序列化器）
+2. 测试 ResourceSerializer（完整资源序列化器）
+3. 验证标题优先级逻辑（translated_title > source_title > title）
+4. 测试序列化器的字段映射和数据转换
+5. 验证关联数据（演员、类别）的序列化
+
+运行方式：
+    # 运行所有测试
+    python manage.py test tests.test_serializers
+
+    # 运行单个测试
+    python manage.py test tests.test_serializers.SerializersTest.test_resource_summary_serializer_from_instance
+
+    # 使用 pytest
+    pytest tests/test_serializers.py -v
+"""
+
 from django.test import TestCase
 
 from nassav.models import AVResource, Actor, Genre

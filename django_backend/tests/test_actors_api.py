@@ -1,3 +1,24 @@
+#!/usr/bin/env python
+"""
+演员 API 测试
+
+功能：
+1. 测试演员列表查询 API
+2. 测试按演员名称过滤资源
+3. 测试演员相关的多对多关系
+4. 验证资源和演员的关联查询
+
+运行方式：
+    # 运行所有测试
+    python manage.py test tests.test_actors_api
+
+    # 运行单个测试
+    python manage.py test tests.test_actors_api.ActorsAPITest.test_actor_filter_by_name
+
+    # 使用 pytest
+    pytest tests/test_actors_api.py -v
+"""
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 

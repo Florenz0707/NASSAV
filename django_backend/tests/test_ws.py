@@ -1,3 +1,29 @@
+#!/usr/bin/env python
+"""
+WebSocket 连接测试
+
+功能：
+1. 测试 WebSocket 连接建立
+2. 测试任务队列状态查询（通过 WebSocket）
+3. 验证 WebSocket 消息格式
+4. 测试异步通信机制
+
+运行方式：
+    # 运行所有测试
+    python manage.py test tests.test_ws
+
+    # 运行单个测试
+    python manage.py test tests.test_ws.WebSocketTest.test_ws_queue_status
+
+    # 使用 pytest
+    pytest tests/test_ws.py -v
+
+注意：
+    - 需要 Redis 服务运行
+    - 需要 Channels 和 channels-redis 已安装
+    - 测试使用 TransactionTestCase 以支持异步操作
+"""
+
 import asyncio
 import json
 from channels.testing import WebsocketCommunicator

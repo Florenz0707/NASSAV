@@ -943,13 +943,16 @@ class TaskQueueStatusView(APIView):
     """
     GET /api/tasks/queue/status
     获取当前任务队列状态
+
+    返回完整的任务队列列表（从 Redis 获取），包括所有 PENDING 和 STARTED 状态的任务。
+    解决了 Celery inspect() 只能获取部分任务的限制问题。
     """
 
     def get(self, request):
-        from .tasks import get_task_queue_status
+        from .tasks import get_full_task_queue
 
         try:
-            queue_status = get_task_queue_status()
+            queue_status = get_full_task_queue()
             return build_response(200, 'success', queue_status)
         except Exception as e:
             logger.error(f"获取任务队列状态失败: {e}")
@@ -1125,3 +1128,66 @@ class DownloadsBatchSubmitView(APIView):
                 results.append({'avid': avid, 'code': 500, 'message': str(e), 'task_id': None})
 
         return build_response(200, 'success', {'results': results})
+
+
+class MockDownloadView(APIView):
+    """
+    POST /api/downloads/mock/{avid}
+    模拟下载任务接口（仅在 DEBUG 模式下可用）
+
+    用于测试下载流程，不实际下载视频，只模拟下载过程和进度更新
+    """
+
+    def post(self, request, avid):
+        """
+        POST /api/downloads/mock/{avid}
+
+        Body (可选):
+        {
+            "duration": 30  // 模拟下载持续时间（秒），默认 30
+        }
+        """
+        # 检查是否在 DEBUG 模式
+        if not settings.DEBUG:
+            return build_response(403, '此接口仅在 DEBUG 模式下可用', None)
+
+        avid = avid.upper()
+        data = request.data or {}
+        duration = int(data.get('duration', 30))
+
+        # 验证 duration 范围
+        if duration < 1 or duration > 300:
+            return build_response(400, '持续时间必须在 1-300 秒之间', None)
+
+        # 检查资源是否存在于数据库
+        try:
+            from nassav.models import AVResource
+            resource = AVResource.objects.filter(avid=avid).first()
+            if not resource:
+                return build_response(404, f'{avid} 的元数据不存在', None)
+        except Exception as e:
+            logger.error(f"查询资源失败: {e}")
+            return Response({
+                'code': 500,
+                'message': '服务器内部错误',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 提交模拟下载任务
+        from .tasks import submit_mock_download_task
+        try:
+            task_result, is_duplicate = submit_mock_download_task(avid, duration)
+
+            if is_duplicate:
+                return build_response(409, '下载任务已存在', None)
+
+            return build_response(202, '模拟下载任务已提交', {
+                'avid': avid,
+                'task_id': task_result.id,
+                'status': 'pending',
+                'duration': duration,
+                'mock': True
+            })
+        except Exception as e:
+            logger.error(f"提交模拟下载任务失败: {e}")
+            return build_response(500, f'提交失败: {str(e)}', None)
