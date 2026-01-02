@@ -11,9 +11,6 @@ urlpatterns = [
     # POST /api/source/cookie - 设置源的Cookie
     path('api/source/cookie', views.SourceCookieView.as_view(), name='source-cookie'),
 
-    # GET /api/resource/list - 获取所有已保存资源
-    path('api/resource/list', views.ResourceListView.as_view(), name='resource-list'),
-
     # GET /api/resources/ - 统一资源列表（过滤/分页）
     path('api/resources/', views.ResourcesListView.as_view(), name='resources-list'),
     # GET /api/actors/ - 演员列表及作品数（分页）
@@ -41,9 +38,6 @@ urlpatterns = [
 
     # DELETE /api/resource/{avid} - 删除整个资源目录
     path('api/resource/<str:avid>', views.DeleteResourceView.as_view(), name='resource-delete'),
-
-    # GET /api/downloads/list - 获取已下载的所有视频的avid
-    path('api/downloads/list', views.DownloadsListView.as_view(), name='downloads-list'),
 
     # GET /api/downloads/abspath?avid= - 返回视频文件的绝对路径，前面拼接 config.UrlPrefix
     path('api/downloads/abspath', views.DownloadAbspathView.as_view(), name='downloads-abspath'),

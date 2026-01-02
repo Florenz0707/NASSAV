@@ -58,15 +58,6 @@ const displayActiveCount = computed(() => DEBUG_MODE && wsStore.activeCount === 
 const displayPendingCount = computed(() => DEBUG_MODE && wsStore.pendingCount === 0 ? mockPendingTasks.value.length : wsStore.pendingCount)
 const displayTotalCount = computed(() => displayActiveCount.value + displayPendingCount.value)
 
-onMounted(() => {
-	// 不阻塞地加载下载列表
-	loadDownloads()
-	// 如果 WebSocket 未连接，启动轮询
-	if (!wsStore.connected) {
-		startPolling()
-	}
-})
-
 onBeforeUnmount(() => {
 	// 离开下载页时停止轮询
 	stopPolling()
@@ -82,25 +73,12 @@ watch(() => wsStore.connected, (isConnected) => {
 		// WebSocket 连接成功，停止轮询
 		console.log('[DownloadsView] WebSocket 已连接，停止轮询')
 		stopPolling()
-	} else {
-		// WebSocket 断开，启动轮询
-		console.log('[DownloadsView] WebSocket 断开，启动轮询')
+	} else if (wsStore.connectionFailed) {
+		// WebSocket 断开且已发生连接失败，启动轮询
+		console.log('[DownloadsView] WebSocket 连接失败，启动轮询')
 		startPolling()
 	}
 })
-
-async function loadDownloads() {
-	loading.value = true
-	try {
-		await resourceStore.fetchResources()
-		await resourceStore.fetchDownloads()
-
-		// 获取已下载资源的详情
-		downloadedResources.value = getResourcesArray().filter(r => r.has_video)
-	} finally {
-		loading.value = false
-	}
-}
 
 // 获取任务队列状态（API 轮询）
 async function fetchQueueStatus() {

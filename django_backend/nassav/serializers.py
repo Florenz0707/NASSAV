@@ -55,12 +55,17 @@ class ResourceSummarySerializer(serializers.Serializer):
     thumbnail_url = LocalSerializerMethodField()
 
     def get_title(self, obj):
-        """按优先级返回标题: translated_title > source_title > title"""
-        if getattr(obj, 'translated_title', None):
-            return obj.translated_title
-        if getattr(obj, 'source_title', None):
-            return obj.source_title
-        return obj.title or ''
+        """根据配置返回标题字段"""
+        from django.conf import settings
+        display_title = getattr(settings, 'DISPLAY_TITLE', 'source_title')
+
+        # 根据配置返回对应字段
+        if display_title == 'translated_title':
+            return getattr(obj, 'translated_title', None) or getattr(obj, 'source_title', None) or obj.title or ''
+        elif display_title == 'title':
+            return obj.title or getattr(obj, 'source_title', None) or ''
+        else:  # 默认 source_title
+            return getattr(obj, 'source_title', None) or obj.title or ''
 
     def get_metadata_create_time(self, obj):
         return obj.metadata_saved_at.timestamp() if getattr(obj, 'metadata_saved_at', None) else None
@@ -113,19 +118,24 @@ class ResourceSerializer(serializers.Serializer):
     file_exists = serializers.BooleanField(required=False)
 
     def get_title(self, obj):
-        """按优先级返回标题: translated_title > source_title > original_title"""
+        """根据配置返回标题字段"""
+        from django.conf import settings
+        display_title = getattr(settings, 'DISPLAY_TITLE', 'source_title')
+
         if isinstance(obj, dict):
-            if obj.get('translated_title'):
-                return obj['translated_title']
-            if obj.get('source_title'):
-                return obj['source_title']
-            return obj.get('title', '')
+            if display_title == 'translated_title':
+                return obj.get('translated_title') or obj.get('source_title') or obj.get('title', '')
+            elif display_title == 'title':
+                return obj.get('title', '') or obj.get('source_title') or ''
+            else:  # 默认 source_title
+                return obj.get('source_title') or obj.get('title', '')
         else:
-            if getattr(obj, 'translated_title', None):
-                return obj.translated_title
-            if getattr(obj, 'source_title', None):
-                return obj.source_title
-            return obj.title or ''
+            if display_title == 'translated_title':
+                return getattr(obj, 'translated_title', None) or getattr(obj, 'source_title', None) or obj.title or ''
+            elif display_title == 'title':
+                return obj.title or getattr(obj, 'source_title', None) or ''
+            else:  # 默认 source_title
+                return getattr(obj, 'source_title', None) or obj.title or ''
 
     def get_original_title(self, obj):
         """返回原始日语标题（Scraper 获取的标题）"""

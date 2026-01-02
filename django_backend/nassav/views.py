@@ -79,7 +79,7 @@ class SourceCookieView(APIView):
         data = request.data or {}
         source_name = data.get('source')
         cookie = data.get('cookie')
-        auto = bool(data.get('auto', False))
+        auto = (cookie == "auto")
 
         if not source_name:
             return Response({'code': 400, 'message': 'source 参数缺失', 'data': None},
@@ -128,59 +128,6 @@ class SourceCookieView(APIView):
 
         return Response({'code': 400, 'message': '未提供 cookie 且 auto 未设置为 True', 'data': None},
                         status=status.HTTP_400_BAD_REQUEST)
-
-
-class ResourceListView(APIView):
-    """
-    GET /api/resource/list
-    获取所有已保存资源的(avid, title)
-    支持排序和分页
-    参数:
-        sort_by: 排序字段（avid, metadata_create_time, video_create_time, source）
-        order: 排序方式（asc, desc）
-        page: 页码（默认1）
-        page_size: 每页数量（默认20）
-    从 resource 目录读取元数据
-    """
-
-    def get(self, request):
-        # 使用数据库查询 AVResource，提高性能并支持排序/分页
-        from nassav.models import AVResource
-
-        # 获取排序和分页参数
-        sort_by = request.query_params.get('sort_by', 'avid')
-        order = request.query_params.get('order', 'desc')
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 20))
-
-        sort_map = {
-            'avid': 'avid',
-            'metadata_create_time': 'metadata_saved_at',
-            'video_create_time': 'video_saved_at',
-            'source': 'source'
-        }
-        sort_field = sort_map.get(sort_by, 'avid')
-        if order == 'desc':
-            sort_field = f'-{sort_field}'
-
-        qs = AVResource.objects.all().order_by(sort_field)
-        total = qs.count()
-        start = (page - 1) * page_size
-        paged = qs[start:start + page_size]
-
-        data = []
-        for r in paged:
-            data.append({
-                'avid': r.avid,
-                'title': r.title or '',
-                'source': r.source or '',
-                'release_date': r.release_date or '',
-                'has_video': bool(r.file_exists),
-                'metadata_create_time': r.metadata_saved_at.timestamp() if r.metadata_saved_at else None,
-                'video_create_time': r.video_saved_at.timestamp() if r.video_saved_at else None,
-            })
-
-        return build_response(200, 'success', data)
 
 
 class ResourcesListView(APIView):
@@ -506,18 +453,6 @@ class ResourcePreviewView(APIView):
             return build_response(500, f'生成 preview 失败: {str(e)}', None)
 
 
-class DownloadsListView(APIView):
-    """
-    GET /api/resource/downloads/list
-    获取已下载的所有视频的avid
-    """
-
-    def get(self, request):
-        from nassav.models import AVResource
-        downloaded_avids = list(AVResource.objects.filter(file_exists=True).values_list('avid', flat=True))
-        return build_response(200, 'success', downloaded_avids)
-
-
 class DownloadAbspathView(APIView):
     """
     GET /api/downloads/abspath?avid=
@@ -579,16 +514,21 @@ class ResourceMetadataView(APIView):
             if not resource:
                 return build_response(404, f'资源 {avid} 的元数据不存在', None)
 
-            # 构建返回值，优先使用数据库独立字段，title 按优先级返回
-            display_title = resource.translated_title or resource.source_title or resource.title or ''
+            # 构建返回值，title 根据 DisplayTitle 配置返回
+            from django.conf import settings
+            display_title_config = getattr(settings, 'DISPLAY_TITLE', 'source_title')
+
+            # 根据配置返回 title
+            if display_title_config == 'translated_title':
+                display_title = resource.translated_title or resource.source_title or resource.title or ''
+            elif display_title_config == 'title':
+                display_title = resource.title or resource.source_title or ''
+            else:  # 默认 source_title
+                display_title = resource.source_title or resource.title or ''
 
             metadata = {
                 'avid': resource.avid,
                 'title': display_title,
-                'original_title': resource.title or '',  # 原始日语标题
-                'source_title': resource.source_title or '',
-                'translated_title': resource.translated_title or '',
-                'translation_status': resource.translation_status or 'pending',  # 翻译状态
                 'source': resource.source or '',
                 'release_date': resource.release_date or '',
                 'duration': f"{resource.duration // 60}分钟" if resource.duration else '',
@@ -598,7 +538,6 @@ class ResourceMetadataView(APIView):
                 'series': '',
                 'actors': [a.name for a in resource.actors.all()],
                 'genres': [g.name for g in resource.genres.all()],
-                'm3u8': resource.m3u8 or '',
             }
 
             # 从 metadata JSON 补充额外字段（如 director, studio 等）
@@ -677,7 +616,6 @@ class ResourceView(APIView):
                     'title': existing.title or '',
                     'source': existing.source or '',
                     'cover_downloaded': bool(existing.cover_filename),
-                    'html_saved': False,
                     'metadata_saved': True,
                     'scraped': bool(existing.release_date)
                 })
@@ -719,7 +657,6 @@ class ResourceView(APIView):
         return build_response(201, 'success', {
             'resource': resource_data,
             'cover_downloaded': save_result['cover_saved'],
-            'html_saved': save_result['html_saved'],
             'metadata_saved': save_result['metadata_saved'],
             'scraped': save_result.get('scraped', False)
         })
@@ -854,7 +791,6 @@ class RefreshResourceView(APIView):
             save_result = source_manager.save_all_resources(avid, info, downloader, html)
 
             result_info['cover_downloaded'] = save_result['cover_saved']
-            result_info['html_saved'] = save_result['html_saved']
             result_info['metadata_saved'] = save_result['metadata_saved']
             result_info['scraped'] = save_result.get('scraped', False)
             result_info['metadata_refreshed'] = refresh_metadata

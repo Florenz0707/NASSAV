@@ -186,15 +186,12 @@ class SourceManager:
         avid = avid.upper()
         resource_dir = self.get_resource_dir(avid)
         result = {
-            'html_saved': False,
             'cover_saved': False,
             'metadata_saved': False,
             'scraped': False,
         }
 
         # NOTE: 不再将 HTML/JSON 持久化到磁盘，元数据将保存到数据库。
-        # 如果需要保留 HTML 缓存，可在配置中添加开关；当前行为是跳过写入 HTML 文件。
-        result['html_saved'] = False
 
         # 2. 下载封面到新的 COVER_DIR
         cover_url = source.get_cover_url(html)

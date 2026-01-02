@@ -389,6 +389,49 @@ async function saveCookie() {
 			</button>
 			<p class="cookie-hint">某些源可能需要设置 Cookie 才能正常访问</p>
 		</div>
+
+		<!-- Cookie 设置模态框 -->
+		<Transition name="modal">
+			<div v-if="showCookieModal" class="modal-overlay" @click.self="closeCookieModal">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h3 class="modal-title">🍪 Cookie 设置</h3>
+						<button class="modal-close" @click="closeCookieModal">×</button>
+					</div>
+					<form @submit.prevent="saveCookie" class="modal-form">
+						<div class="form-group">
+							<label class="form-label">下载源</label>
+							<select v-model="cookieForm.source" class="form-select" :disabled="savingCookie">
+								<option v-for="s in resourceStore.sources" :key="s" :value="s.toLowerCase()">
+									{{ s }}
+								</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label class="form-label">Cookie 值</label>
+							<textarea
+								v-model="cookieForm.cookie"
+								class="form-textarea"
+								placeholder="填入'auto'以自动获取，或者粘贴 Cookie 值"
+								rows="6"
+								:disabled="savingCookie"
+							></textarea>
+							<p class="form-hint">自动获取: 填入"auto" (目前不适用于MissAV)</p>
+							<p class="form-hint">手动获取: 在浏览器中打开对应网站，F12 → Network → 复制 Cookie</p>
+						</div>
+						<div class="modal-actions">
+							<button type="button" class="btn btn-secondary" @click="closeCookieModal" :disabled="savingCookie">
+								取消
+							</button>
+							<button type="submit" class="btn btn-primary" :disabled="savingCookie">
+								<LoadingSpinner v-if="savingCookie" size="small"/>
+								<span v-else>保存</span>
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</Transition>
 	</div>
 </template>
 

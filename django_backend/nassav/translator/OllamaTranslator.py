@@ -14,18 +14,26 @@ from .TranslatorBase import TranslatorBase
 class OllamaTranslator(TranslatorBase):
     """Ollama 翻译器"""
 
-    def __init__(self, timeout: int = 30):
+    def __init__(self, timeout: int = 30, config_name: str = None):
         """
         初始化 Ollama 翻译器
 
         Args:
             timeout: 请求超时时间（秒）
+            config_name: 配置名称（从 Translator.active 读取）
         """
         super().__init__(timeout)
 
         # 从配置中读取 Ollama 设置
         translator_config = getattr(settings, 'TRANSLATOR_CONFIG', {})
-        ollama_config = translator_config.get('ollama', {})
+
+        # 如果指定了配置名称，使用该配置；否则使用默认的 ollama 配置
+        if config_name and config_name in translator_config:
+            ollama_config = translator_config[config_name]
+            self.config_name = config_name
+        else:
+            ollama_config = translator_config.get('ollama', {})
+            self.config_name = 'ollama'
 
         self.url = ollama_config.get('url', 'http://localhost:11434')
         self.model = ollama_config.get('model', 'qwen2.5:7b')
@@ -35,10 +43,80 @@ class OllamaTranslator(TranslatorBase):
             '将以下日语标题翻译成简体中文，只返回翻译结果，不要添加任何解释或额外内容：\n{text}'
         )
 
-        logger.info(f"初始化 OllamaTranslator: url={self.url}, model={self.model}")
+        logger.info(f"初始化 OllamaTranslator [{self.config_name}]: url={self.url}, model={self.model}")
 
     def get_translator_name(self) -> str:
         return "Ollama"
+
+    def _clean_translation(self, text: str) -> str:
+        """
+        清理翻译结果中的多余说明文字
+
+        Args:
+            text: 原始翻译结果
+
+        Returns:
+            清理后的翻译文本
+        """
+        if not text:
+            return text
+
+        import re
+
+        # 1. 移除常见的标题前缀（包括"翻译结果："）
+        prefixes = [
+            r'^\s*翻译结果[:：]\s*',
+            r'^\s*标题[:：]\s*',
+            r'^\s*译文[:：]\s*',
+            r'^\s*翻译[:：]\s*'
+        ]
+        for prefix in prefixes:
+            text = re.sub(prefix, '', text, flags=re.IGNORECASE)
+
+        # 2. 移除标题两端的引号（如果整个标题被引号包裹）
+        text = re.sub(r'^\s*["""](.+)["""]?\s*$', r'\1', text)
+
+        # 3. 移除多余的星号标记（如 **标题**）
+        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+
+        # 4. 移除中文括号内的注释（如：（注：...）、（翻译说明：...））
+        text = re.sub(r'（[^）]*注[:：][^）]*）', '', text)
+        text = re.sub(r'（[^）]*翻译说明[:：][^）]*）', '', text)
+
+        # 5. 移除英文括号内的注释（如：(注:...) 或 (Note: ...)）
+        text = re.sub(r'\([^)]*注[:：][^)]*\)', '', text)
+        text = re.sub(r'\([^)]*[Nn]ote[:：][^)]*\)', '', text)
+
+        # 6. 移除"翻译说明"及其后面的所有内容
+        text = re.split(r'\n\s*翻译说明[:：]', text)[0]
+        text = re.split(r'\n\s*说明[:：]', text)[0]
+        text = re.split(r'\n\s*注[:：]', text)[0]
+
+        # 7. 移除末尾的说明性语句（如：，并尽量保持...、，以保留...）
+        text = re.sub(r'，并尽量保持[^。！？\n]*[。）)]?$', '', text)
+        text = re.sub(r'，以保留[^。！？\n]*[。）)]?$', '', text)
+        text = re.sub(r'，使[^。！？\n]*更[^。！？\n]*[。）)]?$', '', text)
+
+        # 8. 移除编号列表（如：1. 2. 3. 或 1） 2））
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            # 如果行以数字开头（如 "1. " 或 "1）"），且内容包含解释性文字，跳过
+            if re.match(r'^\s*\d+[.）)]\s*', line):
+                # 检查是否包含解释性关键词
+                if any(keyword in line for keyword in ['保留', '翻译', '使用', '采用', '表示', '符合', '常见', '风格', '以便']):
+                    continue
+            cleaned_lines.append(line)
+        text = '\n'.join(cleaned_lines)
+
+        # 9. 移除多余的空白行
+        text = re.sub(r'\n\s*\n', '\n', text)
+
+        # 10. 移除首尾空白
+        text = text.strip()
+
+        return text
+
 
     def is_available(self) -> bool:
         """
@@ -115,6 +193,8 @@ class OllamaTranslator(TranslatorBase):
             translated = result.get('response', '').strip()
 
             if translated:
+                # 清理翻译结果中的多余说明
+                translated = self._clean_translation(translated)
                 return translated
             else:
                 logger.warning("Ollama 返回空翻译结果")

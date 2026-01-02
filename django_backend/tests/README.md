@@ -51,19 +51,24 @@
 - **运行**: `python tests/test_translator_manager.py`
 - **依赖**: Ollama 服务
 
+#### 9. test_translation_cleaning.py
+- **功能**: 测试翻译结果后处理清理功能
+- **运行**: `uv run tests/test_translation_cleaning.py`
+- **说明**: 验证翻译结果中多余说明文字的清理效果
+
 ### Shell 脚本测试（Shell Script Tests）
 
-#### 9. test_api.sh
+#### 10. test_api.sh
 - **功能**: 综合 API 测试脚本
 - **运行**: `./tests/test_api.sh --verbose`
 - **依赖**: curl, jq (可选)
 
-#### 10. test_mock_download.sh
+#### 11. test_mock_download.sh
 - **功能**: 模拟下载任务批处理测试
 - **运行**: `./tests/test_mock_download.sh --duration 30`
 - **依赖**: curl, jq (可选)
 
-#### 11. test_websocket.sh
+#### 12. test_websocket.sh
 - **功能**: WebSocket 实时监听测试
 - **运行**: `./tests/test_websocket.sh`
 - **依赖**: wscat 或 websocket-client (Python)

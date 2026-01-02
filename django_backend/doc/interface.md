@@ -12,6 +12,63 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ---
 
+## 获取可用下载源列表
+
+- 方法：GET
+- 路径：`/nassav/api/source/list`
+- 功能：返回所有可用的下载源名称列表
+- 返回示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": ["missav", "javbus", "javdb"]
+}
+```
+
+---
+
+## 设置源 Cookie
+
+- 方法：POST
+- 路径：`/nassav/api/source/cookie`
+- 功能：为指定源设置 Cookie（手动设置或自动获取）
+- 请求 Body：
+  - `source`: 源名称（必填）
+  - `cookie`: 手动设置的 cookie 字符串（可选）
+  - `auto`: 是否自动获取 cookie（boolean，可选）
+
+示例请求：
+```json
+// 手动设置 Cookie
+POST /nassav/api/source/cookie
+{
+  "source": "missav",
+  "cookie": "your-cookie-string"
+}
+
+// 自动获取 Cookie
+POST /nassav/api/source/cookie
+{
+  "source": "missav",
+  "cookie": "auto"
+}
+```
+
+返回示例：
+```json
+{
+  "code": 200,
+  "message": "Cookie 设置成功",
+  "data": {
+    "source": "missav",
+    "cookie_set": true
+  }
+}
+```
+
+---
+
 ## 资源列表（服务端过滤/搜索/排序/分页）
 
 - 方法：GET
@@ -139,18 +196,32 @@ GET /nassav/api/genres/?order_by=name&order=asc
 GET /nassav/api/resource/ABC-123/preview
 ```
 返回（示例）：
-```
+```json
 {
   "code": 200,
   "message": "success",
   "data": {
-    "metadata": { "avid":"ABC-123", "title":"...", ... },
+    "metadata": { "avid":"ABC-123", "title":"...", "source": "missav", ... },
     "thumbnail_url": "/nassav/api/resource/cover?avid=ABC-123&size=small&v=1681234567"
   }
 }
 ```
 
 - 备注：`v` 参数为封面文件的 mtime（用于强缓存失效），前端可直接将 `thumbnail_url` 作为 `<img src>`。
+
+---
+
+## 资源元数据详情
+
+- 方法：GET
+- 路径：`/nassav/api/resource/metadata?avid=<AVID>`
+- 功能：获取资源完整元数据（演员、类别、时长等）
+- 说明：
+  - `title` 字段根据 `config.yaml` 中 `DisplayTitle` 配置返回（source_title/translated_title/title）
+  - 若需要 m3u8 链接，请使用刷新接口获取
+- 支持条件请求（ETag/Last-Modified），返回 304 节省带宽
+
+返回字段：`avid`, `title`, `source`, `release_date`, `duration`, `director`, `studio`, `label`, `series`, `actors[]`, `genres[]`, `file_exists`, `file_size`
 
 ---
 
@@ -176,6 +247,60 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 ```
 
 若匹配，后端返回 `304 Not Modified`（无 body），浏览器/客户端使用缓存数据。
+
+---
+
+## 获取视频文件路径
+
+- 方法：GET
+- 路径：`/nassav/api/downloads/abspath?avid=<AVID>`
+- 功能：返回视频文件的绝对路径，前面拼接 config.UrlPrefix 作为前缀
+- 返回示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "abspath": "http://your-server/path/to/video/ABC-123.mp4"
+  }
+}
+```
+
+---
+
+## 任务队列状态
+
+- 方法：GET
+- 路径：`/nassav/api/tasks/queue/status`
+- 功能：获取当前任务队列状态（包括所有 PENDING 和 STARTED 状态的任务）
+- 返回示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "pending": [
+      {
+        "task_id": "abc123...",
+        "avid": "ABC-123",
+        "task_type": "download",
+        "status": "PENDING"
+      }
+    ],
+    "active": [
+      {
+        "task_id": "def456...",
+        "avid": "DEF-456",
+        "task_type": "download",
+        "status": "STARTED",
+        "progress": 45.2
+      }
+    ],
+    "total_pending": 10,
+    "total_active": 2
+  }
+}
+```
 
 ---
 
@@ -209,10 +334,43 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     - `metadata_refreshed`: 是否刷新了元数据
     - `m3u8_refreshed`: 是否刷新了 m3u8
     - `translation_queued`: 是否已提交翻译任务（异步）
-    - `cover_downloaded`, `html_saved`, `metadata_saved`, `scraped`: 保存结果
+    - `cover_downloaded`, `metadata_saved`, `scraped`: 保存结果
 
 - 删除资源：`DELETE /nassav/api/resource/{avid}`
   - 返回 `data.resource`（删除前序列化对象）和 `deleted_files`
+
+- 下载视频：`POST /nassav/api/downloads/{avid}`
+  - 功能：提交视频下载任务（异步，使用 Celery）
+  - 前提：资源元数据必须已存在
+  - 返回示例：
+    ```json
+    {
+      "code": 202,
+      "message": "下载任务已提交",
+      "data": {
+        "avid": "ABC-123",
+        "task_id": "celery-task-id",
+        "status": "pending"
+      }
+    }
+    ```
+  - 如果视频已下载，返回 `code: 409, message: "视频已下载"`
+  - 如果任务已存在，返回 `code: 409, message: "下载任务已存在"`
+
+- 删除视频：`DELETE /nassav/api/downloads/{avid}`
+  - 功能：删除已下载的视频文件
+  - 返回示例：
+    ```json
+    {
+      "code": 200,
+      "message": "success",
+      "data": {
+        "avid": "ABC-123",
+        "deleted_file": "ABC-123.mp4",
+        "file_size": 1234567890
+      }
+    }
+    ```
 
 前端应在收到 `resource` 对象后做局部合并更新，而非整页刷新。
 
@@ -268,6 +426,33 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 
 ---
 
+## 模拟下载（仅 DEBUG 模式）
+
+- 方法：POST
+- 路径：`/nassav/api/downloads/mock/{avid}`
+- 功能：模拟下载任务，用于测试下载流程（不实际下载视频）
+- 仅在 `DEBUG=True` 时可用
+- 请求 Body（可选）：
+  ```json
+  {
+    "duration": 30  // 模拟下载持续时间（秒），默认 30，范围 1-300
+  }
+  ```
+- 返回示例：
+  ```json
+  {
+    "code": 202,
+    "message": "模拟下载任务已提交",
+    "data": {
+      "avid": "ABC-123",
+      "task_id": "mock-task-id",
+      "duration": 30
+    }
+  }
+  ```
+
+---
+
 ## 缓存与条件请求（前端要点）
 
 - 对于 metadata/cover/thumbnail，后端会返回 `ETag` 与 `Last-Modified`。
@@ -277,20 +462,6 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 ```
 curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?avid=ABC-123&size=small"
 ```
-
----
-
-## 缩略图离线生成脚本
-
-- 路径：`scripts/generate_thumbnails.py`
-- 用法：
-```
-python3 scripts/generate_thumbnails.py            # 生成 small,medium,large
-python3 scripts/generate_thumbnails.py --sizes small,medium --force
-```
-- 输出：`resource/cover/thumbnails/{size}/{AVID}.jpg`
-
-建议：若封面量大，先运行该脚本批量生成缩略图以减少首次请求延迟。
 
 ---
 
@@ -311,5 +482,3 @@ python3 scripts/generate_thumbnails.py --sizes small,medium --force
 - 图片直接使用 `thumbnail_url` 作为 `img.src`，依赖浏览器自动带条件头，或手动在 axios 中传 `If-None-Match`。
 
 ---
-
-如需把这些接口自动加入 `openapi.yaml`，或要具体的前端 `fetchResources` 示例（axios/vanilla fetch），我可以继续补充。

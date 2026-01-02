@@ -230,6 +230,10 @@ SCRAPER_CONFIG = CONFIG.get('Scraper', {})
 
 # Translator configurations (e.g., Ollama)
 TRANSLATOR_CONFIG = CONFIG.get('Translator', {})
+ACTIVE_TRANSLATOR = CONFIG.get('Translator', {}).get('active', 'ollama')
+
+# Display title configuration (title | source_title | translated_title)
+DISPLAY_TITLE = CONFIG.get('DisplayTitle', 'source_title')
 
 # Celery Beat schedule: daily consistency check between DB and disk at 03:00 server time
 CELERY_BEAT_SCHEDULE = {

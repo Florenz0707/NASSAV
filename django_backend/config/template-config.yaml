@@ -27,10 +27,19 @@ Source:
     domain: memojav.com
     weight: 600
 
+# 用于显示的标题（title | source_title | translated_title）
+DisplayTitle: source_title
+
 # 翻译器配置
 # 用于将日语标题翻译为中文
 Translator:
-  ollama:
+  # 使用哪个翻译服务
+  active: qwen2.5:7b
+
+  # 翻译服务配置
+  qwen2.5:7b:
+    # 翻译服务类型
+    type: ollama
     # Ollama 服务地址
     url: http://localhost:11434
 

@@ -5,6 +5,7 @@ import {resourceApi} from '../api'
 export const useWebSocketStore = defineStore('websocket', () => {
     const ws = ref(null)
     const connected = ref(false)
+    const connectionFailed = ref(false)  // 标记是否发生过连接失败或超时
     const reconnectTimer = ref(null)
     const connectionTimer = ref(null)
 
@@ -59,6 +60,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
                     ws.value.close()
                     ws.value = null
                     connected.value = false
+                    connectionFailed.value = true  // 标记连接失败
                     scheduleReconnect()
                 }
             }, WS_CONNECTION_TIMEOUT)
@@ -90,6 +92,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
             ws.value.onclose = (event) => {
                 console.log('[WebSocket] 连接关闭:', event.code, event.reason)
                 connected.value = false
+                connectionFailed.value = true  // 标记连接失败
                 ws.value = null
                 // 清除连接超时定时器
                 if (connectionTimer.value) {
@@ -103,6 +106,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
             ws.value.onerror = (error) => {
                 console.error('[WebSocket] 错误:', error)
                 connected.value = false
+                connectionFailed.value = true  // 标记连接失败
                 // 清除连接超时定时器
                 if (connectionTimer.value) {
                     clearTimeout(connectionTimer.value)
@@ -112,6 +116,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
         } catch (error) {
             console.error('[WebSocket] 创建连接失败:', error)
             connected.value = false
+            connectionFailed.value = true  // 标记连接失败
             // 清除连接超时定时器
             if (connectionTimer.value) {
                 clearTimeout(connectionTimer.value)
@@ -275,6 +280,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     return {
         // 连接状态
         connected,
+        connectionFailed,
 
         // 任务数据
         activeTasks,

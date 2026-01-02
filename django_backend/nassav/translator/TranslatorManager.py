@@ -35,34 +35,41 @@ class TranslatorManager:
         self.translators: Dict[str, TranslatorBase] = {}
         self.translator_priority: List[str] = []  # 翻译器优先级列表
 
-        # 从配置中注册翻译器
+        # 从配置中读取活动翻译器
         translator_config = getattr(settings, 'TRANSLATOR_CONFIG', {})
+        active_translator = getattr(settings, 'ACTIVE_TRANSLATOR', 'ollama')
 
-        # 按配置注册翻译器
-        for translator_name, translator_class in self.TRANSLATOR_CLASSES.items():
-            config = translator_config.get(translator_name, {})
+        # 只注册活动的翻译器
+        if active_translator in translator_config:
+            config = translator_config[active_translator]
+            translator_type = config.get('type', 'ollama')  # 读取 type 字段
 
-            # 检查是否配置了该翻译器
-            if config:
-                try:
-                    # 提取超时配置（如果有）
-                    timeout_val = config.get('timeout', self.timeout)
-                    translator = translator_class(timeout=timeout_val)
+            # 根据 type 获取翻译器类
+            translator_class = self.TRANSLATOR_CLASSES.get(translator_type)
+            if not translator_class:
+                logger.error(f"未知的翻译器类型: {translator_type}")
+                return
 
-                    # 检查翻译器是否可用
-                    if translator.is_available():
-                        translator_display_name = translator.get_translator_name()
-                        self.translators[translator_display_name] = translator
-                        self.translator_priority.append(translator_display_name)
-                    else:
-                        logger.warning(f"翻译器 {translator_name} 不可用，跳过注册")
-                except Exception as e:
-                    logger.error(f"注册翻译器 {translator_name} 失败: {e}")
+            try:
+                # 提取超时配置（如果有）
+                timeout_val = config.get('timeout', self.timeout)
+                translator = translator_class(timeout=timeout_val, config_name=active_translator)
+
+                # 检查翻译器是否可用
+                if translator.is_available():
+                    translator_display_name = translator.get_translator_name()
+                    self.translators[translator_display_name] = translator
+                    self.translator_priority.append(translator_display_name)
+                    logger.info(f"已加载翻译器: {active_translator} (type: {translator_type})")
+                else:
+                    logger.warning(f"翻译器 {active_translator} 不可用")
+            except Exception as e:
+                logger.error(f"注册翻译器 {active_translator} 失败: {e}")
+        else:
+            logger.warning(f"未找到活动翻译器配置: {active_translator}")
 
         if not self.translators:
             logger.warning("没有可用的翻译器")
-        else:
-            pass
 
     def _preprocess_fixed_terms(self, text: str) -> tuple[str, list]:
         """
