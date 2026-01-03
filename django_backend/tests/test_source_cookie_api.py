@@ -88,3 +88,29 @@ def test_post_cookie_then_get_list(client):
     assert data["data"][0]["source"] == "missav"
     assert data["data"][0]["cookie"] == "my_test_cookie"
     assert "mtime" in data["data"][0]
+
+
+@pytest.mark.django_db
+def test_delete_source_cookie(client):
+    """测试 DELETE 清除 Cookie"""
+    # 先创建数据
+    SourceCookie.objects.create(source_name="missav", cookie="some_cookie")
+
+    # 执行 DELETE
+    response = client.delete("/nassav/api/source/cookie?source=missav")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "Cookie 已清除"
+    assert data["data"]["cookie_set"] is False
+
+    # 验证数据库中已清空
+    cookie_obj = SourceCookie.objects.get(source_name="missav")
+    assert cookie_obj.cookie == ""
+
+
+@pytest.mark.django_db
+def test_delete_source_cookie_missing_param(client):
+    """测试 DELETE 缺少参数"""
+    response = client.delete("/nassav/api/source/cookie")
+    assert response.status_code == 400
+    assert "source 参数缺失" in response.json()["message"]

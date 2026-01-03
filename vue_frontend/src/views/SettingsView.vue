@@ -144,90 +144,95 @@ onMounted(() => {
 
 						<!-- Cookie 列表表格 -->
 						<div v-else-if="sources.length > 0" class="overflow-x-auto">
-								<table class="w-full">
-									<thead>
-										<tr class="border-b border-white/[0.08]">
-											<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
-												下载源
-											</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
-												Cookie 状态
-											</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
-												更新时间
-											</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
-												操作
-											</th>
-										</tr>
-									</thead>
-									<tbody>
-										<tr
-											v-for="source in sources"
-											:key="source.name"
-											class="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
-										>
-											<td class="py-4 px-4 text-[#f4f4f5] font-medium">
-												{{ source.name }}
-											</td>
-											<td class="py-4 px-4">
-												<span
+							<table class="w-full">
+								<thead>
+									<tr class="border-b border-white/[0.08]">
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+											下载源
+										</th>
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+											Cookie 状态
+										</th>
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+											更新时间
+										</th>
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+											操作
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr
+										v-for="source in sources"
+										:key="source.name"
+										class="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+									>
+										<td class="py-4 px-4 text-[#f4f4f5] font-medium">
+											{{ source.name }}
+										</td>
+										<td class="py-4 px-4">
+											<span
+												v-if="source.hasCookie"
+												class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm"
+											>
+												<span>✓</span>
+												<span>已设置</span>
+											</span>
+											<span
+												v-else
+												class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm"
+											>
+												<span>✗</span>
+												<span>未设置</span>
+											</span>
+										</td>
+										<td class="py-4 px-4 text-sm text-[#71717a]">
+											{{ source.lastUpdate || '-' }}
+										</td>
+										<td class="py-4 px-4">
+											<div class="flex gap-2">
+												<button
 													v-if="source.hasCookie"
-													class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm"
+													class="px-3 py-1.5 rounded-lg bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
 												>
-													<span>✓</span>
-													<span>已设置</span>
-												</span>
-												<span
-													v-else
-													class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm"
+													查看
+												</button>
+												<button
+													class="px-3 py-1.5 rounded-lg bg-[#ff6b6b]/10 text-[#ff6b6b] text-sm border border-[#ff6b6b]/20 hover:bg-[#ff6b6b]/20 transition-all"
 												>
-													<span>✗</span>
-													<span>未设置</span>
-												</span>
-											</td>
-											<td class="py-4 px-4 text-sm text-[#71717a]">
-												{{ source.lastUpdate || '-' }}
-											</td>
-											<td class="py-4 px-4">
-												<div class="flex gap-2">
-													<button
-														v-if="source.hasCookie"
-														class="px-3 py-1.5 rounded-lg bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
-													>
-														查看
-													</button>
-													<button
-														class="px-3 py-1.5 rounded-lg bg-[#ff6b6b]/10 text-[#ff6b6b] text-sm border border-[#ff6b6b]/20 hover:bg-[#ff6b6b]/20 transition-all"
-													>
-														{{ source.hasCookie ? '更新' : '设置' }}
-													</button>
-													<button
-														class="px-3 py-1.5 rounded-lg bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
-													>
-														自动获取
-													</button>
-													<button
-														v-if="source.hasCookie"
-														class="px-3 py-1.5 rounded-lg bg-white/5 text-red-400 text-sm border border-white/[0.08] hover:bg-red-500/10 hover:border-red-500/20 transition-all"
-													>
-														删除
-													</button>
-												</div>
-											</td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
+													{{ source.hasCookie ? '更新' : '设置' }}
+												</button>
+												<button
+													class="px-3 py-1.5 rounded-lg bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
+												>
+													自动获取
+												</button>
+												<button
+													v-if="source.hasCookie"
+													class="px-3 py-1.5 rounded-lg bg-white/5 text-red-400 text-sm border border-white/[0.08] hover:bg-red-500/10 hover:border-red-500/20 transition-all"
+												>
+													删除
+												</button>
+											</div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
 
-							<!-- 空状态提示 -->
-							<div v-if="!loading && sources.length === 0" class="text-center py-12 text-[#71717a]">
-								<div class="text-4xl mb-3">
-									📭
-								</div>
-								<p>
-									暂无可用的下载源
-								</p>
+						<!-- 空状态提示 -->
+						<div v-else class="text-center py-12 text-[#71717a]">
+							<div class="text-4xl mb-3">
+								📭
+							</div>
+							<p>
+								暂无可用的下载源
+							</p>
+						</div>
+
+						<!-- 提示信息 -->
+						<div v-if="sources.length > 0" class="mt-6 p-4 rounded-lg bg-[#4ecdc4]/5 border border-[#4ecdc4]/20">
+							<div class="flex gap-3">
 								<span class="text-[#4ecdc4] text-lg flex-shrink-0">ℹ️</span>
 								<div class="text-sm text-[#a1a1aa]">
 									<p class="mb-2">

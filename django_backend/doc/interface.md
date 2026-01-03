@@ -101,6 +101,33 @@ POST /nassav/api/source/cookie
 
 ---
 
+## 清除源 Cookie
+
+- 方法：DELETE
+- 路径：`/nassav/api/source/cookie`
+- 参数：
+  - `source`: 源名称（必填，Query 参数）
+- 功能：清除指定源的 Cookie（设为空字符串）
+
+示例请求：
+```
+DELETE /nassav/api/source/cookie?source=missav
+```
+
+返回示例：
+```json
+{
+  "code": 200,
+  "message": "Cookie 已清除",
+  "data": {
+    "source": "missav",
+    "cookie_set": false
+  }
+}
+```
+
+---
+
 ## 资源列表（服务端过滤/搜索/排序/分页）
 
 - 方法：GET

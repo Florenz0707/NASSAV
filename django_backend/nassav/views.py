@@ -72,7 +72,10 @@ class SourceCookieView(APIView):
     POST /api/source/cookie
     设置或自动获取指定源的 Cookie。
 
-    Request JSON:
+    DELETE /api/source/cookie?source=xxx
+    清除指定源的 Cookie。
+
+    Request JSON (POST):
       - source: 源名称 (required)
       - cookie: 手动设置的 cookie (optional)
       - auto: 是否自动获取 cookie (boolean, optional)
@@ -90,7 +93,7 @@ class SourceCookieView(APIView):
         data = request.data or {}
         source_name = data.get("source")
         cookie = data.get("cookie")
-        auto = cookie == "auto"
+        auto = data.get("auto", False)
 
         if not source_name:
             return Response(
@@ -169,6 +172,30 @@ class SourceCookieView(APIView):
             {"code": 400, "message": "未提供 cookie 且 auto 未设置为 True", "data": None},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    def delete(self, request):
+        """删除指定源的 Cookie（设为空）"""
+        source_name = request.query_params.get("source")
+        if not source_name:
+            return Response(
+                {"code": 400, "message": "source 参数缺失", "data": None},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        success = source_manager.set_source_cookie(source_name, "")
+        if success:
+            return Response(
+                {
+                    "code": 200,
+                    "message": "Cookie 已清除",
+                    "data": {"source": source_name, "cookie_set": False},
+                }
+            )
+        else:
+            return Response(
+                {"code": 500, "message": "清除 Cookie 失败", "data": None},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ResourcesListView(APIView):
