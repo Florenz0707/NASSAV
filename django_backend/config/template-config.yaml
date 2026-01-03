@@ -27,8 +27,6 @@ Source:
     domain: memojav.com
     weight: 600
 
-# 用于显示的标题（title | source_title | translated_title）
-DisplayTitle: source_title
 
 # 翻译器配置
 # 用于将日语标题翻译为中文

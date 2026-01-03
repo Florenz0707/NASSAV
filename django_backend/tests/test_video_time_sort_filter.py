@@ -20,13 +20,13 @@ class VideoTimeSortFilterTestCase(TestCase):
         # 创建已下载的资源
         self.downloaded_resource1 = AVResource.objects.create(
             avid="TEST-001",
-            title="已下载资源1",
+            original_title="已下载资源1",
             file_exists=True,
             video_saved_at=timezone.now() - timezone.timedelta(days=2),
         )
         self.downloaded_resource2 = AVResource.objects.create(
             avid="TEST-002",
-            title="已下载资源2",
+            original_title="已下载资源2",
             file_exists=True,
             video_saved_at=timezone.now() - timezone.timedelta(days=1),
         )
@@ -34,13 +34,13 @@ class VideoTimeSortFilterTestCase(TestCase):
         # 创建未下载的资源
         self.pending_resource1 = AVResource.objects.create(
             avid="TEST-003",
-            title="未下载资源1",
+            original_title="未下载资源1",
             file_exists=False,
             video_saved_at=None,
         )
         self.pending_resource2 = AVResource.objects.create(
             avid="TEST-004",
-            title="未下载资源2",
+            original_title="未下载资源2",
             file_exists=False,
             video_saved_at=None,
         )

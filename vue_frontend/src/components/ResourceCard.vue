@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { downloadApi, resourceApi } from '../api'
 import { useToastStore } from '../stores/toast'
+import { useSettingsStore } from '../stores/settings'
 import { RouterLink, useRoute } from 'vue-router'
 import ConfirmDialog from './ConfirmDialog.vue'
 
@@ -34,6 +35,7 @@ if (typeof emit === 'function') {
 }
 
 const route = useRoute()
+const settingsStore = useSettingsStore()
 const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 const coverUrl = ref(placeholder)
 let observer = null
@@ -83,6 +85,25 @@ const statusClass = computed(() => ({
 	downloaded: props.resource.has_video,
 	pending: !props.resource.has_video
 }))
+
+// 根据设置选择显示的标题
+const displayedTitle = computed(() => {
+	const titleField = settingsStore.displayTitle
+	const resource = props.resource
+
+	if (titleField === 'original_title' && resource.original_title) {
+		return resource.original_title
+	}
+	if (titleField === 'source_title' && resource.source_title) {
+		return resource.source_title
+	}
+	if (titleField === 'translated_title' && resource.translated_title) {
+		return resource.translated_title
+	}
+
+	// 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
+	return resource.translated_title || resource.source_title || resource.original_title || resource.title || resource.avid
+})
 
 const toastStore = useToastStore()
 const showDeleteMenu = ref(false)
@@ -205,7 +226,7 @@ onUnmounted(() => {
 					</span>
 				</label>
 			</template>
-			<img :data-avid="resource.avid" :src="coverUrl" :alt="resource.title" loading="lazy"
+			<img :data-avid="resource.avid" :src="coverUrl" :alt="displayedTitle" loading="lazy"
 				class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" >
 			<div
 				class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -236,8 +257,8 @@ onUnmounted(() => {
 
 			<!-- 标题 -->
 			<h3 class="text-base font-medium text-[#f4f4f5] leading-[1.4] mb-3 line-clamp-2 min-h-[2.8em]"
-				:title="resource.title">
-				{{ resource.title }}
+				:title="displayedTitle">
+				{{ displayedTitle }}
 			</h3>
 
 			<!-- 元信息 -->

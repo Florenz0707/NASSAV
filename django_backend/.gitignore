@@ -12,3 +12,6 @@ tools/*
 
 config/config.yaml
 db.sqlite3
+
+# User settings
+config/user_settings.ini

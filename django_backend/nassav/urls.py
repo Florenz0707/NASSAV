@@ -7,8 +7,10 @@ app_name = "nassav"
 urlpatterns = [
     # GET /api/source/list - 获取可用的下载源列表
     path("api/source/list", views.SourceListView.as_view(), name="source-list"),
-    # POST /api/source/cookie - 设置源的Cookie
+    # GET/POST/DELETE /api/source/cookie - 源Cookie管理
     path("api/source/cookie", views.SourceCookieView.as_view(), name="source-cookie"),
+    # GET/PUT /api/setting - 用户设置管理
+    path("api/setting", views.UserSettingView.as_view(), name="user-setting"),
     # GET /api/resources/ - 统一资源列表（过滤/分页）
     path("api/resources/", views.ResourcesListView.as_view(), name="resources-list"),
     # GET /api/actors/ - 演员列表及作品数（分页）

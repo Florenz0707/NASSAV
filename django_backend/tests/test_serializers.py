@@ -29,7 +29,7 @@ class SerializersTest(TestCase):
     def setUp(self):
         self.res = AVResource.objects.create(
             avid="TEST-001",
-            title="Test Title",
+            original_title="Test Title",
             source="Jable",
             release_date="2025-01-01",
             file_exists=True,
@@ -45,15 +45,19 @@ class SerializersTest(TestCase):
         ser = ResourceSummarySerializer(self.res)
         data = ser.data
         self.assertEqual(data["avid"], "TEST-001")
-        self.assertEqual(data["title"], "Test Title")
+        self.assertEqual(data["original_title"], "Test Title")
         self.assertEqual(data["source"], "Jable")
         self.assertTrue(data["has_video"])
         self.assertIn("metadata_create_time", data)
+        # 验证同时返回三个标题字段
+        self.assertIn("original_title", data)
+        self.assertIn("source_title", data)
+        self.assertIn("translated_title", data)
 
     def test_resource_serializer_from_metadata_dict(self):
         metadata = {
             "avid": "TEST-002",
-            "title": "Meta Title",
+            "original_title": "Meta Title",
             "m3u8": "https://example.com/stream.m3u8",
             "source": "MissAV",
             "release_date": "2025-02-02",

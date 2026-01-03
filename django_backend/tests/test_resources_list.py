@@ -28,11 +28,15 @@ class ResourcesListTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         # create several resources
-        AVResource.objects.create(avid="A-1", title="A1", source="S1", file_exists=True)
         AVResource.objects.create(
-            avid="A-2", title="A2", source="S2", file_exists=False
+            avid="A-1", original_title="A1", source="S1", file_exists=True
         )
-        AVResource.objects.create(avid="B-1", title="B1", source="S1", file_exists=True)
+        AVResource.objects.create(
+            avid="A-2", original_title="A2", source="S2", file_exists=False
+        )
+        AVResource.objects.create(
+            avid="B-1", original_title="B1", source="S1", file_exists=True
+        )
 
     def test_resources_list_no_filter(self):
         resp = self.client.get("/nassav/api/resources/")

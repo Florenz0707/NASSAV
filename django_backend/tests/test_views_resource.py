@@ -74,7 +74,7 @@ class ViewsResourceTest(TestCase):
                 pass
 
     def test_resource_metadata_with_db(self):
-        AVResource.objects.create(avid="DB-001", title="D", source="Jable")
+        AVResource.objects.create(avid="DB-001", original_title="D", source="Jable")
         resp = self.client.get("/nassav/api/resource/metadata", {"avid": "DB-001"})
         self.assertEqual(resp.status_code, 200)
         body = resp.json()

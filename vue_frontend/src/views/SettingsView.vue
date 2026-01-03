@@ -9,12 +9,12 @@ const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 
 // 当前选中的设置菜单项
-const activeMenu = ref('cookies')
+const activeMenu = ref('general')
 
 // 设置菜单项
 const menuItems = [
-	{ id: 'cookies', name: 'Cookie 管理', icon: '🍪' },
-	{ id: 'general', name: '通用设置', icon: '⚙️' }
+	{ id: 'general', name: '通用设置', icon: '⚙️' },
+	{ id: 'cookies', name: 'Cookie 管理', icon: '🍪' }
 ]
 
 // 下载源列表数据
@@ -344,25 +344,54 @@ onMounted(() => {
 								<h3 class="text-sm font-medium text-[#a1a1aa] mb-4 uppercase tracking-wider">
 									显示设置
 								</h3>
-								<div class="flex items-center justify-between">
-									<div>
-										<div class="text-[#f4f4f5] font-medium">
-											显示女优头像
+								<div class="space-y-4">
+									<!-- 女优头像开关 -->
+									<div class="flex items-center justify-between">
+										<div>
+											<div class="text-[#f4f4f5] font-medium">
+												显示女优头像
+											</div>
+											<div class="text-sm text-[#71717a]">
+												在列表和详情页中渲染女优头像图片
+											</div>
 										</div>
-										<div class="text-sm text-[#71717a]">
-											在列表和详情页中渲染女优头像图片
-										</div>
+										<button
+											class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
+											:class="settingsStore.showActorAvatar ? 'bg-[#ff6b6b]' : 'bg-[#27272a]'"
+											@click="settingsStore.showActorAvatar = !settingsStore.showActorAvatar"
+										>
+											<span
+												class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+												:class="settingsStore.showActorAvatar ? 'translate-x-6' : 'translate-x-1'"
+											/>
+										</button>
 									</div>
-									<button
-										class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
-										:class="settingsStore.showActorAvatar ? 'bg-[#ff6b6b]' : 'bg-[#27272a]'"
-										@click="settingsStore.showActorAvatar = !settingsStore.showActorAvatar"
-									>
-										<span
-											class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-											:class="settingsStore.showActorAvatar ? 'translate-x-6' : 'translate-x-1'"
-										/>
-									</button>
+
+									<!-- 标题显示字段 -->
+									<div class="flex items-center justify-between pt-4 border-t border-white/[0.05]">
+										<div>
+											<div class="text-[#f4f4f5] font-medium">
+												标题显示字段
+											</div>
+											<div class="text-sm text-[#71717a]">
+												选择在资源列表中显示的标题类型
+											</div>
+										</div>
+										<select
+											v-model="settingsStore.displayTitle"
+											class="px-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-[#f4f4f5] text-sm focus:outline-none focus:border-[#ff6b6b]/50 transition-all cursor-pointer"
+										>
+											<option value="translated_title">
+												翻译标题
+											</option>
+											<option value="source_title">
+												源站标题
+											</option>
+											<option value="original_title">
+												原始标题
+											</option>
+										</select>
+									</div>
 								</div>
 							</div>
 

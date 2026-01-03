@@ -66,11 +66,11 @@ class AVResource(models.Model):
     ]
 
     avid = models.CharField(max_length=50, unique=True, db_index=True)
-    title = models.CharField(
+    original_title = models.CharField(
         max_length=512,
         blank=True,
         db_index=True,
-        help_text="Scraper 获取的标题（通常为日语，来自 Javbus）",
+        help_text="Scraper 获取的原始标题（通常为日语，来自 Javbus）",
     )
     source_title = models.CharField(
         max_length=512,
@@ -115,9 +115,9 @@ class AVResource(models.Model):
         ordering = ["-metadata_saved_at"]
         indexes = [
             models.Index(fields=["avid"]),
-            models.Index(fields=["title"]),
+            models.Index(fields=["original_title"]),
             models.Index(fields=["source"]),
         ]
 
     def __str__(self):
-        return f"{self.avid} - {self.title}"
+        return f"{self.avid} - {self.original_title}"

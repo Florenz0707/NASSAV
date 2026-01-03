@@ -12,7 +12,7 @@ from nassav.models import Actor, AVResource
 def test_actor_with_placeholder_avatar_returns_none(client):
     """测试有占位图的演员返回 None"""
     # 创建资源和演员
-    resource = AVResource.objects.create(avid="TEST-001", title="Test")
+    resource = AVResource.objects.create(avid="TEST-001", original_title="Test")
     actor = Actor.objects.create(
         name="测试演员",
         avatar_url=ACTOR_AVATAR_PLACEHOLDER_URLS[0],  # nowprinting.gif
@@ -35,7 +35,7 @@ def test_actor_with_placeholder_avatar_returns_none(client):
 @pytest.mark.django_db
 def test_actor_with_valid_avatar_returns_url(client):
     """测试有真实头像的演员正常返回"""
-    resource = AVResource.objects.create(avid="TEST-002", title="Test")
+    resource = AVResource.objects.create(avid="TEST-002", original_title="Test")
     actor = Actor.objects.create(
         name="真实演员",
         avatar_url="https://www.javbus.com/pics/actress/123_a.jpg",
@@ -55,7 +55,7 @@ def test_actor_with_valid_avatar_returns_url(client):
 @pytest.mark.django_db
 def test_actor_without_avatar_returns_none(client):
     """测试没有头像的演员返回 None"""
-    resource = AVResource.objects.create(avid="TEST-003", title="Test")
+    resource = AVResource.objects.create(avid="TEST-003", original_title="Test")
     actor = Actor.objects.create(
         name="无头像演员",
         avatar_url=None,
@@ -75,7 +75,7 @@ def test_actor_without_avatar_returns_none(client):
 @pytest.mark.django_db
 def test_mixed_actors_filters_correctly(client):
     """测试混合场景：占位图、真实头像、无头像"""
-    resource = AVResource.objects.create(avid="TEST-004", title="Test")
+    resource = AVResource.objects.create(avid="TEST-004", original_title="Test")
 
     actor1 = Actor.objects.create(
         name="占位图演员",

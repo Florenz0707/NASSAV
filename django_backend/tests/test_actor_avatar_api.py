@@ -23,7 +23,9 @@ def test_actor_avatar_full_flow():
     assert actor.updated_at is not None
 
     # 创建一个资源并关联演员
-    resource = AVResource.objects.create(avid="TEST-001", title="测试作品", source="test")
+    resource = AVResource.objects.create(
+        avid="TEST-001", original_title="测试作品", source="test"
+    )
     resource.actors.add(actor)
 
     # 测试API返回头像字段
@@ -53,7 +55,9 @@ def test_actor_without_avatar():
 
     # 创建没有头像的演员
     actor = Actor.objects.create(name="无头像演员")
-    resource = AVResource.objects.create(avid="TEST-002", title="测试作品2", source="test")
+    resource = AVResource.objects.create(
+        avid="TEST-002", original_title="测试作品2", source="test"
+    )
     resource.actors.add(actor)
 
     client = APIClient()

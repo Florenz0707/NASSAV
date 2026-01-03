@@ -4,12 +4,15 @@ import {RouterView} from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Toast from './components/Toast.vue'
 import {useWebSocketStore} from './stores/websocket'
+import {useSettingsStore} from './stores/settings'
 
 const wsStore = useWebSocketStore()
+const settingsStore = useSettingsStore()
 
-// 应用启动时立即连接 WebSocket
+// 应用启动时立即连接 WebSocket 并加载用户设置
 onMounted(() => {
 	wsStore.connect()
+	settingsStore.loadSettings()
 })
 </script>
 

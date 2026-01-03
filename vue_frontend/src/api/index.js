@@ -64,6 +64,14 @@ export const sourceApi = {
     deleteCookie: (source) => api.delete('/source/cookie', { params: { source } })
 }
 
+// 用户设置管理
+export const settingsApi = {
+    // 获取用户设置
+    get: () => api.get('/setting'),
+    // 更新用户设置（支持部分更新）
+    update: (payload) => api.put('/setting', payload)
+}
+
 // 演员管理
 export const actorApi = {
     // 获取演员列表（聚合统计）

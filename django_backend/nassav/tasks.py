@@ -787,7 +787,7 @@ def translate_title_task(self, avid: str):
             }
 
         # 获取待翻译的标题
-        title_to_translate = resource.title or resource.source_title
+        title_to_translate = resource.original_title or resource.source_title
         if not title_to_translate:
             logger.warning(f"[翻译任务] {avid} 没有可翻译的标题")
             resource.translation_status = "skipped"
@@ -913,7 +913,7 @@ def batch_translate_titles_task(
         texts = []
         resource_list = list(AVResource.objects.filter(query))  # 重新获取
         for r in resource_list:
-            texts.append(r.title or r.source_title or "")
+            texts.append(r.original_title or r.source_title or "")
 
         # 批量翻译
         results = translator_manager.batch_translate(texts)
@@ -925,7 +925,7 @@ def batch_translate_titles_task(
 
         for idx, translation in enumerate(results):
             resource = resource_list[idx]
-            if not (resource.title or resource.source_title):
+            if not (resource.original_title or resource.source_title):
                 resource.translation_status = "skipped"
                 resource.save(update_fields=["translation_status"])
                 skipped_count += 1

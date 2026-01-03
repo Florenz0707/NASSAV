@@ -35,22 +35,22 @@ class GenresAPITest(TestCase):
 
         # create resources and link genres
         r1 = AVResource.objects.create(
-            avid="GEN-1", title="With 中文字幕", source="S1", file_exists=True
+            avid="GEN-1", original_title="With 中文字幕", source="S1", file_exists=True
         )
         r1.genres.add(g1)
 
         r2 = AVResource.objects.create(
-            avid="GEN-2", title="With 人妻", source="S1", file_exists=False
+            avid="GEN-2", original_title="With 人妻", source="S1", file_exists=False
         )
         r2.genres.add(g2)
 
         r3 = AVResource.objects.create(
-            avid="GEN-3", title="中文字幕 and 人妻", source="S2", file_exists=True
+            avid="GEN-3", original_title="中文字幕 and 人妻", source="S2", file_exists=True
         )
         r3.genres.add(g1, g2)
 
         r4 = AVResource.objects.create(
-            avid="GEN-4", title="素人作品", source="S3", file_exists=True
+            avid="GEN-4", original_title="素人作品", source="S3", file_exists=True
         )
         r4.genres.add(g3)
 

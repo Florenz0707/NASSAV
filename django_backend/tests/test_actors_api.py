@@ -33,17 +33,17 @@ class ActorsAPITest(TestCase):
 
         # create resources and link actors
         r1 = AVResource.objects.create(
-            avid="ACT-1", title="With Alice", source="S1", file_exists=True
+            avid="ACT-1", original_title="With Alice", source="S1", file_exists=True
         )
         r1.actors.add(a1)
 
         r2 = AVResource.objects.create(
-            avid="ACT-2", title="With Bob", source="S1", file_exists=False
+            avid="ACT-2", original_title="With Bob", source="S1", file_exists=False
         )
         r2.actors.add(a2)
 
         r3 = AVResource.objects.create(
-            avid="ACT-3", title="Alice and Bob", source="S2", file_exists=True
+            avid="ACT-3", original_title="Alice and Bob", source="S2", file_exists=True
         )
         r3.actors.add(a1, a2)
 
@@ -52,8 +52,15 @@ class ActorsAPITest(TestCase):
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
         self.assertEqual(body["code"], 200)
-        names = [item["title"] for item in body["data"]]
-        self.assertTrue(any("Alice" in n for n in names))
+        # 检查三个标题字段中是否有包含 "Alice" 的
+        items = body["data"]
+        found_alice = any(
+            "Alice" in (item.get("original_title") or "")
+            or "Alice" in (item.get("source_title") or "")
+            or "Alice" in (item.get("translated_title") or "")
+            for item in items
+        )
+        self.assertTrue(found_alice)
 
     def test_actor_filter_by_id(self):
         alice = Actor.objects.get(name="Alice")

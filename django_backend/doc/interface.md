@@ -12,6 +12,75 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ---
 
+## 获取用户设置
+
+- 方法：GET
+- 路径：`/nassav/api/setting`
+- 功能：获取用户前端显示配置
+- 返回示例：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "enable_avatar": "true",
+    "display_title": "source_title"
+  }
+}
+```
+
+**配置项说明**：
+- `enable_avatar`: 是否显示演员头像（`"true"` 或 `"false"`）
+- `display_title`: 前端显示哪个标题字段
+  - `"original_title"`: 显示原始日语标题
+  - `"source_title"`: 显示下载源标题（默认）
+  - `"translated_title"`: 显示翻译后的中文标题
+
+---
+
+## 更新用户设置
+
+- 方法：PUT
+- 路径：`/nassav/api/setting`
+- 功能：更新用户前端显示配置
+- 请求 Body（支持部分更新）：
+  - `enable_avatar`: `"true"` 或 `"false"`（可选）
+  - `display_title`: `"original_title"` | `"source_title"` | `"translated_title"`（可选）
+
+示例请求：
+```json
+PUT /nassav/api/setting
+{
+  "enable_avatar": "false",
+  "display_title": "translated_title"
+}
+```
+
+返回示例：
+```json
+{
+  "code": 200,
+  "message": "设置已更新",
+  "data": {
+    "enable_avatar": "false",
+    "display_title": "translated_title"
+  }
+}
+```
+
+错误响应示例（无效值）：
+```json
+{
+  "code": 400,
+  "message": "参数验证失败",
+  "data": {
+    "display_title": ["display_title 必须是 original_title, source_title, translated_title 之一"]
+  }
+}
+```
+
+---
+
 ## 获取可用下载源列表
 
 - 方法：GET
@@ -133,7 +202,7 @@ DELETE /nassav/api/source/cookie?source=missav
 - 方法：GET
 - 路径：`/nassav/api/resources/`
 - 支持 Query 参数：
-  - `search`：按 `avid` 或 `title` 模糊匹配（case-insensitive）
+  - `search`：按 `avid` 或各标题字段模糊匹配（case-insensitive）
   - `status`：`downloaded|pending|all`（等同于 file_exists）
   - `sort_by`：`avid|metadata_create_time|video_create_time|source`
   - `order`：`asc|desc`
@@ -153,14 +222,34 @@ GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
 
 返回：`data` 为数组（资源摘要），响应内含 `pagination` 字段：
 
-```
+```json
 {
   "code": 200,
   "message": "success",
-  "data": [ {"avid": "ABC-123", "title": "...", ...}, ... ],
+  "data": [
+    {
+      "avid": "ABC-123",
+      "original_title": "日语原标题",
+      "source_title": "下载源标题",
+      "translated_title": "中文翻译标题",
+      "source": "missav",
+      "release_date": "2025-01-01",
+      "has_video": true,
+      "metadata_create_time": 1704067200,
+      "video_create_time": 1704070800,
+      "genres": ["类别1", "类别2"],
+      "thumbnail_url": "/nassav/api/resource/cover?avid=ABC-123&size=medium&v=1704067200"
+    }
+  ],
   "pagination": { "total": 120, "page": 1, "page_size": 18, "pages": 7 }
 }
 ```
+
+**标题字段说明**：
+- `original_title`: Scraper（Javbus）获取的原始标题，通常为日语
+- `source_title`: 下载源（MissAV/Jable 等）提供的标题
+- `translated_title`: 由翻译器生成的中文标题
+- 前端可根据需要选择显示哪个标题，或按优先级回退
 
 ---
 
@@ -301,7 +390,14 @@ GET /nassav/api/resource/ABC-123/preview
   "code": 200,
   "message": "success",
   "data": {
-    "metadata": { "avid":"ABC-123", "title":"...", "source": "missav", ... },
+    "metadata": {
+      "avid": "ABC-123",
+      "original_title": "日语原标题",
+      "source_title": "下载源标题",
+      "translated_title": "中文翻译标题",
+      "source": "missav",
+      ...
+    },
     "thumbnail_url": "/nassav/api/resource/cover?avid=ABC-123&size=small&v=1681234567"
   }
 }
@@ -317,11 +413,11 @@ GET /nassav/api/resource/ABC-123/preview
 - 路径：`/nassav/api/resource/metadata?avid=<AVID>`
 - 功能：获取资源完整元数据（演员、类别、时长等）
 - 说明：
-  - `title` 字段根据 `config.yaml` 中 `DisplayTitle` 配置返回（source_title/translated_title/title）
+  - 返回三个标题字段：`original_title`（日语）、`source_title`（下载源）、`translated_title`（中文）
   - 若需要 m3u8 链接，请使用刷新接口获取
 - 支持条件请求（ETag/Last-Modified），返回 304 节省带宽
 
-返回字段：`avid`, `title`, `source`, `release_date`, `duration`, `director`, `studio`, `label`, `series`, `actors[]`, `genres[]`, `file_exists`, `file_size`
+返回字段：`avid`, `original_title`, `source_title`, `translated_title`, `source`, `release_date`, `duration`, `director`, `studio`, `label`, `series`, `actors[]`, `genres[]`, `file_exists`, `file_size`
 
 ---
 

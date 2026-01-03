@@ -110,8 +110,8 @@ def test_batch_translation(count: int = 5):
 
     # 从数据库随机选取资源
     resources = (
-        AVResource.objects.filter(title__isnull=False)
-        .exclude(title="")
+        AVResource.objects.filter(original_title__isnull=False)
+        .exclude(original_title="")
         .order_by("?")[:count]
     )
 
@@ -196,16 +196,18 @@ def test_database_samples(count: int = 10):
     print(f"测试 5: 数据库真实样本测试（{count} 条）")
     print("=" * 60)
 
-    # 选取既有 title（日语）又有 source_title（中文）的资源进行对比
+    # 选取既有 original_title（日语）又有 source_title（中文）的资源进行对比
     resources = (
-        AVResource.objects.filter(title__isnull=False, source_title__isnull=False)
-        .exclude(title="")
+        AVResource.objects.filter(
+            original_title__isnull=False, source_title__isnull=False
+        )
+        .exclude(original_title="")
         .exclude(source_title="")
         .order_by("?")[:count]
     )
 
     if not resources:
-        print("✗ 数据库中没有同时包含 title 和 source_title 的数据")
+        print("✗ 数据库中没有同时包含 original_title 和 source_title 的数据")
         return []
 
     translator = OllamaTranslator()

@@ -19,6 +19,8 @@ from .serializers import (
     NewResourceSerializer,
     SourceCookieListSerializer,
     SourceCookieSerializer,
+    UserSettingSerializer,
+    UserSettingUpdateSerializer,
 )
 from .services import list_resources, source_manager
 from .utils import (
@@ -41,7 +43,9 @@ def _serialize_resource_obj(resource):
 
     return {
         "avid": resource.avid,
-        "title": resource.title or "",
+        "original_title": resource.original_title or "",
+        "source_title": resource.source_title or "",
+        "translated_title": resource.translated_title or "",
         "m3u8": resource.m3u8 or "",
         "source": resource.source or "",
         "release_date": resource.release_date or "",
@@ -194,6 +198,77 @@ class SourceCookieView(APIView):
         else:
             return Response(
                 {"code": 500, "message": "清除 Cookie 失败", "data": None},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class UserSettingView(APIView):
+    """
+    GET /api/setting
+    获取用户设置。
+
+    PUT /api/setting
+    更新用户设置。
+    """
+
+    def get(self, request):
+        """获取所有用户设置"""
+        from nassav.user_settings import get_settings_manager
+
+        try:
+            settings_manager = get_settings_manager()
+            settings = settings_manager.get_all()
+            serializer = UserSettingSerializer(settings)
+            return Response(
+                {"code": 200, "message": "success", "data": serializer.data}
+            )
+        except Exception as e:
+            logger.error(f"获取用户设置失败: {e}")
+            return Response(
+                {"code": 500, "message": f"获取设置失败: {str(e)}", "data": None},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def put(self, request):
+        """更新用户设置"""
+        from nassav.user_settings import get_settings_manager
+
+        serializer = UserSettingUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"code": 400, "message": "参数验证失败", "data": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            settings_manager = get_settings_manager()
+            results = settings_manager.update_batch(serializer.validated_data)
+
+            # 检查是否有更新失败的项
+            failed = {k: v for k, v in results.items() if not v}
+            if failed:
+                return Response(
+                    {
+                        "code": 500,
+                        "message": "部分设置更新失败",
+                        "data": {"failed": list(failed.keys())},
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            # 返回更新后的所有设置
+            updated_settings = settings_manager.get_all()
+            return Response(
+                {
+                    "code": 200,
+                    "message": "设置已更新",
+                    "data": UserSettingSerializer(updated_settings).data,
+                }
+            )
+        except Exception as e:
+            logger.error(f"更新用户设置失败: {e}")
+            return Response(
+                {"code": 500, "message": f"更新设置失败: {str(e)}", "data": None},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -558,7 +633,9 @@ class ResourcePreviewView(APIView):
                 if resource.metadata
                 else {
                     "avid": resource.avid,
-                    "title": resource.title,
+                    "original_title": resource.original_title,
+                    "source_title": resource.source_title,
+                    "translated_title": resource.translated_title,
                     "source": resource.source,
                     "release_date": resource.release_date,
                 }
@@ -656,27 +733,11 @@ class ResourceMetadataView(APIView):
             if not resource:
                 return build_response(404, f"资源 {avid} 的元数据不存在", None)
 
-            # 构建返回值，title 根据 DisplayTitle 配置返回
-            from django.conf import settings
-
-            display_title_config = getattr(settings, "DISPLAY_TITLE", "source_title")
-
-            # 根据配置返回 title
-            if display_title_config == "translated_title":
-                display_title = (
-                    resource.translated_title
-                    or resource.source_title
-                    or resource.title
-                    or ""
-                )
-            elif display_title_config == "title":
-                display_title = resource.title or resource.source_title or ""
-            else:  # 默认 source_title
-                display_title = resource.source_title or resource.title or ""
-
             metadata = {
                 "avid": resource.avid,
-                "title": display_title,
+                "original_title": resource.original_title or "",
+                "source_title": resource.source_title or "",
+                "translated_title": resource.translated_title or "",
                 "source": resource.source or "",
                 "release_date": resource.release_date or "",
                 "duration": f"{resource.duration // 60}分钟" if resource.duration else "",
@@ -780,7 +841,9 @@ class ResourceView(APIView):
                     "资源已存在",
                     {
                         "avid": existing.avid,
-                        "title": existing.title or "",
+                        "original_title": existing.original_title or "",
+                        "source_title": existing.source_title or "",
+                        "translated_title": existing.translated_title or "",
                         "source": existing.source or "",
                         "cover_downloaded": bool(existing.cover_filename),
                         "metadata_saved": True,

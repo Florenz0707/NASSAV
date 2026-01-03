@@ -21,13 +21,19 @@ class ActorsListFilterTestCase(TestCase):
 
         # 创建有作品的演员
         self.actor_with_works = Actor.objects.create(name="有作品的演员")
-        self.resource1 = AVResource.objects.create(avid="TEST-001", title="测试资源1")
+        self.resource1 = AVResource.objects.create(
+            avid="TEST-001", original_title="测试资源1"
+        )
         self.resource1.actors.add(self.actor_with_works)
 
         # 创建有多个作品的演员
         self.actor_with_multiple_works = Actor.objects.create(name="多作品演员")
-        self.resource2 = AVResource.objects.create(avid="TEST-002", title="测试资源2")
-        self.resource3 = AVResource.objects.create(avid="TEST-003", title="测试资源3")
+        self.resource2 = AVResource.objects.create(
+            avid="TEST-002", original_title="测试资源2"
+        )
+        self.resource3 = AVResource.objects.create(
+            avid="TEST-003", original_title="测试资源3"
+        )
         self.resource2.actors.add(self.actor_with_multiple_works)
         self.resource3.actors.add(self.actor_with_multiple_works)
 

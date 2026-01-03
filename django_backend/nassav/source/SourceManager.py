@@ -397,7 +397,9 @@ class SourceManager:
 
                 # 5. 提交异步翻译任务（Celery）
                 result["translate_task_submitted"] = False
-                title_to_translate = resource_obj.title or resource_obj.source_title
+                title_to_translate = (
+                    resource_obj.original_title or resource_obj.source_title
+                )
                 if title_to_translate and not resource_obj.translated_title:
                     try:
                         from nassav.tasks import submit_translate_task
@@ -457,7 +459,7 @@ class SourceManager:
 
             info = AVDownloadInfo(
                 m3u8=resource.m3u8 or "",
-                title=resource.title or "",
+                title=resource.original_title or "",
                 avid=resource.avid or "",
                 source=resource.source or "",
             )
