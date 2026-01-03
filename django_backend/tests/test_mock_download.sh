@@ -23,8 +23,6 @@ DEFAULT_AVIDS=(
     "SSIS-465"
     "ABF-139"
     "DASS-002"
-    "IPX-416"
-    "SONE-247"
 )
 
 # 模拟下载持续时间（秒）

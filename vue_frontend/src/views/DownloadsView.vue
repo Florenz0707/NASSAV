@@ -1,5 +1,6 @@
 <script setup>
 import {computed, onBeforeUnmount, onUnmounted, ref, watch} from 'vue'
+import {useRouter} from 'vue-router'
 import {useResourceStore} from '../stores/resource'
 import {useWebSocketStore} from '../stores/websocket'
 import {useSettingsStore} from '../stores/settings'
@@ -8,6 +9,7 @@ import {resourceApi, taskApi} from '../api'
 const resourceStore = useResourceStore()
 const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
+const router = useRouter()
 
 const pollingTimer = ref(null)
 
@@ -166,6 +168,13 @@ function stopPolling() {
 	}
 }
 
+// 点击任务跳转到详情页
+function goToResourceDetail(task) {
+	if (task && task.avid) {
+		router.push(`/resource/${task.avid}`)
+	}
+}
+
 </script>
 
 <template>
@@ -206,6 +215,7 @@ function stopPolling() {
 					:key="task.task_id"
 					class="task-row"
 					:class="{ 'is-active': task.isActive }"
+					@click="goToResourceDetail(task)"
 				>
 					<!-- 左侧封面 -->
 					<div class="task-cover">
@@ -364,6 +374,7 @@ function stopPolling() {
 	border: 2px solid var(--border-color);
 	overflow: visible;
 	transition: all 0.3s ease;
+	cursor: pointer;
 }
 
 .task-row:hover {
