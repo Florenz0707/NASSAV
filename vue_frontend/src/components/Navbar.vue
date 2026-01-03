@@ -90,6 +90,15 @@ const goToResources = () => {
 						:class="{ 'opacity-100': isActive('/downloads'), 'opacity-80': !isActive('/downloads') }">⬇</span>
 					<span class="hidden md:inline">下载管理</span>
 				</RouterLink>
+
+				<!-- 设置 -->
+				<RouterLink to="/settings"
+					class="flex items-center gap-2 py-2.5 px-4 rounded-lg no-underline text-[#a1a1aa] text-sm font-medium transition-all duration-200 hover:text-[#f4f4f5] hover:bg-white/5"
+					:class="{ 'text-[#ff6b6b] bg-[#ff6b6b]/10': isActive('/settings') }">
+					<span class="text-base"
+						:class="{ 'opacity-100': isActive('/settings'), 'opacity-80': !isActive('/settings') }">⚙</span>
+					<span class="hidden md:inline">设置</span>
+				</RouterLink>
 			</div>
 		</div>
 	</nav>
