@@ -33,42 +33,47 @@
 - **端点**: `/api/downloads/list`, `/api/resource/metadata`, `/api/downloads/abspath`
 - **运行**: `python manage.py test tests.test_views_resource`
 
+#### 6. test_video_time_sort_filter.py
+- **功能**: 测试视频时间排序时的过滤逻辑
+- **覆盖**: 按 video_create_time 排序时只返回已下载资源
+- **运行**: `python manage.py test tests.test_video_time_sort_filter`
+
 ### 集成测试（Integration Tests）
 
-#### 6. test_ws.py
+#### 7. test_ws.py
 - **功能**: 测试 WebSocket 实时通信
 - **端点**: `/ws/tasks/`
 - **运行**: `python manage.py test tests.test_ws`
 - **依赖**: Redis 服务
 
-#### 7. test_translator.py
+#### 8. test_translator.py
 - **功能**: 测试 Ollama 翻译器功能
 - **运行**: `python tests/test_translator.py --batch --count 10`
 - **依赖**: Ollama 服务
 
-#### 8. test_translator_manager.py
+#### 9. test_translator_manager.py
 - **功能**: 测试翻译管理器和重试机制
 - **运行**: `python tests/test_translator_manager.py`
 - **依赖**: Ollama 服务
 
-#### 9. test_translation_cleaning.py
+#### 10. test_translation_cleaning.py
 - **功能**: 测试翻译结果后处理清理功能
 - **运行**: `uv run tests/test_translation_cleaning.py`
 - **说明**: 验证翻译结果中多余说明文字的清理效果
 
 ### Shell 脚本测试（Shell Script Tests）
 
-#### 10. test_api.sh
+#### 11. test_api.sh
 - **功能**: 综合 API 测试脚本
 - **运行**: `./tests/test_api.sh --verbose`
 - **依赖**: curl, jq (可选)
 
-#### 11. test_mock_download.sh
+#### 12. test_mock_download.sh
 - **功能**: 模拟下载任务批处理测试
 - **运行**: `./tests/test_mock_download.sh --duration 30`
 - **依赖**: curl, jq (可选)
 
-#### 12. test_websocket.sh
+#### 13. test_websocket.sh
 - **功能**: WebSocket 实时监听测试
 - **运行**: `./tests/test_websocket.sh`
 - **依赖**: wscat 或 websocket-client (Python)

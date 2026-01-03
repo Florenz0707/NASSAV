@@ -225,6 +225,10 @@ def list_resources(params):
 
     ordering = params.get("ordering")
     if ordering:
+        # 当按 video_saved_at 排序时，只返回已下载的视频
+        # 避免返回 video_saved_at 为 NULL 的未下载资源
+        if "video_saved_at" in ordering:
+            qs = qs.filter(file_exists=True, video_saved_at__isnull=False)
         qs = qs.order_by(ordering)
 
     # pagination
