@@ -48,9 +48,34 @@ class ScraperManager:
         for name, scraper in self.get_scrapers():
             metadata = scraper.scrape(avid)
             if metadata:
+                # 保存成功的scraper引用，供download_cover使用
+                self._last_successful_scraper = scraper
                 return metadata
         logger.warning(f"无法从任何刮削源获取 {avid} 的元数据")
         return None
+
+    def download_cover(self, url: str, save_path: str) -> bool:
+        """下载封面图片（委托给最近成功的scraper）
+
+        Args:
+            url: 封面图片URL
+            save_path: 保存路径
+
+        Returns:
+            bool: 下载成功返回True，否则返回False
+        """
+        # 使用最近成功刮削的scraper来下载封面（确保使用正确的domain和Referer）
+        if hasattr(self, "_last_successful_scraper"):
+            return self._last_successful_scraper.download_cover(url, save_path)
+
+        # 如果没有成功的scraper记录，尝试使用第一个注册的scraper
+        scrapers = self.get_scrapers()
+        if scrapers:
+            _, scraper = scrapers[0]
+            return scraper.download_cover(url, save_path)
+
+        logger.warning("没有可用的刮削器来下载封面")
+        return False
 
     def scrape_from_specific(self, avid: str, scraper_name: str) -> Optional[dict]:
         """

@@ -33,9 +33,9 @@
 
 - 新资源入库（SourceManager.save_all_resources）:
   - 从 scraper 得到 `AVDownloadInfo`（内存结构），包含 `title`, `avid`, `m3u8`, `actors`, `actor_avatars`, `genres`, `duration` 等。
-  - 将封面图片下载并保存到磁盘：`resource/{AVID}/{cover_filename}`，`cover_filename` 写入 `AVResource.cover_filename`。
+  - 封面下载策略：优先从 Javbus 刮削结果中获取封面URL（`cover_url` 字段），使用 `scraper.download_cover()` 下载（带Referer头绕过防护）；如果Javbus没有封面则回退到Source提供的封面URL，使用 `source.download_file()` 下载。封面保存到 `resource/cover/{AVID}.jpg`。
   - 将元数据写入 `AVResource`（`metadata` 保存原始 JSON），对 `actors`/`genres` 做 `get_or_create` 并设置 M2M 关系。
-  - 演员头像处理：从 `actor_avatars` 字典获取URL，更新 `Actor.avatar_url` 和 `avatar_filename`，自动下载头像图片到 `resource/avatar/` 目录。
+  - 演员头像处理：从 `actor_avatars` 字典获取URL，更新 `Actor.avatar_url` 和 `avatar_filename`，使用 `utils.download_avatar()` 下载（带Referer头），保存到 `resource/avatar/` 目录。
   - `duration` 的写入规则：若爬取值是字符串（如 "150分钟"），解析为秒并写入；如果同时存在本地 MP4，优先用 `ffprobe` 获取的秒数覆盖。
 
 - 下载任务完成（Celery `download_video_task`）:

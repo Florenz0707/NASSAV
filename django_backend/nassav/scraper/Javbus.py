@@ -146,6 +146,16 @@ class Javbus(ScraperBase):
             if director_match:
                 scrape_data["director"] = director_match.group(1).strip()
 
+            # 提取封面URL
+            cover_match = re.search(r'<a[^>]*class="bigImage"[^>]*href="([^"]+)"', html)
+            if cover_match:
+                cover_url = cover_match.group(1)
+                # 将相对路径转为完整URL
+                if cover_url.startswith("/"):
+                    scrape_data["cover_url"] = f"https://{self.domain}{cover_url}"
+                else:
+                    scrape_data["cover_url"] = cover_url
+
             # 提取演員（actors）及头像URL
             # 从 img 标签的 title 属性提取演员名（完整名称）
             # 因为 span 标签中的名字可能被截断（如"めぐり（藤"）

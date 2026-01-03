@@ -50,6 +50,50 @@ class ScraperBase:
             logger.error(f"Scraper 请求失败: {str(e)}")
             return None
 
+    def download_cover(self, url: str, save_path: str) -> bool:
+        """下载封面图片（带Referer头）
+
+        Args:
+            url: 封面图片URL
+            save_path: 保存路径
+
+        Returns:
+            bool: 下载成功返回True，否则返回False
+        """
+        import os
+
+        logger.debug(f"Scraper download cover: {url} to {save_path}")
+        try:
+            # 设置请求头（包含Referer）
+            headers = HEADERS.copy()
+            headers["Referer"] = f"https://{self.domain}/"
+
+            response = requests.get(
+                url,
+                headers=headers,
+                proxies=self.proxies,
+                timeout=self.timeout,
+                impersonate="chrome110",
+                stream=True,
+            )
+            response.raise_for_status()
+
+            # 确保目录存在
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+            # 写入文件
+            with open(save_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+
+            logger.info(f"封面下载成功: {os.path.basename(save_path)}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"封面下载失败: {e}")
+            return False
+
     def scrape(self, avid: str) -> Optional[dict]:
         """
         刮削元数据

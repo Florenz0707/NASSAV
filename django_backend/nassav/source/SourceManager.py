@@ -196,19 +196,7 @@ class SourceManager:
 
         # NOTE: 不再将 HTML/JSON 持久化到磁盘，元数据将保存到数据库。
 
-        # 2. 下载封面到新的 COVER_DIR
-        cover_url = source.get_cover_url(html)
-        if cover_url:
-            logger.info(f"封面下载地址: {cover_url}")
-            cover_path = Path(settings.COVER_DIR) / f"{avid}.jpg"
-            if source.download_file(cover_url, str(cover_path)):
-                result["cover_saved"] = True
-            else:
-                logger.warning(f"封面下载失败: {avid}")
-        else:
-            logger.warning(f"未找到封面URL: {avid}")
-
-        # 3. 从 JavBus 刮削器获取完整元数据
+        # 2. 从 JavBus 刮削器获取完整元数据（包括封面URL）
         scraped_data = self.scraper.scrape(avid)
         if scraped_data:
             info.update_from_scraper(scraped_data)
@@ -216,6 +204,48 @@ class SourceManager:
             logger.info(f"已从 JavBus 获取 {avid} 的完整元数据（标题、发行日期、时长、演员等）")
         else:
             logger.warning(f"未能从 JavBus 获取 {avid} 的元数据，将只保存 Source 提供的基本信息")
+
+        # 3. 下载封面到 COVER_DIR（优先使用Javbus封面，失败时回退到Source封面）
+        cover_url = None
+        cover_source = "未知"
+        use_scraper_download = False  # 标记是否使用scraper的下载方法
+
+        # 优先尝试从Javbus获取封面
+        if scraped_data and scraped_data.get("cover_url"):
+            cover_url = scraped_data["cover_url"]
+            cover_source = "Javbus"
+            use_scraper_download = True  # Javbus封面使用scraper下载（带Referer）
+            logger.info(f"使用 Javbus 封面: {cover_url}")
+
+        # 如果Javbus没有封面，回退到Source封面
+        if not cover_url:
+            source_cover = source.get_cover_url(html)
+            if source_cover:
+                cover_url = source_cover
+                cover_source = source.get_source_name()
+                logger.info(f"回退到 {cover_source} 封面: {cover_url}")
+
+        # 下载封面
+        if cover_url:
+            cover_path = Path(settings.COVER_DIR) / f"{avid}.jpg"
+            download_success = False
+
+            if use_scraper_download:
+                # 使用scraper下载（Javbus封面，带Referer）
+                download_success = self.scraper.download_cover(
+                    cover_url, str(cover_path)
+                )
+            else:
+                # 使用source下载（Source封面）
+                download_success = source.download_file(cover_url, str(cover_path))
+
+            if download_success:
+                result["cover_saved"] = True
+                logger.info(f"封面下载成功 (来源: {cover_source})")
+            else:
+                logger.warning(f"封面下载失败: {avid}")
+        else:
+            logger.warning(f"未找到封面URL: {avid}")
 
         # 4. 保存元数据到数据库（AVResource），不再保存为 JSON 文件
         try:
@@ -307,8 +337,6 @@ class SourceManager:
 
                             # 下载头像图片到AVATAR_DIR
                             try:
-                                from pathlib import Path
-
                                 from nassav import utils as nassav_utils
 
                                 avatar_path = Path(settings.AVATAR_DIR) / filename
