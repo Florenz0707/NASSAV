@@ -182,6 +182,7 @@ def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
     """
     from pathlib import Path
 
+    from django.conf import settings
     from loguru import logger
 
     try:
@@ -199,17 +200,21 @@ def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
     }
 
-    # 打印调试信息
-    logger.debug(f"开始下载头像 - URL: {url}, 目标: {dest_path}")
-    logger.debug(
-        f"请求头: Referer={headers.get('Referer')}, User-Agent={headers.get('User-Agent')[:50]}..."
-    )
+    # 设置代理（如果启用）
+    proxies = None
+    if hasattr(settings, "PROXY_ENABLED") and settings.PROXY_ENABLED:
+        if hasattr(settings, "PROXY_URL") and settings.PROXY_URL:
+            proxies = {"http": settings.PROXY_URL, "https": settings.PROXY_URL}
+            logger.debug(f"使用代理: {settings.PROXY_URL}")
 
     for attempt in range(max_retries):
         try:
-            logger.debug(f"第 {attempt + 1}/{max_retries} 次尝试下载头像...")
             response = requests.get(
-                url, headers=headers, timeout=10, impersonate="chrome110"
+                url,
+                headers=headers,
+                proxies=proxies,
+                timeout=15,
+                impersonate="chrome110",
             )
             if response.status_code == 200:
                 dest.write_bytes(response.content)
