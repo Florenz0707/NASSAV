@@ -59,7 +59,9 @@ export const sourceApi = {
     // 获取所有已设置的源 Cookie 列表
     getCookies: () => api.get('/source/cookie'),
     // 设置或自动获取 Cookie
-    setCookie: (payload) => api.post('/source/cookie', payload)
+    setCookie: (payload) => api.post('/source/cookie', payload),
+    // 删除指定源的 Cookie
+    deleteCookie: (source) => api.delete('/source/cookie', { params: { source } })
 }
 
 // 演员管理

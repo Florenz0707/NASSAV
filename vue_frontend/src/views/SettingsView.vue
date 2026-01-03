@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { sourceApi } from '../api'
 import { useToastStore } from '../stores/toast'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const toastStore = useToastStore()
 
@@ -17,6 +18,14 @@ const menuItems = [
 // 下载源列表数据
 const sources = ref([])
 const loading = ref(true)
+
+// 弹窗状态
+const showViewModal = ref(false)
+const showEditModal = ref(false)
+const showDeleteConfirm = ref(false)
+const currentSource = ref(null)
+const editCookieValue = ref('')
+const viewCookieValue = ref('')
 
 // 选择菜单项
 const selectMenu = (menuId) => {
@@ -78,6 +87,72 @@ const loadData = async () => {
 		toastStore.error(err.message || '加载数据失败')
 	} finally {
 		loading.value = false
+	}
+}
+
+// 查看 Cookie
+const viewCookie = (source) => {
+	currentSource.value = source
+	viewCookieValue.value = source.cookie || ''
+	showViewModal.value = true
+}
+
+// 打开编辑弹窗
+const openEditModal = (source) => {
+	currentSource.value = source
+	editCookieValue.value = source.cookie || ''
+	showEditModal.value = true
+}
+
+// 保存 Cookie
+const saveCookie = async () => {
+	if (!currentSource.value) return
+	try {
+		await sourceApi.setCookie({
+			source: currentSource.value.name,
+			cookie: editCookieValue.value
+		})
+		toastStore.success('Cookie 设置成功')
+		showEditModal.value = false
+		loadData()
+	} catch (err) {
+		toastStore.error(err.message || '设置失败')
+	}
+}
+
+// 自动获取 Cookie
+const autoFetchCookie = async (source) => {
+	const targetSource = source || currentSource.value
+	if (!targetSource) return
+
+	try {
+		await sourceApi.setCookie({
+			source: targetSource.name,
+			auto: true
+		})
+		toastStore.success('已触发自动获取 Cookie')
+		showEditModal.value = false
+		loadData()
+	} catch (err) {
+		toastStore.error(err.message || '自动获取失败')
+	}
+}
+
+// 确认删除
+const confirmDelete = (source) => {
+	currentSource.value = source
+	showDeleteConfirm.value = true
+}
+
+// 执行删除
+const handleDelete = async () => {
+	if (!currentSource.value) return
+	try {
+		await sourceApi.deleteCookie(currentSource.value.name)
+		toastStore.success('Cookie 已清除')
+		loadData()
+	} catch (err) {
+		toastStore.error(err.message || '清除失败')
 	}
 }
 
@@ -192,24 +267,26 @@ onMounted(() => {
 										<td class="py-4 px-4">
 											<div class="flex gap-2">
 												<button
-													v-if="source.hasCookie"
-													class="px-3 py-1.5 rounded-lg bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
+													class="px-3 py-1.5 rounded-lg text-sm border transition-all"
+													:class="[
+														source.hasCookie
+															? 'bg-white/5 text-[#a1a1aa] border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5]'
+															: 'bg-white/5 text-[#71717a] border-white/[0.04] cursor-not-allowed opacity-50'
+													]"
+													:disabled="!source.hasCookie"
+													@click="viewCookie(source)"
 												>
 													查看
 												</button>
 												<button
-													class="px-3 py-1.5 rounded-lg bg-[#ff6b6b]/10 text-[#ff6b6b] text-sm border border-[#ff6b6b]/20 hover:bg-[#ff6b6b]/20 transition-all"
+													class="px-3 py-1.5 rounded-lg bg-[#ff6b6b]/10 text-[#ff6b6b] border-[#ff6b6b]/20 hover:bg-[#ff6b6b]/20 transition-all text-sm"
+													@click="openEditModal(source)"
 												>
-													{{ source.hasCookie ? '更新' : '设置' }}
+													更新
 												</button>
 												<button
-													class="px-3 py-1.5 rounded-lg bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
-												>
-													自动获取
-												</button>
-												<button
-													v-if="source.hasCookie"
-													class="px-3 py-1.5 rounded-lg bg-white/5 text-red-400 text-sm border border-white/[0.08] hover:bg-red-500/10 hover:border-red-500/20 transition-all"
+													class="px-3 py-1.5 rounded-lg bg-white/5 text-red-400 border border-white/[0.08] hover:bg-red-500/10 hover:border-red-500/20 transition-all text-sm"
+													@click="confirmDelete(source)"
 												>
 													删除
 												</button>
@@ -269,6 +346,89 @@ onMounted(() => {
 				</div>
 			</div>
 		</div>
+
+		<!-- 查看 Cookie 弹窗 -->
+		<div v-if="showViewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+			<div class="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
+				<div class="p-6 border-b border-white/5 flex justify-between items-center">
+					<h3 class="text-xl font-bold text-[#f4f4f5]">
+						查看 Cookie - {{ currentSource?.name }}
+					</h3>
+					<button class="text-[#71717a] hover:text-[#f4f4f5]" @click="showViewModal = false">
+						✕
+					</button>
+				</div>
+				<div class="p-6">
+					<div class="bg-black/40 rounded-xl p-4 font-mono text-sm text-[#a1a1aa] break-all max-h-[400px] overflow-y-auto border border-white/5">
+						{{ viewCookieValue || '无内容' }}
+					</div>
+				</div>
+				<div class="p-6 border-t border-white/5 flex justify-end">
+					<button
+						class="px-6 py-2 rounded-xl bg-white/5 text-[#f4f4f5] font-medium hover:bg-white/10 transition-all"
+						@click="showViewModal = false"
+					>
+						关闭
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- 编辑 Cookie 弹窗 -->
+		<div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+			<div class="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
+				<div class="p-6 border-b border-white/5 flex justify-between items-center">
+					<h3 class="text-xl font-bold text-[#f4f4f5]">
+						设置 Cookie - {{ currentSource?.name }}
+					</h3>
+					<button class="text-[#71717a] hover:text-[#f4f4f5]" @click="showEditModal = false">
+						✕
+					</button>
+				</div>
+				<div class="p-6">
+					<p class="text-sm text-[#71717a] mb-4">
+						请输入从浏览器获取的 Cookie 字符串。通常包含 PHPSESSID 等字段。
+					</p>
+					<textarea
+						v-model="editCookieValue"
+						class="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-[#f4f4f5] font-mono text-sm focus:outline-none focus:border-[#ff6b6b]/50 transition-all resize-none"
+						placeholder="粘贴 Cookie 字符串到这里..."
+					/>
+				</div>
+				<div class="p-6 border-t border-white/5 flex justify-between items-center">
+					<button
+						class="px-4 py-2 rounded-xl bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
+						@click="autoFetchCookie()"
+					>
+						✨ 自动获取
+					</button>
+					<div class="flex gap-3">
+						<button
+							class="px-6 py-2 rounded-xl bg-white/5 text-[#f4f4f5] font-medium hover:bg-white/10 transition-all"
+							@click="showEditModal = false"
+						>
+							取消
+						</button>
+						<button
+							class="px-6 py-2 rounded-xl bg-[#ff6b6b] text-white font-medium hover:bg-[#ff5252] transition-all shadow-lg shadow-[#ff6b6b]/20"
+							@click="saveCookie"
+						>
+							保存设置
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 删除确认 -->
+		<ConfirmDialog
+			v-model:show="showDeleteConfirm"
+			title="清除 Cookie"
+			:message="`确定要清除 ${currentSource?.name} 的 Cookie 吗？清除后可能无法正常访问该源。`"
+			confirm-text="确定清除"
+			type="danger"
+			@confirm="handleDelete"
+		/>
 	</div>
 </template>
 
