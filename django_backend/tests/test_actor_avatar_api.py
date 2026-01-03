@@ -1,17 +1,12 @@
-"""测试演员头像功能完整流程（集成测试）"""
-from pathlib import Path
-
+"""测试演员头像功能完整流程（集成测试，使用 fixtures）"""
 import pytest
 
 
 @pytest.mark.django_db
-def test_actor_avatar_full_flow():
+def test_actor_avatar_full_flow(api_client, actor_factory, resource_factory):
     """测试演员头像从刮削到API获取的完整流程"""
-    from django.conf import settings
-    from nassav.models import Actor, AVResource
-
     # 创建一个演员记录
-    actor = Actor.objects.create(
+    actor = actor_factory(
         name="测试演员",
         avatar_url="https://www.javbus.com/pics/actress/999_a.jpg",
         avatar_filename="999_a.jpg",
@@ -23,17 +18,11 @@ def test_actor_avatar_full_flow():
     assert actor.updated_at is not None
 
     # 创建一个资源并关联演员
-    resource = AVResource.objects.create(
-        avid="TEST-001", original_title="测试作品", source="test"
-    )
+    resource = resource_factory(avid="TEST-001", original_title="测试作品")
     resource.actors.add(actor)
 
     # 测试API返回头像字段
-    from rest_framework.test import APIClient
-
-    client = APIClient()
-
-    response = client.get("/nassav/api/actors/", {"page": 1, "page_size": 20})
+    response = api_client.get("/nassav/api/actors/", {"page": 1, "page_size": 20})
     assert response.status_code == 200
 
     data = response.json()
@@ -48,20 +37,14 @@ def test_actor_avatar_full_flow():
 
 
 @pytest.mark.django_db
-def test_actor_without_avatar():
+def test_actor_without_avatar(api_client, actor_factory, resource_factory):
     """测试没有头像的演员也能正常返回"""
-    from nassav.models import Actor, AVResource
-    from rest_framework.test import APIClient
-
     # 创建没有头像的演员
-    actor = Actor.objects.create(name="无头像演员")
-    resource = AVResource.objects.create(
-        avid="TEST-002", original_title="测试作品2", source="test"
-    )
+    actor = actor_factory(name="无头像演员")
+    resource = resource_factory(avid="TEST-002", original_title="测试作品2")
     resource.actors.add(actor)
 
-    client = APIClient()
-    response = client.get("/nassav/api/actors/")
+    response = api_client.get("/nassav/api/actors/")
     assert response.status_code == 200
 
     data = response.json()

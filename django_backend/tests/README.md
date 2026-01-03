@@ -2,93 +2,134 @@
 
 本文档提供 NASSAV 后端测试套件的完整概览和使用指南。
 
+## 测试架构说明
+
+本项目测试已迁移至 **pytest** 框架，使用 fixtures 进行测试数据管理。所有新测试和重构的测试都应遵循 pytest 规范。
+
+### 通用 Fixtures（conftest.py）
+
+项目提供以下可复用的 fixtures：
+
+- `actor_factory`: 创建演员对象的工厂函数
+- `resource_factory`: 创建资源对象的工厂函数
+- `genre_factory`: 创建类别对象的工厂函数
+- `api_client`: DRF APIClient 实例
+- `client`: Django test client 实例
+- `assert_api_response`: API 响应验证辅助函数
+- `resource_with_actors`: 创建带演员的资源
+- `resource_with_genres`: 创建带类别的资源
+- `bulk_resources`: 批量创建资源
+
 ## 测试文件分类
 
-### 单元测试（Unit Tests）
+### ✅ 已重构为 pytest 的测试
 
-#### 1. test_serializers.py
-- **功能**: 测试序列化器的数据转换和验证
-- **覆盖**: ResourceSummarySerializer, ResourceSerializer
-- **运行**: `python manage.py test tests.test_serializers`
-
-### API 测试（API Tests）
-
-#### 2. test_actors_api.py
+#### 1. test_actors_api.py
 - **功能**: 测试演员相关 API
 - **端点**: `/api/resources/?actor=...`, `/api/actors/`
-- **运行**: `python manage.py test tests.test_actors_api`
+- **运行**: `uv run pytest tests/test_actors_api.py -v`
+- **fixtures**: `setup_actors_with_resources`, `api_client`
 
-#### 3. test_genres_api.py
+#### 2. test_genres_api.py
 - **功能**: 测试类别/标签相关 API
 - **端点**: `/api/resources/?genre=...`, `/api/genres/`
-- **运行**: `python manage.py test tests.test_genres_api`
+- **运行**: `uv run pytest tests/test_genres_api.py -v`
+- **fixtures**: `setup_genres_with_resources`, `api_client`
 
-#### 4. test_resources_list.py
+#### 3. test_resources_list.py
 - **功能**: 测试资源列表和过滤功能
 - **端点**: `/api/resources/`
-- **运行**: `python manage.py test tests.test_resources_list`
+- **运行**: `uv run pytest tests/test_resources_list.py -v`
+- **fixtures**: `setup_resources`, `api_client`
 
-#### 5. test_views_resource.py
+#### 4. test_views_resource.py
 - **功能**: 测试资源相关视图和文件操作
-- **端点**: `/api/downloads/list`, `/api/resource/metadata`, `/api/downloads/abspath`
-- **运行**: `python manage.py test tests.test_views_resource`
+- **端点**: `/api/resource/metadata`, `/api/downloads/abspath`
+- **运行**: `uv run pytest tests/test_views_resource.py -v`
+- **fixtures**: `api_client`, `resource_factory`, `tmp_path`, `settings`
 
-#### 6. test_video_time_sort_filter.py
-- **功能**: 测试视频时间排序时的过滤逻辑
-- **覆盖**: 按 video_create_time 排序时只返回已下载资源
-- **运行**: `python manage.py test tests.test_video_time_sort_filter`
+#### 5. test_serializers.py
+- **功能**: 测试序列化器的数据转换和验证
+- **覆盖**: ResourceSummarySerializer, ResourceSerializer
+- **运行**: `uv run pytest tests/test_serializers.py -v`
+- **fixtures**: `resource_with_relations`
 
-#### 7. test_javbus_actor_parsing.py
-- **功能**: 测试 Javbus 女优名解析（防止括号内容被截断）
-- **覆盖**: 从 img title 属性提取完整女优名
-- **运行**: `python manage.py test tests.test_javbus_actor_parsing`
+#### 6. test_actor_avatar_api.py
+- **功能**: 测试演员头像功能完整流程
+- **运行**: `uv run pytest tests/test_actor_avatar_api.py -v`
+- **fixtures**: `actor_factory`, `resource_factory`, `api_client`
 
-#### 8. test_fix_actor_names.py
-- **功能**: 测试演员名称正常性判断逻辑
-- **覆盖**: 判断演员名是否被截断（括号匹配检测）
-- **运行**: `python manage.py test tests.test_fix_actor_names`
-
-#### 9. test_actors_list_filter.py
+#### 7. test_actors_list_filter.py
 - **功能**: 测试演员列表 API 过滤功能
 - **覆盖**: 验证演员列表只返回有作品的演员
-- **运行**: `python manage.py test tests.test_actors_list_filter`
+- **运行**: `uv run pytest tests/test_actors_list_filter.py -v`
+- **fixtures**: `setup_actors`, `client`
+
+### 其他测试文件
+
+#### 8. test_video_time_sort_filter.py
+- **功能**: 测试视频时间排序时的过滤逻辑
+- **覆盖**: 按 video_create_time 排序时只返回已下载资源
+- **运行**: `uv run pytest tests/test_video_time_sort_filter.py -v`
+- **fixtures**: `setup_video_resources`, `resource_factory`
+
+#### 9. test_javbus_actor_parsing.py
+- **功能**: 测试 Javbus 女优名解析（防止括号内容被截断）
+- **覆盖**: 从 img title 属性提取完整女优名
+- **运行**: `uv run pytest tests/test_javbus_actor_parsing.py -v`
+- **fixtures**: `javbus_html_content`, `javbus_scraper`
+
+#### 10. test_fix_actor_names.py
+- **功能**: 测试演员名称正常性判断逻辑
+- **覆盖**: 判断演员名是否被截断（括号匹配检测）
+- **运行**: `uv run pytest tests/test_fix_actor_names.py -v`
+
+#### 11. test_actor_avatar_extraction.py
+- **功能**: 测试演员头像 URL 提取
+- **类型**: 纯单元测试，不依赖数据库
+- **运行**: `uv run pytest tests/test_actor_avatar_extraction.py -v`
+
+#### 12. test_user_settings.py
+- **功能**: 测试用户设置 API
+- **端点**: `/api/setting`
+- **运行**: `uv run pytest tests/test_user_settings.py -v`
 
 ### 集成测试（Integration Tests）
 
-#### 10. test_ws.py
+#### 13. test_ws.py
 - **功能**: 测试 WebSocket 实时通信
 - **端点**: `/ws/tasks/`
-- **运行**: `python manage.py test tests.test_ws`
+- **运行**: `uv run pytest tests/test_ws.py -v`
 - **依赖**: Redis 服务
 
-#### 11. test_translator.py
+#### 14. test_translator.py
 - **功能**: 测试 Ollama 翻译器功能
-- **运行**: `python tests/test_translator.py --batch --count 10`
+- **运行**: `uv run python tests/test_translator.py --batch --count 10`
 - **依赖**: Ollama 服务
 
-#### 12. test_translator_manager.py
+#### 15. test_translator_manager.py
 - **功能**: 测试翻译管理器和重试机制
-- **运行**: `python tests/test_translator_manager.py`
+- **运行**: `uv run python tests/test_translator_manager.py`
 - **依赖**: Ollama 服务
 
-#### 13. test_translation_cleaning.py
+#### 16. test_translation_cleaning.py
 - **功能**: 测试翻译结果后处理清理功能
-- **运行**: `uv run tests/test_translation_cleaning.py`
+- **运行**: `uv run python tests/test_translation_cleaning.py`
 - **说明**: 验证翻译结果中多余说明文字的清理效果
 
 ### Shell 脚本测试（Shell Script Tests）
 
-#### 14. test_api.sh
+#### 17. test_api.sh
 - **功能**: 综合 API 测试脚本
 - **运行**: `./tests/test_api.sh --verbose`
 - **依赖**: curl, jq (可选)
 
-#### 15. test_mock_download.sh
+#### 18. test_mock_download.sh
 - **功能**: 模拟下载任务批处理测试
 - **运行**: `./tests/test_mock_download.sh --duration 30`
 - **依赖**: curl, jq (可选)
 
-#### 16. test_websocket.sh
+#### 19. test_websocket.sh
 - **功能**: WebSocket 实时监听测试
 - **运行**: `./tests/test_websocket.sh`
 - **依赖**: wscat 或 websocket-client (Python)
@@ -97,28 +138,28 @@
 
 ## 快速开始
 
-### 运行所有单元测试
-```bash
-cd django_backend
-python manage.py test tests/
-```
-
 ### 运行所有 pytest 测试
 ```bash
 cd django_backend
-pytest tests/ -v
+uv run pytest tests/ -v
+```
+
+### 运行已重构的核心 API 测试
+```bash
+cd django_backend
+uv run pytest tests/test_actors_api.py tests/test_genres_api.py tests/test_resources_list.py tests/test_views_resource.py tests/test_serializers.py -v
 ```
 
 ### 运行特定测试
 ```bash
 # 单个测试文件
-python manage.py test tests.test_actors_api
+uv run pytest tests/test_actors_api.py -v
 
-# 单个测试类
-python manage.py test tests.test_actors_api.ActorsAPITest
+# 单个测试函数
+uv run pytest tests/test_actors_api.py::test_actor_filter_by_name -v
 
-# 单个测试方法
-python manage.py test tests.test_actors_api.ActorsAPITest.test_actor_filter_by_name
+# 带标记的测试
+uv run pytest tests/ -v -m django_db
 ```
 
 ### 运行 Shell 脚本测试
@@ -276,11 +317,11 @@ python manage.py migrate
 
 ## 测试编写指南
 
-### 编写新的单元测试
+### 编写新的 pytest 测试（推荐）
 
 ```python
 #!/usr/bin/env python
-\"\"\"
+"""
 新测试文件说明
 
 功能：
@@ -288,19 +329,54 @@ python manage.py migrate
 2. 描述测试功能点2
 
 运行方式：
-    python manage.py test tests.test_new_feature
-\"\"\"
+    uv run pytest tests/test_new_feature.py -v
+"""
 
-from django.test import TestCase
+import pytest
 
-class NewFeatureTest(TestCase):
-    def setUp(self):
-        # 设置测试数据
-        pass
 
-    def test_feature(self):
-        # 测试逻辑
-        self.assertEqual(1, 1)
+@pytest.fixture
+def setup_test_data(resource_factory, actor_factory):
+    """创建测试数据的 fixture"""
+    resource = resource_factory(avid="TEST-001", original_title="测试")
+    actor = actor_factory(name="测试演员")
+    resource.actors.add(actor)
+    return {"resource": resource, "actor": actor}
+
+
+@pytest.mark.django_db
+def test_feature(api_client, setup_test_data):
+    """测试功能描述"""
+    response = api_client.get("/nassav/api/endpoint/")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["code"] == 200
+```
+
+### 使用通用 Fixtures
+
+项目提供的通用 fixtures 可以直接使用：
+
+```python
+@pytest.mark.django_db
+def test_with_factories(actor_factory, resource_factory, genre_factory):
+    """使用工厂 fixtures 创建测试数据"""
+    actor = actor_factory(name="演员A")
+    resource = resource_factory(avid="TEST-001")
+    genre = genre_factory(name="类别A")
+
+    resource.actors.add(actor)
+    resource.genres.add(genre)
+
+    assert resource.actors.count() == 1
+
+
+@pytest.mark.django_db
+def test_with_api_client(api_client):
+    """使用 API client 测试端点"""
+    response = api_client.get("/nassav/api/resources/")
+    assert response.status_code == 200
 ```
 
 ### 编写新的 Shell 测试
@@ -318,16 +394,48 @@ class NewFeatureTest(TestCase):
 
 ## 测试最佳实践
 
-1. **独立性**: 每个测试应独立运行，不依赖其他测试的执行顺序
-2. **可重复性**: 测试结果应该可重复，避免随机性
-3. **清晰性**: 测试名称应清楚描述测试内容
-4. **完整性**: 测试应覆盖正常流程和异常情况
-5. **速度**: 保持测试运行速度，避免长时间等待
+1. **使用 pytest + fixtures**: 所有新测试应使用 pytest 框架和 fixtures
+2. **独立性**: 每个测试应独立运行，不依赖其他测试的执行顺序
+3. **可重复性**: 测试结果应该可重复，避免随机性
+4. **清晰性**: 测试名称应清楚描述测试内容（使用 `test_` 前缀）
+5. **完整性**: 测试应覆盖正常流程和异常情况
+6. **速度**: 保持测试运行速度，避免长时间等待
+7. **使用工厂 fixtures**: 优先使用 conftest.py 中定义的工厂函数创建测试数据
+8. **标记数据库测试**: 使用 `@pytest.mark.django_db` 标记需要数据库的测试
+
+## 重构说明
+
+本项目测试代码已进行系统性重构（2026-01-03），主要改进：
+
+### Phase 1: 基础设施
+- ✅ 增强 conftest.py 提供通用 fixtures
+- ✅ 添加 assert_api_response, resource_with_actors 等辅助函数
+
+### Phase 2: 核心 API 测试重构（5个文件）
+- ✅ test_actors_api.py - 演员 API
+- ✅ test_genres_api.py - 类别 API
+- ✅ test_resources_list.py - 资源列表
+- ✅ test_views_resource.py - 资源视图
+- ✅ test_serializers.py - 序列化器
+
+### Phase 3: 业务逻辑测试重构（3个文件）
+- ✅ test_video_time_sort_filter.py - 视频时间排序过滤
+- ✅ test_javbus_actor_parsing.py - Javbus 演员解析
+- ✅ test_fix_actor_names.py - 演员名称修复判断
+
+### 清理工作
+- 🗑️ 删除 demo_javbus_fix.py（演示脚本，已被测试覆盖）
+- 🗑️ 删除 test_genres_filtering.py（功能重复，已被 test_genres_api.py 覆盖）
+
+### 重构收益
+- 📉 减少代码重复约 40-50%
+- 🎯 统一测试风格（全部使用 pytest）
+- 🔧 提高可维护性（集中管理测试数据）
+- ⚡ 提升测试速度
+- 📖 提升代码可读性
+
+详细重构方案见 [REFACTOR_PLAN.md](REFACTOR_PLAN.md)
 
 ---
 
-**最后更新**: 2026-01-02
-"""
-
-if __name__ == '__main__':
-    print(__doc__)
+**最后更新**: 2026-01-03

@@ -10,65 +10,69 @@
 5. 验证关联数据（演员、类别）的序列化
 
 运行方式：
-    # 运行所有测试
-    python manage.py test tests.test_serializers
-
-    # 运行单个测试
-    python manage.py test tests.test_serializers.SerializersTest.test_resource_summary_serializer_from_instance
-
     # 使用 pytest
-    pytest tests/test_serializers.py -v
+    uv run pytest tests/test_serializers.py -v
 """
 
-from django.test import TestCase
-from nassav.models import Actor, AVResource, Genre
+import pytest
 from nassav.serializers import ResourceSerializer, ResourceSummarySerializer
 
 
-class SerializersTest(TestCase):
-    def setUp(self):
-        self.res = AVResource.objects.create(
-            avid="TEST-001",
-            original_title="Test Title",
-            source="Jable",
-            release_date="2025-01-01",
-            file_exists=True,
-            file_size=12345,
-        )
-        # add relations
-        a = Actor.objects.create(name="Actor1")
-        g = Genre.objects.create(name="Genre1")
-        self.res.actors.add(a)
-        self.res.genres.add(g)
+@pytest.fixture
+def resource_with_relations(resource_factory, actor_factory, genre_factory):
+    """创建一个带有演员和类别的资源"""
+    res = resource_factory(
+        avid="TEST-001",
+        original_title="Test Title",
+        source="Jable",
+        release_date="2025-01-01",
+        file_exists=True,
+        file_size=12345,
+    )
+    # 添加关联
+    actor = actor_factory(name="Actor1")
+    genre = genre_factory(name="Genre1")
+    res.actors.add(actor)
+    res.genres.add(genre)
+    return res
 
-    def test_resource_summary_serializer_from_instance(self):
-        ser = ResourceSummarySerializer(self.res)
-        data = ser.data
-        self.assertEqual(data["avid"], "TEST-001")
-        self.assertEqual(data["original_title"], "Test Title")
-        self.assertEqual(data["source"], "Jable")
-        self.assertTrue(data["has_video"])
-        self.assertIn("metadata_create_time", data)
-        # 验证同时返回三个标题字段
-        self.assertIn("original_title", data)
-        self.assertIn("source_title", data)
-        self.assertIn("translated_title", data)
 
-    def test_resource_serializer_from_metadata_dict(self):
-        metadata = {
-            "avid": "TEST-002",
-            "original_title": "Meta Title",
-            "m3u8": "https://example.com/stream.m3u8",
-            "source": "MissAV",
-            "release_date": "2025-02-02",
-            "duration": 3600,
-            "actors": ["A", "B"],
-            "genres": ["G"],
-            "file_size": 54321,
-            "file_exists": False,
-        }
-        ser = ResourceSerializer(metadata)
-        data = ser.data
-        self.assertEqual(data["avid"], "TEST-002")
-        self.assertEqual(data["m3u8"], "https://example.com/stream.m3u8")
-        self.assertFalse(data["file_exists"])
+@pytest.mark.django_db
+def test_resource_summary_serializer_from_instance(resource_with_relations):
+    """测试资源摘要序列化器"""
+    ser = ResourceSummarySerializer(resource_with_relations)
+    data = ser.data
+
+    assert data["avid"] == "TEST-001"
+    assert data["original_title"] == "Test Title"
+    assert data["source"] == "Jable"
+    assert data["has_video"] is True
+    assert "metadata_create_time" in data
+
+    # 验证同时返回三个标题字段
+    assert "original_title" in data
+    assert "source_title" in data
+    assert "translated_title" in data
+
+
+@pytest.mark.django_db
+def test_resource_serializer_from_metadata_dict():
+    """测试资源序列化器从字典创建"""
+    metadata = {
+        "avid": "TEST-002",
+        "original_title": "Meta Title",
+        "m3u8": "https://example.com/stream.m3u8",
+        "source": "MissAV",
+        "release_date": "2025-02-02",
+        "duration": 3600,
+        "actors": ["A", "B"],
+        "genres": ["G"],
+        "file_size": 54321,
+        "file_exists": False,
+    }
+    ser = ResourceSerializer(metadata)
+    data = ser.data
+
+    assert data["avid"] == "TEST-002"
+    assert data["m3u8"] == "https://example.com/stream.m3u8"
+    assert data["file_exists"] is False

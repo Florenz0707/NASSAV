@@ -9,57 +9,66 @@
 4. 验证响应格式和数据结构
 
 运行方式：
-    # 运行所有测试
-    python manage.py test tests.test_resources_list
-
-    # 运行单个测试
-    python manage.py test tests.test_resources_list.ResourcesListTest.test_resources_list_no_filter
-
     # 使用 pytest
-    pytest tests/test_resources_list.py -v
+    uv run pytest tests/test_resources_list.py -v
 """
 
-from django.test import TestCase
-from nassav.models import AVResource
-from rest_framework.test import APIClient
+import pytest
 
 
-class ResourcesListTest(TestCase):
-    def setUp(self):
-        self.client = APIClient()
-        # create several resources
-        AVResource.objects.create(
-            avid="A-1", original_title="A1", source="S1", file_exists=True
-        )
-        AVResource.objects.create(
-            avid="A-2", original_title="A2", source="S2", file_exists=False
-        )
-        AVResource.objects.create(
-            avid="B-1", original_title="B1", source="S1", file_exists=True
-        )
+@pytest.fixture
+def setup_resources(resource_factory):
+    """创建测试用的资源数据"""
+    # 创建多个资源
+    r1 = resource_factory(
+        avid="A-1", original_title="A1", source="S1", file_exists=True
+    )
+    r2 = resource_factory(
+        avid="A-2", original_title="A2", source="S2", file_exists=False
+    )
+    r3 = resource_factory(
+        avid="B-1", original_title="B1", source="S1", file_exists=True
+    )
+    return [r1, r2, r3]
 
-    def test_resources_list_no_filter(self):
-        resp = self.client.get("/nassav/api/resources/")
-        self.assertEqual(resp.status_code, 200)
-        body = resp.json()
-        self.assertEqual(body["code"], 200)
-        self.assertIsInstance(body["data"], list)
-        self.assertGreaterEqual(len(body["data"]), 3)
 
-    def test_resources_filter_file_exists(self):
-        resp = self.client.get("/nassav/api/resources/", {"file_exists": "true"})
-        self.assertEqual(resp.status_code, 200)
-        body = resp.json()
-        self.assertTrue(all(item["has_video"] for item in body["data"]))
+@pytest.mark.django_db
+def test_resources_list_no_filter(api_client, setup_resources):
+    """测试无过滤条件的资源列表"""
+    resp = api_client.get("/nassav/api/resources/")
+    assert resp.status_code == 200
 
-    def test_resources_filter_source(self):
-        resp = self.client.get("/nassav/api/resources/", {"source": "S2"})
-        self.assertEqual(resp.status_code, 200)
-        body = resp.json()
-        self.assertTrue(all(item["source"] == "S2" for item in body["data"]))
+    body = resp.json()
+    assert body["code"] == 200
+    assert isinstance(body["data"], list)
+    assert len(body["data"]) >= 3
 
-    def test_resources_pagination(self):
-        resp = self.client.get("/nassav/api/resources/", {"page_size": 1, "page": 1})
-        self.assertEqual(resp.status_code, 200)
-        body = resp.json()
-        self.assertEqual(len(body["data"]), 1)
+
+@pytest.mark.django_db
+def test_resources_filter_file_exists(api_client, setup_resources):
+    """测试按文件存在状态过滤"""
+    resp = api_client.get("/nassav/api/resources/", {"file_exists": "true"})
+    assert resp.status_code == 200
+
+    body = resp.json()
+    assert all(item["has_video"] for item in body["data"])
+
+
+@pytest.mark.django_db
+def test_resources_filter_source(api_client, setup_resources):
+    """测试按来源过滤"""
+    resp = api_client.get("/nassav/api/resources/", {"source": "S2"})
+    assert resp.status_code == 200
+
+    body = resp.json()
+    assert all(item["source"] == "S2" for item in body["data"])
+
+
+@pytest.mark.django_db
+def test_resources_pagination(api_client, setup_resources):
+    """测试分页功能"""
+    resp = api_client.get("/nassav/api/resources/", {"page_size": 1, "page": 1})
+    assert resp.status_code == 200
+
+    body = resp.json()
+    assert len(body["data"]) == 1
