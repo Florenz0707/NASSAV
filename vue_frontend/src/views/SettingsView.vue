@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { sourceApi } from '../api'
 import { useToastStore } from '../stores/toast'
+import { useSettingsStore } from '../stores/settings'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const toastStore = useToastStore()
+const settingsStore = useSettingsStore()
 
 // 当前选中的设置菜单项
 const activeMenu = ref('cookies')
@@ -336,11 +338,38 @@ onMounted(() => {
 							</p>
 						</div>
 
-						<div class="text-center py-12 text-[#71717a]">
-							<div class="text-4xl mb-3">
-								⚙️
+						<div class="space-y-6">
+							<!-- 显示设置 -->
+							<div class="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+								<h3 class="text-sm font-medium text-[#a1a1aa] mb-4 uppercase tracking-wider">
+									显示设置
+								</h3>
+								<div class="flex items-center justify-between">
+									<div>
+										<div class="text-[#f4f4f5] font-medium">
+											显示女优头像
+										</div>
+										<div class="text-sm text-[#71717a]">
+											在列表和详情页中渲染女优头像图片
+										</div>
+									</div>
+									<button
+										class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
+										:class="settingsStore.showActorAvatar ? 'bg-[#ff6b6b]' : 'bg-[#27272a]'"
+										@click="settingsStore.showActorAvatar = !settingsStore.showActorAvatar"
+									>
+										<span
+											class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+											:class="settingsStore.showActorAvatar ? 'translate-x-6' : 'translate-x-1'"
+										/>
+									</button>
+								</div>
 							</div>
-							<p>通用设置功能即将上线</p>
+
+							<!-- 更多设置占位 -->
+							<div class="text-center py-8 text-[#71717a] border border-dashed border-white/10 rounded-xl">
+								<p>更多设置项正在开发中...</p>
+							</div>
 						</div>
 					</div>
 				</div>

@@ -2,7 +2,7 @@
 	<div class="actor-card" @click="$emit('click')">
 		<div class="avatar">
 			<div class="avatar-circle" :style="{ backgroundColor: bgColor }">
-				<img v-if="actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" class="avatar-img">
+				<img v-if="settingsStore.showActorAvatar && actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" class="avatar-img">
 				<span v-else>{{ initial }}</span>
 			</div>
 		</div>
@@ -15,30 +15,29 @@
 	</div>
 </template>
 
-<script>
+<script setup>
+import { computed } from 'vue'
 import { actorApi } from '../api'
+import { useSettingsStore } from '../stores/settings'
 
-export default {
-	name: 'ActorGroupCard',
-	props: {
-		actor: {type: Object, required: true},
-		thumbs: {type: Array, default: () => []}
-	},
-	emits: ['click'],
-	setup() {
-		return { actorApi }
-	},
-	computed: {
-		initial() {
-			const n = this.actor && this.actor.name ? this.actor.name.trim() : ''
-			return n ? n.substring(0, 2) : '?'
-		},
-		bgColor() {
-			// use a unified dark background for all avatars
-			return '#1f2937'
-		}
-	}
-}
+const props = defineProps({
+	actor: { type: Object, required: true },
+	thumbs: { type: Array, default: () => [] }
+})
+
+defineEmits(['click'])
+
+const settingsStore = useSettingsStore()
+
+const initial = computed(() => {
+	const n = props.actor && props.actor.name ? props.actor.name.trim() : ''
+	return n ? n.substring(0, 2) : '?'
+})
+
+const bgColor = computed(() => {
+	// use a unified dark background for all avatars
+	return '#1f2937'
+})
 </script>
 
 <style scoped>

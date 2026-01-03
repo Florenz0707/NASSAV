@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
+import { useSettingsStore } from '../stores/settings'
 import { actorApi, resourceApi, downloadApi } from '../api'
 import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
@@ -13,6 +14,7 @@ import BatchControls from '../components/BatchControls.vue'
 const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
+const settingsStore = useSettingsStore()
 
 const actorId = ref(route.params.actorId || '')
 // 从 URL query 初始化状态
@@ -267,7 +269,7 @@ const displayedCount = computed(() => {
 	<div class="px-6 pt-4 pb-6">
 		<div class="mb-6 flex items-center gap-6">
 			<div class="w-20 h-20 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl text-white overflow-hidden border-2 border-white/10">
-				<img v-if="actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" class="w-full h-full object-cover">
+				<img v-if="settingsStore.showActorAvatar && actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" class="w-full h-full object-cover">
 				<span v-else>{{ initialChar }}</span>
 			</div>
 			<div class="flex-1">
