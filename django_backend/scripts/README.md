@@ -127,6 +127,32 @@ uv run python scripts/cleanup_unused_genres.py --dry-run --export unused_genres.
 
 **注意**: 删除操作不可逆，建议先备份数据库
 
+#### backfill_actor_avatars.py
+为现有演员批量获取头像
+
+```bash
+# 为所有演员获取头像
+uv run python scripts/backfill_actor_avatars.py
+
+# 限制处理数量（测试）
+uv run python scripts/backfill_actor_avatars.py --limit 10
+
+# 预览模式（不实际修改）
+uv run python scripts/backfill_actor_avatars.py --dry-run
+
+# 调整延迟时间
+uv run python scripts/backfill_actor_avatars.py --delay 0.5
+
+# 显示详细日志
+uv run python scripts/backfill_actor_avatars.py --verbose
+```
+
+**功能说明**:
+- 自动从Javbus获取演员头像URL
+- 下载头像图片到 `resource/avatar/` 目录
+- 按作品数倒序处理（优先处理热门演员）
+- 支持断点续传（已有头像的演员自动跳过）
+
 ### 🎨 资源处理脚本
 
 #### generate_thumbnails.py

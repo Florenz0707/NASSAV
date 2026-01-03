@@ -146,17 +146,29 @@ class Javbus(ScraperBase):
             if director_match:
                 scrape_data["director"] = director_match.group(1).strip()
 
-            # 提取演員（actors）
+            # 提取演員（actors）及头像URL
             # 从 img 标签的 title 属性提取演员名（完整名称）
             # 因为 span 标签中的名字可能被截断（如"めぐり（藤"）
             # 而 img title 中保存的是完整名字（如"めぐり（藤浦めぐ）"）
-            actor_matches = re.findall(
+            # 同时提取src属性获取头像URL
+            actor_pattern = re.compile(
                 r'<a class="avatar-box"[^>]*>\s*<div[^>]*>\s*'
-                r'<img[^>]*title="([^"]+)"[^>]*>',
-                html,
+                r'<img[^>]*src="([^"]+)"[^>]*title="([^"]+)"[^>]*>',
+                re.DOTALL,
             )
+            actor_matches = actor_pattern.findall(html)
             if actor_matches:
-                scrape_data["actors"] = actor_matches
+                scrape_data["actors"] = [name for _, name in actor_matches]
+                # 保存头像URL映射: {演员名: 完整URL}
+                actor_avatars = {}
+                for src, name in actor_matches:
+                    # 将相对路径转为完整URL
+                    if src.startswith("/"):
+                        avatar_url = f"https://{self.domain}{src}"
+                    else:
+                        avatar_url = src
+                    actor_avatars[name] = avatar_url
+                scrape_data["actor_avatars"] = actor_avatars
 
             return scrape_data
 

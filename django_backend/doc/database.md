@@ -19,7 +19,11 @@
     - `metadata_saved_at`, `video_saved_at`, `created_at` (DateTime)：时间戳。
   - 索引：`avid`, `title`, `source`（用于快速检索与分页）。
 
-- **`Actor` (`nassav_actor`)**: 演员表，去重存储演员名字并建立 M2M。字段：`name` (unique, db_index)。
+- **`Actor` (`nassav_actor`)**: 演员表，去重存储演员名字并建立 M2M。字段：
+  - `name` (unique, db_index)：演员名称
+  - `avatar_url`：头像图片URL（来自Javbus，可能为空）
+  - `avatar_filename`：头像文件名（下载到 `resource/avatar/` 目录）
+  - `updated_at`：最后更新时间（auto_now=True）
 
 - **`Genre` (`nassav_genre`)**: 类型/标签表，字段：`name` (unique, db_index)。
 
@@ -28,9 +32,10 @@
 **持久化 & 更新流程（简要）**
 
 - 新资源入库（SourceManager.save_all_resources）:
-  - 从 scraper 得到 `AVDownloadInfo`（内存结构），包含 `title`, `avid`, `m3u8`, `actors`, `genres`, `duration` 等。
+  - 从 scraper 得到 `AVDownloadInfo`（内存结构），包含 `title`, `avid`, `m3u8`, `actors`, `actor_avatars`, `genres`, `duration` 等。
   - 将封面图片下载并保存到磁盘：`resource/{AVID}/{cover_filename}`，`cover_filename` 写入 `AVResource.cover_filename`。
   - 将元数据写入 `AVResource`（`metadata` 保存原始 JSON），对 `actors`/`genres` 做 `get_or_create` 并设置 M2M 关系。
+  - 演员头像处理：从 `actor_avatars` 字典获取URL，更新 `Actor.avatar_url` 和 `avatar_filename`，自动下载头像图片到 `resource/avatar/` 目录。
   - `duration` 的写入规则：若爬取值是字符串（如 "150分钟"），解析为秒并写入；如果同时存在本地 MP4，优先用 `ffprobe` 获取的秒数覆盖。
 
 - 下载任务完成（Celery `download_video_task`）:

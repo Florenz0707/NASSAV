@@ -182,6 +182,7 @@ CELERY_TASK_SEND_SENT_EVENT = False
 # Resource paths - 新的布局：
 # - 封面: resource/cover/{AVID}.jpg
 # - 视频:  resource/video/{AVID}.mp4
+# - 头像: resource/avatar/{filename}.jpg
 RESOURCE_DIR = BASE_DIR / "resource"
 RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -191,8 +192,10 @@ RESOURCE_BACKUP_DIR = BASE_DIR / "resource_backup"
 # 新的子目录
 COVER_DIR = RESOURCE_DIR / "cover"
 VIDEO_DIR = RESOURCE_DIR / "video"
+AVATAR_DIR = RESOURCE_DIR / "avatar"
 COVER_DIR.mkdir(parents=True, exist_ok=True)
 VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 # Log directory
 LOG_DIR = BASE_DIR / "log"

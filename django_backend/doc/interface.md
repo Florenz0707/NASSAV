@@ -109,7 +109,7 @@ GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
 
 - 方法：GET
 - 路径：`/nassav/api/actors/`
-- 功能：返回所有演员及其作品数统计，支持分页、搜索和排序
+- 功能：返回所有演员及其作品数统计，支持分页、搜索和排序（包含头像信息）
 - 支持 Query 参数：
   - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
   - `order_by`：排序字段，`count`（作品数）或 `name`（演员名称），默认 `count`
@@ -131,8 +131,20 @@ GET /nassav/api/actors/?order_by=name&order=asc
   "code": 200,
   "message": "success",
   "data": [
-    {"id": 1, "name": "桥本有菜", "resource_count": 85},
-    {"id": 2, "name": "三上悠亚", "resource_count": 72}
+    {
+      "id": 1,
+      "name": "桥本有菜",
+      "resource_count": 85,
+      "avatar_url": "https://www.javbus.com/pics/actress/abc_a.jpg",
+      "avatar_filename": "abc_a.jpg"
+    },
+    {
+      "id": 2,
+      "name": "三上悠亚",
+      "resource_count": 72,
+      "avatar_url": "https://www.javbus.com/pics/actress/xyz_a.jpg",
+      "avatar_filename": "xyz_a.jpg"
+    }
   ],
   "pagination": {
     "total": 200,
@@ -141,6 +153,35 @@ GET /nassav/api/actors/?order_by=name&order=asc
     "pages": 10
   }
 }
+```
+
+**说明**：
+- `avatar_url`：演员头像原始URL（来自Javbus）
+- `avatar_filename`：头像文件名（仅文件名，不含路径）
+- 头像URL和文件名可能为 `null`（演员无头像或尚未刮削）
+
+---
+
+## 演员头像图片
+
+- 方法：GET
+- 路径：`/nassav/api/actors/<actor_id>/avatar`
+- 功能：直接返回演员头像图片（JPEG格式）
+- 路径参数：
+  - `actor_id`：演员ID（整数）
+
+示例请求：
+```
+GET /nassav/api/actors/1/avatar
+```
+
+返回：
+- HTTP 200：返回图片文件（Content-Type: image/jpeg）
+- HTTP 404：演员不存在或无头像
+
+使用示例：
+```html
+<img src="/nassav/api/actors/1/avatar" alt="演员头像" />
 ```
 
 ---

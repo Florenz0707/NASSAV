@@ -241,6 +241,8 @@ class ActorsListView(APIView):
                 "id": a.id,
                 "name": a.name,
                 "resource_count": getattr(a, "resource_count", 0),
+                "avatar_url": a.avatar_url or None,
+                "avatar_filename": a.avatar_filename or None,
             }
             for a in page_obj.object_list
         ]
@@ -253,6 +255,34 @@ class ActorsListView(APIView):
         }
 
         return build_response(200, "success", data, pagination=pagination)
+
+
+class ActorAvatarView(APIView):
+    """GET /api/actors/<int:actor_id>/avatar - 返回演员头像图片"""
+
+    def get(self, request, actor_id):
+        from pathlib import Path
+
+        from django.conf import settings
+        from django.http import FileResponse, HttpResponse
+        from nassav.models import Actor
+
+        try:
+            actor = Actor.objects.get(id=actor_id)
+        except Actor.DoesNotExist:
+            return HttpResponse("演员不存在", status=404)
+
+        if not actor.avatar_filename:
+            return HttpResponse("演员头像不存在", status=404)
+
+        avatar_path = Path(settings.AVATAR_DIR) / actor.avatar_filename
+        if not avatar_path.exists():
+            return HttpResponse("头像文件不存在", status=404)
+
+        # 返回图片文件
+        response = FileResponse(avatar_path.open("rb"), content_type="image/jpeg")
+        response["Content-Disposition"] = f'inline; filename="{actor.avatar_filename}"'
+        return response
 
 
 class GenresListView(APIView):

@@ -31,12 +31,15 @@ class AVDownloadInfo:
     series: str = ""  # 系列
     genres: List[str] = None  # 类别
     actors: List[str] = None  # 演员
+    actor_avatars: dict = None  # 演员头像URL映射 {演员名: URL}
 
     def __post_init__(self):
         if self.genres is None:
             self.genres = []
         if self.actors is None:
             self.actors = []
+        if self.actor_avatars is None:
+            self.actor_avatars = {}
 
     def to_json(self, file_path: str, indent: int = 2) -> bool:
         try:
@@ -76,3 +79,5 @@ class AVDownloadInfo:
             self.genres = scraped_data["genres"]
         if scraped_data.get("actors"):
             self.actors = scraped_data["actors"]
+        if scraped_data.get("actor_avatars"):
+            self.actor_avatars = scraped_data["actor_avatars"]

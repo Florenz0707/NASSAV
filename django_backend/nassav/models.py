@@ -27,6 +27,11 @@ class SourceCookie(models.Model):
 
 class Actor(models.Model):
     name = models.CharField(max_length=200, unique=True, db_index=True)
+    avatar_url = models.URLField(blank=True, null=True, help_text="Javbus 头像 URL")
+    avatar_filename = models.CharField(
+        max_length=255, blank=True, null=True, help_text="头像文件名（存储在 resource/avatar/）"
+    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="最后更新时间")
 
     class Meta:
         db_table = "nassav_actor"

@@ -167,3 +167,54 @@ def parse_http_if_modified_since(header_value):
         return val
     except Exception:
         return None
+
+
+def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
+    """下载演员头像图片
+
+    Args:
+        url: 头像图片URL
+        dest_path: 目标文件路径（Path或str）
+        max_retries: 最大重试次数
+
+    Returns:
+        bool: 下载成功返回True，否则返回False
+    """
+    from pathlib import Path
+
+    from loguru import logger
+
+    try:
+        from curl_cffi import requests
+    except ImportError:
+        logger.error("curl_cffi未安装，无法下载头像")
+        return False
+
+    dest = Path(dest_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # 设置请求头（模拟浏览器，添加Referer）
+    headers = {
+        "Referer": "https://www.javbus.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+    }
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(
+                url, headers=headers, timeout=10, impersonate="chrome110"
+            )
+            if response.status_code == 200:
+                dest.write_bytes(response.content)
+                logger.info(f"头像下载成功: {dest.name}")
+                return True
+            else:
+                logger.warning(f"头像下载失败 (HTTP {response.status_code}): {url}")
+        except Exception as e:
+            logger.warning(f"头像下载失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                import time
+
+                time.sleep(1)  # 重试前等待1秒
+
+    return False

@@ -282,13 +282,46 @@ class SourceManager:
                 avid=avid, defaults=defaults
             )
 
-            # actors
+            # actors（保存演员及头像URL，下载头像图片）
             try:
                 resource_obj.actors.clear()
+                actor_avatars = getattr(info, "actor_avatars", {}) or {}
                 for actor_name in getattr(info, "actors", []) or []:
                     if not actor_name:
                         continue
-                    actor_obj, _ = Actor.objects.get_or_create(name=actor_name)
+                    # 获取或创建演员记录
+                    actor_obj, actor_created = Actor.objects.get_or_create(
+                        name=actor_name
+                    )
+                    # 如果有头像URL，更新演员的头像信息并下载图片
+                    if actor_name in actor_avatars:
+                        avatar_url = actor_avatars[actor_name]
+                        # 只有当头像URL变化时才更新（避免每次刷新都修改updated_at）
+                        if actor_obj.avatar_url != avatar_url:
+                            actor_obj.avatar_url = avatar_url
+                            # 从URL提取文件名: /pics/actress/305_a.jpg -> 305_a.jpg
+                            filename = avatar_url.rstrip("/").split("/")[-1]
+                            actor_obj.avatar_filename = filename
+                            actor_obj.save()
+                            logger.info(f"已更新演员头像URL: {actor_name} -> {avatar_url}")
+
+                            # 下载头像图片到AVATAR_DIR
+                            try:
+                                from pathlib import Path
+
+                                from nassav import utils as nassav_utils
+
+                                avatar_path = Path(settings.AVATAR_DIR) / filename
+                                # 如果文件不存在或者需要更新，则下载
+                                if not avatar_path.exists():
+                                    if nassav_utils.download_avatar(
+                                        avatar_url, avatar_path
+                                    ):
+                                        logger.info(f"头像已下载: {filename}")
+                                    else:
+                                        logger.warning(f"头像下载失败: {avatar_name}")
+                            except Exception as e:
+                                logger.exception(f"下载头像失败 {actor_name}: {e}")
                     resource_obj.actors.add(actor_obj)
             except Exception:
                 logger.exception(f"保存 actors 失败: {avid}")
