@@ -207,6 +207,10 @@ class ActorsListView(APIView):
         # 构建查询
         qs = Actor.objects.annotate(resource_count=Count("resources"))
 
+        # 过滤掉没有关联资源的演员（除非明确指定 ID）
+        if not actor_id:
+            qs = qs.filter(resource_count__gt=0)
+
         # ID 过滤（精确匹配）
         if actor_id:
             try:

@@ -147,10 +147,12 @@ class Javbus(ScraperBase):
                 scrape_data["director"] = director_match.group(1).strip()
 
             # 提取演員（actors）
-            # 查找所有演员链接
+            # 从 img 标签的 title 属性提取演员名（完整名称）
+            # 因为 span 标签中的名字可能被截断（如"めぐり（藤"）
+            # 而 img title 中保存的是完整名字（如"めぐり（藤浦めぐ）"）
             actor_matches = re.findall(
                 r'<a class="avatar-box"[^>]*>\s*<div[^>]*>\s*'
-                r"<img[^>]*>\s*</div>\s*<span>([^<]+)</span>",
+                r'<img[^>]*title="([^"]+)"[^>]*>',
                 html,
             )
             if actor_matches:

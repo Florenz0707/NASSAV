@@ -54,6 +54,32 @@ uv run python scripts/fix_avid_prefix_titles.py
 uv run python scripts/fix_avid_prefix_titles.py --execute
 ```
 
+#### fix_actor_names.py
+修复数据库中被截断的演员名称
+
+```bash
+# 显示统计信息
+uv run python scripts/fix_actor_names.py --stats
+
+# 预览模式（不实际修改）
+uv run python scripts/fix_actor_names.py --dry-run
+
+# 实际执行修复
+uv run python scripts/fix_actor_names.py
+
+# 只修复指定的 AVID
+uv run python scripts/fix_actor_names.py --avid ABC-001
+
+# 批量修复多个 AVID
+uv run python scripts/fix_actor_names.py --avids ABC-001 DEF-002 GHI-003
+
+# 限制处理数量
+uv run python scripts/fix_actor_names.py --limit 10
+
+# 详细输出模式
+uv run python scripts/fix_actor_names.py --verbose
+```
+
 #### fix_durations.py
 修复视频时长字段
 
