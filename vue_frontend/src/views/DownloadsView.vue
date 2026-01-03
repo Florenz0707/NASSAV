@@ -46,7 +46,7 @@ function getDisplayedTitle(resource) {
 
 // 获取任务标题（从任务对象或资源列表）
 function getTaskTitle(task) {
-	if (!task) return '加载中...'
+	if (!task) return '正在加载标题...'
 
 	// 如果任务已有标题，直接返回
 	if (task.title) return task.title
@@ -60,7 +60,7 @@ function getTaskTitle(task) {
 	}
 
 	// 如果都找不到，返回 AVID
-	return task.avid || '加载中...'
+	return task.avid || '正在加载标题...'
 }
 
 // 基于资源列表生成模拟任务
@@ -410,10 +410,6 @@ function goToResourceDetail(task) {
 	object-fit: cover;
 	border-radius: 10px;
 	transition: transform 0.3s ease;
-}
-
-.task-row:hover .task-cover img {
-	transform: scale(1.05);
 }
 
 /* 状态徽章 - 现在在 header 中 */
