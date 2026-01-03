@@ -9,13 +9,13 @@ import { RouterLink } from 'vue-router'
 			style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 30px 30px;"/>
 
 		<!-- Visual Shapes (Extended to full height) -->
-		<div class="fixed inset-0 z-[-1] pointer-events-none hidden lg:block opacity-60 overflow-hidden">
+		<div class="fixed inset-0 z-[-1] pointer-events-none opacity-60 overflow-hidden">
 			<div
-				class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] bg-[#ff6b6b] top-[-10%] right-[-5%] animate-[float1_10s_ease-in-out_infinite]"/>
+				class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] bg-[#ff6b6b] top-[-10%] right-[-5%]"/>
 			<div
-				class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] bg-[#ff9f43] top-[40%] right-[-10%] animate-[float2_12s_ease-in-out_infinite]"/>
+				class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] bg-[#ff9f43] top-[40%] right-[-10%]"/>
 			<div
-				class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bg-[#4ecdc4] bottom-[-10%] right-[-5%] animate-[float3_15s_ease-in-out_infinite]"/>
+				class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bg-[#4ecdc4] bottom-[-10%] right-[-5%]"/>
 		</div>
 
 		<!-- Hero Section -->
@@ -25,12 +25,12 @@ import { RouterLink } from 'vue-router'
 					<h1 class="flex flex-col gap-3 mb-8">
 						<span
 							class="text-7xl font-bold bg-gradient-to-br from-[#ff6b6b] to-[#ff9f43] bg-clip-text text-transparent tracking-tight">NASSAV</span>
-						<span class="text-3xl font-light text-[#a1a1aa] tracking-wide">视频资源管理系统</span>
+						<span class="text-3xl font-semibold text-[#a1a1aa] tracking-wide">视频资源管理系统</span>
 					</h1>
-					<p class="text-xl text-[#71717a] leading-relaxed mb-10 max-w-[500px]">
+					<p class="text-2xl text-[#aaaaaa] leading-relaxed mb-10 max-w-[500px]">
 						打造您的私人影音库
 						<br >
-						<span class="text-sm opacity-70">高效管理 · 自动刮削 · 极速下载</span>
+						<span class="text-xl opacity-90">高效管理 · 自动刮削 · 极速下载</span>
 					</p>
 					<div class="flex gap-5 flex-wrap">
 						<RouterLink to="/add"
@@ -110,42 +110,6 @@ import { RouterLink } from 'vue-router'
 	to {
 		opacity: 1;
 		transform: translateY(0);
-	}
-}
-
-@keyframes float1 {
-
-	0%,
-	100% {
-		transform: translate(0, 0);
-	}
-
-	50% {
-		transform: translate(-30px, 30px);
-	}
-}
-
-@keyframes float2 {
-
-	0%,
-	100% {
-		transform: translate(0, 0);
-	}
-
-	50% {
-		transform: translate(25px, -25px);
-	}
-}
-
-@keyframes float3 {
-
-	0%,
-	100% {
-		transform: translate(0, 0);
-	}
-
-	50% {
-		transform: translate(-15px, -30px);
 	}
 }
 </style>
