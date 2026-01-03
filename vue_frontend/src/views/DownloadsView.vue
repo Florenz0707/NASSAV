@@ -2,10 +2,12 @@
 import {computed, onBeforeUnmount, onUnmounted, ref, watch} from 'vue'
 import {useResourceStore} from '../stores/resource'
 import {useWebSocketStore} from '../stores/websocket'
+import {useSettingsStore} from '../stores/settings'
 import {resourceApi, taskApi} from '../api'
 
 const resourceStore = useResourceStore()
 const wsStore = useWebSocketStore()
+const settingsStore = useSettingsStore()
 
 const pollingTimer = ref(null)
 
@@ -20,13 +22,52 @@ function getResourcesArray() {
 	return Array.isArray(raw) ? raw : []
 }
 
+// 根据设置获取显示的标题
+function getDisplayedTitle(resource) {
+	if (!resource) return ''
+
+	const titleField = settingsStore.displayTitle
+
+	if (titleField === 'original_title' && resource.original_title) {
+		return resource.original_title
+	}
+	if (titleField === 'source_title' && resource.source_title) {
+		return resource.source_title
+	}
+	if (titleField === 'translated_title' && resource.translated_title) {
+		return resource.translated_title
+	}
+
+	// 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
+	return resource.translated_title || resource.source_title || resource.original_title || resource.title || resource.avid
+}
+
+// 获取任务标题（从任务对象或资源列表）
+function getTaskTitle(task) {
+	if (!task) return '加载中...'
+
+	// 如果任务已有标题，直接返回
+	if (task.title) return task.title
+
+	// 尝试从资源列表中查找对应的资源
+	const resources = getResourcesArray()
+	const resource = resources.find(r => r.avid === task.avid)
+
+	if (resource) {
+		return getDisplayedTitle(resource)
+	}
+
+	// 如果都找不到，返回 AVID
+	return task.avid || '加载中...'
+}
+
 // 基于资源列表生成模拟任务
 const mockActiveTasks = computed(() => {
 	const resources = getResourcesArray().slice(0, 2)
 	return resources.map((r, i) => ({
 		task_id: `mock-active-${i + 1}`,
 		avid: r.avid,
-		title: r.title,
+		title: getDisplayedTitle(r),
 		state: 'STARTED',
 		progress: {percent: i === 0 ? 45.2 : 78.9, speed: i === 0 ? '5.2MB/s' : '3.8MB/s'}
 	}))
@@ -37,7 +78,7 @@ const mockPendingTasks = computed(() => {
 	return resources.map((r, i) => ({
 		task_id: `mock-pending-${i + 1}`,
 		avid: r.avid,
-		title: r.title
+		title: getDisplayedTitle(r)
 	}))
 })
 
@@ -184,7 +225,7 @@ function stopPolling() {
 							</div>
 						</div>
 						<div class="task-title">
-							{{ task.title || '加载中...' }}
+							{{ getTaskTitle(task) }}
 						</div>
 						<div class="task-progress">
 							<div class="progress-bar">

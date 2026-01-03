@@ -1,6 +1,7 @@
 import {defineStore} from 'pinia'
 import {ref} from 'vue'
 import {resourceApi} from '../api'
+import {useSettingsStore} from './settings'
 
 export const useWebSocketStore = defineStore('websocket', () => {
     const ws = ref(null)
@@ -202,15 +203,28 @@ export const useWebSocketStore = defineStore('websocket', () => {
     // 更新任务数据
     function updateTaskData(data) {
         // 更新任务列表时，先从缓存应用标题
-        activeTasks.value = (data.active_tasks || []).map(task => ({
-            ...task,
-            title: task.title || titleCache.value.get(task.avid)?.title || null
-        }))
+        activeTasks.value = (data.active_tasks || []).map(task => {
+            const cachedTitle = titleCache.value.get(task.avid)?.title
+            const finalTitle = task.title || cachedTitle || null
+            console.log(`[WebSocket] 更新任务 ${task.avid}:`, {
+                taskTitle: task.title,
+                cachedTitle,
+                finalTitle
+            })
+            return {
+                ...task,
+                title: finalTitle
+            }
+        })
 
-        pendingTasks.value = (data.pending_tasks || []).map(task => ({
-            ...task,
-            title: task.title || titleCache.value.get(task.avid)?.title || null
-        }))
+        pendingTasks.value = (data.pending_tasks || []).map(task => {
+            const cachedTitle = titleCache.value.get(task.avid)?.title
+            const finalTitle = task.title || cachedTitle || null
+            return {
+                ...task,
+                title: finalTitle
+            }
+        })
 
         activeCount.value = data.active_count || 0
         pendingCount.value = data.pending_count || 0
@@ -220,30 +234,65 @@ export const useWebSocketStore = defineStore('websocket', () => {
         fetchMissingMetadata()
     }
 
+    // 正在获取元数据的 AVID 集合（避免重复请求）
+    const fetchingMetadata = ref(new Set())
+
     // 获取缺失的元数据
     async function fetchMissingMetadata() {
         const allTasks = [...activeTasks.value, ...pendingTasks.value]
+        const settingsStore = useSettingsStore()
 
         for (const task of allTasks) {
-            // 如果任务没有 title 且缓存中也没有
-            if (!task.title && task.avid && !titleCache.value.has(task.avid)) {
+            // 如果任务没有 title 且缓存中也没有，且当前没有正在获取
+            if (!task.title && task.avid && !titleCache.value.has(task.avid) && !fetchingMetadata.value.has(task.avid)) {
+                // 标记为正在获取
+                fetchingMetadata.value.add(task.avid)
+
                 try {
                     console.log(`[WebSocket] 获取元数据: ${task.avid}`)
                     const response = await resourceApi.getMetadata(task.avid)
 
-                    if (response.data && response.data.title) {
+                    if (response.data) {
+                        const data = response.data
+                        const titleField = settingsStore.displayTitle
+
+                        console.log(`[WebSocket] 收到元数据响应 (${task.avid}):`, {
+                            original_title: data.original_title,
+                            source_title: data.source_title,
+                            translated_title: data.translated_title,
+                            titleField
+                        })
+
+                        // 根据设置获取标题
+                        let displayTitle = ''
+                        if (titleField === 'original_title' && data.original_title) {
+                            displayTitle = data.original_title
+                        } else if (titleField === 'source_title' && data.source_title) {
+                            displayTitle = data.source_title
+                        } else if (titleField === 'translated_title' && data.translated_title) {
+                            displayTitle = data.translated_title
+                        } else {
+                            // 降级逻辑
+                            displayTitle = data.translated_title || data.source_title || data.original_title || data.title || task.avid
+                        }
+
+                        console.log(`[WebSocket] 选择的标题 (${task.avid}): ${displayTitle}`)
+
                         // 存入缓存
                         titleCache.value.set(task.avid, {
-                            title: response.data.title,
+                            title: displayTitle,
                             timestamp: Date.now()
                         })
 
                         // 立即更新当前任务列表
-                        updateTaskTitle(task.avid, response.data.title)
+                        updateTaskTitle(task.avid, displayTitle)
                     }
                 } catch (error) {
                     console.error(`[WebSocket] 获取元数据失败 (${task.avid}):`, error)
                     // 失败后不存入缓存，允许下次重试
+                } finally {
+                    // 移除正在获取标记
+                    fetchingMetadata.value.delete(task.avid)
                 }
             }
         }

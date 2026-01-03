@@ -270,7 +270,8 @@ class SourceManager:
             )
 
             defaults = {
-                "title": getattr(info, "title", "") or "",  # Scraper 提供的规范标题（日语）
+                "original_title": getattr(info, "title", "")
+                or "",  # Scraper 提供的规范标题（日语）
                 "source_title": normalized_source_title,  # Source 提供的备用标题（已规范化）
                 "source": source_name or getattr(info, "source", "") or "",
                 "release_date": getattr(info, "release_date", "") or "",

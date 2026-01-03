@@ -1,19 +1,42 @@
 <script setup>
-import {onMounted, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import {useRouter} from 'vue-router'
 import {useResourceStore} from '../stores/resource'
 import {useToastStore} from '../stores/toast'
+import {useSettingsStore} from '../stores/settings'
 import {resourceApi} from '../api'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const router = useRouter()
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()
+const settingsStore = useSettingsStore()
 
 const avid = ref('')
 const source = ref('any')
 const submitting = ref(false)
 const result = ref(null)
+
+// 根据设置选择显示的标题
+const displayedTitle = computed(() => {
+	if (!result.value?.data) return ''
+
+	const titleField = settingsStore.displayTitle
+	const resource = result.value.data
+
+	if (titleField === 'original_title' && resource.original_title) {
+		return resource.original_title
+	}
+	if (titleField === 'source_title' && resource.source_title) {
+		return resource.source_title
+	}
+	if (titleField === 'translated_title' && resource.translated_title) {
+		return resource.translated_title
+	}
+
+	// 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
+	return resource.translated_title || resource.source_title || resource.original_title || resource.title || resource.avid
+})
 
 onMounted(async () => {
 	await resourceStore.fetchSources()
@@ -242,9 +265,9 @@ function addAnother() {
 						<span class="result-label">编号</span>
 						<span class="result-value avid">{{ result.data.avid }}</span>
 					</div>
-					<div v-if="result.data.title" class="result-item">
+					<div v-if="displayedTitle" class="result-item">
 						<span class="result-label">标题</span>
-						<span class="result-value">{{ result.data.title }}</span>
+						<span class="result-value">{{ displayedTitle }}</span>
 					</div>
 					<div v-if="result.data.source" class="result-item">
 						<span class="result-label">来源</span>

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { downloadApi, resourceApi } from '../api'
 import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
+import { useSettingsStore } from '../stores/settings'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -11,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()
+const settingsStore = useSettingsStore()
 
 const avid = computed(() => route.params.avid)
 const metadata = ref(null)
@@ -47,6 +49,27 @@ const deleteOptions = computed(() => {
 })
 
 const coverUrl = ref(null)
+
+// 根据设置选择显示的标题
+const displayedTitle = computed(() => {
+	if (!metadata.value) return ''
+
+	const titleField = settingsStore.displayTitle
+	const resource = metadata.value
+
+	if (titleField === 'original_title' && resource.original_title) {
+		return resource.original_title
+	}
+	if (titleField === 'source_title' && resource.source_title) {
+		return resource.source_title
+	}
+	if (titleField === 'translated_title' && resource.translated_title) {
+		return resource.translated_title
+	}
+
+	// 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
+	return resource.translated_title || resource.source_title || resource.original_title || resource.title || resource.avid
+})
 
 async function loadCover() {
 	if (!avid.value) return
@@ -247,7 +270,7 @@ function cancelDelete() {
 				<!-- 封面 -->
 				<div
 					class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex justify-center items-center">
-					<img :src="coverUrl" :alt="metadata.title" class="h-full aspect-auto object-cover block" >
+					<img :src="coverUrl" :alt="displayedTitle" class="h-full aspect-auto object-cover block" >
 				</div>
 
 				<!-- 右侧信息 -->
@@ -266,7 +289,7 @@ function cancelDelete() {
 
 					<!-- 标题 -->
 					<h1 class="text-[1.75rem] font-semibold text-[#f4f4f5] leading-[1.4] mb-6">
-						{{ metadata.title }}
+						{{ displayedTitle }}
 					</h1>
 
 					<!-- 元数据网格 -->
