@@ -86,7 +86,7 @@ def get_pending_resources(limit=None, force=False):
     from django.db.models import Q
 
     # 必须有标题
-    query = (Q(title__isnull=False) & ~Q(title="")) | (
+    query = (Q(original_title__isnull=False) & ~Q(original_title="")) | (
         Q(source_title__isnull=False) & ~Q(source_title="")
     )
 
@@ -119,7 +119,7 @@ def run_sync_translation(resources, verbose=True):
     print(f"\n🔄 开始同步翻译 {total} 条记录...\n")
 
     for idx, resource in enumerate(resources, 1):
-        title = resource.title or resource.source_title
+        title = resource.original_title or resource.source_title
         if not title:
             if verbose:
                 print(f"  [{idx}/{total}] ⏭️  {resource.avid}: 无标题，跳过")
@@ -174,7 +174,7 @@ def run_dry_run(resources, verbose=True):
     print("=" * 80)
 
     for idx, resource in enumerate(resources, 1):
-        title = resource.title or resource.source_title
+        title = resource.original_title or resource.source_title
         avid = resource.avid
         current_translation = resource.translated_title
 

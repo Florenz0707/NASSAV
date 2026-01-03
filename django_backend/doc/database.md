@@ -45,10 +45,6 @@
 - 删除资源（API/视图）:
   - 删除磁盘上的封面/MP4 后，会尝试更新 `AVResource`：将 `file_exists=False`、`file_size=None`、`video_saved_at=None`。元数据（JSON）默认保留，除非明确发起数据库删除操作。
 
-**导入历史元数据**
-
-- 为了从现有 `resource/{AVID}/{AVID}.json` 迁移，项目包含脚本 `scripts/migrate_metadata_to_db.py`：支持 `--dry-run` 与 `--apply`，会把 JSON 内容写入 `AVResource.metadata` 并构建/更新 M2M 关系。该脚本也调用解析函数把字符串格式时长转换为秒（并在 MP4 存在时优先使用 `ffprobe`）。
-
 **一致性与事务控制**
 
 - 对于涉及多表更新（写 `AVResource` + 设置 M2M actor/genre）使用 `transaction.atomic()` 保证原子性。
@@ -79,4 +75,4 @@
 - 若转向生产级数据库（Postgres），为 `actors`/`genres` 添加唯一约束和必要的索引，并考虑使用 `GIN` 索引优化 `metadata` JSON 查询。
 - 定期运行对比/校验任务，确保磁盘文件（cover/mp4）与 `AVResource.file_exists`、`file_size` 一致。
 
-文件: `nassav/models.py`, 导入脚本: `scripts/migrate_metadata_to_db.py`, 修复脚本: `scripts/fix_durations.py`。
+文件: `nassav/models.py`, 修复脚本: `scripts/fix_durations.py`。

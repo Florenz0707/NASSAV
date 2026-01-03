@@ -132,7 +132,7 @@ def test_cleaning():
         print("=" * 80)
 
     print(f"\n📊 测试完成: {passed} 通过, {failed} 失败")
-    return failed == 0
+    assert failed == 0, f"{failed} 个测试失败"
 
 
 if __name__ == "__main__":

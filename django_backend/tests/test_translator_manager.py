@@ -16,6 +16,8 @@ TranslatorManager 测试脚本
 import os
 import sys
 
+import pytest
+
 # 添加项目根目录到 Python 路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
@@ -49,10 +51,10 @@ def test_manager_initialization():
 
     if manager.is_available():
         print("✓ TranslatorManager 初始化成功")
-        return True
     else:
         print("✗ 没有可用的翻译器")
-        return False
+
+    assert manager.is_available(), "没有可用的翻译器"
 
 
 def test_global_instance():
@@ -73,10 +75,10 @@ def test_global_instance():
 
     if manager1 is manager2:
         print("✓ 全局单例模式正常")
-        return True
     else:
         print("✗ 单例模式异常")
-        return False
+
+    assert manager1 is manager2, "单例模式异常"
 
 
 def test_single_translation():
@@ -101,9 +103,8 @@ def test_single_translation():
             print("✓ 翻译成功")
         else:
             print("✗ 翻译失败")
-            return False
 
-    return True
+        assert result is not None, f"翻译失败: {text}"
 
 
 def test_batch_translation():
@@ -135,7 +136,7 @@ def test_batch_translation():
             print("✗ 失败")
 
     print(f"\n成功率: {success_count}/{len(test_texts)}")
-    return success_count == len(test_texts)
+    assert success_count > 0, "批量翻译全部失败"
 
 
 def test_specific_translator():
@@ -147,7 +148,8 @@ def test_specific_translator():
     available = translator_manager.get_available_translators()
     if not available:
         print("✗ 没有可用的翻译器")
-        return False
+        pytest.skip("没有可用的翻译器")
+        return
 
     translator_name = available[0]
     test_text = "新人NO.1STYLE 小宵こなんAVデビュー"
@@ -160,10 +162,10 @@ def test_specific_translator():
     if result:
         print(f"译文: {result}")
         print("✓ 翻译成功")
-        return True
     else:
         print("✗ 翻译失败")
-        return False
+
+    assert result is not None, "翻译失败"
 
 
 def test_retry_mechanism():
@@ -182,10 +184,10 @@ def test_retry_mechanism():
     if result:
         print(f"译文: {result}")
         print("✓ 重试机制正常")
-        return True
     else:
         print("✗ 重试失败")
-        return False
+
+    assert result is not None, "重试失败"
 
 
 def main():

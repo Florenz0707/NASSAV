@@ -82,7 +82,9 @@ def load_metadata_from_db(avid: str) -> dict | None:
     md = resource.metadata.copy() if resource.metadata else {}
     # Ensure common keys exist
     md.setdefault("avid", resource.avid)
-    md.setdefault("title", resource.title or "")  # Scraper 获取的原文标题
+    md.setdefault(
+        "title", resource.original_title or ""
+    )  # Scraper 获取的原始标题（通常为日语，来自 Javbus）
     md.setdefault("source_title", resource.source_title or "")  # Source 获取的备用标题
     md.setdefault("translated_title", resource.translated_title or "")  # 翻译后的标题
     md.setdefault("source", resource.source)
@@ -112,8 +114,10 @@ def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -
                 avid=avid, defaults={}
             )
 
-            # 更新字段（注意：只更新 title，不修改 source_title 和 translated_title）
-            resource_obj.title = merged_metadata.get("title", "") or ""  # Scraper 原文标题
+            # 更新字段（注意：只更新 original_title，不修改 source_title 和 translated_title）
+            resource_obj.original_title = (
+                merged_metadata.get("title", "") or ""
+            )  # Scraper 原文标题
             resource_obj.source = merged_metadata.get("source", "") or ""
             resource_obj.release_date = merged_metadata.get("release_date", "") or ""
             resource_obj.metadata = merged_metadata
@@ -136,14 +140,14 @@ def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -
             except Exception:
                 pass
 
-            # 如果 scraper 更新后，title 有变化且之前有翻译，则重置翻译状态为 pending
+            # 如果 scraper 更新后，original_title 有变化且之前有翻译，则重置翻译状态为 pending
             if not created and merged_metadata.get("title"):
                 # 重新查询获取旧值（避免缓存）
                 old_obj = AVResource.objects.filter(avid=avid).first()
                 if (
                     old_obj
-                    and old_obj.title
-                    and old_obj.title != merged_metadata.get("title")
+                    and old_obj.original_title
+                    and old_obj.original_title != merged_metadata.get("title")
                 ):
                     # 标题变了，重置翻译状态
                     if old_obj.translated_title:
@@ -187,10 +191,10 @@ def merge_metadata(original: dict, scraped: dict, force: bool = False) -> dict:
     local_fields = ["m3u8", "source"]
 
     # 字段映射（Javbus -> 本地 JSON）
-    # 注意：Javbus scraper 返回的 title 是原文（日语）
+    # 注意：Javbus scraper 返回的 title 是原文（日语），对应 AVResource.original_title
     field_mapping = {
         "avid": "avid",
-        "title": "title",  # Scraper 原文标题（日语）- 对应 AVResource.title
+        "title": "title",  # Scraper 原文标题（日语）- 对应 AVResource.original_title
         "release_date": "release_date",
         "duration": "duration",
         "studio": "studio",  # Javbus 的 studio

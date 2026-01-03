@@ -47,4 +47,4 @@ class WebSocketTest(TransactionTestCase):
         await comm.disconnect()
 
     def test_ws_queue_status(self):
-        asyncio.get_event_loop().run_until_complete(self._run())
+        asyncio.run(self._run())

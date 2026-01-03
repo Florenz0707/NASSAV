@@ -23,6 +23,7 @@ import time
 from typing import List, Tuple
 
 import django
+import pytest
 
 # 添加项目根目录到 Python 路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +33,7 @@ sys.path.insert(0, project_root)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
+from django.conf import settings
 from loguru import logger
 from nassav.models import AVResource
 from nassav.translator import OllamaTranslator
@@ -47,18 +49,20 @@ def test_service_availability():
     print("测试 1: 检查 Ollama 服务可用性")
     print("=" * 60)
 
-    translator = OllamaTranslator()
+    # 使用激活的翻译器配置
+    active_translator = getattr(settings, "ACTIVE_TRANSLATOR", "ollama")
+    translator = OllamaTranslator(config_name=active_translator)
     is_available = translator.is_available()
 
     if is_available:
         print(f"✓ Ollama 服务可用")
         print(f"  URL: {translator.url}")
         print(f"  Model: {translator.model}")
-        return True
     else:
         print(f"✗ Ollama 服务不可用")
         print(f"  请检查服务是否运行: {translator.url}")
-        return False
+
+    assert is_available, "Ollama 服务不可用"
 
 
 def test_single_translation():
@@ -67,7 +71,8 @@ def test_single_translation():
     print("测试 2: 单条翻译测试")
     print("=" * 60)
 
-    translator = OllamaTranslator()
+    active_translator = getattr(settings, "ACTIVE_TRANSLATOR", "ollama")
+    translator = OllamaTranslator(config_name=active_translator)
 
     # 测试样例
     test_cases = [
@@ -99,9 +104,10 @@ def test_single_translation():
     avg_time = sum(r[3] for r in results) / len(results)
     print(f"平均耗时: {avg_time:.2f}秒")
 
-    return results
+    assert success_count > 0, "所有翻译均失败"
 
 
+@pytest.mark.django_db
 def test_batch_translation(count: int = 5):
     """测试批量翻译"""
     print("\n" + "=" * 60)
@@ -117,12 +123,13 @@ def test_batch_translation(count: int = 5):
 
     if not resources:
         print("✗ 数据库中没有可用的标题数据")
-        return []
+        pytest.skip("数据库中没有可用的标题数据")
 
     print(f"从数据库中随机选取 {len(resources)} 条日语标题\n")
 
-    translator = OllamaTranslator()
-    japanese_texts = [r.title for r in resources]
+    active_translator = getattr(settings, "ACTIVE_TRANSLATOR", "ollama")
+    translator = OllamaTranslator(config_name=active_translator)
+    japanese_texts = [r.original_title for r in resources]
 
     # 显示原文
     for i, text in enumerate(japanese_texts, 1):
@@ -158,7 +165,7 @@ def test_batch_translation(count: int = 5):
     print(f"平均每条: {elapsed/len(japanese_texts):.2f}秒")
     print("=" * 60)
 
-    return results
+    assert success_count > 0, "批量翻译全部失败"
 
 
 def test_retry_mechanism():
@@ -167,7 +174,8 @@ def test_retry_mechanism():
     print("测试 4: 重试机制测试")
     print("=" * 60)
 
-    translator = OllamaTranslator()
+    active_translator = getattr(settings, "ACTIVE_TRANSLATOR", "ollama")
+    translator = OllamaTranslator(config_name=active_translator)
 
     # 使用一个正常的日语文本
     test_text = "新人NO.1STYLE 小宵こなんAVデビュー"
@@ -184,12 +192,13 @@ def test_retry_mechanism():
     if result:
         print(f"✓ 翻译成功: {result}")
         print(f"  耗时: {elapsed:.2f}秒")
-        return True
     else:
         print(f"✗ 翻译失败")
-        return False
+
+    assert result is not None, "翻译失败"
 
 
+@pytest.mark.django_db
 def test_database_samples(count: int = 10):
     """测试数据库中的真实样本"""
     print("\n" + "=" * 60)
@@ -208,20 +217,21 @@ def test_database_samples(count: int = 10):
 
     if not resources:
         print("✗ 数据库中没有同时包含 original_title 和 source_title 的数据")
-        return []
+        pytest.skip("数据库中没有同时包含 original_title 和 source_title 的数据")
 
-    translator = OllamaTranslator()
+    active_translator = getattr(settings, "ACTIVE_TRANSLATOR", "ollama")
+    translator = OllamaTranslator(config_name=active_translator)
 
     print(f"选取 {len(resources)} 条资源进行对比测试\n")
 
     results = []
     for i, resource in enumerate(resources, 1):
         print(f"\n[{i}] {resource.avid}")
-        print(f"  日语原文 (title):        {resource.title}")
+        print(f"  日语原文 (original_title):   {resource.original_title}")
         print(f"  中文原标题 (source_title): {resource.source_title}")
 
         start_time = time.time()
-        translated = translator.translate(resource.title)
+        translated = translator.translate(resource.original_title)
         elapsed = time.time() - start_time
 
         if translated:
@@ -230,7 +240,7 @@ def test_database_samples(count: int = 10):
             results.append(
                 {
                     "avid": resource.avid,
-                    "title": resource.title,
+                    "original_title": resource.original_title,
                     "source_title": resource.source_title,
                     "translated": translated,
                     "success": True,
@@ -242,7 +252,7 @@ def test_database_samples(count: int = 10):
             results.append(
                 {
                     "avid": resource.avid,
-                    "title": resource.title,
+                    "original_title": resource.original_title,
                     "source_title": resource.source_title,
                     "translated": None,
                     "success": False,
@@ -264,7 +274,7 @@ def test_database_samples(count: int = 10):
     print(f"平均耗时: {avg_time:.2f}秒")
     print("=" * 60)
 
-    return results
+    assert success_count > 0, "数据库样本翻译全部失败"
 
 
 def main():

@@ -6,7 +6,7 @@
     查找并修复标题以 AVID 开头的资源记录（这通常是刮削失败的标志）
 
 处理流程：
-    1. 查找所有 title 字段以 AVID 开头的资源
+    1. 查找所有 original_title 字段以 AVID 开头的资源
     2. 重新从 Javbus 刮削获取正确的标题
     3. 可选：使用 Ollama 翻译新标题
 
@@ -38,7 +38,7 @@
 
 注意：
     - 默认为预览模式（dry-run），不会修改数据库
-    - 只更新 title 字段（Scraper原文），不影响 source_title 和 translated_title
+    - 只更新 original_title 字段（Scraper原文），不影响 source_title 和 translated_title
     - 建议先使用 --list-only 查看问题资源
 """
 
@@ -68,8 +68,8 @@ from nassav.translator import translator_manager
 def find_avid_prefix_resources():
     """查找所有标题以 AVID 开头的资源"""
     resources = (
-        AVResource.objects.exclude(title__isnull=True)
-        .exclude(title="")
+        AVResource.objects.exclude(original_title__isnull=True)
+        .exclude(original_title="")
         .exclude(translated_title__isnull=True)
         .exclude(translated_title="")
     )
@@ -78,7 +78,9 @@ def find_avid_prefix_resources():
     for resource in resources:
         # 检查标题是否以 AVID 开头（忽略大小写）
         logger.info(f"检查 {resource.avid} - 标题: {resource.translated_title[:30]}...")
-        if resource.title and resource.title.upper().startswith(resource.avid.upper()):
+        if resource.original_title and resource.original_title.upper().startswith(
+            resource.avid.upper()
+        ):
             avid_prefix_resources.append(resource)
 
     return avid_prefix_resources
@@ -100,7 +102,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
 
     logger.info(f"找到 {len(resources)} 个以 AVID 开头的标题:")
     for r in resources:
-        logger.info(f"  - {r.avid}: {r.title[:60]}...")
+        logger.info(f"  - {r.avid}: {r.original_title[:60]}...")
 
     logger.info("-" * 60)
 
@@ -130,7 +132,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
 
     for idx, resource in enumerate(resources, 1):
         avid = resource.avid
-        old_title = resource.title
+        old_title = resource.original_title
 
         logger.info(f"\n[{idx}/{len(resources)}] 处理 {avid}")
         logger.info(f"  旧标题: {old_title[:60]}...")
@@ -176,8 +178,8 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
 
             # 更新标题
             if not dry_run:
-                resource.title = new_title
-                resource.save(update_fields=["title"])
+                resource.original_title = new_title
+                resource.save(update_fields=["original_title"])
                 logger.info(f"  ✓ 标题已更新")
             else:
                 logger.info(f"  [预览] 将更新标题")
@@ -257,7 +259,7 @@ def main():
         if resources:
             logger.info(f"找到 {len(resources)} 个以 AVID 开头的标题:")
             for r in resources:
-                logger.info(f"  {r.avid}: {r.title}")
+                logger.info(f"  {r.avid}: {r.original_title}")
         else:
             logger.info("✓ 没有找到以 AVID 开头的标题")
         return
