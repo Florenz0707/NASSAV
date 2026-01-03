@@ -727,7 +727,7 @@ def check_videos_consistency(
     limit: int | None = None,
     report: str | None = None,
 ):
-    """调用管理命令 `check_db_disk_consistency` 以在 worker 中运行一致性检查（供 Celery Beat 调度）。"""
+    """调用管理命令 `check_videos_consistency` 以在 worker 中运行一致性检查（供 Celery Beat 调度）。"""
     try:
         from django.core.management import call_command
 
@@ -738,7 +738,7 @@ def check_videos_consistency(
             args.extend(["--limit", str(limit)])
         if report:
             args.extend(["--report", report])
-        call_command("check_db_disk_consistency", *args)
+        call_command("check_videos_consistency", *args)
     except Exception as e:
         logger.error(f"运行一致性检查任务失败: {e}")
 
@@ -1155,133 +1155,14 @@ def check_actor_avatars_consistency(
         apply_changes: 如果为True，实际下载缺失的头像；否则只检查不修复
         report: 报告文件路径（JSON格式），如果提供则保存统计结果
     """
-    import json
-    from pathlib import Path
-
-    from django.conf import settings
-    from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
-    from nassav.models import Actor
-    from nassav.utils import download_avatar
-
-    logger.info("=" * 60)
-    logger.info(f"开始演员头像一致性检查 (apply_changes={apply_changes})")
-    logger.info("=" * 60)
-
     try:
-        actors = Actor.objects.all()
-        total = actors.count()
+        from django.core.management import call_command
 
-        stats = {
-            "timestamp": str(datetime.now()),
-            "apply_changes": apply_changes,
-            "total": total,
-            "no_url": 0,
-            "placeholder": 0,
-            "filename_empty": 0,
-            "file_missing": 0,
-            "download_success": 0,
-            "download_failed": 0,
-            "ok": 0,
-            "issues": [],
-        }
-
-        for idx, actor in enumerate(actors, 1):
-            if idx % 100 == 0:
-                logger.info(f"进度: {idx}/{total} ({idx * 100 // total}%)")
-
-            # 检查是否有头像URL
-            if not actor.avatar_url:
-                stats["no_url"] += 1
-                continue
-
-            # 检查是否是占位符URL
-            if actor.avatar_url in ACTOR_AVATAR_PLACEHOLDER_URLS:
-                stats["placeholder"] += 1
-                continue
-
-            # 检查 avatar_filename 是否为空
-            if not actor.avatar_filename:
-                stats["filename_empty"] += 1
-                issue = {
-                    "actor": actor.name,
-                    "actor_id": actor.id,
-                    "issue": "filename_empty",
-                    "avatar_url": actor.avatar_url,
-                }
-
-                # 生成文件名
-                filename = actor.avatar_url.split("/")[-1]
-                if not filename or "." not in filename:
-                    filename = f"{actor.id}.jpg"
-
-                avatar_path = Path(settings.AVATAR_DIR) / filename
-
-                if apply_changes:
-                    if download_avatar(actor.avatar_url, avatar_path):
-                        actor.avatar_filename = filename
-                        actor.save()
-                        stats["download_success"] += 1
-                        issue["action"] = "downloaded"
-                        issue["filename"] = filename
-                    else:
-                        stats["download_failed"] += 1
-                        issue["action"] = "download_failed"
-                else:
-                    issue["action"] = "skipped"
-                    issue["would_download_to"] = str(avatar_path)
-
-                stats["issues"].append(issue)
-                continue
-
-            # 检查文件是否存在
-            avatar_path = Path(settings.AVATAR_DIR) / actor.avatar_filename
-            if not avatar_path.exists():
-                stats["file_missing"] += 1
-                issue = {
-                    "actor": actor.name,
-                    "actor_id": actor.id,
-                    "issue": "file_missing",
-                    "avatar_url": actor.avatar_url,
-                    "filename": actor.avatar_filename,
-                    "expected_path": str(avatar_path),
-                }
-
-                if apply_changes:
-                    if download_avatar(actor.avatar_url, avatar_path):
-                        stats["download_success"] += 1
-                        issue["action"] = "redownloaded"
-                    else:
-                        stats["download_failed"] += 1
-                        issue["action"] = "redownload_failed"
-                else:
-                    issue["action"] = "skipped"
-
-                stats["issues"].append(issue)
-            else:
-                stats["ok"] += 1
-
-        # 打印统计信息
-        logger.info("=" * 60)
-        logger.info("演员头像一致性检查完成")
-        logger.info(f"  总演员数: {stats['total']}")
-        logger.info(f"  没有头像URL: {stats['no_url']}")
-        logger.info(f"  占位符URL: {stats['placeholder']}")
-        logger.info(f"  filename为空: {stats['filename_empty']}")
-        logger.info(f"  文件不存在: {stats['file_missing']}")
-        logger.info(f"  下载成功: {stats['download_success']}")
-        logger.info(f"  下载失败: {stats['download_failed']}")
-        logger.info(f"  状态正常: {stats['ok']}")
-        logger.info(f"  问题总数: {len(stats['issues'])}")
-        logger.info("=" * 60)
-
-        # 保存报告
+        args = []
+        if apply_changes:
+            args.append("--apply")
         if report:
-            report_path = Path(report)
-            report_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(report_path, "w", encoding="utf-8") as f:
-                json.dump(stats, f, ensure_ascii=False, indent=2)
-            logger.info(f"报告已保存到: {report_path}")
-
+            args.extend(["--report", report])
+        call_command("check_actor_avatars_consistency", *args)
     except Exception as e:
-        logger.exception(f"演员头像一致性检查失败: {e}")
-        raise
+        logger.error(f"运行演员头像一致性检查任务失败: {e}")

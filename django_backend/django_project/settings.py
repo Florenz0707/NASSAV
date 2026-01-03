@@ -242,21 +242,19 @@ SCRAPER_CONFIG = CONFIG.get("Scraper", {})
 
 # Translator configurations (e.g., Ollama)
 TRANSLATOR_CONFIG = CONFIG.get("Translator", {})
-ACTIVE_TRANSLATOR = CONFIG.get("Translator", {}).get("active", "ollama")
+ACTIVE_TRANSLATOR = CONFIG.get("Translator", {}).get("active", None)
 
-# Display title configuration (title | source_title | translated_title)
-DISPLAY_TITLE = CONFIG.get("DisplayTitle", "source_title")
 
 # Celery Beat schedule: daily consistency checks
 CELERY_BEAT_SCHEDULE = {
     "db-disk-consistency-daily": {
         "task": "nassav.tasks.check_videos_consistency",
         "schedule": crontab(hour=7, minute=0),
-        "args": (False, None, "beat_report/videos_consistency_report.json"),
+        "args": (True, None, "celery_beat/videos_consistency_report.json"),
     },
     "actor-avatars-consistency-daily": {
         "task": "nassav.tasks.check_actor_avatars_consistency",
-        "schedule": crontab(hour=6, minute=0),
-        "args": (True, "beat_report/actor_avatars_report.json"),
+        "schedule": crontab(hour=7, minute=5),
+        "args": (True, "celery_beat/actor_avatars_consistency_report.json"),
     },
 }
