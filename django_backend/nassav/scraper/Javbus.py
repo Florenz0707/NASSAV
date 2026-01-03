@@ -4,6 +4,7 @@ JavBus 风格刮削器 - 适用于 JavBus 及其镜像站（Busdmm, Dmmsee 等�
 import re
 from typing import Optional
 
+from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
 
@@ -185,6 +186,52 @@ class Javbus(ScraperBase):
         except Exception as e:
             logger.error(f"解析 JavBus HTML 失败: {e}")
             return None
+
+    def download_avatar(self, url: str, dest_path: str, max_retries: int = 3) -> bool:
+        """下载演员头像图片（JavBus 实现）
+
+        Args:
+            url: 头像图片URL
+            dest_path: 目标文件路径
+            max_retries: 最大重试次数
+
+        Returns:
+            bool: 下载成功返回True，否则返回False
+        """
+        from pathlib import Path
+
+        from nassav.constants import HEADERS
+
+        dest = Path(dest_path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+
+        # 设置请求头（模拟浏览器，添加Referer）
+        headers = HEADERS.copy()
+        headers["Referer"] = f"https://{self.domain}/"
+
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    proxies=self.proxies,
+                    timeout=self.timeout,
+                    impersonate="chrome110",
+                )
+                if response.status_code == 200:
+                    dest.write_bytes(response.content)
+                    logger.info(f"头像下载成功: {dest.name}")
+                    return True
+                else:
+                    logger.warning(f"头像下载失败 (HTTP {response.status_code}): {url}")
+            except Exception as e:
+                logger.warning(f"头像下载失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    import time
+
+                    time.sleep(1)  # 重试前等待1秒
+
+        return False
 
 
 class Busdmm(Javbus):

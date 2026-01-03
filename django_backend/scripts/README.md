@@ -184,7 +184,22 @@ uv run python scripts/fix_actor_avatars.py --dry-run
 
 # 实际执行修复和下载
 uv run python scripts/fix_actor_avatars.py --fix
+
+# 限制处理数量（测试用）
+uv run python scripts/fix_actor_avatars.py --fix --limit 10
+
+# 强制重新下载所有头像（即使文件已存在）
+uv run python scripts/fix_actor_avatars.py --fix --force
+
+# 组合使用：强制重新下载前 5 个演员的头像
+uv run python scripts/fix_actor_avatars.py --fix --force --limit 5
 ```
+
+**参数说明**:
+- `--fix`: 实际执行修复操作（默认只检查不修复）
+- `--dry-run`: 只检查不修复（默认模式，可省略）
+- `--limit N`: 限制处理的演员数量，用于测试
+- `--force`: 强制重新下载所有头像，即使文件已存在
 
 **功能说明**:
 - 检查所有演员的 `avatar_filename` 字段是否为空
@@ -192,7 +207,12 @@ uv run python scripts/fix_actor_avatars.py --fix
 - 验证 `avatar_filename` 对应的文件是否实际存在
 - 如果文件不存在，使用 `avatar_url` 重新下载
 - 自动过滤占位符URL（nowprinting.gif）
+- 使用配置的代理设置（如果启用）
 - 提供详细的统计报告
+
+**注意事项**:
+- 默认 DRY-RUN 模式不会实际下载，只显示需要处理的项
+- `--force` 参数会重新下载所有头像，请谨慎使用
 
 ### 🎨 资源处理脚本
 

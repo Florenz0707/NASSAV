@@ -338,22 +338,27 @@ class SourceManager:
 
                             # 下载头像图片到AVATAR_DIR
                             try:
-                                from nassav import utils as nassav_utils
-
                                 avatar_path = Path(settings.AVATAR_DIR) / filename
                                 # 如果文件不存在或者需要更新，则下载
                                 if not avatar_path.exists():
                                     logger.debug(
                                         f"准备下载头像: 演员={actor_name}, URL={avatar_url}, 目标路径={avatar_path}"
                                     )
-                                    if nassav_utils.download_avatar(
-                                        avatar_url, avatar_path
-                                    ):
-                                        logger.info(f"头像已下载: {filename}")
+                                    # 使用 scraper 的 download_avatar 方法
+                                    # 获取第一个可用的 scraper
+                                    scrapers = self.scraper.get_scrapers()
+                                    if scrapers:
+                                        _, scraper_instance = scrapers[0]
+                                        if scraper_instance.download_avatar(
+                                            avatar_url, str(avatar_path)
+                                        ):
+                                            logger.info(f"头像已下载: {filename}")
+                                        else:
+                                            logger.warning(
+                                                f"头像下载失败: {filename} (URL: {avatar_url})"
+                                            )
                                     else:
-                                        logger.warning(
-                                            f"头像下载失败: {filename} (URL: {avatar_url})"
-                                        )
+                                        logger.warning("没有可用的刮削器来下载头像")
                             except Exception as e:
                                 logger.exception(f"下载头像失败 {actor_name}: {e}")
                     resource_obj.actors.add(actor_obj)

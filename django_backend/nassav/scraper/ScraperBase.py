@@ -94,6 +94,19 @@ class ScraperBase:
             logger.warning(f"封面下载失败: {e}")
             return False
 
+    def download_avatar(self, url: str, dest_path: str, max_retries: int = 3) -> bool:
+        """下载演员头像图片（子类必须实现）
+
+        Args:
+            url: 头像图片URL
+            dest_path: 目标文件路径
+            max_retries: 最大重试次数
+
+        Returns:
+            bool: 下载成功返回True，否则返回False
+        """
+        raise NotImplementedError("子类必须实现 download_avatar 方法")
+
     def scrape(self, avid: str) -> Optional[dict]:
         """
         刮削元数据

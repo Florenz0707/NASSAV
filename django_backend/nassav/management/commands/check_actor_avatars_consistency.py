@@ -29,7 +29,7 @@ class Command(BaseCommand):
         from loguru import logger
         from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
         from nassav.models import Actor
-        from nassav.utils import download_avatar
+        from nassav.scraper.ScraperManager import ScraperManager
 
         apply_changes = options.get("apply", False)
         report_path = options.get(
@@ -39,6 +39,17 @@ class Command(BaseCommand):
         self.stdout.write("=" * 60)
         self.stdout.write(f"开始演员头像一致性检查 (apply_changes={apply_changes})")
         self.stdout.write("=" * 60)
+
+        # 初始化 Scraper Manager（用于下载头像）
+        proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
+        scraper_manager = ScraperManager(proxy=proxy)
+
+        # 获取第一个可用的 scraper
+        scrapers = scraper_manager.get_scrapers()
+        if not scrapers:
+            self.stderr.write(self.style.ERROR("没有可用的刮削器，无法下载头像"))
+            return
+        _, scraper = scrapers[0]
 
         try:
             actors = Actor.objects.all()
@@ -90,7 +101,7 @@ class Command(BaseCommand):
                     avatar_path = Path(settings.AVATAR_DIR) / filename
 
                     if apply_changes:
-                        if download_avatar(actor.avatar_url, avatar_path):
+                        if scraper.download_avatar(actor.avatar_url, str(avatar_path)):
                             actor.avatar_filename = filename
                             actor.save()
                             stats["download_success"] += 1
@@ -120,7 +131,7 @@ class Command(BaseCommand):
                     }
 
                     if apply_changes:
-                        if download_avatar(actor.avatar_url, avatar_path):
+                        if scraper.download_avatar(actor.avatar_url, str(avatar_path)):
                             stats["download_success"] += 1
                             issue["action"] = "redownloaded"
                         else:
