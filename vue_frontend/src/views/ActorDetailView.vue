@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
+import { actorApi, resourceApi, downloadApi } from '../api'
 import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -23,7 +24,7 @@ const searchQuery = ref(route.query.search || '')
 const filterStatus = ref(route.query.status || 'all')
 
 const loadingActor = ref(false)
-const actor = ref({ id: actorId.value, name: '', resource_count: 0 })
+const actor = ref({ id: actorId.value, name: '', resource_count: 0, avatar_url: null })
 const toastStore = useToastStore()
 // batch & search state (reuse logic from ResourcesView)
 const selectedAvids = ref(new Set())
@@ -105,17 +106,15 @@ async function handleBatchDelete() {
 async function loadActorInfo(id) {
 	loadingActor.value = true
 	try {
-		const qs = new URLSearchParams({ id: String(id), page: '1', page_size: '1' })
-		const r = await fetch(`/nassav/api/actors/?${qs.toString()}`)
-		const body = await r.json()
-		if (body && body.code === 200 && Array.isArray(body.data) && body.data.length > 0) {
-			actor.value = body.data[0]
+		const response = await actorApi.getList({ id: String(id), page: 1, page_size: 1 })
+		if (response && response.code === 200 && Array.isArray(response.data) && response.data.length > 0) {
+			actor.value = response.data[0]
 		} else {
 			// fallback: set id and empty name
-			actor.value = { id, name: String(id), resource_count: 0 }
+			actor.value = { id, name: String(id), resource_count: 0, avatar_url: null }
 		}
 	} catch (_error) {
-		actor.value = { id, name: String(id), resource_count: 0 }
+		actor.value = { id, name: String(id), resource_count: 0, avatar_url: null }
 	} finally {
 		loadingActor.value = false
 	}
@@ -130,7 +129,8 @@ async function fetchResources(p = 1) {
 		actor: actorId.value,
 		search: searchQuery.value,
 		sort_by: sortBy.value,
-		order: sortOrder.value
+		order: sortOrder.value,
+		status: filterStatus.value
 	})
 }
 
@@ -159,7 +159,7 @@ async function handleRefresh(avid) {
 
 async function handleDeleteResource(avid) {
 	try {
-		await fetch(`/nassav/api/resource/${avid}/`, { method: 'DELETE' })
+		await resourceApi.delete(avid)
 		await handleManualRefresh()
 		toastStore.success(`${avid} 已被完全删除`)
 	} catch (err) {
@@ -169,7 +169,7 @@ async function handleDeleteResource(avid) {
 
 async function handleDeleteFile(avid) {
 	try {
-		await fetch(`/nassav/api/download/${avid}/file/`, { method: 'DELETE' })
+		await downloadApi.deleteFile(avid)
 		await handleManualRefresh()
 		toastStore.success(`${avid} 已删除视频`)
 	} catch (err) {
@@ -266,8 +266,9 @@ const displayedCount = computed(() => {
 <template>
 	<div class="px-6 pt-4 pb-6">
 		<div class="mb-6 flex items-center gap-6">
-			<div class="w-20 h-20 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl text-white">
-				{{ initialChar }}
+			<div class="w-20 h-20 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl text-white overflow-hidden border-2 border-white/10">
+				<img v-if="actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" class="w-full h-full object-cover">
+				<span v-else>{{ initialChar }}</span>
 			</div>
 			<div class="flex-1">
 				<div class="text-xl font-semibold text-[#f4f4f5]">

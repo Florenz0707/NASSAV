@@ -56,14 +56,36 @@ api.interceptors.response.use(
 export const sourceApi = {
     // 获取所有可用下载源列表
     getList: () => api.get('/source/list'),
+    // 获取所有已设置的源 Cookie 列表
+    getCookies: () => api.get('/source/cookie'),
     // 设置或自动获取 Cookie
     setCookie: (payload) => api.post('/source/cookie', payload)
+}
+
+// 演员管理
+export const actorApi = {
+    // 获取演员列表（聚合统计）
+    getList: (params = {}) => api.get('/actors/', {params}),
+    // 获取演员头像图片URL
+    getAvatarUrl: (actorId) => {
+        const base = api.defaults.baseURL.replace(/\/$/, '')
+        return `${base}/actors/${actorId}/avatar`
+    }
+}
+
+// 类别管理
+export const genreApi = {
+    // 获取类别列表（聚合统计）
+    getList: (params = {}) => api.get('/genres/', {params})
 }
 
 // 资源管理
 export const resourceApi = {
     // 获取所有已保存资源列表（推荐使用新的 /resources/ 统一入口）
     getList: (params = {}) => api.get('/resources/', {params}),
+
+    // 获取资源预览信息（首屏快速渲染）
+    getPreview: (avid) => api.get(`/resource/${encodeURIComponent(avid)}/preview`),
 
     // 获取资源元数据
     getMetadata: (avid) => api.get('/resource/metadata', {params: {avid}}),
@@ -144,21 +166,25 @@ export const resourceApi = {
     // 删除资源
     delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`)
     ,
-    // 批量操作：body 应包含 { action: 'delete'|'refresh'|'add' , avids: [] } 或自定义格式（动态超时）
+    // 批量操作：body 应包含 { actions: [ {action, avid, ...}, ... ] }
     batch: (payload) => {
-        const avids = payload.avids || []
+        const actions = payload.actions || []
         let baseTimeout = 15000  // 基础 15 秒
         let timeoutPerItem = 3000  // 每个资源 3 秒
 
+        // 如果 actions 为空但有 avids (旧格式兼容性处理，虽然建议统一使用 actions)
+        const count = actions.length || (payload.avids ? payload.avids.length : 0)
+        const actionType = actions.length > 0 ? actions[0].action : (payload.action || 'unknown')
+
         // 根据操作类型调整
-        if (payload.action === 'add') {
+        if (actionType === 'add') {
             timeoutPerItem = 5000  // 添加操作需要抓取元数据，更耗时
-        } else if (payload.action === 'refresh') {
+        } else if (actionType === 'refresh') {
             timeoutPerItem = 4000
         }
 
-        const timeout = baseTimeout + avids.length * timeoutPerItem
-        console.log(`[API] 批量${payload.action} ${avids.length} 个任务，超时: ${timeout}ms`)
+        const timeout = baseTimeout + count * timeoutPerItem
+        console.log(`[API] 批量${actionType} ${count} 个任务，超时: ${timeout}ms`)
 
         return api.post('/resources/batch', payload, {timeout})
     }
@@ -166,8 +192,6 @@ export const resourceApi = {
 
 // 下载管理
 export const downloadApi = {
-    // 获取已下载视频列表
-    getList: () => api.get('/downloads/list'),
 
     // 获取视频文件路径
     getFilePath: (avid) => api.get('/downloads/abspath', {params: {avid}}),

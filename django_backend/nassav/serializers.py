@@ -45,6 +45,14 @@ class SourceCookieSerializer(serializers.Serializer):
     cookie = serializers.CharField()
 
 
+class SourceCookieListSerializer(serializers.Serializer):
+    """获取源Cookie列表序列化器"""
+
+    source = serializers.CharField(source="source_name")
+    cookie = serializers.CharField()
+    mtime = serializers.DateTimeField(source="updated_at")
+
+
 class ResourceSummarySerializer(serializers.Serializer):
     """列表视图使用的资源摘要序列化器（显式字段，避免 ModelSerializer 自动映射）"""
 

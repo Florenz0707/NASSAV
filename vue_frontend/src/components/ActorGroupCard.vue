@@ -2,7 +2,8 @@
 	<div class="actor-card" @click="$emit('click')">
 		<div class="avatar">
 			<div class="avatar-circle" :style="{ backgroundColor: bgColor }">
-				{{ initial }}
+				<img v-if="actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" class="avatar-img">
+				<span v-else>{{ initial }}</span>
 			</div>
 		</div>
 		<div class="actor-name">
@@ -15,6 +16,8 @@
 </template>
 
 <script>
+import { actorApi } from '../api'
+
 export default {
 	name: 'ActorGroupCard',
 	props: {
@@ -22,6 +25,9 @@ export default {
 		thumbs: {type: Array, default: () => []}
 	},
 	emits: ['click'],
+	setup() {
+		return { actorApi }
+	},
 	computed: {
 		initial() {
 			const n = this.actor && this.actor.name ? this.actor.name.trim() : ''
@@ -61,7 +67,15 @@ export default {
 	justify-content: center;
 	color: white;
 	font-weight: 500;
-	font-size: 24px
+	font-size: 24px;
+	overflow: hidden;
+	border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.avatar-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 
 .actor-name {

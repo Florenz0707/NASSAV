@@ -3,6 +3,7 @@ import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useToastStore} from '../stores/toast'
 import {useRoute, useRouter} from 'vue-router'
 import {useResourceStore} from '../stores/resource'
+import {genreApi, resourceApi, downloadApi} from '../api'
 import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -105,11 +106,9 @@ async function handleBatchDelete() {
 async function loadGenreInfo(id) {
 	loadingGenre.value = true
 	try {
-		const qs = new URLSearchParams({id: String(id), page: '1', page_size: '1'})
-		const r = await fetch(`/nassav/api/genres/?${qs.toString()}`)
-		const body = await r.json()
-		if (body && body.code === 200 && Array.isArray(body.data) && body.data.length > 0) {
-			genre.value = body.data[0]
+		const response = await genreApi.getList({id: String(id), page: 1, page_size: 1})
+		if (response && response.code === 200 && Array.isArray(response.data) && response.data.length > 0) {
+			genre.value = response.data[0]
 		} else {
 			// fallback: set id and empty name
 			genre.value = {id, name: String(id), resource_count: 0}
@@ -130,7 +129,8 @@ async function fetchResources(p = 1) {
 		genre: genreId.value,
 		search: searchQuery.value,
 		sort_by: sortBy.value,
-		order: sortOrder.value
+		order: sortOrder.value,
+		status: filterStatus.value
 	})
 }
 
@@ -159,7 +159,7 @@ async function handleRefresh(avid) {
 
 async function handleDeleteResource(avid) {
 	try {
-		await fetch(`/nassav/api/resource/${avid}/`, {method: 'DELETE'})
+		await resourceApi.delete(avid)
 		await handleManualRefresh()
 		toastStore.success(`${avid} 已被完全删除`)
 	} catch (err) {
@@ -169,7 +169,7 @@ async function handleDeleteResource(avid) {
 
 async function handleDeleteFile(avid) {
 	try {
-		await fetch(`/nassav/api/download/${avid}/file/`, {method: 'DELETE'})
+		await downloadApi.deleteFile(avid)
 		await handleManualRefresh()
 		toastStore.success(`${avid} 已删除视频`)
 	} catch (err) {

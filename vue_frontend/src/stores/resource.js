@@ -141,7 +141,9 @@ export const useResourceStore = defineStore('resource', () => {
     // 批量刷新/删除等，使用后端批量接口
     async function batchRefresh(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
-        const payload = {action: 'refresh', avids}
+        const payload = {
+            actions: avids.map(avid => ({action: 'refresh', avid}))
+        }
         const resp = await resourceApi.batch(payload)
         // 合并返回的资源对象（如果有的话），避免整页刷新
         const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
@@ -157,7 +159,9 @@ export const useResourceStore = defineStore('resource', () => {
 
     async function batchDelete(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
-        const payload = {action: 'delete', avids}
+        const payload = {
+            actions: avids.map(avid => ({action: 'delete', avid}))
+        }
         const resp = await resourceApi.batch(payload)
         // 根据返回结果局部删除/合并
         const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])

@@ -101,6 +101,7 @@ const filterStatus = ref(route.query.status || 'all')
 const sortBy = ref(route.query.sortBy || 'metadata_create_time')
 const sortOrder = ref(route.query.order || 'desc')
 const actorParam = ref(route.query && route.query.actor ? route.query.actor : '')
+const genreParam = ref(route.query && route.query.genre ? route.query.genre : '')
 // 使用 store 中的 pagination（模板中自动解包）
 const refreshing = ref(false)
 
@@ -119,6 +120,7 @@ watch([page, pageSize, searchQuery, filterStatus, sortBy, sortOrder], () => {
 	if (sortBy.value !== 'metadata_create_time') query.sortBy = sortBy.value
 	if (sortOrder.value !== 'desc') query.order = sortOrder.value
 	if (actorParam.value) query.actor = actorParam.value
+	if (genreParam.value) query.genre = genreParam.value
 
 	router.replace({ query })
 }, { deep: true })
@@ -139,7 +141,8 @@ async function fetchResourceList() {
 		page_size: pageSize.value,
 		search: searchQuery.value,
 		status: filterStatus.value,
-		actor: actorParam.value || undefined
+		actor: actorParam.value || undefined,
+		genre: genreParam.value || undefined
 	})
 }
 
@@ -148,6 +151,16 @@ watch(
 	() => route.query.actor,
 	(v) => {
 		actorParam.value = v || ''
+		page.value = 1
+		fetchResourceList()
+	}
+)
+
+// include genre filter if provided in query
+watch(
+	() => route.query.genre,
+	(v) => {
+		genreParam.value = v || ''
 		page.value = 1
 		fetchResourceList()
 	}

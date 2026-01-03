@@ -15,7 +15,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .api_utils import build_response
-from .serializers import NewResourceSerializer, SourceCookieSerializer
+from .serializers import (
+    NewResourceSerializer,
+    SourceCookieListSerializer,
+    SourceCookieSerializer,
+)
 from .services import list_resources, source_manager
 from .utils import (
     generate_etag_for_file,
@@ -62,6 +66,9 @@ class SourceListView(APIView):
 
 class SourceCookieView(APIView):
     """
+    GET /api/source/cookie
+    获取所有源的 Cookie 列表。
+
     POST /api/source/cookie
     设置或自动获取指定源的 Cookie。
 
@@ -70,6 +77,14 @@ class SourceCookieView(APIView):
       - cookie: 手动设置的 cookie (optional)
       - auto: 是否自动获取 cookie (boolean, optional)
     """
+
+    def get(self, request):
+        """获取所有源的 Cookie 配置"""
+        from .models import SourceCookie
+
+        cookies = SourceCookie.objects.all().order_by("source_name")
+        serializer = SourceCookieListSerializer(cookies, many=True)
+        return Response({"code": 200, "message": "success", "data": serializer.data})
 
     def post(self, request):
         data = request.data or {}
@@ -194,6 +209,7 @@ class ActorsListView(APIView):
     def get(self, request):
         from django.core.paginator import Paginator
         from django.db.models import Count
+        from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
         from nassav.models import Actor
 
         # 获取参数
@@ -241,8 +257,12 @@ class ActorsListView(APIView):
                 "id": a.id,
                 "name": a.name,
                 "resource_count": getattr(a, "resource_count", 0),
-                "avatar_url": a.avatar_url or None,
-                "avatar_filename": a.avatar_filename or None,
+                "avatar_url": a.avatar_url
+                if a.avatar_url not in ACTOR_AVATAR_PLACEHOLDER_URLS
+                else None,
+                "avatar_filename": a.avatar_filename
+                if a.avatar_url not in ACTOR_AVATAR_PLACEHOLDER_URLS
+                else None,
             }
             for a in page_obj.object_list
         ]
