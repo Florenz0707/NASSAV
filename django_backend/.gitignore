@@ -2,16 +2,20 @@
 __pycache__/
 .pytest_cache/
 
-log/
+log*/
+*.log
+
 resource/
 resource_backup/
+
 tools/*
 !tools/.keep
 
+*.sqlite3
+
 .env
 
-config/config.yaml
-db.sqlite3
 
 # User settings
+config/config.yaml
 config/user_settings.ini
