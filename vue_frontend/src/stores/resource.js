@@ -100,16 +100,6 @@ export const useResourceStore = defineStore('resource', () => {
         }
     }
 
-    // 获取已下载列表
-    async function fetchDownloads() {
-        try {
-            const response = await downloadApi.getList()
-            downloads.value = response.data || []
-        } catch (err) {
-            console.error('获取下载列表失败:', err)
-        }
-    }
-
     // 添加新资源
     async function addResource(avid, source = 'any') {
         loading.value = true
@@ -180,14 +170,12 @@ export const useResourceStore = defineStore('resource', () => {
     // 提交下载
     async function submitDownload(avid) {
         const response = await downloadApi.submitDownload(avid)
-        await fetchDownloads()
         return response
     }
 
     async function batchSubmitDownload(avids = []) {
         if (!Array.isArray(avids) || avids.length === 0) return
         const resp = await downloadApi.batchSubmit(avids)
-        await fetchDownloads()
         return resp
     }
 
@@ -264,7 +252,6 @@ export const useResourceStore = defineStore('resource', () => {
         stats,
         fetchResources,
         fetchSources,
-        fetchDownloads,
         addResource,
         refreshResource,
         submitDownload,

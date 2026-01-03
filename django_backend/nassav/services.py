@@ -59,11 +59,10 @@ class VideoDownloadService:
         # 优先从缓存读取元数据
         info = self.manager.load_cached_metadata(avid)
         if info and info.m3u8:
-            logger.info(f"从缓存读取 {avid} 的元数据")
             domain = self._get_domain_from_source(info.source)
         else:
             # 缓存不存在，重新获取
-            logger.info(f"缓存不存在，重新获取 {avid} 的信息")
+            logger.warning(f"缓存不存在，重新获取 {avid} 的信息")
             result = self.manager.get_info_from_any_source(avid)
             if not result:
                 logger.error(f"无法获取 {avid} 的下载信息")
@@ -84,7 +83,7 @@ class VideoDownloadService:
         result = self._download_m3u8(
             info.m3u8, avid, domain, duration_seconds, progress_callback
         )
-        logger.info(f"[{avid}] 下载{'成功' if result else '失败'}")
+        logger.info(f"[{avid}] 视频下载{'成功' if result else '失败'}")
         return result
 
     def _parse_duration(self, duration_str: str) -> Optional[int]:

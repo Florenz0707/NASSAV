@@ -172,6 +172,28 @@ uv run python scripts/backfill_actor_avatars.py --verbose
 - 按作品数倒序处理（优先处理热门演员）
 - 支持断点续传（已有头像的演员自动跳过）
 
+#### fix_actor_avatars.py
+检查并修复演员头像文件
+
+```bash
+# 只检查不修复（默认模式，安全）
+uv run python scripts/fix_actor_avatars.py
+
+# 或明确指定 dry-run
+uv run python scripts/fix_actor_avatars.py --dry-run
+
+# 实际执行修复和下载
+uv run python scripts/fix_actor_avatars.py --fix
+```
+
+**功能说明**:
+- 检查所有演员的 `avatar_filename` 字段是否为空
+- 如果为空但有 `avatar_url`，尝试下载头像
+- 验证 `avatar_filename` 对应的文件是否实际存在
+- 如果文件不存在，使用 `avatar_url` 重新下载
+- 自动过滤占位符URL（nowprinting.gif）
+- 提供详细的统计报告
+
 ### 🎨 资源处理脚本
 
 #### generate_thumbnails.py

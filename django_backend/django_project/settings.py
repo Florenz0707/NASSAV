@@ -186,9 +186,6 @@ CELERY_TASK_SEND_SENT_EVENT = False
 RESOURCE_DIR = BASE_DIR / "resource"
 RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
 
-# 兼容旧布局的备份目录（用户已重命名为 resource_backup）
-RESOURCE_BACKUP_DIR = BASE_DIR / "resource_backup"
-
 # 新的子目录
 COVER_DIR = RESOURCE_DIR / "cover"
 VIDEO_DIR = RESOURCE_DIR / "video"
@@ -226,9 +223,9 @@ LOGGING = {
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": True},
         "celery.app.trace": {
             "handlers": [],
-            "level": "CRITICAL",
+            "level": "WARNING",
             "propagate": False,
-        },  # 完全禁用任务执行日志
+        },
     },
 }
 
@@ -250,11 +247,16 @@ ACTIVE_TRANSLATOR = CONFIG.get("Translator", {}).get("active", "ollama")
 # Display title configuration (title | source_title | translated_title)
 DISPLAY_TITLE = CONFIG.get("DisplayTitle", "source_title")
 
-# Celery Beat schedule: daily consistency check between DB and disk at 03:00 server time
+# Celery Beat schedule: daily consistency checks
 CELERY_BEAT_SCHEDULE = {
     "db-disk-consistency-daily": {
-        "task": "nassav.tasks.run_db_disk_consistency",
-        "schedule": crontab(hour=3, minute=0),
-        "args": (False, None, None),
-    }
+        "task": "nassav.tasks.check_videos_consistency",
+        "schedule": crontab(hour=7, minute=0),
+        "args": (False, None, "beat_report/videos_consistency_report.json"),
+    },
+    "actor-avatars-consistency-daily": {
+        "task": "nassav.tasks.check_actor_avatars_consistency",
+        "schedule": crontab(hour=6, minute=0),
+        "args": (True, "beat_report/actor_avatars_report.json"),
+    },
 }

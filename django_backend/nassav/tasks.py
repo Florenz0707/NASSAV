@@ -469,7 +469,6 @@ def wait_for_global_download_lock(max_wait_time: int = 600, check_interval: int 
     elapsed = 0
     while elapsed < max_wait_time:
         if acquire_global_download_lock():
-            logger.info(f"成功获取全局下载锁，等待时间: {elapsed}秒")
             return True
         time.sleep(check_interval)
         elapsed += check_interval
@@ -516,8 +515,6 @@ def download_video_task(self, avid: str):
 
         return {"status": "failed", "avid": avid, "message": "获取下载锁超时，可能有其他下载任务正在执行"}
 
-    logger.info(f"已获取全局下载锁，开始下载: {avid}")
-
     # 更新 Redis 队列中的任务状态为 STARTED
     update_task_state_in_queue(avid, "STARTED")
 
@@ -559,8 +556,6 @@ def download_video_task(self, avid: str):
         )
 
         if success:
-            logger.info(f"视频 {avid} 下载成功")
-
             # 从 Redis 队列中移除任务
             remove_task_from_queue(avid)
 
@@ -660,8 +655,8 @@ def download_video_task(self, avid: str):
 
                 with transaction.atomic():
                     AVResource.objects.filter(avid=avid).update(file_exists=False)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"重试出现异常：{str(e)}")
             return {
                 "status": "failed",
                 "avid": avid,
@@ -712,7 +707,6 @@ def submit_download_task(avid: str) -> tuple[bool | None, bool]:
         return None, True
 
     # 提交任务
-    logger.info(f"提交下载任务: {avid}")
     task_result = download_video_task.delay(avid)
 
     # 添加到 Redis 队列记录
@@ -724,8 +718,10 @@ def submit_download_task(avid: str) -> tuple[bool | None, bool]:
     return task_result, False
 
 
-@shared_task(bind=True, name="nassav.tasks.run_db_disk_consistency", ignore_result=True)
-def run_db_disk_consistency(
+@shared_task(
+    bind=True, name="nassav.tasks.check_videos_consistency", ignore_result=True
+)
+def check_videos_consistency(
     self,
     apply_changes: bool = False,
     limit: int | None = None,
@@ -1028,7 +1024,7 @@ def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
             eta = (
                 f"00:00:{remaining:02d}"
                 if remaining < 60
-                else f"00:{remaining//60:02d}:{remaining%60:02d}"
+                else f"00:{remaining // 60:02d}:{remaining % 60:02d}"
             )
 
             # 更新进度
@@ -1143,4 +1139,149 @@ def submit_mock_download_task(avid: str, duration_seconds: int = 30):
         return task_result, False
     except Exception as e:
         logger.error(f"[测试] 提交模拟下载任务失败: {avid}, 错误: {e}")
+        raise
+
+
+@shared_task(
+    bind=True, name="nassav.tasks.check_actor_avatars_consistency", ignore_result=True
+)
+def check_actor_avatars_consistency(
+    self, apply_changes: bool = False, report: str | None = None
+):
+    """
+    检查演员头像一致性（供 Celery Beat 调度）
+
+    Args:
+        apply_changes: 如果为True，实际下载缺失的头像；否则只检查不修复
+        report: 报告文件路径（JSON格式），如果提供则保存统计结果
+    """
+    import json
+    from pathlib import Path
+
+    from django.conf import settings
+    from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
+    from nassav.models import Actor
+    from nassav.utils import download_avatar
+
+    logger.info("=" * 60)
+    logger.info(f"开始演员头像一致性检查 (apply_changes={apply_changes})")
+    logger.info("=" * 60)
+
+    try:
+        actors = Actor.objects.all()
+        total = actors.count()
+
+        stats = {
+            "timestamp": str(datetime.now()),
+            "apply_changes": apply_changes,
+            "total": total,
+            "no_url": 0,
+            "placeholder": 0,
+            "filename_empty": 0,
+            "file_missing": 0,
+            "download_success": 0,
+            "download_failed": 0,
+            "ok": 0,
+            "issues": [],
+        }
+
+        for idx, actor in enumerate(actors, 1):
+            if idx % 100 == 0:
+                logger.info(f"进度: {idx}/{total} ({idx * 100 // total}%)")
+
+            # 检查是否有头像URL
+            if not actor.avatar_url:
+                stats["no_url"] += 1
+                continue
+
+            # 检查是否是占位符URL
+            if actor.avatar_url in ACTOR_AVATAR_PLACEHOLDER_URLS:
+                stats["placeholder"] += 1
+                continue
+
+            # 检查 avatar_filename 是否为空
+            if not actor.avatar_filename:
+                stats["filename_empty"] += 1
+                issue = {
+                    "actor": actor.name,
+                    "actor_id": actor.id,
+                    "issue": "filename_empty",
+                    "avatar_url": actor.avatar_url,
+                }
+
+                # 生成文件名
+                filename = actor.avatar_url.split("/")[-1]
+                if not filename or "." not in filename:
+                    filename = f"{actor.id}.jpg"
+
+                avatar_path = Path(settings.AVATAR_DIR) / filename
+
+                if apply_changes:
+                    if download_avatar(actor.avatar_url, avatar_path):
+                        actor.avatar_filename = filename
+                        actor.save()
+                        stats["download_success"] += 1
+                        issue["action"] = "downloaded"
+                        issue["filename"] = filename
+                    else:
+                        stats["download_failed"] += 1
+                        issue["action"] = "download_failed"
+                else:
+                    issue["action"] = "skipped"
+                    issue["would_download_to"] = str(avatar_path)
+
+                stats["issues"].append(issue)
+                continue
+
+            # 检查文件是否存在
+            avatar_path = Path(settings.AVATAR_DIR) / actor.avatar_filename
+            if not avatar_path.exists():
+                stats["file_missing"] += 1
+                issue = {
+                    "actor": actor.name,
+                    "actor_id": actor.id,
+                    "issue": "file_missing",
+                    "avatar_url": actor.avatar_url,
+                    "filename": actor.avatar_filename,
+                    "expected_path": str(avatar_path),
+                }
+
+                if apply_changes:
+                    if download_avatar(actor.avatar_url, avatar_path):
+                        stats["download_success"] += 1
+                        issue["action"] = "redownloaded"
+                    else:
+                        stats["download_failed"] += 1
+                        issue["action"] = "redownload_failed"
+                else:
+                    issue["action"] = "skipped"
+
+                stats["issues"].append(issue)
+            else:
+                stats["ok"] += 1
+
+        # 打印统计信息
+        logger.info("=" * 60)
+        logger.info("演员头像一致性检查完成")
+        logger.info(f"  总演员数: {stats['total']}")
+        logger.info(f"  没有头像URL: {stats['no_url']}")
+        logger.info(f"  占位符URL: {stats['placeholder']}")
+        logger.info(f"  filename为空: {stats['filename_empty']}")
+        logger.info(f"  文件不存在: {stats['file_missing']}")
+        logger.info(f"  下载成功: {stats['download_success']}")
+        logger.info(f"  下载失败: {stats['download_failed']}")
+        logger.info(f"  状态正常: {stats['ok']}")
+        logger.info(f"  问题总数: {len(stats['issues'])}")
+        logger.info("=" * 60)
+
+        # 保存报告
+        if report:
+            report_path = Path(report)
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(report_path, "w", encoding="utf-8") as f:
+                json.dump(stats, f, ensure_ascii=False, indent=2)
+            logger.info(f"报告已保存到: {report_path}")
+
+    except Exception as e:
+        logger.exception(f"演员头像一致性检查失败: {e}")
         raise

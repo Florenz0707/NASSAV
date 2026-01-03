@@ -343,12 +343,17 @@ class SourceManager:
                                 avatar_path = Path(settings.AVATAR_DIR) / filename
                                 # 如果文件不存在或者需要更新，则下载
                                 if not avatar_path.exists():
+                                    logger.debug(
+                                        f"准备下载头像: 演员={actor_name}, URL={avatar_url}, 目标路径={avatar_path}"
+                                    )
                                     if nassav_utils.download_avatar(
                                         avatar_url, avatar_path
                                     ):
                                         logger.info(f"头像已下载: {filename}")
                                     else:
-                                        logger.warning(f"头像下载失败: {avatar_name}")
+                                        logger.warning(
+                                            f"头像下载失败: {filename} (URL: {avatar_url})"
+                                        )
                             except Exception as e:
                                 logger.exception(f"下载头像失败 {actor_name}: {e}")
                     resource_obj.actors.add(actor_obj)

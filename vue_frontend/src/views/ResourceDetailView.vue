@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { downloadApi, resourceApi } from '../api'
+import { actorApi, downloadApi, genreApi, resourceApi } from '../api'
 import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
@@ -78,18 +78,6 @@ async function loadCover() {
 }
 
 watch(avid, () => loadCover(), { immediate: true })
-
-const actorsText = computed(() => {
-	const list = metadata.value?.actors
-	if (!Array.isArray(list) || list.length === 0) return null
-	return list.join(', ')
-})
-
-const genresText = computed(() => {
-	const list = metadata.value?.genres
-	if (!Array.isArray(list) || list.length === 0) return null
-	return list.join(', ')
-})
 
 const fileSize = computed(() => {
 	if (!metadata.value?.file_size) return null
@@ -228,6 +216,42 @@ async function confirmDelete() {
 // 取消删除操作
 function cancelDelete() {
 	pendingDeleteAction.value = null
+}
+
+// 跳转到演员详情页
+async function navigateToActor(actorName) {
+	if (!actorName) return
+	try {
+		// 通过名称查询演员 ID
+		const response = await actorApi.getList({ search: actorName, page_size: 1 })
+		if (response?.data?.length > 0) {
+			const actorId = response.data[0].id
+			router.push(`/actors/${actorId}`)
+		} else {
+			toastStore.warning(`未找到演员：${actorName}`)
+		}
+	} catch (err) {
+		toastStore.error('跳转失败')
+		console.error('Navigate to actor failed:', err)
+	}
+}
+
+// 跳转到类别详情页
+async function navigateToGenre(genreName) {
+	if (!genreName) return
+	try {
+		// 通过名称查询类别 ID
+		const response = await genreApi.getList({ search: genreName, page_size: 1 })
+		if (response?.data?.length > 0) {
+			const genreId = response.data[0].id
+			router.push(`/genres/${genreId}`)
+		} else {
+			toastStore.warning(`未找到类别：${genreName}`)
+		}
+	} catch (err) {
+		toastStore.error('跳转失败')
+		console.error('Navigate to genre failed:', err)
+	}
 }
 </script>
 
@@ -376,10 +400,17 @@ function cancelDelete() {
 						制作信息
 					</h2>
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-						<div v-if="actorsText" class="flex flex-col gap-1.5">
+						<div v-if="metadata.actors?.length" class="flex flex-col gap-1.5">
 							<span class="text-[0.8rem] text-[#71717a]">演员</span>
-							<div class="text-[0.95rem] text-[#f4f4f5]">
-								{{ actorsText }}
+							<div class="text-[0.95rem] text-[#f4f4f5] flex flex-wrap gap-2">
+								<button
+									v-for="(actor, index) in metadata.actors"
+									:key="index"
+									class="text-[#f4f4f5] hover:text-[#ff9f43] cursor-pointer transition-colors duration-200 bg-transparent border-none p-0 font-inherit"
+									@click="navigateToActor(actor)"
+								>
+									{{ actor }}<span v-if="index < metadata.actors.length - 1" class="text-[#a1a1aa] ml-1">,</span>
+								</button>
 							</div>
 						</div>
 						<div v-if="metadata.series" class="flex flex-col gap-1.5">
@@ -398,9 +429,18 @@ function cancelDelete() {
 							<span class="text-[0.8rem] text-[#71717a]">发行商</span>
 							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.label }}</span>
 						</div>
-						<div v-if="genresText" class="flex flex-col gap-1.5">
+						<div v-if="metadata.genres?.length" class="flex flex-col gap-1.5">
 							<span class="text-[0.8rem] text-[#71717a]">类别</span>
-							<span class="text-[0.95rem] text-[#f4f4f5]">{{ genresText }}</span>
+							<div class="text-[0.95rem] text-[#f4f4f5] flex flex-wrap gap-2">
+								<button
+									v-for="(genre, index) in metadata.genres"
+									:key="index"
+									class="text-[#f4f4f5] hover:text-[#ff9f43] cursor-pointer transition-colors duration-200 bg-transparent border-none p-0 font-inherit"
+									@click="navigateToGenre(genre)"
+								>
+									{{ genre }}<span v-if="index < metadata.genres.length - 1" class="text-[#a1a1aa] ml-1">,</span>
+								</button>
+							</div>
 						</div>
 					</div>
 				</section>
