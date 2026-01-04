@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { settingsApi } from '../api'
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -9,10 +9,7 @@ export const useSettingsStore = defineStore('settings', () => {
 	// 显示哪个标题字段：original_title | source_title | translated_title
 	const displayTitle = ref('translated_title')
 
-	// 是否已加载后端配置
-	const loaded = ref(false)
-
-	// 从后端加载设置
+	// 从后端加载设置（仅在应用启动时调用一次）
 	async function loadSettings() {
 		try {
 			const response = await settingsApi.get()
@@ -22,43 +19,33 @@ export const useSettingsStore = defineStore('settings', () => {
 			if (data.enable_avatar !== undefined) {
 				showActorAvatar.value = data.enable_avatar === 'true'
 			}
-			if (data.display_title) {
+			if (data.display_title !== undefined) {
 				displayTitle.value = data.display_title
 			}
-			loaded.value = true
 		} catch (err) {
 			console.error('加载用户设置失败:', err)
 			// 失败时使用默认值
-			loaded.value = true
 		}
 	}
 
-	// 保存设置到后端
+	// 保存设置到后端（仅在用户手动点击保存按钮时调用）
 	async function saveSettings() {
-		if (!loaded.value) return // 还未加载完成时不保存
-
 		try {
 			await settingsApi.update({
 				enable_avatar: showActorAvatar.value ? 'true' : 'false',
 				display_title: displayTitle.value
 			})
+			return { success: true }
 		} catch (err) {
 			console.error('保存用户设置失败:', err)
+			throw err
 		}
 	}
-
-	// 监听变化并保存到后端
-	watch(
-		[showActorAvatar, displayTitle],
-		() => {
-			saveSettings()
-		},
-		{ deep: true }
-	)
 
 	return {
 		showActorAvatar,
 		displayTitle,
-		loadSettings
+		loadSettings,
+		saveSettings
 	}
 })

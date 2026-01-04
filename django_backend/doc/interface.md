@@ -202,7 +202,6 @@ DELETE /nassav/api/source/cookie?source=missav
 - 方法：GET
 - 路径：`/nassav/api/resources/`
 - 支持 Query 参数：
-  - `search`：按 `avid` 或各标题字段模糊匹配（case-insensitive）
   - `status`：`downloaded|pending|all`（等同于 file_exists）
   - `sort_by`：`avid|metadata_create_time|video_create_time|source`
   - `order`：`asc|desc`
@@ -213,7 +212,7 @@ DELETE /nassav/api/source/cookie?source=missav
 
 示例请求：
 ```
-GET /nassav/api/resources/?search=abc&status=pending&sort_by=metadata_create_time&order=desc&page=1&page_size=18
+GET /nassav/api/resources/?status=pending&sort_by=metadata_create_time&order=desc&page=1&page_size=18
 GET /nassav/api/resources/?actor=1                           # 按演员 ID 过滤
 GET /nassav/api/resources/?actor=桥本                         # 按演员名称模糊匹配
 GET /nassav/api/resources/?genre=中文字幕                      # 按类别名称模糊匹配

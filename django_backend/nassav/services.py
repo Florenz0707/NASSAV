@@ -192,12 +192,6 @@ def list_resources(params):
         sources = [s.strip() for s in str(source).split(",") if s.strip()]
         qs = qs.filter(source__in=sources)
 
-    # search parameter: match avid or title (case-insensitive contains)
-    search = params.get("search")
-    if search:
-        q = str(search).strip()
-        qs = qs.filter(Q(avid__icontains=q) | Q(title__icontains=q))
-
     # filter by actor (accept actor id or name fragment)
     actor = params.get("actor")
     if actor:

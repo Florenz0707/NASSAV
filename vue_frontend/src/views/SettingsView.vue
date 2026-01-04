@@ -158,9 +158,20 @@ const handleDelete = async () => {
 	}
 }
 
+// 保存设置
+const handleSaveSettings = async () => {
+	try {
+		await settingsStore.saveSettings()
+		toastStore.success('设置已保存')
+	} catch (err) {
+		toastStore.error(err.message || '保存设置失败')
+	}
+}
+
 // 组件挂载时加载数据
 onMounted(() => {
 	loadData()
+	settingsStore.loadSettings()
 })
 </script>
 
@@ -395,9 +406,13 @@ onMounted(() => {
 								</div>
 							</div>
 
-							<!-- 更多设置占位 -->
-							<div class="text-center py-8 text-[#71717a] border border-dashed border-white/10 rounded-xl">
-								<p>更多设置项正在开发中...</p>
+							<!-- 保存按钮 -->
+							<div class="flex pt-4 justify-end min-w-full">
+								<button
+									class="px-6 py-2.5 bg-[#ff6b6b] hover:bg-[#ff5252] text-white rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,107,107,0.3)]"
+									@click="handleSaveSettings">
+									保存设置
+								</button>
 							</div>
 						</div>
 					</div>
