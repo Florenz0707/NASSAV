@@ -68,17 +68,6 @@ async function handleSubmit() {
 			let data = response && response.data ? response.data : null
 			if (data && data.resource) data = data.resource
 
-			try {
-				if (data && data.avid) {
-					const metaResp = await resourceApi.getMetadata(data.avid)
-					if (metaResp && metaResp.data) {
-						data = Object.assign({}, data, metaResp.data)
-					}
-				}
-			} catch {
-				// Ignore errors
-			}
-
 			result.value = {
 				success: [avids[0]],
 				exists: [],
