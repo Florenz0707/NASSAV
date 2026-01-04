@@ -10,6 +10,7 @@ import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import BatchControls from '../components/BatchControls.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,20 +89,30 @@ async function handleBatchRefresh() {
 	}
 }
 
-async function handleBatchDelete() {
+const showBatchDeleteConfirm = ref(false)
+const batchDeleteAction = ref(null)
+
+function handleBatchDelete() {
 	if (selectedAvids.value.size === 0) return
-	if (!confirm(`确认删除 ${selectedAvids.value.size} 个资源？此操作不可恢复！`)) return
+	showBatchDeleteConfirm.value = true
+}
+
+async function confirmBatchDelete(action) {
+	batchDeleteAction.value = action
+	showBatchDeleteConfirm.value = false
 	batchLoading.value = true
 	try {
 		const avids = Array.from(selectedAvids.value)
-		await resourceStore.batchDelete(avids)
+		await resourceStore.batchDelete(avids, action)
+		const actionText = action === 'delete-video' ? '删除视频' : '删除全部数据'
+		toastStore.success(`已${actionText}: ${avids.length} 个资源`)
 		selectedAvids.value = new Set()
 		await fetchResources()
-		toastStore.success(`已删除 ${avids.length} 个资源`)
 	} catch (err) {
 		toastStore.error(err.message || '批量删除失败')
 	} finally {
 		batchLoading.value = false
+		batchDeleteAction.value = null
 	}
 }
 
@@ -340,7 +351,23 @@ const displayedCount = computed(() => {
 			:total-count="displayedResources.length" @toggle-batch-mode="toggleBatchMode"
 			@toggle-select-all="toggleSelectAll" @batch-refresh="handleBatchRefresh"
 			@batch-download="handleBatchDownload" @batch-delete="handleBatchDelete" />
-
+		<!-- 批量删除确认对话框 -->
+		<ConfirmDialog v-model:show="showBatchDeleteConfirm"
+			title="批量删除资源"
+			:message="`即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`"
+			type="danger"
+			confirm-text="只删除视频"
+			cancel-text="取消"
+			@confirm="() => confirmBatchDelete('delete-video')"
+			@cancel="() => showBatchDeleteConfirm = false">
+			<template #extra-button>
+				<button
+					class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white bg-[#dc2626] hover:bg-[#b91c1c] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
+					@click="() => confirmBatchDelete('delete-all')">
+					全部删除
+				</button>
+			</template>
+		</ConfirmDialog>
 		<!-- Loading State -->
 		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
 

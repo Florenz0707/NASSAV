@@ -578,16 +578,17 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 - 方法：POST
 - 路径：`/nassav/api/resources/batch`
 - Body 示例：
-```
+```json
 {
   "actions": [
     {"action":"add","avid":"ABC-123","source":"any"},
     {"action":"refresh","avid":"DEF-222"},
-    {"action":"delete","avid":"OLD-001"}
+    {"action":"delete-video","avid":"XYZ-001"},
+    {"action":"delete-all","avid":"OLD-999"}
   ]
 }
 ```
-- 返回：`data.results` 为数组，每项包含 `action, avid, code, message, resource?, deleted_files?`。
+- 返回：`data.results` 为数组，每项包含 `action, avid, code, message, resource?, deleted_files?, deleted_file?, file_size?`。
 
 **操作说明**：
 - `add`：添加资源
@@ -609,8 +610,35 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     }
     ```
   - 返回 `code: 200, message: "refreshed"`，`refresh_info` 包含操作结果，以及更新后的资源数据
-- `delete`：删除资源
-  - 返回 `code: 200, message: "deleted"` 和删除前的资源数据
+- `delete-video`：只删除视频文件（保留元数据）
+  - 返回 `code: 200, message: "视频已删除"`，包含 `deleted_file` 和 `file_size`
+  - **数据库操作**: 更新记录标记视频不存在（`file_exists=False`）
+  - **保留内容**: 元数据记录、封面图片、备份目录
+  - 示例返回：
+    ```json
+    {
+      "action": "delete-video",
+      "avid": "ABC-123",
+      "code": 200,
+      "message": "视频已删除",
+      "deleted_file": "ABC-123.mp4",
+      "file_size": 1234567890
+    }
+    ```
+- `delete-all` 或 `delete`：删除全部数据（视频+元数据+封面+备份）
+  - 返回 `code: 200, message: "已删除全部数据"` 和删除前的资源数据
+  - **删除内容**: 视频文件、封面图片、备份目录、数据库记录
+  - 示例返回：
+    ```json
+    {
+      "action": "delete-all",
+      "avid": "ABC-123",
+      "code": 200,
+      "message": "已删除全部数据",
+      "resource": {...},
+      "deleted_files": ["ABC-123.jpg", "ABC-123.mp4"]
+    }
+    ```
 
 2) 批量下载提交
 - 方法：POST

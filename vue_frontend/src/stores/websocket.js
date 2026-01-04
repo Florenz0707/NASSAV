@@ -3,6 +3,7 @@ import {ref} from 'vue'
 import {resourceApi} from '../api'
 import {useSettingsStore} from './settings'
 import {useToastStore} from './toast'
+import {useResourceStore} from './resource'
 
 export const useWebSocketStore = defineStore('websocket', () => {
     const ws = ref(null)
@@ -166,6 +167,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     // 处理 WebSocket 消息
     function handleMessage(message) {
         const toastStore = useToastStore()
+        const resourceStore = useResourceStore()
 
         switch (message.type) {
             case 'queue_status':
@@ -206,6 +208,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
                     const avid = message.data.avid
                     if (avid) {
                         toastStore.success(`下载完成: ${avid}`)
+                        // 立即更新资源的下载状态
+                        resourceStore.updateResourceDownloadStatus(avid, true)
                     }
                     updateTaskData(message.data)
                 }

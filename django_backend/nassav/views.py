@@ -1193,11 +1193,20 @@ class ResourcesBatchView(APIView):
 
     Body example:
       { "actions": [ {"action":"add","avid":"ABC-123","source":"any"},
-                      {"action":"delete","avid":"XYZ-001"},
+                      {"action":"delete-video","avid":"XYZ-001"},
+                      {"action":"delete-all","avid":"OLD-999"},
                       {"action":"refresh","avid":"DEF-222"} ] }
+
+    支持的 action 类型：
+    - add: 添加资源
+    - refresh: 刷新资源元数据和 m3u8
+    - delete-video: 只删除视频文件，保留元数据
+    - delete-all 或 delete: 删除全部数据（视频+元数据+封面+备份）
     """
 
     def post(self, request):
+        import time
+
         data = request.data or {}
         actions = data.get("actions") or []
         results = []
@@ -1240,6 +1249,7 @@ class ResourcesBatchView(APIView):
 
                     # 资源不存在，执行添加操作
                     source = (act.get("source") or "any").lower()
+                    time.sleep(2)
                     if source == "any":
                         result = source_manager.get_info_from_any_source(avid)
                     else:
@@ -1276,8 +1286,58 @@ class ResourcesBatchView(APIView):
                         }
                     )
 
-                elif action == "delete":
-                    # perform delete similar to DeleteResourceView
+                elif action == "delete-video":
+                    # 只删除视频文件，保留元数据
+                    from pathlib import Path
+
+                    mp4_path = Path(settings.VIDEO_DIR) / f"{avid}.mp4"
+
+                    if not mp4_path.exists():
+                        results.append(
+                            {
+                                "action": "delete-video",
+                                "avid": avid,
+                                "code": 404,
+                                "message": "视频不存在",
+                                "resource": None,
+                            }
+                        )
+                        continue
+
+                    try:
+                        file_size = mp4_path.stat().st_size
+                        mp4_path.unlink()
+                        # 更新数据库记录，标记视频不存在
+                        from nassav.models import AVResource
+
+                        AVResource.objects.filter(avid=avid).update(
+                            file_exists=False, file_size=None, video_saved_at=None
+                        )
+                        logger.info(f"已删除视频: {avid}")
+                        results.append(
+                            {
+                                "action": "delete-video",
+                                "avid": avid,
+                                "code": 200,
+                                "message": "视频已删除",
+                                "deleted_file": f"{avid}.mp4",
+                                "file_size": file_size,
+                            }
+                        )
+                    except Exception as e:
+                        logger.error(f"删除视频失败: {e}")
+                        results.append(
+                            {
+                                "action": "delete-video",
+                                "avid": avid,
+                                "code": 500,
+                                "message": f"删除失败: {str(e)}",
+                                "resource": None,
+                            }
+                        )
+
+                elif action in ["delete", "delete-all"]:
+                    # 删除全部数据（视频+元数据+封面+备份）
                     import shutil
                     from pathlib import Path
 
@@ -1307,7 +1367,7 @@ class ResourcesBatchView(APIView):
                     ):
                         results.append(
                             {
-                                "action": "delete",
+                                "action": action,
                                 "avid": avid,
                                 "code": 404,
                                 "message": "资源不存在",
@@ -1353,10 +1413,10 @@ class ResourcesBatchView(APIView):
 
                     results.append(
                         {
-                            "action": "delete",
+                            "action": action,
                             "avid": avid,
                             "code": 200,
-                            "message": "deleted",
+                            "message": "已删除全部数据",
                             "resource": resource_data,
                             "deleted_files": deleted_files,
                         }

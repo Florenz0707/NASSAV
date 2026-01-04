@@ -35,7 +35,6 @@ class ScraperBase:
 
     def fetch_html(self, url: str) -> Optional[str]:
         """获取 HTML 页面"""
-        logger.debug(f"Scraper fetch url: {url}")
         try:
             response = requests.get(
                 url,

@@ -147,18 +147,22 @@ export const useResourceStore = defineStore('resource', () => {
         return resp
     }
 
-    async function batchDelete(avids = []) {
+    async function batchDelete(avids = [], action = 'delete-all') {
         if (!Array.isArray(avids) || avids.length === 0) return
         const payload = {
-            actions: avids.map(avid => ({action: 'delete', avid}))
+            actions: avids.map(avid => ({action, avid}))
         }
         const resp = await resourceApi.batch(payload)
         // 根据返回结果局部删除/合并
         const results = resp && resp.data && (resp.data.results || resp.data) ? (resp.data.results || resp.data) : (resp && resp.results ? resp.results : [])
         if (Array.isArray(results)) {
             for (const r of results) {
-                if (r && r.action === 'delete' && r.avid) {
+                if (r && (r.action === 'delete' || r.action === 'delete-all') && r.avid) {
                     _removeResourceByAvid(r.avid)
+                } else if (r && r.action === 'delete-video' && r.avid) {
+                    // 更新资源的 has_video 状态
+                    const resource = _resourcesArray().find(res => res.avid === r.avid)
+                    if (resource) resource.has_video = false
                 } else if (r && r.resource) {
                     _mergeOrUpsertResource(r.resource)
                 }
@@ -229,6 +233,17 @@ export const useResourceStore = defineStore('resource', () => {
         }
     }
 
+    // 更新资源的下载状态（用于 WebSocket 实时更新）
+    function updateResourceDownloadStatus(avid, hasVideo) {
+        if (!avid) return
+        const arr = _resourcesArray()
+        const resource = arr.find(r => r.avid === avid)
+        if (resource) {
+            resource.has_video = hasVideo
+            console.debug('[resource] 更新资源下载状态:', avid, hasVideo)
+        }
+    }
+
     // 统计信息
     const stats = computed(() => {
         const arr = _resourcesArray()
@@ -257,6 +272,7 @@ export const useResourceStore = defineStore('resource', () => {
         submitDownload,
         batchRefresh,
         batchDelete,
-        batchSubmitDownload
+        batchSubmitDownload,
+        updateResourceDownloadStatus
     }
 })
