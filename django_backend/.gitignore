@@ -2,8 +2,8 @@
 __pycache__/
 .pytest_cache/
 
-log*/
-*.log
+log/
+backup/
 
 celery_beat/
 celerybeat*
@@ -14,7 +14,7 @@ resource_backup/
 tools/*
 !tools/.keep
 
-*.sqlite3
+*.sqlite3*
 
 .env
 

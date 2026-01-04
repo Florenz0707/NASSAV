@@ -123,6 +123,11 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+        # 启用 WAL 模式以提高并发性能和数据安全性
+        "OPTIONS": {
+            "init_command": "PRAGMA journal_mode=WAL;",
+            "timeout": 20,
+        },
     }
 }
 
@@ -256,5 +261,22 @@ CELERY_BEAT_SCHEDULE = {
         "task": "nassav.tasks.check_actor_avatars_consistency",
         "schedule": crontab(hour=7, minute=5),
         "args": (True, "celery_beat/actor_avatars_consistency_report.json"),
+    },
+    "backup-avid-list-daily": {
+        "task": "nassav.tasks.backup_avid_list",
+        "schedule": crontab(hour=2, minute=0),  # 每天凌晨 2:00 备份
+    },
+    "backup-database-daily": {
+        "task": "nassav.tasks.backup_database",
+        "schedule": crontab(hour=1, minute=30),  # 每天凌晨 1:30 备份数据库
+        "args": (30,),  # days=30
+    },
+    "check-resources-consistency-daily": {
+        "task": "nassav.tasks.check_resources_consistency",
+        "schedule": crontab(hour=3, minute=0),  # 每天凌晨 3:00 检查并修复
+        "args": (
+            True,
+            "celery_beat/resources_consistency_report.json",
+        ),  # fix_issues=True, report=path
     },
 }

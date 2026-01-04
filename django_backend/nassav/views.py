@@ -1330,6 +1330,7 @@ class ResourcesBatchView(APIView):
                     try:
                         file_size = mp4_path.stat().st_size
                         mp4_path.unlink()
+                        logger.info(f"已删除视频: {avid}")
                         # 更新数据库记录，标记视频不存在
                         from nassav.models import AVResource
 
@@ -1404,11 +1405,13 @@ class ResourcesBatchView(APIView):
                         deleted_files.append(p.name)
                         try:
                             p.unlink()
+                            logger.info(f"已删除封面: {p.name}")
                         except Exception:
                             pass
 
                     if mp4_path.exists():
                         deleted_files.append(mp4_path.name)
+                        logger.info(f"已删除视频: {mp4_path.name}")
                         try:
                             mp4_path.unlink()
                         except Exception:

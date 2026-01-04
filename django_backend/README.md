@@ -31,6 +31,10 @@
 - 📝 **DisplayTitle 配置**：支持通过配置文件选择显示标题类型（source_title/translated_title/title）
 - 🎛️ **Translator 配置系统**：支持多翻译器配置，可通过 config.yaml 激活不同模型
 - 🧪 **完整测试覆盖**：新增翻译清洗、序列化器、API 端点等测试用例
+- 🔐 **WAL 模式支持**：SQLite 启用 WAL 模式，提升并发性能和数据安全性
+- 📦 **自动备份机制**：定时备份 AVID 列表，灾难恢复更容易
+- 🔍 **一致性检查任务**：定时检查资源文件与数据库的一致性，自动修复不匹配
+- 📊 **日志持久化**：Uvicorn 和 Loguru 日志统一持久化，保留 30 天
 
 ## 技术栈
 
@@ -196,6 +200,112 @@ uv run celery -A django_project worker -l info --concurrency=1
 - Worker 已配置为单并发模式（`CELERY_WORKER_CONCURRENCY=1`）
 - 全局下载锁确保同一时间只有一个 N_m3u8DL-RE 实例在运行
 - 任务去重机制防止同一 AVID 重复提交到队列
+
+#### 启动 Celery Beat（定时任务调度器）
+
+```bash
+# 启动定时任务调度器
+uv run celery -A django_project beat -l info
+```
+
+**定时任务说明：**
+
+| 任务名称                              | 执行时间    | 功能描述                                    |
+|-----------------------------------|---------|-----------------------------------------|
+| `backup-database-daily`           | 每天 1:30 | 备份 SQLite 数据库和 WAL 文件，保留 30 天         |
+| `backup-avid-list-daily`          | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天   |
+| `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配          |
+| `db-disk-consistency-daily`       | 每天 7:00 | 检查视频文件与数据库记录的一致性                      |
+| `actor-avatars-consistency-daily` | 每天 7:05 | 检查演员头像完整性                               |
+
+**备份文件位置：**
+
+- 数据库备份：`backup/database_{timestamp}/`（包含 db.sqlite3、db.sqlite3-wal、db.sqlite3-shm）
+- AVID 备份：`backup/avid_backup_{timestamp}.json`（JSON 格式，包含 AVID 列表和元信息）
+- 一致性报告：`celery_beat/resources_consistency_report.json`
+
+**日志文件位置：**
+
+- 应用日志：`log/{date}.log`（Loguru，保留 30 天）
+- Uvicorn 日志：`log/uvicorn.log`（按日轮转，保留 30 天）
+- Uvicorn 访问日志：`log/uvicorn_access.log`（按日轮转，保留 30 天）
+
+#### 完整启动（推荐使用进程管理工具）
+
+**使用 systemd（生产环境）：**
+
+创建服务文件 `/etc/systemd/system/nassav-*.service`：
+
+```ini
+# /etc/systemd/system/nassav-django.service
+[Unit]
+Description=NASSAV Django ASGI Server
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/django_backend
+ExecStart=/path/to/uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --log-config log_config.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# /etc/systemd/system/nassav-celery-worker.service
+[Unit]
+Description=NASSAV Celery Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/django_backend
+ExecStart=/path/to/uv run celery -A django_project worker -l info
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# /etc/systemd/system/nassav-celery-beat.service
+[Unit]
+Description=NASSAV Celery Beat Scheduler
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=your-user
+WorkingDirectory=/path/to/django_backend
+ExecStart=/path/to/uv run celery -A django_project beat -l info
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启动服务：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable nassav-django nassav-celery-worker nassav-celery-beat
+sudo systemctl start nassav-django nassav-celery-worker nassav-celery-beat
+```
+
+**使用 tmux/screen（开发环境）：**
+
+```bash
+# 窗口 1: Django
+tmux new -s nassav -n django
+uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --log-config log_config.py
+
+# 窗口 2: Celery Worker
+tmux new-window -t nassav -n worker
+uv run celery -A django_project worker -l info
+
+# 窗口 3: Celery Beat
+tmux new-window -t nassav -n beat
+uv run celery -A django_project beat -l info
+```
 
 ## API 文档
 
@@ -440,6 +550,130 @@ Translator:
     timeout: 60
 ```
 
+## Django Management Commands
+
+项目提供了一些 Django 管理命令用于维护和管理任务。这些命令可以手动运行，也可以通过 Celery Beat 定时调度。
+
+### backup_avid_list
+
+备份数据库中所有 AVID 列表到 JSON 文件，用于灾难恢复。
+
+**用法：**
+
+```bash
+# 使用默认保留期限（30 天）
+uv run python manage.py backup_avid_list
+
+# 指定保留天数
+uv run python manage.py backup_avid_list --days 60
+```
+
+**备份内容：**
+- JSON 格式：`backup/avid_backup_{timestamp}.json`（包含时间戳、总数和完整 AVID 列表）
+
+**自动清理：**
+- 自动删除超过指定天数的旧备份文件
+- 默认保留最近 30 天的备份
+
+### backup_database
+
+备份 SQLite 数据库文件（包含 WAL 和 SHM 文件），用于灾难恢复。
+
+**用法：**
+
+```bash
+# 使用默认保留期限（30 天）
+uv run python manage.py backup_database
+
+# 指定保留天数
+uv run python manage.py backup_database --days 60
+```
+
+**备份内容：**
+- 数据库主文件：`db.sqlite3`
+- WAL 日志文件：`db.sqlite3-wal`
+- 共享内存文件：`db.sqlite3-shm`
+- 元数据文件：`backup_info.txt`（包含备份时间、文件大小等信息）
+
+**备份位置：**
+- 目录：`backup/database_{timestamp}/`
+- 示例：`backup/database_20250101_143000/`
+
+**自动清理：**
+- 自动删除超过指定天数的旧备份目录
+- 默认保留最近 30 天的备份
+
+**注意事项：**
+- 备份前会执行 `PRAGMA wal_checkpoint(FULL)` 将 WAL 日志合并到主文件
+- 确保备份时数据库可访问且没有长时间运行的事务
+
+### check_resources_consistency
+
+检查资源文件（封面/视频/缩略图）与数据库的一致性，并可选地自动修复不匹配。
+
+**用法：**
+
+```bash
+# 仅检查，不修复（生成报告）
+uv run python manage.py check_resources_consistency
+
+# 检查并自动修复
+uv run python manage.py check_resources_consistency --apply
+
+# 指定报告文件路径
+uv run python manage.py check_resources_consistency --apply --report backup/consistency_report.json
+```
+
+**检查项：**
+1. 封面文件存在性（cover_filename 字段与实际文件）
+2. 视频文件存在性（file_exists 字段与实际文件）
+3. 缩略图完整性（如果封面存在，确保 small/medium/large 三个尺寸）
+4. 孤立文件检测（文件存在但数据库无记录）
+
+**自动修复：**
+- 更新数据库中不匹配的字段（cover_filename、file_exists、file_size、video_saved_at）
+- 生成缺失的缩略图
+- 保存详细报告到 JSON 文件
+
+### check_videos_consistency
+
+检查视频文件与数据库记录的一致性。
+
+**用法：**
+
+```bash
+# 仅检查
+uv run python manage.py check_videos_consistency
+
+# 检查并修复
+uv run python manage.py check_videos_consistency --apply
+
+# 限制检查数量
+uv run python manage.py check_videos_consistency --limit 100
+
+# 指定报告路径
+uv run python manage.py check_videos_consistency --apply --report custom_report.json
+```
+
+### check_actor_avatars_consistency
+
+检查演员头像的一致性，并可选地下载缺失的头像。
+
+**用法：**
+
+```bash
+# 仅检查
+uv run python manage.py check_actor_avatars_consistency
+
+# 检查并下载缺失头像
+uv run python manage.py check_actor_avatars_consistency --apply
+
+# 指定报告路径
+uv run python manage.py check_actor_avatars_consistency --apply --report avatars_report.json
+```
+
+**注意**：所有检查命令都会生成 JSON 格式的详细报告，默认保存在 `celery_beat/` 目录。
+
 ## 性能优化
 
 - **条件请求**：元数据和封面接口支持 `ETag`/`Last-Modified`，返回 304 节省带宽
@@ -491,11 +725,14 @@ redis-cli keys "nassav:task_lock:*" | xargs redis-cli del
 - 🐛 修复 Javbus 女优名解析问题：正确处理带括号的女优名（如"めぐり（藤浦めぐ）"）
 - 🐛 修复女优列表筛选功能：添加 `has_avatar` 查询参数支持按头像状态筛选
 - 🐛 修复视频时间排序接口返回未下载资源的问题：`sort_by=video_create_time` 时自动过滤未下载视频
+- 🐛 修复 DeleteResourceView 未删除缩略图的问题：彻底删除资源时同时清理封面和缩略图
 
 **改进：**
 - 🔍 女优名解析增强：改进正则表达式以支持复杂括号内容
 - 🎯 封面下载鲁棒性：添加 HTTP 403 错误处理和自动重试机制
 - 📊 API 增强：女优列表接口支持更多筛选条件
+- 🛡️ 可恢复性增强：启用 SQLite WAL 模式、添加数据库备份、AVID 列表备份、资源一致性检查定时任务
+- 📝 日志管理优化：Uvicorn 日志持久化、统一日志保留期限为 30 天
 
 ### v1.2.0 (2026-01-02)
 

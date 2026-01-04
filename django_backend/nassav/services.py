@@ -14,7 +14,7 @@ LOG_DIR = settings.LOG_DIR
 logger.add(
     str(LOG_DIR / "{time:YYYY-MM-DD}.log"),
     rotation="00:00",
-    retention="7 days",
+    retention="30 days",  # 保留 30 天
     enqueue=False,
     level="DEBUG",
     format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
