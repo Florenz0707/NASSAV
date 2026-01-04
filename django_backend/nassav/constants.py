@@ -11,6 +11,8 @@ HEADERS = {
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
 }
 
+IMPERSONATE = "chrome110"
+
 # 演员头像占位图 URL（这些 URL 表示没有真实头像，应该被过滤）
 ACTOR_AVATAR_PLACEHOLDER_URLS = [
     "https://pics.dmm.co.jp/mono/actjpgs/nowprinting.gif",

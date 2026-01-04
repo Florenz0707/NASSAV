@@ -7,6 +7,7 @@ from typing import Optional
 from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
+from nassav.constants import IMPERSONATE
 
 from .ScraperBase import ScraperBase
 
@@ -216,11 +217,10 @@ class Javbus(ScraperBase):
                     headers=headers,
                     proxies=self.proxies,
                     timeout=self.timeout,
-                    impersonate="chrome110",
+                    impersonate=IMPERSONATE,
                 )
                 if response.status_code == 200:
                     dest.write_bytes(response.content)
-                    logger.info(f"头像下载成功: {dest.name}")
                     return True
                 else:
                     logger.warning(f"头像下载失败 (HTTP {response.status_code}): {url}")

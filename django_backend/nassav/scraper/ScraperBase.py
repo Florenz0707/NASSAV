@@ -5,7 +5,7 @@ from typing import Optional
 
 from curl_cffi import requests
 from loguru import logger
-from nassav.constants import HEADERS
+from nassav.constants import HEADERS, IMPERSONATE
 
 
 class ScraperBase:
@@ -42,7 +42,7 @@ class ScraperBase:
                 proxies=self.proxies,
                 headers=HEADERS,
                 timeout=self.timeout,
-                impersonate="chrome110",
+                impersonate=IMPERSONATE,
             )
             response.raise_for_status()
             return response.text
@@ -62,7 +62,6 @@ class ScraperBase:
         """
         import os
 
-        logger.debug(f"Scraper download cover: {url} to {save_path}")
         try:
             # 设置请求头（包含Referer）
             headers = HEADERS.copy()
@@ -73,7 +72,7 @@ class ScraperBase:
                 headers=headers,
                 proxies=self.proxies,
                 timeout=self.timeout,
-                impersonate="chrome110",
+                impersonate=IMPERSONATE,
                 stream=True,
             )
             response.raise_for_status()

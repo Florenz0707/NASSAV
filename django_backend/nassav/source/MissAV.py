@@ -97,7 +97,7 @@ class MissAV(SourceBase):
 
     def _get_highest_quality_m3u8(self, playlist_url: str) -> Optional[Tuple[str, str]]:
         try:
-            response = requests.get(playlist_url, timeout=10, impersonate="chrome110")
+            response = requests.get(playlist_url, timeout=10, impersonate=IMPERSONATE)
             response.raise_for_status()
             playlist_content = response.text
 

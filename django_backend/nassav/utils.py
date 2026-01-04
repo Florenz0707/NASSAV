@@ -184,6 +184,7 @@ def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
 
     from django.conf import settings
     from loguru import logger
+    from nassav.constants import IMPERSONATE
 
     try:
         from curl_cffi import requests
@@ -214,7 +215,7 @@ def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
                 headers=headers,
                 proxies=proxies,
                 timeout=15,
-                impersonate="chrome110",
+                impersonate=IMPERSONATE,
             )
             if response.status_code == 200:
                 dest.write_bytes(response.content)

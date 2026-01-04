@@ -341,9 +341,6 @@ class SourceManager:
                                 avatar_path = Path(settings.AVATAR_DIR) / filename
                                 # 如果文件不存在或者需要更新，则下载
                                 if not avatar_path.exists():
-                                    logger.debug(
-                                        f"准备下载头像: 演员={actor_name}, URL={avatar_url}, 目标路径={avatar_path}"
-                                    )
                                     # 使用 scraper 的 download_avatar 方法
                                     # 获取第一个可用的 scraper
                                     scrapers = self.scraper.get_scrapers()
@@ -429,10 +426,9 @@ class SourceManager:
                     except Exception as e:
                         logger.warning(f"提交翻译任务失败: {avid}, 错误: {e}")
                 elif resource_obj.translated_title:
-                    logger.debug(f"跳过翻译（已有译文）: {avid}")
                     result["translated"] = True
                 else:
-                    logger.debug(f"跳过翻译（无标题）: {avid}")
+                    pass
 
             except Exception as e:
                 logger.error(f"写入数据库元数据失败: {e}")

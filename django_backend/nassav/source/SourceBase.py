@@ -4,7 +4,7 @@ from typing import Optional
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import HTTPError
 from loguru import logger
-from nassav.constants import HEADERS
+from nassav.constants import HEADERS, IMPERSONATE
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 
 
@@ -80,7 +80,7 @@ class SourceBase:
                     proxies=self.proxies,
                     headers=headers,
                     timeout=self.timeout,
-                    impersonate="edge",
+                    impersonate=IMPERSONATE,
                 )
                 try:
                     response.raise_for_status()
@@ -105,9 +105,9 @@ class SourceBase:
                     self.cookie = cookie_str
                     return True
         except Exception as e:
-            logger.error(f"{self.get_source_name()}: 自动获取cookie失败: {str(e)}")
+            logger.warning(f"{self.get_source_name()}: 自动获取cookie失败: {str(e)}")
             return False
-        logger.info(f"{source_name}：达到最大重试次数，cookie获取失败。")
+        logger.warning(f"{source_name}：达到最大重试次数，cookie获取失败。")
         return False
 
     def load_cookie_from_db(self) -> bool:
@@ -126,7 +126,7 @@ class SourceBase:
             logger.info(f"{source_name}: 从数据库加载cookie成功")
             return True
         except Exception as e:
-            logger.debug(f"{self.get_source_name()}: 从数据库加载cookie失败: {str(e)}")
+            logger.warning(f"{self.get_source_name()}: 从数据库加载cookie失败: {str(e)}")
             return False
 
     def get_html(self, avid: str) -> Optional[str]:
@@ -139,7 +139,6 @@ class SourceBase:
         raise NotImplementedError
 
     def fetch_html(self, url: str, referer: str = "") -> Optional[str]:
-        logger.debug(f"fetch url: {url}")
         try:
             headers = HEADERS.copy()
             if referer:
@@ -151,7 +150,7 @@ class SourceBase:
                 proxies=self.proxies,
                 headers=headers,
                 timeout=self.timeout,
-                impersonate="chrome110",
+                impersonate=IMPERSONATE,
             )
             response.raise_for_status()
             return response.text
@@ -161,7 +160,6 @@ class SourceBase:
 
     def download_file(self, url: str, save_path: str, referer: str = "") -> bool:
         """下载文件到指定路径"""
-        logger.debug(f"download {url} to {save_path}")
         try:
             headers = HEADERS.copy()
             if referer:
@@ -171,7 +169,7 @@ class SourceBase:
             response = requests.get(
                 url,
                 stream=True,
-                impersonate="chrome110",
+                impersonate=IMPERSONATE,
                 proxies=self.proxies,
                 headers=headers,
                 timeout=self.timeout,
