@@ -66,7 +66,16 @@ async function handleSubmit() {
 			// 单个添加
 			const response = await resourceStore.addResource(avids[0], source.value)
 			let data = response && response.data ? response.data : null
-			if (data && data.resource) data = data.resource
+
+			// 合并 resource 字段和状态字段
+			if (data && data.resource) {
+				data = {
+					...data.resource,
+					cover_downloaded: data.cover_downloaded,
+					metadata_saved: data.metadata_saved,
+					scraped: data.scraped
+				}
+			}
 
 			result.value = {
 				success: [avids[0]],
