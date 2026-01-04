@@ -1103,6 +1103,9 @@ class DeleteResourceView(APIView):
                 Path(settings.BASE_DIR) / "resource_backup",
             )
         )
+        thumbnail_root = Path(
+            getattr(settings, "THUMBNAIL_DIR", cover_root / "thumbnails")
+        )
 
         cover_candidates = []
         for ext in [".jpg", ".jpeg", ".png", ".webp"]:
@@ -1110,16 +1113,36 @@ class DeleteResourceView(APIView):
             if p.exists():
                 cover_candidates.append(p)
 
+        # 收集所有尺寸的缩略图
+        thumbnail_candidates = []
+        for size in ["small", "medium", "large"]:
+            thumb_path = thumbnail_root / size / f"{avid}.jpg"
+            if thumb_path.exists():
+                thumbnail_candidates.append(thumb_path)
+
         mp4_path = video_root / f"{avid}.mp4"
         backup_dir = backup_root / avid
 
-        if not cover_candidates and not mp4_path.exists() and not backup_dir.exists():
+        if (
+            not cover_candidates
+            and not thumbnail_candidates
+            and not mp4_path.exists()
+            and not backup_dir.exists()
+        ):
             return build_response(404, f"资源 {avid} 不存在", None)
 
         try:
             deleted_files = []
             for p in cover_candidates:
                 deleted_files.append(p.name)
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
+
+            # 删除所有尺寸的缩略图
+            for p in thumbnail_candidates:
+                deleted_files.append(f"thumbnail/{p.parent.name}/{p.name}")
                 try:
                     p.unlink()
                 except Exception:
