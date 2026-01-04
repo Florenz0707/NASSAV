@@ -8,7 +8,6 @@ import ResourceCard from '../components/ResourceCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import BatchControls from '../components/BatchControls.vue'
-import { downloadApi, resourceApi } from "../api/index.js";
 
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()
@@ -213,25 +212,27 @@ async function handleRefresh(avid, params = null) {
 	}
 }
 
-async function handleDeleteResource(avid) {
-	// 完全删除资源
+async function handleDeleteResource(_avid) {
+	// ResourceCard 已执行删除，这里只需刷新列表
+	refreshing.value = true
 	try {
-		await resourceApi.delete(avid)
-		await handleManualRefresh()
-		toastStore.success(`${avid} 已被完全删除`)
+		await fetchResourceList()
 	} catch (err) {
-		toastStore.error(err.message || "删除失败")
+		console.error('刷新列表失败:', err)
+	} finally {
+		refreshing.value = false
 	}
 }
 
-async function handleDeleteFile(avid) {
-	// 删除资源视频
+async function handleDeleteFile(_avid) {
+	// ResourceCard 已执行删除，这里只需刷新列表
+	refreshing.value = true
 	try {
-		await downloadApi.deleteFile(avid)
-		await handleManualRefresh()
-		toastStore.success(`${avid} 已删除视频`)
+		await fetchResourceList()
 	} catch (err) {
-		toastStore.error(err.message || "删除失败")
+		console.error('刷新列表失败:', err)
+	} finally {
+		refreshing.value = false
 	}
 }
 
@@ -239,7 +240,7 @@ async function handleManualRefresh() {
 	refreshing.value = true
 	try {
 		await fetchResourceList()
-		toastStore.success('资源列表已刷新')
+		toastStore.success('列表已刷新')
 	} catch (err) {
 		toastStore.error(err.message || '刷新失败')
 	} finally {
