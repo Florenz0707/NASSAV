@@ -26,7 +26,7 @@ DEFAULT_AVIDS=(
 )
 
 # 模拟下载持续时间（秒）
-DURATION=30
+DURATION=20
 
 # 解析命令行参数
 AVIDS=()

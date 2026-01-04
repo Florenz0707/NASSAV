@@ -2,6 +2,7 @@ import {defineStore} from 'pinia'
 import {ref} from 'vue'
 import {resourceApi} from '../api'
 import {useSettingsStore} from './settings'
+import {useToastStore} from './toast'
 
 export const useWebSocketStore = defineStore('websocket', () => {
     const ws = ref(null)
@@ -164,6 +165,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
     // 处理 WebSocket 消息
     function handleMessage(message) {
+        const toastStore = useToastStore()
+
         switch (message.type) {
             case 'queue_status':
                 // 队列状态更新
@@ -187,10 +190,35 @@ export const useWebSocketStore = defineStore('websocket', () => {
                 break
 
             case 'task_started':
-            case 'task_completed':
-            case 'task_failed':
-                // 任务状态变化，数据通常包含完整队列状态
+                // 任务开始
                 if (message.data) {
+                    const avid = message.data.avid
+                    if (avid) {
+                        toastStore.info(`开始下载: ${avid}`)
+                    }
+                    updateTaskData(message.data)
+                }
+                break
+
+            case 'task_completed':
+                // 任务完成
+                if (message.data) {
+                    const avid = message.data.avid
+                    if (avid) {
+                        toastStore.success(`下载完成: ${avid}`)
+                    }
+                    updateTaskData(message.data)
+                }
+                break
+
+            case 'task_failed':
+                // 任务失败
+                if (message.data) {
+                    const avid = message.data.avid
+                    const error = message.data.error || '未知错误'
+                    if (avid) {
+                        toastStore.error(`下载失败: ${avid} - ${error}`)
+                    }
                     updateTaskData(message.data)
                 }
                 break
