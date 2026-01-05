@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
+from nassav.constants import HEADERS, IMPERSONATE
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -30,8 +31,10 @@ class MissAV(SourceBase):
             f"https://{self.domain}/cn/{avid_lower}",
         ]
         for url in urls:
-            content = self.fetch_html(url)
-            time.sleep(0.5)
+            content = self.fetch_html(
+                url, referer=f"https://{self.domain}/search/{avid_lower}"
+            )
+            time.sleep(1)
             if content:
                 return content
         return None

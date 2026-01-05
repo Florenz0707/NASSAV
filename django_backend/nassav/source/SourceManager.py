@@ -38,8 +38,9 @@ class SourceManager:
     def __init__(self):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         self.sources: Dict[str, SourceBase] = {}
+        self._cookies_loaded = False
 
-        # 初始化元数据刮削器
+        # 初始化元数据刹削器
         self.scraper = ScraperManager(proxy)
 
         # 注册下载器，根据配置中的权重
@@ -53,8 +54,13 @@ class SourceManager:
                 source = source_class(proxy)
                 self.sources[source.get_source_name()] = source
 
-        # 从数据库加载 cookie
-        sync_to_async(self.load_cookies_from_db)
+        # Cookie 将在首次使用时懒加载
+
+    def _ensure_cookies_loaded(self):
+        """确保cookie已加载（懒加载）"""
+        if not self._cookies_loaded:
+            self.load_cookies_from_db()
+            self._cookies_loaded = True
 
     def load_cookies_from_db(self):
         """从数据库加载所有源的 cookie"""
@@ -126,6 +132,8 @@ class SourceManager:
         """
         import time
 
+        self._ensure_cookies_loaded()
+
         for name, source in self.get_sorted_sources():
             logger.info(f"尝试从 {name} 获取 {avid}")
             html = source.get_html(avid)
@@ -144,6 +152,8 @@ class SourceManager:
         从指定源获取信息
         返回: (info, source, html) 或 None
         """
+        self._ensure_cookies_loaded()
+
         # 查找对应的下载器（不区分大小写）
         source = None
         for name, dl in self.sources.items():

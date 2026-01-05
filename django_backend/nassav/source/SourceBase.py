@@ -145,6 +145,7 @@ class SourceBase:
                 headers["Referer"] = referer
             if self.cookie:
                 headers["Cookie"] = self.cookie
+
             response = requests.get(
                 url,
                 proxies=self.proxies,

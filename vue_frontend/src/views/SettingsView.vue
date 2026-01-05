@@ -66,9 +66,10 @@ const loadData = async () => {
 		const cookieData = cookiesResponse.data || []
 
 		// 3. 构建 Cookie 映射表（source -> cookie info）
+		// 使用小写作为 key 以支持大小写不敏感匹配
 		const cookieMap = {}
 		cookieData.forEach(item => {
-			cookieMap[item.source] = {
+			cookieMap[item.source.toLowerCase()] = {
 				cookie: item.cookie,
 				mtime: item.mtime
 			}
@@ -76,7 +77,7 @@ const loadData = async () => {
 
 		// 4. 合并数据
 		sources.value = availableSources.map(sourceName => {
-			const cookieInfo = cookieMap[sourceName]
+			const cookieInfo = cookieMap[sourceName.toLowerCase()]
 			return {
 				name: sourceName,
 				hasCookie: !!cookieInfo,
