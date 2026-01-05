@@ -493,6 +493,26 @@ setInterval(async () => {
 
 ## 版本更新
 
+### v1.3.2（2026-01-05）
+
+#### 🆕 新增
+
+- 添加定时备份任务（`backup-database-daily` / `backup-avid-list-daily` / 同步任务支持）
+- 配置项调整：将 `UrlPrefix` 重命名为 `FilePathPrefix`，新增 `BackupPath` 用于 `sync_backups` 命令目标目录
+- 将批量删除操作拆分为 `delete-video` 与 `delete-all`，以便更精细的删除控制
+
+#### 🐛 Bug 修复
+
+- 修复前端 Cookie 显示错误和后端未正确设置 Cookie 的问题，同时为部分请求添加 `Referer` 头以提升来源兼容性
+- 删除资源时同时清理缩略图（修复遗漏的缩略图删除逻辑）
+- 移除 GET 资源接口的 `search` 查询参数（由前端的模糊搜索逻辑替代）
+
+#### ⚡ 改进
+
+- 启用 SQLite 的 WAL 模式以提升可恢复性与并发表现
+- 新增数据库、AVID 列表与资源一致性检查的定时任务，并统一日志持久化与 30 天保留策略
+
+
 ### v1.3.0（2026-01-03）
 
 #### 🆕 新功能

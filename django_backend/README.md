@@ -64,6 +64,7 @@ django_backend/
 │   ├── settings.py               # Django 配置
 │   └── celery.py                 # Celery 配置
 ├── nassav/                        # Django 应用
+│   ├── proxy/                    # 代理模块（组合其他模块）
 │   ├── source/                   # 资源源管理（多源适配器）
 │   ├── scraper/                  # 刮削器模块
 │   ├── translator/               # 翻译器模块（Ollama + 多模型支持）
@@ -110,14 +111,12 @@ Proxy:
   url: http://127.0.0.1:3000
 
 # 文件路径前缀配置（用于返回视频文件路径时添加前缀，如 WSL 路径转换）
-FilePathPrefix: /wsl.localhost/Ubuntu-24.04
+FilePathPrefix: null
 
 # 备份数据路径（用于 sync_backups 命令的目标同步目录）
 # 注意：backup_database 和 backup_avid_list 命令仍然使用项目根目录下的 backup/ 目录
-BackupPath: /mnt/d/_Files/Ubuntu_Data/nassav
+BackupPath: /backup/nassav
 
-# 显示标题配置（source_title/translated_title/title）
-DisplayTitle: source_title
 
 # 翻译器配置
 Translator:
@@ -152,7 +151,6 @@ Source:
 
 - **FilePathPrefix**：用于在返回视频文件绝对路径时添加前缀，主要用于 WSL 环境路径转换（如 `/wsl.localhost/Ubuntu-24.04`）
 - **BackupPath**：`sync_backups` 命令的目标同步目录。注意：`backup_database` 和 `backup_avid_list` 仍使用项目根目录的 `backup/` 目录
-- **DisplayTitle**：前端显示标题的类型（`source_title`/`translated_title`/`original_title`）
 - **Translator**：翻译服务配置，支持多个翻译器并可切换激活
 - **Scraper**：元数据刮削器域名配置
 - **Source**：视频下载源配置，按权重排序（weight 越大优先级越高）
@@ -780,52 +778,6 @@ redis-cli keys "nassav:task_progress:*"
 redis-cli del nassav:global_download_lock
 redis-cli keys "nassav:task_lock:*" | xargs redis-cli del
 ```
-
-## 更新日志
-
-### v1.3.0 (2026-01-03)
-
-**新功能：**
-- 🖼️ **Javbus 女优头像集成**：自动从 Javbus 获取女优头像并保存，支持通过 `/api/actors/:id/avatar` API 访问
-- 📷 **封面获取策略优化**：优先使用 Javbus 封面（质量更稳定），403 错误时自动回退到 Source 封面
-- ⚙️ **用户设置 API**：新增 `/api/setting` 端点（GET/PUT），支持前端配置持久化到 `user_settings.ini`
-
-**Bug 修复：**
-- 🐛 修复后端女优头像处理逻辑错误，确保头像正确保存和返回
-- 🐛 修复 Javbus 女优名解析问题：正确处理带括号的女优名（如"めぐり（藤浦めぐ）"）
-- 🐛 修复女优列表筛选功能：添加 `has_avatar` 查询参数支持按头像状态筛选
-- 🐛 修复视频时间排序接口返回未下载资源的问题：`sort_by=video_create_time` 时自动过滤未下载视频
-- 🐛 修复 DeleteResourceView 未删除缩略图的问题：彻底删除资源时同时清理封面和缩略图
-
-**改进：**
-- 🔍 女优名解析增强：改进正则表达式以支持复杂括号内容
-- 🎯 封面下载鲁棒性：添加 HTTP 403 错误处理和自动重试机制
-- 📊 API 增强：女优列表接口支持更多筛选条件
-- 🛡️ 可恢复性增强：启用 SQLite WAL 模式、添加数据库备份、AVID 列表备份、资源一致性检查定时任务
-- 📝 日志管理优化：Uvicorn 日志持久化、统一日志保留期限为 30 天
-
-### v1.2.0 (2026-01-02)
-
-**重大更新：**
-- ✨ 添加 AI 翻译系统（Ollama + 多模型支持）
-- 🗄️ 完成数据库全面迁移（文件系统 → SQLite）
-- 🎯 实现细粒度刷新控制（m3u8/metadata/translate 独立开关）
-- 📑 新增批量操作接口（batch add/refresh/delete）
-- 🏷️ 添加演员/类别聚合统计接口
-- 🖼️ 实现智能缩略图生成（多尺寸 + 按需生成）
-- 🔄 优化条件请求支持（ETag/Last-Modified）
-
-**改进：**
-- 翻译质量提升：10+ 清洗规则移除杂质
-- source_title 格式规范化：统一 AVID 大写格式
-- 配置系统增强：DisplayTitle、Translator.active 配置
-- API 简化：移除冗余接口，统一响应格式
-- 测试覆盖：新增翻译、序列化器、API 测试用例
-
-**废弃：**
-- ❌ `GET /api/resource/list`（已被 `/api/resources/` 取代）
-- ❌ `GET /api/downloads/list`（可用 `/api/resources/?status=downloaded` 替代）
-- ❌ `html_saved` 字段（HTML 不再持久化）
 
 ## License
 
