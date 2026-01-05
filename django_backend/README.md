@@ -210,19 +210,28 @@ uv run celery -A django_project beat -l info
 
 **定时任务说明：**
 
-| 任务名称                              | 执行时间    | 功能描述                                    |
+| 任务名称                              | 执行时间    | 功能描述                                      |
 |-----------------------------------|---------|-----------------------------------------|
-| `backup-database-daily`           | 每天 1:30 | 备份 SQLite 数据库和 WAL 文件，保留 30 天         |
-| `backup-avid-list-daily`          | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天   |
-| `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配          |
-| `db-disk-consistency-daily`       | 每天 7:00 | 检查视频文件与数据库记录的一致性                      |
-| `actor-avatars-consistency-daily` | 每天 7:05 | 检查演员头像完整性                               |
+| `backup-database-daily`           | 每天 1:30 | 备份 SQLite 数据库和 WAL 文件，保留 30 天           |
+| `backup-avid-list-daily`          | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天     |
+| `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配            |
+| `sync-backups-daily`              | 每天 4:00 | 同步备份文件到外部目录（/mnt/d/_Files/Ubuntu_Data/nassav） |
+| `db-disk-consistency-daily`       | 每天 7:00 | 检查视频文件与数据库记录的一致性                        |
+| `actor-avatars-consistency-daily` | 每天 7:05 | 检查演员头像完整性                                 |
+
+**执行顺序逻辑：**
+1. **1:30** - 备份数据库（最重要的备份，优先执行）
+2. **2:00** - 备份 AVID 列表（轻量级备份）
+3. **3:00** - 检查并修复资源一致性（生成报告文件）
+4. **4:00** - 同步所有备份文件到外部目录（确保前面的备份和报告都已完成）
+5. **7:00/7:05** - 其他一致性检查任务
 
 **备份文件位置：**
 
 - 数据库备份：`backup/database_{timestamp}/`（包含 db.sqlite3、db.sqlite3-wal、db.sqlite3-shm）
 - AVID 备份：`backup/avid_backup_{timestamp}.json`（JSON 格式，包含 AVID 列表和元信息）
 - 一致性报告：`celery_beat/resources_consistency_report.json`
+- 外部同步目标：`/mnt/d/_Files/Ubuntu_Data/nassav/`（WSL2 Windows 目录）
 
 **日志文件位置：**
 
@@ -606,6 +615,46 @@ uv run python manage.py backup_database --days 60
 **注意事项：**
 - 备份前会执行 `PRAGMA wal_checkpoint(FULL)` 将 WAL 日志合并到主文件
 - 确保备份时数据库可访问且没有长时间运行的事务
+
+### sync_backups
+
+同步备份文件（backup/、celery_beat/、log/）到外部目录，用于异地备份。
+
+**用法：**
+
+```bash
+# 使用默认目标目录和保留期限（30 天）
+uv run python manage.py sync_backups
+
+# 指定目标目录
+uv run python manage.py sync_backups --target /mnt/backup/nassav
+
+# 指定同步天数（0 表示同步所有文件）
+uv run python manage.py sync_backups --days 60
+
+# 完整示例
+uv run python manage.py sync_backups --target /mnt/d/_Files/Ubuntu_Data/nassav --days 30
+```
+
+**同步内容：**
+- `backup/` 目录：数据库备份和 AVID 列表备份
+- `celery_beat/` 目录：一致性检查报告（排除 celerybeat-schedule）
+- `log/` 目录：应用日志文件
+- `celerybeat-schedule` 文件：Celery Beat 调度数据
+
+**同步策略：**
+- 支持按修改时间过滤（只同步最近 N 天的文件）
+- 自动创建目标目录结构
+- 使用 `shutil.copy2` 保留文件时间戳和权限
+- 显示同步进度和文件大小统计
+
+**默认目标目录：**
+- `/mnt/d/_Files/Ubuntu_Data/nassav`（适用于 WSL2 环境）
+- 可通过 `--target` 参数指定其他位置
+
+**定时任务：**
+- 自动通过 Celery Beat 调度（每天凌晨 4:00）
+- 确保在所有备份任务完成后执行
 
 ### check_resources_consistency
 

@@ -271,6 +271,11 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=1, minute=30),  # 每天凌晨 1:30 备份数据库
         "args": (30,),  # days=30
     },
+    "sync-backups-daily": {
+        "task": "nassav.tasks.sync_backups",
+        "schedule": crontab(hour=4, minute=0),  # 每天凌晨 4:00 同步备份
+        "args": ("/mnt/d/_Files/Ubuntu_Data/nassav", 30),  # target=None(使用默认), days=30
+    },
     "check-resources-consistency-daily": {
         "task": "nassav.tasks.check_resources_consistency",
         "schedule": crontab(hour=3, minute=0),  # 每天凌晨 3:00 检查并修复

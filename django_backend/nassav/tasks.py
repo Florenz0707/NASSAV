@@ -1210,6 +1210,31 @@ def backup_database(self, days: int = 30):
         logger.error(f"备份数据库失败: {e}")
 
 
+@shared_task(bind=True, name="nassav.tasks.sync_backups", ignore_result=True)
+def sync_backups(self, target: str | None = None, days: int = 30):
+    """
+    同步备份文件到外部目录（供 Celery Beat 调度）
+
+    将 backup/, celery_beat/, log/ 目录同步到指定的外部目录。
+
+    Args:
+        target: 目标同步目录（默认：/backup/nassav）
+        days: 只同步最近N天的文件（默认 30 天，0表示同步所有）
+    """
+    try:
+        from django.core.management import call_command
+
+        args = []
+        if target:
+            args.extend(["--target", target])
+        if days is not None:
+            args.extend(["--days", str(days)])
+
+        call_command("sync_backups", *args)
+    except Exception as e:
+        logger.error(f"同步备份文件失败: {e}")
+
+
 @shared_task(
     bind=True, name="nassav.tasks.check_resources_consistency", ignore_result=True
 )
