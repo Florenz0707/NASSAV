@@ -29,8 +29,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--target",
             type=str,
-            default="/backup/nassav",
-            help="目标同步目录（默认：/backup/nassav）",
+            default=None,
+            help="目标同步目录（默认：从config.yaml的BackupPath读取）",
         )
         parser.add_argument(
             "--days",
@@ -40,7 +40,23 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        target_base = Path(options["target"])
+        # 获取目标目录（优先使用命令行参数，其次使用配置文件）
+        target = options["target"]
+        if not target:
+            target = (
+                settings.CONFIG.get("BackupPath")
+                if hasattr(settings, "CONFIG")
+                else None
+            )
+        if not target:
+            self.stdout.write(
+                self.style.ERROR(
+                    "错误：未指定同步目标目录。请通过 --target 参数指定，或在 config.yaml 中配置 BackupPath"
+                )
+            )
+            return
+
+        target_base = Path(target)
         days = options["days"]
 
         try:

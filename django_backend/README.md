@@ -109,19 +109,24 @@ Proxy:
   Enable: true
   url: http://127.0.0.1:3000
 
-UrlPrefix: null
+# 文件路径前缀配置（用于返回视频文件路径时添加前缀，如 WSL 路径转换）
+FilePathPrefix: /wsl.localhost/Ubuntu-24.04
+
+# 备份数据路径（用于 sync_backups 命令的目标同步目录）
+# 注意：backup_database 和 backup_avid_list 命令仍然使用项目根目录下的 backup/ 目录
+BackupPath: /mnt/d/_Files/Ubuntu_Data/nassav
 
 # 显示标题配置（source_title/translated_title/title）
 DisplayTitle: source_title
 
 # 翻译器配置
 Translator:
-  active: ollama  # 激活的翻译器
-  ollama:
-    base_url: http://localhost:11434
-    model: huihui_ai/hunyuan-mt-abliterated:latest
-    temperature: 0.3
-    timeout: 60
+  active: qwen2.5:7b  # 激活的翻译器
+  qwen2.5:7b:
+    type: ollama
+    url: http://localhost:11434
+    model: qwen2.5:7b
+    timeout: 30
 
 # 刮削器配置（从 JavBus 获取详细元数据）
 Scraper:
@@ -137,9 +142,20 @@ Source:
     weight: 1000
   missav:
     domain: missav.ai
-    weight: 200
-  # ... 更多下载源
+    weight: 400
+  memo:
+    domain: memojav.com
+    weight: 600
 ```
+
+**配置说明：**
+
+- **FilePathPrefix**：用于在返回视频文件绝对路径时添加前缀，主要用于 WSL 环境路径转换（如 `/wsl.localhost/Ubuntu-24.04`）
+- **BackupPath**：`sync_backups` 命令的目标同步目录。注意：`backup_database` 和 `backup_avid_list` 仍使用项目根目录的 `backup/` 目录
+- **DisplayTitle**：前端显示标题的类型（`source_title`/`translated_title`/`original_title`）
+- **Translator**：翻译服务配置，支持多个翻译器并可切换激活
+- **Scraper**：元数据刮削器域名配置
+- **Source**：视频下载源配置，按权重排序（weight 越大优先级越高）
 
 ### 3. 下载工具
 
@@ -623,18 +639,23 @@ uv run python manage.py backup_database --days 60
 **用法：**
 
 ```bash
-# 使用默认目标目录和保留期限（30 天）
+# 使用配置文件中的目标目录（推荐）
 uv run python manage.py sync_backups
 
-# 指定目标目录
+# 指定目标目录（覆盖配置文件）
 uv run python manage.py sync_backups --target /mnt/backup/nassav
 
 # 指定同步天数（0 表示同步所有文件）
 uv run python manage.py sync_backups --days 60
 
 # 完整示例
-uv run python manage.py sync_backups --target /mnt/d/_Files/Ubuntu_Data/nassav --days 30
+uv run python manage.py sync_backups --target /custom/backup/path --days 30
 ```
+
+**配置说明：**
+- 目标目录优先级：命令行参数 `--target` > `config.yaml` 中的 `BackupPath`
+- 未配置时会报错提示
+- 备份源目录：始终从项目根目录下的 `backup/` 目录读取
 
 **同步内容：**
 - `backup/` 目录：数据库备份和 AVID 列表备份

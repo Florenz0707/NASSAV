@@ -3,8 +3,14 @@ Proxy:
   Enable: false
   url: http://127.0.0.1:443
 
-# URL 前缀配置
-UrlPrefix: null
+# 文件路径前缀配置
+# 用于在返回视频文件绝对路径时添加前缀（如 WSL 路径转换）
+FilePathPrefix: null
+
+# 备份数据路径
+# 用于 sync_backups 命令的目标同步目录
+# 注意：backup_database 和 backup_avid_list 命令仍使用项目根目录下的 backup/ 目录
+BackupPath: null
 
 # 元数据抓取器配置
 Scraper:

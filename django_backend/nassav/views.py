@@ -671,7 +671,7 @@ class ResourcePreviewView(APIView):
 class DownloadAbspathView(APIView):
     """
     GET /api/downloads/abspath?avid=
-    返回视频文件的绝对路径，并在前面拼接 config.UrlPrefix 作为前缀
+    返回视频文件的绝对路径，并在前面拼接 config.FilePathPrefix 作为前缀
     """
 
     def get(self, request):
@@ -698,7 +698,7 @@ class DownloadAbspathView(APIView):
         url_prefix = ""
         try:
             url_prefix = (
-                settings.CONFIG.get("UrlPrefix", "")
+                settings.CONFIG.get("FilePathPrefix", "")
                 if hasattr(settings, "CONFIG")
                 else ""
             )

@@ -65,7 +65,7 @@ urlpatterns = [
         views.DeleteResourceView.as_view(),
         name="resource-delete",
     ),
-    # GET /api/downloads/abspath?avid= - 返回视频文件的绝对路径，前面拼接 config.UrlPrefix
+    # GET /api/downloads/abspath?avid= - 返回视频文件的绝对路径，前面拼接 config.FilePathPrefix
     path(
         "api/downloads/abspath",
         views.DownloadAbspathView.as_view(),

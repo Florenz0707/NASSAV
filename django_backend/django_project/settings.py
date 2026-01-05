@@ -274,7 +274,7 @@ CELERY_BEAT_SCHEDULE = {
     "sync-backups-daily": {
         "task": "nassav.tasks.sync_backups",
         "schedule": crontab(hour=4, minute=0),  # 每天凌晨 4:00 同步备份
-        "args": ("/mnt/d/_Files/Ubuntu_Data/nassav", 30),  # target=None(使用默认), days=30
+        "args": (None, 30),  # target=None(使用默认), days=30
     },
     "check-resources-consistency-daily": {
         "task": "nassav.tasks.check_resources_consistency",
@@ -282,6 +282,6 @@ CELERY_BEAT_SCHEDULE = {
         "args": (
             True,
             "celery_beat/resources_consistency_report.json",
-        ),  # fix_issues=True, report=path
+        ),
     },
 }
