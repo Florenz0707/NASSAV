@@ -5,7 +5,7 @@
 				演员库
 			</h1>
 			<p class="text-[#71717a] text-base">
-				共有{{store.pagination.total || 0}}个演员信息
+				{{ store.pagination.total ? '共有' + store.pagination.total + '个演员信息' : '查看所有演员信息' }}
 			</p>
 		</div>
 
