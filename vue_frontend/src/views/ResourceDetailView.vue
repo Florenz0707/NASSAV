@@ -68,7 +68,7 @@ const displayedTitle = computed(() => {
 	}
 
 	// 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
-	return resource.translated_title || resource.source_title || resource.original_title || resource.title || resource.avid
+	return resource.source_title || resource.translated_title || resource.original_title || resource.title || resource.avid
 })
 
 async function loadCover() {

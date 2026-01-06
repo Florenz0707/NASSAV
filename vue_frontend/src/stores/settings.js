@@ -7,7 +7,7 @@ export const useSettingsStore = defineStore('settings', () => {
 	const showActorAvatar = ref(true)
 
 	// 显示哪个标题字段：original_title | source_title | translated_title
-	const displayTitle = ref('translated_title')
+	const displayTitle = ref('source_title')
 
 	// 从后端加载设置（仅在应用启动时调用一次）
 	async function loadSettings() {
