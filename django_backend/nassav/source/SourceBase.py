@@ -27,6 +27,8 @@ class SourceBase:
         self.cookie_retry_times = 5
         self.timeout = timeout
         self.domain = ""
+        # 最近一次 fetch_html 请求的响应状态码（成功时为 None）
+        self.last_error_code = None
 
     def set_domain(self, domain: str):
         self.domain = domain
@@ -154,9 +156,29 @@ class SourceBase:
                 impersonate=IMPERSONATE,
             )
             response.raise_for_status()
+            # 成功时清除上次的错误码
+            self.last_error_code = None
             return response.text
         except Exception as e:
-            logger.error(f"请求失败: {str(e)}")
+            # 尝试从异常或 response 对象获取状态码
+            code = None
+            try:
+                # curl_cffi 的 HTTPError 可能包含 response 属性
+                if hasattr(e, "response") and e.response is not None:
+                    code = getattr(e.response, "status_code", None)
+            except Exception:
+                code = None
+
+            try:
+                # 如果 response 在本地作用域可用，优先使用
+                if "response" in locals() and response is not None:
+                    code = getattr(response, "status_code", code)
+            except Exception:
+                pass
+
+            # 记录并暴露错误码（尽量为 int，否则保留错误信息字符串）
+            self.last_error_code = code if code is not None else str(e)
+            logger.error(f"请求失败: {str(e)} (status={self.last_error_code})")
             return None
 
     def download_file(self, url: str, save_path: str, referer: str = "") -> bool:

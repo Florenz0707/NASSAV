@@ -855,7 +855,9 @@ class ResourceView(APIView):
 
         # 根据 downloader 参数选择获取方式
         if source == "any":
-            result = source_manager.get_info_from_any_source(avid)
+            info, source_inst, html, errors = source_manager.get_info_from_any_source(
+                avid
+            )
             error_msg = f"无法从任何源获取 {avid} 的信息"
         else:
             # 检查指定源是否存在
@@ -866,16 +868,44 @@ class ResourceView(APIView):
                     f"源 {source} 不存在",
                     {"available_sources": list(source_manager.sources.keys())},
                 )
-            result = source_manager.get_info_from_source(avid, source)
+            info, source_inst, html, errors = source_manager.get_info_from_source(
+                avid, source
+            )
             error_msg = f"从 {source} 获取 {avid} 失败"
+        # 处理失败情况（返回的 info 为 None）
+        if not info:
+            errs = errors or {}
+            if errs:
+                # 优先判断是否存在 403
+                has_403 = any(
+                    (
+                        int(v) == 403
+                        if (isinstance(v, (int, str)) and str(v).isdigit())
+                        else False
+                    )
+                    for v in errs.values()
+                )
+                all_404 = all(
+                    (
+                        int(v) == 404
+                        if (isinstance(v, (int, str)) and str(v).isdigit())
+                        else False
+                    )
+                    for v in errs.values()
+                )
+                if has_403:
+                    code = 403
+                elif all_404:
+                    code = 404
+                else:
+                    code = 502
 
-        if not result:
+                msg = f"获取{avid}失败。" + ", ".join(f"{k}:{v}" for k, v in errs.items())
+                return build_response(code, msg, None)
             return build_response(404, error_msg, None)
 
-        info, source, html = result
-
         # 一次性保存所有资源（HTML、封面、元数据）到 resource/{avid}/
-        save_result = source_manager.save_all_resources(avid, info, source, html)
+        save_result = source_manager.save_all_resources(avid, info, source_inst, html)
         if not save_result["cover_saved"]:
             logger.warning(f"封面下载失败: {avid}")
 
@@ -1032,11 +1062,38 @@ class RefreshResourceView(APIView):
         # 刷新元数据和/或 m3u8
         if refresh_metadata or refresh_m3u8:
             # 使用原有 source 获取新信息
-            result = source_manager.get_info_from_source(avid, source)
-            if not result:
-                return build_response(502, f"从 {source} 刷新 {avid} 失败", None)
+            info, downloader, html, errors = source_manager.get_info_from_source(
+                avid, source
+            )
+            if not info:
+                errs = errors or {}
+                if errs:
+                    has_403 = any(
+                        (
+                            int(v) == 403
+                            if (isinstance(v, (int, str)) and str(v).isdigit())
+                            else False
+                        )
+                        for v in errs.values()
+                    )
+                    all_404 = all(
+                        (
+                            int(v) == 404
+                            if (isinstance(v, (int, str)) and str(v).isdigit())
+                            else False
+                        )
+                        for v in errs.values()
+                    )
+                    if has_403:
+                        code = 403
+                    elif all_404:
+                        code = 404
+                    else:
+                        code = 502
 
-            info, downloader, html = result
+                    msg = "请求失败。" + ", ".join(f"{k} : {v}" for k, v in errs.items())
+                    return build_response(code, msg, None)
+                return build_response(502, f"从 {source} 刷新 {avid} 失败", None)
 
             # 保存新资源（覆盖旧资源）
             save_result = source_manager.save_all_resources(
@@ -1274,23 +1331,60 @@ class ResourcesBatchView(APIView):
                     source = (act.get("source") or "any").lower()
                     time.sleep(2)
                     if source == "any":
-                        result = source_manager.get_info_from_any_source(avid)
+                        (
+                            info,
+                            src,
+                            html,
+                            errors,
+                        ) = source_manager.get_info_from_any_source(avid)
                     else:
-                        result = source_manager.get_info_from_source(avid, source)
+                        info, src, html, errors = source_manager.get_info_from_source(
+                            avid, source
+                        )
 
-                    if not result:
+                    if not info:
+                        errs = errors or {}
+                        if errs:
+                            has_403 = any(
+                                (
+                                    int(v) == 403
+                                    if (isinstance(v, (int, str)) and str(v).isdigit())
+                                    else False
+                                )
+                                for v in errs.values()
+                            )
+                            all_404 = all(
+                                (
+                                    int(v) == 404
+                                    if (isinstance(v, (int, str)) and str(v).isdigit())
+                                    else False
+                                )
+                                for v in errs.values()
+                            )
+                            if has_403:
+                                code = 403
+                            elif all_404:
+                                code = 404
+                            else:
+                                code = 502
+
+                            msg = "请求失败。" + ", ".join(
+                                f"{k} : {v}" for k, v in errs.items()
+                            )
+                        else:
+                            code = 404
+                            msg = "获取信息失败"
+
                         results.append(
                             {
                                 "action": "add",
                                 "avid": avid,
-                                "code": 404,
-                                "message": "获取信息失败",
+                                "code": code,
+                                "message": msg,
                                 "resource": None,
                             }
                         )
                         continue
-
-                    info, src, html = result
                     save_result = source_manager.save_all_resources(
                         avid, info, src, html
                     )
@@ -1486,20 +1580,61 @@ class ResourcesBatchView(APIView):
 
                     # 刷新元数据和/或 m3u8
                     if refresh_metadata or refresh_m3u8:
-                        result = source_manager.get_info_from_source(avid, source)
-                        if not result:
+                        (
+                            info,
+                            downloader,
+                            html,
+                            errors,
+                        ) = source_manager.get_info_from_source(avid, source)
+                        if not info:
+                            errs = errors or {}
+                            if errs:
+                                has_403 = any(
+                                    (
+                                        int(v) == 403
+                                        if (
+                                            isinstance(v, (int, str))
+                                            and str(v).isdigit()
+                                        )
+                                        else False
+                                    )
+                                    for v in errs.values()
+                                )
+                                all_404 = all(
+                                    (
+                                        int(v) == 404
+                                        if (
+                                            isinstance(v, (int, str))
+                                            and str(v).isdigit()
+                                        )
+                                        else False
+                                    )
+                                    for v in errs.values()
+                                )
+                                if has_403:
+                                    code = 403
+                                elif all_404:
+                                    code = 404
+                                else:
+                                    code = 502
+
+                                msg = "请求失败。" + ", ".join(
+                                    f"{k} : {v}" for k, v in errs.items()
+                                )
+                            else:
+                                code = 502
+                                msg = "刷新失败"
+
                             results.append(
                                 {
                                     "action": "refresh",
                                     "avid": avid,
-                                    "code": 502,
-                                    "message": "刷新失败",
+                                    "code": code,
+                                    "message": msg,
                                     "resource": None,
                                 }
                             )
                             continue
-
-                        info, downloader, html = result
                         save_result = source_manager.save_all_resources(
                             avid, info, downloader, html
                         )

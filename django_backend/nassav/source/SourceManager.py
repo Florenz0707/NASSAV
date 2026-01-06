@@ -125,34 +125,59 @@ class SourceManager:
 
     def get_info_from_any_source(
         self, avid: str
-    ) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:
+    ) -> Tuple[
+        Optional[AVDownloadInfo], Optional[SourceBase], Optional[str], Dict[str, object]
+    ]:
         """
         遍历所有源获取信息
-        返回: (info, source, html) 或 None
+        返回: (info, source, html, errors)
+        errors: dict mapping source_name -> error_code (or error string)
         """
         import time
 
         self._ensure_cookies_loaded()
 
+        errors: Dict[str, object] = {}
+
         for name, source in self.get_sorted_sources():
             logger.info(f"尝试从 {name} 获取 {avid}")
+            # 重置源上的上次错误码
+            try:
+                source.last_error_code = None
+            except Exception:
+                pass
+
             html = source.get_html(avid)
             time.sleep(0.5)
+
+            # 如果 fetch_html 记录了错误码且未获取到 html，则把错误码记录下来
+            try:
+                err = getattr(source, "last_error_code", None)
+                if not html and err is not None:
+                    errors[name] = err
+            except Exception:
+                pass
+
             if html:
                 info = source.parse_html(html)
                 if info:
                     info.avid = avid.upper()
-                    return info, source, html
-        return None
+                    return info, source, html, errors
+
+        return None, None, None, errors
 
     def get_info_from_source(
         self, avid: str, source_str: str
-    ) -> Optional[Tuple[AVDownloadInfo, SourceBase, str]]:
+    ) -> Tuple[
+        Optional[AVDownloadInfo], Optional[SourceBase], Optional[str], Dict[str, object]
+    ]:
         """
         从指定源获取信息
-        返回: (info, source, html) 或 None
+        返回: (info, source, html, errors)
         """
         self._ensure_cookies_loaded()
+
+        errors: Dict[str, object] = {}
 
         # 查找对应的下载器（不区分大小写）
         source = None
@@ -163,19 +188,31 @@ class SourceManager:
 
         if not source:
             logger.warning(f"未找到源 {source_str} 对应的下载器")
-            return None
+            return None, None, None, errors
 
         logger.info(f"从 {source_str} 刷新 {avid}")
+        try:
+            source.last_error_code = None
+        except Exception:
+            pass
+
         html = source.get_html(avid)
+        try:
+            err = getattr(source, "last_error_code", None)
+            if not html and err is not None:
+                errors[source_str] = err
+        except Exception:
+            pass
+
         if html:
             logger.info(f"成功从源 {source_str} 获取 html")
             info = source.parse_html(html)
             if info:
                 info.avid = avid.upper()
-                return info, source, html
+                return info, source, html, errors
 
         logger.warning(f"从 {source_str} 获取 {avid} 失败")
-        return None
+        return None, None, None, errors
 
     def get_resource_dir(self, avid: str) -> Path:
         """确保新的资源子目录存在并返回资源根目录

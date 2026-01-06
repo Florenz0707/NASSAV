@@ -63,12 +63,10 @@ class VideoDownloadService:
         else:
             # 缓存不存在，重新获取
             logger.warning(f"缓存不存在，重新获取 {avid} 的信息")
-            result = self.manager.get_info_from_any_source(avid)
-            if not result:
-                logger.error(f"无法获取 {avid} 的下载信息")
+            info, downloader, html, errors = self.manager.get_info_from_any_source(avid)
+            if not info:
+                logger.error(f"无法获取 {avid} 的下载信息: {errors}")
                 return False
-
-            info, downloader, html = result
             domain = downloader.domain
 
             # 保存所有资源
