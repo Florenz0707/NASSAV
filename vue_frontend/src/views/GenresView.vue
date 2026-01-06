@@ -5,7 +5,7 @@
 				类别库
 			</h1>
 			<p class="text-[#71717a] text-base">
-				查看所有类别信息
+				共有{{store.pagination.total || 0}}个类别信息
 			</p>
 		</div>
 
