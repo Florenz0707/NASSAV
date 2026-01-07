@@ -18,6 +18,13 @@
 - 📡 **Redis 消息支持**：基于 Redis 的消息队列和实时通信
 
 ### 近期新增特性（2026-01）
+- 🏗️ **ResourceService 架构实现**（2026-01-07）：
+  - 新增 `ResourceService` 服务层，完成从 `SourceManager` 的职责分离
+  - 实现完整的资源操作流程编排（添加、刷新、删除、查询）
+  - 引入自定义异常体系（ResourceAlreadyExistsError, ResourceNotFoundError 等）
+  - Views 层完成迁移，统一使用 ResourceService
+  - 修正 AVDownloadInfo 字段语义（source_title vs title）
+  - POST /api/resource 响应精简，只返回5个核心字段（减少响应体积）
 - ✨ **细粒度刷新控制**：支持独立刷新 m3u8、元数据、翻译（3个开关互不干扰）
 - 🎯 **批量操作接口**：支持批量添加、刷新、删除资源，批量提交下载任务
 - 📑 **数据库全面迁移**：所有元数据从文件系统迁移至 SQLite，统一通过 ORM 访问
@@ -70,6 +77,7 @@ django_backend/
 │   ├── translator/               # 翻译器模块（Ollama + 多模型支持）
 │   ├── m3u8downloader/          # M3U8 下载器封装
 │   ├── models.py                 # 数据库模型（AVResource, Actor, Genre 等）
+│   ├── resource_service.py       # 资源服务层（组合 Source/Scraper/Database）
 │   ├── serializers.py            # DRF 序列化器
 │   ├── services.py               # 服务层
 │   ├── tasks.py                  # Celery 异步任务（下载、翻译）

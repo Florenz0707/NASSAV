@@ -502,7 +502,32 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 ## 单项操作返回最新对象
 
 - 新增资源：`POST /nassav/api/resource`（body: {avid, source?}）
-  - 返回 `data.resource`：新增后的完整资源对象（可直接合并到列表或详情）
+  - 返回 `data.resource`：精简资源对象，仅包含以下字段：
+    - `avid`: 视频编号
+    - `original_title`: 原始标题（来自 Scraper，如 JavBus）
+    - `source_title`: 源标题（来自下载源网站，如 Jable/MissAV）
+    - `translated_title`: 翻译后的标题
+    - `source`: 来源网站名称
+  - 返回示例：
+    ```json
+    {
+      "code": 201,
+      "message": "success",
+      "data": {
+        "resource": {
+          "avid": "ABC-123",
+          "original_title": "テストタイトル",
+          "source_title": "ABC-123 Test Title",
+          "translated_title": "测试标题",
+          "source": "Jable"
+        },
+        "cover_downloaded": true,
+        "metadata_saved": true,
+        "scraped": true
+      }
+    }
+    ```
+  - 资源已存在时（409）也返回相同格式的精简资源对象
 
 - 刷新资源：`POST /nassav/api/resource/refresh/{avid}`
   - 返回 `data.resource`：刷新后的资源对象
