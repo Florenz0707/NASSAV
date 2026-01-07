@@ -94,42 +94,54 @@
 - **端点**: `/api/setting`
 - **运行**: `uv run pytest tests/test_user_settings.py -v`
 
+#### 13. test_resource_samples.py
+- **功能**: 测试资源样例的完整流程和数据有效性
+- **覆盖**:
+  - 不存在的资源（TEST-001, TEST-002, TEST-003）- 预期失败
+  - 真实存在的资源（MIMK-054, VEMA-208, OVG-206）- 预期成功
+  - 主要使用 Jable 作为 Source
+  - 验证数据库数据的有效性和一致性
+- **运行**:
+  - 全部测试: `uv run pytest tests/test_resource_samples.py -v`
+  - 不存在资源: `uv run pytest tests/test_resource_samples.py::test_nonexistent_resources -v`
+  - 真实资源: `uv run pytest tests/test_resource_samples.py::test_real_resources -v`
+
 ### 集成测试（Integration Tests）
 
-#### 13. test_ws.py
+#### 14. test_ws.py
 - **功能**: 测试 WebSocket 实时通信
 - **端点**: `/ws/tasks/`
 - **运行**: `uv run pytest tests/test_ws.py -v`
 - **依赖**: Redis 服务
 
-#### 14. test_translator.py
+#### 15. test_translator.py
 - **功能**: 测试 Ollama 翻译器功能
 - **运行**: `uv run python tests/test_translator.py --batch --count 10`
 - **依赖**: Ollama 服务
 
-#### 15. test_translator_manager.py
+#### 16. test_translator_manager.py
 - **功能**: 测试翻译管理器和重试机制
 - **运行**: `uv run python tests/test_translator_manager.py`
 - **依赖**: Ollama 服务
 
-#### 16. test_translation_cleaning.py
+#### 17. test_translation_cleaning.py
 - **功能**: 测试翻译结果后处理清理功能
 - **运行**: `uv run python tests/test_translation_cleaning.py`
 - **说明**: 验证翻译结果中多余说明文字的清理效果
 
 ### Shell 脚本测试（Shell Script Tests）
 
-#### 17. test_api.sh
+#### 18. test_api.sh
 - **功能**: 综合 API 测试脚本
 - **运行**: `./tests/test_api.sh --verbose`
 - **依赖**: curl, jq (可选)
 
-#### 18. test_mock_download.sh
+#### 19. test_mock_download.sh
 - **功能**: 模拟下载任务批处理测试
 - **运行**: `./tests/test_mock_download.sh --duration 30`
 - **依赖**: curl, jq (可选)
 
-#### 19. test_websocket.sh
+#### 20. test_websocket.sh
 - **功能**: WebSocket 实时监听测试
 - **运行**: `./tests/test_websocket.sh`
 - **依赖**: wscat 或 websocket-client (Python)
@@ -438,4 +450,4 @@ def test_with_api_client(api_client):
 
 ---
 
-**最后更新**: 2026-01-03
+**最后更新**: 2026-01-07
