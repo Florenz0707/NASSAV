@@ -35,6 +35,7 @@ class UserSettingsManager:
 
         self.config_path = config_path
         self.config = configparser.ConfigParser()
+        self._last_mtime = None  # 记录配置文件的最后修改时间
         self._ensure_config_exists()
 
     def _ensure_config_exists(self):
@@ -63,6 +64,9 @@ class UserSettingsManager:
         """加载配置文件"""
         try:
             self.config.read(self.config_path, encoding="utf-8")
+            # 更新文件修改时间
+            if self.config_path.exists():
+                self._last_mtime = self.config_path.stat().st_mtime
         except Exception as e:
             logger.error(f"加载用户配置失败: {e}")
             raise
@@ -72,6 +76,9 @@ class UserSettingsManager:
         try:
             with open(self.config_path, "w", encoding="utf-8") as f:
                 self.config.write(f)
+            # 更新文件修改时间
+            if self.config_path.exists():
+                self._last_mtime = self.config_path.stat().st_mtime
         except Exception as e:
             logger.error(f"保存用户配置失败: {e}")
             raise
@@ -93,8 +100,27 @@ class UserSettingsManager:
         if changed:
             self._save_config()
 
+    def _is_file_modified(self) -> bool:
+        """检查配置文件是否被外部修改"""
+        if not self.config_path.exists():
+            return False
+
+        current_mtime = self.config_path.stat().st_mtime
+        return self._last_mtime is None or current_mtime != self._last_mtime
+
+    def reload(self):
+        """重新加载配置文件"""
+        logger.info("重新加载用户配置")
+        self._load_config()
+        self._ensure_default_values()
+
     def get_all(self) -> Dict[str, Any]:
         """获取所有配置（扁平化结构）"""
+        # 检查文件是否被外部修改，如果是则重新加载
+        if self._is_file_modified():
+            logger.info("检测到配置文件被修改，自动重新加载")
+            self.reload()
+
         settings = {}
         for section in self.config.sections():
             for key, value in self.config.items(section):
