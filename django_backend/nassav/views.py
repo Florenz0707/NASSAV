@@ -856,11 +856,21 @@ class ResourceView(APIView):
             if not result["cover_saved"]:
                 logger.warning(f"封面下载失败: {avid}")
 
+            # 只返回指定的字段
+            resource_data = result["resource"]
+            filtered_resource = {
+                "avid": resource_data.get("avid"),
+                "original_title": resource_data.get("original_title"),
+                "source_title": resource_data.get("source_title"),
+                "translated_title": resource_data.get("translated_title"),
+                "source": resource_data.get("source"),
+            }
+
             return build_response(
                 201,
                 "success",
                 {
-                    "resource": result["resource"],
+                    "resource": filtered_resource,
                     "cover_downloaded": result["cover_saved"],
                     "metadata_saved": result["metadata_saved"],
                     "scraped": result["scraped"],
@@ -869,7 +879,15 @@ class ResourceView(APIView):
 
         except ResourceAlreadyExistsError as e:
             # 409 Conflict - 资源已存在
-            return build_response(409, str(e), e.resource_data)
+            # 只返回指定的字段
+            filtered_resource = {
+                "avid": e.resource_data.get("avid"),
+                "original_title": e.resource_data.get("original_title"),
+                "source_title": e.resource_data.get("source_title"),
+                "translated_title": e.resource_data.get("translated_title"),
+                "source": e.resource_data.get("source"),
+            }
+            return build_response(409, str(e), filtered_resource)
 
         except ResourceNotFoundError as e:
             # 404 Not Found - 所有源都返回404
