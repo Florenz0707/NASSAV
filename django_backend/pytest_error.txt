@@ -1,0 +1,40 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0
+django: version: 6.0, settings: django_project.settings (from ini)
+rootdir: /home/florenz/NASSAV/django_backend
+configfile: pytest.ini
+plugins: django-4.11.1
+collected 104 items / 2 errors
+
+==================================== ERRORS ====================================
+________________ ERROR collecting tests/test_debug_requests.py _________________
+ImportError while importing test module '/home/florenz/NASSAV/django_backend/tests/test_debug_requests.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_debug_requests.py:19: in <module>
+    from nassav.source.SourceManager import source_manager
+nassav/source/SourceManager.py:8: in <module>
+    from nassav.source import AVDownloadInfo, Jable, Memo, MissAV, SourceBase
+E   ImportError: cannot import name 'AVDownloadInfo' from 'nassav.source' (/home/florenz/NASSAV/django_backend/nassav/source/__init__.py)
+____________ ERROR collecting tests/test_video_time_sort_filter.py _____________
+ImportError while importing test module '/home/florenz/NASSAV/django_backend/tests/test_video_time_sort_filter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_video_time_sort_filter.py:11: in <module>
+    from nassav.services import list_resources
+nassav/services.py:26: in <module>
+    from nassav.source.SourceManager import SourceManager, source_manager
+nassav/source/SourceManager.py:8: in <module>
+    from nassav.source import AVDownloadInfo, Jable, Memo, MissAV, SourceBase
+E   ImportError: cannot import name 'AVDownloadInfo' from 'nassav.source' (/home/florenz/NASSAV/django_backend/nassav/source/__init__.py)
+=========================== short test summary info ============================
+ERROR tests/test_debug_requests.py
+ERROR tests/test_video_time_sort_filter.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+============================== 2 errors in 0.26s ===============================

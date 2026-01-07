@@ -87,3 +87,8 @@ class ScraperManager:
             return scraper.scrape(avid)
         logger.warning(f"刮削器 {scraper_name} 未注册")
         return None
+
+
+# 创建模块级单例
+proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
+scraper_manager = ScraperManager(proxy)

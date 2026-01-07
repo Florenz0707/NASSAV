@@ -53,24 +53,40 @@ class VideoDownloadService:
             avid: 视频编号
             progress_callback: 进度回调函数
         """
+        from nassav.resource_service import resource_service
+
         avid = avid.upper()
         self.manager.get_resource_dir(avid)
 
         # 优先从缓存读取元数据
-        info = self.manager.load_cached_metadata(avid)
+        info = resource_service.load_cached_metadata(avid)
         if info and info.m3u8:
             domain = self._get_domain_from_source(info.source)
         else:
             # 缓存不存在，重新获取
             logger.warning(f"缓存不存在，重新获取 {avid} 的信息")
-            info, downloader, html, errors = self.manager.get_info_from_any_source(avid)
-            if not info:
-                logger.error(f"无法获取 {avid} 的下载信息: {errors}")
-                return False
-            domain = downloader.domain
 
-            # 保存所有资源
-            self.manager.save_all_resources(avid, info, downloader, html)
+            try:
+                # 使用resource_service添加资源(如果不存在)
+                result = resource_service.add_resource(avid, source="any")
+                info = resource_service.load_cached_metadata(avid)
+
+                if not info:
+                    logger.error(f"无法获取 {avid} 的下载信息")
+                    return False
+
+                domain = self._get_domain_from_source(info.source)
+
+            except Exception as e:
+                # 资源已存在等异常也视为成功,尝试加载缓存
+                logger.warning(f"添加资源异常: {e}, 尝试加载缓存")
+                info = resource_service.load_cached_metadata(avid)
+
+                if not info:
+                    logger.error(f"无法获取 {avid} 的下载信息: {e}")
+                    return False
+
+                domain = self._get_domain_from_source(info.source)
 
         # 解析视频时长（用于日志显示）
         duration_seconds = (

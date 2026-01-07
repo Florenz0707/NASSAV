@@ -823,6 +823,14 @@ class ResourceView(APIView):
     """
 
     def post(self, request):
+        from nassav.resource_service import (
+            ResourceAccessDeniedError,
+            ResourceAlreadyExistsError,
+            ResourceFetchError,
+            ResourceNotFoundError,
+            resource_service,
+        )
+
         serializer = NewResourceSerializer(data=request.data)
         if not serializer.is_valid():
             return build_response(400, "参数错误", serializer.errors)
@@ -830,37 +838,8 @@ class ResourceView(APIView):
         avid = serializer.validated_data["avid"].upper()
         source = serializer.validated_data.get("source", "any").lower()
 
-        # 检查资源是否已存在（基于数据库）
-        try:
-            from nassav.models import AVResource
-
-            existing = AVResource.objects.filter(avid=avid).first()
-            if existing:
-                return build_response(
-                    409,
-                    "资源已存在",
-                    {
-                        "avid": existing.avid,
-                        "original_title": existing.original_title or "",
-                        "source_title": existing.source_title or "",
-                        "translated_title": existing.translated_title or "",
-                        "source": existing.source or "",
-                        "cover_downloaded": bool(existing.cover_filename),
-                        "metadata_saved": True,
-                        "scraped": bool(existing.release_date),
-                    },
-                )
-        except Exception:
-            pass
-
-        # 根据 downloader 参数选择获取方式
-        if source == "any":
-            info, source_inst, html, errors = source_manager.get_info_from_any_source(
-                avid
-            )
-            error_msg = f"无法从任何源获取 {avid} 的信息"
-        else:
-            # 检查指定源是否存在
+        # 检查指定源是否存在
+        if source != "any":
             available_sources = [s.lower() for s in source_manager.sources.keys()]
             if source not in available_sources:
                 return build_response(
@@ -868,68 +847,46 @@ class ResourceView(APIView):
                     f"源 {source} 不存在",
                     {"available_sources": list(source_manager.sources.keys())},
                 )
-            info, source_inst, html, errors = source_manager.get_info_from_source(
-                avid, source
-            )
-            error_msg = f"从 {source} 获取 {avid} 失败"
-        # 处理失败情况（返回的 info 为 None）
-        if not info:
-            errs = errors or {}
-            if errs:
-                # 优先判断是否存在 403
-                has_403 = any(
-                    (
-                        int(v) == 403
-                        if (isinstance(v, (int, str)) and str(v).isdigit())
-                        else False
-                    )
-                    for v in errs.values()
-                )
-                all_404 = all(
-                    (
-                        int(v) == 404
-                        if (isinstance(v, (int, str)) and str(v).isdigit())
-                        else False
-                    )
-                    for v in errs.values()
-                )
-                if has_403:
-                    code = 403
-                elif all_404:
-                    code = 404
-                else:
-                    code = 502
 
-                msg = f"获取{avid}失败。" + ", ".join(f"{k}:{v}" for k, v in errs.items())
-                return build_response(code, msg, None)
-            return build_response(404, error_msg, None)
-
-        # 一次性保存所有资源（HTML、封面、元数据）到 resource/{avid}/
-        save_result = source_manager.save_all_resources(avid, info, source_inst, html)
-        if not save_result["cover_saved"]:
-            logger.warning(f"封面下载失败: {avid}")
-
-        # 返回保存后的资源对象，便于前端局部刷新
+        # 调用ResourceService添加资源
         try:
-            from nassav.models import AVResource
+            result = resource_service.add_resource(avid, source)
 
-            resource_obj = AVResource.objects.filter(avid=avid).first()
-            resource_data = (
-                _serialize_resource_obj(resource_obj) if resource_obj else None
+            # 记录封面下载失败警告
+            if not result["cover_saved"]:
+                logger.warning(f"封面下载失败: {avid}")
+
+            return build_response(
+                201,
+                "success",
+                {
+                    "resource": result["resource"],
+                    "cover_downloaded": result["cover_saved"],
+                    "metadata_saved": result["metadata_saved"],
+                    "scraped": result["scraped"],
+                },
             )
-        except Exception:
-            resource_data = None
 
-        return build_response(
-            201,
-            "success",
-            {
-                "resource": resource_data,
-                "cover_downloaded": save_result["cover_saved"],
-                "metadata_saved": save_result["metadata_saved"],
-                "scraped": save_result.get("scraped", False),
-            },
-        )
+        except ResourceAlreadyExistsError as e:
+            # 409 Conflict - 资源已存在
+            return build_response(409, str(e), e.resource_data)
+
+        except ResourceNotFoundError as e:
+            # 404 Not Found - 所有源都返回404
+            return build_response(404, str(e), None)
+
+        except ResourceAccessDeniedError as e:
+            # 403 Forbidden - 有源返回403
+            return build_response(403, str(e), None)
+
+        except ResourceFetchError as e:
+            # 502 Bad Gateway - 网络错误
+            return build_response(502, str(e), None)
+
+        except Exception as e:
+            # 500 Internal Server Error - 未预期的错误
+            logger.error(f"添加资源失败: {avid}, 错误: {e}", exc_info=True)
+            return build_response(500, f"服务器内部错误: {str(e)}", None)
 
         # (clean) end of ResourceView.post
 
@@ -1035,6 +992,11 @@ class RefreshResourceView(APIView):
     """
 
     def post(self, request, avid):
+        from nassav.resource_service import (
+            ResourceNotFoundError,
+            resource_service,
+        )
+
         avid = avid.upper()
 
         # 解析参数，默认全部刷新
@@ -1042,79 +1004,46 @@ class RefreshResourceView(APIView):
         refresh_metadata = request.data.get("refresh_metadata", True)
         retranslate = request.data.get("retranslate", False)
 
-        # 检查资源是否存在（数据库），并根据 DB 中的 source 刷新
-        try:
-            from nassav.models import AVResource
-
-            resource = AVResource.objects.filter(avid=avid).first()
-            if not resource:
-                return build_response(404, f"{avid} 的资源不存在", None)
-            source = resource.source or ""
-        except Exception as e:
-            logger.error(f"读取现有元数据失败: {e}")
-            return build_response(500, f"读取现有元数据失败: {str(e)}", None)
-
-        if not source:
-            return build_response(400, f"{avid} 的元数据中没有 source 信息，无法刷新", None)
-
         result_info = {}
 
         # 刷新元数据和/或 m3u8
         if refresh_metadata or refresh_m3u8:
-            # 使用原有 source 获取新信息
-            info, downloader, html, errors = source_manager.get_info_from_source(
-                avid, source
-            )
-            if not info:
-                errs = errors or {}
-                if errs:
-                    has_403 = any(
-                        (
-                            int(v) == 403
-                            if (isinstance(v, (int, str)) and str(v).isdigit())
-                            else False
-                        )
-                        for v in errs.values()
-                    )
-                    all_404 = all(
-                        (
-                            int(v) == 404
-                            if (isinstance(v, (int, str)) and str(v).isdigit())
-                            else False
-                        )
-                        for v in errs.values()
-                    )
-                    if has_403:
-                        code = 403
-                    elif all_404:
-                        code = 404
-                    else:
-                        code = 502
+            try:
+                # 使用ResourceService刷新资源
+                refresh_result = resource_service.refresh_resource(
+                    avid, scrape=refresh_metadata, download_cover=refresh_metadata
+                )
 
-                    msg = "请求失败。" + ", ".join(f"{k} : {v}" for k, v in errs.items())
-                    return build_response(code, msg, None)
-                return build_response(502, f"从 {source} 刷新 {avid} 失败", None)
+                result_info["cover_downloaded"] = refresh_result["cover_saved"]
+                result_info["metadata_saved"] = refresh_result["metadata_saved"]
+                result_info["scraped"] = refresh_result.get("scraped", False)
+                result_info["metadata_refreshed"] = refresh_metadata
+                result_info["m3u8_refreshed"] = refresh_m3u8
+                result_info["m3u8_updated"] = refresh_result.get("m3u8_updated", False)
 
-            # 保存新资源（覆盖旧资源）
-            save_result = source_manager.save_all_resources(
-                avid, info, downloader, html
-            )
+            except ResourceNotFoundError as e:
+                # 资源不存在于数据库中
+                return build_response(404, str(e), None)
 
-            result_info["cover_downloaded"] = save_result["cover_saved"]
-            result_info["metadata_saved"] = save_result["metadata_saved"]
-            result_info["scraped"] = save_result.get("scraped", False)
-            result_info["metadata_refreshed"] = refresh_metadata
-            result_info["m3u8_refreshed"] = refresh_m3u8
+            except Exception as e:
+                # 其他错误
+                logger.error(f"刷新资源失败: {avid}, 错误: {e}", exc_info=True)
+                return build_response(500, f"刷新失败: {str(e)}", None)
 
         # 重新翻译（必须在元数据刷新之后执行，确保使用最新的标题）
         if retranslate:
             try:
+                from nassav.models import AVResource
+                from nassav.tasks import translate_title_task
+
                 # 重新加载 resource 以获取最新的 title
+                resource = AVResource.objects.filter(avid=avid).first()
+                if not resource:
+                    return build_response(404, f"{avid} 的资源不存在", None)
+
                 resource.refresh_from_db()
 
                 # 重置翻译状态并提交翻译任务
-                from nassav.tasks import translate_title_task
-
                 resource.translation_status = "pending"
                 resource.translated_title = None
                 resource.save(update_fields=["translation_status", "translated_title"])
@@ -1129,8 +1058,14 @@ class RefreshResourceView(APIView):
 
         # 返回刷新后的资源对象，便于前端局部刷新
         try:
-            resource.refresh_from_db()
-            resource_data = _serialize_resource_obj(resource)
+            from nassav.models import AVResource
+
+            resource = AVResource.objects.filter(avid=avid).first()
+            if resource:
+                resource.refresh_from_db()
+                resource_data = _serialize_resource_obj(resource)
+            else:
+                resource_data = None
         except Exception as e:
             logger.error(f"序列化资源对象失败: {e}")
             resource_data = None
@@ -1330,78 +1265,84 @@ class ResourcesBatchView(APIView):
                     # 资源不存在，执行添加操作
                     source = (act.get("source") or "any").lower()
                     time.sleep(2)
-                    if source == "any":
-                        (
-                            info,
-                            src,
-                            html,
-                            errors,
-                        ) = source_manager.get_info_from_any_source(avid)
-                    else:
-                        info, src, html, errors = source_manager.get_info_from_source(
-                            avid, source
+
+                    # 使用ResourceService添加资源
+                    try:
+                        from nassav.resource_service import (
+                            ResourceAccessDeniedError,
+                            ResourceAlreadyExistsError,
+                            ResourceFetchError,
+                            ResourceNotFoundError,
+                            resource_service,
                         )
 
-                    if not info:
-                        errs = errors or {}
-                        if errs:
-                            has_403 = any(
-                                (
-                                    int(v) == 403
-                                    if (isinstance(v, (int, str)) and str(v).isdigit())
-                                    else False
-                                )
-                                for v in errs.values()
-                            )
-                            all_404 = all(
-                                (
-                                    int(v) == 404
-                                    if (isinstance(v, (int, str)) and str(v).isdigit())
-                                    else False
-                                )
-                                for v in errs.values()
-                            )
-                            if has_403:
-                                code = 403
-                            elif all_404:
-                                code = 404
-                            else:
-                                code = 502
-
-                            msg = "请求失败。" + ", ".join(
-                                f"{k} : {v}" for k, v in errs.items()
-                            )
-                        else:
-                            code = 404
-                            msg = "获取信息失败"
-
+                        result = resource_service.add_resource(avid, source)
                         results.append(
                             {
                                 "action": "add",
                                 "avid": avid,
-                                "code": code,
-                                "message": msg,
+                                "code": 201,
+                                "message": "created",
+                                "resource": result["resource"],
+                            }
+                        )
+
+                    except ResourceAlreadyExistsError as e:
+                        # 资源已存在(理论上不应该到这里,因为前面已经检查过)
+                        results.append(
+                            {
+                                "action": "add",
+                                "avid": avid,
+                                "code": 200,
+                                "message": "already exists",
+                                "resource": e.resource_data,
+                            }
+                        )
+
+                    except ResourceNotFoundError as e:
+                        results.append(
+                            {
+                                "action": "add",
+                                "avid": avid,
+                                "code": 404,
+                                "message": str(e),
                                 "resource": None,
                             }
                         )
-                        continue
-                    save_result = source_manager.save_all_resources(
-                        avid, info, src, html
-                    )
-                    # load serialized resource
-                    resource_obj = AVResource.objects.filter(avid=avid).first()
-                    resource_data = (
-                        _serialize_resource_obj(resource_obj) if resource_obj else None
-                    )
-                    results.append(
-                        {
-                            "action": "add",
-                            "avid": avid,
-                            "code": 201,
-                            "message": "created",
-                            "resource": resource_data,
-                        }
-                    )
+
+                    except ResourceAccessDeniedError as e:
+                        results.append(
+                            {
+                                "action": "add",
+                                "avid": avid,
+                                "code": 403,
+                                "message": str(e),
+                                "resource": None,
+                            }
+                        )
+
+                    except ResourceFetchError as e:
+                        results.append(
+                            {
+                                "action": "add",
+                                "avid": avid,
+                                "code": 502,
+                                "message": str(e),
+                                "resource": None,
+                            }
+                        )
+
+                    except Exception as e:
+                        logger.error(f"批量添加资源失败: {avid}, 错误: {e}", exc_info=True)
+                        results.append(
+                            {
+                                "action": "add",
+                                "avid": avid,
+                                "code": 500,
+                                "message": f"服务器内部错误: {str(e)}",
+                                "resource": None,
+                            }
+                        )
 
                 elif action == "delete-video":
                     # 只删除视频文件，保留元数据
@@ -1580,66 +1521,52 @@ class ResourcesBatchView(APIView):
 
                     # 刷新元数据和/或 m3u8
                     if refresh_metadata or refresh_m3u8:
-                        (
-                            info,
-                            downloader,
-                            html,
-                            errors,
-                        ) = source_manager.get_info_from_source(avid, source)
-                        if not info:
-                            errs = errors or {}
-                            if errs:
-                                has_403 = any(
-                                    (
-                                        int(v) == 403
-                                        if (
-                                            isinstance(v, (int, str))
-                                            and str(v).isdigit()
-                                        )
-                                        else False
-                                    )
-                                    for v in errs.values()
-                                )
-                                all_404 = all(
-                                    (
-                                        int(v) == 404
-                                        if (
-                                            isinstance(v, (int, str))
-                                            and str(v).isdigit()
-                                        )
-                                        else False
-                                    )
-                                    for v in errs.values()
-                                )
-                                if has_403:
-                                    code = 403
-                                elif all_404:
-                                    code = 404
-                                else:
-                                    code = 502
+                        try:
+                            from nassav.resource_service import (
+                                ResourceNotFoundError,
+                                resource_service,
+                            )
 
-                                msg = "请求失败。" + ", ".join(
-                                    f"{k} : {v}" for k, v in errs.items()
-                                )
-                            else:
-                                code = 502
-                                msg = "刷新失败"
+                            refresh_result = resource_service.refresh_resource(
+                                avid,
+                                scrape=refresh_metadata,
+                                download_cover=refresh_metadata,
+                            )
 
+                            refresh_info["metadata_refreshed"] = refresh_metadata
+                            refresh_info["m3u8_refreshed"] = refresh_m3u8
+                            refresh_info["cover_saved"] = refresh_result["cover_saved"]
+                            refresh_info["metadata_saved"] = refresh_result[
+                                "metadata_saved"
+                            ]
+                            refresh_info["scraped"] = refresh_result.get(
+                                "scraped", False
+                            )
+
+                        except ResourceNotFoundError as e:
                             results.append(
                                 {
                                     "action": "refresh",
                                     "avid": avid,
-                                    "code": code,
-                                    "message": msg,
+                                    "code": 404,
+                                    "message": str(e),
                                     "resource": None,
                                 }
                             )
                             continue
-                        save_result = source_manager.save_all_resources(
-                            avid, info, downloader, html
-                        )
-                        refresh_info["metadata_refreshed"] = refresh_metadata
-                        refresh_info["m3u8_refreshed"] = refresh_m3u8
+
+                        except Exception as e:
+                            logger.error(f"批量刷新资源失败: {avid}, 错误: {e}", exc_info=True)
+                            results.append(
+                                {
+                                    "action": "refresh",
+                                    "avid": avid,
+                                    "code": 500,
+                                    "message": f"刷新失败: {str(e)}",
+                                    "resource": None,
+                                }
+                            )
+                            continue
 
                     # 重新翻译（在元数据刷新之后）
                     if retranslate:
