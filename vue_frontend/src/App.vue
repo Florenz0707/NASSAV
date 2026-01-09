@@ -14,6 +14,7 @@ onMounted(() => {
 	wsStore.connect()
 	settingsStore.loadSettings()
 })
+
 </script>
 
 <template>
@@ -38,7 +39,7 @@ onMounted(() => {
 }
 
 .background-pattern {
-	position: fixed;
+	position: relative;
 	top: 0;
 	left: 0;
 	right: 0;

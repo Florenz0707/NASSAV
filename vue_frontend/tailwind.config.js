@@ -26,7 +26,7 @@ export default {
                 'lg': '0 10px 15px rgba(0, 0, 0, 0.4)',
             },
             fontFamily: {
-                sans: ['TheWriteRight', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                sans: ['TheWriteRight', 'Mplus2', 'ZenKakuGothicNew', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
                 mono: ['TheWriteRight', 'monospace'],
             },
         },
