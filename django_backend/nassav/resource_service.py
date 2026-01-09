@@ -382,7 +382,6 @@ class ResourceService:
         html_path = Path(settings.COVER_DIR) / f"{avid}.html"
         html_path.parent.mkdir(parents=True, exist_ok=True)
         html_path.write_text(html, encoding="utf-8")
-        logger.debug(f"HTML页面已保存: {html_path}")
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 2: 刮削Javbus元数据（可选）
@@ -479,7 +478,6 @@ class ResourceService:
         # 策略1: 尝试Javbus封面
         if scraped_data and scraped_data.get("cover_url"):
             cover_url = scraped_data["cover_url"]
-            logger.debug(f"尝试从Javbus下载封面: {cover_url}")
             if self.scraper_manager.download_cover(cover_url, str(cover_path)):
                 logger.info(f"[ResourceService] 从Javbus下载封面成功: {avid}")
                 return True
@@ -488,7 +486,6 @@ class ResourceService:
         cover_url = source_inst.get_cover_url(html)
         if cover_url:
             source_name = source_inst.get_source_name()
-            logger.debug(f"尝试从{source_name}下载封面: {cover_url}")
             if source_inst.download_file(cover_url, str(cover_path)):
                 logger.info(f"[ResourceService] 从{source_name}下载封面成功: {avid}")
                 return True
@@ -573,7 +570,6 @@ class ResourceService:
         if not actors:
             return
 
-        logger.debug(f"关联演员: {len(actors)} 个")
         for actor_data in actors:
             actor_name = (
                 actor_data.get("name") if isinstance(actor_data, dict) else actor_data
@@ -587,7 +583,6 @@ class ResourceService:
         if not genres:
             return
 
-        logger.debug(f"关联类别: {len(genres)} 个")
         for genre_name in genres:
             if genre_name:
                 genre, _ = Genre.objects.get_or_create(name=genre_name)
@@ -626,7 +621,7 @@ class ResourceService:
                 if scrapers:
                     _, scraper_instance = scrapers[0]
                     if scraper_instance.download_avatar(avatar_url, str(avatar_path)):
-                        logger.debug(f"演员头像下载成功: {actor_name}")
+                        logger.info(f"演员头像下载成功: {actor_name}")
                     else:
                         logger.warning(f"演员头像下载失败: {actor_name}")
                 else:
@@ -674,7 +669,7 @@ class ResourceService:
             if file_path.exists():
                 try:
                     file_path.unlink()
-                    logger.debug(f"文件已删除: {file_path}")
+                    logger.info(f"文件已删除: {file_path}")
                 except Exception as e:
                     logger.error(f"删除文件失败: {file_path}, {e}")
 

@@ -44,7 +44,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
         let wsUrl
         if (import.meta.env.DEV) {
             // 开发环境：直接连接后端服务
-            wsUrl = 'ws://localhost:8000/nassav/ws/tasks/'
+            wsUrl = 'ws://localhost:9780/nassav/ws/tasks/'
         } else {
             // 生产环境：使用当前域名
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

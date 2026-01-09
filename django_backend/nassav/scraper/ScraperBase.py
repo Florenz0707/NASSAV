@@ -36,16 +36,6 @@ class ScraperBase:
     def fetch_html(self, url: str) -> Optional[str]:
         """获取 HTML 页面"""
         try:
-            # DEBUG: 打印请求参数
-            logger.debug("=" * 80)
-            logger.debug(f"[ScraperBase.fetch_html] 请求参数:")
-            logger.debug(f"  URL: {url}")
-            logger.debug(f"  Proxy: {self.proxies}")
-            logger.debug(f"  Timeout: {self.timeout}")
-            logger.debug(f"  Impersonate: {IMPERSONATE}")
-            logger.debug(f"  Headers: {dict(HEADERS)}")
-            logger.debug("=" * 80)
-
             response = requests.get(
                 url,
                 proxies=self.proxies,
@@ -54,11 +44,6 @@ class ScraperBase:
                 impersonate=IMPERSONATE,
             )
             response.raise_for_status()
-
-            # DEBUG: 打印响应信息
-            logger.debug(
-                f"[ScraperBase.fetch_html] 响应成功: status={response.status_code}, content_length={len(response.text)}"
-            )
 
             return response.text
         except Exception as e:
@@ -82,19 +67,6 @@ class ScraperBase:
             headers = HEADERS.copy()
             headers["Referer"] = f"https://{self.domain}/"
 
-            # DEBUG: 打印请求参数
-            logger.debug("=" * 80)
-            logger.debug(f"[ScraperBase.download_cover] 请求参数:")
-            logger.debug(f"  URL: {url}")
-            logger.debug(f"  Save Path: {save_path}")
-            logger.debug(f"  Proxy: {self.proxies}")
-            logger.debug(f"  Timeout: {self.timeout}")
-            logger.debug(f"  Impersonate: {IMPERSONATE}")
-            logger.debug(f"  Stream: True")
-            logger.debug(f"  Referer: {headers['Referer']}")
-            logger.debug(f"  Headers: {dict(headers)}")
-            logger.debug("=" * 80)
-
             response = requests.get(
                 url,
                 headers=headers,
@@ -114,11 +86,7 @@ class ScraperBase:
                     if chunk:
                         f.write(chunk)
 
-            # DEBUG: 打印下载结果
             file_size = os.path.getsize(save_path)
-            logger.debug(
-                f"[ScraperBase.download_cover] 下载成功: status={response.status_code}, file_size={file_size} bytes"
-            )
             logger.info(f"封面下载成功: {os.path.basename(save_path)}")
 
             return True

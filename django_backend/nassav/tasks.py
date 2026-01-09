@@ -1043,8 +1043,6 @@ def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
                 },
             )
 
-            logger.debug(f"[测试] {avid} 下载进度: {percent:.1f}%")
-
         # 模拟下载完成
         logger.info(f"[测试] 模拟下载完成: {avid}")
 

@@ -206,7 +206,6 @@ def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
     if hasattr(settings, "PROXY_ENABLED") and settings.PROXY_ENABLED:
         if hasattr(settings, "PROXY_URL") and settings.PROXY_URL:
             proxies = {"http": settings.PROXY_URL, "https": settings.PROXY_URL}
-            logger.debug(f"使用代理: {settings.PROXY_URL}")
 
     for attempt in range(max_retries):
         try:

@@ -148,20 +148,6 @@ class SourceBase:
             if self.cookie:
                 headers["Cookie"] = self.cookie
 
-            # DEBUG: 打印请求参数
-            logger.debug("=" * 80)
-            logger.debug(f"[SourceBase.fetch_html] 请求参数:")
-            logger.debug(f"  URL: {url}")
-            logger.debug(f"  Proxy: {self.proxies}")
-            logger.debug(f"  Timeout: {self.timeout}")
-            logger.debug(f"  Impersonate: {IMPERSONATE}")
-            logger.debug(f"  Referer: {referer or '(未设置)'}")
-            logger.debug(
-                f"  Cookie: {self.cookie[:50] + '...' if self.cookie and len(self.cookie) > 50 else self.cookie or '(未设置)'}"
-            )
-            logger.debug(f"  Headers: {dict(headers)}")
-            logger.debug("=" * 80)
-
             response = requests.get(
                 url,
                 proxies=self.proxies,
@@ -170,11 +156,6 @@ class SourceBase:
                 impersonate=IMPERSONATE,
             )
             response.raise_for_status()
-
-            # DEBUG: 打印响应信息
-            logger.debug(
-                f"[SourceBase.fetch_html] 响应成功: status={response.status_code}, content_length={len(response.text)}"
-            )
 
             # 成功时清除上次的错误码
             self.last_error_code = None
@@ -210,23 +191,6 @@ class SourceBase:
             if self.cookie:
                 headers["Cookie"] = self.cookie
 
-            # DEBUG: 打印请求参数
-            logger.debug("=" * 80)
-            logger.debug(f"[SourceBase.download_file] 请求参数:")
-            logger.debug(f"  URL: {url}")
-            logger.debug(f"  Save Path: {save_path}")
-            logger.debug(f"  Proxy: {self.proxies}")
-            logger.debug(f"  Timeout: {self.timeout}")
-            logger.debug(f"  Impersonate: {IMPERSONATE}")
-            logger.debug(f"  Stream: True")
-            logger.debug(f"  Allow Redirects: True")
-            logger.debug(f"  Referer: {referer or '(未设置)'}")
-            logger.debug(
-                f"  Cookie: {self.cookie[:50] + '...' if self.cookie and len(self.cookie) > 50 else self.cookie or '(未设置)'}"
-            )
-            logger.debug(f"  Headers: {dict(headers)}")
-            logger.debug("=" * 80)
-
             response = requests.get(
                 url,
                 stream=True,
@@ -244,12 +208,6 @@ class SourceBase:
                 for chunk in response.iter_content():
                     if chunk:
                         f.write(chunk)
-
-            # DEBUG: 打印下载结果
-            file_size = os.path.getsize(save_path)
-            logger.debug(
-                f"[SourceBase.download_file] 下载成功: status={response.status_code}, file_size={file_size} bytes"
-            )
 
             return True
         except Exception as e:
