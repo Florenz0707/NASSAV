@@ -39,7 +39,7 @@ onMounted(() => {
 }
 
 .background-pattern {
-	position: relative;
+	position: fixed;
 	top: 0;
 	left: 0;
 	right: 0;
@@ -55,6 +55,7 @@ onMounted(() => {
 	position: relative;
 	z-index: 1;
 	padding: 2rem;
+	padding-top: calc(4rem + 2rem);
 	max-width: 1400px;
 	margin: 0 auto;
 }
