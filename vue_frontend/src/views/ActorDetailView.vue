@@ -11,6 +11,7 @@ import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import BatchControls from '../components/BatchControls.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import ResourceSearchBar from '../components/ResourceSearchBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,15 +137,28 @@ async function loadActorInfo(id) {
 async function fetchResources(p = 1) {
 	const pg = Number(p || 1)
 	page.value = pg
-	await resourceStore.fetchResources({
+
+	const params = {
 		page: pg,
 		page_size: pageSize.value,
 		actor: actorId.value,
 		search: searchQuery.value,
 		sort_by: sortBy.value,
-		order: sortOrder.value,
-		status: filterStatus.value
-	})
+		order: sortOrder.value
+	}
+
+	// 处理状态过滤
+	if (filterStatus.value === 'watched') {
+		params.watched = true
+	} else if (filterStatus.value === 'unwatched') {
+		params.watched = false
+	} else if (filterStatus.value === 'favorite') {
+		params.is_favorite = true
+	} else if (filterStatus.value !== 'all') {
+		params.status = filterStatus.value
+	}
+
+	await resourceStore.fetchResources(params)
 }
 
 function onSortChange() {
@@ -294,57 +308,16 @@ const displayedCount = computed(() => {
 		</div>
 
 		<!-- Controls -->
-		<div class="flex gap-4 mb-6 flex-wrap">
-			<!-- Search Box -->
-			<div class="flex-1 min-w-[250px] relative">
-				<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
-				<input v-model="searchQuery" type="text" placeholder="搜索 AVID、标题、来源..."
-					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]" >
-			</div>
-
-			<!-- Filters -->
-			<div class="flex gap-3">
-				<select v-model="filterStatus"
-					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]">
-					<option value="all">
-						全部状态
-					</option>
-					<option value="downloaded">
-						已下载
-					</option>
-					<option value="pending">
-						未下载
-					</option>
-				</select>
-
-				<select v-model="sortBy"
-					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
-					@change="onSortChange">
-					<option value="avid">
-						按编号
-					</option>
-					<option value="metadata_create_time">
-						按元数据获取时间
-					</option>
-					<option value="video_create_time">
-						按视频下载时间
-					</option>
-					<option value="source">
-						按来源
-					</option>
-				</select>
-				<select v-model="sortOrder"
-					class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
-					@change="onSortChange">
-					<option value="desc">
-						降序
-					</option>
-					<option value="asc">
-						升序
-					</option>
-				</select>
-			</div>
-		</div>
+		<ResourceSearchBar
+			v-model:search-query="searchQuery"
+			v-model:filter-status="filterStatus"
+			v-model:sort-by="sortBy"
+			v-model:sort-order="sortOrder"
+			:show-favorite-filter="true"
+			:show-watched-filter="true"
+			:show-metadata-update-sort="true"
+			@sort-change="onSortChange"
+		/>
 
 		<!-- Batch controls -->
 		<BatchControls :batch-mode="batchMode" :batch-loading="batchLoading" :selected-count="selectedCount"
