@@ -92,15 +92,25 @@ class ResourceSummarySerializer(serializers.Serializer):
     source = serializers.CharField(allow_blank=True)
     release_date = serializers.CharField(allow_blank=True)
     has_video = serializers.BooleanField(source="file_exists")
+    watched = serializers.BooleanField()
+    is_favorite = serializers.BooleanField()
     metadata_create_time = LocalSerializerMethodField()
+    metadata_update_time = LocalSerializerMethodField()
     video_create_time = LocalSerializerMethodField()
     genres = LocalSerializerMethodField()  # 类别列表
     thumbnail_url = LocalSerializerMethodField()
 
     def get_metadata_create_time(self, obj):
         return (
-            obj.metadata_saved_at.timestamp()
-            if getattr(obj, "metadata_saved_at", None)
+            obj.metadata_created_at.timestamp()
+            if getattr(obj, "metadata_created_at", None)
+            else None
+        )
+
+    def get_metadata_update_time(self, obj):
+        return (
+            obj.metadata_updated_at.timestamp()
+            if getattr(obj, "metadata_updated_at", None)
             else None
         )
 
@@ -164,6 +174,8 @@ class ResourceSerializer(serializers.Serializer):
     )
     file_size = serializers.IntegerField(allow_null=True, required=False)
     file_exists = serializers.BooleanField(required=False)
+    watched = serializers.BooleanField(required=False)
+    is_favorite = serializers.BooleanField(required=False)
 
 
 class ResourceCreateSerializer(serializers.Serializer):

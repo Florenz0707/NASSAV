@@ -745,9 +745,14 @@ class ResourceService:
             "cover_filename": resource.cover_filename,
             "file_exists": resource.file_exists,
             "file_size": resource.file_size,
-            "metadata_saved_at": (
-                resource.metadata_saved_at.isoformat()
-                if resource.metadata_saved_at
+            "metadata_created_at": (
+                resource.metadata_created_at.isoformat()
+                if resource.metadata_created_at
+                else None
+            ),
+            "metadata_updated_at": (
+                resource.metadata_updated_at.isoformat()
+                if resource.metadata_updated_at
                 else None
             ),
             "video_saved_at": (

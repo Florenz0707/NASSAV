@@ -54,6 +54,8 @@ def _serialize_resource_obj(resource):
         "genres": genres,
         "file_size": resource.file_size,
         "file_exists": bool(resource.file_exists),
+        "watched": bool(resource.watched),
+        "is_favorite": bool(resource.is_favorite),
     }
 
 
@@ -284,7 +286,8 @@ class ResourcesListView(APIView):
         if sort_by:
             sort_map = {
                 "avid": "avid",
-                "metadata_create_time": "metadata_saved_at",
+                "metadata_create_time": "metadata_created_at",
+                "metadata_update_time": "metadata_updated_at",
                 "video_create_time": "video_saved_at",
                 "source": "source",
             }
@@ -780,9 +783,9 @@ class ResourceMetadataView(APIView):
             if inm and inm.strip() == etag:
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
                 resp["ETag"] = etag
-                if resource.metadata_saved_at:
+                if resource.metadata_updated_at:
                     resp["Last-Modified"] = http_date(
-                        resource.metadata_saved_at.timestamp()
+                        resource.metadata_updated_at.timestamp()
                     )
                 return resp
 
@@ -790,21 +793,21 @@ class ResourceMetadataView(APIView):
             ims_ts = parse_http_if_modified_since(ims)
             if (
                 ims_ts is not None
-                and resource.metadata_saved_at
-                and int(resource.metadata_saved_at.timestamp()) <= ims_ts
+                and resource.metadata_updated_at
+                and int(resource.metadata_updated_at.timestamp()) <= ims_ts
             ):
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
                 resp["ETag"] = etag
                 resp["Last-Modified"] = http_date(
-                    resource.metadata_saved_at.timestamp()
+                    resource.metadata_updated_at.timestamp()
                 )
                 return resp
 
             resp = build_response(200, "success", metadata)
             resp["ETag"] = etag
-            if resource.metadata_saved_at:
+            if resource.metadata_updated_at:
                 resp["Last-Modified"] = http_date(
-                    resource.metadata_saved_at.timestamp()
+                    resource.metadata_updated_at.timestamp()
                 )
             return resp
         except Exception as e:
@@ -1685,6 +1688,64 @@ class DownloadsBatchSubmitView(APIView):
                 )
 
         return build_response(200, "success", {"results": results})
+
+
+class ResourceStatusView(APIView):
+    """
+    PATCH /api/resource/{avid}/status
+    更新资源的观看状态和收藏状态
+
+    请求参数:
+        watched: 是否已观看 (boolean, optional)
+        is_favorite: 是否收藏 (boolean, optional)
+    """
+
+    def patch(self, request, avid):
+        avid = avid.upper()
+
+        try:
+            from nassav.models import AVResource
+
+            resource = AVResource.objects.filter(avid=avid).first()
+            if not resource:
+                return build_response(404, f"资源 {avid} 不存在", None)
+
+            data = request.data or {}
+            updated_fields = []
+
+            # 更新 watched 字段
+            if "watched" in data:
+                watched = data.get("watched")
+                if not isinstance(watched, bool):
+                    return build_response(400, "watched 参数必须是布尔值", None)
+                resource.watched = watched
+                updated_fields.append("watched")
+
+            # 更新 is_favorite 字段
+            if "is_favorite" in data:
+                is_favorite = data.get("is_favorite")
+                if not isinstance(is_favorite, bool):
+                    return build_response(400, "is_favorite 参数必须是布尔值", None)
+                resource.is_favorite = is_favorite
+                updated_fields.append("is_favorite")
+
+            if not updated_fields:
+                return build_response(400, "未提供任何要更新的字段", None)
+
+            resource.save(update_fields=updated_fields)
+
+            return build_response(
+                200,
+                "success",
+                {
+                    "avid": avid,
+                    "watched": resource.watched,
+                    "is_favorite": resource.is_favorite,
+                },
+            )
+        except Exception as e:
+            logger.error(f"更新资源状态失败: {e}")
+            return build_response(500, f"更新失败: {str(e)}", None)
 
 
 class MockDownloadView(APIView):

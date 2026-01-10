@@ -230,6 +230,22 @@ def list_resources(params):
                 qs = qs.filter(genres__name__icontains=g)
         qs = qs.distinct()
 
+    # filter by watched status
+    watched = params.get("watched")
+    if watched is not None:
+        if str(watched).lower() in ("1", "true", "yes"):
+            qs = qs.filter(watched=True)
+        elif str(watched).lower() in ("0", "false", "no"):
+            qs = qs.filter(watched=False)
+
+    # filter by favorite status
+    is_favorite = params.get("is_favorite")
+    if is_favorite is not None:
+        if str(is_favorite).lower() in ("1", "true", "yes"):
+            qs = qs.filter(is_favorite=True)
+        elif str(is_favorite).lower() in ("0", "false", "no"):
+            qs = qs.filter(is_favorite=False)
+
     ordering = params.get("ordering")
     if ordering:
         # 当按 video_saved_at 排序时，只返回已下载的视频

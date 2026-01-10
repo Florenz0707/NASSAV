@@ -106,13 +106,19 @@ class AVResource(models.Model):
     )
     file_size = models.BigIntegerField(null=True, blank=True)
 
-    metadata_saved_at = models.DateTimeField(auto_now=True)
+    watched = models.BooleanField(default=False, db_index=True, help_text="是否已观看")
+    is_favorite = models.BooleanField(default=False, db_index=True, help_text="是否收藏")
+
+    metadata_created_at = models.DateTimeField(
+        null=True, blank=True, help_text="元数据首次创建时间"
+    )
+    metadata_updated_at = models.DateTimeField(auto_now=True, help_text="元数据最后更新时间")
     video_saved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = "nassav_avresource"
-        ordering = ["-metadata_saved_at"]
+        ordering = ["-metadata_updated_at"]
         indexes = [
             models.Index(fields=["avid"]),
             models.Index(fields=["original_title"]),

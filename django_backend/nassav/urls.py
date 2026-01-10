@@ -65,6 +65,12 @@ urlpatterns = [
         views.DeleteResourceView.as_view(),
         name="resource-delete",
     ),
+    # PATCH /api/resource/{avid}/status - 更新资源的观看状态和收藏状态
+    path(
+        "api/resource/<str:avid>/status",
+        views.ResourceStatusView.as_view(),
+        name="resource-status",
+    ),
     # GET /api/downloads/abspath?avid= - 返回视频文件的绝对路径，前面拼接 config.FilePathPrefix
     path(
         "api/downloads/abspath",
