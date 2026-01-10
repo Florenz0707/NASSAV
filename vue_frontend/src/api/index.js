@@ -174,8 +174,11 @@ export const resourceApi = {
     refresh: (avid, params = null) => api.post(`/resource/refresh/${encodeURIComponent(avid)}`, params || {}),
 
     // 删除资源
-    delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`)
-    ,
+    delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`),
+
+    // 更新资源状态（观看状态和收藏状态）
+    updateStatus: (avid, payload) => api.patch(`/resource/${encodeURIComponent(avid)}/status`, payload),
+
     // 批量操作：body 应包含 { actions: [ {action, avid, ...}, ... ] }
     batch: (payload) => {
         const actions = payload.actions || []

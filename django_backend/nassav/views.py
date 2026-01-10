@@ -762,6 +762,10 @@ class ResourceMetadataView(APIView):
             metadata["file_exists"] = bool(resource.file_exists)
             metadata["file_size"] = resource.file_size if resource.file_size else None
 
+            # 添加观看和收藏状态
+            metadata["watched"] = bool(resource.watched)
+            metadata["is_favorite"] = bool(resource.is_favorite)
+
             # Conditional request handling: ETag + Last-Modified
             try:
                 import json

@@ -21,17 +21,21 @@ export const useResourceStore = defineStore('resource', () => {
                                       search = '',
                                       status = 'all',
                                       actor = undefined,
-                                      genre = undefined
+                                      genre = undefined,
+                                      watched = undefined,
+                                      is_favorite = undefined
                                   } = {}) {
         loading.value = true
         error.value = null
         try {
-            console.debug('[resource] fetchResources params:', {sort_by, order, page, page_size, search, status})
+            console.debug('[resource] fetchResources params:', {sort_by, order, page, page_size, search, status, watched, is_favorite})
             const params = {sort_by, order, page, page_size}
             if (search) params.search = search
             if (status && status !== 'all') params.status = status
             if (typeof actor !== 'undefined' && actor !== null && actor !== '') params.actor = actor
             if (typeof genre !== 'undefined' && genre !== null && genre !== '') params.genre = genre
+            if (typeof watched !== 'undefined') params.watched = watched
+            if (typeof is_favorite !== 'undefined') params.is_favorite = is_favorite
             console.debug('[resource] fetchResources request params:', params)
             const response = await resourceApi.getList(params)
             console.debug('[resource] fetchResources response:', response)

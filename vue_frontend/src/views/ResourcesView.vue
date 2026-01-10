@@ -145,15 +145,28 @@ async function fetchResourceList() {
 		page_size: pageSize.value,
 		status: filterStatus.value
 	})
-	await resourceStore.fetchResources({
+
+	const params = {
 		sort_by: sortBy.value,
 		order: sortOrder.value,
 		page: page.value,
 		page_size: pageSize.value,
-		status: filterStatus.value,
 		actor: actorParam.value || undefined,
 		genre: genreParam.value || undefined
-	})
+	}
+
+	// 处理状态过滤
+	if (filterStatus.value === 'watched') {
+		params.watched = true
+	} else if (filterStatus.value === 'unwatched') {
+		params.watched = false
+	} else if (filterStatus.value === 'favorite') {
+		params.is_favorite = true
+	} else if (filterStatus.value !== 'all') {
+		params.status = filterStatus.value
+	}
+
+	await resourceStore.fetchResources(params)
 }
 
 // include actor filter if provided in query
@@ -348,6 +361,15 @@ function onPageSizeChange(newSize) {
 					<option value="pending">
 						未下载
 					</option>
+					<option value="watched">
+						已观看
+					</option>
+					<option value="unwatched">
+						未观看
+					</option>
+					<option value="favorite">
+						已收藏
+					</option>
 				</select>
 
 				<select v-model="sortBy"
@@ -357,7 +379,10 @@ function onPageSizeChange(newSize) {
 						按编号
 					</option>
 					<option value="metadata_create_time">
-						按元数据获取时间
+						按元数据创建时间
+					</option>
+					<option value="metadata_update_time">
+						按元数据更新时间
 					</option>
 					<option value="video_create_time">
 						按视频下载时间

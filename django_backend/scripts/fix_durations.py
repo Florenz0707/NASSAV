@@ -165,8 +165,7 @@ def main():
                 try:
                     with transaction.atomic():
                         obj.duration = new_secs
-                        obj.metadata_saved_at = timezone.now()
-                        obj.save(update_fields=["duration", "metadata_saved_at"])
+                        obj.save(update_fields=["duration"])
                         report["updated"] += 1
                         print(f"[APPLY] {avid} duration -> {new_secs}s")
                 except Exception as e:

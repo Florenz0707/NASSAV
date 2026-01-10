@@ -209,7 +209,9 @@ DELETE /nassav/api/source/cookie?source=missav
 - 路径：`/nassav/api/resources/`
 - 支持 Query 参数：
   - `status`：`downloaded|pending|all`（等同于 file_exists）
-  - `sort_by`：`avid|metadata_create_time|video_create_time|source`
+  - `watched`：`true|false`（按观看状态过滤）
+  - `is_favorite`：`true|false`（按收藏状态过滤）
+  - `sort_by`：`avid|metadata_create_time|metadata_update_time|video_create_time|source`
   - `order`：`asc|desc`
   - `page`、`page_size`
   - `source`：逗号分隔的源列表
@@ -219,6 +221,8 @@ DELETE /nassav/api/source/cookie?source=missav
 示例请求：
 ```
 GET /nassav/api/resources/?status=pending&sort_by=metadata_create_time&order=desc&page=1&page_size=18
+GET /nassav/api/resources/?watched=true                       # 已观看的资源
+GET /nassav/api/resources/?is_favorite=true                   # 已收藏的资源
 GET /nassav/api/resources/?actor=1                           # 按演员 ID 过滤
 GET /nassav/api/resources/?actor=桥本                         # 按演员名称模糊匹配
 GET /nassav/api/resources/?genre=中文字幕                      # 按类别名称模糊匹配
@@ -240,7 +244,10 @@ GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
       "source": "missav",
       "release_date": "2025-01-01",
       "has_video": true,
+      "watched": false,
+      "is_favorite": true,
       "metadata_create_time": 1704067200,
+      "metadata_update_time": 1704070800,
       "video_create_time": 1704070800,
       "genres": ["类别1", "类别2"],
       "thumbnail_url": "/nassav/api/resource/cover?avid=ABC-123&size=medium&v=1704067200"
@@ -422,7 +429,7 @@ GET /nassav/api/resource/ABC-123/preview
   - 若需要 m3u8 链接，请使用刷新接口获取
 - 支持条件请求（ETag/Last-Modified），返回 304 节省带宽
 
-返回字段：`avid`, `original_title`, `source_title`, `translated_title`, `source`, `release_date`, `duration`, `director`, `studio`, `label`, `series`, `actors[]`, `genres[]`, `file_exists`, `file_size`
+返回字段：`avid`, `original_title`, `source_title`, `translated_title`, `source`, `release_date`, `duration`, `director`, `studio`, `label`, `series`, `actors[]`, `genres[]`, `file_exists`, `file_size`, `watched`, `is_favorite`
 
 ---
 
