@@ -4,7 +4,10 @@ const api = axios.create({
     baseURL: '/nassav/api',
     timeout: 30000,
     headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
     }
 })
 
@@ -98,7 +101,14 @@ export const resourceApi = {
     getPreview: (avid) => api.get(`/resource/${encodeURIComponent(avid)}/preview`),
 
     // 获取资源元数据
-    getMetadata: (avid) => api.get('/resource/metadata', {params: {avid}}),
+    // bypassCache: 是否绕过浏览器缓存（添加时间戳参数）
+    getMetadata: (avid, bypassCache = false) => {
+        const params = {avid}
+        if (bypassCache) {
+            params._t = Date.now()
+        }
+        return api.get('/resource/metadata', {params})
+    },
 
     // 获取封面图片URL（基于 axios 实例的 baseURL）
     // size: 'small'|'medium'|'large' or undefined for original

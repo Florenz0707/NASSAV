@@ -68,7 +68,7 @@ const displayedTitle = computed(() => {
 	}
 
 	// 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
-	return resource.source_title || resource.translated_title || resource.original_title || resource.title || resource.avid
+	return resource.source_title || resource.translated_title || resource.original_title || resource.avid
 })
 
 async function loadCover() {
@@ -96,6 +96,8 @@ async function toggleFavorite() {
 		await resourceApi.updateStatus(avid.value, { is_favorite: newValue })
 		metadata.value.is_favorite = newValue
 		toastStore.success(newValue ? '已添加到收藏' : '已取消收藏')
+		// 重新获取元数据以确保状态同步（绕过浏览器缓存）
+		await fetchMetadata(true)
 	} catch (_err) {
 		toastStore.error('更新收藏状态失败')
 	}
@@ -109,6 +111,8 @@ async function toggleWatched() {
 		await resourceApi.updateStatus(avid.value, { watched: newValue })
 		metadata.value.watched = newValue
 		toastStore.success(newValue ? '已标记为已观看' : '已标记为未观看')
+		// 重新获取元数据以确保状态同步
+		await fetchMetadata()
 	} catch (_err) {
 		toastStore.error('更新观看状态失败')
 	}
@@ -132,11 +136,11 @@ onUnmounted(() => {
 	document.removeEventListener('click', closeMenuOnOutsideClick)
 })
 
-async function fetchMetadata() {
+async function fetchMetadata(bypassCache = false) {
 	loading.value = true
 	error.value = null
 	try {
-		const response = await resourceApi.getMetadata(avid.value)
+		const response = await resourceApi.getMetadata(avid.value, bypassCache)
 		metadata.value = response.data
 	} catch (err) {
 		error.value = err.message || '获取元数据失败'
@@ -150,9 +154,13 @@ async function handleDownload() {
 	try {
 		await resourceStore.submitDownload(avid.value)
 		toastStore.success('下载任务已提交')
+		// 重新获取元数据以更新下载状态
+		await fetchMetadata()
 	} catch (err) {
 		if (err.code === 409) {
 			toastStore.info('视频已下载')
+			// 即使已下载，也刷新元数据确保状态正确
+			await fetchMetadata()
 		} else {
 			toastStore.error(err.message || '提交下载失败')
 		}
