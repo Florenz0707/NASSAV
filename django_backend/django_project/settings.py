@@ -118,6 +118,16 @@ CHANNEL_LAYERS = {
     }
 }
 
+# Cache Configuration
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_PREFIX": "nassav",
+        "TIMEOUT": 3600,  # 默认缓存1小时
+    }
+}
+
 # Database
 DATABASES = {
     "default": {
