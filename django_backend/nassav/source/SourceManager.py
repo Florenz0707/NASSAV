@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.core.cache import cache
 from loguru import logger
 from nassav.scraper import AVDownloadInfo
 from nassav.source import Jable, Memo, MissAV, SourceBase
@@ -129,8 +130,42 @@ class SourceManager:
         遍历所有源获取信息
         返回: (info, source, html, errors)
         errors: dict mapping source_name -> error_code (or error string)
+
+        使用缓存提高性能，减少外部请求
         """
         import time
+
+        avid_upper = avid.upper()
+        cache_key = f"source_info:{avid_upper}"
+
+        # 尝试从缓存获取
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"从缓存获取 {avid_upper} 的信息")
+            try:
+                # 反序列化缓存数据
+                info_dict = cached_data.get("info")
+                source_name = cached_data.get("source_name")
+                html = cached_data.get("html")
+                errors = cached_data.get("errors", {})
+
+                # 重建 AVDownloadInfo 对象
+                if info_dict:
+                    info = AVDownloadInfo(
+                        avid=info_dict.get("avid"),
+                        title=info_dict.get("title"),
+                        m3u8=info_dict.get("m3u8"),
+                        cover_url=info_dict.get("cover_url"),
+                        source=info_dict.get("source"),
+                        duration=info_dict.get("duration"),
+                    )
+                    # 获取对应的 source 对象
+                    source = self.sources.get(source_name)
+                    return info, source, html, errors
+            except Exception as e:
+                logger.warning(f"缓存数据反序列化失败: {e}")
+                # 缓存损坏，删除并继续正常流程
+                cache.delete(cache_key)
 
         self._ensure_cookies_loaded()
 
@@ -158,7 +193,28 @@ class SourceManager:
             if html:
                 info = source.parse_html(html)
                 if info:
-                    info.avid = avid.upper()
+                    info.avid = avid_upper
+
+                    # 缓存成功获取的信息
+                    try:
+                        cache_data = {
+                            "info": {
+                                "avid": info.avid,
+                                "title": info.title,
+                                "m3u8": info.m3u8,
+                                "cover_url": info.cover_url,
+                                "source": info.source,
+                                "duration": info.duration,
+                            },
+                            "source_name": name,
+                            "html": html,
+                            "errors": errors,
+                        }
+                        cache.set(cache_key, cache_data, timeout=3600)  # 缓存1小时
+                        logger.info(f"已缓存 {avid_upper} 的信息")
+                    except Exception as e:
+                        logger.warning(f"缓存数据失败: {e}")
+
                     return info, source, html, errors
 
         return None, None, None, errors

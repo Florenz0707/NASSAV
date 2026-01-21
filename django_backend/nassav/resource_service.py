@@ -592,9 +592,7 @@ class ResourceService:
                 "source": source_name,
             }
 
-        from datetime import datetime
-
-        defaults["metadata_created_at"] = datetime.now()
+        defaults["metadata_created_at"] = timezone.now()
         # 创建或更新资源
         resource, created = AVResource.objects.update_or_create(
             avid=avid, defaults=defaults

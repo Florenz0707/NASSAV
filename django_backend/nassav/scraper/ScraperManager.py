@@ -4,6 +4,7 @@ Scraper 管理器 - 管理所有刮削器的注册和调用
 from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
+from django.core.cache import cache
 from loguru import logger
 
 from .Javbus import Busdmm, Dmmsee, Javbus
@@ -43,14 +44,34 @@ class ScraperManager:
         """
         遍历所有刮削器获取元数据
         返回第一个成功获取的元数据
+
+        使用缓存提高性能，减少外部请求
         """
         avid = avid.upper()
+        cache_key = f"scraper_metadata:{avid}"
+
+        # 尝试从缓存获取
+        cached_metadata = cache.get(cache_key)
+        if cached_metadata:
+            logger.info(f"从缓存获取 {avid} 的元数据")
+            return cached_metadata
+
+        # 缓存未命中，遍历刮削器
         for name, scraper in self.get_scrapers():
             metadata = scraper.scrape(avid)
             if metadata:
                 # 保存成功的scraper引用，供download_cover使用
                 self._last_successful_scraper = scraper
+
+                # 缓存元数据
+                try:
+                    cache.set(cache_key, metadata, timeout=3600)  # 缓存1小时
+                    logger.info(f"已缓存 {avid} 的元数据")
+                except Exception as e:
+                    logger.warning(f"缓存元数据失败: {e}")
+
                 return metadata
+
         logger.warning(f"无法从任何刮削源获取 {avid} 的元数据")
         return None
 
