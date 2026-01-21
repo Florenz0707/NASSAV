@@ -3,7 +3,33 @@ M3U8 下载器基类
 """
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
+
+
+class IM3u8Downloader(Protocol):
+    """M3U8 Downloader 接口协议
+
+    定义所有 M3U8 Downloader 实现必须提供的方法。
+    使用 Protocol 提供更好的类型检查和 IDE 支持。
+    """
+
+    def get_downloader_name(self) -> str:
+        """获取下载器名称"""
+        ...
+
+    def download(
+        self,
+        url: str,
+        output_dir: Path,
+        output_name: str,
+        referer: str,
+        user_agent: str,
+        thread_count: int = 32,
+        retry_count: int = 5,
+        progress_callback: Optional[callable] = None,
+    ) -> bool:
+        """下载 M3U8 视频"""
+        ...
 
 
 class M3u8DownloaderBase(ABC):

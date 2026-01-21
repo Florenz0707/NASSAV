@@ -10,6 +10,8 @@ ResourceService - 资源服务层
 """
 import json
 import os
+import traceback as tb
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -29,50 +31,90 @@ from nassav.translator.TranslatorManager import TranslatorManager
 
 
 class ResourceServiceException(Exception):
-    """ResourceService 基础异常"""
+    """ResourceService 基础异常
 
-    pass
+    增强功能：
+    - 自动捕获 traceback 信息
+    - 记录异常发生时间
+    - 自动记录日志
+    """
+
+    def __init__(self, message: str, **kwargs):
+        super().__init__(message)
+        self.message = message
+        self.timestamp = datetime.now()
+        self.traceback_info = (
+            tb.format_exc() if tb.format_exc() != "NoneType: None\n" else None
+        )
+        self.context = kwargs
+
+        # 自动记录日志
+        self._log_exception()
+
+    def _log_exception(self):
+        """记录异常日志"""
+        log_msg = f"{self.__class__.__name__}: {self.message}"
+        if self.context:
+            log_msg += f" | Context: {self.context}"
+        logger.error(log_msg)
+        if self.traceback_info:
+            logger.debug(f"Traceback: {self.traceback_info}")
+
+    def to_dict(self) -> dict:
+        """转换为字典格式，便于序列化"""
+        return {
+            "error_type": self.__class__.__name__,
+            "message": self.message,
+            "timestamp": self.timestamp.isoformat(),
+            "context": self.context,
+            "traceback": self.traceback_info,
+        }
 
 
 class ResourceAlreadyExistsError(ResourceServiceException):
     """资源已存在异常 (409 Conflict)"""
 
-    def __init__(self, avid: str, resource_data: dict):
+    def __init__(self, avid: str, resource_data: dict, **kwargs):
         self.avid = avid
         self.resource_data = resource_data
-        super().__init__(f"资源 {avid} 已存在")
+        super().__init__(
+            f"资源 {avid} 已存在", avid=avid, resource_data=resource_data, **kwargs
+        )
 
 
 class ResourceNotFoundError(ResourceServiceException):
     """资源未找到异常 (404 Not Found)"""
 
-    def __init__(self, avid: str, errors: dict):
+    def __init__(self, avid: str, errors: dict, **kwargs):
         self.avid = avid
         self.errors = errors
+        error_details = ", ".join(f"{k}:{v}" for k, v in errors.items())
         super().__init__(
-            f"获取{avid}失败。{', '.join(f'{k}:{v}' for k, v in errors.items())}"
+            f"获取{avid}失败。{error_details}", avid=avid, errors=errors, **kwargs
         )
 
 
 class ResourceAccessDeniedError(ResourceServiceException):
     """资源访问被拒绝异常 (403 Forbidden)"""
 
-    def __init__(self, avid: str, errors: dict):
+    def __init__(self, avid: str, errors: dict, **kwargs):
         self.avid = avid
         self.errors = errors
+        error_details = ", ".join(f"{k}:{v}" for k, v in errors.items())
         super().__init__(
-            f"访问{avid}被拒绝。{', '.join(f'{k}:{v}' for k, v in errors.items())}"
+            f"访问{avid}被拒绝。{error_details}", avid=avid, errors=errors, **kwargs
         )
 
 
 class ResourceFetchError(ResourceServiceException):
     """资源获取失败异常 (502 Bad Gateway)"""
 
-    def __init__(self, avid: str, errors: dict):
+    def __init__(self, avid: str, errors: dict, **kwargs):
         self.avid = avid
         self.errors = errors
+        error_details = ", ".join(f"{k}:{v}" for k, v in errors.items())
         super().__init__(
-            f"获取{avid}失败。{', '.join(f'{k}:{v}' for k, v in errors.items())}"
+            f"获取{avid}失败。{error_details}", avid=avid, errors=errors, **kwargs
         )
 
 

@@ -1,11 +1,39 @@
 """
 Scraper 基类 - 定义刮削器的通用接口和方法
 """
-from typing import Optional
+from typing import Optional, Protocol
 
 from curl_cffi import requests
 from loguru import logger
 from nassav.constants import HEADERS, IMPERSONATE
+
+
+class IScraper(Protocol):
+    """Scraper 接口协议
+
+    定义所有 Scraper 实现必须提供的方法。
+    使用 Protocol 提供更好的类型检查和 IDE 支持。
+    """
+
+    def get_scraper_name(self) -> str:
+        """获取刮削器名称"""
+        ...
+
+    def get_html(self, avid: str) -> Optional[str]:
+        """根据 AVID 获取 HTML"""
+        ...
+
+    def parse_html(self, html: str, avid: str) -> Optional[dict]:
+        """解析 HTML 获取元数据"""
+        ...
+
+    def download_avatar(self, url: str, dest_path: str, max_retries: int = 3) -> bool:
+        """下载演员头像"""
+        ...
+
+    def set_domain(self, domain: str) -> None:
+        """设置域名"""
+        ...
 
 
 class ScraperBase:

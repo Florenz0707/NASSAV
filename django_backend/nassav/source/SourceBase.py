@@ -1,11 +1,43 @@
 import os
-from typing import Optional
+from typing import Optional, Protocol
 
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import HTTPError
 from loguru import logger
 from nassav.constants import HEADERS, IMPERSONATE
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
+
+
+class ISource(Protocol):
+    """Source 接口协议
+
+    定义所有 Source 实现必须提供的方法。
+    使用 Protocol 提供更好的类型检查和 IDE 支持。
+    """
+
+    def get_source_name(self) -> str:
+        """获取源名称"""
+        ...
+
+    def get_html(self, avid: str) -> Optional[str]:
+        """根据 AVID 获取页面 HTML"""
+        ...
+
+    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+        """解析 HTML 提取下载信息"""
+        ...
+
+    def get_cover_url(self, html: str) -> str:
+        """从 HTML 中提取封面 URL"""
+        ...
+
+    def set_domain(self, domain: str) -> None:
+        """设置域名"""
+        ...
+
+    def set_cookie(self, cookie: str) -> None:
+        """设置 Cookie"""
+        ...
 
 
 class SourceBase:

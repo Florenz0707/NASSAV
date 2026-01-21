@@ -2,9 +2,31 @@
 Translator 基类 - 定义翻译器的通用接口
 """
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Protocol
 
 from loguru import logger
+
+
+class ITranslator(Protocol):
+    """Translator 接口协议
+
+    定义所有 Translator 实现必须提供的方法。
+    使用 Protocol 提供更好的类型检查和 IDE 支持。
+    """
+
+    def get_translator_name(self) -> str:
+        """获取翻译器名称"""
+        ...
+
+    def translate(
+        self, text: str, source_lang: str = "ja", target_lang: str = "zh"
+    ) -> Optional[str]:
+        """翻译文本"""
+        ...
+
+    def is_available(self) -> bool:
+        """检查翻译服务是否可用"""
+        ...
 
 
 class TranslatorBase(ABC):
