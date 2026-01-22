@@ -21,6 +21,7 @@ from loguru import logger
 from nassav.models import Actor, AVResource, Genre
 from nassav.scraper import AVDownloadInfo
 from nassav.scraper.ScraperManager import ScraperManager
+from nassav.signals import metadata_refreshed, resource_added, resource_deleted
 from nassav.source.SourceBase import SourceBase
 from nassav.source.SourceManager import SourceManager
 from nassav.translator.TranslatorManager import TranslatorManager
@@ -221,6 +222,15 @@ class ResourceService:
         )
 
         logger.info(f"[ResourceService] 资源 {avid} 添加成功")
+
+        # 发布资源添加事件
+        resource_added.send(
+            sender=self.__class__,
+            avid=avid,
+            resource=result.get("resource"),
+            result=result,
+        )
+
         return result
 
     def refresh_resource(
@@ -272,6 +282,15 @@ class ResourceService:
 
         result["m3u8_updated"] = True
         logger.info(f"[ResourceService] 资源 {avid} 刷新成功")
+
+        # 发布元数据刷新事件
+        metadata_refreshed.send(
+            sender=self.__class__,
+            avid=avid,
+            resource=result.get("resource"),
+            result=result,
+        )
+
         return result
 
     def delete_resource(self, avid: str, *, delete_files: bool = False) -> bool:
@@ -300,6 +319,14 @@ class ResourceService:
         # 删除数据库记录
         resource.delete()
         logger.info(f"[ResourceService] 资源 {avid} 删除成功")
+
+        # 发布资源删除事件
+        resource_deleted.send(
+            sender=self.__class__,
+            avid=avid,
+            delete_files=delete_files,
+        )
+
         return True
 
     def get_resource(self, avid: str) -> Optional[dict]:

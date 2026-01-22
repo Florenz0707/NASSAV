@@ -16,3 +16,9 @@ class NassavConfig(AppConfig):
             # 配置文件会在初始化时自动创建
         except Exception as e:
             print(f"初始化用户设置失败: {e}")
+
+        # 注册信号接收器
+        try:
+            import nassav.receivers  # noqa: F401
+        except Exception as e:
+            print(f"注册信号接收器失败: {e}")
