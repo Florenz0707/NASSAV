@@ -184,6 +184,9 @@ def list_resources(params):
     if qs is None:
         qs = AVResource.objects.all()
 
+    # 优化查询：预加载关联对象，避免 N+1 查询问题
+    qs = qs.prefetch_related("genres")
+
     # support status: downloaded/pending/all (alias to file_exists)
     status = params.get("status")
     if status:
