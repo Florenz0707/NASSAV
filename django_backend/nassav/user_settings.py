@@ -63,7 +63,18 @@ class UserSettingsManager:
     def _load_config(self):
         """加载配置文件"""
         try:
-            self.config.read(self.config_path, encoding="utf-8")
+            read_files = self.config.read(self.config_path, encoding="utf-8")
+            if not read_files:
+                logger.warning(f"配置文件存在但无法读取: {self.config_path}")
+                # 如果文件无法读取，不要继续，避免覆盖用户配置
+                raise ValueError(f"无法读取配置文件: {self.config_path}")
+
+            # 检查配置文件是否为空（没有任何section）
+            if not self.config.sections():
+                logger.warning(f"配置文件为空或格式错误: {self.config_path}")
+                # 空文件可能是由于写入中断或文件损坏导致
+                # 记录警告但继续执行，让 _ensure_default_values 补充默认配置
+
             # 更新文件修改时间
             if self.config_path.exists():
                 self._last_mtime = self.config_path.stat().st_mtime
