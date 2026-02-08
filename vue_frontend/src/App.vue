@@ -1,5 +1,5 @@
 <script setup>
-import {onMounted} from 'vue'
+import {onMounted, watch} from 'vue'
 import {RouterView} from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Toast from './components/Toast.vue'
@@ -13,6 +13,14 @@ const settingsStore = useSettingsStore()
 onMounted(() => {
 	wsStore.connect()
 	settingsStore.loadSettings()
+})
+
+// 监听字体设置变化，应用到 body（仅在保存后触发）
+watch(() => settingsStore.fontFamily, (newFont) => {
+	if (newFont) {
+		// 添加字体回退链，使用系统字体作为兜底方案
+		document.body.style.fontFamily = `'${newFont}', 'Mplus2', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Roboto, 'Noto Sans CJK', sans-serif`
+	}
 })
 
 </script>

@@ -19,10 +19,17 @@ class Jable(SourceBase):
         return "Jable"
 
     def get_html(self, avid: str) -> Optional[str]:
-        url = f"https://{self.domain}/videos/{avid.lower()}/"
-        return self.fetch_html(
-            url, referer=f"https://{self.domain}/search/{avid.lower()}"
-        )
+        urls = [
+            f"https://{self.domain}/videos/{avid.lower()}/",
+            f"https://{self.domain}/videos/{avid.lower()}v/",
+        ]
+        for url in urls:
+            result = self.fetch_html(
+                url, referer=f"https://{self.domain}/search/{avid.lower()}"
+            )
+            if result:
+                return result
+        return None
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         """解析 HTML 获取核心下载信息（m3u8、avid、source_title）

@@ -4,12 +4,16 @@ import { sourceApi } from '../api'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { AVAILABLE_FONTS } from '../config/fonts'
 
 const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 
 // 当前选中的设置菜单项
 const activeMenu = ref('general')
+
+// 字体预览（临时变量，用于预览效果）
+const previewFont = ref('Mplus2')
 
 // 设置菜单项
 const menuItems = [
@@ -162,6 +166,8 @@ const handleDelete = async () => {
 // 保存设置
 const handleSaveSettings = async () => {
 	try {
+		// 应用预览字体到全局设置
+		settingsStore.fontFamily = previewFont.value
 		await settingsStore.saveSettings()
 		toastStore.success('设置已保存')
 	} catch (err) {
@@ -173,6 +179,8 @@ const handleSaveSettings = async () => {
 onMounted(() => {
 	loadData()
 	settingsStore.loadSettings()
+	// 初始化预览字体为当前设置
+	previewFont.value = settingsStore.fontFamily
 })
 </script>
 
@@ -403,6 +411,53 @@ onMounted(() => {
 												原始标题
 											</option>
 										</select>
+									</div>
+
+									<!-- 字体样式 -->
+									<div class="pt-4 border-t border-white/[0.05]">
+										<div class="flex items-center justify-between mb-4">
+											<div>
+												<div class="text-[#f4f4f5] font-medium">
+													字体样式
+												</div>
+												<div class="text-sm text-[#71717a]">
+													选择应用的全局字体样式
+												</div>
+											</div>
+											<select
+												v-model="previewFont"
+												class="px-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-[#f4f4f5] text-sm focus:outline-none focus:border-[#ff6b6b]/50 transition-all cursor-pointer"
+											>
+												<option
+													v-for="font in AVAILABLE_FONTS"
+													:key="font.value"
+													:value="font.value"
+												>
+													{{ font.label }}{{ font.isDefault ? '（默认）' : '' }}
+												</option>
+											</select>
+										</div>
+										<!-- 字体预览区域 -->
+										<div class="p-4 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+											<div class="text-xs text-[#71717a] mb-2">
+												预览效果：
+											</div>
+											<div
+												class="text-[#f4f4f5] leading-relaxed"
+												:style="{ fontFamily: `'${previewFont}', 'Mplus2', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Roboto, 'Noto Sans CJK', sans-serif` }"
+											>
+												<p class="mb-2">
+													中文：最棒的不倫生活。不論是做愛、還是日常、全都是為了我讓人陷入愛人沼澤…。
+												</p>
+												<p class="mb-2">
+													日本語：最高すぎた不倫生活。セックスも、日常も、全てでオレをダメにする愛人沼で溶かされて…。
+												</p>
+												<p class="mb-2">
+													English: That adulterous life was just too incredible. Sex, everyday life—everything about it ruined me, as I melted away in the lover’s quagmire…
+												</p>
+												<p>数字：0123456789</p>
+											</div>
+										</div>
 									</div>
 								</div>
 							</div>
