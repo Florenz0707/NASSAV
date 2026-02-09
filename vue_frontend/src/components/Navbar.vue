@@ -15,6 +15,8 @@ const resourcesMenuItems = [
 
 const isActive = (path) => {
 	if (path === '/') return route.path === '/'
+	// 对 /resources 路径进行精确匹配，避免在子路由时也高亮
+	if (path === '/resources') return route.path === '/resources'
 	return route.path.startsWith(path)
 }
 
