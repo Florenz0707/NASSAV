@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
-import { useSettingsStore } from '../stores/settings'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import ResourceCard from '../components/ResourceCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -14,7 +13,6 @@ import ResourceSearchBar from '../components/ResourceSearchBar.vue'
 
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()
-const settingsStore = useSettingsStore()
 
 const selectedAvids = ref(new Set())
 const batchLoading = ref(false)
@@ -144,7 +142,8 @@ async function fetchResourceList() {
 		order: sortOrder.value,
 		page: page.value,
 		page_size: pageSize.value,
-		status: filterStatus.value
+		status: filterStatus.value,
+		search: searchQuery.value
 	})
 
 	const params = {
@@ -154,6 +153,11 @@ async function fetchResourceList() {
 		page_size: pageSize.value,
 		actor: actorParam.value || undefined,
 		genre: genreParam.value || undefined
+	}
+
+	// 添加搜索参数
+	if (searchQuery.value && searchQuery.value.trim()) {
+		params.search = searchQuery.value.trim()
 	}
 
 	// 处理状态过滤
@@ -191,7 +195,7 @@ watch(
 )
 
 // Use server-side filtered/sorted resources. Normalize the response shape to an array.
-// 然后在前端进行搜索过滤
+// 搜索已在后端完成，前端直接使用返回的数据
 const filteredResources = computed(() => {
 	const raw = resourceStore.resources && resourceStore.resources.value !== undefined ? resourceStore.resources.value : resourceStore.resources
 	let resources = []
@@ -199,47 +203,17 @@ const filteredResources = computed(() => {
 	else if (raw && Array.isArray(raw.results)) resources = raw.results
 	else if (raw && Array.isArray(raw.data)) resources = raw.data
 
-	// 如果没有搜索关键词，直接返回
-	if (!searchQuery.value || !searchQuery.value.trim()) {
-		return resources
-	}
-
-	const keyword = searchQuery.value.trim().toLowerCase()
-	const titleField = settingsStore.displayTitle // 'original_title' | 'source_title' | 'translated_title'
-
-	return resources.filter(resource => {
-		// 搜索 avid
-		if (resource.avid && resource.avid.toLowerCase().includes(keyword)) {
-			return true
-		}
-
-		// 根据当前显示的 title 字段进行搜索
-		const title = resource[titleField]
-		if (title && title.toLowerCase().includes(keyword)) {
-			return true
-		}
-
-		return false
-	})
+	return resources
 })
 
-// debounce search input - 只用于更新 URL，不触发请求
+// debounce search input - 触发后端搜索请求
 let _searchTimer = null
 watch(searchQuery, () => {
 	if (_searchTimer) clearTimeout(_searchTimer)
 	_searchTimer = setTimeout(() => {
-		// 更新 URL 但不重新请求
-		const query = {
-			page: page.value
-		}
-		if (pageSize.value !== 18) query.pageSize = pageSize.value
-		if (searchQuery.value) query.search = searchQuery.value
-		if (filterStatus.value !== 'all') query.status = filterStatus.value
-		if (sortBy.value !== 'metadata_create_time') query.sortBy = sortBy.value
-		if (sortOrder.value !== 'desc') query.order = sortOrder.value
-		if (actorParam.value) query.actor = actorParam.value
-		if (genreParam.value) query.genre = genreParam.value
-		router.replace({ query })
+		// 搜索时重置页码为1
+		page.value = 1
+		fetchResourceList()
 	}, 300)
 })
 

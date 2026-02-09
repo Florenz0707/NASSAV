@@ -249,6 +249,18 @@ def list_resources(params):
         elif str(is_favorite).lower() in ("0", "false", "no"):
             qs = qs.filter(is_favorite=False)
 
+    # search in title fields (original_title, source_title, translated_title)
+    search = params.get("search")
+    if search:
+        search_term = str(search).strip()
+        if search_term:
+            # 使用Q对象进行多字段搜索，不区分大小写
+            qs = qs.filter(
+                Q(original_title__icontains=search_term)
+                | Q(source_title__icontains=search_term)
+                | Q(translated_title__icontains=search_term)
+            )
+
     ordering = params.get("ordering")
     if ordering:
         # 当按 video_saved_at 排序时，只返回已下载的视频
