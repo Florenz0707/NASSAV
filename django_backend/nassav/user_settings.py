@@ -31,11 +31,22 @@ class UserSettingsManager:
     def __init__(self, config_path: Path = None):
         """初始化设置管理器"""
         if config_path is None:
-            # 默认路径：django_backend/config/user_settings.ini
-            base_dir = Path(__file__).resolve().parent.parent
-            config_path = base_dir / "config" / "user_settings.ini"
+            # 优先从 Django settings 读取路径
+            try:
+                from django.conf import settings
 
-        self.config_path = config_path
+                if hasattr(settings, "USER_SETTINGS_PATH"):
+                    config_path = settings.USER_SETTINGS_PATH
+                else:
+                    # 回退到默认路径：django_backend/config/user_settings.ini
+                    base_dir = Path(__file__).resolve().parent.parent
+                    config_path = base_dir / "config" / "user_settings.ini"
+            except Exception:
+                # Django 未初始化时使用默认路径
+                base_dir = Path(__file__).resolve().parent.parent
+                config_path = base_dir / "config" / "user_settings.ini"
+
+        self.config_path = Path(config_path)
         self.config = configparser.ConfigParser()
         self._last_mtime = None  # 记录配置文件的最后修改时间
         self._ensure_config_exists()

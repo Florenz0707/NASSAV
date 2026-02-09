@@ -619,7 +619,13 @@ class ResourceService:
                 "source": source_name,
             }
 
-        defaults["metadata_created_at"] = timezone.now()
+        # 检查资源是否已存在
+        existing_resource = AVResource.objects.filter(avid=avid).first()
+
+        # 只在创建新资源时设置 metadata_created_at
+        if not existing_resource:
+            defaults["metadata_created_at"] = timezone.now()
+
         # 创建或更新资源
         resource, created = AVResource.objects.update_or_create(
             avid=avid, defaults=defaults
