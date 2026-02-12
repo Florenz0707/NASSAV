@@ -453,7 +453,7 @@ onMounted(() => {
 													日本語：最高すぎた不倫生活。セックスも、日常も、全てでオレをダメにする愛人沼で溶かされて…。
 												</p>
 												<p class="mb-2">
-													English: That adulterous life was just too incredible. Sex, everyday life—everything about it ruined me, as I melted away in the lover’s quagmire…
+													English: That adulterous life was just too incredible. I melted away in the lover’s quagmire…
 												</p>
 												<p>数字：0123456789</p>
 											</div>
