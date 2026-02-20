@@ -115,8 +115,12 @@ async function handleSubmit() {
 					// 200 + refreshed/deleted: 刷新/删除成功
 					success.push(result.avid)
 				} else if (result.code === 404 || result.code >= 400) {
-					// 404 或其他错误码：操作失败
-					failed.push(result.avid)
+					// 404 或其他错误码：操作失败 - 保存完整信息
+					failed.push({
+						avid: result.avid,
+						code: result.code,
+						message: result.message
+					})
 				} else {
 					// 其他 2xx 状态码视为成功
 					success.push(result.avid)
@@ -158,7 +162,11 @@ async function handleSubmit() {
 			result.value = {
 				success: [],
 				exists: [],
-				failed: avids,
+				failed: avids.map(avid => ({
+					avid,
+					code: err.code || 500,
+					message: err.message || '添加失败'
+				})),
 				total: avids.length
 			}
 			toastStore.error(err.message || '添加失败')
@@ -291,9 +299,6 @@ function addAnother() {
 					<button class="btn btn-primary" @click="viewResource">
 						查看详情
 					</button>
-					<button class="btn btn-secondary" @click="addAnother">
-						继续添加
-					</button>
 				</div>
 			</div>
 		</Transition>
@@ -348,7 +353,11 @@ function addAnother() {
 							✕ 添加失败 ({{ result.failed.length }})
 						</h4>
 						<div class="result-group-list">
-							<span v-for="failedAvid in result.failed" :key="failedAvid" class="result-tag failed">{{ failedAvid }}</span>
+							<span v-for="failedItem in result.failed" :key="failedItem.avid"
+								class="result-tag failed"
+								:class="`error-${failedItem.code}`">
+								{{ failedItem.avid }}:{{ failedItem.code }}
+							</span>
 						</div>
 					</div>
 				</div>
@@ -356,9 +365,6 @@ function addAnother() {
 				<div class="result-actions">
 					<button v-if="result.success.length === 1" class="btn btn-primary" @click="viewResource">
 						查看详情
-					</button>
-					<button class="btn btn-secondary" @click="addAnother">
-						继续添加
 					</button>
 				</div>
 			</div>
@@ -854,6 +860,31 @@ function addAnother() {
 	background: rgba(231, 76, 60, 0.15);
 	color: #e74c3c;
 	border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+/* 不同错误类型的颜色 */
+.result-tag.error-404 {
+	background: rgba(255, 159, 64, 0.15);
+	color: #ff9f40;
+	border: 1px solid rgba(255, 159, 64, 0.3);
+}
+
+.result-tag.error-403 {
+	background: rgba(155, 89, 182, 0.15);
+	color: #9b59b6;
+	border: 1px solid rgba(155, 89, 182, 0.3);
+}
+
+.result-tag.error-502 {
+	background: rgba(241, 196, 15, 0.15);
+	color: #f1c40f;
+	border: 1px solid rgba(241, 196, 15, 0.3);
+}
+
+.result-tag.error-500 {
+	background: rgba(192, 57, 43, 0.15);
+	color: #c0392b;
+	border: 1px solid rgba(192, 57, 43, 0.3);
 }
 
 .result-enter-active {
