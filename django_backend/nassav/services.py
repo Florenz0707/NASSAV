@@ -24,6 +24,7 @@ logger.add(
 from nassav.constants import HEADERS
 from nassav.m3u8downloader import M3u8DownloaderBase, N_m3u8DL_RE
 from nassav.source.SourceManager import SourceManager, source_manager
+from nassav.utils import parse_duration
 
 
 class VideoDownloadService:
@@ -89,9 +90,7 @@ class VideoDownloadService:
                 domain = self._get_domain_from_source(info.source)
 
         # 解析视频时长（用于日志显示）
-        duration_seconds = (
-            self._parse_duration(info.duration) if info.duration else None
-        )
+        duration_seconds = parse_duration(info.duration) if info.duration else None
 
         # 下载m3u8视频（使用 Redis 分布式锁确保只有一个下载任务运行）
         result = self._download_m3u8(
@@ -99,22 +98,6 @@ class VideoDownloadService:
         )
         logger.info(f"[{avid}] 视频下载{'成功' if result else '失败'}")
         return result
-
-    def _parse_duration(self, duration_str: str) -> Optional[int]:
-        """解析时长字符串，返回秒数"""
-        import re
-
-        if not duration_str:
-            return None
-        # 尝试匹配 "120分钟" 或 "120分" 格式
-        match = re.search(r"(\d+)分", duration_str)
-        if match:
-            return int(match.group(1)) * 60
-        # 尝试匹配纯数字
-        match = re.search(r"(\d+)", duration_str)
-        if match:
-            return int(match.group(1)) * 60
-        return None
 
     def _get_domain_from_source(self, source: str) -> str:
         """根据 downloader 名称获取对应的 domain"""
@@ -173,16 +156,9 @@ def list_resources(params):
     Supported params: file_exists (true/false), source (comma separated), ordering,
     page, page_size.
     """
-    qs = (
-        source_manager.get_queryset()
-        if hasattr(source_manager, "get_queryset")
-        else None
-    )
-    # fallback to direct model import
     from nassav.models import AVResource
 
-    if qs is None:
-        qs = AVResource.objects.all()
+    qs = AVResource.objects.all()
 
     # 优化查询：预加载关联对象，避免 N+1 查询问题
     qs = qs.prefetch_related("genres")

@@ -2,6 +2,7 @@
 数据库模型
 """
 from django.db import models
+from django.utils import timezone
 
 
 class SourceCookie(models.Model):
@@ -50,9 +51,6 @@ class Genre(models.Model):
 
     def __str__(self):
         return self.name
-
-
-from django.utils import timezone
 
 
 class AVResource(models.Model):
@@ -119,11 +117,6 @@ class AVResource(models.Model):
     class Meta:
         db_table = "nassav_avresource"
         ordering = ["-metadata_updated_at"]
-        indexes = [
-            models.Index(fields=["avid"]),
-            models.Index(fields=["original_title"]),
-            models.Index(fields=["source"]),
-        ]
 
     def __str__(self):
         return f"{self.avid} - {self.original_title}"

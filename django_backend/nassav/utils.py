@@ -1,8 +1,33 @@
 """
 工具类模块
 """
+import re
 import time
 from typing import Any, Callable, Optional
+
+
+def parse_duration(duration_value) -> int:
+    """解析时长为秒数
+
+    Args:
+        duration_value: 整数（秒）、"120分钟"/"120分" 字符串或 None
+
+    Returns:
+        时长（秒），解析失败返回 0
+    """
+    if duration_value is None:
+        return 0
+    if isinstance(duration_value, int):
+        return duration_value
+    if isinstance(duration_value, str):
+        match = re.search(r"(\d+)\s*分", duration_value)
+        if match:
+            return int(match.group(1)) * 60
+        try:
+            return int(duration_value)
+        except ValueError:
+            pass
+    return 0
 
 
 class Throttler:

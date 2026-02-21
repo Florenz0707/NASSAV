@@ -10,6 +10,7 @@ ResourceService - 资源服务层
 """
 import json
 import os
+import re
 import traceback as tb
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +26,7 @@ from nassav.signals import metadata_refreshed, resource_added, resource_deleted
 from nassav.source.SourceBase import SourceBase
 from nassav.source.SourceManager import SourceManager
 from nassav.translator.TranslatorManager import TranslatorManager
+from nassav.utils import parse_duration
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 自定义异常
@@ -361,10 +363,9 @@ class ResourceService:
             return None
 
         # 从metadata字段恢复AVDownloadInfo
-        metadata = resource.metadata or {}
-
-        if not metadata:
+        if not resource.metadata:
             return None
+        metadata = resource.metadata
 
         return AVDownloadInfo(
             avid=metadata.get("avid", avid),
@@ -601,7 +602,7 @@ class ResourceService:
             info.update_from_scraper(scraped_data)
 
             # 保存完整的AVDownloadInfo对象到metadata（与旧代码保持一致）
-            defaults["metadata"] = info.__dict__ if hasattr(info, "__dict__") else None
+            defaults["metadata"] = info.__dict__
 
             # 从scraper获取的标题字段是"title"，映射到数据库的original_title
             defaults["original_title"] = scraped_data.get("title", "")
@@ -609,7 +610,7 @@ class ResourceService:
 
             # 解析duration (可能是"98分钟"这样的字符串)
             duration_value = scraped_data.get("duration", 0)
-            defaults["duration"] = self._parse_duration(duration_value)
+            defaults["duration"] = parse_duration(duration_value)
         else:
             # 没有刮削数据时，保存基本的source信息
             defaults["metadata"] = {
@@ -619,17 +620,14 @@ class ResourceService:
                 "source": source_name,
             }
 
-        # 检查资源是否已存在
-        existing_resource = AVResource.objects.filter(avid=avid).first()
-
-        # 只在创建新资源时设置 metadata_created_at
-        if not existing_resource:
-            defaults["metadata_created_at"] = timezone.now()
-
         # 创建或更新资源
         resource, created = AVResource.objects.update_or_create(
             avid=avid, defaults=defaults
         )
+
+        if created:
+            resource.metadata_created_at = timezone.now()
+            resource.save(update_fields=["metadata_created_at"])
 
         action = "创建" if created else "更新"
         logger.info(f"[ResourceService] 数据库记录{action}成功: {avid}")
@@ -752,48 +750,6 @@ class ResourceService:
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # 私有方法 - 辅助函数
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    def _parse_duration(self, duration_value) -> int:
-        """
-        解析时长为秒数
-
-        Args:
-            duration_value: 时长值，可能是：
-                - 整数（秒数）
-                - "98分钟"
-                - "120分"
-                - None
-
-        Returns:
-            时长（秒），解析失败返回0
-        """
-        import re
-
-        if duration_value is None:
-            return 0
-
-        # 如果已经是整数，直接返回
-        if isinstance(duration_value, int):
-            return duration_value
-
-        # 如果是字符串，尝试解析
-        if isinstance(duration_value, str):
-            # 尝试匹配 "120分钟" 或 "120分" 格式
-            match = re.search(r"(\d+)\s*分", duration_value)
-            if match:
-                minutes = int(match.group(1))
-                return minutes * 60
-
-            # 尝试直接转换为整数
-            try:
-                return int(duration_value)
-            except ValueError:
-                logger.warning(f"无法解析duration: {duration_value}")
-                return 0
-
-        # 其他类型，返回0
-        logger.warning(f"未知的duration类型: {type(duration_value)}, value={duration_value}")
-        return 0
 
     def _serialize_resource(
         self, resource: AVResource, include_relations: bool = False
