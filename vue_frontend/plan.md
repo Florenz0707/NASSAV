@@ -16,14 +16,6 @@
 
 ### ~~3. 无障碍（Accessibility）~~ ✓ 已完成
 
-### 4. 交互细节
+### ~~4. 交互细节~~ ✓ 已完成
 
-- ResourceCard 的刷新/删除下拉菜单在页面边缘时会被裁剪，需要智能定位（flip）
-- 批量操作时选中卡片缺少视觉高亮（边框或背景变化）
-- 下载按钮点击后缺少 loading 状态反馈
-- 长列表滚动时 Navbar 阴影过渡不够平滑
-
-### 5. 性能
-
-- ActorGroupCard / GenreGroupCard 的头像图片未做懒加载
-- ResourcesView 在切换筛选条件时会短暂闪烁（可加 skeleton 过渡）
+### ~~5. 性能~~ ✓ 已完成

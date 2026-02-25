@@ -6,6 +6,7 @@ const route = useRoute()
 const router = useRouter()
 const showResourcesMenu = ref(false)
 const showMobileMenu = ref(false)
+const scrolled = ref(false)
 
 const resourcesMenuItems = [
 	{ path: '/resources', name: '全部资源', icon: 'grid' },
@@ -34,8 +35,16 @@ function handleKeydown(e) {
 	}
 }
 
-onMounted(() => document.addEventListener('keydown', handleKeydown))
-onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
+function handleScroll() { scrolled.value = window.scrollY > 10 }
+
+onMounted(() => {
+	document.addEventListener('keydown', handleKeydown)
+	window.addEventListener('scroll', handleScroll, { passive: true })
+})
+onUnmounted(() => {
+	document.removeEventListener('keydown', handleKeydown)
+	window.removeEventListener('scroll', handleScroll)
+})
 
 // Close menus on route change
 watch(() => route.path, () => {
@@ -45,7 +54,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-	<nav class="navbar">
+	<nav class="navbar" :class="{ scrolled }">
 		<div class="navbar-inner">
 			<!-- Logo -->
 			<RouterLink to="/" class="navbar-logo">
@@ -211,6 +220,11 @@ watch(() => route.path, () => {
 	right: 0;
 	z-index: 100;
 	backdrop-filter: blur(12px);
+	transition: box-shadow 0.3s ease;
+}
+
+.navbar.scrolled {
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
 }
 
 .navbar-inner {

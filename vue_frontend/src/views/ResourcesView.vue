@@ -5,7 +5,6 @@ import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import ResourceCard from '../components/ResourceCard.vue'
-import LoadingSpinner from '../components/LoadingSpinner.vue'
 import EmptyState from '../components/EmptyState.vue'
 import BatchControls from '../components/BatchControls.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -349,8 +348,10 @@ function onPageSizeChange(newSize) {
 				</button>
 			</template>
 		</ConfirmDialog>
-		<!-- Loading State -->
-		<LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
+		<!-- Skeleton Loading -->
+		<div v-if="resourceStore.loading" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
+			<div v-for="i in 6" :key="i" class="skeleton-card rounded-2xl overflow-hidden" style="height: 380px;" />
+		</div>
 
 		<!-- Empty State -->
 		<EmptyState v-else-if="filteredResources.length === 0" icon="◇" title="暂无资源"
@@ -395,6 +396,17 @@ function onPageSizeChange(newSize) {
 	to {
 		opacity: 1;
 	}
+}
+
+@keyframes shimmer {
+	from { background-position: -200% 0; }
+	to { background-position: 200% 0; }
+}
+
+.skeleton-card {
+	background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-overlay) 50%, var(--bg-secondary) 75%);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s infinite linear;
 }
 
 @keyframes spin {

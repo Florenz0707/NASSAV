@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { downloadApi, resourceApi } from '../api'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
@@ -110,6 +110,9 @@ const showDeleteMenu = ref(false)
 const showRefreshMenu = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteOption = ref(null)
+const downloading = ref(false)
+const refreshMenuFlip = ref(false)
+const deleteMenuFlip = ref(false)
 
 // 生成刷新菜单选项
 const refreshOptions = [
@@ -119,6 +122,29 @@ const refreshOptions = [
 	{ text: '重新翻译', params: { refresh_m3u8: false, refresh_metadata: false, retranslate: true } },
 	{ text: '元数据+翻译', params: { refresh_m3u8: false, refresh_metadata: true, retranslate: true } }
 ]
+
+function handleDownloadClick() {
+	if (downloading.value || props.resource.has_video) return
+	downloading.value = true
+	emit('download', props.resource.avid)
+	setTimeout(() => { downloading.value = false }, 4000)
+}
+
+watch(() => props.resource.has_video, (val) => {
+	if (val) downloading.value = false
+})
+
+function openRefreshMenu(event) {
+	const rect = event.currentTarget.getBoundingClientRect()
+	refreshMenuFlip.value = rect.top < 260
+	showRefreshMenu.value = !showRefreshMenu.value
+}
+
+function openDeleteMenu(event) {
+	const rect = event.currentTarget.getBoundingClientRect()
+	deleteMenuFlip.value = rect.top < 140
+	showDeleteMenu.value = !showDeleteMenu.value
+}
 
 function handleRefreshOption(option) {
 	showRefreshMenu.value = false
@@ -217,9 +243,9 @@ onUnmounted(() => {
 <template>
 	<div class="relative rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
 		:class="statusClass"
-		style="background: var(--card-bg); border-color: rgba(255,107,107,0.35);"
-		@mouseenter="$event.currentTarget.style.borderColor='rgba(255,107,107,0.2)'"
-		@mouseleave="$event.currentTarget.style.borderColor='rgba(255,107,107,0.35)'"
+		:style="selected ? 'background: var(--card-bg); border-color: rgba(255,107,107,0.75); box-shadow: 0 0 0 3px rgba(255,107,107,0.2);' : 'background: var(--card-bg); border-color: rgba(255,107,107,0.35);'"
+		@mouseenter="!selected && ($event.currentTarget.style.borderColor='rgba(255,107,107,0.2)')"
+		@mouseleave="!selected && ($event.currentTarget.style.borderColor=selected?'rgba(255,107,107,0.75)':'rgba(255,107,107,0.35)')"
 	>
 		<!-- 选择复选框（可选） -> 放到封面内以保证可见性 -->
 		<!-- 封面图 -->
@@ -300,7 +326,7 @@ onUnmounted(() => {
 
 					<!-- 刷新下拉菜单 -->
 					<div v-if="showRefreshMenu" :data-avid="resource.avid"
-						role="menu" class="refresh-menu absolute bottom-[calc(100%+0.5rem)] left-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden"
+						role="menu" :class="refreshMenuFlip ? 'absolute top-[calc(100%+0.5rem)] left-0' : 'absolute bottom-[calc(100%+0.5rem)] left-0'" class="refresh-menu border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden"
 						style="background: var(--bg-overlay); border-color: var(--border-color);">
 						<button v-for="option in refreshOptions" :key="option.text"
 							role="menuitem" class="w-full px-4 py-2.5 text-left bg-transparent border-none text-[var(--text-secondary)] text-[0.85rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
@@ -311,14 +337,17 @@ onUnmounted(() => {
 				</div>
 
 				<button :class="[
-						'inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
-						resource.has_video
+						'inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
+						resource.has_video || downloading
 							? 'bg-zinc-600 text-zinc-400 cursor-not-allowed opacity-60'
 							: 'text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5'
 					]"
-					:style="!resource.has_video ? 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)' : ''" :disabled="resource.has_video" :title="resource.has_video ? '视频已下载' : '提交下载任务'"
-					@click="emit('download', resource.avid)">
-					{{ resource.has_video ? '已下载' : '下载' }}
+					:style="!resource.has_video && !downloading ? 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)' : ''"
+					:disabled="resource.has_video || downloading"
+					:title="resource.has_video ? '视频已下载' : downloading ? '下载中...' : '提交下载任务'"
+					@click="handleDownloadClick">
+					<svg v-if="downloading" class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2.5" stroke-dasharray="32" stroke-dashoffset="12"/></svg>
+					{{ resource.has_video ? '已下载' : downloading ? '下载中' : '下载' }}
 				</button>
 
 				<!-- 删除按钮容器 -->
@@ -327,13 +356,13 @@ onUnmounted(() => {
 						class="delete-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--accent-danger)] border border-[var(--accent-danger)]/20 bg-[var(--accent-danger)]/10 hover:bg-[var(--accent-danger)]/20"
 						:data-avid="resource.avid" title="删除"
 					aria-label="删除" aria-haspopup="menu" :aria-expanded="showDeleteMenu"
-					@click="showDeleteMenu = !showDeleteMenu">
+					@click="openDeleteMenu($event)">
 						删除
 					</button>
 
 					<!-- 删除下拉菜单 -->
 					<div v-if="showDeleteMenu" :data-avid="resource.avid"
-						role="menu" class="delete-menu absolute bottom-[calc(100%+0.5rem)] right-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto"
+						role="menu" :class="deleteMenuFlip ? 'absolute top-[calc(100%+0.5rem)] right-0' : 'absolute bottom-[calc(100%+0.5rem)] right-0'" class="delete-menu border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto"
 						style="background: var(--bg-overlay); border-color: var(--border-color);">
 						<button v-for="option in deleteOptions" :key="option.action"
 							role="menuitem" class="w-full px-4 py-2.5 text-center border-none text-[0.8rem] cursor-pointer transition-colors duration-200 text-[var(--accent-danger)] bg-[var(--accent-danger)]/20 hover:bg-[var(--accent-danger)]/10"

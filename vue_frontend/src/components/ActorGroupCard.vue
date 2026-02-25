@@ -2,7 +2,7 @@
 	<div class="actor-card" @click="$emit('click')">
 		<div class="avatar">
 			<div class="avatar-circle" :style="{ backgroundColor: bgColor }">
-				<img v-if="settingsStore.showActorAvatar && actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" class="avatar-img">
+				<img v-if="settingsStore.showActorAvatar && actor.id && actor.avatar_filename" :src="actorApi.getAvatarUrl(actor.id)" :alt="actor.name" loading="lazy" class="avatar-img">
 				<span v-else>{{ initial }}</span>
 			</div>
 		</div>
