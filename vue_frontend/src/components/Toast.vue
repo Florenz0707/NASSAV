@@ -6,11 +6,12 @@ const toastStore = useToastStore()
 
 <template>
 	<Teleport to="body">
-		<div class="fixed top-20 right-5 z-[9999] flex flex-col gap-3">
+		<div class="fixed top-20 right-5 z-[9999] flex flex-col gap-3" aria-live="polite" aria-atomic="false">
 			<TransitionGroup name="toast">
 				<div
 					v-for="toast in toastStore.toasts"
 					:key="toast.id"
+					:role="toast.type === 'error' ? 'alert' : 'status'"
 					class="flex items-center gap-3 px-5 py-4 rounded-xl backdrop-blur-[10px] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] cursor-pointer min-w-[280px] max-w-[400px]"
 					:class="`toast-${toast.type}`"
 					style="background: var(--bg-overlay);"

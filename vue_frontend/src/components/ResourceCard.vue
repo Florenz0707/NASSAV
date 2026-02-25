@@ -177,6 +177,13 @@ function cancelDelete() {
 }
 
 // 点击外部关闭菜单
+function handleKeydown(e) {
+	if (e.key === 'Escape') {
+		showDeleteMenu.value = false
+		showRefreshMenu.value = false
+	}
+}
+
 function closeMenuOnOutsideClick(event) {
 	const deleteMenu = document.querySelector(`.delete-menu[data-avid="${props.resource.avid}"]`)
 	const deleteBtn = document.querySelector(`.delete-btn[data-avid="${props.resource.avid}"]`)
@@ -193,6 +200,7 @@ function closeMenuOnOutsideClick(event) {
 
 onMounted(() => {
 	document.addEventListener('click', closeMenuOnOutsideClick)
+	document.addEventListener('keydown', handleKeydown)
 	// wait for DOM
 	nextTick(() => {
 		imgEl = document.querySelector(`img[data-avid="${props.resource.avid}"]`)
@@ -201,6 +209,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
 	document.removeEventListener('click', closeMenuOnOutsideClick)
+	document.removeEventListener('keydown', handleKeydown)
 	if (observer && imgEl) observer.unobserve(imgEl)
 })
 </script>
@@ -291,10 +300,10 @@ onUnmounted(() => {
 
 					<!-- 刷新下拉菜单 -->
 					<div v-if="showRefreshMenu" :data-avid="resource.avid"
-						class="refresh-menu absolute bottom-[calc(100%+0.5rem)] left-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden"
+						role="menu" class="refresh-menu absolute bottom-[calc(100%+0.5rem)] left-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden"
 						style="background: var(--bg-overlay); border-color: var(--border-color);">
 						<button v-for="option in refreshOptions" :key="option.text"
-							class="w-full px-4 py-2.5 text-left bg-transparent border-none text-[var(--text-secondary)] text-[0.85rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
+							role="menuitem" class="w-full px-4 py-2.5 text-left bg-transparent border-none text-[var(--text-secondary)] text-[0.85rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
 							@click="handleRefreshOption(option)">
 							{{ option.text }}
 						</button>
@@ -316,16 +325,18 @@ onUnmounted(() => {
 				<div class="relative" @click.stop>
 					<button
 						class="delete-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--accent-danger)] border border-[var(--accent-danger)]/20 bg-[var(--accent-danger)]/10 hover:bg-[var(--accent-danger)]/20"
-						:data-avid="resource.avid" title="删除" @click="showDeleteMenu = !showDeleteMenu">
+						:data-avid="resource.avid" title="删除"
+					aria-label="删除" aria-haspopup="menu" :aria-expanded="showDeleteMenu"
+					@click="showDeleteMenu = !showDeleteMenu">
 						删除
 					</button>
 
 					<!-- 删除下拉菜单 -->
 					<div v-if="showDeleteMenu" :data-avid="resource.avid"
-						class="delete-menu absolute bottom-[calc(100%+0.5rem)] right-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto"
+						role="menu" class="delete-menu absolute bottom-[calc(100%+0.5rem)] right-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto"
 						style="background: var(--bg-overlay); border-color: var(--border-color);">
 						<button v-for="option in deleteOptions" :key="option.action"
-							class="w-full px-4 py-2.5 text-center border-none text-[0.8rem] cursor-pointer transition-colors duration-200 text-[var(--accent-danger)] bg-[var(--accent-danger)]/20 hover:bg-[var(--accent-danger)]/10"
+							role="menuitem" class="w-full px-4 py-2.5 text-center border-none text-[0.8rem] cursor-pointer transition-colors duration-200 text-[var(--accent-danger)] bg-[var(--accent-danger)]/20 hover:bg-[var(--accent-danger)]/10"
 							@click="handleDeleteOption(option)">
 							{{ option.text }}
 						</button>

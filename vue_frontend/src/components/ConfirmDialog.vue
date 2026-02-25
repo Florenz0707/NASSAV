@@ -52,12 +52,18 @@ function close() {
 	emit('update:show', false)
 }
 
-// 阻止背景滚动
+function handleKeydown(e) {
+	if (e.key === 'Escape') handleCancel()
+}
+
+// 阻止背景滚动，绑定 Esc 关闭
 watch(isVisible, (val) => {
 	if (val) {
 		document.body.style.overflow = 'hidden'
+		document.addEventListener('keydown', handleKeydown)
 	} else {
 		document.body.style.overflow = ''
+		document.removeEventListener('keydown', handleKeydown)
 	}
 })
 </script>
@@ -70,6 +76,7 @@ watch(isVisible, (val) => {
 				@click.self="handleCancel">
 				<div class="rounded-2xl border shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden"
 					style="background: var(--bg-secondary); border-color: var(--border-color);"
+					role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-desc"
 					:class="`confirm-${type}`">
 					<!-- Header -->
 					<div class="py-6 px-6 pb-4 flex flex-col items-center gap-3">
@@ -92,14 +99,14 @@ watch(isVisible, (val) => {
 								<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"/>
 							</svg>
 						</div>
-						<h3 class="text-xl font-semibold text-center" style="color: var(--text-primary);">
+						<h3 id="confirm-dialog-title" class="text-xl font-semibold text-center" style="color: var(--text-primary);">
 							{{ title }}
 						</h3>
 					</div>
 
 					<!-- Body -->
 					<div class="px-6 pb-6">
-						<p class="text-[0.95rem] text-center leading-relaxed" style="color: var(--text-secondary);">
+						<p id="confirm-dialog-desc" class="text-[0.95rem] text-center leading-relaxed" style="color: var(--text-secondary);">
 							{{ message }}
 						</p>
 					</div>

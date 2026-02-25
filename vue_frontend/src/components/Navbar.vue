@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -26,6 +26,16 @@ const isResourcesActive = () => {
 const goToResources = () => {
 	router.push('/resources')
 }
+
+function handleKeydown(e) {
+	if (e.key === 'Escape') {
+		showResourcesMenu.value = false
+		showMobileMenu.value = false
+	}
+}
+
+onMounted(() => document.addEventListener('keydown', handleKeydown))
+onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 
 // Close menus on route change
 watch(() => route.path, () => {
@@ -60,7 +70,7 @@ watch(() => route.path, () => {
 
 				<!-- 资源库下拉菜单 -->
 				<div class="nav-dropdown" @mouseenter="showResourcesMenu = true" @mouseleave="showResourcesMenu = false">
-					<button class="nav-item" :class="{ active: isResourcesActive() }" @click="goToResources">
+					<button class="nav-item" :class="{ active: isResourcesActive() }" aria-haspopup="menu" :aria-expanded="showResourcesMenu" @click="goToResources">
 						<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
 							<rect x="3" y="3" width="6" height="6" rx="1" stroke-linecap="round" stroke-linejoin="round"/>
 							<rect x="11" y="3" width="6" height="6" rx="1" stroke-linecap="round" stroke-linejoin="round"/>
@@ -73,7 +83,7 @@ watch(() => route.path, () => {
 						</svg>
 					</button>
 
-					<div v-if="showResourcesMenu" class="dropdown-menu">
+					<div v-if="showResourcesMenu" role="menu" class="dropdown-menu">
 						<RouterLink v-for="item in resourcesMenuItems" :key="item.path" :to="item.path"
 							class="dropdown-item" :class="{ active: isActive(item.path) }">
 							<!-- 全部资源: grid -->

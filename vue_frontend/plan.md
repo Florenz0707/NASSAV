@@ -14,13 +14,7 @@
 
 ### ~~2. 移动端适配~~ ✓ 已完成
 
-### 3. 无障碍（Accessibility）
-
-- 所有图标按钮缺少 `aria-label`（如刷新、删除按钮）
-- 下拉菜单缺少 `role="menu"` / `role="menuitem"` 语义
-- ConfirmDialog 缺少 `role="dialog"` 和 `aria-modal`
-- Toast 通知缺少 `role="alert"` / `aria-live`
-- 键盘导航：下拉菜单无法用方向键操作，Esc 键未绑定关闭
+### ~~3. 无障碍（Accessibility）~~ ✓ 已完成
 
 ### 4. 交互细节
 
