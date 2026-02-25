@@ -1,5 +1,5 @@
 <template>
-	<div class="mb-4 flex items-center justify-between">
+	<div class="mb-4 flex flex-wrap items-center gap-2">
 		<div>
 			<button class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-white/[0.06] hover:bg-white/10 transition-colors duration-200"
 				style="color: var(--text-primary);"
@@ -8,7 +8,7 @@
 			</button>
 		</div>
 
-		<div v-if="batchMode" class="flex items-center gap-3">
+		<div v-if="batchMode" class="flex items-center gap-2 flex-wrap">
 			<label class="inline-flex items-center gap-3 text-sm" style="color: var(--text-secondary);">
 				<label class="inline-flex items-center cursor-pointer">
 					<input type="checkbox" class="sr-only"

@@ -286,10 +286,22 @@ const displayedCount = computed(() => {
 	if (rc !== null && rc !== undefined) return rc
 	return resourceStore.pagination && resourceStore.pagination.total ? resourceStore.pagination.total : 0
 })
+
+function goBack() {
+	const fromPath = route.query.from
+	if (fromPath) router.push(fromPath)
+	else router.back()
+}
 </script>
 
 <template>
-	<div class="px-6 pt-4 pb-6">
+	<div class="px-6 pt-2 pb-6">
+		<button
+			class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-transparent rounded-lg text-[var(--text-muted)] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[var(--text-primary)]"
+			@click="goBack">
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5M12 5l-7 7 7 7"/></svg>
+			返回
+		</button>
 		<div class="mb-6 flex items-center gap-6">
 			<div
 				class="w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white" style="background: var(--bg-primary);">

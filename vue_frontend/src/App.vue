@@ -68,6 +68,13 @@ watch(() => settingsStore.fontFamily, (newFont) => {
 	margin: 0 auto;
 }
 
+@media (max-width: 640px) {
+	.main-content {
+		padding: 1rem;
+		padding-top: calc(4rem + 1rem);
+	}
+}
+
 .page-enter-active,
 .page-leave-active {
 	transition: all 0.3s ease;

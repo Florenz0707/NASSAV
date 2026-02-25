@@ -10,24 +10,9 @@
 
 ## 待办
 
-### 1. Views 层颜色一致性
+### ~~1. Views 层颜色一致性~~ ✓ 已完成
 
-组件层已完成，但各 View 文件中仍存在硬编码颜色，需同步替换：
-
-- `HomeView.vue` — 统计卡片、快捷操作按钮中的 `#ff6b6b`、`#ff9f43`、`#4ecdc4` 等
-- `ResourceDetailView.vue` — 收藏/观看按钮、元数据标签中的硬编码色值
-- `ActorsView.vue` / `ActorDetailView.vue` — 演员卡片、头像占位符颜色
-- `GenresView.vue` / `GenreDetailView.vue` — 类别卡片颜色
-- `AddResourceView.vue` — 状态标签（404 橙色、403 紫色等）可考虑统一到 CSS 变量
-- `SettingsView.vue` — 表单控件、Cookie 状态标签颜色
-- `DownloadsView.vue` — 列表项颜色
-
-### 2. 移动端适配
-
-- Navbar 在小屏幕下缺少汉堡菜单，导航项挤压
-- ResourceCard 操作按钮在窄屏下文字溢出
-- BatchControls 批量操作栏在小屏下换行布局混乱
-- ResourceSearchBar 筛选项在小屏下需要横向滚动
+### ~~2. 移动端适配~~ ✓ 已完成
 
 ### 3. 无障碍（Accessibility）
 

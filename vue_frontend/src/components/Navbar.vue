@@ -1,10 +1,11 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
 const showResourcesMenu = ref(false)
+const showMobileMenu = ref(false)
 
 const resourcesMenuItems = [
 	{ path: '/resources', name: '全部资源', icon: 'grid' },
@@ -25,6 +26,12 @@ const isResourcesActive = () => {
 const goToResources = () => {
 	router.push('/resources')
 }
+
+// Close menus on route change
+watch(() => route.path, () => {
+	showMobileMenu.value = false
+	showResourcesMenu.value = false
+})
 </script>
 
 <template>
@@ -40,6 +47,7 @@ const goToResources = () => {
 				<span class="logo-text">NASSAV</span>
 			</RouterLink>
 
+			<!-- Desktop nav links -->
 			<div class="nav-links">
 				<!-- 首页 -->
 				<RouterLink to="/" class="nav-item" :class="{ active: isActive('/') }">
@@ -116,6 +124,69 @@ const goToResources = () => {
 					<span class="nav-label">设置</span>
 				</RouterLink>
 			</div>
+
+			<!-- Hamburger button (mobile only) -->
+			<button class="hamburger-btn" :aria-expanded="showMobileMenu" aria-label="菜单" @click="showMobileMenu = !showMobileMenu">
+				<svg v-if="!showMobileMenu" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+				</svg>
+				<svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+				</svg>
+			</button>
+		</div>
+
+		<!-- Mobile menu -->
+		<div v-if="showMobileMenu" class="mobile-menu">
+			<RouterLink to="/" class="mobile-nav-item" :class="{ active: isActive('/') }">
+				<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M3 9.5L10 3l7 6.5V17a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+					<path stroke-linecap="round" stroke-linejoin="round" d="M7.5 18V13h5v5"/>
+				</svg>
+				首页
+			</RouterLink>
+
+			<!-- 资源库 group -->
+			<div class="mobile-nav-group-label">资源库</div>
+			<RouterLink v-for="item in resourcesMenuItems" :key="item.path" :to="item.path"
+				class="mobile-nav-item mobile-nav-sub" :class="{ active: isActive(item.path) }">
+				<svg v-if="item.icon === 'grid'" class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+					<rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/>
+					<rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/>
+				</svg>
+				<svg v-else-if="item.icon === 'users'" class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M13 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM3 17a7 7 0 0 1 14 0"/>
+				</svg>
+				<svg v-else-if="item.icon === 'tag'" class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M3 3h6l8 8-6 6-8-8V3z"/>
+					<circle cx="7" cy="7" r="1" fill="currentColor"/>
+				</svg>
+				{{ item.name }}
+			</RouterLink>
+
+			<RouterLink to="/add" class="mobile-nav-item" :class="{ active: isActive('/add') }">
+				<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+					<circle cx="10" cy="10" r="7" stroke-linecap="round"/>
+					<path stroke-linecap="round" stroke-linejoin="round" d="M10 7v6M7 10h6"/>
+				</svg>
+				添加资源
+			</RouterLink>
+
+			<RouterLink to="/downloads" class="mobile-nav-item" :class="{ active: isActive('/downloads') }">
+				<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M10 3v10M6 9l4 4 4-4"/>
+					<path stroke-linecap="round" d="M3 16h14"/>
+				</svg>
+				下载管理
+			</RouterLink>
+
+			<RouterLink to="/settings" class="mobile-nav-item" :class="{ active: isActive('/settings') }">
+				<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+					<circle cx="10" cy="10" r="2.5"/>
+					<path stroke-linecap="round" stroke-linejoin="round" d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/>
+				</svg>
+				设置
+			</RouterLink>
 		</div>
 	</nav>
 </template>
@@ -271,6 +342,82 @@ const goToResources = () => {
 .dropdown-item.active {
 	color: var(--accent-primary);
 	background: rgba(255, 107, 107, 0.1);
+}
+
+/* Hamburger button - mobile only */
+.hamburger-btn {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	padding: 0.5rem;
+	border-radius: 0.5rem;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	color: var(--text-primary);
+	transition: background 0.2s;
+}
+
+.hamburger-btn:hover {
+	background: rgba(255, 255, 255, 0.05);
+}
+
+/* Mobile menu */
+.mobile-menu {
+	display: none;
+	flex-direction: column;
+	padding: 0.5rem;
+	border-top: 1px solid var(--border-color);
+}
+
+.mobile-nav-item {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	border-radius: 0.5rem;
+	text-decoration: none;
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	font-weight: 500;
+	transition: color 0.2s, background 0.2s;
+}
+
+.mobile-nav-item:hover,
+.mobile-nav-item.active {
+	color: var(--accent-primary);
+	background: rgba(255, 107, 107, 0.1);
+}
+
+.mobile-nav-group-label {
+	padding: 0.5rem 1rem 0.25rem;
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.mobile-nav-sub {
+	padding-left: 1.75rem;
+}
+
+@media (max-width: 767px) {
+	.hamburger-btn {
+		display: flex;
+	}
+
+	.nav-links {
+		display: none;
+	}
+
+	.mobile-menu {
+		display: flex;
+	}
+
+	.navbar-inner {
+		padding: 0 1rem;
+	}
 }
 
 @media (max-width: 480px) {

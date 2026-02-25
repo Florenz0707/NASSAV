@@ -69,7 +69,7 @@ function handleSortOrderChange(event) {
 		</div>
 
 		<!-- Filters -->
-		<div class="flex gap-3">
+		<div class="flex gap-3 flex-wrap">
 			<select
 				:value="filterStatus"
 				class="filter-select py-3.5 px-4 border rounded-xl text-sm cursor-pointer transition-all duration-200 focus:outline-none"
