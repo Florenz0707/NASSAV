@@ -44,14 +44,23 @@
     --accent-primary: #ff6b6b;
     --accent-secondary: #ff9f43;
     --accent-tertiary: #4ecdc4;
+    --accent-danger: #ef476f;
+    --accent-success: #2ed573;
+    --accent-warning: #ffc107;
 
     /* Border */
     --border-color: rgba(255, 255, 255, 0.08);
+
+    /* Overlays */
+    --bg-overlay: rgba(18, 18, 28, 0.95);
+    --bg-input: rgba(18, 18, 28, 0.8);
 
     /* Shadows */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+    --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.3);
+    --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.3);
 }
 
 /* ===== Reset & Base ===== */

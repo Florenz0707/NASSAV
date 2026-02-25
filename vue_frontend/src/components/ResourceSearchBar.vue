@@ -56,14 +56,14 @@ function handleSortOrderChange(event) {
 	<div class="flex gap-4 mb-6 flex-wrap">
 		<!-- Search Box -->
 		<div class="flex-1 min-w-[250px] relative">
-			<svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 			</svg>
 			<input
 				:value="searchQuery"
 				type="text"
 				placeholder="搜索标题..."
-				class="w-full py-3.5 px-4 pl-12 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem] transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] focus:shadow-[0_0_0_3px_rgba(255,107,107,0.1)] placeholder:text-[#71717a]"
+				class="search-input w-full py-3.5 px-4 pl-12 border rounded-xl text-[0.95rem] transition-all duration-200 focus:outline-none"
 				@input="handleSearchInput"
 			>
 		</div>
@@ -72,7 +72,7 @@ function handleSortOrderChange(event) {
 		<div class="flex gap-3">
 			<select
 				:value="filterStatus"
-				class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
+				class="filter-select py-3.5 px-4 border rounded-xl text-sm cursor-pointer transition-all duration-200 focus:outline-none"
 				@change="handleFilterChange"
 			>
 				<option value="all">
@@ -97,7 +97,7 @@ function handleSortOrderChange(event) {
 
 			<select
 				:value="sortBy"
-				class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b]"
+				class="filter-select py-3.5 px-4 border rounded-xl text-sm cursor-pointer transition-all duration-200 focus:outline-none"
 				@change="handleSortByChange"
 			>
 				<option value="avid">
@@ -118,7 +118,7 @@ function handleSortOrderChange(event) {
 			</select>
 			<select
 				:value="sortOrder"
-				class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer transition-all duration-200 focus:outline-none focus:border-[#ff6b6b] ml-2"
+				class="filter-select py-3.5 px-4 border rounded-xl text-sm cursor-pointer transition-all duration-200 focus:outline-none ml-2"
 				@change="handleSortOrderChange"
 			>
 				<option value="desc">
@@ -133,9 +133,29 @@ function handleSortOrderChange(event) {
 </template>
 
 <style scoped>
-/* select样式 */
-select option {
-	background: #0d0d14;
-	color: #f4f4f5;
+.search-input {
+	background: var(--bg-input);
+	border-color: var(--border-color);
+	color: var(--text-primary);
+}
+.search-input::placeholder {
+	color: var(--text-muted);
+}
+.search-input:focus {
+	border-color: var(--accent-primary);
+	box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+}
+
+.filter-select {
+	background: var(--bg-input);
+	border-color: var(--border-color);
+	color: var(--text-primary);
+}
+.filter-select:focus {
+	border-color: var(--accent-primary);
+}
+.filter-select option {
+	background: var(--bg-primary);
+	color: var(--text-primary);
 }
 </style>

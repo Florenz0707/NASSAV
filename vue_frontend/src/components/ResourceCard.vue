@@ -206,8 +206,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div class="relative bg-[rgba(18,18,28,0.8)] rounded-2xl overflow-hidden border border-[#ff6b6b]/40 transition-all duration-300 hover:-translate-y-1 hover:border-[rgba(255,107,107,0.3)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
-		:class="statusClass">
+	<div class="relative rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
+		:class="statusClass"
+		style="background: var(--card-bg); border-color: rgba(255,107,107,0.35);"
+		@mouseenter="$event.currentTarget.style.borderColor='rgba(255,107,107,0.2)'"
+		@mouseleave="$event.currentTarget.style.borderColor='rgba(255,107,107,0.35)'"
+	>
 		<!-- 选择复选框（可选） -> 放到封面内以保证可见性 -->
 		<!-- 封面图 -->
 		<div class="relative aspect-video overflow-hidden bg-black/30 group">
@@ -217,7 +221,8 @@ onUnmounted(() => {
 					<input type="checkbox" class="sr-only" :checked="selected"
 						@change.stop="$emit('toggle-select', resource.avid, $event.target.checked)" >
 					<span
-						:class="['w-6 h-6 flex items-center justify-center rounded-md transition border-2', selected ? 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-white shadow-lg' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']">
+						:class="['w-6 h-6 flex items-center justify-center rounded-md transition border-2', selected ? 'border-white shadow-lg' : 'bg-[rgba(128,128,128,0.6)] border-white text-white']"
+						:style="selected ? 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)' : ''">
 						<svg v-if="selected" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"
 							xmlns="http://www.w3.org/2000/svg">
 							<path fill-rule="evenodd" clip-rule="evenodd"
@@ -231,11 +236,9 @@ onUnmounted(() => {
 			<div
 				class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
 				<RouterLink
-					:to="{
-						path: `/resource/${resource.avid}`,
-						query: { from: route.fullPath }
-					}"
-					class="px-6 py-3 bg-[#ff6b6b] text-white rounded-lg font-medium text-sm transition-transform hover:scale-105">
+					:to="{ path: `/resource/${resource.avid}`, query: { from: route.fullPath } }"
+					class="px-6 py-3 text-white rounded-lg font-medium text-sm transition-transform hover:scale-105"
+					style="background: var(--accent-primary)">
 					查看详情
 				</RouterLink>
 			</div>
@@ -245,7 +248,8 @@ onUnmounted(() => {
 		<div class="p-5 relative">
 			<!-- 元数据头部 -->
 			<div class="flex gap-4 mb-2.5 items-center flex-wrap">
-				<div class="text-[0.85rem] text-[#ff6b6b] font-semibold bg-[#ff6b6b]/15 rounded-md w-fit px-2 py-1">
+				<div class="text-[0.85rem] font-semibold rounded-md w-fit px-2 py-1"
+					style="color: var(--accent-primary); background: rgba(255,107,107,0.15);">
 					{{ resource.avid }}
 				</div>
 				<!-- 类别标签 -->
@@ -263,12 +267,12 @@ onUnmounted(() => {
 
 			<!-- 元信息 -->
 			<div class="flex flex-wrap gap-8 mb-4">
-				<span class="flex items-center gap-1.5 text-[0.9rem] text-[#71717a]">
-					<span class="text-[0.7rem] opacity-70">◉</span>
+				<span class="flex items-center gap-1.5 text-[0.9rem] text-[var(--text-muted)]">
+					<svg class="w-3 h-3 opacity-70 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="4"/></svg>
 					{{ resource.source }}
 				</span>
-				<span v-if="resource.release_date" class="flex items-center gap-1.5 text-[0.9rem] text-[#71717a]">
-					<span class="text-[0.7rem] opacity-70">◷</span>
+				<span v-if="resource.release_date" class="flex items-center gap-1.5 text-[0.9rem] text-[var(--text-muted)]">
+					<svg class="w-3 h-3 opacity-70 flex-shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path stroke-linecap="round" d="M10 6v4l2.5 2.5"/></svg>
 					{{ resource.release_date }}
 				</span>
 			</div>
@@ -278,7 +282,7 @@ onUnmounted(() => {
 				<!-- 刷新按钮容器 -->
 				<div class="relative" @click.stop>
 					<button
-						class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#a1a1aa] hover:bg-white/[0.12] hover:text-[#f4f4f5]"
+						class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[var(--text-secondary)] hover:bg-white/[0.12] hover:text-[var(--text-primary)]"
 						:data-avid="resource.avid"
 						title="刷新资源"
 						@click="showRefreshMenu = !showRefreshMenu">
@@ -287,9 +291,10 @@ onUnmounted(() => {
 
 					<!-- 刷新下拉菜单 -->
 					<div v-if="showRefreshMenu" :data-avid="resource.avid"
-						class="refresh-menu absolute bottom-[calc(100%+0.5rem)] left-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden">
+						class="refresh-menu absolute bottom-[calc(100%+0.5rem)] left-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden"
+						style="background: var(--bg-overlay); border-color: var(--border-color);">
 						<button v-for="option in refreshOptions" :key="option.text"
-							class="w-full px-4 py-2.5 text-left bg-transparent border-none text-[#a1a1aa] text-[0.85rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[#f4f4f5]"
+							class="w-full px-4 py-2.5 text-left bg-transparent border-none text-[var(--text-secondary)] text-[0.85rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
 							@click="handleRefreshOption(option)">
 							{{ option.text }}
 						</button>
@@ -300,25 +305,27 @@ onUnmounted(() => {
 						'inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
 						resource.has_video
 							? 'bg-zinc-600 text-zinc-400 cursor-not-allowed opacity-60'
-							: 'bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5'
-					]" :disabled="resource.has_video" :title="resource.has_video ? '视频已下载' : '提交下载任务'"
+							: 'text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5'
+					]"
+					:style="!resource.has_video ? 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)' : ''" :disabled="resource.has_video" :title="resource.has_video ? '视频已下载' : '提交下载任务'"
 					@click="emit('download', resource.avid)">
-					{{ resource.has_video ? '✓ 已下载' : '↓ 下载' }}
+					{{ resource.has_video ? '已下载' : '下载' }}
 				</button>
 
 				<!-- 删除按钮容器 -->
 				<div class="relative" @click.stop>
 					<button
-						class="delete-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-[#ef476f]/10 text-[#ef476f] border border-[#ef476f]/20 hover:bg-[#ef476f]/20 hover:text-[#ff5252]"
+						class="delete-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--accent-danger)] border border-[var(--accent-danger)]/20 bg-[var(--accent-danger)]/10 hover:bg-[var(--accent-danger)]/20"
 						:data-avid="resource.avid" title="删除" @click="showDeleteMenu = !showDeleteMenu">
 						删除
 					</button>
 
 					<!-- 删除下拉菜单 -->
 					<div v-if="showDeleteMenu" :data-avid="resource.avid"
-						class="delete-menu absolute bottom-[calc(100%+0.5rem)] right-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto">
+						class="delete-menu absolute bottom-[calc(100%+0.5rem)] right-0 border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto"
+						style="background: var(--bg-overlay); border-color: var(--border-color);">
 						<button v-for="option in deleteOptions" :key="option.action"
-							class="w-full px-4 py-2.5 text-center bg-[#ef476f]/20 border-none text-[#ef476f] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[#ef476f]/10"
+							class="w-full px-4 py-2.5 text-center border-none text-[0.8rem] cursor-pointer transition-colors duration-200 text-[var(--accent-danger)] bg-[var(--accent-danger)]/20 hover:bg-[var(--accent-danger)]/10"
 							@click="handleDeleteOption(option)">
 							{{ option.text }}
 						</button>

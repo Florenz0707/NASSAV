@@ -68,28 +68,38 @@ watch(isVisible, (val) => {
 			<div v-if="isVisible"
 				class="fixed inset-0 bg-black/75 backdrop-blur flex items-center justify-center z-[10000] p-4"
 				@click.self="handleCancel">
-				<div class="bg-[#12121a] rounded-2xl border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden"
+				<div class="rounded-2xl border shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden"
+					style="background: var(--bg-secondary); border-color: var(--border-color);"
 					:class="`confirm-${type}`">
 					<!-- Header -->
 					<div class="py-6 px-6 pb-4 flex flex-col items-center gap-3">
-						<div class="w-14 h-14 rounded-full flex items-center justify-center text-[1.75rem] font-bold"
-							:class="{
-								'bg-[#ff9f43]/15 text-[#ff9f43] border-2 border-[#ff9f43]/30': type === 'warning',
-								'bg-[#ef476f]/15 text-[#ef476f] border-2 border-[#ef476f]/30': type === 'danger',
-								'bg-[#4ecdc4]/15 text-[#4ecdc4] border-2 border-[#4ecdc4]/30': type === 'info'
+						<div class="w-14 h-14 rounded-full flex items-center justify-center border-2"
+							:style="{
+								background: type === 'warning' ? 'rgba(255,159,67,0.15)' : type === 'danger' ? 'rgba(239,71,111,0.15)' : 'rgba(78,205,196,0.15)',
+								color: type === 'warning' ? 'var(--accent-secondary)' : type === 'danger' ? 'var(--accent-danger)' : 'var(--accent-tertiary)',
+								borderColor: type === 'warning' ? 'rgba(255,159,67,0.3)' : type === 'danger' ? 'rgba(239,71,111,0.3)' : 'rgba(78,205,196,0.3)'
 							}">
-							<span v-if="type === 'warning'">⚠</span>
-							<span v-else-if="type === 'danger'">✕</span>
-							<span v-else>ℹ</span>
+							<!-- warning -->
+							<svg v-if="type === 'warning'" class="w-7 h-7" viewBox="0 0 20 20" fill="currentColor">
+								<path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/>
+							</svg>
+							<!-- danger -->
+							<svg v-else-if="type === 'danger'" class="w-7 h-7" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 6l8 8M14 6l-8 8"/>
+							</svg>
+							<!-- info -->
+							<svg v-else class="w-7 h-7" viewBox="0 0 20 20" fill="currentColor">
+								<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"/>
+							</svg>
 						</div>
-						<h3 class="text-xl font-semibold text-[#f4f4f5] text-center">
+						<h3 class="text-xl font-semibold text-center" style="color: var(--text-primary);">
 							{{ title }}
 						</h3>
 					</div>
 
 					<!-- Body -->
 					<div class="px-6 pb-6">
-						<p class="text-[0.95rem] text-[#a1a1aa] text-center leading-relaxed">
+						<p class="text-[0.95rem] text-center leading-relaxed" style="color: var(--text-secondary);">
 							{{ message }}
 						</p>
 					</div>
@@ -97,17 +107,17 @@ watch(isVisible, (val) => {
 					<!-- Footer -->
 					<div class="py-4 px-6 pb-6 flex gap-3 justify-center">
 						<button
-							class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit bg-white/[0.08] text-[#a1a1aa] border border-white/[0.08] hover:bg-white/[0.12] hover:text-[#f4f4f5] hover:-translate-y-0.5"
+							class="flex-1 py-3 px-6 border rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit bg-white/[0.08] hover:bg-white/[0.12] hover:-translate-y-0.5"
+							style="color: var(--text-secondary); border-color: var(--border-color);"
 							@click="handleCancel">
 							{{ cancelText }}
-						</button> <!-- 额外的自定义按钮插槽 -->
+						</button>
 						<button
-							class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white"
-							:class="{
-								'bg-[#ff9f43] hover:bg-[#ff8c1a] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,159,67,0.3)]': type === 'warning',
-								'bg-[#ef476f] hover:bg-[#dc3558] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(239,71,111,0.3)]': type === 'danger',
-								'bg-[#4ecdc4] hover:bg-[#3db9b0] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(78,205,196,0.3)]': type === 'info'
-							}" @click="handleConfirm">
+							class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5"
+							:style="{
+								background: type === 'warning' ? 'var(--accent-secondary)' : type === 'danger' ? 'var(--accent-danger)' : 'var(--accent-tertiary)'
+							}"
+							@click="handleConfirm">
 							{{ confirmText }}
 						</button>
 						<slot name="extra-button" />
