@@ -201,6 +201,35 @@ brew services start redis
 # 使用 WSL 或下载 Windows 版 Redis
 ```
 
+#### 启动 FlareSolverr（可选，用于绕过 Cloudflare）
+
+MissAV 等站点受 Cloudflare 保护，启用 FlareSolverr 后系统可自动获取 cookie 并在被拦截时自动回退，无需手动操作。
+
+```bash
+# 使用 Docker 启动（推荐）
+docker run -d \
+  --name flaresolverr \
+  -p 8191:8191 \
+  -e LOG_LEVEL=info \
+  --restart unless-stopped \
+  ghcr.io/flaresolverr/flaresolverr:latest
+
+# 验证服务是否正常
+curl http://localhost:8191/health
+# 期望返回: {"status":"ok","version":"..."}
+```
+
+然后在 `config/config.yaml` 中启用：
+
+```yaml
+FlareSolverr:
+  Enable: true
+  url: http://localhost:8191
+  timeout: 60000  # 等待 Cloudflare 验证的最长时间（毫秒）
+```
+
+> **注意**：`cf_clearance` cookie 与 FlareSolverr 浏览器的 TLS 指纹绑定，系统会自动通过 FlareSolverr 代理页面请求，无需额外配置。
+
 #### 启动服务
 
 **方式一：使用 ASGI 服务器（推荐，支持 WebSocket）**
@@ -236,6 +265,21 @@ uv run celery -A django_project worker -l info --concurrency=1
 - 全局下载锁确保同一时间只有一个 N_m3u8DL-RE 实例在运行
 - 任务去重机制防止同一 AVID 重复提交到队列
 
+#### 启动 Celery Beat（定时任务）
+
+Celery Beat 负责按计划触发定时任务（数据备份、一致性检查等），需要与 Worker 同时运行。
+
+```bash
+# 启动 Beat 调度器（需与 Worker 同时运行）
+uv run celery -A django_project beat -l info \
+  --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+# 或使用默认调度器（无需数据库）
+uv run celery -A django_project beat -l info
+```
+
+> Beat 进程只负责触发任务，实际执行仍由 Worker 完成，两者必须同时运行。
+
 ### 2. 前端设置
 
 #### 安装依赖
@@ -256,6 +300,50 @@ pnpm dev  # 默认端口 8080
 ### 3. 访问应用
 
 打开浏览器访问：http://localhost:8080
+
+## 定时任务（Celery Beat）
+
+系统内置 6 个定时任务，由 Celery Beat 按计划自动触发，报告文件保存在 `django_backend/celery_beat/` 目录。
+
+| 任务名 | 触发时间 | 说明 |
+|--------|----------|------|
+| `backup-database-daily` | 每天 01:30 | 备份 SQLite 数据库文件（含 WAL/SHM），保留最近 30 天 |
+| `backup-avid-list-daily` | 每天 02:00 | 将所有 AVID 导出为文本文件，用于灾难恢复，保留最近 30 天 |
+| `check-resources-consistency-daily` | 每天 03:00 | 检查封面/视频文件与数据库字段的一致性，自动修复不一致项 |
+| `sync-backups-daily` | 每天 04:00 | 将 `backup/`、`celery_beat/`、`log/` 同步到 `BackupPath` 配置的外部目录 |
+| `db-disk-consistency-daily` | 每天 07:00 | 检查视频文件是否存在于磁盘，更新 `file_exists` 字段 |
+| `actor-avatars-consistency-daily` | 每天 07:05 | 检查演员头像文件完整性，报告缺失项 |
+
+### 配置说明
+
+定时任务的调度计划在 `django_project/settings.py` 的 `CELERY_BEAT_SCHEDULE` 中定义，修改后重启 Beat 进程生效。
+
+`sync-backups-daily` 需要在 `config.yaml` 中配置目标目录：
+
+```yaml
+BackupPath: /path/to/external/backup  # 外部备份目录，null 表示禁用同步
+```
+
+### 手动触发
+
+定时任务也可以通过 Django shell 手动触发：
+
+```bash
+# 手动触发数据库备份
+uv run python manage.py backup_database --days 30
+
+# 手动触发 AVID 列表备份
+uv run python manage.py backup_avid_list --days 30
+
+# 手动检查资源一致性（只报告，不修复）
+uv run python manage.py check_videos_consistency --report celery_beat/report.json
+
+# 手动检查并修复资源一致性
+uv run python manage.py check_videos_consistency --apply
+
+# 手动检查演员头像一致性
+uv run python manage.py check_actor_avatars_consistency --report celery_beat/avatars.json
+```
 
 ## API 文档
 
@@ -382,7 +470,14 @@ A: 确保使用 ASGI 服务器（Uvicorn 或 Daphne），而不是传统的 WSGI
 
 **Q: 某些源无法获取资源？**
 
-A: 部分源需要设置 Cookie，在前端"添加资源"页面的 Cookie 设置中配置。就目前来说，**missav** 品类最全但需要手动设置 cookie，**jable** 其次并且可以自动获取 cookie，**memo** 不需要设置 cookie 但是没有中文字幕。
+A: 部分源需要 Cookie 才能访问。各源情况如下：
+- **missav**：品类最全，启用 FlareSolverr 后可自动获取 cookie（推荐）；未启用时需在设置页手动填写
+- **jable**：品类较全，可自动获取 cookie，无需额外配置
+- **memo**：无需 cookie，但没有中文字幕
+
+**Q: FlareSolverr 启动后 MissAV 仍然返回 403？**
+
+A: `cf_clearance` cookie 与 FlareSolverr 浏览器的 TLS 指纹绑定，不能直接用 curl_cffi 携带该 cookie 请求。系统已自动处理此问题——被拦截时会通过 FlareSolverr 代理整个页面请求，无需手动干预。如果仍有问题，检查 FlareSolverr 服务是否正常运行（`curl http://localhost:8191/health`）。
 
 ### 前端相关
 
@@ -492,6 +587,18 @@ setInterval(async () => {
 全局下载锁确保同一时间只有一个下载任务在执行，避免 N_m3u8DL-RE 多实例并发导致的资源竞争。
 
 ## 版本更新
+
+### v1.3.9（2026-02-25）
+
+#### 🆕 新增
+
+- **FlareSolverr 集成**：支持通过 FlareSolverr 自动绕过 MissAV 的 Cloudflare 验证，无需手动获取 cookie
+  - `MissAV.get_html()` 在 curl_cffi 被 Cloudflare 拦截（403/503）时自动回退到 FlareSolverr
+  - `MissAV.set_cookie_auto()` 优先通过 FlareSolverr 获取 `cf_clearance` cookie 并持久化到数据库
+  - 新增 `nassav/flaresolverr_client.py`，封装 FlareSolverr REST API
+- **配置项**：`config.yaml` 新增 `FlareSolverr` 配置块（`Enable` / `url` / `timeout`）
+
+---
 
 ### v1.3.8（2026-02-20）
 
