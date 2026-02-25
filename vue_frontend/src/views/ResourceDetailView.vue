@@ -293,9 +293,9 @@ async function navigateToGenre(genreName) {
 	<div class="animate-[fadeIn_0.5s_ease]">
 		<!-- 返回按钮 -->
 		<button
-			class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-white/[0] rounded-lg text-[#a1a1aa] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[#f4f4f5]"
+			class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-transparent rounded-lg text-[var(--text-muted)] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[var(--text-primary)]"
 			@click="goBack">
-			<span class="text-[1.1rem]">←</span>
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 12H5M12 5l-7 7 7 7"/></svg>
 			返回
 		</button>
 
@@ -305,17 +305,19 @@ async function navigateToGenre(genreName) {
 		<!-- 错误状态 -->
 		<div v-else-if="error" class="text-center py-16 px-8">
 			<div
-				class="w-16 h-16 mx-auto mb-6 bg-[#ff6b6b]/10 rounded-full flex items-center justify-center text-2xl text-[#ff6b6b]">
-				✕
+				class="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center text-[var(--accent-primary)]"
+				style="background: rgba(255,107,107,0.1);">
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 			</div>
-			<h2 class="text-xl text-[#f4f4f5] mb-2">
+			<h2 class="text-xl text-[var(--text-primary)] mb-2">
 				加载失败
 			</h2>
-			<p class="text-[#71717a] mb-6">
+			<p class="text-[var(--text-muted)] mb-6">
 				{{ error }}
 			</p>
 			<button
-				class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+				class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+				style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 				@click="fetchMetadata">
 				重试
 			</button>
@@ -335,34 +337,34 @@ async function navigateToGenre(genreName) {
 					<!-- 收藏和观看按钮 -->
 					<div class="flex justify-between gap-3">
 						<button
-							class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 border border-white/[0.08]"
-							:class="metadata.is_favorite ? 'bg-[#ff6b6b]/10 border-[#ff6b6b]/30' : ''"
+							class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 border"
+							:style="metadata.is_favorite ? 'background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.3);' : 'border-color: var(--border-color);'"
 							:title="metadata.is_favorite ? '取消收藏' : '添加到收藏'"
 							@click="toggleFavorite">
-							<svg v-if="metadata.is_favorite" class="w-5 h-5 text-[#ff6b6b]" fill="currentColor" viewBox="0 0 24 24">
+							<svg v-if="metadata.is_favorite" class="w-5 h-5 text-[var(--accent-primary)]" fill="currentColor" viewBox="0 0 24 24">
 								<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
 							</svg>
-							<svg v-else class="w-5 h-5 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg v-else class="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
 							</svg>
-							<span class="text-sm font-medium" :class="metadata.is_favorite ? 'text-[#ff6b6b]' : 'text-[#a1a1aa]'">
+							<span class="text-sm font-medium" :class="metadata.is_favorite ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'">
 								{{ metadata.is_favorite ? '已收藏' : '收藏' }}
 							</span>
 						</button>
 
 						<button
-							class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 border border-white/[0.08]"
-							:class="metadata.watched ? 'bg-[#10b981]/10 border-[#10b981]/30' : ''"
+							class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 border"
+							:style="metadata.watched ? 'background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);' : 'border-color: var(--border-color);'"
 							:title="metadata.watched ? '标记为未观看' : '标记为已观看'"
 							@click="toggleWatched">
-							<svg v-if="metadata.watched" class="w-5 h-5 text-[#10b981]" fill="currentColor" viewBox="0 0 24 24">
+							<svg v-if="metadata.watched" class="w-5 h-5 text-[var(--accent-success)]" fill="currentColor" viewBox="0 0 24 24">
 								<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
 							</svg>
-							<svg v-else class="w-5 h-5 text-[#71717a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg v-else class="w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
 							</svg>
-							<span class="text-sm font-medium" :class="metadata.watched ? 'text-[#10b981]' : 'text-[#a1a1aa]'">
+							<span class="text-sm font-medium" :class="metadata.watched ? 'text-[var(--accent-success)]' : 'text-[var(--text-muted)]'">
 								{{ metadata.watched ? '已观看' : '标记观看' }}
 							</span>
 						</button>
@@ -374,67 +376,73 @@ async function navigateToGenre(genreName) {
 					<!-- AVID 和状态 -->
 					<div class="grid grid-cols-2 gap-4 mb-2.5">
 						<div
-							class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[#ff6b6b] w-fit">
+							class="inline-block px-3.5 py-1.5 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[var(--accent-primary)] w-fit"
+							style="background: rgba(255,107,107,0.15);">
 							{{ metadata.avid }}
 						</div>
-						<div class="inline-block px-3.5 py-1.5 bg-[#ff6b6b]/15 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold w-fit"
-							:class="metadata.file_exists ? 'text-[#ff6b6b]' : 'text-[#ff9f43]'">
+						<div class="inline-block px-3.5 py-1.5 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold w-fit"
+							:class="metadata.file_exists ? 'text-[var(--accent-primary)]' : 'text-[var(--accent-secondary)]'"
+							style="background: rgba(255,107,107,0.15);">
 							{{ metadata.file_exists ? '已下载' : '未下载' }}
 						</div>
 					</div>
 
 					<!-- 标题 -->
-					<h1 class="text-[1.75rem] font-semibold text-[#f4f4f5] leading-[1.4] mb-6">
+					<h1 class="text-[1.75rem] font-semibold text-[var(--text-primary)] leading-[1.4] mb-6">
 						{{ displayedTitle }}
 					</h1>
 
 					<!-- 元数据网格 -->
 					<div class="grid grid-cols-2 gap-4 mb-8">
 						<div v-if="metadata.release_date" class="flex flex-col gap-1">
-							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">发行日期</span>
-							<span class="text-base text-[#f4f4f5]">{{ metadata.release_date }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider">发行日期</span>
+							<span class="text-base text-[var(--text-primary)]">{{ metadata.release_date }}</span>
 						</div>
 						<div v-if="metadata.duration" class="flex flex-col gap-1">
-							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">时长</span>
-							<span class="text-base text-[#f4f4f5]">{{ metadata.duration }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider">时长</span>
+							<span class="text-base text-[var(--text-primary)]">{{ metadata.duration }}</span>
 						</div>
 						<div class="flex flex-col gap-1">
-							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">来源</span>
-							<span class="text-base text-[#ff9f43] font-medium">{{ metadata.source }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider">来源</span>
+							<span class="text-base text-[var(--accent-secondary)] font-medium">{{ metadata.source }}</span>
 						</div>
 						<div v-if="fileSize" class="flex flex-col gap-1">
-							<span class="text-[0.8rem] text-[#71717a] uppercase tracking-wider">文件大小</span>
-							<span class="text-base text-[#f4f4f5]">{{ fileSize }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider">文件大小</span>
+							<span class="text-base text-[var(--text-primary)]">{{ fileSize }}</span>
 						</div>
 					</div>
 
 					<!-- 操作按钮 -->
 					<div class="flex flex-wrap gap-4">
 						<button v-if="!metadata.file_exists"
-							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+							class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+							style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 							:disabled="downloading" @click="handleDownload">
 							{{ downloading ? '提交中...' : '下载视频' }}
 						</button>
 						<button v-if="metadata.file_exists"
-							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+							class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+							style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 							@click="jumpPlay">
-							<span class="text-[1.1rem]">▶</span>
+							<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
 							点击播放
 						</button>
 
 						<!-- 刷新按钮容器 -->
 						<div class="relative" @click.stop>
 							<button
-								class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[#f4f4f5] border border-white/[0.08] hover:bg-white/[0.12] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
+								class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[var(--text-primary)] hover:bg-white/[0.12] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
+								style="border: 1px solid var(--border-color);"
 								:disabled="refreshing" @click="showRefreshMenu = !showRefreshMenu">
 								{{ refreshing ? '刷新中' : '刷新信息' }}
 							</button>
 
 							<!-- 刷新下拉菜单 -->
 							<div v-if="showRefreshMenu && !refreshing"
-								class="absolute bottom-[calc(100%+0.3rem)] left-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden">
+								class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden"
+								style="background: var(--bg-overlay); border: 1px solid var(--border-color);">
 								<button v-for="option in refreshOptions" :key="option.text"
-									class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[#a1a1aa] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[#f4f4f5]"
+									class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--text-muted)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
 									@click="handleRefreshOption(option)">
 									{{ option.text }}
 								</button>
@@ -444,16 +452,18 @@ async function navigateToGenre(genreName) {
 						<!-- 删除按钮容器 -->
 						<div class="relative" @click.stop>
 							<button
-								class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ef476f] to-[#dc3558] text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(239,71,111,0.3)] min-w-[120px]"
+								class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(239,71,111,0.3)] min-w-[120px]"
+								style="background: var(--accent-danger);"
 								@click="showDeleteMenu = !showDeleteMenu">
 								删除数据
 							</button>
 
 							<!-- 删除下拉菜单 -->
 							<div v-if="showDeleteMenu"
-								class="absolute bottom-[calc(100%+0.3rem)] left-0 bg-[rgba(18,18,28,0.95)] border border-white/[0.08] rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden">
+								class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden"
+								style="background: var(--bg-overlay); border: 1px solid var(--border-color);">
 								<button v-for="option in deleteOptions" :key="option.text"
-									class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[#ef476f] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[#ef476f]/10 min-w-[120px]"
+									class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--accent-danger)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[#ef476f]/10 min-w-[120px]"
 									@click="handleDeleteOption(option)">
 									{{ option.text }}
 								</button>
@@ -467,50 +477,52 @@ async function navigateToGenre(genreName) {
 			<div class="flex flex-col gap-8">
 				<section
 					v-if="metadata.director || metadata.studio || metadata.label || metadata.actors?.length || metadata.series || metadata.genres?.length"
-					class="bg-[rgba(18,18,28,0.8)] rounded-2xl border border-white/[0.08] p-6">
-					<h2 class="text-[1.1rem] font-semibold text-[#f4f4f5] mb-5 pb-3 border-b border-white/[0.08]">
+					class="rounded-2xl p-6"
+					style="background: var(--bg-overlay); border: 1px solid var(--border-color);">
+					<h2 class="text-[1.1rem] font-semibold text-[var(--text-primary)] mb-5 pb-3"
+						style="border-bottom: 1px solid var(--border-color);">
 						制作信息
 					</h2>
 					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 						<div v-if="metadata.actors?.length" class="flex flex-col gap-1.5">
-							<span class="text-[0.8rem] text-[#71717a]">演员</span>
-							<div class="text-[0.95rem] text-[#f4f4f5] flex flex-wrap gap-2">
+							<span class="text-[0.8rem] text-[var(--text-muted)]">演员</span>
+							<div class="text-[0.95rem] text-[var(--text-primary)] flex flex-wrap gap-2">
 								<button
 									v-for="(actor, index) in metadata.actors"
 									:key="index"
-									class="text-[#f4f4f5] hover:text-[#ff9f43] cursor-pointer transition-colors duration-200 bg-transparent border-none p-0 font-inherit"
+									class="text-[var(--text-primary)] hover:text-[var(--accent-secondary)] cursor-pointer transition-colors duration-200 bg-transparent border-none p-0 font-inherit"
 									@click="navigateToActor(actor)"
 								>
-									{{ actor }}<span v-if="index < metadata.actors.length - 1" class="text-[#a1a1aa] ml-1">,</span>
+									{{ actor }}<span v-if="index < metadata.actors.length - 1" class="text-[var(--text-muted)] ml-1">,</span>
 								</button>
 							</div>
 						</div>
 						<div v-if="metadata.series" class="flex flex-col gap-1.5">
-							<span class="text-[0.8rem] text-[#71717a]">系列</span>
-							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.series }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)]">系列</span>
+							<span class="text-[0.95rem] text-[var(--text-primary)]">{{ metadata.series }}</span>
 						</div>
 						<div v-if="metadata.director" class="flex flex-col gap-1.5">
-							<span class="text-[0.8rem] text-[#71717a]">导演</span>
-							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.director }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)]">导演</span>
+							<span class="text-[0.95rem] text-[var(--text-primary)]">{{ metadata.director }}</span>
 						</div>
 						<div v-if="metadata.studio" class="flex flex-col gap-1.5">
-							<span class="text-[0.8rem] text-[#71717a]">制作商</span>
-							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.studio }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)]">制作商</span>
+							<span class="text-[0.95rem] text-[var(--text-primary)]">{{ metadata.studio }}</span>
 						</div>
 						<div v-if="metadata.label" class="flex flex-col gap-1.5">
-							<span class="text-[0.8rem] text-[#71717a]">发行商</span>
-							<span class="text-[0.95rem] text-[#f4f4f5]">{{ metadata.label }}</span>
+							<span class="text-[0.8rem] text-[var(--text-muted)]">发行商</span>
+							<span class="text-[0.95rem] text-[var(--text-primary)]">{{ metadata.label }}</span>
 						</div>
 						<div v-if="metadata.genres?.length" class="flex flex-col gap-1.5">
-							<span class="text-[0.8rem] text-[#71717a]">类别</span>
-							<div class="text-[0.95rem] text-[#f4f4f5] flex flex-wrap gap-2">
+							<span class="text-[0.8rem] text-[var(--text-muted)]">类别</span>
+							<div class="text-[0.95rem] text-[var(--text-primary)] flex flex-wrap gap-2">
 								<button
 									v-for="(genre, index) in metadata.genres"
 									:key="index"
-									class="text-[#f4f4f5] hover:text-[#ff9f43] cursor-pointer transition-colors duration-200 bg-transparent border-none p-0 font-inherit"
+									class="text-[var(--text-primary)] hover:text-[var(--accent-secondary)] cursor-pointer transition-colors duration-200 bg-transparent border-none p-0 font-inherit"
 									@click="navigateToGenre(genre)"
 								>
-									{{ genre }}<span v-if="index < metadata.genres.length - 1" class="text-[#a1a1aa] ml-1">,</span>
+									{{ genre }}<span v-if="index < metadata.genres.length - 1" class="text-[var(--text-muted)] ml-1">,</span>
 								</button>
 							</div>
 						</div>

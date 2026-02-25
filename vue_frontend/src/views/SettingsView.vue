@@ -188,10 +188,10 @@ onMounted(() => {
 	<div class="settings-page">
 		<!-- Header -->
 		<div class="mb-8">
-			<h1 class="text-[2rem] font-bold text-[#f4f4f5] mb-2">
+			<h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
 				系统设置
 			</h1>
-			<p class="text-[#71717a] text-base">
+			<p class="text-[var(--text-muted)] text-base">
 				配置系统参数和管理 Cookie
 			</p>
 		</div>
@@ -200,15 +200,12 @@ onMounted(() => {
 		<div class="flex gap-6">
 			<!-- Left Sidebar Menu -->
 			<div class="w-64 flex-shrink-0">
-				<div class="bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl p-2">
+				<div class="rounded-xl p-2" style="background: var(--bg-overlay); border: 1px solid var(--border-color);">
 					<div
 						v-for="item in menuItems"
 						:key="item.id"
 						class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200"
-						:class="{
-							'bg-[#ff6b6b]/10 text-[#ff6b6b]': activeMenu === item.id,
-							'text-[#a1a1aa] hover:text-[#f4f4f5] hover:bg-white/5': activeMenu !== item.id
-						}"
+						:style="activeMenu === item.id ? 'background: rgba(255,107,107,0.1); color: var(--accent-primary);' : 'color: var(--text-muted);'"
 						@click="selectMenu(item.id)"
 					>
 						<span class="text-xl">{{ item.icon }}</span>
@@ -219,22 +216,22 @@ onMounted(() => {
 
 			<!-- Right Content Panel -->
 			<div class="flex-1">
-				<div class="bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl p-6">
+				<div class="rounded-xl p-6" style="background: var(--bg-overlay); border: 1px solid var(--border-color);">
 					<!-- Cookie 管理面板 -->
 					<div v-if="activeMenu === 'cookies'">
 						<div class="mb-6">
-							<h2 class="text-xl font-semibold text-[#f4f4f5] mb-2">
+							<h2 class="text-xl font-semibold text-[var(--text-primary)] mb-2">
 								Cookie 管理
 							</h2>
-							<p class="text-sm text-[#71717a]">
+							<p class="text-sm text-[var(--text-muted)]">
 								管理各个下载源的 Cookie 配置，确保正常访问
 							</p>
 						</div>
 
 						<!-- 加载状态 -->
 						<div v-if="loading" class="text-center py-12">
-							<div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff6b6b]" />
-							<p class="mt-3 text-[#71717a]">
+							<div class="inline-block animate-spin rounded-full h-8 w-8" style="border-bottom: 2px solid var(--accent-primary);" />
+							<p class="mt-3 text-[var(--text-muted)]">
 								加载中...
 							</p>
 						</div>
@@ -243,17 +240,17 @@ onMounted(() => {
 						<div v-else-if="sources.length > 0" class="overflow-x-auto">
 							<table class="w-full">
 								<thead>
-									<tr class="border-b border-white/[0.08]">
-										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+									<tr style="border-bottom: 1px solid var(--border-color);">
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[var(--text-muted)]">
 											下载源
 										</th>
-										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[var(--text-muted)]">
 											Cookie 状态
 										</th>
-										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[var(--text-muted)]">
 											更新时间
 										</th>
-										<th class="text-left py-3 px-4 text-sm font-semibold text-[#a1a1aa]">
+										<th class="text-left py-3 px-4 text-sm font-semibold text-[var(--text-muted)]">
 											操作
 										</th>
 									</tr>
@@ -262,9 +259,10 @@ onMounted(() => {
 									<tr
 										v-for="source in sources"
 										:key="source.name"
-										class="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+										class="hover:bg-white/[0.02] transition-colors"
+										style="border-bottom: 1px solid rgba(255,255,255,0.04);"
 									>
-										<td class="py-4 px-4 text-[#f4f4f5] font-medium">
+										<td class="py-4 px-4 text-[var(--text-primary)] font-medium">
 											{{ source.name }}
 										</td>
 										<td class="py-4 px-4">
@@ -283,7 +281,7 @@ onMounted(() => {
 												<span>未设置</span>
 											</span>
 										</td>
-										<td class="py-4 px-4 text-sm text-[#71717a]">
+										<td class="py-4 px-4 text-sm text-[var(--text-muted)]">
 											{{ source.lastUpdate || '-' }}
 										</td>
 										<td class="py-4 px-4">
@@ -292,8 +290,8 @@ onMounted(() => {
 													class="px-3 py-1.5 rounded-lg text-sm border transition-all"
 													:class="[
 														source.hasCookie
-															? 'bg-white/5 text-[#a1a1aa] border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5]'
-															: 'bg-white/5 text-[#71717a] border-white/[0.04] cursor-not-allowed opacity-50'
+															? 'bg-white/5 text-[var(--text-muted)] border-white/[0.08] hover:bg-white/10 hover:text-[var(--text-primary)]'
+															: 'bg-white/5 text-[var(--text-muted)] border-white/[0.04] cursor-not-allowed opacity-50'
 													]"
 													:disabled="!source.hasCookie"
 													@click="viewCookie(source)"
@@ -301,7 +299,8 @@ onMounted(() => {
 													查看
 												</button>
 												<button
-													class="px-3 py-1.5 rounded-lg bg-[#ff6b6b]/10 text-[#ff6b6b] border-[#ff6b6b]/20 hover:bg-[#ff6b6b]/20 transition-all text-sm"
+													class="px-3 py-1.5 rounded-lg transition-all text-sm"
+													style="background: rgba(255,107,107,0.1); color: var(--accent-primary); border: 1px solid rgba(255,107,107,0.2);"
 													@click="openEditModal(source)"
 												>
 													更新
@@ -320,7 +319,7 @@ onMounted(() => {
 						</div>
 
 						<!-- 空状态提示 -->
-						<div v-else class="text-center py-12 text-[#71717a]">
+						<div v-else class="text-center py-12 text-[var(--text-muted)]">
 							<div class="text-4xl mb-3">
 								📭
 							</div>
@@ -330,14 +329,14 @@ onMounted(() => {
 						</div>
 
 						<!-- 提示信息 -->
-						<div v-if="sources.length > 0" class="mt-6 p-4 rounded-lg bg-[#4ecdc4]/5 border border-[#4ecdc4]/20">
+						<div v-if="sources.length > 0" class="mt-6 p-4 rounded-lg" style="background: rgba(78,205,196,0.05); border: 1px solid rgba(78,205,196,0.2);">
 							<div class="flex gap-3">
-								<span class="text-[#4ecdc4] text-lg flex-shrink-0">ℹ️</span>
-								<div class="text-sm text-[#a1a1aa]">
+								<span class="text-[var(--accent-tertiary)] text-lg flex-shrink-0">ℹ️</span>
+								<div class="text-sm text-[var(--text-muted)]">
 									<p class="mb-2">
-										<span class="text-[#f4f4f5] font-medium">关于 Cookie：</span>
+										<span class="text-[var(--text-primary)] font-medium">关于 Cookie：</span>
 									</p>
-									<ul class="list-disc list-inside space-y-1 text-[#71717a]">
+									<ul class="list-disc list-inside space-y-1 text-[var(--text-muted)]">
 										<li>Cookie 用于访问需要登录的下载源（如 MissAV）</li>
 										<li>可以手动设置 Cookie，也可以使用"自动获取"功能</li>
 										<li>Cookie 会定期失效，建议定期更新</li>
@@ -350,10 +349,10 @@ onMounted(() => {
 					<!-- 通用设置面板 -->
 					<div v-else-if="activeMenu === 'general'">
 						<div class="mb-6">
-							<h2 class="text-xl font-semibold text-[#f4f4f5] mb-2">
+							<h2 class="text-xl font-semibold text-[var(--text-primary)] mb-2">
 								通用设置
 							</h2>
-							<p class="text-sm text-[#71717a]">
+							<p class="text-sm text-[var(--text-muted)]">
 								配置系统的通用参数
 							</p>
 						</div>
@@ -361,23 +360,23 @@ onMounted(() => {
 						<div class="space-y-6">
 							<!-- 显示设置 -->
 							<div class="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-								<h3 class="text-sm font-medium text-[#a1a1aa] mb-4 uppercase tracking-wider">
+								<h3 class="text-sm font-medium text-[var(--text-muted)] mb-4 uppercase tracking-wider">
 									显示设置
 								</h3>
 								<div class="space-y-4">
 									<!-- 女优头像开关 -->
 									<div class="flex items-center justify-between">
 										<div>
-											<div class="text-[#f4f4f5] font-medium">
+											<div class="text-[var(--text-primary)] font-medium">
 												显示女优头像
 											</div>
-											<div class="text-sm text-[#71717a]">
+											<div class="text-sm text-[var(--text-muted)]">
 												在列表和详情页中渲染女优头像图片
 											</div>
 										</div>
 										<button
 											class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
-											:class="settingsStore.showActorAvatar ? 'bg-[#ff6b6b]' : 'bg-[#27272a]'"
+											:style="settingsStore.showActorAvatar ? 'background: var(--accent-primary);' : 'background: var(--bg-secondary);'"
 											@click="settingsStore.showActorAvatar = !settingsStore.showActorAvatar"
 										>
 											<span
@@ -390,16 +389,17 @@ onMounted(() => {
 									<!-- 标题显示字段 -->
 									<div class="flex items-center justify-between pt-4 border-t border-white/[0.05]">
 										<div>
-											<div class="text-[#f4f4f5] font-medium">
+											<div class="text-[var(--text-primary)] font-medium">
 												标题显示字段
 											</div>
-											<div class="text-sm text-[#71717a]">
+											<div class="text-sm text-[var(--text-muted)]">
 												选择在资源列表中显示的标题类型
 											</div>
 										</div>
 										<select
 											v-model="settingsStore.displayTitle"
-											class="px-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-[#f4f4f5] text-sm focus:outline-none focus:border-[#ff6b6b]/50 transition-all cursor-pointer"
+											class="px-4 py-2 rounded-lg text-sm focus:outline-none transition-all cursor-pointer"
+											style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);"
 										>
 											<option value="translated_title">
 												翻译标题
@@ -417,16 +417,17 @@ onMounted(() => {
 									<div class="pt-4 border-t border-white/[0.05]">
 										<div class="flex items-center justify-between mb-4">
 											<div>
-												<div class="text-[#f4f4f5] font-medium">
+												<div class="text-[var(--text-primary)] font-medium">
 													字体样式
 												</div>
-												<div class="text-sm text-[#71717a]">
+												<div class="text-sm text-[var(--text-muted)]">
 													选择应用的全局字体样式
 												</div>
 											</div>
 											<select
 												v-model="previewFont"
-												class="px-4 py-2 bg-[#18181b] border border-white/10 rounded-lg text-[#f4f4f5] text-sm focus:outline-none focus:border-[#ff6b6b]/50 transition-all cursor-pointer"
+												class="px-4 py-2 rounded-lg text-sm focus:outline-none transition-all cursor-pointer"
+												style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);"
 											>
 												<option
 													v-for="font in AVAILABLE_FONTS"
@@ -439,11 +440,11 @@ onMounted(() => {
 										</div>
 										<!-- 字体预览区域 -->
 										<div class="p-4 rounded-lg bg-white/[0.02] border border-white/[0.05]">
-											<div class="text-xs text-[#71717a] mb-2">
+											<div class="text-xs text-[var(--text-muted)] mb-2">
 												预览效果：
 											</div>
 											<div
-												class="text-[#f4f4f5] leading-relaxed"
+												class="text-[var(--text-primary)] leading-relaxed"
 												:style="{ fontFamily: `'${previewFont}', 'Mplus2', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Roboto, 'Noto Sans CJK', sans-serif` }"
 											>
 												<p class="mb-2">
@@ -453,7 +454,7 @@ onMounted(() => {
 													日本語：最高すぎた不倫生活。セックスも、日常も、全てでオレをダメにする愛人沼で溶かされて…。
 												</p>
 												<p class="mb-2">
-													English: That adulterous life was just too incredible. I melted away in the lover’s quagmire…
+													English: That adulterous life was just too incredible. I melted away in the lover's quagmire…
 												</p>
 												<p>数字：0123456789</p>
 											</div>
@@ -465,7 +466,8 @@ onMounted(() => {
 							<!-- 保存按钮 -->
 							<div class="flex pt-4 justify-end min-w-full">
 								<button
-									class="px-6 py-2.5 bg-[#ff6b6b] hover:bg-[#ff5252] text-white rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,107,107,0.3)]"
+									class="px-6 py-2.5 text-white rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,107,107,0.3)]"
+									style="background: var(--accent-primary);"
 									@click="handleSaveSettings">
 									保存设置
 								</button>
@@ -478,23 +480,23 @@ onMounted(() => {
 
 		<!-- 查看 Cookie 弹窗 -->
 		<div v-if="showViewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-			<div class="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
-				<div class="p-6 border-b border-white/5 flex justify-between items-center">
-					<h3 class="text-xl font-bold text-[#f4f4f5]">
+			<div class="rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl" style="background: var(--bg-secondary); border: 1px solid var(--border-color);">
+				<div class="p-6 flex justify-between items-center" style="border-bottom: 1px solid var(--border-color);">
+					<h3 class="text-xl font-bold text-[var(--text-primary)]">
 						查看 Cookie - {{ currentSource?.name }}
 					</h3>
-					<button class="text-[#71717a] hover:text-[#f4f4f5]" @click="showViewModal = false">
+					<button class="text-[var(--text-muted)] hover:text-[var(--text-primary)]" @click="showViewModal = false">
 						✕
 					</button>
 				</div>
 				<div class="p-6">
-					<div class="bg-black/40 rounded-xl p-4 font-mono text-sm text-[#a1a1aa] break-all max-h-[400px] overflow-y-auto border border-white/5">
+					<div class="bg-black/40 rounded-xl p-4 font-mono text-sm text-[var(--text-muted)] break-all max-h-[400px] overflow-y-auto border border-white/5">
 						{{ viewCookieValue || '无内容' }}
 					</div>
 				</div>
-				<div class="p-6 border-t border-white/5 flex justify-end">
+				<div class="p-6 flex justify-end" style="border-top: 1px solid var(--border-color);">
 					<button
-						class="px-6 py-2 rounded-xl bg-white/5 text-[#f4f4f5] font-medium hover:bg-white/10 transition-all"
+						class="px-6 py-2 rounded-xl bg-white/5 text-[var(--text-primary)] font-medium hover:bg-white/10 transition-all"
 						@click="showViewModal = false"
 					>
 						关闭
@@ -505,41 +507,43 @@ onMounted(() => {
 
 		<!-- 编辑 Cookie 弹窗 -->
 		<div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-			<div class="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
-				<div class="p-6 border-b border-white/5 flex justify-between items-center">
-					<h3 class="text-xl font-bold text-[#f4f4f5]">
+			<div class="rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl" style="background: var(--bg-secondary); border: 1px solid var(--border-color);">
+				<div class="p-6 flex justify-between items-center" style="border-bottom: 1px solid var(--border-color);">
+					<h3 class="text-xl font-bold text-[var(--text-primary)]">
 						设置 Cookie - {{ currentSource?.name }}
 					</h3>
-					<button class="text-[#71717a] hover:text-[#f4f4f5]" @click="showEditModal = false">
+					<button class="text-[var(--text-muted)] hover:text-[var(--text-primary)]" @click="showEditModal = false">
 						✕
 					</button>
 				</div>
 				<div class="p-6">
-					<p class="text-sm text-[#71717a] mb-4">
+					<p class="text-sm text-[var(--text-muted)] mb-4">
 						请输入从浏览器获取的 Cookie 字符串。通常包含 PHPSESSID 等字段。
 					</p>
 					<textarea
 						v-model="editCookieValue"
-						class="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-[#f4f4f5] font-mono text-sm focus:outline-none focus:border-[#ff6b6b]/50 transition-all resize-none"
+						class="w-full h-48 rounded-xl p-4 font-mono text-sm focus:outline-none transition-all resize-none"
+						style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: var(--text-primary);"
 						placeholder="粘贴 Cookie 字符串到这里..."
 					/>
 				</div>
-				<div class="p-6 border-t border-white/5 flex justify-between items-center">
+				<div class="p-6 flex justify-between items-center" style="border-top: 1px solid var(--border-color);">
 					<button
-						class="px-4 py-2 rounded-xl bg-white/5 text-[#a1a1aa] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[#f4f4f5] transition-all"
+						class="px-4 py-2 rounded-xl bg-white/5 text-[var(--text-muted)] text-sm border border-white/[0.08] hover:bg-white/10 hover:text-[var(--text-primary)] transition-all"
 						@click="autoFetchCookie()"
 					>
 						✨ 自动获取
 					</button>
 					<div class="flex gap-3">
 						<button
-							class="px-6 py-2 rounded-xl bg-white/5 text-[#f4f4f5] font-medium hover:bg-white/10 transition-all"
+							class="px-6 py-2 rounded-xl bg-white/5 text-[var(--text-primary)] font-medium hover:bg-white/10 transition-all"
 							@click="showEditModal = false"
 						>
 							取消
 						</button>
 						<button
-							class="px-6 py-2 rounded-xl bg-[#ff6b6b] text-white font-medium hover:bg-[#ff5252] transition-all shadow-lg shadow-[#ff6b6b]/20"
+							class="px-6 py-2 rounded-xl text-white font-medium transition-all shadow-lg"
+							style="background: var(--accent-primary);"
 							@click="saveCookie"
 						>
 							保存设置

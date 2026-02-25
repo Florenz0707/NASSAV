@@ -11,11 +11,11 @@ import { RouterLink } from 'vue-router'
 		<!-- Visual Shapes (Extended to full height) -->
 		<div class="fixed inset-0 z-[-1] pointer-events-none opacity-60 overflow-hidden">
 			<div
-				class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] bg-[#ff6b6b] top-[-10%] right-[-5%]"/>
+				class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] top-[-10%] right-[-5%]" style="background: var(--accent-primary);"/>
 			<div
-				class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] bg-[#ff9f43] top-[40%] right-[-10%]"/>
+				class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] top-[40%] right-[-10%]" style="background: var(--accent-secondary);"/>
 			<div
-				class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bg-[#4ecdc4] bottom-[-10%] right-[-5%]"/>
+				class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bottom-[-10%] right-[-5%]" style="background: var(--accent-tertiary);"/>
 		</div>
 
 		<!-- Hero Section -->
@@ -24,23 +24,25 @@ import { RouterLink } from 'vue-router'
 				<div class="max-w-2xl">
 					<h1 class="flex flex-col gap-3 mb-8">
 						<span
-							class="text-7xl font-bold bg-gradient-to-br from-[#ff6b6b] to-[#ff9f43] bg-clip-text text-transparent tracking-tight">NASSAV</span>
-						<span class="text-3xl font-semibold text-[#a1a1aa] tracking-wide">视频资源管理系统</span>
+							class="text-7xl font-bold bg-clip-text text-transparent tracking-tight" style="background-image: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));">NASSAV</span>
+						<span class="text-3xl font-semibold tracking-wide" style="color: var(--text-muted);">视频资源管理系统</span>
 					</h1>
-					<p class="text-2xl text-[#aaaaaa] leading-relaxed mb-10 max-w-[500px]">
+					<p class="text-2xl leading-relaxed mb-10 max-w-[500px]" style="color: var(--text-muted);">
 						打造您的私人影音库
 						<br >
 						<span class="text-xl opacity-90">高效管理 · 自动刮削 · 极速下载</span>
 					</p>
 					<div class="flex gap-5 flex-wrap">
 						<RouterLink to="/add"
-							class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-[0_8px_20px_rgba(255,107,107,0.25)] hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(255,107,107,0.35)] active:translate-y-0 active:shadow-none">
-							<span class="text-xl">⊕</span>
+							class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 text-white shadow-[0_8px_20px_rgba(255,107,107,0.25)] hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(255,107,107,0.35)] active:translate-y-0 active:shadow-none"
+							style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8M8 12h8"/></svg>
 							添加资源
 						</RouterLink>
 						<RouterLink to="/resources"
-							class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-white/[0.05] text-[#f4f4f5] border border-white/10 hover:bg-white/[0.1] hover:border-white/20 hover:-translate-y-1 backdrop-blur-sm">
-							<span class="text-xl">▣</span>
+							class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-white/[0.05] border border-white/10 hover:bg-white/[0.1] hover:border-white/20 hover:-translate-y-1 backdrop-blur-sm"
+							style="color: var(--text-primary);">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" stroke-width="2" rx="1"/><rect x="14" y="3" width="7" height="7" stroke-width="2" rx="1"/><rect x="3" y="14" width="7" height="7" stroke-width="2" rx="1"/><rect x="14" y="14" width="7" height="7" stroke-width="2" rx="1"/></svg>
 							浏览资源库
 						</RouterLink>
 					</div>

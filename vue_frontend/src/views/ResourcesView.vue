@@ -305,11 +305,11 @@ function onPageSizeChange(newSize) {
 	<div class="animate-[fadeIn_0.5s_ease]">
 		<!-- Page Header -->
 		<div class="mb-8">
-			<h1 class="text-[2rem] font-bold text-[#f4f4f5] mb-2">
+			<h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
 				资源库
 			</h1>
 			<!-- Results Info -->
-			<div v-if="!resourceStore.loading" class="mb-6 text-[#71717a] text-sm">
+			<div v-if="!resourceStore.loading" class="mb-6 text-[var(--text-muted)] text-sm">
 				<span>管理您的 {{ resourceStore.pagination.total }} 个资源</span>
 			</div>
 		</div>
@@ -342,7 +342,8 @@ function onPageSizeChange(newSize) {
 			@cancel="() => showBatchDeleteConfirm = false">
 			<template #extra-button>
 				<button
-					class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white bg-[#dc2626] hover:bg-[#b91c1c] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
+					class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
+					style="background: var(--accent-danger);"
 					@click="() => confirmBatchDelete('delete-all')">
 					删除全部
 				</button>
@@ -356,7 +357,8 @@ function onPageSizeChange(newSize) {
 			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
 			<template #action>
 				<RouterLink to="/add"
-					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white hover:-translate-y-0.5">
+					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
+					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);">
 					添加资源
 				</RouterLink>
 			</template>
@@ -374,11 +376,11 @@ function onPageSizeChange(newSize) {
 
 		<!-- Floating Refresh Button -->
 		<button
-			class="fixed bottom-8 right-8 w-[60px] h-[60px] rounded-full bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] border-none shadow-[0_4px_20px_rgba(255,107,107,0.3)] cursor-pointer transition-all duration-300 z-[1000] flex items-center justify-center text-white text-xl hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+			class="fixed bottom-8 right-8 w-[60px] h-[60px] rounded-full border-none shadow-[0_4px_20px_rgba(255,107,107,0.3)] cursor-pointer transition-all duration-300 z-[1000] flex items-center justify-center text-white text-xl hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+			style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 			:disabled="refreshing" :title="refreshing ? '刷新中...' : '刷新资源列表'" @click="handleManualRefresh">
-			<span class="block transition-transform duration-300" :class="{ 'animate-spin': refreshing }">
-				{{ refreshing ? '◷' : '↻' }}
-			</span>
+			<svg v-if="refreshing" class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" d="M12 6v6l3 3"/></svg>
+			<svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
 		</button>
 	</div>
 </template>
@@ -407,8 +409,8 @@ function onPageSizeChange(newSize) {
 
 /* select样式 */
 select option {
-	background: #0d0d14;
-	color: #f4f4f5;
+	background: var(--bg-primary);
+	color: var(--text-primary);
 }
 
 /* 响应式 */

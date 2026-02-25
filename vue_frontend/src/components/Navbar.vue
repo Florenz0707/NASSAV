@@ -238,7 +238,7 @@ const goToResources = () => {
 
 .dropdown-menu {
 	position: absolute;
-	top: calc(100% + 0.25rem);
+	top: 100%;
 	left: 0;
 	background: var(--bg-overlay);
 	backdrop-filter: blur(16px);
@@ -248,6 +248,7 @@ const goToResources = () => {
 	min-width: 120px;
 	overflow: hidden;
 	z-index: 10;
+	padding-top: 0.25rem;
 }
 
 .dropdown-item {

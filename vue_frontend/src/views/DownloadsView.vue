@@ -482,7 +482,7 @@ function goToResourceDetail(task) {
 .task-speed {
 	font-family: 'JetBrains Mono', monospace;
 	font-size: 0.85rem;
-	color: #2ed573;
+	color: var(--accent-success);
 	font-weight: 500;
 }
 
@@ -518,7 +518,7 @@ function goToResourceDetail(task) {
 }
 
 .progress-fill.is-active {
-	background: linear-gradient(90deg, #2ed573, #7bed9f, #2ed573);
+	background: linear-gradient(90deg, var(--accent-success), #7bed9f, var(--accent-success));
 	background-size: 200% 100%;
 	animation: shimmer 2s infinite;
 }
@@ -536,7 +536,7 @@ function goToResourceDetail(task) {
 	font-family: 'JetBrains Mono', monospace;
 	font-size: 0.85rem;
 	font-weight: 600;
-	color: #2ed573;
+	color: var(--accent-success);
 	min-width: 50px;
 	text-align: right;
 }

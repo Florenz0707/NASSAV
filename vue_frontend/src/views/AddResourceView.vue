@@ -247,7 +247,7 @@ function addAnother() {
 				>
 					<LoadingSpinner v-if="submitting" size="small"/>
 					<template v-else>
-						<span class="btn-icon">⊕</span>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8M8 12h8"/></svg>
 						{{ parseAvids().length > 1 ? `批量添加 (${parseAvids().length})` : '添加资源' }}
 					</template>
 				</button>
@@ -444,14 +444,14 @@ function addAnother() {
 }
 
 .mode-btn:hover:not(:disabled) {
-	border-color: var(--primary-color);
-	color: var(--primary-color);
+	border-color: var(--accent-primary);
+	color: var(--accent-primary);
 	background: rgba(255, 107, 107, 0.05);
 }
 
 .mode-btn.active {
-	border-color: var(--primary-color);
-	background: var(--primary-color);
+	border-color: var(--accent-primary);
+	background: var(--accent-primary);
 	color: white;
 }
 
@@ -637,7 +637,7 @@ function addAnother() {
 
 .result-card.success .result-icon {
 	background: rgba(46, 213, 115, 0.15);
-	color: #2ed573;
+	color: var(--accent-success);
 }
 
 .result-card.exists .result-icon {
@@ -700,7 +700,7 @@ function addAnother() {
 }
 
 .check-item.done {
-	color: #2ed573;
+	color: var(--accent-success);
 }
 
 .check-icon {
@@ -775,15 +775,15 @@ function addAnother() {
 }
 
 .stat-item.success .stat-icon {
-	color: #2ed573;
+	color: var(--accent-success);
 }
 
 .stat-item.exists .stat-icon {
-	color: #3498db;
+	color: var(--accent-tertiary);
 }
 
 .stat-item.failed .stat-icon {
-	color: #e74c3c;
+	color: var(--accent-danger);
 }
 
 .stat-label {
@@ -818,15 +818,15 @@ function addAnother() {
 }
 
 .result-group-title.success {
-	color: #2ed573;
+	color: var(--accent-success);
 }
 
 .result-group-title.exists {
-	color: #3498db;
+	color: var(--accent-tertiary);
 }
 
 .result-group-title.failed {
-	color: #e74c3c;
+	color: var(--accent-danger);
 }
 
 .result-group-list {
@@ -846,19 +846,19 @@ function addAnother() {
 
 .result-tag.success {
 	background: rgba(46, 213, 115, 0.15);
-	color: #2ed573;
+	color: var(--accent-success);
 	border: 1px solid rgba(46, 213, 115, 0.3);
 }
 
 .result-tag.exists {
 	background: rgba(52, 152, 219, 0.15);
-	color: #3498db;
+	color: var(--accent-tertiary);
 	border: 1px solid rgba(52, 152, 219, 0.3);
 }
 
 .result-tag.failed {
 	background: rgba(231, 76, 60, 0.15);
-	color: #e74c3c;
+	color: var(--accent-danger);
 	border: 1px solid rgba(231, 76, 60, 0.3);
 }
 

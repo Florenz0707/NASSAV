@@ -292,14 +292,14 @@ const displayedCount = computed(() => {
 	<div class="px-6 pt-4 pb-6">
 		<div class="mb-6 flex items-center gap-6">
 			<div
-				class="w-28 h-28 rounded-full bg-[#0b0b10] flex items-center justify-center text-4xl font-bold text-white">
+				class="w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white" style="background: var(--bg-primary);">
 				{{ iconText }}
 			</div>
 			<div class="flex-1">
-				<div class="text-2xl font-semibold text-[#f4f4f5]">
+				<div class="text-2xl font-semibold text-[var(--text-primary)]">
 					{{ genre.name }}
 				</div>
-				<div class="text-sm text-[#71717a]">
+				<div class="text-sm text-[var(--text-muted)]">
 					共有 {{ displayedCount }} 部作品
 				</div>
 			</div>
@@ -341,7 +341,8 @@ const displayedCount = computed(() => {
 			@cancel="() => showBatchDeleteConfirm = false">
 			<template #extra-button>
 				<button
-					class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white bg-[#dc2626] hover:bg-[#b91c1c] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
+					class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
+					style="background: var(--accent-danger);"
 					@click="() => confirmBatchDelete('delete-all')">
 					全部删除
 				</button>
@@ -356,7 +357,8 @@ const displayedCount = computed(() => {
 			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
 			<template #action>
 				<RouterLink to="/add"
-					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white hover:-translate-y-0.5">
+					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
+					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);">
 					添加资源
 				</RouterLink>
 			</template>

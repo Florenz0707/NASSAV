@@ -1,10 +1,10 @@
 <template>
 	<div class="genres-page">
 		<div class="mb-8">
-			<h1 class="text-[2rem] font-bold text-[#f4f4f5] mb-2">
+			<h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
 				类别库
 			</h1>
-			<p class="text-[#71717a] text-base">
+			<p class="text-[var(--text-muted)] text-base">
 				{{ store.pagination.total ? '共有' + store.pagination.total + '个类别信息' : '查看所有类别信息' }}
 			</p>
 		</div>
@@ -12,13 +12,15 @@
 		<!-- Controls: search + sort -->
 		<div class="flex gap-4 mb-6 flex-wrap">
 			<div class="flex-1 min-w-[250px] relative">
-				<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#71717a] text-[1.1rem]">⌕</span>
+				<svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
 				<input v-model="searchQuery" type="text" placeholder="搜索 类别 名称..."
-					class="w-full py-3.5 px-4 pl-11 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-[0.95rem]">
+					class="w-full py-3.5 px-4 pl-11 rounded-xl text-[var(--text-primary)] text-[0.95rem]"
+					style="background: var(--bg-overlay); border: 1px solid var(--border-color);">
 			</div>
 
 			<div class="flex gap-3 items-center">
-				<select v-model="sortBy" class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer"
+				<select v-model="sortBy" class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
+					style="background: var(--bg-overlay); border: 1px solid var(--border-color);"
 					@change="onSortChange">
 					<option value="name">
 						按类别名称
@@ -28,7 +30,8 @@
 					</option>
 				</select>
 
-				<select v-model="sortOrder" class="py-3.5 px-4 bg-[rgba(18,18,28,0.8)] border border-white/[0.08] rounded-xl text-[#f4f4f5] text-sm cursor-pointer"
+				<select v-model="sortOrder" class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
+					style="background: var(--bg-overlay); border: 1px solid var(--border-color);"
 					@change="onSortChange">
 					<option value="desc">
 						降序
@@ -46,24 +49,28 @@
 
 		<div v-if="(store.pagination && store.pagination.pages) > 1" class="mt-8 w-full">
 			<div class="flex items-center justify-center gap-3 mb-3">
-				<button :disabled="page === 1" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				<button :disabled="page === 1" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 					@click="loadPage(1)">
 					跳转开头
 				</button>
-				<button :disabled="page === 1" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				<button :disabled="page === 1" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 					@click="loadPage(page - 1)">
 					上一页
 				</button>
-				<div class="px-4 py-2 rounded-md bg-[rgba(255,255,255,0.03)] text-[#f4f4f5]">
+				<div class="px-4 py-2 rounded-md" style="background: rgba(255,255,255,0.03); color: var(--text-primary);">
 					第 {{ page }} 页 / 共 {{
 						store.pagination.pages
 					}} 页
 				</div>
-				<button :disabled="page === store.pagination.pages" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				<button :disabled="page === store.pagination.pages" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 					@click="loadPage(page + 1)">
 					下一页
 				</button>
-				<button :disabled="page === store.pagination.pages" class="px-4 py-2 rounded-lg bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+				<button :disabled="page === store.pagination.pages" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 					@click="loadPage(store.pagination.pages)">
 					跳转末尾
 				</button>
@@ -71,20 +78,23 @@
 			<div class="flex items-center justify-center gap-4">
 				<div class="flex items-center gap-2">
 					<button
-						class="px-3 py-1 rounded-md bg-gradient-to-br from-[#ff6b6b] to-[#ff5252] text-white shadow-md"
+						class="px-3 py-1 rounded-md text-white shadow-md"
+						style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
 						@click="loadPage(page)">
 						跳转至第
 					</button>
 					<input v-model.number="page" type="number" min="1" :max="store.pagination.pages"
-						class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center"
+						class="w-20 px-3 py-1 rounded-md focus:outline-none text-center"
+						style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);"
 						@keydown.enter="loadPage(page)">
-					<label class="text-sm text-[#bcbcbc]">页</label>
+					<label class="text-sm text-[var(--text-secondary)]">页</label>
 				</div>
 				<div class="flex items-center gap-2">
-					<label class="text-sm text-[#bcbcbc]">每页显示</label>
-					<input v-model.number="pageSize" type="number" min="1" class="w-20 px-3 py-1 rounded-md bg-[#1b1b26] text-[#f4f4f5] border border-white/[0.06] focus:outline-none text-center"
+					<label class="text-sm text-[var(--text-secondary)]">每页显示</label>
+					<input v-model.number="pageSize" type="number" min="1" class="w-20 px-3 py-1 rounded-md focus:outline-none text-center"
+						style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);"
 						@change="onPageSizeChange">
-					<label class="text-sm text-[#bcbcbc]">个类别卡</label>
+					<label class="text-sm text-[var(--text-secondary)]">个类别卡</label>
 				</div>
 			</div>
 		</div>
@@ -228,12 +238,12 @@ export default {
 }
 
 .error {
-	color: #ef4444
+	color: var(--accent-danger)
 }
 
 .controls select {
-	background: #111827;
-	color: #fff;
+	background: var(--bg-secondary);
+	color: var(--text-primary);
 	padding: 6px;
 	border-radius: 6px;
 	border: 1px solid rgba(255, 255, 255, 0.06)
