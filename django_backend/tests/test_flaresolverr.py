@@ -109,14 +109,18 @@ def test_flaresolverr_get_missav_cookie():
     cookie_names = [c["name"] for c in cookies]
     print(f"Cookie 名称: {cookie_names}")
 
-    # cf_clearance 是 Cloudflare 验证通过的关键 cookie
-    cf_cookie = next((c for c in cookies if c["name"] == "cf_clearance"), None)
+    # Cloudflare 验证通过的标志：
+    #   - cf_clearance：完整挑战通过后颁发
+    #   - cf_chl_rc_ni：浏览器自动验证通过（no interaction），同样表示绕过成功
+    CF_COOKIES = {"cf_clearance", "cf_chl_rc_ni"}
+    cf_cookie = next((c for c in cookies if c["name"] in CF_COOKIES), None)
     assert cf_cookie is not None, (
-        "未获取到 cf_clearance cookie，Cloudflare 验证可能未通过\n"
-        f"  获取到的 cookies: {cookie_names}"
+        "未获取到任何 Cloudflare cookie，验证可能未通过\n" f"  获取到的 cookies: {cookie_names}"
     )
 
-    print(f"\n✅ 成功获取 cf_clearance: {cf_cookie['value'][:30]}...")
+    print(
+        f"\n✅ 成功获取 Cloudflare cookie [{cf_cookie['name']}]: {cf_cookie['value'][:30]}..."
+    )
 
 
 def test_flaresolverr_fetch_page_with_cookie():

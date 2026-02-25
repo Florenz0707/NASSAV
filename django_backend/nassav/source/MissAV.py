@@ -5,6 +5,7 @@ from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
 from nassav.constants import HEADERS, IMPERSONATE
+from nassav.flaresolverr_client import FlareSolverrClient
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -17,11 +18,24 @@ class MissAV(SourceBase):
         source_config = settings.SOURCE_CONFIG.get("missav", {})
         self.domain = source_config.get("domain", "missav.ai")
 
+        # FlareSolverr：当 curl_cffi 被 Cloudflare 拦截时使用
+        if settings.FLARESOLVERR_ENABLED:
+            self._flaresolverr = FlareSolverrClient(
+                base_url=settings.FLARESOLVERR_URL,
+                timeout_ms=settings.FLARESOLVERR_TIMEOUT,
+            )
+        else:
+            self._flaresolverr = None
+
     def get_source_name(self) -> str:
         return "MissAV"
 
     def get_html(self, avid: str) -> Optional[str]:
-        """根据avid获取HTML"""
+        """根据avid获取HTML
+
+        优先使用 curl_cffi 直接请求；若被 Cloudflare 拦截（403/503）
+        且 FlareSolverr 已启用，则自动回退到 FlareSolverr。
+        """
         import time
 
         avid_lower = avid.lower()
@@ -30,14 +44,62 @@ class MissAV(SourceBase):
             f"https://{self.domain}/{avid_lower}-chinese-subtitle",
             f"https://{self.domain}/cn/{avid_lower}",
         ]
+
         for url in urls:
+            # 1. 先尝试 curl_cffi
             content = self.fetch_html(
                 url, referer=f"https://{self.domain}/search/{avid_lower}"
             )
             time.sleep(1)
             if content:
                 return content
+
+            # 2. curl_cffi 被 Cloudflare 拦截时回退到 FlareSolverr
+            if self.last_error_code in (403, 503) and self._flaresolverr:
+                logger.info(
+                    f"MissAV: curl_cffi 被拦截（{self.last_error_code}），"
+                    f"尝试 FlareSolverr: {url}"
+                )
+                content = self._flaresolverr.get_html(url)
+                if content:
+                    return content
+
         return None
+
+    def set_cookie_auto(self, force_refresh: bool = False) -> bool:
+        """自动获取 cookie
+
+        若 FlareSolverr 已启用，优先通过 FlareSolverr 获取 cf_clearance；
+        否则回退到基类的 curl_cffi 实现。
+        """
+        if not self._flaresolverr:
+            return super().set_cookie_auto(force_refresh)
+
+        from nassav.models import SourceCookie
+
+        source_name = self.get_source_name()
+
+        if not force_refresh:
+            try:
+                cookie_obj = SourceCookie.objects.get(source_name=source_name)
+                self.cookie = cookie_obj.cookie
+                logger.info(f"{source_name}: 从数据库加载 cookie")
+                return True
+            except SourceCookie.DoesNotExist:
+                logger.info(f"{source_name}: 数据库中无 cookie，通过 FlareSolverr 获取")
+
+        home_url = f"https://{self.domain}/"
+        cookie_str = self._flaresolverr.get_cookies_str(home_url)
+        if not cookie_str:
+            logger.warning(f"{source_name}: FlareSolverr 获取 cookie 失败，回退到 curl_cffi")
+            return super().set_cookie_auto(force_refresh=True)
+
+        SourceCookie.objects.update_or_create(
+            source_name=source_name, defaults={"cookie": cookie_str}
+        )
+        self.cookie = cookie_str
+        logger.info(f"{source_name}: FlareSolverr cookie 已保存到数据库")
+        return True
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         """解析 HTML 获取核心下载信息（m3u8、avid、title）

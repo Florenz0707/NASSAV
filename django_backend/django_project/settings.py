@@ -248,9 +248,17 @@ LOGGING = {
 }
 
 # Proxy settings from config
-PROXY_CONFIG = CONFIG.get("Proxy", {})
+PROXY_CONFIG = CONFIG.get(
+    "Proxy",
+)
 PROXY_ENABLED = PROXY_CONFIG.get("Enable", False)
 PROXY_URL = PROXY_CONFIG.get("url", None)
+
+# FlareSolverr settings from config
+FLARESOLVERR_CONFIG = CONFIG.get("FlareSolverr", {})
+FLARESOLVERR_ENABLED = FLARESOLVERR_CONFIG.get("Enable", False)
+FLARESOLVERR_URL = FLARESOLVERR_CONFIG.get("url", "http://localhost:8191")
+FLARESOLVERR_TIMEOUT = FLARESOLVERR_CONFIG.get("timeout", 60000)
 
 # Source configurations
 SOURCE_CONFIG = CONFIG.get("Source", {})
