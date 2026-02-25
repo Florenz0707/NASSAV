@@ -3,6 +3,15 @@ Proxy:
   Enable: false
   url: http://127.0.0.1:443
 
+# FlareSolverr 配置
+# 用于绕过 Cloudflare 验证，自动获取 MissAV 等站点的 cookie
+# 需要先启动 FlareSolverr 服务（见文档）
+FlareSolverr:
+  Enable: false
+  url: http://localhost:8191
+  # 等待 Cloudflare 验证的最长时间（毫秒）
+  timeout: 60000
+
 # 文件路径前缀配置
 # 用于在返回视频文件绝对路径时添加前缀（如 WSL 路径转换）
 FilePathPrefix: null
