@@ -588,6 +588,37 @@ setInterval(async () => {
 
 ## 版本更新
 
+### v1.4.0（2026-02-25）
+
+#### 🆕 新增
+
+- **移动端适配**：全面支持小屏幕设备
+  - Navbar 新增汉堡菜单，移动端下折叠为抽屉式导航，路由切换自动关闭
+  - BatchControls、ResourceSearchBar、ResourcePagination 均改为自动换行布局，避免溢出
+  - 演员详情页、类别详情页新增返回按钮，样式与资源详情页保持一致
+- **无障碍支持（Accessibility）**
+  - 刷新/删除等图标按钮补充 `aria-label`、`aria-haspopup`、`aria-expanded`
+  - 下拉菜单添加 `role="menu"` / `role="menuitem"` 语义
+  - ConfirmDialog 添加 `role="dialog"`、`aria-modal`、`aria-labelledby`、`aria-describedby`
+  - Toast 通知容器添加 `aria-live="polite"`，错误类型使用 `role="alert"`
+  - 下拉菜单与对话框支持 Esc 键关闭
+
+#### 🔧 优化
+
+- **下载按钮 Loading 状态**：点击下载后按钮立即显示旋转 spinner 及"下载中"文字，视频就绪后自动重置
+- **批量选中高亮**：批量模式下选中的资源卡片显示高亮边框与外发光效果
+- **下拉菜单智能定位**：刷新/删除下拉菜单在靠近视口顶部时自动向下翻转，避免被裁剪
+- **Navbar 滚动阴影**：页面滚动超过 10px 时 Navbar 底部平滑出现阴影
+- **演员头像懒加载**：ActorGroupCard 头像图片添加 `loading="lazy"`，减少初始加载开销
+- **资源列表骨架屏**：切换筛选条件时以 shimmer 骨架屏替代 LoadingSpinner，消除内容闪烁
+
+#### ♻️ 重构
+
+- **颜色系统统一**：将所有 Views 层残留的硬编码 hex 颜色（`#ef4444`、`#4ecdc4` 等）全部替换为 CSS 变量
+- **图标规范化**：将 Unicode 字符图标（◉ ◷ ✓ ✕ ⚠ ℹ）全部替换为 SVG 图标
+
+---
+
 ### v1.3.9（2026-02-25）
 
 #### 🆕 新增
