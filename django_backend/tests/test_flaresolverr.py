@@ -27,7 +27,7 @@ from django.conf import settings
 from loguru import logger
 
 FLARESOLVERR_URL = os.environ.get("FLARESOLVERR_URL", "http://localhost:8191")
-TEST_AVID = os.environ.get("TEST_AVID", "SSIS-001")
+TEST_AVID = os.environ.get("TEST_AVID", "SNOS-116")
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +207,202 @@ def test_flaresolverr_save_cookie_to_db():
     print(f"   User-Agent: {user_agent}")
     print(f"\n提示：后续请求需要使用相同的 User-Agent，否则 cf_clearance 无效")
     print(f"   建议将 User-Agent 也保存到配置或数据库中")
+
+
+# ---------------------------------------------------------------------------
+# 单元测试：MissAV.get_html() FlareSolverr 逻辑（无需真实服务）
+# ---------------------------------------------------------------------------
+
+from unittest.mock import MagicMock, patch
+
+_DOMAIN = "missav.ai"
+_AVID = "SNOS-116"
+_VALID_HTML = "<html>m3u8|abc123|com|surrit|https|video</html>"
+
+
+def _make_missav():
+    """创建 MissAV 实例，注入 mock FlareSolverr，不依赖真实服务"""
+    from nassav.source.MissAV import MissAV
+
+    with patch("nassav.source.MissAV.settings") as s:
+        s.FLARESOLVERR_ENABLED = True
+        s.FLARESOLVERR_URL = "http://localhost:8191"
+        s.FLARESOLVERR_TIMEOUT = 60000
+        s.SOURCE_CONFIG = {"missav": {"domain": _DOMAIN}}
+        missav = MissAV()
+
+    missav._flaresolverr = MagicMock()
+    return missav
+
+
+def _ok_solution(avid_lower: str, html: str = _VALID_HTML) -> dict:
+    """FlareSolverr 返回有效页面（最终 URL 含 AVID）"""
+    return {
+        "status": 200,
+        "url": f"https://{_DOMAIN}/cn/{avid_lower}",
+        "response": html,
+    }
+
+
+def _404_solution() -> dict:
+    """FlareSolverr 返回被重定向到 404 的页面（最终 URL 不含 AVID）"""
+    return {
+        "status": 200,
+        "url": f"https://{_DOMAIN}/404",
+        "response": "<html>404</html>",
+    }
+
+
+@patch("time.sleep")
+def test_missav_skips_404_redirect_tries_next_url(mock_sleep):
+    """前两个 URL 被重定向到 404，第三个 URL 有效 → 应返回第三个 URL 的 HTML"""
+    missav = _make_missav()
+    avid_lower = _AVID.lower()
+
+    missav._flaresolverr.get.side_effect = [
+        _404_solution(),  # /cn/snos-116-chinese-subtitle → 404
+        _404_solution(),  # /snos-116-chinese-subtitle    → 404
+        _ok_solution(avid_lower),  # /cn/snos-116               → 有效
+    ]
+    missav.fetch_html = MagicMock(return_value=None)
+
+    result = missav.get_html(_AVID)
+
+    assert result == _VALID_HTML
+    assert missav._flaresolverr.get.call_count == 3
+    # 前两个 URL FlareSolverr 失败后应回退 curl_cffi
+    assert missav.fetch_html.call_count == 2
+
+
+@patch("time.sleep")
+def test_missav_returns_first_valid_url_immediately(mock_sleep):
+    """第一个 URL 有效 → 立即返回，不再尝试后续 URL"""
+    missav = _make_missav()
+
+    missav._flaresolverr.get.return_value = _ok_solution(_AVID.lower())
+    missav.fetch_html = MagicMock(return_value=None)
+
+    result = missav.get_html(_AVID)
+
+    assert result == _VALID_HTML
+    assert missav._flaresolverr.get.call_count == 1
+    missav.fetch_html.assert_not_called()
+
+
+@patch("time.sleep")
+def test_missav_flaresolverr_none_falls_back_to_curl_cffi(mock_sleep):
+    """FlareSolverr 全部返回 None → 回退到 curl_cffi"""
+    missav = _make_missav()
+
+    missav._flaresolverr.get.return_value = None
+    missav.fetch_html = MagicMock(return_value=_VALID_HTML)
+
+    result = missav.get_html(_AVID)
+
+    assert result == _VALID_HTML
+    missav.fetch_html.assert_called()
+
+
+@patch("time.sleep")
+def test_missav_disabled_flaresolverr_uses_curl_cffi_only(mock_sleep):
+    """FlareSolverr 未启用 → 只使用 curl_cffi，不调用 FlareSolverr"""
+    missav = _make_missav()
+    missav._flaresolverr = None
+
+    missav.fetch_html = MagicMock(return_value=_VALID_HTML)
+
+    result = missav.get_html(_AVID)
+
+    assert result == _VALID_HTML
+    missav.fetch_html.assert_called_once()
+
+
+@patch("time.sleep")
+def test_missav_all_fail_returns_none(mock_sleep):
+    """FlareSolverr 和 curl_cffi 全部失败 → 返回 None"""
+    missav = _make_missav()
+
+    missav._flaresolverr.get.return_value = None
+    missav.fetch_html = MagicMock(return_value=None)
+
+    result = missav.get_html(_AVID)
+
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# 集成测试：使用真实 FlareSolverr 服务验证 surrit 检测逻辑
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def require_flaresolverr():
+    """若 FlareSolverr 不可达则跳过测试"""
+    try:
+        resp = requests.get(f"{FLARESOLVERR_URL}/health", timeout=5)
+        if resp.status_code != 200:
+            pytest.skip(f"FlareSolverr 健康检查失败: {resp.status_code}")
+    except Exception as e:
+        pytest.skip(f"无法连接到 FlareSolverr ({FLARESOLVERR_URL}): {e}")
+
+
+def test_missav_404_url_has_no_surrit(require_flaresolverr):
+    """集成测试：FlareSolverr 访问 404 URL，返回的 HTML 不含 surrit"""
+    source_config = settings.SOURCE_CONFIG.get("missav", {})
+    domain = source_config.get("domain", "missav.ai")
+    avid_lower = TEST_AVID.lower()
+
+    url_404 = f"https://{domain}/cn/{avid_lower}-chinese-subtitle"
+    print(f"\n请求 404 URL: {url_404}")
+
+    solution = _call_flaresolverr(url_404)
+    assert solution is not None, "FlareSolverr 未返回 solution"
+
+    html = solution.get("response", "")
+    final_url = solution.get("url", "")
+    print(f"最终 URL: {final_url}")
+    print(f"HTML 长度: {len(html)}，含 surrit: {'surrit' in html}")
+
+    assert "surrit" not in html, (
+        f"404 页面不应含 surrit，但实际含有。\n" f"最终 URL: {final_url}\nHTML 片段: {html[:300]}"
+    )
+
+
+def test_missav_valid_url_has_surrit(require_flaresolverr):
+    """集成测试：FlareSolverr 访问有效 URL，返回的 HTML 含 surrit"""
+    source_config = settings.SOURCE_CONFIG.get("missav", {})
+    domain = source_config.get("domain", "missav.ai")
+    avid_lower = TEST_AVID.lower()
+
+    url_valid = f"https://{domain}/cn/{avid_lower}"
+    print(f"\n请求有效 URL: {url_valid}")
+
+    solution = _call_flaresolverr(url_valid)
+    assert solution is not None, "FlareSolverr 未返回 solution"
+
+    html = solution.get("response", "")
+    print(f"HTML 长度: {len(html)}，含 surrit: {'surrit' in html}")
+
+    assert "surrit" in html, f"有效页面应含 surrit，但实际不含。\nHTML 片段: {html[:300]}"
+
+
+def test_missav_get_html_skips_404_returns_valid(require_flaresolverr):
+    """集成测试：MissAV.get_html() 使用真实 FlareSolverr，跳过 404 URL，返回含 surrit 的 HTML"""
+    from nassav.source.MissAV import MissAV
+
+    with patch("nassav.source.MissAV.settings") as s:
+        s.FLARESOLVERR_ENABLED = True
+        s.FLARESOLVERR_URL = FLARESOLVERR_URL
+        s.FLARESOLVERR_TIMEOUT = 60000
+        s.SOURCE_CONFIG = settings.SOURCE_CONFIG
+        missav = MissAV()
+
+    print(f"\n调用 MissAV.get_html({TEST_AVID})...")
+    html = missav.get_html(TEST_AVID)
+
+    assert html is not None, f"get_html({TEST_AVID}) 返回 None，所有 URL 均失败"
+    assert "surrit" in html, f"返回的 HTML 不含视频内容（surrit）\nHTML 片段: {html[:300]}"
+    print(f"✅ 成功获取有效 HTML，长度: {len(html)}")
 
 
 # ---------------------------------------------------------------------------

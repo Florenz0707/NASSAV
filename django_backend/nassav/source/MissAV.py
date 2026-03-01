@@ -33,8 +33,8 @@ class MissAV(SourceBase):
     def get_html(self, avid: str) -> Optional[str]:
         """根据avid获取HTML
 
-        优先使用 curl_cffi 直接请求；若被 Cloudflare 拦截（403/503）
-        且 FlareSolverr 已启用，则自动回退到 FlareSolverr。
+        若 FlareSolverr 已启用，优先通过 FlareSolverr 请求（绕过 Cloudflare）；
+        FlareSolverr 失败时回退到 curl_cffi。未启用则直接使用 curl_cffi。
         """
         import time
 
@@ -46,23 +46,25 @@ class MissAV(SourceBase):
         ]
 
         for url in urls:
-            # 1. 先尝试 curl_cffi
+            # 1. FlareSolverr 优先（已启用时）
+            if self._flaresolverr:
+                logger.info(f"MissAV: 通过 FlareSolverr 请求: {url}")
+                solution = self._flaresolverr.get(url)
+                if solution and solution.get("status") == 200:
+                    content = solution.get("response", "")
+                    # 有效视频页面必含 surrit（CDN 域名），404 页面不含
+                    if content and "surrit" in content:
+                        return content
+                    logger.info(f"MissAV: FlareSolverr 返回页面无视频内容（可能是404），跳过: {url}")
+                logger.info(f"MissAV: FlareSolverr 失败或页面无效，回退到 curl_cffi: {url}")
+
+            # 2. curl_cffi 兜底
             content = self.fetch_html(
                 url, referer=f"https://{self.domain}/search/{avid_lower}"
             )
             time.sleep(1)
             if content:
                 return content
-
-            # 2. curl_cffi 被 Cloudflare 拦截时回退到 FlareSolverr
-            if self.last_error_code in (403, 503) and self._flaresolverr:
-                logger.info(
-                    f"MissAV: curl_cffi 被拦截（{self.last_error_code}），"
-                    f"尝试 FlareSolverr: {url}"
-                )
-                content = self._flaresolverr.get_html(url)
-                if content:
-                    return content
 
         return None
 
