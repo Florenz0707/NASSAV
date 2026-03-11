@@ -1,4 +1,5 @@
 """测试演员头像功能完整流程（集成测试，使用 fixtures）"""
+
 import pytest
 
 

@@ -20,7 +20,6 @@
 """
 
 import argparse
-import json
 import os
 import sys
 import time
@@ -153,7 +152,7 @@ def save_metadata_to_db(avid: str, merged_metadata: dict, force: bool = False) -
                     if old_obj.translated_title:
                         resource_obj.translation_status = "pending"
                         resource_obj.translated_title = None
-                        logger.info(f"  标题已更新，重置翻译状态为 pending")
+                        logger.info("  标题已更新，重置翻译状态为 pending")
 
             # actors
             resource_obj.actors.clear()
@@ -284,7 +283,9 @@ def update_single_resource(
             logger.error(f"保存 {avid} 到数据库失败")
             return False
     else:
-        logger.info(f"[预览] 将更新 {avid} 的元数据到数据库: {list(merged_metadata.keys())}")
+        logger.info(
+            f"[预览] 将更新 {avid} 的元数据到数据库: {list(merged_metadata.keys())}"
+        )
         return True
 
     return True
@@ -304,10 +305,16 @@ def main():
         """,
     )
     parser.add_argument("--avid", type=str, help="只更新指定的 AVID")
-    parser.add_argument("--dry-run", action="store_true", help="预览模式，不实际写入文件")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="预览模式，不实际写入文件"
+    )
     parser.add_argument("--force", action="store_true", help="强制更新所有字段")
-    parser.add_argument("--delay", type=float, default=2.0, help="每次请求之间的延迟（秒）")
-    parser.add_argument("--limit", type=int, default=0, help="只处理前 N 个资源（0 表示不限制）")
+    parser.add_argument(
+        "--delay", type=float, default=2.0, help="每次请求之间的延迟（秒）"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=0, help="只处理前 N 个资源（0 表示不限制）"
+    )
 
     args = parser.parse_args()
 
@@ -371,7 +378,7 @@ def main():
 
     # 输出统计
     logger.info("\n" + "=" * 50)
-    logger.info(f"处理完成！")
+    logger.info("处理完成！")
     logger.info(f"  成功: {success_count}")
     logger.info(f"  失败: {fail_count}")
     logger.info(f"  跳过: {skip_count}")

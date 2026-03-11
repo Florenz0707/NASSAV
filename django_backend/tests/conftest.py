@@ -147,9 +147,9 @@ def bulk_resources(resource_factory):
         for i in range(count):
             kwargs = defaults.copy()
             if "avid" not in kwargs:
-                kwargs["avid"] = f"TEST-{i+1:03d}"
+                kwargs["avid"] = f"TEST-{i + 1:03d}"
             if "original_title" not in kwargs:
-                kwargs["original_title"] = f"测试作品{i+1}"
+                kwargs["original_title"] = f"测试作品{i + 1}"
             resources.append(resource_factory(**kwargs))
         return resources
 

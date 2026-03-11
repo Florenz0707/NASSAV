@@ -1,5 +1,12 @@
 # 项目开发规范（FOR AGENT）
 
+## 普遍规范
+
+- 沟通的时候使用中文，尽量减少表情类emoji的使用
+- 除非用户有明确要求，否则不应该生成新文档
+- 完成一次编写代码后，使用`pre-commit run -a`来修复可能存在的问题
+- Commit Message格式：[Summary] Brief English text to summarize what has been done, no code quotation or emoji.
+
 ## 后端开发
 
 ### 编写代码前
@@ -37,7 +44,7 @@
 - 遵守**合理封装**，**适当复用**、**开放修改**的代码设计原则
 - 沿用目前的UI风格，包括组件格式、主题色和字体等
 
-## 编写代码后
+### 编写代码后
 
 - 使用`pnpm run build | tail -10`测试代码的正确性
 - 使用`pnpm run lint:fix`测试代码的风格规范

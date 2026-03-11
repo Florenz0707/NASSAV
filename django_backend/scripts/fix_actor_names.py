@@ -284,12 +284,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument("--dry-run", action="store_true", help="预览模式，不实际修改数据")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="预览模式，不实际修改数据"
+    )
     parser.add_argument("--avid", type=str, help="只处理指定的 AVID")
     parser.add_argument("--avids", nargs="+", help="批量处理多个 AVID")
     parser.add_argument("--stats", action="store_true", help="只显示统计信息")
-    parser.add_argument("--delay", type=float, default=2.0, help="每次刮削之间的延迟（秒），默认 2")
-    parser.add_argument("--force", action="store_true", help="强制重新刮削所有资源（即使演员名看起来正常）")
+    parser.add_argument(
+        "--delay", type=float, default=2.0, help="每次刮削之间的延迟（秒），默认 2"
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="强制重新刮削所有资源（即使演员名看起来正常）",
+    )
     parser.add_argument("--verbose", action="store_true", help="详细输出模式")
     parser.add_argument("--limit", type=int, help="限制处理的资源数量")
 
@@ -364,7 +372,9 @@ def main():
             continue
 
         needs_fix += 1
-        logger.info(f"[{checked}/{total_resources}] {avid}: 发现异常演员 {abnormal_list}")
+        logger.info(
+            f"[{checked}/{total_resources}] {avid}: 发现异常演员 {abnormal_list}"
+        )
 
         # 重新刮削并更新
         success, message = rescrape_and_update(resource, scraper_manager, args.dry_run)

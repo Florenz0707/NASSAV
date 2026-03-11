@@ -3,11 +3,9 @@ API视图：实现资源管理接口
 所有信息以 resource 目录中的实际资源为准
 统一响应格式: {"code": xxx, "message": xxx, "data": data}
 """
-import json
 
 from django.conf import settings
 from django.http import FileResponse
-from django.urls import reverse
 from django.utils.http import http_date
 from loguru import logger
 from rest_framework import status
@@ -18,7 +16,6 @@ from .api_utils import build_response
 from .serializers import (
     NewResourceSerializer,
     SourceCookieListSerializer,
-    SourceCookieSerializer,
     UserSettingSerializer,
     UserSettingUpdateSerializer,
 )
@@ -149,7 +146,11 @@ class SourceCookieView(APIView):
             except Exception as e:
                 logger.error(f"自动获取 Cookie 异常: {e}")
                 return Response(
-                    {"code": 500, "message": f"自动获取 Cookie 异常: {str(e)}", "data": None},
+                    {
+                        "code": 500,
+                        "message": f"自动获取 Cookie 异常: {str(e)}",
+                        "data": None,
+                    },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
@@ -175,7 +176,11 @@ class SourceCookieView(APIView):
                 )
 
         return Response(
-            {"code": 400, "message": "未提供 cookie 且 auto 未设置为 True", "data": None},
+            {
+                "code": 400,
+                "message": "未提供 cookie 且 auto 未设置为 True",
+                "data": None,
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -743,7 +748,9 @@ class ResourceMetadataView(APIView):
                 "translated_title": resource.translated_title or "",
                 "source": resource.source or "",
                 "release_date": resource.release_date or "",
-                "duration": f"{resource.duration // 60}分钟" if resource.duration else "",
+                "duration": f"{resource.duration // 60}分钟"
+                if resource.duration
+                else "",
                 "director": "",
                 "studio": "",
                 "label": "",
@@ -931,7 +938,9 @@ class DownloadView(APIView):
             resource = AVResource.objects.filter(avid=avid).first()
             if not resource:
                 return build_response(
-                    404, f"{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源", None
+                    404,
+                    f"{avid} 的元数据不存在，请先调用 /api/resource/new 添加资源",
+                    None,
                 )
 
             # 检查是否已下载
@@ -960,6 +969,9 @@ class DownloadView(APIView):
         if is_duplicate:
             return build_response(409, "下载任务已存在", None)
 
+        assert task_result is not None, (
+            "task_result should not be None when not duplicate"
+        )
         task = task_result
 
         return build_response(
@@ -1358,7 +1370,9 @@ class ResourcesBatchView(APIView):
                         )
 
                     except Exception as e:
-                        logger.error(f"批量添加资源失败: {avid}, 错误: {e}", exc_info=True)
+                        logger.error(
+                            f"批量添加资源失败: {avid}, 错误: {e}", exc_info=True
+                        )
                         results.append(
                             {
                                 "action": "add",
@@ -1581,7 +1595,9 @@ class ResourcesBatchView(APIView):
                             continue
 
                         except Exception as e:
-                            logger.error(f"批量刷新资源失败: {avid}, 错误: {e}", exc_info=True)
+                            logger.error(
+                                f"批量刷新资源失败: {avid}, 错误: {e}", exc_info=True
+                            )
                             results.append(
                                 {
                                     "action": "refresh",
@@ -1677,6 +1693,7 @@ class DownloadsBatchSubmitView(APIView):
                         }
                     )
                 else:
+                    assert task_result is not None
                     results.append(
                         {
                             "avid": avid,
@@ -1804,6 +1821,7 @@ class MockDownloadView(APIView):
             if is_duplicate:
                 return build_response(409, "下载任务已存在", None)
 
+            assert task_result is not None
             return build_response(
                 202,
                 "模拟下载任务已提交",

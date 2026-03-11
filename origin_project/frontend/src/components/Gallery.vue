@@ -8,48 +8,37 @@
         class="gallery-item"
         @click="openLightbox(index)"
       >
-        <img
-          :src="image"
-          :alt="'剧照 ' + (index + 1)"
-          loading="lazy"
-        >
+        <img :src="image" :alt="'剧照 ' + (index + 1)" loading="lazy" />
       </div>
     </div>
 
     <!-- 简化版灯箱 - 移除了滑动动画 -->
     <transition name="fade">
-      <div
-        class="lightbox"
-        v-if="showLightbox"
-        @click.self="closeLightbox"
-      >
+      <div class="lightbox" v-if="showLightbox" @click.self="closeLightbox">
         <div class="lightbox-content">
           <button class="close-btn" @click="closeLightbox">
             <svg width="24" height="24" viewBox="0 0 24 24">
-              <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              <path
+                fill="currentColor"
+                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+              />
             </svg>
           </button>
 
-          <img
-            :src="images[currentIndex]"
-            class="lightbox-image"
-            @click.stop
-          >
+          <img :src="images[currentIndex]" class="lightbox-image" @click.stop />
 
           <button class="nav-btn prev" @click.stop="prevImage">
             <svg width="24" height="24" viewBox="0 0 24 24">
-              <path fill="currentColor" d="M15.41 16.09l-4.58-4.59 4.58-4.59L14 5.5l-6 6 6 6z"/>
+              <path fill="currentColor" d="M15.41 16.09l-4.58-4.59 4.58-4.59L14 5.5l-6 6 6 6z" />
             </svg>
           </button>
           <button class="nav-btn next" @click.stop="nextImage">
             <svg width="24" height="24" viewBox="0 0 24 24">
-              <path fill="currentColor" d="M8.59 16.34l4.58-4.59-4.58-4.59L10 5.75l6 6-6 6z"/>
+              <path fill="currentColor" d="M8.59 16.34l4.58-4.59-4.58-4.59L10 5.75l6 6-6 6z" />
             </svg>
           </button>
 
-          <div class="image-counter">
-            {{ currentIndex + 1 }} / {{ images.length }}
-          </div>
+          <div class="image-counter">{{ currentIndex + 1 }} / {{ images.length }}</div>
         </div>
       </div>
     </transition>
@@ -61,13 +50,13 @@ export default {
   props: {
     images: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   data() {
     return {
       showLightbox: false,
-      currentIndex: 0
+      currentIndex: 0,
     }
   },
   methods: {
@@ -92,8 +81,8 @@ export default {
       if (e.key === 'Escape') this.closeLightbox()
       if (e.key === 'ArrowLeft') this.prevImage()
       if (e.key === 'ArrowRight') this.nextImage()
-    }
-  }
+    },
+  },
 }
 </script>
 

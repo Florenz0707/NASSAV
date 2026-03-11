@@ -1,4 +1,5 @@
 """测试实际资源KIR-062的完整流程和字段值"""
+
 import pytest
 from loguru import logger
 
@@ -16,11 +17,11 @@ def test_kir062_full_workflow():
 
     try:
         # 执行添加资源操作
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"开始测试资源: {avid}")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"{'=' * 60}\n")
 
-        result = resource_service.add_resource(
+        resource_service.add_resource(
             avid=avid,
             source="any",
             scrape=True,
@@ -31,9 +32,9 @@ def test_kir062_full_workflow():
         # 从数据库重新获取资源
         resource = AVResource.objects.get(avid=avid)
 
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info("字段验证结果:")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"{'=' * 60}\n")
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # 1. 验证基本字段
@@ -62,14 +63,14 @@ def test_kir062_full_workflow():
 
         logger.info(f"   source_title: {resource.source_title}")
         assert resource.source_title, "❌ source_title字段为空"
-        assert resource.source_title.startswith(
-            avid
-        ), f"❌ source_title未以{avid}开头: {resource.source_title}"
+        assert resource.source_title.startswith(avid), (
+            f"❌ source_title未以{avid}开头: {resource.source_title}"
+        )
         logger.info(f"   ✓ source_title正确且以{avid}开头")
 
         logger.info(f"   original_title: {resource.original_title}")
         assert resource.original_title, "❌ original_title字段为空"
-        logger.info(f"   ✓ original_title已设置")
+        logger.info("   ✓ original_title已设置")
 
         logger.info(f"   translated_title: {resource.translated_title or '(未翻译)'}")
         logger.info(f"   translation_status: {resource.translation_status}")
@@ -90,14 +91,14 @@ def test_kir062_full_workflow():
             f"   duration: {resource.duration} 秒 ({resource.duration // 60} 分钟)"
         )
         assert resource.duration > 0, "duration字段为0"
-        assert isinstance(
-            resource.duration, int
-        ), f"duration类型错误: {type(resource.duration)}"
+        assert isinstance(resource.duration, int), (
+            f"duration类型错误: {type(resource.duration)}"
+        )
 
         logger.info(f"   cover_filename: {resource.cover_filename}")
-        assert (
-            resource.cover_filename == f"{avid}.jpg"
-        ), f"cover_filename错误: {resource.cover_filename}"
+        assert resource.cover_filename == f"{avid}.jpg", (
+            f"cover_filename错误: {resource.cover_filename}"
+        )
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # 4. 验证metadata JSON字段
@@ -125,7 +126,7 @@ def test_kir062_full_workflow():
             "actors",
             "actor_avatars",
         ]
-        logger.info(f"\n   可选刮削字段:")
+        logger.info("\n   可选刮削字段:")
         for field in optional_fields:
             if field in metadata:
                 value = metadata[field]
@@ -162,39 +163,39 @@ def test_kir062_full_workflow():
 
         # metadata中的title应该等于数据库的original_title
         if "title" in metadata and metadata["title"]:
-            assert (
-                metadata["title"] == resource.original_title
-            ), f"metadata.title ({metadata['title']}) != original_title ({resource.original_title})"
-            logger.info(f"   ✓ metadata.title == original_title")
+            assert metadata["title"] == resource.original_title, (
+                f"metadata.title ({metadata['title']}) != original_title ({resource.original_title})"
+            )
+            logger.info("   ✓ metadata.title == original_title")
 
         # metadata中的release_date应该等于数据库的release_date
         if "release_date" in metadata and metadata["release_date"]:
-            assert (
-                metadata["release_date"] == resource.release_date
-            ), f"metadata.release_date != release_date"
-            logger.info(f"   ✓ metadata.release_date == release_date")
+            assert metadata["release_date"] == resource.release_date, (
+                "metadata.release_date != release_date"
+            )
+            logger.info("   ✓ metadata.release_date == release_date")
 
         # metadata中的m3u8应该等于数据库的m3u8
         if "m3u8" in metadata and metadata["m3u8"]:
-            assert metadata["m3u8"] == resource.m3u8, f"metadata.m3u8 != m3u8"
-            logger.info(f"   ✓ metadata.m3u8 == m3u8")
+            assert metadata["m3u8"] == resource.m3u8, "metadata.m3u8 != m3u8"
+            logger.info("   ✓ metadata.m3u8 == m3u8")
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # 7. 详细打印metadata内容（用于调试）
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        logger.info(f"\n7. 完整metadata内容:")
+        logger.info("\n7. 完整metadata内容:")
         import json
 
         logger.info(json.dumps(metadata, ensure_ascii=False, indent=2))
 
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info("✓ 所有字段验证通过")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"{'=' * 60}\n")
 
     finally:
         # 清理：删除测试数据
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info("清理测试数据...")
         deleted_count, _ = AVResource.objects.filter(avid=avid).delete()
         logger.info(f"已删除 {deleted_count} 条记录")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"{'=' * 60}\n")

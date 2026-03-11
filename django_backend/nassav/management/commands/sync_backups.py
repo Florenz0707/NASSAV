@@ -13,7 +13,7 @@ Django management command: 同步备份文件到外部目录
     - celery_beat/ 目录下的报告文件（celerybeat-schedule除外）
     - log/ 目录下的日志文件
 """
-import os
+
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -246,8 +246,9 @@ class Command(BaseCommand):
         Returns:
             格式化后的字符串（如 "1.5 MB"）
         """
+        size: float = size_bytes
         for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.2f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.2f} PB"
+            if size < 1024.0:
+                return f"{size:.2f} {unit}"
+            size /= 1024.0
+        return f"{size:.2f} PB"

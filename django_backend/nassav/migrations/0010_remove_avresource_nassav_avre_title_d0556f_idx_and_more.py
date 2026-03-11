@@ -16,12 +16,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="avresource",
             name="is_favorite",
-            field=models.BooleanField(db_index=True, default=False, help_text="是否收藏"),
+            field=models.BooleanField(
+                db_index=True, default=False, help_text="是否收藏"
+            ),
         ),
         migrations.AddField(
             model_name="avresource",
             name="watched",
-            field=models.BooleanField(db_index=True, default=False, help_text="是否已观看"),
+            field=models.BooleanField(
+                db_index=True, default=False, help_text="是否已观看"
+            ),
         ),
         migrations.AlterField(
             model_name="avresource",

@@ -1,6 +1,7 @@
 """
 Celery configuration for django_project.
 """
+
 import os
 
 from celery import Celery

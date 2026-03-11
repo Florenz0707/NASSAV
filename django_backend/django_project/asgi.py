@@ -1,6 +1,7 @@
 """
 ASGI config for django_project project.
 """
+
 import os
 
 from channels.auth import AuthMiddlewareStack

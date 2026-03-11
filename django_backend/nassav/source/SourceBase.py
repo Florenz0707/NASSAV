@@ -108,17 +108,19 @@ class SourceBase:
             headers = HEADERS.copy()
             for i in range(self.cookie_retry_times):
                 session = requests.Session()
-                logger.info(f"{source_name}: 正在访问 {home_url} 获取cookie... 重试次数：{i + 1}")
+                logger.info(
+                    f"{source_name}: 正在访问 {home_url} 获取cookie... 重试次数：{i + 1}"
+                )
                 response = session.get(
                     home_url,
-                    proxies=self.proxies,
+                    proxies=self.proxies,  # type: ignore
                     headers=headers,
                     timeout=self.timeout,
                     impersonate=IMPERSONATE,
                 )
                 try:
                     response.raise_for_status()
-                except HTTPError as err:
+                except HTTPError:
                     logger.info(f"{source_name}: 获取失败，进行重试...")
                     sleep(0.5)
                     continue
@@ -130,7 +132,9 @@ class SourceBase:
                     sleep(0.5)
                 else:
                     cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-                    logger.info(f"{source_name}: 成功获取cookie: {list(cookies.keys())}")
+                    logger.info(
+                        f"{source_name}: 成功获取cookie: {list(cookies.keys())}"
+                    )
 
                     SourceCookie.objects.update_or_create(
                         source_name=source_name, defaults={"cookie": cookie_str}
@@ -160,7 +164,9 @@ class SourceBase:
             logger.info(f"{source_name}: 从数据库加载cookie成功")
             return True
         except Exception as e:
-            logger.warning(f"{self.get_source_name()}: 从数据库加载cookie失败: {str(e)}")
+            logger.warning(
+                f"{self.get_source_name()}: 从数据库加载cookie失败: {str(e)}"
+            )
             return False
 
     def get_html(self, avid: str) -> Optional[str]:
@@ -182,7 +188,7 @@ class SourceBase:
 
             response = requests.get(
                 url,
-                proxies=self.proxies,
+                proxies=self.proxies,  # type: ignore
                 headers=headers,
                 timeout=self.timeout,
                 impersonate=IMPERSONATE,
@@ -197,7 +203,7 @@ class SourceBase:
             code = None
             try:
                 # curl_cffi 的 HTTPError 可能包含 response 属性
-                if hasattr(e, "response") and e.response is not None:
+                if isinstance(e, HTTPError) and e.response is not None:
                     code = getattr(e.response, "status_code", None)
             except Exception:
                 code = None
@@ -227,7 +233,7 @@ class SourceBase:
                 url,
                 stream=True,
                 impersonate=IMPERSONATE,
-                proxies=self.proxies,
+                proxies=self.proxies,  # type: ignore
                 headers=headers,
                 timeout=self.timeout,
                 allow_redirects=True,

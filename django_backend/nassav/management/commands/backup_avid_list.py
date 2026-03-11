@@ -10,6 +10,7 @@ Django management command: 备份数据库中的 AVID 列表
 备份格式：
     - JSON 文件: backup/avid_backup_{timestamp}.json
 """
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -65,7 +66,9 @@ class Command(BaseCommand):
             with open(json_file, "w", encoding="utf-8") as f:
                 json.dump(backup_data, f, ensure_ascii=False, indent=2)
 
-            self.stdout.write(self.style.SUCCESS(f"  已保存 JSON 格式: {json_file.name}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"  已保存 JSON 格式: {json_file.name}")
+            )
 
             # 清理旧备份
             deleted_count = self.cleanup_old_backups(backup_dir, days)
@@ -76,7 +79,9 @@ class Command(BaseCommand):
             self.stdout.write(f"备份资源数: {total_count}")
             self.stdout.write(f"备份文件: {json_file}")
             if deleted_count > 0:
-                self.stdout.write(self.style.WARNING(f"已清理 {deleted_count} 个旧备份文件"))
+                self.stdout.write(
+                    self.style.WARNING(f"已清理 {deleted_count} 个旧备份文件")
+                )
             self.stdout.write(f"备份保留策略: 保留最近 {days} 天")
             self.stdout.write(self.style.SUCCESS("=" * 60))
 
@@ -107,7 +112,9 @@ class Command(BaseCommand):
                     try:
                         file.unlink()
                         deleted_count += 1
-                        self.stdout.write(self.style.WARNING(f"  已删除旧备份: {file.name}"))
+                        self.stdout.write(
+                            self.style.WARNING(f"  已删除旧备份: {file.name}")
+                        )
                     except Exception as e:
                         self.stdout.write(
                             self.style.WARNING(f"  删除文件失败 {file.name}: {e}")

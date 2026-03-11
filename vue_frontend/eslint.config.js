@@ -32,10 +32,13 @@ export default [
     rules: {
       // 自定义规则
       'vue/multi-word-component-names': 'off', // 允许单词组件名
-      'no-unused-vars': ['warn', {
-        argsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_'
-      }], // 未使用变量警告
+      'no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ], // 未使用变量警告
       'vue/no-unused-vars': ['warn', { ignorePattern: '^_' }], // Vue 未使用变量警告
       'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off', // 生产环境警告 console
       'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off', // 生产环境禁止 debugger

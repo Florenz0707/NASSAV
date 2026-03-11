@@ -1,0 +1,19 @@
+{
+  "include": ["django_backend/*"],
+  "exclude": [
+    "**/.*",
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules",
+    "origin_project/*",
+    "vue_frontend/*",
+    "django_backend/scripts/*",
+    "django_backend/tests/*"
+  ],
+  "venvPath": "django_backend",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.12",
+  "pythonPlatform": "All"
+}

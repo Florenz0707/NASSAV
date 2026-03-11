@@ -1,7 +1,6 @@
 # Generated manually on 2026-01-10
 
 from django.db import migrations, models
-from django.utils import timezone
 
 
 def copy_metadata_updated_at_to_created_at(apps, schema_editor):
@@ -36,7 +35,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="avresource",
             name="metadata_created_at",
-            field=models.DateTimeField(blank=True, null=True, help_text="元数据首次创建时间"),
+            field=models.DateTimeField(
+                blank=True, null=True, help_text="元数据首次创建时间"
+            ),
         ),
         # 第四步：将 metadata_updated_at 的值复制到 metadata_created_at
         migrations.RunPython(

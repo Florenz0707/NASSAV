@@ -1,5 +1,5 @@
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List
 
@@ -29,9 +29,9 @@ class AVDownloadInfo:
     studio: str = ""  # 制作商
     label: str = ""  # 发行商
     series: str = ""  # 系列
-    genres: List[str] = None  # 类别
-    actors: List[str] = None  # 演员
-    actor_avatars: dict = None  # 演员头像URL映射 {演员名: URL}
+    genres: List[str] = field(default_factory=list)  # 类别
+    actors: List[str] = field(default_factory=list)  # 演员
+    actor_avatars: dict = field(default_factory=dict)  # 演员头像URL映射 {演员名: URL}
 
     def __post_init__(self):
         if self.genres is None:

@@ -1,6 +1,7 @@
 """
 Translator 基类 - 定义翻译器的通用接口
 """
+
 from abc import ABC, abstractmethod
 from typing import Optional, Protocol
 

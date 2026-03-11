@@ -10,7 +10,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--apply", action="store_true", help="将修复写回数据库")
         parser.add_argument("--limit", type=int, default=None, help="仅处理前 N 条记录")
-        parser.add_argument("--report", type=str, default=None, help="写入 JSON 报告文件路径")
+        parser.add_argument(
+            "--report", type=str, default=None, help="写入 JSON 报告文件路径"
+        )
 
     def handle(self, *args, **options):
         from django.conf import settings
@@ -54,7 +56,7 @@ class Command(BaseCommand):
                 cover_path = cover_root / (obj.cover_filename or f"{avid}.jpg")
 
                 mp4_exists = mp4_path.exists()
-                cover_exists = cover_path.exists()
+                cover_path.exists()
                 mp4_size = mp4_path.stat().st_size if mp4_exists else None
 
                 # Determine discrepancies

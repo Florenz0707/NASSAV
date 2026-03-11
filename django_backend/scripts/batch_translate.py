@@ -45,7 +45,7 @@ import django
 django.setup()
 
 from nassav.models import AVResource
-from nassav.tasks import batch_translate_titles_task, translate_title_task
+from nassav.tasks import batch_translate_titles_task
 
 
 def get_status_stats():
@@ -181,7 +181,7 @@ def run_dry_run(resources, verbose=True):
         print(f"\n[{idx}/{total}] {avid}")
 
         if not title:
-            print(f"  ⏭️  无标题，将跳过")
+            print("  ⏭️  无标题，将跳过")
             continue
 
         print(f"  原标题: {title}")
@@ -189,7 +189,7 @@ def run_dry_run(resources, verbose=True):
         if current_translation:
             print(f"  原译文: {current_translation}")
         else:
-            print(f"  原译文: (无)")
+            print("  原译文: (无)")
 
         # 调用翻译器获取预览译文
         try:
@@ -197,9 +197,9 @@ def run_dry_run(resources, verbose=True):
             if preview_translation:
                 print(f"  预览译文: {preview_translation}")
                 if current_translation and current_translation != preview_translation:
-                    print(f"  📝 译文有变化")
+                    print("  📝 译文有变化")
             else:
-                print(f"  预览译文: ❌ 翻译失败")
+                print("  预览译文: ❌ 翻译失败")
         except Exception as e:
             print(f"  预览译文: ❌ 错误: {e}")
 
@@ -227,7 +227,7 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
         ).count()
     )
 
-    print(f"\n🚀 提交 Celery 异步翻译任务...")
+    print("\n🚀 提交 Celery 异步翻译任务...")
     print(f"   待翻译数量: {total}")
 
     try:
@@ -237,7 +237,7 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
         )
 
         print(f"   任务 ID: {task_result.id}")
-        print(f"\n⏳ 等待任务完成...\n")
+        print("\n⏳ 等待任务完成...\n")
 
         # 等待任务完成并获取结果
         start_time = time.time()
@@ -259,7 +259,7 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
         result = task_result.result
 
         if result and result.get("success"):
-            print(f"\n✅ 批量翻译任务完成!")
+            print("\n✅ 批量翻译任务完成!")
             print(f"   总计: {result.get('total', 0)}")
             print(f"   成功: {result.get('translated', 0)}")
             print(f"   失败: {result.get('failed', 0)}")
@@ -295,20 +295,27 @@ def main():
 
     parser.add_argument("--limit", "-l", type=int, default=None, help="限制翻译数量")
 
-    parser.add_argument("--avids", "-a", nargs="+", default=None, help="指定要翻译的 AVID 列表")
+    parser.add_argument(
+        "--avids", "-a", nargs="+", default=None, help="指定要翻译的 AVID 列表"
+    )
 
     parser.add_argument(
         "--sync", "-s", action="store_true", help="使用同步模式（不需要 Celery worker）"
     )
 
-    parser.add_argument("--force", "-f", action="store_true", help="强制重新翻译（包括已翻译的）")
+    parser.add_argument(
+        "--force", "-f", action="store_true", help="强制重新翻译（包括已翻译的）"
+    )
 
     parser.add_argument("--status", action="store_true", help="只显示翻译状态统计")
 
     parser.add_argument("--quiet", "-q", action="store_true", help="静默模式，减少输出")
 
     parser.add_argument(
-        "--dry-run", "-d", action="store_true", help="预览模式，显示预处理结果但不实际翻译（需配合 --sync 使用）"
+        "--dry-run",
+        "-d",
+        action="store_true",
+        help="预览模式，显示预处理结果但不实际翻译（需配合 --sync 使用）",
     )
 
     args = parser.parse_args()

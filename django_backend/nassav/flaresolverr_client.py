@@ -69,6 +69,6 @@ class FlareSolverrClient:
             return None
         cookies = solution.get("cookies", [])
         if not cookies:
-            logger.warning(f"FlareSolverr 未返回任何 cookie")
+            logger.warning("FlareSolverr 未返回任何 cookie")
             return None
         return "; ".join(f"{c['name']}={c['value']}" for c in cookies)

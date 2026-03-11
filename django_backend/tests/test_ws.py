@@ -25,7 +25,6 @@ WebSocket 连接测试
 """
 
 import asyncio
-import json
 
 from channels.testing import WebsocketCommunicator
 from django.test import TransactionTestCase

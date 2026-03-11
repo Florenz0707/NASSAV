@@ -1,6 +1,7 @@
 """
 JavBus 风格刮削器 - 适用于 JavBus 及其镜像站（Busdmm, Dmmsee 等）
 """
+
 import re
 from typing import Optional
 
@@ -215,7 +216,7 @@ class Javbus(ScraperBase):
                 response = requests.get(
                     url,
                     headers=headers,
-                    proxies=self.proxies,
+                    proxies=self.proxies,  # type: ignore
                     timeout=self.timeout,
                     impersonate=IMPERSONATE,
                 )

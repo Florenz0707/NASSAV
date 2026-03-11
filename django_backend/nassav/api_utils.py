@@ -13,7 +13,7 @@ STATUS_MAP = {
 }
 
 
-def build_response(code: int, message: str, data=None, pagination: dict = None):
+def build_response(code: int, message: str, data=None, pagination: dict | None = None):
     """Return a DRF Response using project's envelope and mapped HTTP status.
 
     All views should call this helper to produce consistent responses. Optionally

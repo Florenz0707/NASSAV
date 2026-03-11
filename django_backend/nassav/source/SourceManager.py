@@ -1,8 +1,6 @@
-import json
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
@@ -95,6 +93,9 @@ class SourceManager:
             logger.warning(f"未找到源 {source_name}")
             return False
 
+        if not actual_name:
+            return False
+
         # 更新内存中的 cookie
         target_source.set_cookie(cookie)
         logger.info(f"已设置 {actual_name} 的 Cookie")
@@ -124,7 +125,10 @@ class SourceManager:
     def get_info_from_any_source(
         self, avid: str
     ) -> Tuple[
-        Optional[AVDownloadInfo], Optional[SourceBase], Optional[str], Dict[str, object]
+        Optional[AVDownloadInfo],
+        Optional[SourceBase],
+        Optional[str],
+        Dict[str, int | None],
     ]:
         """
         遍历所有源获取信息
@@ -152,12 +156,11 @@ class SourceManager:
                 # 重建 AVDownloadInfo 对象
                 if info_dict:
                     info = AVDownloadInfo(
-                        avid=info_dict.get("avid"),
-                        title=info_dict.get("title"),
-                        m3u8=info_dict.get("m3u8"),
-                        cover_url=info_dict.get("cover_url"),
-                        source=info_dict.get("source"),
-                        duration=info_dict.get("duration"),
+                        avid=info_dict.get("avid", ""),
+                        title=info_dict.get("title", ""),
+                        m3u8=info_dict.get("m3u8", ""),
+                        source=info_dict.get("source", ""),
+                        duration=info_dict.get("duration", ""),
                     )
                     # 获取对应的 source 对象
                     source = self.sources.get(source_name)
@@ -169,7 +172,7 @@ class SourceManager:
 
         self._ensure_cookies_loaded()
 
-        errors: Dict[str, object] = {}
+        errors: Dict[str, int | None] = {}
 
         for name, source in self.get_sorted_sources():
             logger.info(f"尝试从 {name} 获取 {avid}")
@@ -202,7 +205,6 @@ class SourceManager:
                                 "avid": info.avid,
                                 "title": info.title,
                                 "m3u8": info.m3u8,
-                                "cover_url": info.cover_url,
                                 "source": info.source,
                                 "duration": info.duration,
                             },
@@ -222,7 +224,10 @@ class SourceManager:
     def get_info_from_source(
         self, avid: str, source_str: str
     ) -> Tuple[
-        Optional[AVDownloadInfo], Optional[SourceBase], Optional[str], Dict[str, object]
+        Optional[AVDownloadInfo],
+        Optional[SourceBase],
+        Optional[str],
+        Dict[str, int | None],
     ]:
         """
         从指定源获取信息
@@ -230,7 +235,7 @@ class SourceManager:
         """
         self._ensure_cookies_loaded()
 
-        errors: Dict[str, object] = {}
+        errors: Dict[str, int | None] = {}
 
         # 查找对应的下载器（不区分大小写）
         source = None

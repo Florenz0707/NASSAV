@@ -161,7 +161,7 @@ def cleanup_unused_genres(dry_run=True):
     if dry_run:
         logger.warning("\n⚠️  这是预览模式，不会实际删除数据")
         logger.info("使用 --execute 参数来实际执行删除操作")
-        logger.info(f"提示: 可以使用 --export 参数导出列表到文件")
+        logger.info("提示: 可以使用 --export 参数导出列表到文件")
     else:
         logger.warning(f"\n⚠️  即将删除 {len(unused_genres)} 个类别")
         logger.info("开始删除...")
@@ -198,12 +198,17 @@ def main():
 
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
-        "--dry-run", action="store_true", default=True, help="预览模式，不实际删除（默认）"
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="预览模式，不实际删除（默认）",
     )
     mode_group.add_argument("--execute", action="store_true", help="实际执行删除操作")
     mode_group.add_argument("--stats", action="store_true", help="只显示统计信息")
 
-    parser.add_argument("--export", type=str, metavar="FILE", help="导出类别列表到 JSON 文件")
+    parser.add_argument(
+        "--export", type=str, metavar="FILE", help="导出类别列表到 JSON 文件"
+    )
 
     args = parser.parse_args()
 

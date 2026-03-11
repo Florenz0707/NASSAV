@@ -1,18 +1,18 @@
 <template>
-    <div class="detail-container" v-if="video">
-        <div class="header">
-            <h1>{{ video.title }}</h1>
-            <p class="release-date">发行日期: {{ video.releaseDate }}</p>
-        </div>
-
-        <div class="content">
-            <div class="poster">
-                <img :src="video.poster" :alt="video.title">
-            </div>
-
-            <Gallery :images="video.fanarts" />
-        </div>
+  <div class="detail-container" v-if="video">
+    <div class="header">
+      <h1>{{ video.title }}</h1>
+      <p class="release-date">发行日期: {{ video.releaseDate }}</p>
     </div>
+
+    <div class="content">
+      <div class="poster">
+        <img :src="video.poster" :alt="video.title" />
+      </div>
+
+      <Gallery :images="video.fanarts" />
+    </div>
+  </div>
 </template>
 
 <script>
@@ -20,16 +20,16 @@ import Gallery from '../components/Gallery.vue'
 import videosApi from '../api/videos'
 
 export default {
-    components: { Gallery },
-    props: ['id'],
-    data() {
-        return {
-            video: null
-        }
-    },
-    async created() {
-        this.video = await videosApi.getVideoDetail(this.id)
+  components: { Gallery },
+  props: ['id'],
+  data() {
+    return {
+      video: null,
     }
+  },
+  async created() {
+    this.video = await videosApi.getVideoDetail(this.id)
+  },
 }
 </script>
 

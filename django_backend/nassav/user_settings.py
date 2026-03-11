@@ -2,6 +2,7 @@
 用户设置管理模块
 管理 config/user_settings.ini 文件
 """
+
 import configparser
 from pathlib import Path
 from typing import Any, Dict
@@ -28,7 +29,7 @@ class UserSettingsManager:
         # font_family 不需要验证，因为后端不提供字体资源
     }
 
-    def __init__(self, config_path: Path = None):
+    def __init__(self, config_path: Path | None = None):
         """初始化设置管理器"""
         if config_path is None:
             # 优先从 Django settings 读取路径
@@ -46,6 +47,7 @@ class UserSettingsManager:
                 base_dir = Path(__file__).resolve().parent.parent
                 config_path = base_dir / "config" / "user_settings.ini"
 
+        assert config_path is not None, "config_path should not be None"
         self.config_path = Path(config_path)
         self.config = configparser.ConfigParser()
         self._last_mtime = None  # 记录配置文件的最后修改时间
@@ -166,7 +168,9 @@ class UserSettingsManager:
         # 验证配置值
         if key in self.VALID_VALUES:
             if value not in self.VALID_VALUES[key]:
-                logger.warning(f"无效的配置值: {key}={value}, 有效值: {self.VALID_VALUES[key]}")
+                logger.warning(
+                    f"无效的配置值: {key}={value}, 有效值: {self.VALID_VALUES[key]}"
+                )
                 return False
 
         # 查找配置项所在的 section

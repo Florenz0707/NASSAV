@@ -32,6 +32,7 @@
     - 保持图片宽高比，按宽度缩放
     - 输出为 JPEG 格式，质量 85%
 """
+
 import argparse
 import sys
 from pathlib import Path

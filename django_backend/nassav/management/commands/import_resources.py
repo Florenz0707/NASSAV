@@ -6,6 +6,7 @@
 
 功能：遍历 settings.RESOURCE_DIR 下的子目录，读取 {avid}.json 并写入 AVResource/Actor/Genre。
 """
+
 from __future__ import annotations
 
 import datetime
@@ -73,7 +74,7 @@ class Command(BaseCommand):
         limit: int = options.get("limit", 0)
         skip_missing = options.get("skip_missing_json", False)
 
-        resource_dir: Path = getattr(settings, "RESOURCE_DIR", None)
+        resource_dir: Path | None = getattr(settings, "RESOURCE_DIR", None)
         if resource_dir is None:
             self.stderr.write("settings.RESOURCE_DIR 未配置")
             return
@@ -102,7 +103,6 @@ class Command(BaseCommand):
 
             avid = item.name.upper()
             json_path = item / f"{avid}.json"
-            html_path = item / f"{avid}.html"
 
             # DB-first: 如果 DB 中已存在记录，默认跳过（除非 --force）
             try:
@@ -111,7 +111,9 @@ class Command(BaseCommand):
                 existing = None
 
             if existing and not options.get("force"):
-                self.stdout.write(f"已存在 DB 记录，跳过 {avid}（使用 --force 强制覆盖）")
+                self.stdout.write(
+                    f"已存在 DB 记录，跳过 {avid}（使用 --force 强制覆盖）"
+                )
                 skipped += 1
                 continue
 
@@ -133,6 +135,9 @@ class Command(BaseCommand):
                 except Exception as e:
                     errors.append(f"{avid}: 读取 JSON 失败: {e}")
                     continue
+
+            if data is None:
+                data = {}
 
             # 解析常用字段（兼容性处理）
             title = data.get("title") or data.get("name") or ""

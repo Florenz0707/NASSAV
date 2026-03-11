@@ -1,8 +1,9 @@
 """
 服务层：封装下载器和刮削器逻辑
 """
+
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -44,7 +45,7 @@ class VideoDownloadService:
         self.m3u8_downloader = m3u8_downloader
 
     def download_video(
-        self, avid: str, progress_callback: Optional[callable] = None
+        self, avid: str, progress_callback: Optional[Callable] = None
     ) -> bool:
         """
         下载视频
@@ -111,7 +112,7 @@ class VideoDownloadService:
         avid: str,
         domain: str,
         total_duration: Optional[int] = None,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
     ) -> bool:
         """使用注入的 M3U8 下载器下载视频"""
         avid_upper = avid.upper()

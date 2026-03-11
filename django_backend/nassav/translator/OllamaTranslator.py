@@ -1,6 +1,7 @@
 """
 Ollama Translator - 使用本地 Ollama 服务进行翻译
 """
+
 import time
 from typing import Optional
 
@@ -14,7 +15,7 @@ from .TranslatorBase import TranslatorBase
 class OllamaTranslator(TranslatorBase):
     """Ollama 翻译器"""
 
-    def __init__(self, timeout: int = 30, config_name: str = None):
+    def __init__(self, timeout: int = 30, config_name: str | None = None):
         """
         初始化 Ollama 翻译器
 
@@ -39,7 +40,8 @@ class OllamaTranslator(TranslatorBase):
         self.model = ollama_config.get("model", "qwen2.5:7b")
         self.max_retries = ollama_config.get("max_retries", 3)
         self.prompt_template = ollama_config.get(
-            "prompt_template", "将以下日语标题翻译成简体中文，只返回翻译结果，不要添加任何解释或额外内容：\n{text}"
+            "prompt_template",
+            "将以下日语标题翻译成简体中文，只返回翻译结果，不要添加任何解释或额外内容：\n{text}",
         )
 
         logger.info(
@@ -199,7 +201,7 @@ class OllamaTranslator(TranslatorBase):
                 },
                 timeout=self.timeout,
             )
-            elapsed = time.time() - start_time
+            time.time() - start_time
 
             response.raise_for_status()
             result = response.json()

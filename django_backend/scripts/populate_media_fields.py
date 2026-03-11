@@ -32,6 +32,7 @@
     - 使用 --apply 才会写入数据库
     - 使用 --force 会覆盖已存在的值
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,7 +92,6 @@ def main():
 
     from django.conf import settings
     from django.db import transaction
-    from django.utils import timezone
     from nassav.models import AVResource
 
     cover_root = Path(settings.COVER_DIR)

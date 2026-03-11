@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from rest_framework.fields import Field
 
-from .models import AVResource
-
 
 # Local SerializerMethodField implementation to avoid site-packages corruption
 class LocalSerializerMethodField(Field):
@@ -17,7 +15,7 @@ class LocalSerializerMethodField(Field):
         super().bind(field_name, parent)
 
     def to_representation(self, value):
-        method = getattr(self.parent, self.method_name)
+        method = getattr(self.parent, self.method_name)  # type: ignore
         return method(value)
 
     def get_attribute(self, instance):
@@ -29,7 +27,7 @@ class NewResourceSerializer(serializers.Serializer):
     """新增资源请求序列化器"""
 
     avid = serializers.CharField(max_length=50)
-    source = serializers.CharField(max_length=50, default="any", required=False)
+    source = serializers.CharField(max_length=50, default="any", required=False)  # type: ignore
 
 
 class DownloadRequestSerializer(serializers.Serializer):
@@ -41,15 +39,15 @@ class DownloadRequestSerializer(serializers.Serializer):
 class SourceCookieSerializer(serializers.Serializer):
     """设置源Cookie请求序列化器"""
 
-    source = serializers.CharField(max_length=50)
-    cookie = serializers.CharField()
+    source = serializers.CharField(max_length=50)  # type: ignore
+    cookie = serializers.CharField()  # type: ignore
 
 
 class SourceCookieListSerializer(serializers.Serializer):
     """获取源Cookie列表序列化器"""
 
-    source = serializers.CharField(source="source_name")
-    cookie = serializers.CharField()
+    source = serializers.CharField(source="source_name")  # type: ignore
+    cookie = serializers.CharField()  # type: ignore
     mtime = serializers.DateTimeField(source="updated_at")
 
 
@@ -89,7 +87,7 @@ class ResourceSummarySerializer(serializers.Serializer):
     original_title = serializers.CharField(allow_blank=True)
     source_title = serializers.CharField(allow_blank=True, allow_null=True)
     translated_title = serializers.CharField(allow_blank=True, allow_null=True)
-    source = serializers.CharField(allow_blank=True)
+    source = serializers.CharField(allow_blank=True)  # type: ignore
     release_date = serializers.CharField(allow_blank=True)
     has_video = serializers.BooleanField(source="file_exists")
     watched = serializers.BooleanField()
@@ -157,14 +155,16 @@ class ResourceSerializer(serializers.Serializer):
     translated_title = serializers.CharField(
         allow_blank=True, allow_null=True, required=False
     )
-    translation_status = serializers.CharField(allow_blank=True, required=False)  # 翻译状态
+    translation_status = serializers.CharField(
+        allow_blank=True, required=False
+    )  # 翻译状态
     m3u8 = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    source = serializers.CharField(allow_blank=True, required=False)
+    source = serializers.CharField(allow_blank=True, required=False)  # type: ignore
     release_date = serializers.CharField(allow_blank=True, required=False)
     duration = serializers.IntegerField(allow_null=True, required=False)
     director = serializers.CharField(allow_blank=True, required=False)
     studio = serializers.CharField(allow_blank=True, required=False)
-    label = serializers.CharField(allow_blank=True, required=False)
+    label = serializers.CharField(allow_blank=True, required=False)  # type: ignore
     series = serializers.CharField(allow_blank=True, required=False)
     actors = serializers.ListField(
         child=serializers.CharField(), allow_empty=True, required=False
@@ -182,7 +182,7 @@ class ResourceCreateSerializer(serializers.Serializer):
     """用于创建资源的输入校验序列化器"""
 
     avid = serializers.CharField(max_length=50)
-    source = serializers.CharField(max_length=128, default="any", required=False)
+    source = serializers.CharField(max_length=128, default="any", required=False)  # type: ignore
 
     def validate_avid(self, value):
         return value.strip().upper()

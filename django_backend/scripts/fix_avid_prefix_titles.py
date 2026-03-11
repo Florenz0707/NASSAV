@@ -58,7 +58,6 @@ import django
 
 django.setup()
 
-from django.db.models import Q
 from loguru import logger
 from nassav.models import AVResource
 from nassav.scraper import ScraperManager
@@ -142,7 +141,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
             scraped_data = scraper.scrape(avid)
 
             if not scraped_data:
-                logger.warning(f"  ✗ 刮削失败，跳过")
+                logger.warning("  ✗ 刮削失败，跳过")
                 failed_count += 1
                 time.sleep(delay)
                 continue
@@ -150,20 +149,20 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
             new_title = scraped_data.get("title", "")
 
             if not new_title:
-                logger.warning(f"  ✗ 刮削结果无标题，跳过")
+                logger.warning("  ✗ 刮削结果无标题，跳过")
                 failed_count += 1
                 time.sleep(delay)
                 continue
 
             # 检查新标题是否还是以 AVID 开头
             if new_title.upper().startswith(avid.upper()):
-                logger.warning(f"  ⚠️  新标题仍以 AVID 开头，尝试手动移除")
+                logger.warning("  ⚠️  新标题仍以 AVID 开头，尝试手动移除")
                 # 手动移除 AVID 前缀
                 new_title = re.sub(
                     rf"^{avid}\s*", "", new_title, flags=re.IGNORECASE
                 ).strip()
                 if not new_title:
-                    logger.warning(f"  ✗ 移除 AVID 后标题为空，跳过")
+                    logger.warning("  ✗ 移除 AVID 后标题为空，跳过")
                     failed_count += 1
                     time.sleep(delay)
                     continue
@@ -171,7 +170,7 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
             logger.info(f"  新标题: {new_title[:60]}...")
 
             if old_title == new_title:
-                logger.info(f"  ⚠️  标题未变化，跳过")
+                logger.info("  ⚠️  标题未变化，跳过")
                 skipped_count += 1
                 time.sleep(delay)
                 continue
@@ -180,15 +179,15 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
             if not dry_run:
                 resource.original_title = new_title
                 resource.save(update_fields=["original_title"])
-                logger.info(f"  ✓ 标题已更新")
+                logger.info("  ✓ 标题已更新")
             else:
-                logger.info(f"  [预览] 将更新标题")
+                logger.info("  [预览] 将更新标题")
 
             success_count += 1
 
             # 翻译新标题
             if translate and new_title:
-                logger.info(f"  正在翻译...")
+                logger.info("  正在翻译...")
                 try:
                     translated = translator_manager.translate(new_title)
                     if translated:
@@ -196,12 +195,12 @@ def fix_titles(dry_run: bool = False, delay: float = 2.0, translate: bool = True
                         if not dry_run:
                             resource.translated_title = translated
                             resource.save(update_fields=["translated_title"])
-                            logger.info(f"  ✓ 翻译已保存")
+                            logger.info("  ✓ 翻译已保存")
                         else:
-                            logger.info(f"  [预览] 将保存翻译")
+                            logger.info("  [预览] 将保存翻译")
                         translated_count += 1
                     else:
-                        logger.warning(f"  ⚠️  翻译返回空结果")
+                        logger.warning("  ⚠️  翻译返回空结果")
                 except Exception as e:
                     logger.error(f"  ✗ 翻译失败: {e}")
 

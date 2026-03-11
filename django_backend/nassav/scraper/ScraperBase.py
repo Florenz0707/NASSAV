@@ -1,6 +1,7 @@
 """
 Scraper 基类 - 定义刮削器的通用接口和方法
 """
+
 from typing import Optional, Protocol
 
 from curl_cffi import requests
@@ -66,7 +67,7 @@ class ScraperBase:
         try:
             response = requests.get(
                 url,
-                proxies=self.proxies,
+                proxies=self.proxies,  # type: ignore
                 headers=HEADERS,
                 timeout=self.timeout,
                 impersonate=IMPERSONATE,
@@ -98,7 +99,7 @@ class ScraperBase:
             response = requests.get(
                 url,
                 headers=headers,
-                proxies=self.proxies,
+                proxies=self.proxies,  # type: ignore
                 timeout=self.timeout,
                 impersonate=IMPERSONATE,
                 stream=True,
@@ -114,7 +115,7 @@ class ScraperBase:
                     if chunk:
                         f.write(chunk)
 
-            file_size = os.path.getsize(save_path)
+            os.path.getsize(save_path)
             logger.info(f"封面下载成功: {os.path.basename(save_path)}")
 
             return True
@@ -142,7 +143,9 @@ class ScraperBase:
         返回包含元数据的字典或 None
         """
         avid = avid.upper()
-        logger.info(f"尝试从 {self.get_scraper_name()} ({self.domain}) 刮削 {avid} 的元数据")
+        logger.info(
+            f"尝试从 {self.get_scraper_name()} ({self.domain}) 刮削 {avid} 的元数据"
+        )
         html = self.get_html(avid)
         if html:
             metadata = self.parse_html(html, avid)

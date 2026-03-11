@@ -2,12 +2,11 @@
 import json
 import os
 import re
-import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-from urllib.parse import urljoin, urlparse
+from typing import Optional
+from urllib.parse import urlparse
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 
@@ -122,11 +121,11 @@ class Sracper:
         # 下载图像
         if not self.downloadIMG(metadata):
             return None
-        logger.info(f"download img succ")
+        logger.info("download img succ")
 
         # 生成nfo
         self.genNFO(metadata)
-        logger.info(f"gennfo succ")
+        logger.info("gennfo succ")
         return metadata
 
     def _extract(self, html: str) -> Optional[AVMetadata]:

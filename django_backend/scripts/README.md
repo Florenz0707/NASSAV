@@ -6,18 +6,20 @@
 
 **AVResource 标题字段已重命名**（2024）:
 
-| 旧字段名 | 新字段名 | 说明 |
-|---------|---------|------|
-| `title` | `original_title` | Scraper 获取的原文标题（日语） |
-| `source_title` | `source_title` | Source 获取的备用标题（无变化） |
-| `translated_title` | `translated_title` | 翻译后的标题（中文，无变化） |
+| 旧字段名           | 新字段名           | 说明                            |
+| ------------------ | ------------------ | ------------------------------- |
+| `title`            | `original_title`   | Scraper 获取的原文标题（日语）  |
+| `source_title`     | `source_title`     | Source 获取的备用标题（无变化） |
+| `translated_title` | `translated_title` | 翻译后的标题（中文，无变化）    |
 
 **影响范围**:
+
 - ✅ `fix_avid_prefix_titles.py` - 已更新
 - ✅ `batch_translate.py` - 已更新
 - ✅ `update_metadata_from_javbus.py` - 已更新
 
 **编写新脚本时请注意**:
+
 - 使用 `resource.original_title` 而非 `resource.title`
 - 查询条件应使用 `original_title__isnull` 而非 `title__isnull`
 
@@ -26,6 +28,7 @@
 ### 🔧 常用维护脚本
 
 #### batch_translate.py
+
 批量翻译资源标题
 
 ```bash
@@ -43,6 +46,7 @@ uv run python scripts/batch_translate.py --status
 ```
 
 #### update_metadata_from_javbus.py
+
 从 Javbus 更新资源元数据
 
 ```bash
@@ -60,6 +64,7 @@ uv run python scripts/update_metadata_from_javbus.py --force
 ```
 
 #### fix_avid_prefix_titles.py
+
 修复以 AVID 开头的错误标题
 
 ```bash
@@ -74,6 +79,7 @@ uv run python scripts/fix_avid_prefix_titles.py --execute
 ```
 
 #### fix_actor_names.py
+
 修复数据库中被截断的演员名称
 
 ```bash
@@ -100,6 +106,7 @@ uv run python scripts/fix_actor_names.py --verbose
 ```
 
 #### fix_durations.py
+
 修复视频时长字段
 
 ```bash
@@ -114,6 +121,7 @@ uv run python scripts/fix_durations.py --apply --limit 100
 ```
 
 #### populate_media_fields.py
+
 从磁盘文件填充媒体字段
 
 ```bash
@@ -128,6 +136,7 @@ uv run python scripts/populate_media_fields.py --apply --force
 ```
 
 #### cleanup_unused_genres.py
+
 清理未使用的类别
 
 ```bash
@@ -147,6 +156,7 @@ uv run python scripts/cleanup_unused_genres.py --dry-run --export unused_genres.
 **注意**: 删除操作不可逆，建议先备份数据库
 
 #### backfill_actor_avatars.py
+
 为现有演员批量获取头像
 
 ```bash
@@ -167,12 +177,14 @@ uv run python scripts/backfill_actor_avatars.py --verbose
 ```
 
 **功能说明**:
+
 - 自动从Javbus获取演员头像URL
 - 下载头像图片到 `resource/avatar/` 目录
 - 按作品数倒序处理（优先处理热门演员）
 - 支持断点续传（已有头像的演员自动跳过）
 
 #### fix_actor_avatars.py
+
 检查并修复演员头像文件
 
 ```bash
@@ -196,12 +208,14 @@ uv run python scripts/fix_actor_avatars.py --fix --force --limit 5
 ```
 
 **参数说明**:
+
 - `--fix`: 实际执行修复操作（默认只检查不修复）
 - `--dry-run`: 只检查不修复（默认模式，可省略）
 - `--limit N`: 限制处理的演员数量，用于测试
 - `--force`: 强制重新下载所有头像，即使文件已存在
 
 **功能说明**:
+
 - 检查所有演员的 `avatar_filename` 字段是否为空
 - 如果为空但有 `avatar_url`，尝试下载头像
 - 验证 `avatar_filename` 对应的文件是否实际存在
@@ -211,12 +225,14 @@ uv run python scripts/fix_actor_avatars.py --fix --force --limit 5
 - 提供详细的统计报告
 
 **注意事项**:
+
 - 默认 DRY-RUN 模式不会实际下载，只显示需要处理的项
 - `--force` 参数会重新下载所有头像，请谨慎使用
 
 ### 🎨 资源处理脚本
 
 #### generate_thumbnails.py
+
 生成封面缩略图
 
 ```bash
@@ -235,6 +251,7 @@ uv run python scripts/generate_thumbnails.py --sizes small,medium
 ### 📚 文档生成脚本
 
 #### generate_openapi.py
+
 生成 OpenAPI 文档
 
 ```bash

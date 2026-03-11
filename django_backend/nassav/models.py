@@ -1,6 +1,7 @@
 """
 数据库模型
 """
+
 from django.db import models
 from django.utils import timezone
 
@@ -30,7 +31,10 @@ class Actor(models.Model):
     name = models.CharField(max_length=200, unique=True, db_index=True)
     avatar_url = models.URLField(blank=True, null=True, help_text="Javbus 头像 URL")
     avatar_filename = models.CharField(
-        max_length=255, blank=True, null=True, help_text="头像文件名（存储在 resource/avatar/）"
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="头像文件名（存储在 resource/avatar/）",
     )
     updated_at = models.DateTimeField(auto_now=True, help_text="最后更新时间")
 
@@ -77,7 +81,10 @@ class AVResource(models.Model):
         help_text="Source 获取的标题（备用，来自 MissAV/Jable 等）",
     )
     translated_title = models.CharField(
-        max_length=512, blank=True, null=True, help_text="翻译后的标题（中文，由 Ollama 翻译）"
+        max_length=512,
+        blank=True,
+        null=True,
+        help_text="翻译后的标题（中文，由 Ollama 翻译）",
     )
     translation_status = models.CharField(
         max_length=20,
@@ -97,7 +104,10 @@ class AVResource(models.Model):
     genres = models.ManyToManyField(Genre, blank=True, related_name="resources")
 
     cover_filename = models.CharField(
-        max_length=255, blank=True, null=True, help_text="相对于 resource/{avid}/ 的封面文件名"
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="相对于 resource/{avid}/ 的封面文件名",
     )
     file_exists = models.BooleanField(
         default=False, db_index=True, help_text="是否存在 MP4 文件"
@@ -105,12 +115,16 @@ class AVResource(models.Model):
     file_size = models.BigIntegerField(null=True, blank=True)
 
     watched = models.BooleanField(default=False, db_index=True, help_text="是否已观看")
-    is_favorite = models.BooleanField(default=False, db_index=True, help_text="是否收藏")
+    is_favorite = models.BooleanField(
+        default=False, db_index=True, help_text="是否收藏"
+    )
 
     metadata_created_at = models.DateTimeField(
         null=True, blank=True, help_text="元数据首次创建时间"
     )
-    metadata_updated_at = models.DateTimeField(auto_now=True, help_text="元数据最后更新时间")
+    metadata_updated_at = models.DateTimeField(
+        auto_now=True, help_text="元数据最后更新时间"
+    )
     video_saved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 

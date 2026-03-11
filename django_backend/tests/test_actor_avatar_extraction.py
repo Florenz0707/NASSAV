@@ -1,7 +1,6 @@
 """测试Javbus演员头像URL提取功能"""
-import re
 
-import pytest
+import re
 
 
 def test_avatar_url_extraction():
@@ -72,8 +71,13 @@ def test_avatar_dict_creation():
         actor_avatars[name] = avatar_url
 
     assert len(actor_avatars) == 2
-    assert actor_avatars["めぐり（藤浦めぐ）"] == "https://www.javbus.com/pics/actress/305_a.jpg"
-    assert actor_avatars["波多野結衣"] == "https://www.javbus.com/pics/actress/123_a.jpg"
+    assert (
+        actor_avatars["めぐり（藤浦めぐ）"]
+        == "https://www.javbus.com/pics/actress/305_a.jpg"
+    )
+    assert (
+        actor_avatars["波多野結衣"] == "https://www.javbus.com/pics/actress/123_a.jpg"
+    )
 
 
 def test_filename_extraction():

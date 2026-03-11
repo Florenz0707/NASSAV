@@ -1,21 +1,48 @@
-﻿# See https://pre-commit.com for more information
-# See https://pre-commit.com/hooks.html for more hooks
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+  # 基础文件检查
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
     hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-yaml
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
 
--   repo: https://github.com/pycqa/isort
-    rev: 7.0.0
+  # Prettier (JS / TS / JSON / Markdown / YAML)
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.8.1
     hooks:
-     - id: isort
-       args: ["--profile", "black", "filter-files"]
+      - id: prettier
 
--   repo: https://github.com/psf/black
-    rev: 23.3.0
+  # Markdown 规范检查
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.21.0
     hooks:
-      - id: black
-        language_version: python3.12
+      - id: markdownlint-cli2
+        args: ['--fix'] # 自动修复可修复的问题
+
+  # YAML lint
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+
+  # Python lint + formatter (Ruff)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff-check
+        args: ['--fix'] # 自动修复可修复的问题
+      - id: ruff-format
+
+  # Python 类型检查
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.408
+    hooks:
+      - id: pyright
+
+ci:
+  autoupdate_schedule: weekly

@@ -138,7 +138,7 @@ def fix_actor_avatars(dry_run=False, limit=None, force=False):
                     logger.info(f"  ✓ 头像下载成功并更新数据库: {filename}")
                     stats["download_success"] += 1
                 else:
-                    logger.error(f"  ✗ 头像下载失败")
+                    logger.error("  ✗ 头像下载失败")
                     stats["download_failed"] += 1
             else:
                 logger.info(f"  [DRY-RUN] 将下载: {actor.avatar_url} -> {avatar_path}")
@@ -155,17 +155,21 @@ def fix_actor_avatars(dry_run=False, limit=None, force=False):
                 stats["file_missing"] += 1
 
             if not dry_run:
-                logger.info(f"  → 尝试{'重新' if avatar_path.exists() else ''}下载头像...")
+                logger.info(
+                    f"  → 尝试{'重新' if avatar_path.exists() else ''}下载头像..."
+                )
                 if scraper.download_avatar(actor.avatar_url, str(avatar_path)):
                     logger.info(
                         f"  ✓ 头像{'重新' if force else ''}下载成功: {actor.avatar_filename}"
                     )
                     stats["download_success"] += 1
                 else:
-                    logger.error(f"  ✗ 头像下载失败")
+                    logger.error("  ✗ 头像下载失败")
                     stats["download_failed"] += 1
             else:
-                logger.info(f"  [DRY-RUN] 将重新下载: {actor.avatar_url} -> {avatar_path}")
+                logger.info(
+                    f"  [DRY-RUN] 将重新下载: {actor.avatar_url} -> {avatar_path}"
+                )
         else:
             logger.debug(f"  ✓ 演员 {actor.name} 的头像文件正常")
             stats["ok"] += 1

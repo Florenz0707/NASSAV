@@ -1,6 +1,7 @@
 """
 Translator 模块 - 提供翻译服务
 """
+
 from .OllamaTranslator import OllamaTranslator
 from .TranslatorBase import TranslatorBase
 from .TranslatorManager import (

@@ -1,6 +1,7 @@
 """
 Django 管理命令：检查演员头像一致性
 """
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -26,7 +27,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from django.conf import settings
-        from loguru import logger
         from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
         from nassav.models import Actor
         from nassav.scraper.ScraperManager import ScraperManager
@@ -88,7 +88,7 @@ class Command(BaseCommand):
                     stats["filename_empty"] += 1
                     issue = {
                         "actor": actor.name,
-                        "actor_id": actor.id,
+                        "actor_id": actor.id,  # type: ignore
                         "issue": "filename_empty",
                         "avatar_url": actor.avatar_url,
                     }
@@ -96,7 +96,7 @@ class Command(BaseCommand):
                     # 生成文件名
                     filename = actor.avatar_url.split("/")[-1]
                     if not filename or "." not in filename:
-                        filename = f"{actor.id}.jpg"
+                        filename = f"{actor.id}.jpg"  # type: ignore
 
                     avatar_path = Path(settings.AVATAR_DIR) / filename
 
@@ -123,7 +123,7 @@ class Command(BaseCommand):
                     stats["file_missing"] += 1
                     issue = {
                         "actor": actor.name,
-                        "actor_id": actor.id,
+                        "actor_id": actor.id,  # type: ignore
                         "issue": "file_missing",
                         "avatar_url": actor.avatar_url,
                         "filename": actor.avatar_filename,
@@ -165,7 +165,9 @@ class Command(BaseCommand):
                     report_file.parent.mkdir(parents=True, exist_ok=True)
                     with open(report_file, "w", encoding="utf-8") as f:
                         json.dump(stats, f, ensure_ascii=False, indent=2)
-                    self.stdout.write(self.style.SUCCESS(f"报告已保存到: {report_path}"))
+                    self.stdout.write(
+                        self.style.SUCCESS(f"报告已保存到: {report_path}")
+                    )
                 except Exception as e:
                     self.stderr.write(f"保存报告失败: {e}")
 

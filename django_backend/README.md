@@ -5,6 +5,7 @@
 ## 功能特性
 
 ### 核心功能
+
 - 🎬 **多源资源获取**：支持 8+ 视频源，自动按权重遍历获取
 - 📥 **异步视频下载**：基于 Celery 的异步下载队列，支持 M3U8 流媒体
 - 📊 **实时进度追踪**：从 N_m3u8DL-RE 解析下载进度，支持 REST API 查询和 WebSocket 实时推送
@@ -18,6 +19,7 @@
 - 📡 **Redis 消息支持**：基于 Redis 的消息队列和实时通信
 
 ### 近期新增特性（2026-01）
+
 - 🏗️ **ResourceService 架构实现**（2026-01-07）：
   - 新增 `ResourceService` 服务层，完成从 `SourceManager` 的职责分离
   - 实现完整的资源操作流程编排（添加、刷新、删除、查询）
@@ -45,22 +47,22 @@
 
 ## 技术栈
 
-| 组件                    | 版本    | 说明                          |
-|-----------------------|-------|-----------------------------|
-| Python                | 3.12+ | 运行环境                        |
-| Django                | 5.1+  | Web 框架                      |
-| Django REST Framework | 3.15+ | API 框架                      |
-| Django Channels       | 4.3+  | WebSocket 支持                |
-| Celery                | 5.4+  | 异步任务队列                      |
+| 组件                  | 版本  | 说明                                |
+| --------------------- | ----- | ----------------------------------- |
+| Python                | 3.12+ | 运行环境                            |
+| Django                | 5.1+  | Web 框架                            |
+| Django REST Framework | 3.15+ | API 框架                            |
+| Django Channels       | 4.3+  | WebSocket 支持                      |
+| Celery                | 5.4+  | 异步任务队列                        |
 | Redis                 | -     | 消息队列 & 分布式锁 & Channel Layer |
 | curl_cffi             | -     | HTTP 请求（绕过反爬）               |
-| N_m3u8DL-RE           | -     | M3U8 下载工具                   |
-| Ollama                | -     | AI 翻译引擎（支持多模型）             |
+| N_m3u8DL-RE           | -     | M3U8 下载工具                       |
+| Ollama                | -     | AI 翻译引擎（支持多模型）           |
 | SQLite                | 3     | 元数据存储（通过 Django ORM）       |
 
 ## 项目结构
 
-```
+```bash
 django_backend/
 ├── manage.py                      # Django 管理脚本
 ├── pyproject.toml                 # 依赖配置
@@ -125,10 +127,9 @@ FilePathPrefix: null
 # 注意：backup_database 和 backup_avid_list 命令仍然使用项目根目录下的 backup/ 目录
 BackupPath: /backup/nassav
 
-
 # 翻译器配置
 Translator:
-  active: qwen2.5:7b  # 激活的翻译器
+  active: qwen2.5:7b # 激活的翻译器
   qwen2.5:7b:
     type: ollama
     url: http://localhost:11434
@@ -189,7 +190,7 @@ brew services start redis
 
 #### 启动 Django 服务
 
-**方式一：使用 ASGI 服务器（推荐，支持 WebSocket）**
+### 方式一：使用 ASGI 服务器（推荐，支持 WebSocket）
 
 ```bash
 # 使用 Uvicorn（推荐）
@@ -199,7 +200,7 @@ uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --relo
 uv run daphne -b 0.0.0.0 -p 8000 django_project.asgi:application
 ```
 
-**方式二：使用 Django 开发服务器（不支持 WebSocket）**
+### 方式二：使用 Django 开发服务器（不支持 WebSocket）
 
 ```bash
 uv run python manage.py runserver 0.0.0.0:8000
@@ -232,16 +233,17 @@ uv run celery -A django_project beat -l info
 
 **定时任务说明：**
 
-| 任务名称                              | 执行时间    | 功能描述                                      |
-|-----------------------------------|---------|-----------------------------------------|
-| `backup-database-daily`           | 每天 1:30 | 备份 SQLite 数据库和 WAL 文件，保留 30 天           |
-| `backup-avid-list-daily`          | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天     |
-| `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配            |
-| `sync-backups-daily`              | 每天 4:00 | 同步备份文件到外部目录（/mnt/d/_Files/Ubuntu_Data/nassav） |
-| `db-disk-consistency-daily`       | 每天 7:00 | 检查视频文件与数据库记录的一致性                        |
-| `actor-avatars-consistency-daily` | 每天 7:05 | 检查演员头像完整性                                 |
+| 任务名称                            | 执行时间  | 功能描述                                                    |
+| ----------------------------------- | --------- | ----------------------------------------------------------- |
+| `backup-database-daily`             | 每天 1:30 | 备份 SQLite 数据库和 WAL 文件，保留 30 天                   |
+| `backup-avid-list-daily`            | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天             |
+| `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配        |
+| `sync-backups-daily`                | 每天 4:00 | 同步备份文件到外部目录（/mnt/d/\_Files/Ubuntu_Data/nassav） |
+| `db-disk-consistency-daily`         | 每天 7:00 | 检查视频文件与数据库记录的一致性                            |
+| `actor-avatars-consistency-daily`   | 每天 7:05 | 检查演员头像完整性                                          |
 
 **执行顺序逻辑：**
+
 1. **1:30** - 备份数据库（最重要的备份，优先执行）
 2. **2:00** - 备份 AVID 列表（轻量级备份）
 3. **3:00** - 检查并修复资源一致性（生成报告文件）
@@ -340,41 +342,47 @@ uv run celery -A django_project beat -l info
 
 ## API 文档
 
-#### 源管理
-| 方法   | 端点                     | 说明              |
-|------|------------------------|-----------------|
-| GET  | `/api/source/list`     | 获取可用下载源列表       |
-| POST | `/api/source/cookie`   | 设置下载源 Cookie（手动/自动） |
+### 源管理
+
+| 方法 | 端点                 | 说明                           |
+| ---- | -------------------- | ------------------------------ |
+| GET  | `/api/source/list`   | 获取可用下载源列表             |
+| POST | `/api/source/cookie` | 设置下载源 Cookie（手动/自动） |
 
 #### 资源管理
-| 方法     | 端点                              | 说明                                      |
-|--------|----------------------------------|-------------------------------------------|
-| GET    | `/api/resources/`                | 资源列表（搜索/筛选/分页/排序，支持演员/类别过滤）       |
-| GET    | `/api/actors/`                   | 演员列表及作品数统计（支持分页/搜索/排序）             |
-| GET    | `/api/genres/`                   | 类别列表及作品数统计（支持分页/搜索/排序）             |
-| GET    | `/api/resource/{avid}/preview`   | 资源详情首屏预览（metadata + thumbnail_url）    |
-| GET    | `/api/resource/metadata`         | 获取资源完整元数据（支持 ETag 条件请求）             |
-| GET    | `/api/resource/cover`            | 获取封面/缩略图（支持多尺寸：small/medium/large） |
-| POST   | `/api/resource`                  | 添加新资源                                   |
-| POST   | `/api/resource/refresh/{avid}`   | 刷新资源（细粒度控制：m3u8/metadata/translate）  |
-| DELETE | `/api/resource/{avid}`           | 删除资源及相关文件                               |
+
+| 方法   | 端点                           | 说明                                               |
+| ------ | ------------------------------ | -------------------------------------------------- |
+| GET    | `/api/resources/`              | 资源列表（搜索/筛选/分页/排序，支持演员/类别过滤） |
+| GET    | `/api/actors/`                 | 演员列表及作品数统计（支持分页/搜索/排序）         |
+| GET    | `/api/genres/`                 | 类别列表及作品数统计（支持分页/搜索/排序）         |
+| GET    | `/api/resource/{avid}/preview` | 资源详情首屏预览（metadata + thumbnail_url）       |
+| GET    | `/api/resource/metadata`       | 获取资源完整元数据（支持 ETag 条件请求）           |
+| GET    | `/api/resource/cover`          | 获取封面/缩略图（支持多尺寸：small/medium/large）  |
+| POST   | `/api/resource`                | 添加新资源                                         |
+| POST   | `/api/resource/refresh/{avid}` | 刷新资源（细粒度控制：m3u8/metadata/translate）    |
+| DELETE | `/api/resource/{avid}`         | 删除资源及相关文件                                 |
 
 #### 批量操作
-| 方法   | 端点                              | 说明                            |
-|------|----------------------------------|---------------------------------|
-| POST | `/api/resources/batch`           | 批量资源操作（add/refresh/delete） |
-| POST | `/api/downloads/batch_submit`    | 批量提交下载任务                      |
+
+| 方法 | 端点                          | 说明                               |
+| ---- | ----------------------------- | ---------------------------------- |
+| POST | `/api/resources/batch`        | 批量资源操作（add/refresh/delete） |
+| POST | `/api/downloads/batch_submit` | 批量提交下载任务                   |
 
 #### 下载管理
-| 方法     | 端点                        | 说明           |
-|--------|---------------------------|--------------|
-| GET    | `/api/downloads/abspath`  | 获取视频文件访问路径   |
-| POST   | `/api/downloads/{avid}`   | 提交下载任务       |
-| DELETE | `/api/downloads/{avid}`   | 删除已下载视频      |
+
+| 方法   | 端点                     | 说明                 |
+| ------ | ------------------------ | -------------------- |
+| GET    | `/api/downloads/abspath` | 获取视频文件访问路径 |
+| POST   | `/api/downloads/{avid}`  | 提交下载任务         |
+| DELETE | `/api/downloads/{avid}`  | 删除已下载视频       |
 
 #### 任务队列
-| 方法  | 端点                         | 说明                         |
-|-----|----------------------------|----------------------------|
+
+| 方法 | 端点 | 说明 |
+| ---- | ---- | ---- |
+
 **重要变更说明：**
 
 1. **细粒度刷新控制**：`POST /api/resource/refresh/{avid}` 现在支持三个独立开关：
@@ -393,18 +401,19 @@ uv run celery -A django_project beat -l info
 5. **DisplayTitle 配置**：可在 `config.yaml` 中配置显示哪种标题（`source_title`/`translated_title`/`title`）
 
 #### 调试接口（仅 DEBUG 模式）
-| 方法   | 端点                          | 说明                  |
-|------|------------------------------|----------------------|
+
+| 方法 | 端点                         | 说明                                     |
+| ---- | ---------------------------- | ---------------------------------------- |
 | POST | `/api/downloads/mock/{avid}` | 模拟下载任务（测试用，可配置持续时间）务 |
-| GET  | `/api/downloads/list`     | 获取已下载列表     |
-| GET  | `/api/downloads/metadata` | 获取下载元数据     |
-| POST | `/api/downloads`          | 提交下载任务      |
-| GET  | `/api/tasks/queue/status` | 获取任务队列状态    |
+| GET  | `/api/downloads/list`        | 获取已下载列表                           |
+| GET  | `/api/downloads/metadata`    | 获取下载元数据                           |
+| POST | `/api/downloads`             | 提交下载任务                             |
+| GET  | `/api/tasks/queue/status`    | 获取任务队列状态                         |
 
 ### WebSocket 端点
 
-| 端点                                     | 说明              |
-|----------------------------------------|-----------------|
+| 端点                                   | 说明                           |
+| -------------------------------------- | ------------------------------ |
 | `ws://localhost:8000/nassav/ws/tasks/` | 实时任务队列通知和下载进度推送 |
 
 WebSocket 支持以下消息类型：
@@ -435,19 +444,21 @@ WebSocket 支持以下消息类型：
 2. **智能等待**：最多等待 30 分钟，每 5 秒检查一次
 3. **自动释放**：任务完成后自动释放锁，异常情况下 1 小时自动过期
 
-# 运行测试
+## 运行测试
+
 uv run pytest tests/
 
-# 批量翻译脚本
-uv run ./scripts/batch_translate.py --sync --dry-run  # 预览
-uv run ./scripts/batch_translate.py --sync --execute  # 执行
-uv run ./scripts/batch_translate.py --sync --force    # 强制重译
+## 批量翻译脚本
 
-# 修复工具脚本
-uv run ./scripts/fix_source_titles.py --stats         # 查看统计
-uv run ./scripts/fix_source_titles.py --execute       # 修复 source_title 格式
-uv run ./scripts/generate_thumbnails.py               # 生成缩略图
-4. **串行执行**：确保同一时间只有一个下载任务在执行
+uv run ./scripts/batch_translate.py --sync --dry-run # 预览
+uv run ./scripts/batch_translate.py --sync --execute # 执行
+uv run ./scripts/batch_translate.py --sync --force # 强制重译
+
+## 修复工具脚本
+
+uv run ./scripts/fix_source_titles.py --stats # 查看统计
+uv run ./scripts/fix_source_titles.py --execute # 修复 source_title 格式
+uv run ./scripts/generate_thumbnails.py # 生成缩略图 4. **串行执行**：确保同一时间只有一个下载任务在执行
 
 ### Celery 配置
 
@@ -493,35 +504,35 @@ uv run celery -A django_project inspect scheduled
 #### WebSocket 实时订阅（推荐）
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/nassav/ws/tasks/');
+const ws = new WebSocket('ws://localhost:8000/nassav/ws/tasks/')
 
 ws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
+  const message = JSON.parse(event.data)
 
-    switch (message.type) {
-        case 'progress_update':
-            // 实时进度更新
-            const {avid, percent, speed} = message.data;
-            console.log(`${avid}: ${percent}% @ ${speed}`);
-            updateProgressBar(avid, percent);
-            break;
+  switch (message.type) {
+    case 'progress_update':
+      // 实时进度更新
+      const { avid, percent, speed } = message.data
+      console.log(`${avid}: ${percent}% @ ${speed}`)
+      updateProgressBar(avid, percent)
+      break
 
-        case 'task_completed':
-            // 下载完成
-            console.log(`Task ${message.data.avid} completed`);
-            break;
+    case 'task_completed':
+      // 下载完成
+      console.log(`Task ${message.data.avid} completed`)
+      break
 
-        case 'queue_status':
-            // 队列状态更新
-            updateQueueDisplay(message.data);
-            break;
-    }
-};
+    case 'queue_status':
+      // 队列状态更新
+      updateQueueDisplay(message.data)
+      break
+  }
+}
 ```
 
 #### REST API 轮询（备选）
 
-```javascript
+````javascript
 // 定期查询任务状态（包含进度信息）
 setInterval(async () => {
     const response = await fetch('/nassav/api/tasks/queue/status');
@@ -579,7 +590,7 @@ Translator:
     model: huihui_ai/hunyuan-mt-abliterated:latest
     temperature: 0.3
     timeout: 60
-```
+````
 
 ## Django Management Commands
 
@@ -600,9 +611,11 @@ uv run python manage.py backup_avid_list --days 60
 ```
 
 **备份内容：**
+
 - JSON 格式：`backup/avid_backup_{timestamp}.json`（包含时间戳、总数和完整 AVID 列表）
 
 **自动清理：**
+
 - 自动删除超过指定天数的旧备份文件
 - 默认保留最近 30 天的备份
 
@@ -621,20 +634,24 @@ uv run python manage.py backup_database --days 60
 ```
 
 **备份内容：**
+
 - 数据库主文件：`db.sqlite3`
 - WAL 日志文件：`db.sqlite3-wal`
 - 共享内存文件：`db.sqlite3-shm`
 - 元数据文件：`backup_info.txt`（包含备份时间、文件大小等信息）
 
 **备份位置：**
+
 - 目录：`backup/database_{timestamp}/`
 - 示例：`backup/database_20250101_143000/`
 
 **自动清理：**
+
 - 自动删除超过指定天数的旧备份目录
 - 默认保留最近 30 天的备份
 
 **注意事项：**
+
 - 备份前会执行 `PRAGMA wal_checkpoint(FULL)` 将 WAL 日志合并到主文件
 - 确保备份时数据库可访问且没有长时间运行的事务
 
@@ -659,27 +676,32 @@ uv run python manage.py sync_backups --target /custom/backup/path --days 30
 ```
 
 **配置说明：**
+
 - 目标目录优先级：命令行参数 `--target` > `config.yaml` 中的 `BackupPath`
 - 未配置时会报错提示
 - 备份源目录：始终从项目根目录下的 `backup/` 目录读取
 
 **同步内容：**
+
 - `backup/` 目录：数据库备份和 AVID 列表备份
 - `celery_beat/` 目录：一致性检查报告（排除 celerybeat-schedule）
 - `log/` 目录：应用日志文件
 - `celerybeat-schedule` 文件：Celery Beat 调度数据
 
 **同步策略：**
+
 - 支持按修改时间过滤（只同步最近 N 天的文件）
 - 自动创建目标目录结构
 - 使用 `shutil.copy2` 保留文件时间戳和权限
 - 显示同步进度和文件大小统计
 
 **默认目标目录：**
+
 - `/mnt/d/_Files/Ubuntu_Data/nassav`（适用于 WSL2 环境）
 - 可通过 `--target` 参数指定其他位置
 
 **定时任务：**
+
 - 自动通过 Celery Beat 调度（每天凌晨 4:00）
 - 确保在所有备份任务完成后执行
 
@@ -701,12 +723,14 @@ uv run python manage.py check_resources_consistency --apply --report backup/cons
 ```
 
 **检查项：**
+
 1. 封面文件存在性（cover_filename 字段与实际文件）
 2. 视频文件存在性（file_exists 字段与实际文件）
 3. 缩略图完整性（如果封面存在，确保 small/medium/large 三个尺寸）
 4. 孤立文件检测（文件存在但数据库无记录）
 
 **自动修复：**
+
 - 更新数据库中不匹配的字段（cover_filename、file_exists、file_size、video_saved_at）
 - 生成缺失的缩略图
 - 保存详细报告到 JSON 文件

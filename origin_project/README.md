@@ -27,7 +27,7 @@ NASSAV 是一个基于 Python 开发的多源影视资源下载管理工具，�
 
 ## Jellyfin预览
 
-![](pic/1.png)
+![Jellyfin Preview](pic/1.png)
 
 ## 系统要求
 
@@ -39,18 +39,20 @@ NASSAV 是一个基于 Python 开发的多源影视资源下载管理工具，�
 ## 安装指南
 
 1. 克隆项目并安装依赖：
+
 ```bash
 git clone https://github.com/Satoing/NASSAV.git
 cd NASSAV
 pip3 install -r requirements.txt
 ```
 
-2. 安装 FFmpeg：
+1. 安装 FFmpeg：
+
 ```bash
 sudo apt install ffmpeg
 ```
 
-3. 配置项目：
+1. 配置项目：
    - 复制 `cfg/configs.json.example` 为 `cfg/configs.json`
    - 修改配置文件中的关键参数：
      - `SavePath`：设置视频保存路径
@@ -62,24 +64,25 @@ sudo apt install ffmpeg
 
 ### 基本使用
 
-0. 初始化，修改配置文件。主要关注的字段：
-    - SavePath：下载保存的位置
-    - Proxy：http代理服务器url（如果不需要使用代理，设置成""即可）
-    - IsNeedVideoProxy：下载视频是否使用代理
+1. 初始化，修改配置文件。主要关注的字段：
+   - SavePath：下载保存的位置
+   - Proxy：http代理服务器url（如果不需要使用代理，设置成""即可）
+   - IsNeedVideoProxy：下载视频是否使用代理
+
 ```json
 {
-    "LogPath": "./logs",
-    "SavePath": "/vol2/1000/MissAV",
-    "DBPath": "./db/downloaded.db",
-    "QueuePath": "./db/download_queue.txt",
-    "Proxy": "http://127.0.0.1:7897",
-    "IsNeedVideoProxy": false,
+  "LogPath": "./logs",
+  "SavePath": "/vol2/1000/MissAV",
+  "DBPath": "./db/downloaded.db",
+  "QueuePath": "./db/download_queue.txt",
+  "Proxy": "http://127.0.0.1:7897",
+  "IsNeedVideoProxy": false
 }
 ```
 
 1. 如果本地已有资源，需要先整理目录结构，车牌号大写作为文件夹名字，视频同名放在文件夹里面：
 
-```
+```bash
 ...
 ├── SVGAL-009
 │   └── SVGAL-009.mp4
@@ -87,8 +90,10 @@ sudo apt install ffmpeg
 │   └── STCVS-007.mp4
 ...
 ```
+
 然后执行`python3 metadata.py`，爬取元数据。最后生成的目录结构：
-```
+
+```bash
 ...
 ├── SVGAL-009
 │   ├── metadata.json
@@ -104,12 +109,14 @@ sudo apt install ffmpeg
 ...
 ```
 
-2. 下载单个资源：
+1. 下载单个资源：
+
 ```bash
 python3 main.py <车牌号>
 ```
 
-3. 强制下载（忽略重复检查——下载过程中ctrl-c就会出现这种情况）：
+1. 强制下载（忽略重复检查——下载过程中ctrl-c就会出现这种情况）：
+
 ```bash
 python3 main.py <车牌号> -f
 ```
@@ -119,11 +126,13 @@ python3 main.py <车牌号> -f
 0. 前置作業如基本使用
 
 1. Build Docker (初次使用才需要)
+
 ```bash
 (sudo) docker build -t nassav .
 ```
 
-2. 下載
+1. 下載
+
 ```bash
 (sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json存片位置>" nassav <車號>
 ```
@@ -132,6 +141,7 @@ python3 main.py <车牌号> -f
 
 1. 将车牌号添加到 `db/download_queue.txt` 中
 2. 设置定时任务：
+
 ```bash
 20 * * * * cd /path/to/NASSAV && bash cron_task.sh
 ```
@@ -139,13 +149,15 @@ python3 main.py <车牌号> -f
 ### HTTP API 服务
 
 1. 编译并启动 HTTP 服务器：
+
 ```bash
 cd backend
 go build -o main
 ./main
 ```
 
-2. 发送下载请求：
+1. 发送下载请求：
+
 ```bash
 curl -X POST http://127.0.0.1:49530/process -d "车牌号"
 ```
@@ -155,11 +167,13 @@ curl -X POST http://127.0.0.1:49530/process -d "车牌号"
 刮削时下载了大量fanart，故提供一个网页预览。
 
 后端提供了两个API：
+
 1. 获取车牌号列表：/api/videos
 2. 获取车牌号详细信息：/api/videos/FPRE-017
 
 请求结果如下：
-```
+
+```bash
 /api/videos
 -----------------------------
 [{"id":"ACHJ-057","title":"ACHJ-057 時には勝手に痴女りたい…。Madonna専属 究極美熟女『めぐり』お貸ししますー。","poster":"/file/ACHJ-057/ACHJ-057-poster.jpg"},{"id":"ADN-604","title":"ADN-604 お義父さんは私の事、どう思ってますか？ 七海ティナ","poster":"/file/ADN-604/ADN-604-poster.jpg"},{"id":"AGAV-122","title":"AGAV-122 顔で抜く！！顔面ドアップPOV 関西弁でイチャサド射精管理してくる年上彼女との同棲生活 流川莉央","poster":"/file/AGAV-122/AGAV-122-poster.jpg"},...]
@@ -172,22 +186,27 @@ curl -X POST http://127.0.0.1:49530/process -d "车牌号"
 据此使用Vue实现一个前端，预览list和detail。
 
 list页：
-![](pic/gallery-list.png)
+![Gallery List View](pic/gallery-list.png)
 detail页：
-![](pic/gallery-detail.png)
+![Gallery Detail View](pic/gallery-detail.png)
 
 前端部署方式：
+
 1. 先调整`frontend/src/api/videos.js`中后端的配置：
+
 ```js
 import axios from 'axios'
 const API_BASE = 'http://192.168.31.61:31471' // 改成自己的ip
 ```
-2. 重新生成静态文件到dist目录下：
+
+1. 重新生成静态文件到dist目录下：
+
 ```bash
 cd frontend
 npm run build
 ```
-3. 使用nginx部署静态网页：`127.0.0.1:5177`
+
+1. 使用nginx部署静态网页：`127.0.0.1:5177`
 
 ## 配置说明
 
@@ -233,7 +252,6 @@ npm run build
    - 优点：资源较新，更新及时
    - 缺点：部分资源需要会员
 
-
 ## 开发指南
 
 ### 添加新的下载器
@@ -247,6 +265,7 @@ npm run build
 4. 在配置文件中添加相应的配置项
 
 示例代码：
+
 ```python
 class NewDownloader(Downloader):
     def getDownloaderName(self) -> str:
@@ -260,9 +279,10 @@ class NewDownloader(Downloader):
         # 实现解析HTML的逻辑
         pass
 ```
+
 ### 有需求请自行fork修改，如果想要贡献代码发起PR即可
 
-![](pic/IMG_5150.JPG)
+![Mobile View](pic/IMG_5150.JPG)
 
 ## 注意事项
 
@@ -276,9 +296,8 @@ class NewDownloader(Downloader):
 
 前人栽树，后人乘凉
 
-1. m3u8-Downloader-Go（m3u8命令行下载器）: https://github.com/Greyh4t/m3u8-Downloader-Go
-2. mrjet（如何获取到missav的m3u8）: https://github.com/cailurus/mrjet
-
+1. m3u8-Downloader-Go（m3u8命令行下载器）: <https://github.com/Greyh4t/m3u8-Downloader-Go>
+2. mrjet（如何获取到missav的m3u8）: <https://github.com/cailurus/mrjet>
 
 ## 许可证
 

@@ -1,4 +1,5 @@
 """测试metadata格式和title字段处理"""
+
 from unittest.mock import Mock
 
 import pytest

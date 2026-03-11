@@ -8,13 +8,11 @@ ResourceService - 资源服务层
 3. 处理文件操作 (封面、头像、缩略图、HTML)
 4. 编排业务流程 (获取源信息 -> 刮削元数据 -> 保存数据库 -> 提交翻译任务)
 """
-import json
-import os
-import re
+
 import traceback as tb
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from django.conf import settings
 from django.utils import timezone
@@ -307,7 +305,9 @@ class ResourceService:
             是否删除成功
         """
         avid = avid.upper()
-        logger.info(f"[ResourceService] 开始删除资源: {avid}, delete_files={delete_files}")
+        logger.info(
+            f"[ResourceService] 开始删除资源: {avid}, delete_files={delete_files}"
+        )
 
         resource = AVResource.objects.filter(avid=avid).first()
         if not resource:
@@ -383,7 +383,7 @@ class ResourceService:
 
     def _get_source_info(
         self, avid: str, source: str
-    ) -> Tuple[AVDownloadInfo, SourceBase, str, dict]:
+    ) -> Tuple[AVDownloadInfo, SourceBase | None, str | None, Dict[str, int | None]]:
         """
         从源获取资源信息
 
@@ -425,8 +425,8 @@ class ResourceService:
         self,
         avid: str,
         info: AVDownloadInfo,
-        source_inst: SourceBase,
-        html: str,
+        source_inst: SourceBase | None,
+        html: str | None,
         *,
         scrape: bool = True,
         download_cover: bool = True,
@@ -449,9 +449,10 @@ class ResourceService:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 1: 保存HTML原始页面
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        html_path = Path(settings.COVER_DIR) / f"{avid}.html"
-        html_path.parent.mkdir(parents=True, exist_ok=True)
-        html_path.write_text(html, encoding="utf-8")
+        if html:
+            html_path = Path(settings.COVER_DIR) / f"{avid}.html"
+            html_path.parent.mkdir(parents=True, exist_ok=True)
+            html_path.write_text(html, encoding="utf-8")
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 2: 刮削Javbus元数据（可选）
@@ -527,8 +528,8 @@ class ResourceService:
         self,
         avid: str,
         scraped_data: Optional[dict],
-        source_inst: SourceBase,
-        html: str,
+        source_inst: SourceBase | None,
+        html: str | None,
     ) -> bool:
         """
         下载封面图片（双源备份策略）
@@ -553,12 +554,15 @@ class ResourceService:
                 return True
 
         # 策略2: 尝试源网站封面
-        cover_url = source_inst.get_cover_url(html)
-        if cover_url:
-            source_name = source_inst.get_source_name()
-            if source_inst.download_file(cover_url, str(cover_path)):
-                logger.info(f"[ResourceService] 从{source_name}下载封面成功: {avid}")
-                return True
+        if source_inst and html:
+            cover_url = source_inst.get_cover_url(html)
+            if cover_url:
+                source_name = source_inst.get_source_name()
+                if source_inst.download_file(cover_url, str(cover_path)):
+                    logger.info(
+                        f"[ResourceService] 从{source_name}下载封面成功: {avid}"
+                    )
+                    return True
 
         logger.warning(f"[ResourceService] 封面下载失败: {avid}")
         return False
@@ -567,7 +571,7 @@ class ResourceService:
         self,
         avid: str,
         info: AVDownloadInfo,
-        source_inst: SourceBase,
+        source_inst: SourceBase | None,
         scraped_data: Optional[dict],
     ) -> AVResource:
         """
@@ -581,14 +585,14 @@ class ResourceService:
         logger.info(f"[ResourceService] 开始保存数据库记录: {avid}")
 
         # 获取源名称
-        source_name = source_inst.get_source_name()
+        source_name = source_inst.get_source_name() if source_inst else "unknown"
 
         # 规范化source_title，确保以AVID开头
         # 注意：使用info.source_title而不是info.title，因为source_title是从Source获取的
         normalized_source_title = normalize_source_title(avid, info.source_title)
 
         # 准备数据
-        defaults = {
+        defaults: dict[str, Any] = {
             "source_title": normalized_source_title,
             "source": source_name,
             "m3u8": info.m3u8,

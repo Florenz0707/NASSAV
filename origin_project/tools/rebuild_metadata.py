@@ -1,6 +1,5 @@
 import os
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 # 要替换的路径
 path = "/vol2/1000/MissAV"

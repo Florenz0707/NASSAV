@@ -2,11 +2,12 @@
 N_m3u8DL-RE 下载器实现
 https://github.com/nilaoda/N_m3u8DL-RE
 """
+
 import os
 import platform
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from django.conf import settings
 from loguru import logger
@@ -39,7 +40,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         user_agent: str,
         thread_count: int = 32,
         retry_count: int = 5,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
     ) -> bool:
         """使用 N_m3u8DL-RE 下载 M3U8 视频
 
@@ -94,24 +95,25 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
             # 实时读取输出并解析进度
             import re
 
-            for line in process.stdout:
-                # 解析进度信息（示例格式: "已下载: 45.2% | 速度: 5.2MB/s"）
-                line = line.strip()
-                if progress_callback:
-                    # 尝试匹配百分比
-                    percent_match = re.search(r"(\d+\.?\d*)%", line)
-                    # 尝试匹配速度
-                    speed_match = re.search(
-                        r"([\d.]+\s*[KMG]?B/s)", line, re.IGNORECASE
-                    )
+            if process.stdout:
+                for line in process.stdout:
+                    # 解析进度信息（示例格式: "已下载: 45.2% | 速度: 5.2MB/s"）
+                    line = line.strip()
+                    if progress_callback:
+                        # 尝试匹配百分比
+                        percent_match = re.search(r"(\d+\.?\d*)%", line)
+                        # 尝试匹配速度
+                        speed_match = re.search(
+                            r"([\d.]+\s*[KMG]?B/s)", line, re.IGNORECASE
+                        )
 
-                    if percent_match:
-                        percent = float(percent_match.group(1))
-                        speed = speed_match.group(1) if speed_match else "N/A"
-                        try:
-                            progress_callback(percent, speed, "")
-                        except Exception as e:
-                            logger.error(f"进度回调失败: {e}")
+                        if percent_match:
+                            percent = float(percent_match.group(1))
+                            speed = speed_match.group(1) if speed_match else "N/A"
+                            try:
+                                progress_callback(percent, speed, "")
+                            except Exception as e:
+                                logger.error(f"进度回调失败: {e}")
 
             # 等待进程完成
             returncode = process.wait()

@@ -3,12 +3,12 @@
 验证信号发布和接收器工作正常
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from django.test import TestCase
 from nassav.models import AVResource
-from nassav.signals import metadata_refreshed, resource_added, resource_deleted
+from nassav.signals import resource_added, resource_deleted
 
 
 @pytest.mark.django_db

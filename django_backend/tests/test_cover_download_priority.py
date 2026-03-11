@@ -1,5 +1,6 @@
 """测试封面下载的优先级和回退逻辑"""
-from unittest.mock import MagicMock, Mock, patch
+
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -36,9 +37,7 @@ def test_cover_download_priority():
     with patch.object(
         scraper_manager, "download_cover", return_value=True
     ) as mock_download:
-        info = AVDownloadInfo(
-            avid="TEST-001", m3u8="", source_title="测试标题", source="test"
-        )
+        AVDownloadInfo(avid="TEST-001", m3u8="", source_title="测试标题", source="test")
         html = "<html></html>"
 
         # 测试_download_cover方法
@@ -80,7 +79,7 @@ def test_cover_fallback_to_source():
         # 没有cover_url字段
     }
 
-    info = AVDownloadInfo(avid="TEST-002", m3u8="", source_title="测试标题", source="test")
+    AVDownloadInfo(avid="TEST-002", m3u8="", source_title="测试标题", source="test")
     html = "<html></html>"
 
     # 测试_download_cover方法
@@ -122,7 +121,7 @@ def test_no_cover_available():
         # 没有cover_url
     }
 
-    info = AVDownloadInfo(avid="TEST-003", m3u8="", source_title="测试标题", source="test")
+    AVDownloadInfo(avid="TEST-003", m3u8="", source_title="测试标题", source="test")
     html = "<html></html>"
 
     # 测试_download_cover方法

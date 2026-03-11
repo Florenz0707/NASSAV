@@ -13,12 +13,8 @@
             placeholder="输入视频内容"
             class="search-input"
             @keyup.enter="handleAddVideo(inputContent)"
-          >
-          <button
-            class="search-button"
-            @click="handleAddVideo(inputContent)"
-            :disabled="isAdding"
-          >
+          />
+          <button class="search-button" @click="handleAddVideo(inputContent)" :disabled="isAdding">
             {{ isAdding ? '添加中...' : '添加' }}
           </button>
         </div>
@@ -47,14 +43,14 @@ export default {
   data() {
     return {
       inputContent: '',
-      isAdding: false
+      isAdding: false,
     }
   },
   methods: {
     async handleAddVideo() {
       videosApi.addVideo(this.inputContent.trim())
-    }
-  }
+    },
+  },
 }
 </script>
 

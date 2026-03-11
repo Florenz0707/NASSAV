@@ -4,7 +4,6 @@
 """
 
 import pytest
-from django.utils import timezone
 from nassav.models import SourceCookie
 
 

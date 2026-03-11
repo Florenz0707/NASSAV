@@ -12,7 +12,7 @@ class NassavConfig(AppConfig):
         try:
             from nassav.user_settings import get_settings_manager
 
-            settings_manager = get_settings_manager()
+            get_settings_manager()
             # 配置文件会在初始化时自动创建
         except Exception as e:
             print(f"初始化用户设置失败: {e}")

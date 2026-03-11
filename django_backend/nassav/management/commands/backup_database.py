@@ -12,6 +12,7 @@ Django management command: 备份 SQLite 数据库（包含 WAL 文件）
     - db.sqlite3-wal（Write-Ahead Log）
     - db.sqlite3-shm（Shared Memory）
 """
+
 import shutil
 import time
 from datetime import datetime
@@ -63,7 +64,9 @@ class Command(BaseCommand):
                 result = cursor.fetchall()
                 self.stdout.write(self.style.SUCCESS(f"  检查点完成: {result}"))
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f"  触发检查点失败（可能未启用 WAL）: {e}"))
+                self.stdout.write(
+                    self.style.WARNING(f"  触发检查点失败（可能未启用 WAL）: {e}")
+                )
 
             # 步骤 2: 复制主数据库文件
             self.stdout.write("  复制主数据库文件...")
@@ -117,7 +120,9 @@ class Command(BaseCommand):
             self.stdout.write(f"主数据库: {db_size:.2f} MB")
             self.stdout.write(f"WAL 模式: {'已启用' if wal_copied else '未启用'}")
             if deleted_count > 0:
-                self.stdout.write(self.style.WARNING(f"已清理 {deleted_count} 个旧备份"))
+                self.stdout.write(
+                    self.style.WARNING(f"已清理 {deleted_count} 个旧备份")
+                )
             self.stdout.write(f"备份保留策略: 保留最近 {days} 天")
             self.stdout.write(self.style.SUCCESS("=" * 60))
 
@@ -146,7 +151,9 @@ class Command(BaseCommand):
                     try:
                         shutil.rmtree(item)
                         deleted_count += 1
-                        self.stdout.write(self.style.WARNING(f"  已删除旧备份: {item.name}"))
+                        self.stdout.write(
+                            self.style.WARNING(f"  已删除旧备份: {item.name}")
+                        )
                     except Exception as e:
                         self.stdout.write(
                             self.style.WARNING(f"  删除备份失败 {item.name}: {e}")

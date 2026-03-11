@@ -1,6 +1,7 @@
 """
 工具类模块
 """
+
 import re
 import time
 from typing import Any, Callable, Optional
@@ -149,7 +150,7 @@ def generate_thumbnail(source_path, dest_path, width: int):
 
             ratio = width / float(w)
             new_h = int(h * ratio)
-            im = im.resize((width, new_h), Image.LANCZOS)
+            im = im.resize((width, new_h), Image.LANCZOS)  # type: ignore
             im.save(dp, format="JPEG", quality=85)
             return True
     except Exception:
@@ -237,7 +238,7 @@ def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
             response = requests.get(
                 url,
                 headers=headers,
-                proxies=proxies,
+                proxies=proxies,  # type: ignore
                 timeout=15,
                 impersonate=IMPERSONATE,
             )

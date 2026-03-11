@@ -6,6 +6,7 @@
 运行方法：
     uv run pytest tests/test_fix_actor_names.py -v
 """
+
 import sys
 from pathlib import Path
 
@@ -47,7 +48,9 @@ def test_normal_names(name):
 )
 def test_truncated_names(name):
     """测试被截断的演员名（应该被标记为异常）"""
-    assert not is_actor_name_normal(name), f"'{name}' 应该被判断为异常（截断），但被标记为正常"
+    assert not is_actor_name_normal(name), (
+        f"'{name}' 应该被判断为异常（截断），但被标记为正常"
+    )
 
 
 def test_empty_name():

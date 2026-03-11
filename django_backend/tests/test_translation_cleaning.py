@@ -119,14 +119,16 @@ def test_cleaning():
             passed += 1
         else:
             print("\n❌ 失败")
-            print(f"差异:")
+            print("差异:")
             print(f"  期望长度: {len(test['expected'].strip())}")
             print(f"  实际长度: {len(cleaned.strip())}")
             # 显示字符差异
             expected_lines = test["expected"].strip().split("\n")
             actual_lines = cleaned.strip().split("\n")
             if len(expected_lines) != len(actual_lines):
-                print(f"  行数不同: 期望 {len(expected_lines)} 行, 实际 {len(actual_lines)} 行")
+                print(
+                    f"  行数不同: 期望 {len(expected_lines)} 行, 实际 {len(actual_lines)} 行"
+                )
             failed += 1
 
         print("=" * 80)

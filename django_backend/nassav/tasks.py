@@ -1,17 +1,18 @@
 """
 Celery异步任务定义
 """
-from pathlib import Path
+
 from typing import Any, Dict, List
 
 import redis
 from celery import shared_task
+from celery.result import AsyncResult
 from django.conf import settings
 from django_project.celery import app as celery_app
 from loguru import logger
 
 
-def get_redis_client():
+def get_redis_client() -> redis.Redis:  # type: ignore
     """获取Redis客户端"""
     return redis.from_url(settings.CELERY_BROKER_URL)
 
@@ -111,8 +112,8 @@ def set_task_progress(
     avid: str,
     percent: float,
     speed: str = "N/A",
-    eta: str = None,
-    downloaded: str = None,
+    eta: str | None = None,
+    downloaded: str | None = None,
 ):
     """
     设置任务下载进度
@@ -139,7 +140,7 @@ def set_task_progress(
     redis_client.setex(progress_key, 3600, __import__("json").dumps(progress_data))
 
 
-def get_task_progress(avid: str) -> Dict[str, Any]:
+def get_task_progress(avid: str) -> Dict[str, Any] | None:
     """
     获取任务下载进度
 
@@ -368,7 +369,7 @@ def get_full_task_queue() -> Dict[str, Any]:
     queue_key = "nassav:task_queue"
 
     try:
-        all_tasks_data = redis_client.hgetall(queue_key)
+        all_tasks_data: dict[bytes, bytes] = redis_client.hgetall(queue_key)  # type: ignore
 
         if not all_tasks_data:
             return {
@@ -514,7 +515,11 @@ def download_video_task(self, avid: str):
         )
         notify_task_update("queue_status", get_full_task_queue())
 
-        return {"status": "failed", "avid": avid, "message": "获取下载锁超时，可能有其他下载任务正在执行"}
+        return {
+            "status": "failed",
+            "avid": avid,
+            "message": "获取下载锁超时，可能有其他下载任务正在执行",
+        }
 
     # 更新 Redis 队列中的任务状态为 STARTED
     update_task_state_in_queue(avid, "STARTED")
@@ -688,7 +693,7 @@ def download_video_task(self, avid: str):
         notify_task_update("queue_status", get_full_task_queue())
 
 
-def submit_download_task(avid: str) -> tuple[bool | None, bool]:
+def submit_download_task(avid: str) -> tuple[AsyncResult | None, bool]:
     """
     提交下载任务（带去重检查）
 
@@ -853,7 +858,7 @@ def translate_title_task(self, avid: str):
     bind=True, name="nassav.tasks.batch_translate_titles_task", ignore_result=False
 )
 def batch_translate_titles_task(
-    self, avids: List[str] = None, skip_existing: bool = True
+    self, avids: List[str] | None = None, skip_existing: bool = True
 ):
     """
     批量翻译资源标题任务
@@ -865,7 +870,7 @@ def batch_translate_titles_task(
     Returns:
         dict: 包含批量翻译结果的统计
     """
-    logger.info(f"[批量翻译任务] 开始批量翻译")
+    logger.info("[批量翻译任务] 开始批量翻译")
 
     try:
         from django.db.models import Q

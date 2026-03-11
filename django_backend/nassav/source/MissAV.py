@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
-from nassav.constants import HEADERS, IMPERSONATE
+from nassav.constants import IMPERSONATE
 from nassav.flaresolverr_client import FlareSolverrClient
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
@@ -55,8 +55,12 @@ class MissAV(SourceBase):
                     # 有效视频页面必含 surrit（CDN 域名），404 页面不含
                     if content and "surrit" in content:
                         return content
-                    logger.info(f"MissAV: FlareSolverr 返回页面无视频内容（可能是404），跳过: {url}")
-                logger.info(f"MissAV: FlareSolverr 失败或页面无效，回退到 curl_cffi: {url}")
+                    logger.info(
+                        f"MissAV: FlareSolverr 返回页面无视频内容（可能是404），跳过: {url}"
+                    )
+                logger.info(
+                    f"MissAV: FlareSolverr 失败或页面无效，回退到 curl_cffi: {url}"
+                )
 
             # 2. curl_cffi 兜底
             content = self.fetch_html(
@@ -93,7 +97,9 @@ class MissAV(SourceBase):
         home_url = f"https://{self.domain}/"
         cookie_str = self._flaresolverr.get_cookies_str(home_url)
         if not cookie_str:
-            logger.warning(f"{source_name}: FlareSolverr 获取 cookie 失败，回退到 curl_cffi")
+            logger.warning(
+                f"{source_name}: FlareSolverr 获取 cookie 失败，回退到 curl_cffi"
+            )
             return super().set_cookie_auto(force_refresh=True)
 
         SourceCookie.objects.update_or_create(

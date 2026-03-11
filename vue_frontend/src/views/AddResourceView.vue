@@ -1,10 +1,10 @@
 <script setup>
-import {computed, onMounted, ref} from 'vue'
-import {useRouter} from 'vue-router'
-import {useResourceStore} from '../stores/resource'
-import {useToastStore} from '../stores/toast'
-import {useSettingsStore} from '../stores/settings'
-import {resourceApi} from '../api'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useResourceStore } from '../stores/resource'
+import { useToastStore } from '../stores/toast'
+import { useSettingsStore } from '../stores/settings'
+import { resourceApi } from '../api'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const router = useRouter()
@@ -19,922 +19,942 @@ const result = ref(null)
 
 // 根据设置选择显示的标题
 const displayedTitle = computed(() => {
-	if (!result.value?.data) return ''
+  if (!result.value?.data) return ''
 
-	const titleField = settingsStore.displayTitle
-	const resource = result.value.data
+  const titleField = settingsStore.displayTitle
+  const resource = result.value.data
 
-	if (titleField === 'original_title' && resource.original_title) {
-		return resource.original_title
-	}
-	if (titleField === 'source_title' && resource.source_title) {
-		return resource.source_title
-	}
-	if (titleField === 'translated_title' && resource.translated_title) {
-		return resource.translated_title
-	}
+  if (titleField === 'original_title' && resource.original_title) {
+    return resource.original_title
+  }
+  if (titleField === 'source_title' && resource.source_title) {
+    return resource.source_title
+  }
+  if (titleField === 'translated_title' && resource.translated_title) {
+    return resource.translated_title
+  }
 
-	// 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
-	return resource.translated_title || resource.source_title || resource.original_title || resource.title || resource.avid
+  // 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
+  return (
+    resource.translated_title ||
+    resource.source_title ||
+    resource.original_title ||
+    resource.title ||
+    resource.avid
+  )
 })
 
 onMounted(async () => {
-	await resourceStore.fetchSources()
+  await resourceStore.fetchSources()
 })
 
 // 解析输入的 AVID 列表
 function parseAvids() {
-	return avid.value
-		.split(/[\n,\s]+/)           // 按换行、逗号、空格分割
-		.map(s => s.trim().toUpperCase())
-		.filter(s => s.length > 0)   // 过滤空字符串
-		.filter((v, i, arr) => arr.indexOf(v) === i)  // 去重
+  return avid.value
+    .split(/[\n,\s]+/) // 按换行、逗号、空格分割
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => s.length > 0) // 过滤空字符串
+    .filter((v, i, arr) => arr.indexOf(v) === i) // 去重
 }
 
 async function handleSubmit() {
-	const avids = parseAvids()
-	if (avids.length === 0) {
-		toastStore.warning('请输入视频编号')
-		return
-	}
+  const avids = parseAvids()
+  if (avids.length === 0) {
+    toastStore.warning('请输入视频编号')
+    return
+  }
 
-	submitting.value = true
-	result.value = null
+  submitting.value = true
+  result.value = null
 
-	try {
-		if (avids.length === 1) {
-			// 单个添加
-			const response = await resourceStore.addResource(avids[0], source.value)
-			let data = response && response.data ? response.data : null
+  try {
+    if (avids.length === 1) {
+      // 单个添加
+      const response = await resourceStore.addResource(avids[0], source.value)
+      let data = response && response.data ? response.data : null
 
-			// 合并 resource 字段和状态字段
-			if (data && data.resource) {
-				data = {
-					...data.resource,
-					cover_downloaded: data.cover_downloaded,
-					metadata_saved: data.metadata_saved,
-					scraped: data.scraped
-				}
-			}
+      // 合并 resource 字段和状态字段
+      if (data && data.resource) {
+        data = {
+          ...data.resource,
+          cover_downloaded: data.cover_downloaded,
+          metadata_saved: data.metadata_saved,
+          scraped: data.scraped,
+        }
+      }
 
-			result.value = {
-				success: [avids[0]],
-				exists: [],
-				failed: [],
-				total: 1,
-				data
-			}
-			toastStore.success(`${avids[0]} 添加成功`)
-		} else {
-			// 批量添加 - 根据接口文档构建actions数组
-			const actions = avids.map(avid => ({
-				action: 'add',
-				avid: avid,
-				source: source.value
-			}))
+      result.value = {
+        success: [avids[0]],
+        exists: [],
+        failed: [],
+        total: 1,
+        data,
+      }
+      toastStore.success(`${avids[0]} 添加成功`)
+    } else {
+      // 批量添加 - 根据接口文档构建actions数组
+      const actions = avids.map((avid) => ({
+        action: 'add',
+        avid: avid,
+        source: source.value,
+      }))
 
-			const response = await resourceApi.batch({
-				actions: actions
-			})
+      const response = await resourceApi.batch({
+        actions: actions,
+      })
 
-			const data = response?.data || {}
-			const results = data.results || []
+      const data = response?.data || {}
+      const results = data.results || []
 
-			// 解析批量结果
-			const success = []
-			const exists = []
-			const failed = []
+      // 解析批量结果
+      const success = []
+      const exists = []
+      const failed = []
 
-			results.forEach(result => {
-				// 根据后端接口规范判断结果
-				if (result.code === 200 && result.message === 'already exists') {
-					// add 操作：资源已存在
-					exists.push(result.avid)
-				} else if (result.code === 201 || (result.code === 200 && (result.message === 'refreshed' || result.message === 'deleted'))) {
-					// 201: 创建成功
-					// 200 + refreshed/deleted: 刷新/删除成功
-					success.push(result.avid)
-				} else if (result.code === 404 || result.code >= 400) {
-					// 404 或其他错误码：操作失败 - 保存完整信息
-					failed.push({
-						avid: result.avid,
-						code: result.code,
-						message: result.message
-					})
-				} else {
-					// 其他 2xx 状态码视为成功
-					success.push(result.avid)
-				}
-			})
+      results.forEach((result) => {
+        // 根据后端接口规范判断结果
+        if (result.code === 200 && result.message === 'already exists') {
+          // add 操作：资源已存在
+          exists.push(result.avid)
+        } else if (
+          result.code === 201 ||
+          (result.code === 200 && (result.message === 'refreshed' || result.message === 'deleted'))
+        ) {
+          // 201: 创建成功
+          // 200 + refreshed/deleted: 刷新/删除成功
+          success.push(result.avid)
+        } else if (result.code === 404 || result.code >= 400) {
+          // 404 或其他错误码：操作失败 - 保存完整信息
+          failed.push({
+            avid: result.avid,
+            code: result.code,
+            message: result.message,
+          })
+        } else {
+          // 其他 2xx 状态码视为成功
+          success.push(result.avid)
+        }
+      })
 
-			result.value = {
-				success,
-				exists,
-				failed,
-				total: avids.length
-			}
+      result.value = {
+        success,
+        exists,
+        failed,
+        total: avids.length,
+      }
 
-			const successCount = success.length
-			const existsCount = exists.length
-			const failedCount = failed.length
+      const successCount = success.length
+      const existsCount = exists.length
+      const failedCount = failed.length
 
-			if (successCount > 0) {
-				toastStore.success(`成功添加 ${successCount} 个资源`)
-			}
-			if (existsCount > 0) {
-				toastStore.info(`${existsCount} 个资源已存在`)
-			}
-			if (failedCount > 0) {
-				toastStore.warning(`${failedCount} 个资源添加失败`)
-			}
-		}
-	} catch (err) {
-		if (err.code === 409) {
-			result.value = {
-				success: [],
-				exists: [avids[0]],
-				failed: [],
-				total: 1,
-				data: (err && err.data && err.data.resource) ? err.data.resource : err.data
-			}
-			toastStore.info('资源已存在')
-		} else {
-			result.value = {
-				success: [],
-				exists: [],
-				failed: avids.map(avid => ({
-					avid,
-					code: err.code || 500,
-					message: err.message || '添加失败'
-				})),
-				total: avids.length
-			}
-			toastStore.error(err.message || '添加失败')
-		}
-	} finally {
-		submitting.value = false
-	}
+      if (successCount > 0) {
+        toastStore.success(`成功添加 ${successCount} 个资源`)
+      }
+      if (existsCount > 0) {
+        toastStore.info(`${existsCount} 个资源已存在`)
+      }
+      if (failedCount > 0) {
+        toastStore.warning(`${failedCount} 个资源添加失败`)
+      }
+    }
+  } catch (err) {
+    if (err.code === 409) {
+      result.value = {
+        success: [],
+        exists: [avids[0]],
+        failed: [],
+        total: 1,
+        data: err && err.data && err.data.resource ? err.data.resource : err.data,
+      }
+      toastStore.info('资源已存在')
+    } else {
+      result.value = {
+        success: [],
+        exists: [],
+        failed: avids.map((avid) => ({
+          avid,
+          code: err.code || 500,
+          message: err.message || '添加失败',
+        })),
+        total: avids.length,
+      }
+      toastStore.error(err.message || '添加失败')
+    }
+  } finally {
+    submitting.value = false
+  }
 }
 
 function viewResource() {
-	if (result.value?.data?.avid) {
-		router.push(`/resource/${result.value.data.avid}`)
-	} else if (result.value?.success?.length === 1) {
-		// 如果只有一个成功的AVID，跳转到详情页
-		router.push(`/resource/${result.value.success[0]}`)
-	}
+  if (result.value?.data?.avid) {
+    router.push(`/resource/${result.value.data.avid}`)
+  } else if (result.value?.success?.length === 1) {
+    // 如果只有一个成功的AVID，跳转到详情页
+    router.push(`/resource/${result.value.success[0]}`)
+  }
 }
 
 function addAnother() {
-	avid.value = ''
-	source.value = 'any'
-	result.value = null
+  avid.value = ''
+  source.value = 'any'
+  result.value = null
 }
 </script>
 
 <template>
-	<div class="add-view">
-		<div class="page-header">
-			<h1 class="page-title">
-				添加资源
-			</h1>
-			<p class="page-subtitle">
-				支持单个或批量输入视频编号（换行、逗号、空格分隔）
-			</p>
-		</div>
+  <div class="add-view">
+    <div class="page-header">
+      <h1 class="page-title">添加资源</h1>
+      <p class="page-subtitle">支持单个或批量输入视频编号（换行、逗号、空格分隔）</p>
+    </div>
 
-		<div class="add-form-card">
-			<form class="add-form" @submit.prevent="handleSubmit">
-				<div class="form-group">
-					<label class="form-label">
-						视频编号 (AVID)
-						<span v-if="parseAvids().length > 0" class="count-badge">
-							已识别 {{ parseAvids().length }} 个
-						</span>
-					</label>
-					<textarea
-						v-model="avid"
-						placeholder="支持多种格式：&#10;单个: SSIS-469&#10;多个: ABC-001, DEF-002&#10;或换行/空格分隔"
-						class="form-textarea"
-						:disabled="submitting"
-						rows="5"
-						@input="avid = avid.toUpperCase()"
-					/>
-					<p class="form-hint">
-						支持换行、逗号、空格分隔，自动去重
-					</p>
-				</div>
+    <div class="add-form-card">
+      <form class="add-form" @submit.prevent="handleSubmit">
+        <div class="form-group">
+          <label class="form-label">
+            视频编号 (AVID)
+            <span v-if="parseAvids().length > 0" class="count-badge">
+              已识别 {{ parseAvids().length }} 个
+            </span>
+          </label>
+          <textarea
+            v-model="avid"
+            placeholder="支持多种格式：&#10;单个: SSIS-469&#10;多个: ABC-001, DEF-002&#10;或换行/空格分隔"
+            class="form-textarea"
+            :disabled="submitting"
+            rows="5"
+            @input="avid = avid.toUpperCase()"
+          />
+          <p class="form-hint">支持换行、逗号、空格分隔，自动去重</p>
+        </div>
 
-				<div class="form-group">
-					<label class="form-label">下载源</label>
-					<select v-model="source" class="form-select" :disabled="submitting">
-						<option value="any">
-							自动
-						</option>
-						<option v-for="s in resourceStore.sources" :key="s" :value="s.toLowerCase()">
-							{{ s }}
-						</option>
-					</select>
-					<p class="form-hint">
-						选择自动将依次尝试所有可用源
-					</p>
-				</div>
+        <div class="form-group">
+          <label class="form-label">下载源</label>
+          <select v-model="source" class="form-select" :disabled="submitting">
+            <option value="any">自动</option>
+            <option v-for="s in resourceStore.sources" :key="s" :value="s.toLowerCase()">
+              {{ s }}
+            </option>
+          </select>
+          <p class="form-hint">选择自动将依次尝试所有可用源</p>
+        </div>
 
-				<button
-					type="submit"
-					class="btn btn-primary btn-large btn-full"
-					:disabled="submitting || parseAvids().length === 0"
-				>
-					<LoadingSpinner v-if="submitting" size="small"/>
-					<template v-else>
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8M8 12h8"/></svg>
-						{{ parseAvids().length > 1 ? `批量添加 (${parseAvids().length})` : '添加资源' }}
-					</template>
-				</button>
-			</form>
-		</div>
+        <button
+          type="submit"
+          class="btn btn-primary btn-large btn-full"
+          :disabled="submitting || parseAvids().length === 0"
+        >
+          <LoadingSpinner v-if="submitting" size="small" />
+          <template v-else>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke-width="2" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v8M8 12h8"
+              />
+            </svg>
+            {{ parseAvids().length > 1 ? `批量添加 (${parseAvids().length})` : '添加资源' }}
+          </template>
+        </button>
+      </form>
+    </div>
 
-		<!-- 添加结果 -->
-		<Transition name="result">
-			<div v-if="result && result.total === 1 && result.data" class="result-card" :class="{ success: result.success.length > 0, exists: result.exists.length > 0 }">
-				<div class="result-header">
-					<div class="result-icon">
-						{{ result.success.length > 0 ? '✓' : result.exists.length > 0 ? 'ℹ' : '✕' }}
-					</div>
-					<h3 class="result-title">
-						{{ result.success.length > 0 ? '添加成功' : result.exists.length > 0 ? '资源已存在' : '添加失败' }}
-					</h3>
-				</div>
+    <!-- 添加结果 -->
+    <Transition name="result">
+      <div
+        v-if="result && result.total === 1 && result.data"
+        class="result-card"
+        :class="{ success: result.success.length > 0, exists: result.exists.length > 0 }"
+      >
+        <div class="result-header">
+          <div class="result-icon">
+            {{ result.success.length > 0 ? '✓' : result.exists.length > 0 ? 'ℹ' : '✕' }}
+          </div>
+          <h3 class="result-title">
+            {{
+              result.success.length > 0
+                ? '添加成功'
+                : result.exists.length > 0
+                  ? '资源已存在'
+                  : '添加失败'
+            }}
+          </h3>
+        </div>
 
-				<div class="result-details">
-					<div class="result-item">
-						<span class="result-label">编号</span>
-						<span class="result-value avid">{{ result.data.avid }}</span>
-					</div>
-					<div v-if="displayedTitle" class="result-item">
-						<span class="result-label">标题</span>
-						<span class="result-value">{{ displayedTitle }}</span>
-					</div>
-					<div v-if="result.data.source" class="result-item">
-						<span class="result-label">来源</span>
-						<span class="result-value source">{{ result.data.source }}</span>
-					</div>
-					<div v-if="result.success.length > 0 || result.exists.length > 0" class="result-checks">
-						<div class="check-item" :class="{ done: result.data.cover_downloaded }">
-							<span class="check-icon">{{ result.data.cover_downloaded ? '✓' : '○' }}</span>
-							封面下载
-						</div>
-						<div class="check-item" :class="{ done: result.data.metadata_saved }">
-							<span class="check-icon">{{ result.data.metadata_saved ? '✓' : '○' }}</span>
-							元数据保存
-						</div>
-						<div class="check-item" :class="{ done: result.data.scraped }">
-							<span class="check-icon">{{ result.data.scraped ? '✓' : '○' }}</span>
-							信息刮削
-						</div>
-					</div>
-				</div>
+        <div class="result-details">
+          <div class="result-item">
+            <span class="result-label">编号</span>
+            <span class="result-value avid">{{ result.data.avid }}</span>
+          </div>
+          <div v-if="displayedTitle" class="result-item">
+            <span class="result-label">标题</span>
+            <span class="result-value">{{ displayedTitle }}</span>
+          </div>
+          <div v-if="result.data.source" class="result-item">
+            <span class="result-label">来源</span>
+            <span class="result-value source">{{ result.data.source }}</span>
+          </div>
+          <div v-if="result.success.length > 0 || result.exists.length > 0" class="result-checks">
+            <div class="check-item" :class="{ done: result.data.cover_downloaded }">
+              <span class="check-icon">{{ result.data.cover_downloaded ? '✓' : '○' }}</span>
+              封面下载
+            </div>
+            <div class="check-item" :class="{ done: result.data.metadata_saved }">
+              <span class="check-icon">{{ result.data.metadata_saved ? '✓' : '○' }}</span>
+              元数据保存
+            </div>
+            <div class="check-item" :class="{ done: result.data.scraped }">
+              <span class="check-icon">{{ result.data.scraped ? '✓' : '○' }}</span>
+              信息刮削
+            </div>
+          </div>
+        </div>
 
-				<div class="result-actions">
-					<button class="btn btn-primary" @click="viewResource">
-						查看详情
-					</button>
-				</div>
-			</div>
-		</Transition>
+        <div class="result-actions">
+          <button class="btn btn-primary" @click="viewResource">查看详情</button>
+        </div>
+      </div>
+    </Transition>
 
-		<!-- 批量添加结果 -->
-		<Transition name="result">
-			<div v-if="result && (result.total > 1 || !result.data)" class="batch-result-card">
-				<div class="batch-result-header">
-					<h3 class="batch-result-title">
-						{{ result.total > 1 ? '批量添加完成' : '添加完成' }}
-					</h3>
-					<div class="batch-result-stats">
-						<div class="stat-item success">
-							<span class="stat-icon">✓</span>
-							<span class="stat-label">成功</span>
-							<span class="stat-value">{{ result.success.length }}</span>
-						</div>
-						<div class="stat-item exists">
-							<span class="stat-icon">ℹ</span>
-							<span class="stat-label">已存在</span>
-							<span class="stat-value">{{ result.exists.length }}</span>
-						</div>
-						<div class="stat-item failed">
-							<span class="stat-icon">✕</span>
-							<span class="stat-label">失败</span>
-							<span class="stat-value">{{ result.failed.length }}</span>
-						</div>
-					</div>
-				</div>
+    <!-- 批量添加结果 -->
+    <Transition name="result">
+      <div v-if="result && (result.total > 1 || !result.data)" class="batch-result-card">
+        <div class="batch-result-header">
+          <h3 class="batch-result-title">
+            {{ result.total > 1 ? '批量添加完成' : '添加完成' }}
+          </h3>
+          <div class="batch-result-stats">
+            <div class="stat-item success">
+              <span class="stat-icon">✓</span>
+              <span class="stat-label">成功</span>
+              <span class="stat-value">{{ result.success.length }}</span>
+            </div>
+            <div class="stat-item exists">
+              <span class="stat-icon">ℹ</span>
+              <span class="stat-label">已存在</span>
+              <span class="stat-value">{{ result.exists.length }}</span>
+            </div>
+            <div class="stat-item failed">
+              <span class="stat-icon">✕</span>
+              <span class="stat-label">失败</span>
+              <span class="stat-value">{{ result.failed.length }}</span>
+            </div>
+          </div>
+        </div>
 
-				<div class="batch-result-details">
-					<div v-if="result.success.length > 0" class="result-group">
-						<h4 class="result-group-title success">
-							✓ 成功添加 ({{ result.success.length }})
-						</h4>
-						<div class="result-group-list">
-							<span v-for="successAvid in result.success" :key="successAvid" class="result-tag success">{{ successAvid }}</span>
-						</div>
-					</div>
+        <div class="batch-result-details">
+          <div v-if="result.success.length > 0" class="result-group">
+            <h4 class="result-group-title success">✓ 成功添加 ({{ result.success.length }})</h4>
+            <div class="result-group-list">
+              <span
+                v-for="successAvid in result.success"
+                :key="successAvid"
+                class="result-tag success"
+                >{{ successAvid }}</span
+              >
+            </div>
+          </div>
 
-					<div v-if="result.exists.length > 0" class="result-group">
-						<h4 class="result-group-title exists">
-							ℹ 已存在 ({{ result.exists.length }})
-						</h4>
-						<div class="result-group-list">
-							<span v-for="existsAvid in result.exists" :key="existsAvid" class="result-tag exists">{{ existsAvid }}</span>
-						</div>
-					</div>
+          <div v-if="result.exists.length > 0" class="result-group">
+            <h4 class="result-group-title exists">ℹ 已存在 ({{ result.exists.length }})</h4>
+            <div class="result-group-list">
+              <span
+                v-for="existsAvid in result.exists"
+                :key="existsAvid"
+                class="result-tag exists"
+                >{{ existsAvid }}</span
+              >
+            </div>
+          </div>
 
-					<div v-if="result.failed.length > 0" class="result-group">
-						<h4 class="result-group-title failed">
-							✕ 添加失败 ({{ result.failed.length }})
-						</h4>
-						<div class="result-group-list">
-							<span v-for="failedItem in result.failed" :key="failedItem.avid"
-								class="result-tag failed"
-								:class="`error-${failedItem.code}`">
-								{{ failedItem.avid }}:{{ failedItem.code }}
-							</span>
-						</div>
-					</div>
-				</div>
+          <div v-if="result.failed.length > 0" class="result-group">
+            <h4 class="result-group-title failed">✕ 添加失败 ({{ result.failed.length }})</h4>
+            <div class="result-group-list">
+              <span
+                v-for="failedItem in result.failed"
+                :key="failedItem.avid"
+                class="result-tag failed"
+                :class="`error-${failedItem.code}`"
+              >
+                {{ failedItem.avid }}:{{ failedItem.code }}
+              </span>
+            </div>
+          </div>
+        </div>
 
-				<div class="result-actions">
-					<button v-if="result.success.length === 1" class="btn btn-primary" @click="viewResource">
-						查看详情
-					</button>
-				</div>
-			</div>
-		</Transition>
+        <div class="result-actions">
+          <button v-if="result.success.length === 1" class="btn btn-primary" @click="viewResource">
+            查看详情
+          </button>
+        </div>
+      </div>
+    </Transition>
 
-		<div class="tips-section">
-			<h3 class="tips-title">
-				使用提示
-			</h3>
-			<ul class="tips-list">
-				<li>封面图片和元数据会自动保存到本地</li>
-				<li>添加成功后，可以在资源详情页提交下载任务</li>
-			</ul>
-		</div>
-	</div>
+    <div class="tips-section">
+      <h3 class="tips-title">使用提示</h3>
+      <ul class="tips-list">
+        <li>封面图片和元数据会自动保存到本地</li>
+        <li>添加成功后，可以在资源详情页提交下载任务</li>
+      </ul>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .add-view {
-	max-width: 640px;
-	margin: 0 auto;
-	animation: fadeIn 0.5s ease;
+  max-width: 640px;
+  margin: 0 auto;
+  animation: fadeIn 0.5s ease;
 }
 
 @keyframes fadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(10px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .page-header {
-	text-align: center;
-	margin-bottom: 2.5rem;
+  text-align: center;
+  margin-bottom: 2.5rem;
 }
 
 .page-title {
-	font-size: 2rem;
-	font-weight: 700;
-	color: var(--text-primary);
-	margin-bottom: 0.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
 }
 
 .page-subtitle {
-	color: var(--text-muted);
-	font-size: 1rem;
+  color: var(--text-muted);
+  font-size: 1rem;
 }
 
 /* 模式切换按钮 */
 .mode-switch {
-	display: flex;
-	gap: 1rem;
-	margin-bottom: 2rem;
-	justify-content: center;
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
 }
 
 .mode-btn {
-	flex: 1;
-	max-width: 200px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 0.5rem;
-	padding: 0.875rem 1.5rem;
-	border: 2px solid var(--border-color);
-	background: var(--card-bg);
-	border-radius: 12px;
-	color: var(--text-secondary);
-	font-size: 1rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
+  flex: 1;
+  max-width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: 2px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .mode-btn:hover:not(:disabled) {
-	border-color: var(--accent-primary);
-	color: var(--accent-primary);
-	background: rgba(255, 107, 107, 0.05);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(255, 107, 107, 0.05);
 }
 
 .mode-btn.active {
-	border-color: var(--accent-primary);
-	background: var(--accent-primary);
-	color: white;
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: white;
 }
 
 .mode-btn:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .mode-icon {
-	font-size: 1.2rem;
+  font-size: 1.2rem;
 }
 
 .add-form-card {
-	background: var(--card-bg);
-	border-radius: 20px;
-	border: 1px solid var(--border-color);
-	padding: 2rem;
-	margin-bottom: 2rem;
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  margin-bottom: 2rem;
 }
 
 .add-form {
-	display: flex;
-	flex-direction: column;
-	gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .form-group {
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .form-label {
-	font-size: 0.9rem;
-	font-weight: 500;
-	color: var(--text-primary);
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .count-badge {
-	display: inline-block;
-	padding: 0.125rem 0.5rem;
-	background: rgba(255, 107, 107, 0.15);
-	color: var(--primary-color);
-	border-radius: 8px;
-	font-size: 0.75rem;
-	font-weight: 600;
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--primary-color);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .form-input,
 .form-select,
 .form-textarea {
-	padding: 1rem 1.25rem;
-	background: rgba(0, 0, 0, 0.2);
-	border: 1px solid var(--border-color);
-	border-radius: 12px;
-	color: var(--text-primary);
-	font-size: 1rem;
-	transition: all 0.2s ease;
-	font-family: inherit;
+  padding: 1rem 1.25rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .form-textarea {
-	resize: vertical;
-	line-height: 1.6;
+  resize: vertical;
+  line-height: 1.6;
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
-	outline: none;
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
 }
 
 .form-input::placeholder,
 .form-textarea::placeholder {
-	color: var(--text-muted);
+  color: var(--text-muted);
 }
 
 .form-select {
-	cursor: pointer;
+  cursor: pointer;
 }
 
 .form-select option {
-	background: var(--bg-primary);
-	color: var(--text-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .form-hint {
-	font-size: 0.8rem;
-	color: var(--text-muted);
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 0.5rem;
-	padding: 0.875rem 1.5rem;
-	border: none;
-	border-radius: 12px;
-	font-size: 1rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-large {
-	padding: 1.1rem 2rem;
-	font-size: 1.05rem;
+  padding: 1.1rem 2rem;
+  font-size: 1.05rem;
 }
 
 .btn-full {
-	width: 100%;
+  width: 100%;
 }
 
 .btn-primary {
-	background: linear-gradient(135deg, var(--accent-primary), #ff5252);
-	color: white;
+  background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+  color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-	transform: translateY(-1px);
-	box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);
 }
 
 .btn-secondary {
-	background: rgba(255, 255, 255, 0.08);
-	color: var(--text-primary);
-	border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .btn-icon {
-	font-size: 1.2rem;
+  font-size: 1.2rem;
 }
 
 .result-card {
-	background: var(--card-bg);
-	border-radius: 20px;
-	border: 1px solid var(--border-color);
-	padding: 2rem;
-	margin-bottom: 2rem;
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  margin-bottom: 2rem;
 }
 
 .result-card.success {
-	border-color: rgba(46, 213, 115, 0.3);
+  border-color: rgba(46, 213, 115, 0.3);
 }
 
 .result-card.exists {
-	border-color: rgba(78, 205, 196, 0.3);
+  border-color: rgba(78, 205, 196, 0.3);
 }
 
 .result-header {
-	display: flex;
-	align-items: center;
-	gap: 1rem;
-	margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .result-icon {
-	width: 48px;
-	height: 48px;
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 1.25rem;
-	background: rgba(255, 107, 107, 0.15);
-	color: var(--accent-primary);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--accent-primary);
 }
 
 .result-card.success .result-icon {
-	background: rgba(46, 213, 115, 0.15);
-	color: var(--accent-success);
+  background: rgba(46, 213, 115, 0.15);
+  color: var(--accent-success);
 }
 
 .result-card.exists .result-icon {
-	background: rgba(78, 205, 196, 0.15);
-	color: var(--accent-tertiary);
+  background: rgba(78, 205, 196, 0.15);
+  color: var(--accent-tertiary);
 }
 
 .result-title {
-	font-size: 1.25rem;
-	font-weight: 600;
-	color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .result-details {
-	display: flex;
-	flex-direction: column;
-	gap: 1rem;
-	margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .result-item {
-	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .result-label {
-	font-size: 0.8rem;
-	color: var(--text-muted);
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .result-value {
-	font-size: 1rem;
-	color: var(--text-primary);
+  font-size: 1rem;
+  color: var(--text-primary);
 }
 
 .result-value.avid {
-	font-family: 'JetBrains Mono', monospace;
-	font-weight: 600;
-	color: var(--accent-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--accent-primary);
 }
 
 .result-value.source {
-	color: var(--accent-secondary);
+  color: var(--accent-secondary);
 }
 
 .result-checks {
-	display: flex;
-	gap: 1.5rem;
-	padding-top: 1rem;
-	border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
 }
 
 .check-item {
-	display: flex;
-	align-items: center;
-	gap: 0.4rem;
-	font-size: 0.85rem;
-	color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 .check-item.done {
-	color: var(--accent-success);
+  color: var(--accent-success);
 }
 
 .check-icon {
-	font-size: 0.9rem;
+  font-size: 0.9rem;
 }
 
 .result-message {
-	color: var(--text-muted);
-	margin-bottom: 1.5rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
 }
 
 .result-actions {
-	display: flex;
-	gap: 1rem;
+  display: flex;
+  gap: 1rem;
 }
 
 /* 批量添加结果样式 */
 .batch-result-card {
-	background: var(--card-bg);
-	border-radius: 20px;
-	border: 1px solid var(--border-color);
-	padding: 2rem;
-	margin-bottom: 2rem;
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  margin-bottom: 2rem;
 }
 
 .batch-result-header {
-	margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .batch-result-title {
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: var(--text-primary);
-	margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
 }
 
 .batch-result-stats {
-	display: flex;
-	gap: 1rem;
-	flex-wrap: wrap;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .stat-item {
-	flex: 1;
-	min-width: 140px;
-	display: flex;
-	align-items: center;
-	gap: 0.75rem;
-	padding: 1rem 1.25rem;
-	background: rgba(0, 0, 0, 0.2);
-	border-radius: 12px;
-	border: 1px solid var(--border-color);
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
 }
 
 .stat-item.success {
-	border-color: rgba(46, 213, 115, 0.3);
-	background: rgba(46, 213, 115, 0.05);
+  border-color: rgba(46, 213, 115, 0.3);
+  background: rgba(46, 213, 115, 0.05);
 }
 
 .stat-item.exists {
-	border-color: rgba(52, 152, 219, 0.3);
-	background: rgba(52, 152, 219, 0.05);
+  border-color: rgba(52, 152, 219, 0.3);
+  background: rgba(52, 152, 219, 0.05);
 }
 
 .stat-item.failed {
-	border-color: rgba(231, 76, 60, 0.3);
-	background: rgba(231, 76, 60, 0.05);
+  border-color: rgba(231, 76, 60, 0.3);
+  background: rgba(231, 76, 60, 0.05);
 }
 
 .stat-icon {
-	font-size: 1.5rem;
+  font-size: 1.5rem;
 }
 
 .stat-item.success .stat-icon {
-	color: var(--accent-success);
+  color: var(--accent-success);
 }
 
 .stat-item.exists .stat-icon {
-	color: var(--accent-tertiary);
+  color: var(--accent-tertiary);
 }
 
 .stat-item.failed .stat-icon {
-	color: var(--accent-danger);
+  color: var(--accent-danger);
 }
 
 .stat-label {
-	color: var(--text-muted);
-	font-size: 0.875rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
 .stat-value {
-	margin-left: auto;
-	font-size: 1.5rem;
-	font-weight: 700;
-	color: var(--text-primary);
+  margin-left: auto;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .batch-result-details {
-	display: flex;
-	flex-direction: column;
-	gap: 1.5rem;
-	margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .result-group {
-	display: flex;
-	flex-direction: column;
-	gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .result-group-title {
-	font-size: 0.875rem;
-	font-weight: 600;
-	margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0;
 }
 
 .result-group-title.success {
-	color: var(--accent-success);
+  color: var(--accent-success);
 }
 
 .result-group-title.exists {
-	color: var(--accent-tertiary);
+  color: var(--accent-tertiary);
 }
 
 .result-group-title.failed {
-	color: var(--accent-danger);
+  color: var(--accent-danger);
 }
 
 .result-group-list {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .result-tag {
-	display: inline-block;
-	padding: 0.375rem 0.75rem;
-	border-radius: 8px;
-	font-size: 0.8rem;
-	font-weight: 500;
-	font-family: 'Courier New', monospace;
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
 }
 
 .result-tag.success {
-	background: rgba(46, 213, 115, 0.15);
-	color: var(--accent-success);
-	border: 1px solid rgba(46, 213, 115, 0.3);
+  background: rgba(46, 213, 115, 0.15);
+  color: var(--accent-success);
+  border: 1px solid rgba(46, 213, 115, 0.3);
 }
 
 .result-tag.exists {
-	background: rgba(52, 152, 219, 0.15);
-	color: var(--accent-tertiary);
-	border: 1px solid rgba(52, 152, 219, 0.3);
+  background: rgba(52, 152, 219, 0.15);
+  color: var(--accent-tertiary);
+  border: 1px solid rgba(52, 152, 219, 0.3);
 }
 
 .result-tag.failed {
-	background: rgba(231, 76, 60, 0.15);
-	color: var(--accent-danger);
-	border: 1px solid rgba(231, 76, 60, 0.3);
+  background: rgba(231, 76, 60, 0.15);
+  color: var(--accent-danger);
+  border: 1px solid rgba(231, 76, 60, 0.3);
 }
 
 /* 不同错误类型的颜色 */
 .result-tag.error-404 {
-	background: rgba(255, 159, 64, 0.15);
-	color: #ff9f40;
-	border: 1px solid rgba(255, 159, 64, 0.3);
+  background: rgba(255, 159, 64, 0.15);
+  color: #ff9f40;
+  border: 1px solid rgba(255, 159, 64, 0.3);
 }
 
 .result-tag.error-403 {
-	background: rgba(155, 89, 182, 0.15);
-	color: #9b59b6;
-	border: 1px solid rgba(155, 89, 182, 0.3);
+  background: rgba(155, 89, 182, 0.15);
+  color: #9b59b6;
+  border: 1px solid rgba(155, 89, 182, 0.3);
 }
 
 .result-tag.error-502 {
-	background: rgba(241, 196, 15, 0.15);
-	color: #f1c40f;
-	border: 1px solid rgba(241, 196, 15, 0.3);
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.3);
 }
 
 .result-tag.error-500 {
-	background: rgba(192, 57, 43, 0.15);
-	color: #c0392b;
-	border: 1px solid rgba(192, 57, 43, 0.3);
+  background: rgba(192, 57, 43, 0.15);
+  color: #c0392b;
+  border: 1px solid rgba(192, 57, 43, 0.3);
 }
 
 .result-enter-active {
-	animation: slideUp 0.4s ease;
+  animation: slideUp 0.4s ease;
 }
 
 .result-leave-active {
-	animation: slideUp 0.3s ease reverse;
+  animation: slideUp 0.3s ease reverse;
 }
 
 @keyframes slideUp {
-	from {
-		opacity: 0;
-		transform: translateY(20px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .tips-section {
-	background: rgba(78, 205, 196, 0.05);
-	border: 1px solid rgba(78, 205, 196, 0.1);
-	border-radius: 16px;
-	padding: 1.5rem;
+  background: rgba(78, 205, 196, 0.05);
+  border: 1px solid rgba(78, 205, 196, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
 }
 
 .tips-title {
-	font-size: 1rem;
-	font-weight: 600;
-	color: var(--accent-tertiary);
-	margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-tertiary);
+  margin-bottom: 1rem;
 }
 
 .tips-list {
-	margin: 0;
-	padding-left: 1.25rem;
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .tips-list li {
-	font-size: 0.9rem;
-	color: var(--text-secondary);
-	line-height: 1.5;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .tips-list li::marker {
-	color: var(--accent-tertiary);
+  color: var(--accent-tertiary);
 }
 </style>

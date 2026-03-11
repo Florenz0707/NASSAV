@@ -40,31 +40,37 @@ NASSAV 是一个功能完整的视频资源管理系统，包括：
 ## 页面预览
 
 ### 首页
+
 展示资源总览统计、最近添加的资源以及快捷操作入口。
 
 ![首页](vue_frontend/public/preview/home.png)
 
 ### 资源库
+
 支持按 AVID/标题/来源搜索，按状态过滤，按日期/编号/来源排序，提供批量操作（下载、刷新、删除），支持按演员/类别分类浏览。
 
 ![资源库](vue_frontend/public/preview/resource.png)
 
 ### 演员库
+
 展示所有演员及其作品数，支持搜索演员名称，按作品数或名称排序，点击演员卡片可查看该演员的所有作品。
 
 ![演员库](vue_frontend/public/preview/actors.png)
 
 ### 资源详情
+
 展示完整的元数据信息，包括封面、演员、类别、文件大小等，支持下载和刷新操作。
 
 ![资源详情](vue_frontend/public/preview/resourceDetail.png)
 
 ### 添加资源
+
 输入 AVID 并选择下载源，实时显示封面下载、元数据保存、信息刮削状态。
 
 ![添加资源](vue_frontend/public/preview/addResource.png)
 
 ### 下载管理
+
 查看已下载的资源列表，快速跳转到资源详情页。
 
 ![下载管理](vue_frontend/public/preview/downloads.png)
@@ -73,30 +79,30 @@ NASSAV 是一个功能完整的视频资源管理系统，包括：
 
 ### 后端（django_backend/）
 
-| 组件 | 版本 | 说明 |
-|------|------|------|
-| Python | 3.12+ | 运行环境 |
-| Django | 5.1+ | Web 框架 |
-| Django REST Framework | 3.15+ | API 框架 |
-| Django Channels | 4.3+ | WebSocket 支持 |
-| Celery | 5.4+ | 异步任务队列 |
-| Redis | - | 消息队列 & 分布式锁 & Channel Layer |
-| curl_cffi | - | HTTP 请求（绕过反爬） |
-| N_m3u8DL-RE | - | M3U8 下载工具 |
+| 组件                  | 版本  | 说明                                |
+| --------------------- | ----- | ----------------------------------- |
+| Python                | 3.12+ | 运行环境                            |
+| Django                | 5.1+  | Web 框架                            |
+| Django REST Framework | 3.15+ | API 框架                            |
+| Django Channels       | 4.3+  | WebSocket 支持                      |
+| Celery                | 5.4+  | 异步任务队列                        |
+| Redis                 | -     | 消息队列 & 分布式锁 & Channel Layer |
+| curl_cffi             | -     | HTTP 请求（绕过反爬）               |
+| N_m3u8DL-RE           | -     | M3U8 下载工具                       |
 
 ### 前端（vue_frontend/）
 
-| 组件 | 版本 | 说明 |
-|------|------|------|
-| Vue 3 | - | 前端框架 |
-| Vite | 5+ | 构建工具 |
-| Pinia | - | 状态管理 |
-| Vue Router | - | 路由管理 |
-| Axios | - | HTTP 请求 |
+| 组件       | 版本 | 说明      |
+| ---------- | ---- | --------- |
+| Vue 3      | -    | 前端框架  |
+| Vite       | 5+   | 构建工具  |
+| Pinia      | -    | 状态管理  |
+| Vue Router | -    | 路由管理  |
+| Axios      | -    | HTTP 请求 |
 
 ## 项目结构
 
-```
+```bash
 NASSAV/
 ├── django_backend/          # Django 后端服务
 │   ├── config/             # 配置文件
@@ -225,14 +231,14 @@ curl http://localhost:8191/health
 FlareSolverr:
   Enable: true
   url: http://localhost:8191
-  timeout: 60000  # 等待 Cloudflare 验证的最长时间（毫秒）
+  timeout: 60000 # 等待 Cloudflare 验证的最长时间（毫秒）
 ```
 
 > **注意**：`cf_clearance` cookie 与 FlareSolverr 浏览器的 TLS 指纹绑定，系统会自动通过 FlareSolverr 代理页面请求，无需额外配置。
 
 #### 启动服务
 
-**方式一：使用 ASGI 服务器（推荐，支持 WebSocket）**
+### 方式一：使用 ASGI 服务器（推荐，支持 WebSocket）
 
 ```bash
 # 使用 Uvicorn（推荐）
@@ -242,7 +248,7 @@ uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --relo
 uv run daphne -b 0.0.0.0 -p 8000 django_project.asgi:application
 ```
 
-**方式二：使用 Django 开发服务器（不支持 WebSocket）**
+### 方式二：使用 Django 开发服务器（不支持 WebSocket）
 
 ```bash
 uv run python manage.py runserver 0.0.0.0:8000
@@ -261,6 +267,7 @@ uv run celery -A django_project worker -l info --concurrency=1
 ```
 
 **重要说明**：
+
 - Worker 已配置为单并发模式（`CELERY_WORKER_CONCURRENCY=1`）
 - 全局下载锁确保同一时间只有一个 N_m3u8DL-RE 实例在运行
 - 任务去重机制防止同一 AVID 重复提交到队列
@@ -299,20 +306,20 @@ pnpm dev  # 默认端口 8080
 
 ### 3. 访问应用
 
-打开浏览器访问：http://localhost:8080
+打开浏览器访问：<http://localhost:8080>
 
 ## 定时任务（Celery Beat）
 
 系统内置 6 个定时任务，由 Celery Beat 按计划自动触发，报告文件保存在 `django_backend/celery_beat/` 目录。
 
-| 任务名 | 触发时间 | 说明 |
-|--------|----------|------|
-| `backup-database-daily` | 每天 01:30 | 备份 SQLite 数据库文件（含 WAL/SHM），保留最近 30 天 |
-| `backup-avid-list-daily` | 每天 02:00 | 将所有 AVID 导出为文本文件，用于灾难恢复，保留最近 30 天 |
-| `check-resources-consistency-daily` | 每天 03:00 | 检查封面/视频文件与数据库字段的一致性，自动修复不一致项 |
-| `sync-backups-daily` | 每天 04:00 | 将 `backup/`、`celery_beat/`、`log/` 同步到 `BackupPath` 配置的外部目录 |
-| `db-disk-consistency-daily` | 每天 07:00 | 检查视频文件是否存在于磁盘，更新 `file_exists` 字段 |
-| `actor-avatars-consistency-daily` | 每天 07:05 | 检查演员头像文件完整性，报告缺失项 |
+| 任务名                              | 触发时间   | 说明                                                                    |
+| ----------------------------------- | ---------- | ----------------------------------------------------------------------- |
+| `backup-database-daily`             | 每天 01:30 | 备份 SQLite 数据库文件（含 WAL/SHM），保留最近 30 天                    |
+| `backup-avid-list-daily`            | 每天 02:00 | 将所有 AVID 导出为文本文件，用于灾难恢复，保留最近 30 天                |
+| `check-resources-consistency-daily` | 每天 03:00 | 检查封面/视频文件与数据库字段的一致性，自动修复不一致项                 |
+| `sync-backups-daily`                | 每天 04:00 | 将 `backup/`、`celery_beat/`、`log/` 同步到 `BackupPath` 配置的外部目录 |
+| `db-disk-consistency-daily`         | 每天 07:00 | 检查视频文件是否存在于磁盘，更新 `file_exists` 字段                     |
+| `actor-avatars-consistency-daily`   | 每天 07:05 | 检查演员头像文件完整性，报告缺失项                                      |
 
 ### 配置说明
 
@@ -321,7 +328,7 @@ pnpm dev  # 默认端口 8080
 `sync-backups-daily` 需要在 `config.yaml` 中配置目标目录：
 
 ```yaml
-BackupPath: /path/to/external/backup  # 外部备份目录，null 表示禁用同步
+BackupPath: /path/to/external/backup # 外部备份目录，null 表示禁用同步
 ```
 
 ### 手动触发
@@ -348,39 +355,41 @@ uv run python manage.py check_actor_avatars_consistency --report celery_beat/ava
 ## API 文档
 
 详细接口说明请参考：
+
 - [django_backend/doc/interface.md](django_backend/doc/interface.md) - API 接口文档
 - [django_backend/doc/database.md](django_backend/doc/database.md) - 数据库模型文档
 
 ### REST API 端点
 
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| GET | `/api/source/list` | 获取可用下载源列表 |
-| POST | `/api/source/cookie` | 设置下载源 Cookie |
-| GET | `/api/resource/list` | 获取所有资源列表（旧版） |
-| GET | `/api/resources/` | 资源列表（支持搜索/筛选/分页/排序） |
-| GET | `/api/actors/` | 演员列表（支持搜索/分页/排序） |
-| GET | `/api/genres/` | 类别列表（支持搜索/分页/排序，待实现） |
-| GET | `/api/resource/cover` | 获取封面图片（支持多尺寸） |
-| GET | `/api/resource/<avid>/preview` | 资源详情首屏预览 |
-| POST | `/api/resource` | 添加新资源 |
-| POST | `/api/resource/refresh/<avid>` | 刷新资源元数据 |
-| DELETE | `/api/resource/<avid>` | 删除资源 |
-| POST | `/api/resources/batch` | 批量资源操作（add/refresh/delete） |
-| GET | `/api/downloads/list` | 获取已下载列表 |
-| GET | `/api/downloads/abspath` | 获取视频文件绝对路径 |
-| POST | `/api/downloads/<avid>` | 提交下载任务 |
-| DELETE | `/api/downloads/<avid>` | 删除已下载视频 |
-| POST | `/api/downloads/batch_submit` | 批量提交下载任务 |
-| GET | `/api/tasks/queue/status` | 获取任务队列状态（含进度） |
+| 方法   | 端点                           | 说明                                   |
+| ------ | ------------------------------ | -------------------------------------- |
+| GET    | `/api/source/list`             | 获取可用下载源列表                     |
+| POST   | `/api/source/cookie`           | 设置下载源 Cookie                      |
+| GET    | `/api/resource/list`           | 获取所有资源列表（旧版）               |
+| GET    | `/api/resources/`              | 资源列表（支持搜索/筛选/分页/排序）    |
+| GET    | `/api/actors/`                 | 演员列表（支持搜索/分页/排序）         |
+| GET    | `/api/genres/`                 | 类别列表（支持搜索/分页/排序，待实现） |
+| GET    | `/api/resource/cover`          | 获取封面图片（支持多尺寸）             |
+| GET    | `/api/resource/<avid>/preview` | 资源详情首屏预览                       |
+| POST   | `/api/resource`                | 添加新资源                             |
+| POST   | `/api/resource/refresh/<avid>` | 刷新资源元数据                         |
+| DELETE | `/api/resource/<avid>`         | 删除资源                               |
+| POST   | `/api/resources/batch`         | 批量资源操作（add/refresh/delete）     |
+| GET    | `/api/downloads/list`          | 获取已下载列表                         |
+| GET    | `/api/downloads/abspath`       | 获取视频文件绝对路径                   |
+| POST   | `/api/downloads/<avid>`        | 提交下载任务                           |
+| DELETE | `/api/downloads/<avid>`        | 删除已下载视频                         |
+| POST   | `/api/downloads/batch_submit`  | 批量提交下载任务                       |
+| GET    | `/api/tasks/queue/status`      | 获取任务队列状态（含进度）             |
 
 ### WebSocket 端点
 
-| 端点 | 说明 |
-|------|------|
+| 端点                                   | 说明                           |
+| -------------------------------------- | ------------------------------ |
 | `ws://localhost:8000/nassav/ws/tasks/` | 实时任务队列通知和下载进度推送 |
 
 **消息类型**：
+
 - `progress_update` - 下载进度实时更新（百分比、速度）
 - `task_started` - 任务开始通知
 - `task_completed` - 任务完成通知
@@ -471,6 +480,7 @@ A: 确保使用 ASGI 服务器（Uvicorn 或 Daphne），而不是传统的 WSGI
 **Q: 某些源无法获取资源？**
 
 A: 部分源需要 Cookie 才能访问。各源情况如下：
+
 - **missav**：品类最全，启用 FlareSolverr 后可自动获取 cookie（推荐）；未启用时需在设置页手动填写
 - **jable**：品类较全，可自动获取 cookie，无需额外配置
 - **memo**：无需 cookie，但没有中文字幕
@@ -533,30 +543,30 @@ A: 就目前来说，**missav** 品类最全但是需要手动获取设置 cooki
 **WebSocket 实时订阅（推荐）：**
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/nassav/ws/tasks/');
+const ws = new WebSocket('ws://localhost:8000/nassav/ws/tasks/')
 
 ws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
+  const message = JSON.parse(event.data)
 
-    switch (message.type) {
-        case 'progress_update':
-            // 实时进度更新
-            const {avid, percent, speed} = message.data;
-            console.log(`${avid}: ${percent}% @ ${speed}`);
-            updateProgressBar(avid, percent);
-            break;
+  switch (message.type) {
+    case 'progress_update':
+      // 实时进度更新
+      const { avid, percent, speed } = message.data
+      console.log(`${avid}: ${percent}% @ ${speed}`)
+      updateProgressBar(avid, percent)
+      break
 
-        case 'task_completed':
-            // 下载完成
-            console.log(`Task ${message.data.avid} completed`);
-            break;
+    case 'task_completed':
+      // 下载完成
+      console.log(`Task ${message.data.avid} completed`)
+      break
 
-        case 'queue_status':
-            // 队列状态更新
-            updateQueueDisplay(message.data);
-            break;
-    }
-};
+    case 'queue_status':
+      // 队列状态更新
+      updateQueueDisplay(message.data)
+      break
+  }
+}
 ```
 
 **REST API 轮询（备选）：**
@@ -564,16 +574,16 @@ ws.onmessage = (event) => {
 ```javascript
 // 定期查询任务状态（包含进度信息）
 setInterval(async () => {
-    const response = await fetch('/nassav/api/tasks/queue/status');
-    const {data} = await response.json();
+  const response = await fetch('/nassav/api/tasks/queue/status')
+  const { data } = await response.json()
 
-    data.active_tasks.forEach(task => {
-        if (task.progress) {
-            console.log(`${task.avid}: ${task.progress.percent}%`);
-            updateProgressBar(task.avid, task.progress.percent);
-        }
-    });
-}, 2000); // 每 2 秒查询一次
+  data.active_tasks.forEach((task) => {
+    if (task.progress) {
+      console.log(`${task.avid}: ${task.progress.percent}%`)
+      updateProgressBar(task.avid, task.progress.percent)
+    }
+  })
+}, 2000) // 每 2 秒查询一次
 ```
 
 ### 任务去重与并发控制
@@ -719,18 +729,21 @@ setInterval(async () => {
 #### 🆕 新功能
 
 **系统设置页面：**
+
 - ⚙️ **设置页面**：新增独立设置页（`/settings`），集中管理 Cookie 和系统配置
 - 🍪 **Cookie 管理模块**：查看、设置、自动获取、删除下载源 Cookie，实时显示状态
 - 📝 **用户设置持久化**：通过 `/api/setting` 接口将前端配置保存到后端 `user_settings.ini`
 - 🎨 **通用设置**：支持控制女优头像显示、选择标题显示字段（原始/源站/翻译）
 
 **女优头像功能：**
+
 - 🖼️ **Javbus 头像集成**：自动从 Javbus 获取女优头像并保存到本地
 - 👤 **头像显示**：演员列表和详情页支持显示女优头像（可通过设置开关）
 - 🔍 **头像筛选**：演员列表支持 `has_avatar` 参数按头像状态筛选
 - 🎯 **智能降级**：无头像时显示文字占位符
 
 **封面与标题优化：**
+
 - 📷 **Javbus 封面优先**：优先使用 Javbus 封面（质量更稳定），403 错误时自动回退到源站封面
 - 🏷️ **多标题支持**：后端同时返回原始标题、源站标题、翻译标题，前端可选显示
 
@@ -755,6 +768,7 @@ setInterval(async () => {
 #### 🎯 核心功能增强
 
 **后端新特性：**
+
 - ✨ **细粒度刷新控制**：支持独立刷新 m3u8、元数据、翻译（3个开关互不干扰）
 - 🔄 **批量操作接口**：支持批量添加、刷新、删除资源，批量提交下载任务
 - 🌐 **AI 智能翻译系统**：基于 Ollama 的日译中标题翻译，支持批量翻译和异步任务
@@ -763,6 +777,7 @@ setInterval(async () => {
 - 🎛️ **Translator 配置系统**：支持多翻译器配置，可通过 config.yaml 激活不同模型
 
 **前端新特性：**
+
 - ✨ **批量添加资源**：支持一次性输入多个 AVID（换行、逗号或空格分隔），自动去重和格式化
 - 🎨 **刷新操作多选项**：刷新元数据时可选择刷新方式（仅本地、Ollama、DeepL、ChatGPT等）
 - 🏠 **首页美化**：采用渐变配色、浮动动画背景、现代化卡片设计
@@ -807,6 +822,7 @@ setInterval(async () => {
 ### v1.1.0
 
 **新增功能：**
+
 - ✨ **演员聚合浏览**：新增演员库页面，按演员分类浏览资源，支持搜索和排序
 - ✨ **类别聚合浏览**：新增类别库页面（前端待完善），按类别分类浏览资源
 - ✨ **演员/类别详情页**：点击演员/类别卡片可查看该演员/类别的所有作品
@@ -821,6 +837,7 @@ setInterval(async () => {
 - 🎨 **UI/UX 优化**：统一的卡片设计风格，更流畅的交互体验
 
 **改进：**
+
 - 📊 数据库结构优化：添加索引提升查询性能
 - 🔒 增强的去重机制：多层去重保证任务唯一性
 - 🚀 缩略图支持：封面支持多尺寸（small/medium/large）按需生成

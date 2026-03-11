@@ -1,9 +1,10 @@
 """
 M3U8 下载器基类
 """
+
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Callable, Optional, Protocol
 
 
 class IM3u8Downloader(Protocol):
@@ -26,7 +27,7 @@ class IM3u8Downloader(Protocol):
         user_agent: str,
         thread_count: int = 32,
         retry_count: int = 5,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
     ) -> bool:
         """下载 M3U8 视频"""
         ...
@@ -59,7 +60,7 @@ class M3u8DownloaderBase(ABC):
         user_agent: str,
         thread_count: int = 32,
         retry_count: int = 5,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Optional[Callable] = None,
     ) -> bool:
         """
         下载 M3U8 视频

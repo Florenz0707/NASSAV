@@ -1,7 +1,7 @@
 """
 Translator 管理器 - 管理所有翻译器的注册和调用
 """
-import re
+
 from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings

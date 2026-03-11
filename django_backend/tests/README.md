@@ -25,41 +25,48 @@
 ### ✅ 已重构为 pytest 的测试
 
 #### 1. test_actors_api.py
+
 - **功能**: 测试演员相关 API
 - **端点**: `/api/resources/?actor=...`, `/api/actors/`
 - **运行**: `uv run pytest tests/test_actors_api.py -v`
 - **fixtures**: `setup_actors_with_resources`, `api_client`
 
 #### 2. test_genres_api.py
+
 - **功能**: 测试类别/标签相关 API
 - **端点**: `/api/resources/?genre=...`, `/api/genres/`
 - **运行**: `uv run pytest tests/test_genres_api.py -v`
 - **fixtures**: `setup_genres_with_resources`, `api_client`
 
 #### 3. test_resources_list.py
+
 - **功能**: 测试资源列表和过滤功能
 - **端点**: `/api/resources/`
 - **运行**: `uv run pytest tests/test_resources_list.py -v`
 - **fixtures**: `setup_resources`, `api_client`
 
 #### 4. test_views_resource.py
+
 - **功能**: 测试资源相关视图和文件操作
 - **端点**: `/api/resource/metadata`, `/api/downloads/abspath`
 - **运行**: `uv run pytest tests/test_views_resource.py -v`
 - **fixtures**: `api_client`, `resource_factory`, `tmp_path`, `settings`
 
 #### 5. test_serializers.py
+
 - **功能**: 测试序列化器的数据转换和验证
 - **覆盖**: ResourceSummarySerializer, ResourceSerializer
 - **运行**: `uv run pytest tests/test_serializers.py -v`
 - **fixtures**: `resource_with_relations`
 
 #### 6. test_actor_avatar_api.py
+
 - **功能**: 测试演员头像功能完整流程
 - **运行**: `uv run pytest tests/test_actor_avatar_api.py -v`
 - **fixtures**: `actor_factory`, `resource_factory`, `api_client`
 
 #### 7. test_actors_list_filter.py
+
 - **功能**: 测试演员列表 API 过滤功能
 - **覆盖**: 验证演员列表只返回有作品的演员
 - **运行**: `uv run pytest tests/test_actors_list_filter.py -v`
@@ -68,33 +75,39 @@
 ### 其他测试文件
 
 #### 8. test_video_time_sort_filter.py
+
 - **功能**: 测试视频时间排序时的过滤逻辑
 - **覆盖**: 按 video_create_time 排序时只返回已下载资源
 - **运行**: `uv run pytest tests/test_video_time_sort_filter.py -v`
 - **fixtures**: `setup_video_resources`, `resource_factory`
 
 #### 9. test_javbus_actor_parsing.py
+
 - **功能**: 测试 Javbus 女优名解析（防止括号内容被截断）
 - **覆盖**: 从 img title 属性提取完整女优名
 - **运行**: `uv run pytest tests/test_javbus_actor_parsing.py -v`
 - **fixtures**: `javbus_html_content`, `javbus_scraper`
 
 #### 10. test_fix_actor_names.py
+
 - **功能**: 测试演员名称正常性判断逻辑
 - **覆盖**: 判断演员名是否被截断（括号匹配检测）
 - **运行**: `uv run pytest tests/test_fix_actor_names.py -v`
 
 #### 11. test_actor_avatar_extraction.py
+
 - **功能**: 测试演员头像 URL 提取
 - **类型**: 纯单元测试，不依赖数据库
 - **运行**: `uv run pytest tests/test_actor_avatar_extraction.py -v`
 
 #### 12. test_user_settings.py
+
 - **功能**: 测试用户设置 API
 - **端点**: `/api/setting`
 - **运行**: `uv run pytest tests/test_user_settings.py -v`
 
 #### 13. test_resource_samples.py
+
 - **功能**: 测试资源样例的完整流程和数据有效性
 - **覆盖**:
   - 不存在的资源（TEST-001, TEST-002, TEST-003）- 预期失败
@@ -109,22 +122,26 @@
 ### 集成测试（Integration Tests）
 
 #### 14. test_ws.py
+
 - **功能**: 测试 WebSocket 实时通信
 - **端点**: `/ws/tasks/`
 - **运行**: `uv run pytest tests/test_ws.py -v`
 - **依赖**: Redis 服务
 
 #### 15. test_translator.py
+
 - **功能**: 测试 Ollama 翻译器功能
 - **运行**: `uv run python tests/test_translator.py --batch --count 10`
 - **依赖**: Ollama 服务
 
 #### 16. test_translator_manager.py
+
 - **功能**: 测试翻译管理器和重试机制
 - **运行**: `uv run python tests/test_translator_manager.py`
 - **依赖**: Ollama 服务
 
 #### 17. test_translation_cleaning.py
+
 - **功能**: 测试翻译结果后处理清理功能
 - **运行**: `uv run python tests/test_translation_cleaning.py`
 - **说明**: 验证翻译结果中多余说明文字的清理效果
@@ -132,16 +149,19 @@
 ### Shell 脚本测试（Shell Script Tests）
 
 #### 18. test_api.sh
+
 - **功能**: 综合 API 测试脚本
 - **运行**: `./tests/test_api.sh --verbose`
 - **依赖**: curl, jq (可选)
 
 #### 19. test_mock_download.sh
+
 - **功能**: 模拟下载任务批处理测试
 - **运行**: `./tests/test_mock_download.sh --duration 30`
 - **依赖**: curl, jq (可选)
 
 #### 20. test_websocket.sh
+
 - **功能**: WebSocket 实时监听测试
 - **运行**: `./tests/test_websocket.sh`
 - **依赖**: wscat 或 websocket-client (Python)
@@ -151,18 +171,21 @@
 ## 快速开始
 
 ### 运行所有 pytest 测试
+
 ```bash
 cd django_backend
 uv run pytest tests/ -v
 ```
 
 ### 运行已重构的核心 API 测试
+
 ```bash
 cd django_backend
 uv run pytest tests/test_actors_api.py tests/test_genres_api.py tests/test_resources_list.py tests/test_views_resource.py tests/test_serializers.py -v
 ```
 
 ### 运行特定测试
+
 ```bash
 # 单个测试文件
 uv run pytest tests/test_actors_api.py -v
@@ -175,6 +198,7 @@ uv run pytest tests/ -v -m django_db
 ```
 
 ### 运行 Shell 脚本测试
+
 ```bash
 cd django_backend/tests
 
@@ -198,21 +222,25 @@ chmod +x *.sh
 ### 必需服务
 
 1. **Redis** (用于 Celery 和 Channels)
+
    ```bash
    redis-server
    ```
 
 2. **Django 服务器** (用于 Shell 脚本测试)
+
    ```bash
    uv run python manage.py runserver
    ```
 
 3. **Celery Worker** (用于任务队列测试)
+
    ```bash
    uv run celery -A django_project worker -l info
    ```
 
 4. **Ollama 服务** (用于翻译测试，可选)
+
    ```bash
    ollama serve
    ```
@@ -220,6 +248,7 @@ chmod +x *.sh
 ### 环境变量
 
 创建 `.env` 文件用于测试：
+
 ```bash
 # 测试环境配置
 DEBUG=True
@@ -232,6 +261,7 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 ## 测试覆盖率
 
 ### 生成覆盖率报告
+
 ```bash
 # 安装 coverage
 pip install coverage
@@ -304,25 +334,32 @@ jobs:
 ## 常见问题
 
 ### Q: 测试时出现数据库错误
+
 **A:** Django 测试使用独立的测试数据库，每次测试后自动清理。如果遇到问题，手动删除测试数据库：
+
 ```bash
 rm db.sqlite3
 python manage.py migrate
 ```
 
 ### Q: WebSocket 测试失败
+
 **A:** 确保：
+
 1. Redis 服务正在运行
 2. 已安装 channels 和 channels-redis
 3. settings.py 中正确配置了 CHANNEL_LAYERS
 
 ### Q: 翻译测试失败
+
 **A:** 确保：
+
 1. Ollama 服务正在运行（`ollama serve`）
 2. 已下载所需模型（`ollama pull qwen2.5:7b`）
 3. config.yaml 中正确配置了翻译器
 
 ### Q: Shell 脚本测试返回 403
+
 **A:** 在 `.env` 中设置 `DEBUG=True` 以启用调试接口
 
 ---
@@ -420,10 +457,12 @@ def test_with_api_client(api_client):
 本项目测试代码已进行系统性重构（2026-01-03），主要改进：
 
 ### Phase 1: 基础设施
+
 - ✅ 增强 conftest.py 提供通用 fixtures
 - ✅ 添加 assert_api_response, resource_with_actors 等辅助函数
 
 ### Phase 2: 核心 API 测试重构（5个文件）
+
 - ✅ test_actors_api.py - 演员 API
 - ✅ test_genres_api.py - 类别 API
 - ✅ test_resources_list.py - 资源列表
@@ -431,15 +470,18 @@ def test_with_api_client(api_client):
 - ✅ test_serializers.py - 序列化器
 
 ### Phase 3: 业务逻辑测试重构（3个文件）
+
 - ✅ test_video_time_sort_filter.py - 视频时间排序过滤
 - ✅ test_javbus_actor_parsing.py - Javbus 演员解析
 - ✅ test_fix_actor_names.py - 演员名称修复判断
 
 ### 清理工作
+
 - 🗑️ 删除 demo_javbus_fix.py（演示脚本，已被测试覆盖）
 - 🗑️ 删除 test_genres_filtering.py（功能重复，已被 test_genres_api.py 覆盖）
 
 ### 重构收益
+
 - 📉 减少代码重复约 40-50%
 - 🎯 统一测试风格（全部使用 pytest）
 - 🔧 提高可维护性（集中管理测试数据）

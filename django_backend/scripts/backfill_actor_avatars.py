@@ -109,7 +109,7 @@ def backfill_avatars(limit=None, delay=1.0, dry_run=False, verbose=False):
             continue
 
         if not scrape_data:
-            logger.warning(f"  刮削失败: 未获取到元数据")
+            logger.warning("  刮削失败: 未获取到元数据")
             stats["skipped"] += 1
             time.sleep(delay)
             continue
@@ -117,7 +117,7 @@ def backfill_avatars(limit=None, delay=1.0, dry_run=False, verbose=False):
         # 检查是否有头像URL
         actor_avatars = scrape_data.get("actor_avatars", {})
         if actor.name not in actor_avatars:
-            logger.warning(f"  跳过: 刮削结果中没有该演员的头像URL")
+            logger.warning("  跳过: 刮削结果中没有该演员的头像URL")
             stats["skipped"] += 1
             time.sleep(delay)
             continue
@@ -190,8 +190,12 @@ def main():
         """,
     )
     parser.add_argument("--limit", type=int, help="限制处理的演员数量（用于测试）")
-    parser.add_argument("--delay", type=float, default=1.0, help="每次刮削之间的延迟秒数（默认1秒）")
-    parser.add_argument("--dry-run", action="store_true", help="仅模拟运行，不实际修改数据库或下载文件")
+    parser.add_argument(
+        "--delay", type=float, default=1.0, help="每次刮削之间的延迟秒数（默认1秒）"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="仅模拟运行，不实际修改数据库或下载文件"
+    )
     parser.add_argument("--verbose", action="store_true", help="显示详细日志")
 
     args = parser.parse_args()

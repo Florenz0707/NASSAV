@@ -3,6 +3,7 @@
 
 目的：验证所有请求参数（proxy, cookie, referer, impersonate等）是否正确打印到日志
 """
+
 import os
 import sys
 
@@ -15,7 +16,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
-import logging
 
 from loguru import logger
 from nassav.source.SourceManager import source_manager
@@ -48,13 +48,13 @@ def test_fetch_html_debug():
     print("-" * 100)
 
     if info:
-        print(f"✅ 成功获取资源信息")
+        print("✅ 成功获取资源信息")
         print(f"   源: {source_inst.get_source_name() if source_inst else 'Unknown'}")
         print(f"   标题: {info.title}")
         print(f"   M3U8: {info.m3u8[:50]}..." if info.m3u8 else "   M3U8: (未获取)")
         print(f"   HTML 长度: {len(html)} 字符" if html else "   HTML: (未获取)")
     else:
-        print(f"❌ 获取失败")
+        print("❌ 获取失败")
         print(f"   错误: {errors}")
 
     print("\n" + "=" * 100 + "\n")
@@ -84,7 +84,7 @@ def test_scraper_debug():
     print("-" * 100)
 
     if metadata:
-        print(f"✅ 成功刮削元数据")
+        print("✅ 成功刮削元数据")
         print(f"   标题: {metadata.get('title')}")
         print(f"   发行日期: {metadata.get('release_date')}")
         print(f"   时长: {metadata.get('duration')}")
@@ -92,7 +92,7 @@ def test_scraper_debug():
         print(f"   类别: {metadata.get('genres', [])[:5]}...")  # 只显示前5个
         print(f"   封面URL: {metadata.get('cover_url')}")
     else:
-        print(f"❌ 刮削失败")
+        print("❌ 刮削失败")
 
     print("\n" + "=" * 100 + "\n")
 
@@ -104,7 +104,6 @@ def test_download_cover_debug():
     print("=" * 100 + "\n")
 
     import tempfile
-    from pathlib import Path
 
     from django.conf import settings
     from nassav.scraper import ScraperManager
@@ -139,22 +138,22 @@ def test_download_cover_debug():
 
             if success:
                 file_size = os.path.getsize(temp_path)
-                print(f"✅ 封面下载成功")
+                print("✅ 封面下载成功")
                 print(f"   文件大小: {file_size} bytes ({file_size / 1024:.2f} KB)")
                 print(f"   临时路径: {temp_path}")
 
                 # 清理临时文件
                 try:
                     os.remove(temp_path)
-                    print(f"   已清理临时文件")
-                except:
+                    print("   已清理临时文件")
+                except Exception:
                     pass
             else:
-                print(f"❌ 封面下载失败")
+                print("❌ 封面下载失败")
         else:
             print("❌ 没有可用的刮削器实例")
     else:
-        print(f"❌ 未获取到封面 URL")
+        print("❌ 未获取到封面 URL")
 
     print("\n" + "=" * 100 + "\n")
 
@@ -167,7 +166,9 @@ def main():
     print("█" + " " * 98 + "█")
     print("█" * 100 + "\n")
 
-    print("📝 说明: 此测试将显示所有 HTTP 请求的详细参数（proxy, cookie, referer, impersonate 等）")
+    print(
+        "📝 说明: 此测试将显示所有 HTTP 请求的详细参数（proxy, cookie, referer, impersonate 等）"
+    )
     print("🎯 目的: 验证 debug 日志是否正确记录请求参数\n")
 
     input("按 Enter 键开始测试...")

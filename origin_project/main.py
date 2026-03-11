@@ -25,7 +25,9 @@ def append_if_not_duplicate(filename, new_content):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process some parameters.")
 
-    parser.add_argument("-f", "--force", action="store_true", help="跳过DB检查，强制执行")
+    parser.add_argument(
+        "-f", "--force", action="store_true", help="跳过DB检查，强制执行"
+    )
     parser.add_argument("-t", "--target", type=str, help="指定车牌号")
 
     args, unknown = parser.parse_known_args()

@@ -1,6 +1,7 @@
 """
 Scraper 管理器 - 管理所有刮削器的注册和调用
 """
+
 from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings

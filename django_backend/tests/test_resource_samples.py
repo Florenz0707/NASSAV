@@ -11,6 +11,7 @@
     uv run pytest tests/test_resource_samples.py::test_nonexistent_resources -v
     uv run pytest tests/test_resource_samples.py::test_real_resources -v
 """
+
 import pytest
 from loguru import logger
 
@@ -23,9 +24,9 @@ def validate_resource_fields(resource, avid, should_exist=True):
         avid: 期望的 AVID
         should_exist: 是否应该存在（用于区分成功/失败测试）
     """
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info(f"验证资源: {avid}")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # 1. 验证基本字段
@@ -53,9 +54,9 @@ def validate_resource_fields(resource, avid, should_exist=True):
 
     logger.info(f"   source_title: {resource.source_title}")
     assert resource.source_title, "source_title字段为空"
-    assert (
-        avid in resource.source_title
-    ), f"source_title应包含AVID {avid}: {resource.source_title}"
+    assert avid in resource.source_title, (
+        f"source_title应包含AVID {avid}: {resource.source_title}"
+    )
 
     logger.info(f"   original_title: {resource.original_title}")
     assert resource.original_title, "original_title字段为空"
@@ -73,20 +74,20 @@ def validate_resource_fields(resource, avid, should_exist=True):
     # 验证日期格式 YYYY-MM-DD
     import re
 
-    assert re.match(
-        r"\d{4}-\d{2}-\d{2}", resource.release_date
-    ), f"release_date格式错误: {resource.release_date}"
+    assert re.match(r"\d{4}-\d{2}-\d{2}", resource.release_date), (
+        f"release_date格式错误: {resource.release_date}"
+    )
 
     logger.info(f"   duration: {resource.duration} 秒 ({resource.duration // 60} 分钟)")
     assert resource.duration > 0, "duration应该大于0"
-    assert isinstance(
-        resource.duration, int
-    ), f"duration类型错误: {type(resource.duration)}"
+    assert isinstance(resource.duration, int), (
+        f"duration类型错误: {type(resource.duration)}"
+    )
 
     logger.info(f"   cover_filename: {resource.cover_filename}")
-    assert (
-        resource.cover_filename == f"{avid}.jpg"
-    ), f"cover_filename错误: 期望 {avid}.jpg, 实际 {resource.cover_filename}"
+    assert resource.cover_filename == f"{avid}.jpg", (
+        f"cover_filename错误: 期望 {avid}.jpg, 实际 {resource.cover_filename}"
+    )
 
     logger.info(f"   file_size: {resource.file_size}")
     # file_size 可以为 None（视频未下载时）
@@ -146,19 +147,19 @@ def validate_resource_fields(resource, avid, should_exist=True):
 
     # metadata.title 应该等于 original_title
     if "title" in metadata and metadata["title"]:
-        assert (
-            metadata["title"] == resource.original_title
-        ), f"metadata.title != original_title"
+        assert metadata["title"] == resource.original_title, (
+            "metadata.title != original_title"
+        )
         logger.info("   ✓ metadata.title == original_title")
 
     # metadata.m3u8 应该等于 m3u8
     if "m3u8" in metadata and metadata["m3u8"]:
-        assert metadata["m3u8"] == resource.m3u8, f"metadata.m3u8 != m3u8"
+        assert metadata["m3u8"] == resource.m3u8, "metadata.m3u8 != m3u8"
         logger.info("   ✓ metadata.m3u8 == m3u8")
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info(f"✓ 资源 {avid} 验证通过")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
 
 @pytest.mark.django_db
@@ -168,9 +169,9 @@ def test_nonexistent_resources():
 
     nonexistent_avids = ["TEST-001", "TEST-002", "TEST-003"]
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("测试不存在的资源")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
     for avid in nonexistent_avids:
         logger.info(f"\n测试资源: {avid}")
@@ -200,9 +201,9 @@ def test_nonexistent_resources():
             # 清理测试数据（包括封面图等文件）
             resource_service.delete_resource(avid, delete_files=True)
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("✓ 不存在资源测试完成")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
 
 @pytest.mark.django_db
@@ -214,14 +215,14 @@ def test_real_resources():
     # 真实存在的资源样例
     real_avids = ["MIMK-054", "VEMA-208", "OVG-206"]
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("测试真实存在的资源")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")
 
     for avid in real_avids:
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"开始测试资源: {avid}")
-        logger.info(f"{'='*60}\n")
+        logger.info(f"{'=' * 60}\n")
 
         # 清理可能存在的测试数据（包括文件）
         resource_service.delete_resource(avid, delete_files=True)
@@ -255,6 +256,6 @@ def test_real_resources():
             resource_service.delete_resource(avid, delete_files=True)
             logger.info(f"资源 {avid} 已完全清理\n")
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info("✓ 所有真实资源测试通过")
-    logger.info(f"{'='*60}\n")
+    logger.info(f"{'=' * 60}\n")

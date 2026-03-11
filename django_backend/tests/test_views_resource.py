@@ -13,8 +13,6 @@
     uv run pytest tests/test_views_resource.py -v
 """
 
-from pathlib import Path
-
 import pytest
 
 

@@ -1,6 +1,7 @@
 """
 WebSocket consumers for real-time task notifications
 """
+
 import json
 
 from asgiref.sync import async_to_sync
@@ -74,7 +75,8 @@ def send_task_update(update_type: str, data: dict):
         data: Task data to send
     """
     channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        "task_updates",
-        {"type": "task_update", "update_type": update_type, "data": data},
-    )
+    if channel_layer:
+        async_to_sync(channel_layer.group_send)(
+            "task_updates",
+            {"type": "task_update", "update_type": update_type, "data": data},
+        )

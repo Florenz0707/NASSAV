@@ -1,251 +1,310 @@
 <template>
-	<div class="actors-page">
-		<div class="mb-8">
-			<h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
-				演员库
-			</h1>
-			<p class="text-[var(--text-muted)] text-base">
-				{{ store.pagination.total ? '共有' + store.pagination.total + '个演员信息' : '查看所有演员信息' }}
-			</p>
-		</div>
+  <div class="actors-page">
+    <div class="mb-8">
+      <h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">演员库</h1>
+      <p class="text-[var(--text-muted)] text-base">
+        {{
+          store.pagination.total
+            ? '共有' + store.pagination.total + '个演员信息'
+            : '查看所有演员信息'
+        }}
+      </p>
+    </div>
 
-		<!-- Controls: search + sort -->
-		<div class="flex gap-4 mb-6 flex-wrap">
-			<div class="flex-1 min-w-[250px] relative">
-				<svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-				<input v-model="searchQuery" type="text" placeholder="搜索 演员 名称..."
-					class="w-full py-3.5 px-4 pl-11 rounded-xl text-[var(--text-primary)] text-[0.95rem]"
-					style="background: var(--bg-overlay); border: 1px solid var(--border-color);">
-			</div>
+    <!-- Controls: search + sort -->
+    <div class="flex gap-4 mb-6 flex-wrap">
+      <div class="flex-1 min-w-[250px] relative">
+        <svg
+          class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5"
+          style="color: var(--text-muted)"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="搜索 演员 名称..."
+          class="w-full py-3.5 px-4 pl-11 rounded-xl text-[var(--text-primary)] text-[0.95rem]"
+          style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
+        />
+      </div>
 
-			<div class="flex gap-3 items-center">
-				<select v-model="sortBy" class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
-					style="background: var(--bg-overlay); border: 1px solid var(--border-color);"
-					@change="onSortChange">
-					<option value="name">
-						按演员名称
-					</option>
-					<option value="count">
-						按作品数
-					</option>
-				</select>
+      <div class="flex gap-3 items-center">
+        <select
+          v-model="sortBy"
+          class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
+          style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
+          @change="onSortChange"
+        >
+          <option value="name">按演员名称</option>
+          <option value="count">按作品数</option>
+        </select>
 
-				<select v-model="sortOrder" class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
-					style="background: var(--bg-overlay); border: 1px solid var(--border-color);"
-					@change="onSortChange">
-					<option value="desc">
-						降序
-					</option>
-					<option value="asc">
-						升序
-					</option>
-				</select>
-			</div>
-		</div>
+        <select
+          v-model="sortOrder"
+          class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
+          style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
+          @change="onSortChange"
+        >
+          <option value="desc">降序</option>
+          <option value="asc">升序</option>
+        </select>
+      </div>
+    </div>
 
-		<div class="grid">
-			<ActorGroupCard v-for="a in store.groups" :key="a.id" :actor="a" @click="openActor(a)"/>
-		</div>
+    <div class="grid">
+      <ActorGroupCard v-for="a in store.groups" :key="a.id" :actor="a" @click="openActor(a)" />
+    </div>
 
-		<div v-if="(store.pagination && store.pagination.pages) > 1" class="mt-8 w-full">
-			<div class="flex items-center justify-center gap-3 mb-3">
-				<button :disabled="page === 1" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
-					@click="loadPage(1)">
-					跳转开头
-				</button>
-				<button :disabled="page === 1" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
-					@click="loadPage(page - 1)">
-					上一页
-				</button>
-				<div class="px-4 py-2 rounded-md" style="background: rgba(255,255,255,0.03); color: var(--text-primary);">
-					第 {{ page }} 页 / 共 {{
-						store.pagination.pages
-					}} 页
-				</div>
-				<button :disabled="page === store.pagination.pages" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
-					@click="loadPage(page + 1)">
-					下一页
-				</button>
-				<button :disabled="page === store.pagination.pages" class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
-					@click="loadPage(store.pagination.pages)">
-					跳转末尾
-				</button>
-			</div>
-			<div class="flex items-center justify-center gap-4">
-				<div class="flex items-center gap-2">
-					<button
-						class="px-3 py-1 rounded-md text-white shadow-md"
-						style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
-						@click="loadPage(page)">
-						跳转至第
-					</button>
-					<input v-model.number="page" type="number" min="1" :max="store.pagination.pages"
-						class="w-20 px-3 py-1 rounded-md focus:outline-none text-center"
-						style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);"
-						@keydown.enter="loadPage(page)">
-					<label class="text-sm text-[var(--text-secondary)]">页</label>
-				</div>
-				<div class="flex items-center gap-2">
-					<label class="text-sm text-[var(--text-secondary)]">每页显示</label>
-					<input v-model.number="pageSize" type="number" min="1" class="w-20 px-3 py-1 rounded-md focus:outline-none text-center"
-						style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);"
-						@change="onPageSizeChange">
-					<label class="text-sm text-[var(--text-secondary)]">个演员卡</label>
-				</div>
-			</div>
-		</div>
-	</div>
+    <div v-if="(store.pagination && store.pagination.pages) > 1" class="mt-8 w-full">
+      <div class="flex items-center justify-center gap-3 mb-3">
+        <button
+          :disabled="page === 1"
+          class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+          @click="loadPage(1)"
+        >
+          跳转开头
+        </button>
+        <button
+          :disabled="page === 1"
+          class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+          @click="loadPage(page - 1)"
+        >
+          上一页
+        </button>
+        <div
+          class="px-4 py-2 rounded-md"
+          style="background: rgba(255, 255, 255, 0.03); color: var(--text-primary)"
+        >
+          第 {{ page }} 页 / 共 {{ store.pagination.pages }} 页
+        </div>
+        <button
+          :disabled="page === store.pagination.pages"
+          class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+          @click="loadPage(page + 1)"
+        >
+          下一页
+        </button>
+        <button
+          :disabled="page === store.pagination.pages"
+          class="px-4 py-2 rounded-lg text-white shadow-md transform transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
+          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+          @click="loadPage(store.pagination.pages)"
+        >
+          跳转末尾
+        </button>
+      </div>
+      <div class="flex items-center justify-center gap-4">
+        <div class="flex items-center gap-2">
+          <button
+            class="px-3 py-1 rounded-md text-white shadow-md"
+            style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+            @click="loadPage(page)"
+          >
+            跳转至第
+          </button>
+          <input
+            v-model.number="page"
+            type="number"
+            min="1"
+            :max="store.pagination.pages"
+            class="w-20 px-3 py-1 rounded-md focus:outline-none text-center"
+            style="
+              background: var(--bg-secondary);
+              color: var(--text-primary);
+              border: 1px solid var(--border-color);
+            "
+            @keydown.enter="loadPage(page)"
+          />
+          <label class="text-sm text-[var(--text-secondary)]">页</label>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-[var(--text-secondary)]">每页显示</label>
+          <input
+            v-model.number="pageSize"
+            type="number"
+            min="1"
+            class="w-20 px-3 py-1 rounded-md focus:outline-none text-center"
+            style="
+              background: var(--bg-secondary);
+              color: var(--text-primary);
+              border: 1px solid var(--border-color);
+            "
+            @change="onPageSizeChange"
+          />
+          <label class="text-sm text-[var(--text-secondary)]">个演员卡</label>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
 import ActorGroupCard from '../components/ActorGroupCard.vue'
-import {useActorGroupsStore} from '../stores/actorGroups'
-import {onMounted, ref, watch} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { useActorGroupsStore } from '../stores/actorGroups'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 export default {
-	name: 'ActorsView',
-	components: {ActorGroupCard},
-	setup() {
-		const store = useActorGroupsStore()
-		const route = useRoute()
-		const router = useRouter()
+  name: 'ActorsView',
+  components: { ActorGroupCard },
+  setup() {
+    const store = useActorGroupsStore()
+    const route = useRoute()
+    const router = useRouter()
 
-		const pageSizeOptions = [15, 20, 25]
-		// 从 URL query 初始化状态
-		const page = ref(parseInt(route.query.page) || 1)
-		const pageSize = ref(parseInt(route.query.pageSize) || 15)
-		const searchQuery = ref(route.query.search || '')
-		const sortBy = ref(route.query.sortBy || 'count')
-		const sortOrder = ref(route.query.order || 'desc')
+    const pageSizeOptions = [15, 20, 25]
+    // 从 URL query 初始化状态
+    const page = ref(parseInt(route.query.page) || 1)
+    const pageSize = ref(parseInt(route.query.pageSize) || 15)
+    const searchQuery = ref(route.query.search || '')
+    const sortBy = ref(route.query.sortBy || 'count')
+    const sortOrder = ref(route.query.order || 'desc')
 
-		async function loadPage(p = 1) {
-			// ensure we pass plain numbers
-			const ps = Number(pageSize.value || 15)
-			const pg = Number(p || 1)
-			page.value = pg
-			await store.load({
-				page: pg,
-				page_size: ps,
-				order_by: sortBy.value || 'count',
-				order: sortOrder.value || 'desc',
-				search: searchQuery.value || undefined
-			})
-			// NOTE: Actors page intentionally does NOT fetch resource lists here.
-			// Thumbnails/sample resources should be fetched on ActorDetail to avoid extra load.
-		}
+    async function loadPage(p = 1) {
+      // ensure we pass plain numbers
+      const ps = Number(pageSize.value || 15)
+      const pg = Number(p || 1)
+      page.value = pg
+      await store.load({
+        page: pg,
+        page_size: ps,
+        order_by: sortBy.value || 'count',
+        order: sortOrder.value || 'desc',
+        search: searchQuery.value || undefined,
+      })
+      // NOTE: Actors page intentionally does NOT fetch resource lists here.
+      // Thumbnails/sample resources should be fetched on ActorDetail to avoid extra load.
+    }
 
-		function openActor(a) {
-			// 保留当前页面状态作为 from 参数
-			router.push({
-				path: `/actors/${a.id}`,
-				query: { from: route.fullPath }
-			})
-		}
+    function openActor(a) {
+      // 保留当前页面状态作为 from 参数
+      router.push({
+        path: `/actors/${a.id}`,
+        query: { from: route.fullPath },
+      })
+    }
 
-		function prev() {
-			const p = Math.max(1, (store.pagination && store.pagination.page) ? store.pagination.page - 1 : page.value - 1)
-			loadPage(p)
-		}
+    function prev() {
+      const p = Math.max(
+        1,
+        store.pagination && store.pagination.page ? store.pagination.page - 1 : page.value - 1
+      )
+      loadPage(p)
+    }
 
-		function next() {
-			const p = Math.min((store.pagination && store.pagination.pages) ? store.pagination.pages : page.value + 1, (store.pagination && store.pagination.page) ? store.pagination.page + 1 : page.value + 1)
-			loadPage(p)
-		}
+    function next() {
+      const p = Math.min(
+        store.pagination && store.pagination.pages ? store.pagination.pages : page.value + 1,
+        store.pagination && store.pagination.page ? store.pagination.page + 1 : page.value + 1
+      )
+      loadPage(p)
+    }
 
-		function onPageSizeChange() {
-			loadPage(1)
-		}
+    function onPageSizeChange() {
+      loadPage(1)
+    }
 
-		function onSortChange() {
-			page.value = 1
-			loadPage(1)
-		}
+    function onSortChange() {
+      page.value = 1
+      loadPage(1)
+    }
 
-		// debounce search input
-		let _searchTimer = null
-		watch(searchQuery, () => {
-			if (_searchTimer) clearTimeout(_searchTimer)
-			_searchTimer = setTimeout(() => {
-				page.value = 1
-				loadPage(1)
-			}, 300)
-		})
+    // debounce search input
+    let _searchTimer = null
+    watch(searchQuery, () => {
+      if (_searchTimer) clearTimeout(_searchTimer)
+      _searchTimer = setTimeout(() => {
+        page.value = 1
+        loadPage(1)
+      }, 300)
+    })
 
-		onMounted(() => {
-			// 使用 URL 中的页码，而不是硬编码的 1
-			loadPage(page.value)
-		})
+    onMounted(() => {
+      // 使用 URL 中的页码，而不是硬编码的 1
+      loadPage(page.value)
+    })
 
-		// 状态变化时同步到 URL（延迟触发避免初始化时覆盖）
-		watch([page, pageSize, searchQuery, sortBy, sortOrder], () => {
-			const query = {
-				page: page.value
-			}
-			if (pageSize.value !== 15) query.pageSize = pageSize.value
-			if (searchQuery.value) query.search = searchQuery.value
-			if (sortBy.value !== 'count') query.sortBy = sortBy.value
-			if (sortOrder.value !== 'desc') query.order = sortOrder.value
+    // 状态变化时同步到 URL（延迟触发避免初始化时覆盖）
+    watch(
+      [page, pageSize, searchQuery, sortBy, sortOrder],
+      () => {
+        const query = {
+          page: page.value,
+        }
+        if (pageSize.value !== 15) query.pageSize = pageSize.value
+        if (searchQuery.value) query.search = searchQuery.value
+        if (sortBy.value !== 'count') query.sortBy = sortBy.value
+        if (sortOrder.value !== 'desc') query.order = sortOrder.value
 
-			router.replace({ query })
-		}, { deep: true })
+        router.replace({ query })
+      },
+      { deep: true }
+    )
 
-		return {
-			store,
-			route,
-			router,
-			openActor,
-			prev,
-			next,
-			page,
-			pageSize,
-			pageSizeOptions,
-			onPageSizeChange,
-			loadPage,
-			searchQuery,
-			sortBy,
-			sortOrder,
-			onSortChange
-		}
-	}
+    return {
+      store,
+      route,
+      router,
+      openActor,
+      prev,
+      next,
+      page,
+      pageSize,
+      pageSizeOptions,
+      onPageSizeChange,
+      loadPage,
+      searchQuery,
+      sortBy,
+      sortOrder,
+      onSortChange,
+    }
+  },
 }
 </script>
 
 <style scoped>
 .header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 12px
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .grid {
-	display: grid;
-	grid-template-columns: repeat(5, 1fr);
-	row-gap: 1rem;
-	column-gap: 3rem
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  row-gap: 1rem;
+  column-gap: 3rem;
 }
 
 .pagination {
-	display: flex;
-	gap: 8px;
-	align-items: center;
-	margin-top: 12px
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
 }
 
 .error {
-	color: var(--accent-danger)
+  color: var(--accent-danger);
 }
 
 .controls select {
-	background: var(--bg-secondary);
-	color: var(--text-primary);
-	padding: 6px;
-	border-radius: 6px;
-	border: 1px solid rgba(255, 255, 255, 0.06)
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 </style>

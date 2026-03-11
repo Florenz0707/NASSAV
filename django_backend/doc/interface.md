@@ -4,7 +4,7 @@
 
 说明：所有 API 使用统一 envelope 响应格式：
 
-```
+```json
 { "code": <number>, "message": "...", "data": <any>, "pagination"?: {...} }
 ```
 
@@ -18,6 +18,7 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 - 路径：`/nassav/api/setting`
 - 功能：获取用户前端显示配置
 - 返回示例：
+
 ```json
 {
   "code": 200,
@@ -30,6 +31,7 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 ```
 
 **配置项说明**：
+
 - `enable_avatar`: 是否显示演员头像（`"true"` 或 `"false"`）
 - `display_title`: 前端显示哪个标题字段
   - `"original_title"`: 显示原始日语标题
@@ -37,6 +39,7 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
   - `"translated_title"`: 显示翻译后的中文标题
 
 **配置文件自动重载**：
+
 - 配置存储在 `config/user_settings.ini` 文件中
 - 系统会自动检测配置文件的修改时间
 - 当检测到文件被外部修改时，会自动重新加载配置
@@ -54,6 +57,7 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
   - `display_title`: `"original_title"` | `"source_title"` | `"translated_title"`（可选）
 
 示例请求：
+
 ```json
 PUT /nassav/api/setting
 {
@@ -63,6 +67,7 @@ PUT /nassav/api/setting
 ```
 
 返回示例：
+
 ```json
 {
   "code": 200,
@@ -75,6 +80,7 @@ PUT /nassav/api/setting
 ```
 
 错误响应示例（无效值）：
+
 ```json
 {
   "code": 400,
@@ -93,6 +99,7 @@ PUT /nassav/api/setting
 - 路径：`/nassav/api/source/list`
 - 功能：返回所有可用的下载源名称列表
 - 返回示例：
+
 ```json
 {
   "code": 200,
@@ -114,6 +121,7 @@ PUT /nassav/api/setting
   - `mtime`: 最后更新时间（ISO 8601 格式）
 
 返回示例：
+
 ```json
 {
   "code": 200,
@@ -146,6 +154,7 @@ PUT /nassav/api/setting
   - `auto`: 是否自动获取 cookie（boolean，可选）
 
 示例请求：
+
 ```json
 // 手动设置 Cookie
 POST /nassav/api/source/cookie
@@ -163,6 +172,7 @@ POST /nassav/api/source/cookie
 ```
 
 返回示例：
+
 ```json
 {
   "code": 200,
@@ -185,11 +195,13 @@ POST /nassav/api/source/cookie
 - 功能：清除指定源的 Cookie（设为空字符串）
 
 示例请求：
-```
+
+```json
 DELETE /nassav/api/source/cookie?source=missav
 ```
 
 返回示例：
+
 ```json
 {
   "code": 200,
@@ -219,7 +231,8 @@ DELETE /nassav/api/source/cookie?source=missav
   - `genre`：按类别过滤，可传类别 ID（精确匹配）或名称（模糊匹配）
 
 示例请求：
-```
+
+```json
 GET /nassav/api/resources/?status=pending&sort_by=metadata_create_time&order=desc&page=1&page_size=18
 GET /nassav/api/resources/?watched=true                       # 已观看的资源
 GET /nassav/api/resources/?is_favorite=true                   # 已收藏的资源
@@ -258,6 +271,7 @@ GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
 ```
 
 **标题字段说明**：
+
 - `original_title`: Scraper（Javbus）获取的原始标题，通常为日语
 - `source_title`: 下载源（MissAV/Jable 等）提供的标题
 - `translated_title`: 由翻译器生成的中文标题
@@ -278,7 +292,8 @@ GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
   - `id`：演员 ID，精确查询单个演员信息
 
 示例请求：
-```
+
+```json
 GET /nassav/api/actors/?page=1&page_size=20&order_by=count&order=desc
 GET /nassav/api/actors/?search=桥本
 GET /nassav/api/actors/?id=1
@@ -286,6 +301,7 @@ GET /nassav/api/actors/?order_by=name&order=asc
 ```
 
 返回示例：
+
 ```json
 {
   "code": 200,
@@ -316,6 +332,7 @@ GET /nassav/api/actors/?order_by=name&order=asc
 ```
 
 **说明**：
+
 - `avatar_url`：演员头像原始URL（来自Javbus）
 - `avatar_filename`：头像文件名（仅文件名，不含路径）
 - 头像URL和文件名可能为 `null`（演员无头像或尚未刮削）
@@ -331,15 +348,18 @@ GET /nassav/api/actors/?order_by=name&order=asc
   - `actor_id`：演员ID（整数）
 
 示例请求：
-```
+
+```json
 GET /nassav/api/actors/1/avatar
 ```
 
 返回：
+
 - HTTP 200：返回图片文件（Content-Type: image/jpeg）
 - HTTP 404：演员不存在或无头像
 
 使用示例：
+
 ```html
 <img src="/nassav/api/actors/1/avatar" alt="演员头像" />
 ```
@@ -359,7 +379,8 @@ GET /nassav/api/actors/1/avatar
   - `id`：类别 ID，精确查询单个类别信息
 
 示例请求：
-```
+
+```json
 GET /nassav/api/genres/?page=1&page_size=20&order_by=count&order=desc
 GET /nassav/api/genres/?search=中文
 GET /nassav/api/genres/?id=1
@@ -367,13 +388,14 @@ GET /nassav/api/genres/?order_by=name&order=asc
 ```
 
 返回示例：
+
 ```json
 {
   "code": 200,
   "message": "success",
   "data": [
-    {"id": 1, "name": "中文字幕", "resource_count": 150},
-    {"id": 2, "name": "人妻", "resource_count": 120}
+    { "id": 1, "name": "中文字幕", "resource_count": 150 },
+    { "id": 2, "name": "人妻", "resource_count": 120 }
   ],
   "pagination": {
     "total": 50,
@@ -393,10 +415,13 @@ GET /nassav/api/genres/?order_by=name&order=asc
 - 返回：`{ metadata, thumbnail_url }`，用于详情页首屏快速渲染。
 
 示例：
-```
+
+```json
 GET /nassav/api/resource/ABC-123/preview
 ```
+
 返回（示例）：
+
 ```json
 {
   "code": 200,
@@ -439,17 +464,20 @@ GET /nassav/api/resource/ABC-123/preview
 - 路径：`/nassav/api/resource/cover?avid=<AVID>[&size=small|medium|large][&v=hash]`
 
 行为：
+
 - 无 `size` 时返回原始封面文件（若存在）；有 `size` 时返回对应尺寸的缩略图，路径为 `resource/cover/thumbnails/{size}/{AVID}.jpg`。
 - 若缩略图不存在，后端会按需生成并返回（best-effort）。
 - 响应包含 `Cache-Control: public, max-age=31536000` 及 `ETag` 与 `Last-Modified`，支持条件请求头返回 `304`。
 
 示例：
-```
+
+```json
 <img src="/nassav/api/resource/cover?avid=ABC-123&size=small" />
 ```
 
 条件请求示例：
-```
+
+```json
 If-None-Match: "etag-value"
 If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 ```
@@ -464,6 +492,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 - 路径：`/nassav/api/downloads/abspath?avid=<AVID>`
 - 功能：返回视频文件的绝对路径，前面拼接 config.UrlPrefix 作为前缀
 - 返回示例：
+
 ```json
 {
   "code": 200,
@@ -482,6 +511,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 - 路径：`/nassav/api/tasks/queue/status`
 - 功能：获取当前任务队列状态（包括所有 PENDING 和 STARTED 状态的任务）
 - 返回示例：
+
 ```json
 {
   "code": 200,
@@ -522,6 +552,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     - `translated_title`: 翻译后的标题
     - `source`: 来源网站名称
   - 返回示例：
+
     ```json
     {
       "code": 201,
@@ -540,6 +571,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
       }
     }
     ```
+
   - 资源已存在时（409）也返回相同格式的精简资源对象
 
 - 刷新资源：`POST /nassav/api/resource/refresh/{avid}`
@@ -549,6 +581,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     - `refresh_metadata`: 是否刷新元数据（从 source 重新抓取，默认 `true`）
     - `retranslate`: 是否重新翻译标题（默认 `false`）
   - 示例：
+
     ```json
     // 只刷新 m3u8 链接
     POST /nassav/api/resource/refresh/ABC-123
@@ -562,6 +595,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     POST /nassav/api/resource/refresh/ABC-123
     {"refresh_metadata": true, "retranslate": true}
     ```
+
   - 响应包含：
     - `resource`: 更新后的资源对象
     - `metadata_refreshed`: 是否刷新了元数据
@@ -576,6 +610,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
   - 功能：提交视频下载任务（异步，使用 Celery）
   - 前提：资源元数据必须已存在
   - 返回示例：
+
     ```json
     {
       "code": 202,
@@ -587,12 +622,14 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
       }
     }
     ```
+
   - 如果视频已下载，返回 `code: 409, message: "视频已下载"`
   - 如果任务已存在，返回 `code: 409, message: "下载任务已存在"`
 
 - 删除视频：`DELETE /nassav/api/downloads/{avid}`
   - 功能：删除已下载的视频文件
   - 返回示例：
+
     ```json
     {
       "code": 200,
@@ -611,23 +648,27 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 
 ## 批量接口
 
-1) 批量资源操作
+1. 批量资源操作
+
 - 方法：POST
 - 路径：`/nassav/api/resources/batch`
 - Body 示例：
+
 ```json
 {
   "actions": [
-    {"action":"add","avid":"ABC-123","source":"any"},
-    {"action":"refresh","avid":"DEF-222"},
-    {"action":"delete-video","avid":"XYZ-001"},
-    {"action":"delete-all","avid":"OLD-999"}
+    { "action": "add", "avid": "ABC-123", "source": "any" },
+    { "action": "refresh", "avid": "DEF-222" },
+    { "action": "delete-video", "avid": "XYZ-001" },
+    { "action": "delete-all", "avid": "OLD-999" }
   ]
 }
 ```
+
 - 返回：`data.results` 为数组，每项包含 `action, avid, code, message, resource?, deleted_files?, deleted_file?, file_size?`。
 
 **操作说明**：
+
 - `add`：添加资源
   - 如果资源已存在，返回 `code: 200, message: "already exists"` 和现有资源数据
   - 如果资源不存在，从指定 source 获取并创建，返回 `code: 201, message: "created"`
@@ -638,20 +679,24 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     - `refresh_metadata`: 是否刷新元数据（默认 `true`）
     - `retranslate`: 是否重新翻译（默认 `false`）
   - 示例：
+
     ```json
     {
       "actions": [
-        {"action": "refresh", "avid": "ABC-123", "refresh_m3u8": true, "refresh_metadata": false},
-        {"action": "refresh", "avid": "DEF-456", "retranslate": true}
+        { "action": "refresh", "avid": "ABC-123", "refresh_m3u8": true, "refresh_metadata": false },
+        { "action": "refresh", "avid": "DEF-456", "retranslate": true }
       ]
     }
     ```
+
   - 返回 `code: 200, message: "refreshed"`，`refresh_info` 包含操作结果，以及更新后的资源数据
+
 - `delete-video`：只删除视频文件（保留元数据）
   - 返回 `code: 200, message: "视频已删除"`，包含 `deleted_file` 和 `file_size`
   - **数据库操作**: 更新记录标记视频不存在（`file_exists=False`）
   - **保留内容**: 元数据记录、封面图片、备份目录
   - 示例返回：
+
     ```json
     {
       "action": "delete-video",
@@ -662,10 +707,12 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
       "file_size": 1234567890
     }
     ```
+
 - `delete-all` 或 `delete`：删除全部数据（视频+元数据+封面+备份）
   - 返回 `code: 200, message: "已删除全部数据"` 和删除前的资源数据
   - **删除内容**: 视频文件、封面图片、备份目录、数据库记录
   - 示例返回：
+
     ```json
     {
       "action": "delete-all",
@@ -677,7 +724,8 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     }
     ```
 
-2) 批量下载提交
+1. 批量下载提交
+
 - 方法：POST
 - 路径：`/nassav/api/downloads/batch_submit`
 - Body：`{ "avids": ["ABC-123","DEF-222"] }`
@@ -694,12 +742,15 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 - 功能：模拟下载任务，用于测试下载流程（不实际下载视频）
 - 仅在 `DEBUG=True` 时可用
 - 请求 Body（可选）：
+
   ```json
   {
-    "duration": 30  // 模拟下载持续时间（秒），默认 30，范围 1-300
+    "duration": 30 // 模拟下载持续时间（秒），默认 30，范围 1-300
   }
   ```
+
 - 返回示例：
+
   ```json
   {
     "code": 202,
@@ -720,7 +771,8 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 - 浏览器会自动管理条件请求；若使用 `fetch`/`axios` 手动请求，可在请求头中传 `If-None-Match` 或 `If-Modified-Since`，并在收到 `304` 时复用本地缓存。
 
 示例（curl）:
-```
+
+```json
 curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?avid=ABC-123&size=small"
 ```
 

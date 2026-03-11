@@ -31,6 +31,7 @@
     - 使用 --apply 才会真正写入数据库
     - 建议先使用 --dry-run 查看效果
 """
+
 import argparse
 import json
 import os
@@ -115,7 +116,9 @@ def parse_duration_to_seconds(raw, mp4_path=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Fix AVResource.duration")
-    parser.add_argument("--apply", action="store_true", help="写入数据库（默认 dry-run）")
+    parser.add_argument(
+        "--apply", action="store_true", help="写入数据库（默认 dry-run）"
+    )
     parser.add_argument("--limit", type=int, default=None, help="仅处理前 N 条记录")
     parser.add_argument("--report", type=str, default=None, help="将报告写入 JSON 文件")
     args = parser.parse_args()
@@ -123,7 +126,6 @@ def main():
     setup_django()
     from django.conf import settings
     from django.db import transaction
-    from django.utils import timezone
     from nassav.models import AVResource
 
     qs = AVResource.objects.all().order_by("id")

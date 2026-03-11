@@ -20,84 +20,84 @@ const batchMode = ref(false)
 const selectedCount = computed(() => selectedAvids.value.size)
 
 function toggleSelect(avid, checked) {
-	if (!avid) return
-	if (checked) selectedAvids.value.add(avid)
-	else selectedAvids.value.delete(avid)
-	// trigger reactivity for Set
-	selectedAvids.value = new Set(selectedAvids.value)
+  if (!avid) return
+  if (checked) selectedAvids.value.add(avid)
+  else selectedAvids.value.delete(avid)
+  // trigger reactivity for Set
+  selectedAvids.value = new Set(selectedAvids.value)
 }
 
 function toggleSelectAll(checked) {
-	if (checked) {
-		const arr = filteredResources.value.map(r => r.avid)
-		selectedAvids.value = new Set(arr)
-	} else {
-		selectedAvids.value = new Set()
-	}
+  if (checked) {
+    const arr = filteredResources.value.map((r) => r.avid)
+    selectedAvids.value = new Set(arr)
+  } else {
+    selectedAvids.value = new Set()
+  }
 }
 
 function toggleBatchMode() {
-	batchMode.value = !batchMode.value
-	if (!batchMode.value) selectedAvids.value = new Set()
+  batchMode.value = !batchMode.value
+  if (!batchMode.value) selectedAvids.value = new Set()
 }
 
 async function handleBatchDownload() {
-	if (selectedAvids.value.size === 0) return
-	batchLoading.value = true
-	try {
-		const avids = Array.from(selectedAvids.value)
-		await resourceStore.batchSubmitDownload(avids)
-		toastStore.success(`已提交 ${avids.length} 个下载任务`)
-		selectedAvids.value = new Set()
-		await fetchResourceList()
-	} catch (err) {
-		toastStore.error(err.message || '批量提交下载失败')
-	} finally {
-		batchLoading.value = false
-	}
+  if (selectedAvids.value.size === 0) return
+  batchLoading.value = true
+  try {
+    const avids = Array.from(selectedAvids.value)
+    await resourceStore.batchSubmitDownload(avids)
+    toastStore.success(`已提交 ${avids.length} 个下载任务`)
+    selectedAvids.value = new Set()
+    await fetchResourceList()
+  } catch (err) {
+    toastStore.error(err.message || '批量提交下载失败')
+  } finally {
+    batchLoading.value = false
+  }
 }
 
 async function handleBatchRefresh() {
-	if (selectedAvids.value.size === 0) return
-	batchLoading.value = true
-	try {
-		const avids = Array.from(selectedAvids.value)
-		await resourceStore.batchRefresh(avids)
-		toastStore.success(`已刷新 ${avids.length} 个资源`)
-		selectedAvids.value = new Set()
-		await fetchResourceList()
-	} catch (err) {
-		toastStore.error(err.message || '批量刷新失败')
-	} finally {
-		batchLoading.value = false
-	}
+  if (selectedAvids.value.size === 0) return
+  batchLoading.value = true
+  try {
+    const avids = Array.from(selectedAvids.value)
+    await resourceStore.batchRefresh(avids)
+    toastStore.success(`已刷新 ${avids.length} 个资源`)
+    selectedAvids.value = new Set()
+    await fetchResourceList()
+  } catch (err) {
+    toastStore.error(err.message || '批量刷新失败')
+  } finally {
+    batchLoading.value = false
+  }
 }
 
 const showBatchDeleteConfirm = ref(false)
 const batchDeleteAction = ref(null)
 
 function handleBatchDelete() {
-	if (selectedAvids.value.size === 0) return
-	showBatchDeleteConfirm.value = true
+  if (selectedAvids.value.size === 0) return
+  showBatchDeleteConfirm.value = true
 }
 
 async function confirmBatchDelete(action) {
-	batchDeleteAction.value = action
-	showBatchDeleteConfirm.value = false
-	batchLoading.value = true
-	try {
-		const avids = Array.from(selectedAvids.value)
-		await resourceStore.batchDelete(avids, action)
-		const actionText = action === 'delete-video' ? '删除视频' : '删除全部数据'
-		toastStore.success(`已${actionText}: ${avids.length} 个资源`)
-		selectedAvids.value = new Set()
-		await fetchResourceList()
-	} catch (err) {
-		toastStore.error(err.message || '批量删除失败')
-	} finally {
-		batchLoading.value = false
-		batchDeleteAction.value = null
-	}
+  batchDeleteAction.value = action
+  showBatchDeleteConfirm.value = false
+  batchLoading.value = true
+  try {
+    const avids = Array.from(selectedAvids.value)
+    await resourceStore.batchDelete(avids, action)
+    const actionText = action === 'delete-video' ? '删除视频' : '删除全部数据'
+    toastStore.success(`已${actionText}: ${avids.length} 个资源`)
+    selectedAvids.value = new Set()
+    await fetchResourceList()
+  } catch (err) {
+    toastStore.error(err.message || '批量删除失败')
+  } finally {
+    batchLoading.value = false
+    batchDeleteAction.value = null
+  }
 }
 
 const route = useRoute()
@@ -116,323 +116,394 @@ const genreParam = ref(route.query && route.query.genre ? route.query.genre : ''
 const refreshing = ref(false)
 
 onMounted(async () => {
-	await fetchResourceList()
+  await fetchResourceList()
 })
 
 // 状态变化时同步到 URL
-watch([page, pageSize, searchQuery, filterStatus, sortBy, sortOrder], () => {
-	const query = {
-		page: page.value
-	}
-	if (pageSize.value !== 18) query.pageSize = pageSize.value
-	if (searchQuery.value) query.search = searchQuery.value
-	if (filterStatus.value !== 'all') query.status = filterStatus.value
-	if (sortBy.value !== 'metadata_create_time') query.sortBy = sortBy.value
-	if (sortOrder.value !== 'desc') query.order = sortOrder.value
-	if (actorParam.value) query.actor = actorParam.value
-	if (genreParam.value) query.genre = genreParam.value
+watch(
+  [page, pageSize, searchQuery, filterStatus, sortBy, sortOrder],
+  () => {
+    const query = {
+      page: page.value,
+    }
+    if (pageSize.value !== 18) query.pageSize = pageSize.value
+    if (searchQuery.value) query.search = searchQuery.value
+    if (filterStatus.value !== 'all') query.status = filterStatus.value
+    if (sortBy.value !== 'metadata_create_time') query.sortBy = sortBy.value
+    if (sortOrder.value !== 'desc') query.order = sortOrder.value
+    if (actorParam.value) query.actor = actorParam.value
+    if (genreParam.value) query.genre = genreParam.value
 
-	router.replace({ query })
-}, { deep: true })
+    router.replace({ query })
+  },
+  { deep: true }
+)
 
 async function fetchResourceList() {
-	console.debug('[view] fetchResourceList called', {
-		sort_by: sortBy.value,
-		order: sortOrder.value,
-		page: page.value,
-		page_size: pageSize.value,
-		status: filterStatus.value,
-		search: searchQuery.value
-	})
+  console.debug('[view] fetchResourceList called', {
+    sort_by: sortBy.value,
+    order: sortOrder.value,
+    page: page.value,
+    page_size: pageSize.value,
+    status: filterStatus.value,
+    search: searchQuery.value,
+  })
 
-	const params = {
-		sort_by: sortBy.value,
-		order: sortOrder.value,
-		page: page.value,
-		page_size: pageSize.value,
-		actor: actorParam.value || undefined,
-		genre: genreParam.value || undefined
-	}
+  const params = {
+    sort_by: sortBy.value,
+    order: sortOrder.value,
+    page: page.value,
+    page_size: pageSize.value,
+    actor: actorParam.value || undefined,
+    genre: genreParam.value || undefined,
+  }
 
-	// 添加搜索参数
-	if (searchQuery.value && searchQuery.value.trim()) {
-		params.search = searchQuery.value.trim()
-	}
+  // 添加搜索参数
+  if (searchQuery.value && searchQuery.value.trim()) {
+    params.search = searchQuery.value.trim()
+  }
 
-	// 处理状态过滤
-	if (filterStatus.value === 'watched') {
-		params.watched = true
-	} else if (filterStatus.value === 'unwatched') {
-		params.watched = false
-	} else if (filterStatus.value === 'favorite') {
-		params.is_favorite = true
-	} else if (filterStatus.value !== 'all') {
-		params.status = filterStatus.value
-	}
+  // 处理状态过滤
+  if (filterStatus.value === 'watched') {
+    params.watched = true
+  } else if (filterStatus.value === 'unwatched') {
+    params.watched = false
+  } else if (filterStatus.value === 'favorite') {
+    params.is_favorite = true
+  } else if (filterStatus.value !== 'all') {
+    params.status = filterStatus.value
+  }
 
-	await resourceStore.fetchResources(params)
+  await resourceStore.fetchResources(params)
 }
 
 // include actor filter if provided in query
 watch(
-	() => route.query.actor,
-	(v) => {
-		actorParam.value = v || ''
-		page.value = 1
-		fetchResourceList()
-	}
+  () => route.query.actor,
+  (v) => {
+    actorParam.value = v || ''
+    page.value = 1
+    fetchResourceList()
+  }
 )
 
 // include genre filter if provided in query
 watch(
-	() => route.query.genre,
-	(v) => {
-		genreParam.value = v || ''
-		page.value = 1
-		fetchResourceList()
-	}
+  () => route.query.genre,
+  (v) => {
+    genreParam.value = v || ''
+    page.value = 1
+    fetchResourceList()
+  }
 )
 
 // Use server-side filtered/sorted resources. Normalize the response shape to an array.
 // 搜索已在后端完成，前端直接使用返回的数据
 const filteredResources = computed(() => {
-	const raw = resourceStore.resources && resourceStore.resources.value !== undefined ? resourceStore.resources.value : resourceStore.resources
-	let resources = []
-	if (Array.isArray(raw)) resources = raw
-	else if (raw && Array.isArray(raw.results)) resources = raw.results
-	else if (raw && Array.isArray(raw.data)) resources = raw.data
+  const raw =
+    resourceStore.resources && resourceStore.resources.value !== undefined
+      ? resourceStore.resources.value
+      : resourceStore.resources
+  let resources = []
+  if (Array.isArray(raw)) resources = raw
+  else if (raw && Array.isArray(raw.results)) resources = raw.results
+  else if (raw && Array.isArray(raw.data)) resources = raw.data
 
-	return resources
+  return resources
 })
 
 // debounce search input - 触发后端搜索请求
 let _searchTimer = null
 watch(searchQuery, () => {
-	if (_searchTimer) clearTimeout(_searchTimer)
-	_searchTimer = setTimeout(() => {
-		// 搜索时重置页码为1
-		page.value = 1
-		fetchResourceList()
-	}, 300)
+  if (_searchTimer) clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(() => {
+    // 搜索时重置页码为1
+    page.value = 1
+    fetchResourceList()
+  }, 300)
 })
 
 // trigger when filter status changes
 watch(filterStatus, () => {
-	page.value = 1
-	fetchResourceList()
+  page.value = 1
+  fetchResourceList()
 })
 
 onBeforeUnmount(() => {
-	if (_searchTimer) clearTimeout(_searchTimer)
+  if (_searchTimer) clearTimeout(_searchTimer)
 })
 
 async function handleDownload(avid) {
-	try {
-		await resourceStore.submitDownload(avid)
-		toastStore.success(`${avid} 下载任务已提交`)
-	} catch (err) {
-		toastStore.error(err.message || '下载失败')
-	}
+  try {
+    await resourceStore.submitDownload(avid)
+    toastStore.success(`${avid} 下载任务已提交`)
+  } catch (err) {
+    toastStore.error(err.message || '下载失败')
+  }
 }
 
 async function handleRefresh(avid, params = null) {
-	try {
-		await resourceStore.refreshResource(avid, params)
-		toastStore.success(`${avid} 已刷新`)
-	} catch (err) {
-		toastStore.error(err.message || '刷新失败')
-	}
+  try {
+    await resourceStore.refreshResource(avid, params)
+    toastStore.success(`${avid} 已刷新`)
+  } catch (err) {
+    toastStore.error(err.message || '刷新失败')
+  }
 }
 
 async function handleDeleteResource(_avid) {
-	// ResourceCard 已执行删除，这里只需刷新列表
-	refreshing.value = true
-	try {
-		await fetchResourceList()
-	} catch (err) {
-		console.error('刷新列表失败:', err)
-	} finally {
-		refreshing.value = false
-	}
+  // ResourceCard 已执行删除，这里只需刷新列表
+  refreshing.value = true
+  try {
+    await fetchResourceList()
+  } catch (err) {
+    console.error('刷新列表失败:', err)
+  } finally {
+    refreshing.value = false
+  }
 }
 
 async function handleDeleteFile(_avid) {
-	// ResourceCard 已执行删除，这里只需刷新列表
-	refreshing.value = true
-	try {
-		await fetchResourceList()
-	} catch (err) {
-		console.error('刷新列表失败:', err)
-	} finally {
-		refreshing.value = false
-	}
+  // ResourceCard 已执行删除，这里只需刷新列表
+  refreshing.value = true
+  try {
+    await fetchResourceList()
+  } catch (err) {
+    console.error('刷新列表失败:', err)
+  } finally {
+    refreshing.value = false
+  }
 }
 
 async function handleManualRefresh() {
-	refreshing.value = true
-	try {
-		await fetchResourceList()
-		toastStore.success('列表已刷新')
-	} catch (err) {
-		toastStore.error(err.message || '刷新失败')
-	} finally {
-		refreshing.value = false
-	}
+  refreshing.value = true
+  try {
+    await fetchResourceList()
+    toastStore.success('列表已刷新')
+  } catch (err) {
+    toastStore.error(err.message || '刷新失败')
+  } finally {
+    refreshing.value = false
+  }
 }
 
 function onSortChange() {
-	page.value = 1
-	fetchResourceList()
+  page.value = 1
+  fetchResourceList()
 }
 
 function changePage(newPage) {
-	page.value = Number(newPage) || 1
-	fetchResourceList()
+  page.value = Number(newPage) || 1
+  fetchResourceList()
 }
 
 function onPageSizeChange(newSize) {
-	if (typeof newSize !== 'undefined' && newSize !== null) {
-		pageSize.value = Number(newSize) || pageSize.value
-	}
-	page.value = 1
-	fetchResourceList()
+  if (typeof newSize !== 'undefined' && newSize !== null) {
+    pageSize.value = Number(newSize) || pageSize.value
+  }
+  page.value = 1
+  fetchResourceList()
 }
-
 </script>
 
 <template>
-	<div class="animate-[fadeIn_0.5s_ease]">
-		<!-- Page Header -->
-		<div class="mb-8">
-			<h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
-				资源库
-			</h1>
-			<!-- Results Info -->
-			<div v-if="!resourceStore.loading" class="mb-6 text-[var(--text-muted)] text-sm">
-				<span>管理您的 {{ resourceStore.pagination.total }} 个资源</span>
-			</div>
-		</div>
+  <div class="animate-[fadeIn_0.5s_ease]">
+    <!-- Page Header -->
+    <div class="mb-8">
+      <h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">资源库</h1>
+      <!-- Results Info -->
+      <div v-if="!resourceStore.loading" class="mb-6 text-[var(--text-muted)] text-sm">
+        <span>管理您的 {{ resourceStore.pagination.total }} 个资源</span>
+      </div>
+    </div>
 
-		<!-- Controls -->
-		<ResourceSearchBar
-			v-model:search-query="searchQuery"
-			v-model:filter-status="filterStatus"
-			v-model:sort-by="sortBy"
-			v-model:sort-order="sortOrder"
-			:show-favorite-filter="true"
-			:show-watched-filter="true"
-			:show-metadata-update-sort="true"
-			@sort-change="onSortChange"
-		/>
+    <!-- Controls -->
+    <ResourceSearchBar
+      v-model:search-query="searchQuery"
+      v-model:filter-status="filterStatus"
+      v-model:sort-by="sortBy"
+      v-model:sort-order="sortOrder"
+      :show-favorite-filter="true"
+      :show-watched-filter="true"
+      :show-metadata-update-sort="true"
+      @sort-change="onSortChange"
+    />
 
-		<!-- Batch controls -->
-		<BatchControls :batch-mode="batchMode" :batch-loading="batchLoading" :selected-count="selectedCount"
-			:total-count="filteredResources.length" @toggle-batch-mode="toggleBatchMode"
-			@toggle-select-all="toggleSelectAll" @batch-refresh="handleBatchRefresh"
-			@batch-download="handleBatchDownload" @batch-delete="handleBatchDelete" />
-		<!-- 批量删除确认对话框 -->
-		<ConfirmDialog v-model:show="showBatchDeleteConfirm"
-			title="批量删除资源"
-			:message="`即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`"
-			type="danger"
-			confirm-text="删除视频"
-			cancel-text="取消"
-			@confirm="() => confirmBatchDelete('delete-video')"
-			@cancel="() => showBatchDeleteConfirm = false">
-			<template #extra-button>
-				<button
-					class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
-					style="background: var(--accent-danger);"
-					@click="() => confirmBatchDelete('delete-all')">
-					删除全部
-				</button>
-			</template>
-		</ConfirmDialog>
-		<!-- Skeleton Loading -->
-		<div v-if="resourceStore.loading" class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
-			<div v-for="i in 6" :key="i" class="skeleton-card rounded-2xl overflow-hidden" style="height: 380px;" />
-		</div>
+    <!-- Batch controls -->
+    <BatchControls
+      :batch-mode="batchMode"
+      :batch-loading="batchLoading"
+      :selected-count="selectedCount"
+      :total-count="filteredResources.length"
+      @toggle-batch-mode="toggleBatchMode"
+      @toggle-select-all="toggleSelectAll"
+      @batch-refresh="handleBatchRefresh"
+      @batch-download="handleBatchDownload"
+      @batch-delete="handleBatchDelete"
+    />
+    <!-- 批量删除确认对话框 -->
+    <ConfirmDialog
+      v-model:show="showBatchDeleteConfirm"
+      title="批量删除资源"
+      :message="`即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`"
+      type="danger"
+      confirm-text="删除视频"
+      cancel-text="取消"
+      @confirm="() => confirmBatchDelete('delete-video')"
+      @cancel="() => (showBatchDeleteConfirm = false)"
+    >
+      <template #extra-button>
+        <button
+          class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
+          style="background: var(--accent-danger)"
+          @click="() => confirmBatchDelete('delete-all')"
+        >
+          删除全部
+        </button>
+      </template>
+    </ConfirmDialog>
+    <!-- Skeleton Loading -->
+    <div
+      v-if="resourceStore.loading"
+      class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6"
+    >
+      <div
+        v-for="i in 6"
+        :key="i"
+        class="skeleton-card rounded-2xl overflow-hidden"
+        style="height: 380px"
+      />
+    </div>
 
-		<!-- Empty State -->
-		<EmptyState v-else-if="filteredResources.length === 0" icon="◇" title="暂无资源"
-			:description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'">
-			<template #action>
-				<RouterLink to="/add"
-					class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
-					style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);">
-					添加资源
-				</RouterLink>
-			</template>
-		</EmptyState>
+    <!-- Empty State -->
+    <EmptyState
+      v-else-if="filteredResources.length === 0"
+      icon="◇"
+      title="暂无资源"
+      :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
+    >
+      <template #action>
+        <RouterLink
+          to="/add"
+          class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
+          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+        >
+          添加资源
+        </RouterLink>
+      </template>
+    </EmptyState>
 
-		<!-- Resources Grid -->
-		<div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
-			<ResourceCard v-for="resource in filteredResources" :key="resource.avid" :resource="resource"
-				:selectable="batchMode" :selected="selectedAvids.has(resource.avid)" :coverSize="'medium'"
-				@toggle-select="toggleSelect" @download="handleDownload" @refresh="handleRefresh"
-				@delete="handleDeleteResource" @deleteFile="handleDeleteFile" />
-		</div>
-		<ResourcePagination :page="page" :pages="resourceStore.pagination.pages" :pageSize="pageSize"
-			:total="resourceStore.pagination.total" @change-page="changePage" @change-page-size="onPageSizeChange" />
+    <!-- Resources Grid -->
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
+      <ResourceCard
+        v-for="resource in filteredResources"
+        :key="resource.avid"
+        :resource="resource"
+        :selectable="batchMode"
+        :selected="selectedAvids.has(resource.avid)"
+        :coverSize="'medium'"
+        @toggle-select="toggleSelect"
+        @download="handleDownload"
+        @refresh="handleRefresh"
+        @delete="handleDeleteResource"
+        @deleteFile="handleDeleteFile"
+      />
+    </div>
+    <ResourcePagination
+      :page="page"
+      :pages="resourceStore.pagination.pages"
+      :pageSize="pageSize"
+      :total="resourceStore.pagination.total"
+      @change-page="changePage"
+      @change-page-size="onPageSizeChange"
+    />
 
-		<!-- Floating Refresh Button -->
-		<button
-			class="fixed bottom-8 right-8 w-[60px] h-[60px] rounded-full border-none shadow-[0_4px_20px_rgba(255,107,107,0.3)] cursor-pointer transition-all duration-300 z-[1000] flex items-center justify-center text-white text-xl hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-			style="background: linear-gradient(135deg, var(--accent-primary), #ff5252);"
-			:disabled="refreshing" :title="refreshing ? '刷新中...' : '刷新资源列表'" @click="handleManualRefresh">
-			<svg v-if="refreshing" class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" d="M12 6v6l3 3"/></svg>
-			<svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-		</button>
-	</div>
+    <!-- Floating Refresh Button -->
+    <button
+      class="fixed bottom-8 right-8 w-[60px] h-[60px] rounded-full border-none shadow-[0_4px_20px_rgba(255,107,107,0.3)] cursor-pointer transition-all duration-300 z-[1000] flex items-center justify-center text-white text-xl hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+      style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+      :disabled="refreshing"
+      :title="refreshing ? '刷新中...' : '刷新资源列表'"
+      @click="handleManualRefresh"
+    >
+      <svg
+        v-if="refreshing"
+        class="w-5 h-5 animate-spin"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <circle cx="12" cy="12" r="10" stroke-width="2" />
+        <path stroke-linecap="round" d="M12 6v6l3 3" />
+      </svg>
+      <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        />
+      </svg>
+    </button>
+  </div>
 </template>
 
 <style scoped>
 /* 自定义动画 */
 @keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
+  from {
+    opacity: 0;
+  }
 
-	to {
-		opacity: 1;
-	}
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes shimmer {
-	from { background-position: -200% 0; }
-	to { background-position: 200% 0; }
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
 }
 
 .skeleton-card {
-	background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-overlay) 50%, var(--bg-secondary) 75%);
-	background-size: 200% 100%;
-	animation: shimmer 1.5s infinite linear;
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-overlay) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
 }
 
 @keyframes spin {
-	from {
-		transform: rotate(0deg);
-	}
+  from {
+    transform: rotate(0deg);
+  }
 
-	to {
-		transform: rotate(360deg);
-	}
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* select样式 */
 select option {
-	background: var(--bg-primary);
-	color: var(--text-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 /* 响应式 */
 @media (max-width: 768px) {
-	.floating-refresh-btn {
-		bottom: 1.5rem;
-		right: 1.5rem;
-		width: 50px;
-		height: 50px;
-		font-size: 1rem;
-	}
+  .floating-refresh-btn {
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 50px;
+    height: 50px;
+    font-size: 1rem;
+  }
 }
 </style>

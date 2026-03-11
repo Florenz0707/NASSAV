@@ -17,7 +17,7 @@
 
 ### 端点信息
 
-```
+```bash
 POST /nassav/api/downloads/mock/{avid}
 ```
 
@@ -25,15 +25,15 @@ POST /nassav/api/downloads/mock/{avid}
 
 **路径参数：**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| avid | string | 是 | 资源 AVID（必须在数据库中存在） |
+| 参数 | 类型   | 必填 | 说明                            |
+| ---- | ------ | ---- | ------------------------------- |
+| avid | string | 是   | 资源 AVID（必须在数据库中存在） |
 
 **请求体（JSON，可选）：**
 
-| 参数 | 类型 | 必填 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| duration | integer | 否 | 30 | 模拟下载持续时间（秒），范围：1-300 |
+| 参数     | 类型    | 必填 | 默认值 | 说明                                |
+| -------- | ------- | ---- | ------ | ----------------------------------- |
+| duration | integer | 否   | 30     | 模拟下载持续时间（秒），范围：1-300 |
 
 ### 请求示例
 
@@ -61,24 +61,24 @@ curl -X POST http://localhost:8000/nassav/api/downloads/mock/SSIS-465 \
 fetch('/nassav/api/downloads/mock/SSIS-465', {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 })
-.then(response => response.json())
-.then(data => console.log(data));
+  .then((response) => response.json())
+  .then((data) => console.log(data))
 
 // 指定持续时间
 fetch('/nassav/api/downloads/mock/SSIS-465', {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    duration: 45
-  })
+    duration: 45,
+  }),
 })
-.then(response => response.json())
-.then(data => console.log(data));
+  .then((response) => response.json())
+  .then((data) => console.log(data))
 ```
 
 ### 响应格式
@@ -101,13 +101,13 @@ fetch('/nassav/api/downloads/mock/SSIS-465', {
 
 **错误响应示例：**
 
-| HTTP 状态码 | Code | 说明 | 示例 |
-|------------|------|------|------|
-| 403 | 403 | DEBUG 模式未启用 | `{"code": 403, "message": "此接口仅在 DEBUG 模式下可用", "data": null}` |
-| 404 | 404 | 资源不存在 | `{"code": 404, "message": "SSIS-465 的元数据不存在", "data": null}` |
-| 409 | 409 | 任务已存在 | `{"code": 409, "message": "下载任务已存在", "data": null}` |
-| 400 | 400 | 参数错误 | `{"code": 400, "message": "持续时间必须在 1-300 秒之间", "data": null}` |
-| 500 | 500 | 服务器错误 | `{"code": 500, "message": "提交失败: ...", "data": null}` |
+| HTTP 状态码 | Code | 说明             | 示例                                                                    |
+| ----------- | ---- | ---------------- | ----------------------------------------------------------------------- |
+| 403         | 403  | DEBUG 模式未启用 | `{"code": 403, "message": "此接口仅在 DEBUG 模式下可用", "data": null}` |
+| 404         | 404  | 资源不存在       | `{"code": 404, "message": "SSIS-465 的元数据不存在", "data": null}`     |
+| 409         | 409  | 任务已存在       | `{"code": 409, "message": "下载任务已存在", "data": null}`              |
+| 400         | 400  | 参数错误         | `{"code": 400, "message": "持续时间必须在 1-300 秒之间", "data": null}` |
+| 500         | 500  | 服务器错误       | `{"code": 500, "message": "提交失败: ...", "data": null}`               |
 
 ### 功能特性
 
@@ -137,28 +137,28 @@ fetch('/nassav/api/downloads/mock/SSIS-465', {
 连接到 WebSocket：
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/tasks/');
+const ws = new WebSocket('ws://localhost:8000/ws/tasks/')
 
 ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
+  const data = JSON.parse(event.data)
 
   if (data.type === 'task_started') {
-    console.log('任务开始:', data.data);
+    console.log('任务开始:', data.data)
   }
 
   if (data.type === 'progress_update') {
-    console.log('进度更新:', data.data.progress);
+    console.log('进度更新:', data.data.progress)
     // { percent: 50.0, speed: "50.0 MB/s" }
   }
 
   if (data.type === 'task_completed') {
-    console.log('任务完成:', data.data);
+    console.log('任务完成:', data.data)
   }
 
   if (data.type === 'task_failed') {
-    console.log('任务失败:', data.data);
+    console.log('任务失败:', data.data)
   }
-};
+}
 ```
 
 #### 2. 轮询队列状态
@@ -243,32 +243,36 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 
 ### 与真实下载的对比
 
-| 特性 | 模拟下载 | 真实下载 |
-|------|----------|----------|
-| 是否下载文件 | ❌ 否 | ✅ 是 |
-| 更新进度 | ✅ 是 | ✅ 是 |
-| WebSocket 通知 | ✅ 是 | ✅ 是 |
-| 任务队列 | ✅ 是 | ✅ 是 |
-| 去重检查 | ✅ 是 | ✅ 是 |
-| 更新 file_exists | ❌ 否 | ✅ 是 |
-| 持续时间 | 自定义（1-300秒） | 实际下载时间 |
-| 需要资源存在 | ✅ 是 | ✅ 是 |
+| 特性             | 模拟下载          | 真实下载     |
+| ---------------- | ----------------- | ------------ |
+| 是否下载文件     | ❌ 否             | ✅ 是        |
+| 更新进度         | ✅ 是             | ✅ 是        |
+| WebSocket 通知   | ✅ 是             | ✅ 是        |
+| 任务队列         | ✅ 是             | ✅ 是        |
+| 去重检查         | ✅ 是             | ✅ 是        |
+| 更新 file_exists | ❌ 否             | ✅ 是        |
+| 持续时间         | 自定义（1-300秒） | 实际下载时间 |
+| 需要资源存在     | ✅ 是             | ✅ 是        |
 
 ### 故障排查
 
-**问题：返回 403 错误**
+### 问题：返回 403 错误
+
 - 检查 `.env` 文件中 `DEBUG=True`
 - 重启 Django 服务器以加载新配置
 
-**问题：返回 404 错误**
+### 问题：返回 404 错误
+
 - 确认 AVID 在数据库中存在
 - 可以先调用 `POST /nassav/api/resource` 添加资源
 
-**问题：返回 409 错误**
+### 问题：返回 409 错误
+
 - 该 AVID 的任务已在队列中
 - 等待当前任务完成或使用不同的 AVID
 
-**问题：进度不更新**
+### 问题：进度不更新
+
 - 检查 Celery Worker 是否运行：`uv run celery -A django_project worker -l info`
 - 检查 Redis 服务是否正常
 - 查看 Celery Worker 日志

@@ -1,7 +1,6 @@
 """测试Scraper封面下载功能（带Referer头）"""
-from unittest.mock import MagicMock, Mock, patch
 
-import pytest
+from unittest.mock import Mock, patch
 
 
 def test_scraper_download_cover_with_referer():
@@ -21,7 +20,7 @@ def test_scraper_download_cover_with_referer():
         url = "https://www.javbus.com/pics/cover/test.jpg"
         save_path = "/tmp/test.jpg"
 
-        with patch("builtins.open", create=True) as mock_open:
+        with patch("builtins.open", create=True):
             with patch("os.makedirs"):
                 scraper.download_cover(url, save_path)
 

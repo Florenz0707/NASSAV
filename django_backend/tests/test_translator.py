@@ -20,7 +20,6 @@ import argparse
 import os
 import sys
 import time
-from typing import List, Tuple
 
 import django
 import pytest
@@ -55,11 +54,11 @@ def test_service_availability():
     is_available = translator.is_available()
 
     if is_available:
-        print(f"✓ Ollama 服务可用")
+        print("✓ Ollama 服务可用")
         print(f"  URL: {translator.url}")
         print(f"  Model: {translator.model}")
     else:
-        print(f"✗ Ollama 服务不可用")
+        print("✗ Ollama 服务不可用")
         print(f"  请检查服务是否运行: {translator.url}")
 
     assert is_available, "Ollama 服务不可用"
@@ -95,7 +94,7 @@ def test_single_translation():
             print(f"✓ 翻译成功（耗时 {elapsed:.2f}秒）")
             results.append((True, japanese_text, translated, elapsed))
         else:
-            print(f"✗ 翻译失败")
+            print("✗ 翻译失败")
             results.append((False, japanese_text, None, elapsed))
 
     # 统计
@@ -135,7 +134,7 @@ def test_batch_translation(count: int = 5):
     for i, text in enumerate(japanese_texts, 1):
         print(f"[{i}] {text}")
 
-    print(f"\n开始批量翻译...")
+    print("\n开始批量翻译...")
     start_time = time.time()
 
     translated_texts = translator.batch_translate(japanese_texts)
@@ -143,26 +142,26 @@ def test_batch_translation(count: int = 5):
     elapsed = time.time() - start_time
 
     # 显示结果
-    print(f"\n翻译结果：")
+    print("\n翻译结果：")
     results = []
     for i, (orig, trans) in enumerate(zip(japanese_texts, translated_texts), 1):
         print(f"\n[{i}]")
         print(f"  日语: {orig}")
         if trans:
             print(f"  中文: {trans}")
-            print(f"  ✓ 成功")
+            print("  ✓ 成功")
             results.append((True, orig, trans))
         else:
-            print(f"  ✗ 失败")
+            print("  ✗ 失败")
             results.append((False, orig, None))
 
     # 统计
     success_count = sum(1 for r in results if r[0])
-    print(f"\n" + "=" * 60)
-    print(f"批量翻译完成")
+    print("\n" + "=" * 60)
+    print("批量翻译完成")
     print(f"成功: {success_count}/{len(japanese_texts)}")
     print(f"总耗时: {elapsed:.2f}秒")
-    print(f"平均每条: {elapsed/len(japanese_texts):.2f}秒")
+    print(f"平均每条: {elapsed / len(japanese_texts):.2f}秒")
     print("=" * 60)
 
     assert success_count > 0, "批量翻译全部失败"
@@ -193,7 +192,7 @@ def test_retry_mechanism():
         print(f"✓ 翻译成功: {result}")
         print(f"  耗时: {elapsed:.2f}秒")
     else:
-        print(f"✗ 翻译失败")
+        print("✗ 翻译失败")
 
     assert result is not None, "翻译失败"
 
@@ -248,7 +247,7 @@ def test_database_samples(count: int = 10):
                 }
             )
         else:
-            print(f"  ✗ 翻译失败")
+            print("  ✗ 翻译失败")
             results.append(
                 {
                     "avid": resource.avid,
@@ -268,8 +267,8 @@ def test_database_samples(count: int = 10):
     success_count = sum(1 for r in results if r["success"])
     avg_time = sum(r["time"] for r in results) / len(results)
 
-    print(f"\n" + "=" * 60)
-    print(f"数据库样本测试完成")
+    print("\n" + "=" * 60)
+    print("数据库样本测试完成")
     print(f"成功率: {success_count}/{len(results)}")
     print(f"平均耗时: {avg_time:.2f}秒")
     print("=" * 60)

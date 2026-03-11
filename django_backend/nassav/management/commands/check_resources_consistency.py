@@ -8,6 +8,7 @@ Django management command: 检查资源文件与数据库的一致性
     --apply: 自动修复发现的问题（默认只检查不修复）
     --report: 指定报告文件路径（默认：celery_beat/resources_consistency_report.json）
 """
+
 import json
 from datetime import datetime
 from pathlib import Path
@@ -37,9 +38,13 @@ class Command(BaseCommand):
         from nassav.models import AVResource
 
         apply_changes = options.get("apply", False)
-        report_path = options.get("report")
+        report_path = options.get(
+            "report", "celery_beat/resources_consistency_report.json"
+        )
 
-        self.stdout.write(self.style.SUCCESS(f"开始检查资源文件一致性... (apply={apply_changes})"))
+        self.stdout.write(
+            self.style.SUCCESS(f"开始检查资源文件一致性... (apply={apply_changes})")
+        )
 
         cover_dir = Path(settings.COVER_DIR)
         video_dir = Path(settings.VIDEO_DIR)
@@ -143,7 +148,9 @@ class Command(BaseCommand):
                     )
                     fixed["video_db_updated"] += 1
                     self.stdout.write(
-                        self.style.SUCCESS(f"  修复视频字段: {avid} (存在但标记为False)")
+                        self.style.SUCCESS(
+                            f"  修复视频字段: {avid} (存在但标记为False)"
+                        )
                     )
 
             elif not video_exists and resource.file_exists:
@@ -162,7 +169,9 @@ class Command(BaseCommand):
                     )
                     fixed["video_db_updated"] += 1
                     self.stdout.write(
-                        self.style.WARNING(f"  修复视频字段: {avid} (不存在但标记为True)")
+                        self.style.WARNING(
+                            f"  修复视频字段: {avid} (不存在但标记为True)"
+                        )
                     )
 
         # 检查孤立的文件（数据库中没有记录）

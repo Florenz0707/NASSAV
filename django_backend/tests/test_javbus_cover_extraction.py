@@ -1,4 +1,5 @@
 """测试Javbus封面URL提取功能"""
+
 import re
 
 import pytest

@@ -91,7 +91,7 @@ def preview_fixes():
         print(f"... 以及其他 {len(resources) - 20} 个资源")
 
     print("=" * 80)
-    print(f"\n使用 --execute 参数执行修复")
+    print("\n使用 --execute 参数执行修复")
 
 
 def execute_fix():
@@ -125,7 +125,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument("--execute", action="store_true", help="执行修复操作（默认为预览模式）")
+    parser.add_argument(
+        "--execute", action="store_true", help="执行修复操作（默认为预览模式）"
+    )
 
     parser.add_argument("--stats", action="store_true", help="显示统计信息")
 

@@ -2,6 +2,7 @@
 
 Generated manually to add persistence models for AV metadata.
 """
+
 from django.db import migrations, models
 
 

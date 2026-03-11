@@ -1,8 +1,8 @@
-**Database Overview**
+## Database Overview
 
 - **Scope:** 介绍与 `AVResource` 相关的数据库表、它们之间的关系、字段语义、索引、以及元数据/封面/视频的持久化和更新流程。
 
-**Models & Tables**
+## Models & Tables
 
 - **`SourceCookie` (`source_cookie`)**: 存储下载源的 Cookie 配置表。
   - 关键字段：
@@ -49,7 +49,7 @@
 
 - **M2M 关系**：`AVResource.actors` 与 `AVResource.genres`（分别通过中间表保存关联）。
 
-**持久化 & 更新流程（简要）**
+## 持久化 & 更新流程（简要）
 
 - 新资源入库（SourceManager.save_all_resources）:
   - 从 scraper 得到 `AVDownloadInfo`（内存结构），包含 `original_title`, `source_title`, `avid`, `m3u8`, `actors`, `actor_avatars`, `genres`, `duration` 等。
@@ -78,12 +78,12 @@
 - 删除资源（API/视图）:
   - 删除磁盘上的封面/MP4 后，会尝试更新 `AVResource`：将 `file_exists=False`、`file_size=None`、`video_saved_at=None`。元数据（JSON）默认保留，除非明确发起数据库删除操作。
 
-**一致性与事务控制**
+## 一致性与事务控制
 
 - 对于涉及多表更新（写 `AVResource` + 设置 M2M actor/genre）使用 `transaction.atomic()` 保证原子性。
 - 对于下载任务的后置更新（`file_exists`、`file_size`、`video_saved_at`）也使用事务以防止部分写入。
 
-**查询与搜索**
+## 查询与搜索
 
 - 常见查询：
   - 按 `avid` 精确查找（主键索引）。
@@ -100,12 +100,12 @@
   - 支持按 `resource_count` 或 `name` 排序，可实现"最热演员"或"作品最多类别"等功能。
   - 在过滤 M2M 关系时使用 `distinct()` 避免重复记录（如同时按 actor 和 genre 过滤时）。
 
-**监控与回滚**
+## 监控与回滚
 
 - 所有写入操作记录日志（`loguru`），出错时生成可审计的异常/报告（导入脚本会输出 `errors` 和 `mismatches` 报表）。
 - 在大规模变更前：先执行 `--dry-run`，并备份现有 JSON/资源目录。
 
-**建议 / 注意事项**
+## 建议 / 注意事项
 
 - 保持 `metadata` 的完整性：不要删除原始 JSON 直到导入验证完成并备份完成。
 - 若转向生产级数据库（Postgres），为 `actors`/`genres` 添加唯一约束和必要的索引，并考虑使用 `GIN` 索引优化 `metadata` JSON 查询。

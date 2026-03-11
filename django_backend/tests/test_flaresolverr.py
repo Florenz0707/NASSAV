@@ -67,7 +67,7 @@ def _cookies_list_to_str(cookies: list[dict]) -> str:
 
 def test_flaresolverr_health():
     """测试 1：FlareSolverr 服务是否可达"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"测试 1: FlareSolverr 健康检查 ({FLARESOLVERR_URL})")
     print("=" * 60)
 
@@ -84,7 +84,7 @@ def test_flaresolverr_health():
 
 def test_flaresolverr_get_missav_cookie():
     """测试 2：通过 FlareSolverr 获取 MissAV 的 Cloudflare cookie（不写库，仅验证）"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("测试 2: 获取 MissAV Cloudflare Cookie")
     print("=" * 60)
 
@@ -115,7 +115,8 @@ def test_flaresolverr_get_missav_cookie():
     CF_COOKIES = {"cf_clearance", "cf_chl_rc_ni"}
     cf_cookie = next((c for c in cookies if c["name"] in CF_COOKIES), None)
     assert cf_cookie is not None, (
-        "未获取到任何 Cloudflare cookie，验证可能未通过\n" f"  获取到的 cookies: {cookie_names}"
+        "未获取到任何 Cloudflare cookie，验证可能未通过\n"
+        f"  获取到的 cookies: {cookie_names}"
     )
 
     print(
@@ -130,7 +131,7 @@ def test_flaresolverr_fetch_page_with_cookie():
     不能直接用 curl_cffi 携带该 cookie 请求（指纹不匹配会 403）。
     正确做法是让 FlareSolverr 代理整个页面请求。
     """
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"测试 3: 通过 FlareSolverr 访问 MissAV 页面 (AVID: {TEST_AVID})")
     print("=" * 60)
 
@@ -158,7 +159,7 @@ def test_flaresolverr_fetch_page_with_cookie():
     assert "Just a moment" not in html, "仍被 Cloudflare 拦截"
     assert "cf-browser-verification" not in html, "仍被 Cloudflare 拦截"
 
-    print(f"✅ 成功访问页面，未被 Cloudflare 拦截")
+    print("✅ 成功访问页面，未被 Cloudflare 拦截")
 
     # 尝试解析 UUID（验证页面内容有效）
     import re
@@ -168,13 +169,13 @@ def test_flaresolverr_fetch_page_with_cookie():
         uuid = "-".join(uuid_match.group(1).split("|")[::-1])
         print(f"✅ 成功提取 UUID: {uuid}")
     else:
-        print(f"⚠️  未找到 UUID（该番号可能在 MissAV 上不存在，但页面访问正常）")
+        print("⚠️  未找到 UUID（该番号可能在 MissAV 上不存在，但页面访问正常）")
 
 
 @pytest.mark.django_db
 def test_flaresolverr_save_cookie_to_db():
     """测试 4：将 FlareSolverr 获取的 cookie 保存到数据库"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("测试 4: 保存 Cookie 到数据库")
     print("=" * 60)
 
@@ -202,11 +203,11 @@ def test_flaresolverr_save_cookie_to_db():
     saved = SourceCookie.objects.get(source_name="MissAV")
     assert saved.cookie == cookie_str
 
-    print(f"✅ Cookie 已保存到数据库")
+    print("✅ Cookie 已保存到数据库")
     print(f"   Cookie 长度: {len(cookie_str)} 字符")
     print(f"   User-Agent: {user_agent}")
-    print(f"\n提示：后续请求需要使用相同的 User-Agent，否则 cf_clearance 无效")
-    print(f"   建议将 User-Agent 也保存到配置或数据库中")
+    print("\n提示：后续请求需要使用相同的 User-Agent，否则 cf_clearance 无效")
+    print("   建议将 User-Agent 也保存到配置或数据库中")
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +232,7 @@ def _make_missav():
         s.SOURCE_CONFIG = {"missav": {"domain": _DOMAIN}}
         missav = MissAV()
 
-    missav._flaresolverr = MagicMock()
+    missav._flaresolverr = MagicMock()  # type: ignore
     return missav
 
 
@@ -364,7 +365,8 @@ def test_missav_404_url_has_no_surrit(require_flaresolverr):
     print(f"HTML 长度: {len(html)}，含 surrit: {'surrit' in html}")
 
     assert "surrit" not in html, (
-        f"404 页面不应含 surrit，但实际含有。\n" f"最终 URL: {final_url}\nHTML 片段: {html[:300]}"
+        f"404 页面不应含 surrit，但实际含有。\n"
+        f"最终 URL: {final_url}\nHTML 片段: {html[:300]}"
     )
 
 
@@ -383,7 +385,9 @@ def test_missav_valid_url_has_surrit(require_flaresolverr):
     html = solution.get("response", "")
     print(f"HTML 长度: {len(html)}，含 surrit: {'surrit' in html}")
 
-    assert "surrit" in html, f"有效页面应含 surrit，但实际不含。\nHTML 片段: {html[:300]}"
+    assert "surrit" in html, (
+        f"有效页面应含 surrit，但实际不含。\nHTML 片段: {html[:300]}"
+    )
 
 
 def test_missav_get_html_skips_404_returns_valid(require_flaresolverr):
@@ -401,7 +405,9 @@ def test_missav_get_html_skips_404_returns_valid(require_flaresolverr):
     html = missav.get_html(TEST_AVID)
 
     assert html is not None, f"get_html({TEST_AVID}) 返回 None，所有 URL 均失败"
-    assert "surrit" in html, f"返回的 HTML 不含视频内容（surrit）\nHTML 片段: {html[:300]}"
+    assert "surrit" in html, (
+        f"返回的 HTML 不含视频内容（surrit）\nHTML 片段: {html[:300]}"
+    )
     print(f"✅ 成功获取有效 HTML，长度: {len(html)}")
 
 
@@ -435,6 +441,6 @@ if __name__ == "__main__":
             traceback.print_exc()
         input("\n按 Enter 继续下一项测试...")
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"测试完成: {passed}/{len(tests)} 通过")
     print("=" * 60)

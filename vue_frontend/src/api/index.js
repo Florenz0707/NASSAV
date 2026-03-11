@@ -1,240 +1,241 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: '/nassav/api',
-    timeout: 30000,
-    headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-    }
+  baseURL: '/nassav/api',
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  },
 })
 
 // 响应拦截器：兼容后端统一的 envelope 格式 {code, message, data}
 api.interceptors.response.use(
-    response => {
-        const envelope = response.data
-        if (response.status >= 200 && response.status < 300) {
-            // 如果是后端的 envelope 格式
-            if (envelope && typeof envelope.code !== 'undefined') {
-                const c = envelope.code
-                // 后端可能使用 code=0 或 HTTP 风格 code (200-299) 表示成功
-                const success = (c === 0) || (typeof c === 'number' && c >= 200 && c < 300)
-                if (success) {
-                    const data = envelope.data
-                    const pagination = envelope.pagination || (data && data.pagination) || null
-                    return {code: envelope.code, message: envelope.message, data, pagination}
-                }
-                return Promise.reject({
-                    httpStatus: response.status,
-                    code: envelope.code,
-                    message: envelope.message,
-                    data: envelope.data
-                })
-            }
-            // 非 envelope（例如二进制文件响应）直接返回原始 response
-            return response
+  (response) => {
+    const envelope = response.data
+    if (response.status >= 200 && response.status < 300) {
+      // 如果是后端的 envelope 格式
+      if (envelope && typeof envelope.code !== 'undefined') {
+        const c = envelope.code
+        // 后端可能使用 code=0 或 HTTP 风格 code (200-299) 表示成功
+        const success = c === 0 || (typeof c === 'number' && c >= 200 && c < 300)
+        if (success) {
+          const data = envelope.data
+          const pagination = envelope.pagination || (data && data.pagination) || null
+          return { code: envelope.code, message: envelope.message, data, pagination }
         }
-        return Promise.reject({httpStatus: response.status, data: envelope})
-    },
-    error => {
-        if (error.response) {
-            const env = error.response.data
-            if (env && typeof env.code !== 'undefined') {
-                return Promise.reject({
-                    httpStatus: error.response.status,
-                    code: env.code,
-                    message: env.message,
-                    data: env.data
-                })
-            }
-            return Promise.reject({httpStatus: error.response.status, data: env})
-        }
-        return Promise.reject({code: 500, message: '网络错误', data: null})
+        return Promise.reject({
+          httpStatus: response.status,
+          code: envelope.code,
+          message: envelope.message,
+          data: envelope.data,
+        })
+      }
+      // 非 envelope（例如二进制文件响应）直接返回原始 response
+      return response
     }
+    return Promise.reject({ httpStatus: response.status, data: envelope })
+  },
+  (error) => {
+    if (error.response) {
+      const env = error.response.data
+      if (env && typeof env.code !== 'undefined') {
+        return Promise.reject({
+          httpStatus: error.response.status,
+          code: env.code,
+          message: env.message,
+          data: env.data,
+        })
+      }
+      return Promise.reject({ httpStatus: error.response.status, data: env })
+    }
+    return Promise.reject({ code: 500, message: '网络错误', data: null })
+  }
 )
 
 // 下载源管理（包含设置 Cookie）
 export const sourceApi = {
-    // 获取所有可用下载源列表
-    getList: () => api.get('/source/list'),
-    // 获取所有已设置的源 Cookie 列表
-    getCookies: () => api.get('/source/cookie'),
-    // 设置或自动获取 Cookie
-    setCookie: (payload) => api.post('/source/cookie', payload),
-    // 删除指定源的 Cookie
-    deleteCookie: (source) => api.delete('/source/cookie', { params: { source } })
+  // 获取所有可用下载源列表
+  getList: () => api.get('/source/list'),
+  // 获取所有已设置的源 Cookie 列表
+  getCookies: () => api.get('/source/cookie'),
+  // 设置或自动获取 Cookie
+  setCookie: (payload) => api.post('/source/cookie', payload),
+  // 删除指定源的 Cookie
+  deleteCookie: (source) => api.delete('/source/cookie', { params: { source } }),
 }
 
 // 用户设置管理
 export const settingsApi = {
-    // 获取用户设置
-    get: () => api.get('/setting'),
-    // 更新用户设置（支持部分更新）
-    update: (payload) => api.put('/setting', payload)
+  // 获取用户设置
+  get: () => api.get('/setting'),
+  // 更新用户设置（支持部分更新）
+  update: (payload) => api.put('/setting', payload),
 }
 
 // 演员管理
 export const actorApi = {
-    // 获取演员列表（聚合统计）
-    getList: (params = {}) => api.get('/actors/', {params}),
-    // 获取演员头像图片URL
-    getAvatarUrl: (actorId) => {
-        const base = api.defaults.baseURL.replace(/\/$/, '')
-        return `${base}/actors/${actorId}/avatar`
-    }
+  // 获取演员列表（聚合统计）
+  getList: (params = {}) => api.get('/actors/', { params }),
+  // 获取演员头像图片URL
+  getAvatarUrl: (actorId) => {
+    const base = api.defaults.baseURL.replace(/\/$/, '')
+    return `${base}/actors/${actorId}/avatar`
+  },
 }
 
 // 类别管理
 export const genreApi = {
-    // 获取类别列表（聚合统计）
-    getList: (params = {}) => api.get('/genres/', {params})
+  // 获取类别列表（聚合统计）
+  getList: (params = {}) => api.get('/genres/', { params }),
 }
 
 // 资源管理
 export const resourceApi = {
-    // 获取所有已保存资源列表（推荐使用新的 /resources/ 统一入口）
-    getList: (params = {}) => api.get('/resources/', {params}),
+  // 获取所有已保存资源列表（推荐使用新的 /resources/ 统一入口）
+  getList: (params = {}) => api.get('/resources/', { params }),
 
-    // 获取资源预览信息（首屏快速渲染）
-    getPreview: (avid) => api.get(`/resource/${encodeURIComponent(avid)}/preview`),
+  // 获取资源预览信息（首屏快速渲染）
+  getPreview: (avid) => api.get(`/resource/${encodeURIComponent(avid)}/preview`),
 
-    // 获取资源元数据
-    // bypassCache: 是否绕过浏览器缓存（添加时间戳参数）
-    getMetadata: (avid, bypassCache = false) => {
-        const params = {avid}
-        if (bypassCache) {
-            params._t = Date.now()
-        }
-        return api.get('/resource/metadata', {params})
-    },
-
-    // 获取封面图片URL（基于 axios 实例的 baseURL）
-    // size: 'small'|'medium'|'large' or undefined for original
-    getCoverUrl: (avid, size) => {
-        const base = api.defaults.baseURL.replace(/\/$/, '')
-        let url = `${base}/resource/cover?avid=${encodeURIComponent(avid)}`
-        if (size) url += `&size=${encodeURIComponent(size)}`
-        return url
-    },
-    // 简单的 LRU 缓存用于封面 object URLs，避免重复下载并支持自动回收
-    // keyed by avid -> objectUrl
-    _coverCache: new Map(),
-    _maxCoverCache: 100,
-    // 以 blob 形式获取封面（服务器返回 FileResponse / 二进制）
-    fetchCoverBlob: async (avid) => {
-        const resp = await api.get('/resource/cover', {params: {avid}, responseType: 'blob'})
-        if (resp && typeof resp.code !== 'undefined') {
-            if (resp.code === 0) return resp.data
-            throw resp
-        }
-        return resp.data
-    },
-    // 获取封面对应的 object URL（使用缓存，按需请求）
-    getCoverObjectUrl: async (avid) => {
-        if (!avid) return null
-        // 已缓存直接返回（并刷新为最近使用）
-        if (resourceApi._coverCache.has(avid)) {
-            const url = resourceApi._coverCache.get(avid)
-            // move to end to mark as recently used
-            resourceApi._coverCache.delete(avid)
-            resourceApi._coverCache.set(avid, url)
-            return url
-        }
-        try {
-            const blob = await resourceApi.fetchCoverBlob(avid)
-            if (!blob) throw new Error('no blob')
-            const obj = URL.createObjectURL(blob)
-            resourceApi._coverCache.set(avid, obj)
-            // enforce size limit
-            if (resourceApi._coverCache.size > resourceApi._maxCoverCache) {
-                const firstKey = resourceApi._coverCache.keys().next().value
-                const firstUrl = resourceApi._coverCache.get(firstKey)
-                try {
-                    URL.revokeObjectURL(firstUrl)
-                } catch {
-                    // Ignore revoke errors
-                }
-                resourceApi._coverCache.delete(firstKey)
-            }
-            return obj
-        } catch (_e) {
-            // fallback to URL
-            return `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover?avid=${encodeURIComponent(avid)}`
-        }
-    },
-    // 明确撤销并删除缓存项
-    revokeCoverObjectUrl: (avid) => {
-        if (resourceApi._coverCache.has(avid)) {
-            const url = resourceApi._coverCache.get(avid)
-            try {
-                URL.revokeObjectURL(url)
-            } catch {
-                // Ignore revoke errors
-            }
-            resourceApi._coverCache.delete(avid)
-        }
-    },
-
-    // 添加新资源
-    addNew: (avid, source = 'any') => api.post('/resource', {avid, source}),
-
-    // 刷新资源
-    refresh: (avid, params = null) => api.post(`/resource/refresh/${encodeURIComponent(avid)}`, params || {}),
-
-    // 删除资源
-    delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`),
-
-    // 更新资源状态（观看状态和收藏状态）
-    updateStatus: (avid, payload) => api.patch(`/resource/${encodeURIComponent(avid)}/status`, payload),
-
-    // 批量操作：body 应包含 { actions: [ {action, avid, ...}, ... ] }
-    batch: (payload) => {
-        const actions = payload.actions || []
-        let baseTimeout = 15000  // 基础 15 秒
-        let timeoutPerItem = 3000  // 每个资源 3 秒
-
-        // 如果 actions 为空但有 avids (旧格式兼容性处理，虽然建议统一使用 actions)
-        const count = actions.length || (payload.avids ? payload.avids.length : 0)
-        const actionType = actions.length > 0 ? actions[0].action : (payload.action || 'unknown')
-
-        // 根据操作类型调整
-        if (actionType === 'add') {
-            timeoutPerItem = 5000  // 添加操作需要抓取元数据，更耗时
-        } else if (actionType === 'refresh') {
-            timeoutPerItem = 4000
-        }
-
-        const timeout = baseTimeout + count * timeoutPerItem
-        console.log(`[API] 批量${actionType} ${count} 个任务，超时: ${timeout}ms`)
-
-        return api.post('/resources/batch', payload, {timeout})
+  // 获取资源元数据
+  // bypassCache: 是否绕过浏览器缓存（添加时间戳参数）
+  getMetadata: (avid, bypassCache = false) => {
+    const params = { avid }
+    if (bypassCache) {
+      params._t = Date.now()
     }
+    return api.get('/resource/metadata', { params })
+  },
+
+  // 获取封面图片URL（基于 axios 实例的 baseURL）
+  // size: 'small'|'medium'|'large' or undefined for original
+  getCoverUrl: (avid, size) => {
+    const base = api.defaults.baseURL.replace(/\/$/, '')
+    let url = `${base}/resource/cover?avid=${encodeURIComponent(avid)}`
+    if (size) url += `&size=${encodeURIComponent(size)}`
+    return url
+  },
+  // 简单的 LRU 缓存用于封面 object URLs，避免重复下载并支持自动回收
+  // keyed by avid -> objectUrl
+  _coverCache: new Map(),
+  _maxCoverCache: 100,
+  // 以 blob 形式获取封面（服务器返回 FileResponse / 二进制）
+  fetchCoverBlob: async (avid) => {
+    const resp = await api.get('/resource/cover', { params: { avid }, responseType: 'blob' })
+    if (resp && typeof resp.code !== 'undefined') {
+      if (resp.code === 0) return resp.data
+      throw resp
+    }
+    return resp.data
+  },
+  // 获取封面对应的 object URL（使用缓存，按需请求）
+  getCoverObjectUrl: async (avid) => {
+    if (!avid) return null
+    // 已缓存直接返回（并刷新为最近使用）
+    if (resourceApi._coverCache.has(avid)) {
+      const url = resourceApi._coverCache.get(avid)
+      // move to end to mark as recently used
+      resourceApi._coverCache.delete(avid)
+      resourceApi._coverCache.set(avid, url)
+      return url
+    }
+    try {
+      const blob = await resourceApi.fetchCoverBlob(avid)
+      if (!blob) throw new Error('no blob')
+      const obj = URL.createObjectURL(blob)
+      resourceApi._coverCache.set(avid, obj)
+      // enforce size limit
+      if (resourceApi._coverCache.size > resourceApi._maxCoverCache) {
+        const firstKey = resourceApi._coverCache.keys().next().value
+        const firstUrl = resourceApi._coverCache.get(firstKey)
+        try {
+          URL.revokeObjectURL(firstUrl)
+        } catch {
+          // Ignore revoke errors
+        }
+        resourceApi._coverCache.delete(firstKey)
+      }
+      return obj
+    } catch (_e) {
+      // fallback to URL
+      return `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover?avid=${encodeURIComponent(avid)}`
+    }
+  },
+  // 明确撤销并删除缓存项
+  revokeCoverObjectUrl: (avid) => {
+    if (resourceApi._coverCache.has(avid)) {
+      const url = resourceApi._coverCache.get(avid)
+      try {
+        URL.revokeObjectURL(url)
+      } catch {
+        // Ignore revoke errors
+      }
+      resourceApi._coverCache.delete(avid)
+    }
+  },
+
+  // 添加新资源
+  addNew: (avid, source = 'any') => api.post('/resource', { avid, source }),
+
+  // 刷新资源
+  refresh: (avid, params = null) =>
+    api.post(`/resource/refresh/${encodeURIComponent(avid)}`, params || {}),
+
+  // 删除资源
+  delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`),
+
+  // 更新资源状态（观看状态和收藏状态）
+  updateStatus: (avid, payload) =>
+    api.patch(`/resource/${encodeURIComponent(avid)}/status`, payload),
+
+  // 批量操作：body 应包含 { actions: [ {action, avid, ...}, ... ] }
+  batch: (payload) => {
+    const actions = payload.actions || []
+    let baseTimeout = 15000 // 基础 15 秒
+    let timeoutPerItem = 3000 // 每个资源 3 秒
+
+    // 如果 actions 为空但有 avids (旧格式兼容性处理，虽然建议统一使用 actions)
+    const count = actions.length || (payload.avids ? payload.avids.length : 0)
+    const actionType = actions.length > 0 ? actions[0].action : payload.action || 'unknown'
+
+    // 根据操作类型调整
+    if (actionType === 'add') {
+      timeoutPerItem = 5000 // 添加操作需要抓取元数据，更耗时
+    } else if (actionType === 'refresh') {
+      timeoutPerItem = 4000
+    }
+
+    const timeout = baseTimeout + count * timeoutPerItem
+    console.log(`[API] 批量${actionType} ${count} 个任务，超时: ${timeout}ms`)
+
+    return api.post('/resources/batch', payload, { timeout })
+  },
 }
 
 // 下载管理
 export const downloadApi = {
+  // 获取视频文件路径
+  getFilePath: (avid) => api.get('/downloads/abspath', { params: { avid } }),
 
-    // 获取视频文件路径
-    getFilePath: (avid) => api.get('/downloads/abspath', {params: {avid}}),
+  // 提交下载任务
+  submitDownload: (avid) => api.post(`/downloads/${encodeURIComponent(avid)}`),
 
-    // 提交下载任务
-    submitDownload: (avid) => api.post(`/downloads/${encodeURIComponent(avid)}`),
-
-    // 删除下载的视频
-    deleteFile: (avid) => api.delete(`/downloads/${encodeURIComponent(avid)}`),
-    // 批量提交下载任务（动态超时）
-    batchSubmit: (avids) => {
-        // 基础超时 10 秒，每个任务增加 2 秒
-        const timeout = 10000 + avids.length * 2000
-        console.log(`[API] 批量下载 ${avids.length} 个任务，超时设置: ${timeout}ms`)
-        return api.post('/downloads/batch_submit', {avids}, {timeout})
-    }
+  // 删除下载的视频
+  deleteFile: (avid) => api.delete(`/downloads/${encodeURIComponent(avid)}`),
+  // 批量提交下载任务（动态超时）
+  batchSubmit: (avids) => {
+    // 基础超时 10 秒，每个任务增加 2 秒
+    const timeout = 10000 + avids.length * 2000
+    console.log(`[API] 批量下载 ${avids.length} 个任务，超时设置: ${timeout}ms`)
+    return api.post('/downloads/batch_submit', { avids }, { timeout })
+  },
 }
 
 // 任务管理
 export const taskApi = {
-    // 获取任务队列状态
-    getQueueStatus: () => api.get('/tasks/queue/status')
+  // 获取任务队列状态
+  getQueueStatus: () => api.get('/tasks/queue/status'),
 }

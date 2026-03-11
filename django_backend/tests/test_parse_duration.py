@@ -1,5 +1,4 @@
 """测试duration解析功能"""
-import pytest
 
 
 def test_parse_duration_from_string():
