@@ -214,6 +214,10 @@ def get_task_queue_status() -> Dict[str, Any]:
                         "percent": progress["percent"],
                         "speed": progress["speed"],
                     }
+                    if "downloaded" in progress:
+                        task_info["progress"]["downloaded"] = progress["downloaded"]
+                    if "total" in progress:
+                        task_info["progress"]["total"] = progress["total"]
                 active_tasks_list.append(task_info)
 
     # 获取计划中的任务（pending）

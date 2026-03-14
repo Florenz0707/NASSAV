@@ -229,6 +229,11 @@ watch(filterStatus, () => {
   fetchResourceList()
 })
 
+// scroll to top when page changes
+watch(page, () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+})
+
 onBeforeUnmount(() => {
   if (_searchTimer) clearTimeout(_searchTimer)
 })

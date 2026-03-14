@@ -28,7 +28,8 @@
 }
 
 /* ===== CSS Variables ===== */
-:root {
+:root,
+body.dark-mode {
   /* Background Colors */
   --bg-primary: #0d0d14;
   --bg-secondary: #12121a;
@@ -60,6 +61,40 @@
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
   --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.3);
   --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.3);
+}
+
+body.light-mode {
+  /* Background Colors */
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --card-bg: rgba(255, 255, 255, 0.9);
+
+  /* Text Colors */
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-muted: #86868b;
+
+  /* Accent Colors */
+  --accent-primary: #ff6b6b;
+  --accent-secondary: #ff9f43;
+  --accent-tertiary: #4ecdc4;
+  --accent-danger: #ef476f;
+  --accent-success: #2ed573;
+  --accent-warning: #ffc107;
+
+  /* Border */
+  --border-color: rgba(0, 0, 0, 0.1);
+
+  /* Overlays */
+  --bg-overlay: rgba(255, 255, 255, 0.95);
+  --bg-input: rgba(255, 255, 255, 0.8);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+  --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.2);
+  --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.2);
 }
 
 /* ===== Reset & Base ===== */

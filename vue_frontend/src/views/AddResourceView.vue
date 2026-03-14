@@ -527,7 +527,7 @@ function addAnother() {
 .form-select,
 .form-textarea {
   padding: 1rem 1.25rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   color: var(--text-primary);

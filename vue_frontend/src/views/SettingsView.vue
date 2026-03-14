@@ -376,8 +376,40 @@ onMounted(() => {
                   显示设置
                 </h3>
                 <div class="space-y-4">
-                  <!-- 女优头像开关 -->
+                  <!-- 主题模式切换 -->
                   <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-[var(--text-primary)] font-medium">主题模式</div>
+                      <div class="text-sm text-[var(--text-muted)]">切换深色模式或浅色模式</div>
+                    </div>
+                    <div class="flex gap-2">
+                      <button
+                        class="px-4 py-2 rounded-lg text-sm transition-all"
+                        :class="
+                          settingsStore.colorMode === 'light'
+                            ? 'bg-[var(--accent-primary)] text-white'
+                            : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'
+                        "
+                        @click="settingsStore.colorMode = 'light'"
+                      >
+                        ☀️ 浅色
+                      </button>
+                      <button
+                        class="px-4 py-2 rounded-lg text-sm transition-all"
+                        :class="
+                          settingsStore.colorMode === 'dark'
+                            ? 'bg-[var(--accent-primary)] text-white'
+                            : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'
+                        "
+                        @click="settingsStore.colorMode = 'dark'"
+                      >
+                        🌙 深色
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- 女优头像开关 -->
+                  <div class="flex items-center justify-between pt-4 border-t border-white/[0.05]">
                     <div>
                       <div class="text-[var(--text-primary)] font-medium">显示女优头像</div>
                       <div class="text-sm text-[var(--text-muted)]">

@@ -25,6 +25,21 @@ watch(
     }
   }
 )
+
+// 监听主题模式变化，应用到 body
+watch(
+  () => settingsStore.colorMode,
+  (newMode) => {
+    if (newMode === 'light') {
+      document.body.classList.remove('dark-mode')
+      document.body.classList.add('light-mode')
+    } else {
+      document.body.classList.remove('light-mode')
+      document.body.classList.add('dark-mode')
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>

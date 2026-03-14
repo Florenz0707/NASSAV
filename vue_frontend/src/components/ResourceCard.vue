@@ -374,7 +374,8 @@ onUnmounted(() => {
         <div
           v-for="genre in (resource.genres || []).slice(0, 2)"
           :key="genre"
-          class="text-[0.85rem] text-[#cc99ff] font-normal bg-[#9933ff]/25 rounded-md w-fit px-2 py-1"
+          class="text-[0.85rem] font-normal rounded-md w-fit px-2 py-1"
+          style="color: #cc99ff; background: rgba(153, 51, 255, 0.25)"
         >
           #{{ genre }}
         </div>
@@ -382,8 +383,9 @@ onUnmounted(() => {
 
       <!-- 标题 -->
       <h3
-        class="text-base font-medium text-[#f4f4f5] leading-[1.4] mb-3 line-clamp-2 min-h-[2.8em]"
+        class="text-base font-medium leading-[1.4] mb-3 line-clamp-2 min-h-[2.8em]"
         :title="displayedTitle"
+        style="color: var(--text-primary)"
       >
         {{ displayedTitle }}
       </h3>
@@ -419,10 +421,23 @@ onUnmounted(() => {
         <!-- 刷新按钮容器 -->
         <div class="relative" @click.stop>
           <button
-            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[var(--text-secondary)] hover:bg-white/[0.12] hover:text-[var(--text-primary)]"
+            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200"
             :data-avid="resource.avid"
             title="刷新资源"
+            style="
+              background: var(--bg-secondary);
+              color: var(--text-secondary);
+              border: 1px solid var(--border-color);
+            "
             @click="showRefreshMenu = !showRefreshMenu"
+            @mouseenter="
+              $event.target.style.background = 'var(--bg-overlay)'
+              $event.target.style.color = 'var(--text-primary)'
+            "
+            @mouseleave="
+              $event.target.style.background = 'var(--bg-secondary)'
+              $event.target.style.color = 'var(--text-secondary)'
+            "
           >
             刷新
           </button>
@@ -456,13 +471,13 @@ onUnmounted(() => {
           :class="[
             'inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
             resource.has_video || downloading
-              ? 'bg-zinc-600 text-zinc-400 cursor-not-allowed opacity-60'
+              ? 'cursor-not-allowed opacity-60'
               : 'text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5',
           ]"
           :style="
-            !resource.has_video && !downloading
-              ? 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)'
-              : ''
+            resource.has_video || downloading
+              ? 'background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color)'
+              : 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)'
           "
           :disabled="resource.has_video || downloading"
           :title="resource.has_video ? '视频已下载' : downloading ? '下载中...' : '提交下载任务'"

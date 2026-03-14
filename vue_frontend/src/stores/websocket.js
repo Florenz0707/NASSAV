@@ -186,6 +186,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
             activeTasks.value[taskIndex].progress = {
               percent: message.data.percent,
               speed: message.data.speed,
+              downloaded: message.data.downloaded,
+              total: message.data.total,
             }
           }
         }

@@ -12,6 +12,9 @@ export const useSettingsStore = defineStore('settings', () => {
   // 字体样式：Mplus2 | TheWriteRight | ZenKakuGothicNew
   const fontFamily = ref('Mplus2')
 
+  // 主题模式：light | dark
+  const colorMode = ref('dark')
+
   // 从后端加载设置（仅在应用启动时调用一次）
   async function loadSettings() {
     try {
@@ -28,6 +31,9 @@ export const useSettingsStore = defineStore('settings', () => {
       if (data.font_family !== undefined) {
         fontFamily.value = data.font_family
       }
+      if (data.color_mode !== undefined) {
+        colorMode.value = data.color_mode
+      }
     } catch (err) {
       console.error('加载用户设置失败:', err)
       // 失败时使用默认值
@@ -41,6 +47,7 @@ export const useSettingsStore = defineStore('settings', () => {
         enable_avatar: showActorAvatar.value ? 'true' : 'false',
         display_title: displayTitle.value,
         font_family: fontFamily.value,
+        color_mode: colorMode.value,
       })
       return { success: true }
     } catch (err) {
@@ -53,6 +60,7 @@ export const useSettingsStore = defineStore('settings', () => {
     showActorAvatar,
     displayTitle,
     fontFamily,
+    colorMode,
     loadSettings,
     saveSettings,
   }

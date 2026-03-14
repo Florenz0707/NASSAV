@@ -16,7 +16,7 @@ const pollingTimer = ref(null)
 const POLLING_INTERVAL = 1000 // API 轮询间隔
 
 // 调试模式 - 设为 true 显示样例数据
-const DEBUG_MODE = false
+const DEBUG_MODE = true
 
 // helper to normalize resources array (store may expose a ref)
 function getResourcesArray() {
@@ -80,7 +80,12 @@ const mockActiveTasks = computed(() => {
     avid: r.avid,
     title: getDisplayedTitle(r),
     state: 'STARTED',
-    progress: { percent: i === 0 ? 45.2 : 78.9, speed: i === 0 ? '5.2MB/s' : '3.8MB/s' },
+    progress: {
+      percent: i === 0 ? 45.2 : 78.9,
+      speed: i === 0 ? '5.2 MB/s' : '3.8 MB/s',
+      downloaded: i === 0 ? '452 MB' : '789 MB',
+      total: i === 0 ? '1.0 GB' : '1.0 GB',
+    },
   }))
 })
 
@@ -247,21 +252,29 @@ function goToResourceDetail(task) {
               </div>
               <div v-else class="task-status-badge pending">等待中</div>
             </div>
-            <div class="task-title">
-              {{ getTaskTitle(task) }}
-            </div>
-            <div class="task-progress">
-              <div class="progress-bar">
-                <div
-                  class="progress-fill"
-                  :class="{ 'is-active': task.isActive }"
-                  :style="{ width: task.isActive ? (task.progress?.percent || 0) + '%' : '0%' }"
-                />
+            <template v-if="task.isActive">
+              <div class="task-title-row">
+                <div class="task-title">
+                  {{ getTaskTitle(task) }}
+                </div>
+                <span v-if="task.progress?.speed" class="task-speed">
+                  {{ task.progress.speed }}
+                </span>
               </div>
-              <span v-if="task.isActive && task.progress" class="progress-text"
-                >{{ task.progress.percent?.toFixed(1) || 0 }}%</span
-              >
-              <span v-else class="progress-text pending">排队中</span>
+              <div class="task-progress">
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill is-active"
+                    :style="{ width: (task.progress?.percent || 0) + '%' }"
+                  />
+                </div>
+                <span v-if="task.progress" class="progress-text">
+                  {{ task.progress.percent?.toFixed(1) || 0 }}%
+                </span>
+              </div>
+            </template>
+            <div v-else class="task-title">
+              {{ getTaskTitle(task) }}
             </div>
           </div>
         </div>
@@ -495,13 +508,22 @@ function goToResourceDetail(task) {
   font-weight: 500;
 }
 
+.task-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
 .task-title {
   font-size: 1rem;
   color: var(--text-primary);
-  margin-bottom: 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 /* 进度条 */
@@ -548,6 +570,19 @@ function goToResourceDetail(task) {
   color: var(--accent-success);
   min-width: 50px;
   text-align: right;
+}
+
+.progress-speed {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-tertiary);
+}
+
+.progress-size {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .progress-text.pending {
