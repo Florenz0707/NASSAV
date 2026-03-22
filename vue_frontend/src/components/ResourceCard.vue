@@ -431,12 +431,12 @@ onUnmounted(() => {
             "
             @click="showRefreshMenu = !showRefreshMenu"
             @mouseenter="
-              $event.target.style.background = 'var(--bg-overlay)'
-              $event.target.style.color = 'var(--text-primary)'
+              (($event.target.style.background = 'var(--bg-overlay)'),
+              ($event.target.style.color = 'var(--text-primary)'))
             "
             @mouseleave="
-              $event.target.style.background = 'var(--bg-secondary)'
-              $event.target.style.color = 'var(--text-secondary)'
+              (($event.target.style.background = 'var(--bg-secondary)'),
+              ($event.target.style.color = 'var(--text-secondary)'))
             "
           >
             刷新

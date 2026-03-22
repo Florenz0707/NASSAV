@@ -44,5 +44,21 @@ repos:
     hooks:
       - id: pyright
 
+  # 本地编译检查
+  - repo: local
+    hooks:
+      - id: django-backend-compile-check
+        name: django_backend compile check
+        entry: bash -c 'cd django_backend && uv run python -m compileall -q .'
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: vue-frontend-build-check
+        name: vue_frontend build check
+        entry: bash -c 'cd vue_frontend && pnpm run build'
+        language: system
+        pass_filenames: false
+        always_run: true
+
 ci:
   autoupdate_schedule: weekly
