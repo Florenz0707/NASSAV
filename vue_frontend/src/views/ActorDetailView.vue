@@ -334,8 +334,13 @@ function goBack() {
     </button>
     <div class="mb-6 flex items-center gap-6">
       <div
-        class="w-20 h-20 rounded-full flex items-center justify-center text-4xl text-white overflow-hidden border-2 border-white/10"
-        style="background: var(--bg-primary)"
+        class="w-20 h-20 rounded-full flex items-center justify-center text-4xl overflow-hidden border-2"
+        style="
+          color: var(--detail-badge-text);
+          background: var(--detail-badge-bg);
+          border-color: var(--detail-badge-border);
+          box-shadow: var(--detail-badge-shadow);
+        "
       >
         <img
           v-if="settingsStore.showActorAvatar && actor.id && actor.avatar_filename"

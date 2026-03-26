@@ -332,8 +332,13 @@ function goBack() {
     </button>
     <div class="mb-6 flex items-center gap-6">
       <div
-        class="w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold text-white"
-        style="background: var(--bg-primary)"
+        class="w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold border-2"
+        style="
+          color: var(--detail-badge-text);
+          background: var(--detail-badge-bg);
+          border-color: var(--detail-badge-border);
+          box-shadow: var(--detail-badge-shadow);
+        "
       >
         {{ iconText }}
       </div>

@@ -155,12 +155,6 @@ watch(
   }
 )
 
-function openRefreshMenu(event) {
-  const rect = event.currentTarget.getBoundingClientRect()
-  refreshMenuFlip.value = rect.top < 260
-  showRefreshMenu.value = !showRefreshMenu.value
-}
-
 function openDeleteMenu(event) {
   const rect = event.currentTarget.getBoundingClientRect()
   deleteMenuFlip.value = rect.top < 140
@@ -375,7 +369,7 @@ onUnmounted(() => {
           v-for="genre in (resource.genres || []).slice(0, 2)"
           :key="genre"
           class="text-[0.85rem] font-normal rounded-md w-fit px-2 py-1"
-          style="color: #cc99ff; background: rgba(153, 51, 255, 0.25)"
+          style="color: var(--genre-tag-text); background: var(--genre-tag-bg)"
         >
           #{{ genre }}
         </div>

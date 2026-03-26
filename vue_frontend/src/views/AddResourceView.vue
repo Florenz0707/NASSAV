@@ -193,12 +193,6 @@ function viewResource() {
     router.push(`/resource/${result.value.success[0]}`)
   }
 }
-
-function addAnother() {
-  avid.value = ''
-  source.value = 'any'
-  result.value = null
-}
 </script>
 
 <template>

@@ -23,6 +23,8 @@ def test_get_user_settings(client):
     settings = data["data"]
     assert "enable_avatar" in settings
     assert "display_title" in settings
+    assert "font_family" in settings
+    assert "color_mode" in settings
 
     # 验证默认值
     assert settings["enable_avatar"] in ["true", "false"]
@@ -31,6 +33,7 @@ def test_get_user_settings(client):
         "source_title",
         "translated_title",
     ]
+    assert settings["color_mode"] in ["light", "dark"]
 
 
 @pytest.mark.django_db
@@ -42,6 +45,8 @@ def test_update_user_settings(client):
         data={
             "enable_avatar": "false",
             "display_title": "translated_title",
+            "font_family": "ZenKakuGothicNew",
+            "color_mode": "light",
         },
         content_type="application/json",
     )
@@ -55,6 +60,8 @@ def test_update_user_settings(client):
     settings = data["data"]
     assert settings["enable_avatar"] == "false"
     assert settings["display_title"] == "translated_title"
+    assert settings["font_family"] == "ZenKakuGothicNew"
+    assert settings["color_mode"] == "light"
 
     # 再次获取验证持久化
     response = client.get("/nassav/api/setting")
@@ -62,6 +69,8 @@ def test_update_user_settings(client):
     settings = data["data"]
     assert settings["enable_avatar"] == "false"
     assert settings["display_title"] == "translated_title"
+    assert settings["font_family"] == "ZenKakuGothicNew"
+    assert settings["color_mode"] == "light"
 
 
 @pytest.mark.django_db
@@ -112,6 +121,21 @@ def test_update_invalid_display_title(client):
     assert "display_title" in data["data"]
 
 
+@pytest.mark.django_db
+def test_update_invalid_color_mode(client):
+    """测试更新无效的 color_mode 值"""
+    response = client.put(
+        "/nassav/api/setting",
+        data={"color_mode": "invalid_mode"},
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+
+    data = response.json()
+    assert data["code"] == 400
+    assert "color_mode" in data["data"]
+
+
 def test_settings_manager_default_creation():
     """测试设置管理器创建默认配置"""
     from nassav.user_settings import UserSettingsManager
@@ -127,6 +151,8 @@ def test_settings_manager_default_creation():
         settings = manager.get_all()
         assert settings["enable_avatar"] == "true"
         assert settings["display_title"] == "source_title"
+        assert settings["font_family"] == "Mplus2"
+        assert settings["color_mode"] == "dark"
 
 
 def test_settings_manager_validation():
@@ -143,10 +169,13 @@ def test_settings_manager_validation():
         assert manager.set("display_title", "original_title") is True
         assert manager.set("display_title", "source_title") is True
         assert manager.set("display_title", "translated_title") is True
+        assert manager.set("color_mode", "light") is True
+        assert manager.set("color_mode", "dark") is True
 
         # 测试无效值
         assert manager.set("enable_avatar", "invalid") is False
         assert manager.set("display_title", "invalid") is False
+        assert manager.set("color_mode", "invalid") is False
 
 
 def test_settings_manager_persistence():
@@ -160,8 +189,10 @@ def test_settings_manager_persistence():
         manager1 = UserSettingsManager(config_path)
         manager1.set("enable_avatar", "false")
         manager1.set("display_title", "translated_title")
+        manager1.set("color_mode", "light")
 
         # 重新加载验证持久化
         manager2 = UserSettingsManager(config_path)
         assert manager2.get("enable_avatar") == "false"
         assert manager2.get("display_title") == "translated_title"
+        assert manager2.get("color_mode") == "light"

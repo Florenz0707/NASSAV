@@ -101,7 +101,9 @@ import { RouterLink } from 'vue-router'
           >
             <span class="text-3xl filter drop-shadow-lg">⚡</span>
           </div>
-          <h3 class="text-xl font-semibold text-gray-200 mb-3">极速下载引擎</h3>
+          <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
+            极速下载引擎
+          </h3>
           <p class="text-gray-500 leading-relaxed text-sm">
             内置多线程下载器，支持断点续传与自动合并。智能队列管理，让资源获取更高效。
           </p>
@@ -116,7 +118,9 @@ import { RouterLink } from 'vue-router'
           >
             <span class="text-3xl filter drop-shadow-lg">🎯</span>
           </div>
-          <h3 class="text-xl font-semibold text-gray-200 mb-3">智能元数据刮削</h3>
+          <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
+            智能元数据刮削
+          </h3>
           <p class="text-gray-500 leading-relaxed text-sm">
             自动匹配影片信息，获取高清封面、演员阵容与标签分类。让您的媒体库井井有条。
           </p>
@@ -131,7 +135,9 @@ import { RouterLink } from 'vue-router'
           >
             <span class="text-3xl filter drop-shadow-lg">🎨</span>
           </div>
-          <h3 class="text-xl font-semibold text-gray-200 mb-3">沉浸式体验</h3>
+          <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
+            沉浸式体验
+          </h3>
           <p class="text-gray-500 leading-relaxed text-sm">
             精心设计的现代化 UI，流畅的交互动画。支持深色模式，提供舒适的视觉享受。
           </p>

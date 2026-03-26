@@ -61,6 +61,15 @@ body.dark-mode {
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
   --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.3);
   --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.3);
+
+  /* View-specific contrast tokens */
+  --feature-title-color: #fafafa;
+  --genre-tag-text: #b780ff;
+  --genre-tag-bg: rgba(124, 58, 237, 0.24);
+  --detail-badge-text: #f8fafc;
+  --detail-badge-bg: linear-gradient(135deg, rgba(49, 55, 75, 0.95), rgba(23, 28, 42, 0.95));
+  --detail-badge-border: rgba(255, 255, 255, 0.16);
+  --detail-badge-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
 body.light-mode {
@@ -95,6 +104,15 @@ body.light-mode {
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
   --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.2);
   --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.2);
+
+  /* View-specific contrast tokens */
+  --feature-title-color: #1f2937;
+  --genre-tag-text: #7c3aed;
+  --genre-tag-bg: rgba(124, 58, 237, 0.12);
+  --detail-badge-text: #1f2937;
+  --detail-badge-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.96));
+  --detail-badge-border: rgba(15, 23, 42, 0.08);
+  --detail-badge-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 /* ===== Reset & Base ===== */

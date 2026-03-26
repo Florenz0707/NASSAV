@@ -56,6 +56,8 @@ class UserSettingSerializer(serializers.Serializer):
 
     enable_avatar = serializers.CharField()
     display_title = serializers.CharField()
+    font_family = serializers.CharField()
+    color_mode = serializers.CharField()
 
 
 class UserSettingUpdateSerializer(serializers.Serializer):
@@ -63,6 +65,8 @@ class UserSettingUpdateSerializer(serializers.Serializer):
 
     enable_avatar = serializers.CharField(required=False)
     display_title = serializers.CharField(required=False)
+    font_family = serializers.CharField(required=False)
+    color_mode = serializers.CharField(required=False)
 
     def validate_enable_avatar(self, value):
         """验证 enable_avatar 值"""
@@ -76,6 +80,15 @@ class UserSettingUpdateSerializer(serializers.Serializer):
         if value not in valid_values:
             raise serializers.ValidationError(
                 f"display_title 必须是 {', '.join(valid_values)} 之一"
+            )
+        return value
+
+    def validate_color_mode(self, value):
+        """验证 color_mode 值"""
+        valid_values = ["light", "dark"]
+        if value not in valid_values:
+            raise serializers.ValidationError(
+                f"color_mode 必须是 {', '.join(valid_values)} 之一"
             )
         return value
 
