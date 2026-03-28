@@ -215,6 +215,118 @@ DELETE /nassav/api/source/cookie?source=missav
 
 ---
 
+## 推荐系统接口
+
+推荐系统的完整设计、分层职责与调用流程见：
+
+- [`recommendation.md`](./recommendation.md)
+
+当前推荐接口为 demo 级实现，主要基于本地库中高频演员/类别与 Jable 搜索结果做轻量召回和排序。
+
+### 获取推荐结果
+
+- 方法：GET
+- 路径：`/nassav/api/recommendations/`
+- 功能：统一推荐入口
+- 支持 Query 参数：
+  - `recommender`：推荐器标识，默认 `jable_search`
+  - `strategy`：推荐策略标识，默认 `local_demo`
+  - `limit`：返回数量，默认 `12`
+  - `per_seed_limit`：每个 seed 的召回上限，默认 `12`
+  - `actor_seed_limit`：演员种子数量，默认 `5`
+  - `genre_seed_limit`：类别种子数量，默认 `5`
+  - `exclude_existing`：是否过滤本地已存在资源，默认 `true`
+
+示例请求：
+
+```json
+GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_demo&limit=12&exclude_existing=true
+```
+
+返回示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "avid": "ABC-123",
+        "title": "Result Title",
+        "detail_url": "https://jable.tv/videos/abc-123/",
+        "cover_url": "https://assets-cdn.jable.tv/...",
+        "source": "Jable",
+        "score": 8.5,
+        "reasons": ["命中高频actor: Alice"],
+        "raw_metrics": {
+          "views": 123456,
+          "likes": 789,
+          "duration": "01:55:12"
+        }
+      }
+    ],
+    "seeds": [
+      {
+        "seed_type": "actor",
+        "value": "Alice",
+        "weight": 5.0,
+        "source": "local_top_actor",
+        "resource_count": 12
+      }
+    ],
+    "summary": {
+      "seed_count": 1,
+      "item_count": 1
+    },
+    "meta": {
+      "recommender": "jable_search",
+      "strategy": "local_demo",
+      "recommender_detail": {
+        "id": "jable_search",
+        "name": "Jable Search",
+        "description": "通过 Jable 搜索页召回候选资源。"
+      },
+      "strategy_detail": {
+        "id": "local_demo",
+        "name": "Local Demo",
+        "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。"
+      },
+      "effective_request": {
+        "limit": 12,
+        "per_seed_limit": 12,
+        "actor_seed_limit": 5,
+        "genre_seed_limit": 5,
+        "seed_types": ["actor", "genre"],
+        "exclude_existing": true
+      }
+    }
+  }
+}
+```
+
+### 获取推荐器与策略选项
+
+- 方法：GET
+- 路径：`/nassav/api/recommendations/options`
+- 功能：返回可用推荐器、策略和默认值，供前端动态渲染选择区
+
+### 获取推荐封面代理缓存
+
+- 方法：GET
+- 路径：`/nassav/api/recommendations/cover`
+- Query 参数：
+  - `url`：原始推荐封面地址
+- 功能：后端代理并缓存推荐封面，避免前端直接访问受限站点资源
+
+### 兼容 demo 接口
+
+- 方法：GET
+- 路径：`/nassav/api/recommendations/demo`
+- 功能：兼容旧的 demo 调用方式，当前内部仍走统一 `RecommenderManager`
+
+---
+
 ## 资源列表（服务端过滤/搜索/排序/分页）
 
 - 方法：GET

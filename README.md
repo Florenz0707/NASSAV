@@ -131,6 +131,7 @@ NASSAV/
 │   │   └── N_m3u8DL-RE   # M3U8 下载工具
 │   ├── doc/               # 文档
 │   │   ├── interface.md   # API 接口文档
+│   │   ├── recommendation.md # 推荐系统设计文档
 │   │   └── database.md    # 数据库文档
 │   └── scripts/           # 实用脚本
 ├── vue_frontend/           # Vue 前端应用
@@ -357,6 +358,7 @@ uv run python manage.py check_actor_avatars_consistency --report celery_beat/ava
 详细接口说明请参考：
 
 - [django_backend/doc/interface.md](django_backend/doc/interface.md) - API 接口文档
+- [django_backend/doc/recommendation.md](django_backend/doc/recommendation.md) - 推荐系统设计与接口文档
 - [django_backend/doc/database.md](django_backend/doc/database.md) - 数据库模型文档
 
 ### REST API 端点
@@ -365,8 +367,11 @@ uv run python manage.py check_actor_avatars_consistency --report celery_beat/ava
 | ------ | ------------------------------ | -------------------------------------- |
 | GET    | `/api/source/list`             | 获取可用下载源列表                     |
 | POST   | `/api/source/cookie`           | 设置下载源 Cookie                      |
-| GET    | `/api/resource/list`           | 获取所有资源列表（旧版）               |
 | GET    | `/api/resources/`              | 资源列表（支持搜索/筛选/分页/排序）    |
+| GET    | `/api/recommendations/`        | 统一推荐入口                           |
+| GET    | `/api/recommendations/options` | 获取可用推荐器与推荐策略               |
+| GET    | `/api/recommendations/cover`   | 代理并缓存推荐封面                     |
+| GET    | `/api/recommendations/demo`    | 兼容旧调用方式的 demo 推荐入口         |
 | GET    | `/api/actors/`                 | 演员列表（支持搜索/分页/排序）         |
 | GET    | `/api/genres/`                 | 类别列表（支持搜索/分页/排序，待实现） |
 | GET    | `/api/resource/cover`          | 获取封面图片（支持多尺寸）             |
@@ -597,6 +602,41 @@ setInterval(async () => {
 全局下载锁确保同一时间只有一个下载任务在执行，避免 N_m3u8DL-RE 多实例并发导致的资源竞争。
 
 ## 版本更新
+
+### v2.0.0（2026-03-29）
+
+#### 🆕 新增
+
+- **推荐系统主链路**：新增基于本地高频演员/类别与 Jable 搜索结果的 demo 推荐系统
+  - 后端新增 `RecommenderManager`、`RecommendationStrategy`、`AbstractRecommender` 等分层结构
+  - 当前提供 `jable_search` recommender 与 `local_demo` strategy，可继续扩展更多推荐器与策略
+  - `Jable.search()` 已支持直接解析站内搜索结果页，输出统一候选结构
+- **推荐接口**：新增推荐相关 REST API
+  - `GET /api/recommendations/`
+  - `GET /api/recommendations/options`
+  - `GET /api/recommendations/cover`
+  - `GET /api/recommendations/demo`
+- **推荐页前端界面**：新增独立推荐页与导航入口
+  - 支持选择 recommender / strategy / 返回数量
+  - 支持手动触发推荐、查看推荐理由、直接加入资源库
+  - 已对“当前会话已添加资源”做前端隐藏处理
+- **推荐封面代理缓存**：新增后端推荐封面代理与缓存，避免前端直接请求 Jable 资源导致在中国大陆无法加载
+
+#### 🔧 优化
+
+- **推荐结果过滤**：推荐请求默认过滤本地已存在资源，并将 `exclude_existing` 暴露为显式请求参数
+- **推荐信息说明**：推荐接口返回 recommender / strategy 的名称与说明，前端可直接渲染说明文本
+- **前端交互收敛**：推荐页改为手动触发请求，合并重复的选择与展示区，卡片中的评分与理由展示更紧凑
+- **视觉细节调整**：补充浅色模式颜色修正，并优化推荐页选择区对齐
+
+#### 🐛 修复
+
+- 修复定时清理任务未正确清理过期日志文件的问题
+
+#### 📚 文档
+
+- 新增推荐系统设计文档：`django_backend/doc/recommendation.md`
+- 更新根 README、接口文档与 REST API 端点列表，补充推荐系统相关说明
 
 ### v1.4.0（2026-02-25）
 

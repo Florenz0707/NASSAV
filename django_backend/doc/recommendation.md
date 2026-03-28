@@ -38,9 +38,14 @@ API 层只负责：
     - `per_seed_limit`
     - `actor_seed_limit`
     - `genre_seed_limit`
+    - `exclude_existing`
 
 - `GET /nassav/api/recommendations/options`
   - 返回当前可用的 recommenders、strategies 与默认值
+
+- `GET /nassav/api/recommendations/cover`
+  - 代理并缓存推荐封面
+  - 用于前端加载 Jable 推荐封面，避免直接访问受限站点资源
 
 - `GET /nassav/api/recommendations/demo`
   - 兼容性的 demo 入口
@@ -90,11 +95,12 @@ API 层只负责：
     - `MultiSeedBonusFactor`
     - `PopularityFactor`
   - 默认参数：
-    - `limit=24`
+    - `limit=12`
     - `per_seed_limit=12`
     - `actor_seed_limit=5`
     - `genre_seed_limit=5`
     - `seed_types=["actor", "genre"]`
+    - `exclude_existing=true`
 
 对应文件：
 
@@ -180,6 +186,8 @@ API 层只负责：
   - 在 `RecommendationRun` 外增加：
     - `recommender`
     - `strategy`
+    - `recommender_detail`
+    - `strategy_detail`
     - `effective_request`
 
 对应文件：
@@ -247,6 +255,7 @@ API 层只负责：
 - `per_seed_limit`: 可选
 - `actor_seed_limit`: 可选
 - `genre_seed_limit`: 可选
+- `exclude_existing`: 可选，默认 `true`
 
 响应示例：
 
@@ -282,12 +291,32 @@ API 层只负责：
     "meta": {
       "recommender": "jable_search",
       "strategy": "local_demo",
+      "recommender_detail": {
+        "id": "jable_search",
+        "name": "Jable Search",
+        "description": "通过 Jable 搜索页召回候选资源。"
+      },
+      "strategy_detail": {
+        "id": "local_demo",
+        "name": "Local Demo",
+        "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
+        "supported_recommenders": ["jable_search"],
+        "default_request_overrides": {
+          "limit": 12,
+          "per_seed_limit": 12,
+          "actor_seed_limit": 5,
+          "genre_seed_limit": 5,
+          "seed_types": ["actor", "genre"],
+          "exclude_existing": true
+        }
+      },
       "effective_request": {
-        "limit": 24,
+        "limit": 12,
         "per_seed_limit": 12,
         "actor_seed_limit": 5,
         "genre_seed_limit": 5,
-        "seed_types": ["actor", "genre"]
+        "seed_types": ["actor", "genre"],
+        "exclude_existing": true
       }
     }
   }
@@ -324,11 +353,12 @@ API 层只负责：
         "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
         "supported_recommenders": ["jable_search"],
         "default_request_overrides": {
-          "limit": 24,
+          "limit": 12,
           "per_seed_limit": 12,
           "actor_seed_limit": 5,
           "genre_seed_limit": 5,
-          "seed_types": ["actor", "genre"]
+          "seed_types": ["actor", "genre"],
+          "exclude_existing": true
         }
       }
     ]
@@ -336,7 +366,21 @@ API 层只负责：
 }
 ```
 
-### 3. `GET /nassav/api/recommendations/demo`
+### 3. `GET /nassav/api/recommendations/cover`
+
+功能：后端代理并缓存推荐封面。
+
+请求参数：
+
+- `url`: 原始封面地址
+
+说明：
+
+- 当前只允许 Jable 相关域名的封面地址
+- 服务端会将图片缓存在 `resource/recommendation_cover/`
+- 该接口与现有资源封面接口 `GET /nassav/api/resource/cover` 分离，避免和本地资源封面混淆
+
+### 4. `GET /nassav/api/recommendations/demo`
 
 功能：兼容历史 demo 调用方式。
 
@@ -359,6 +403,7 @@ API 层只负责：
   - `recommender`
   - `strategy`
   - 各种 limit 参数
+  - `exclude_existing`
 
 ### Step 2. View 调用 `RecommenderManager`
 
@@ -470,7 +515,7 @@ manager 将 recommender / strategy / effective request 封装进 `meta`，最终
 - 当前只有一个 recommender 和一个 strategy
 - 当前召回完全依赖 Jable 搜索页
 - 当前类别种子直接用站内搜索词匹配，精度有限
-- 当前没有缓存层
+- 当前只对推荐封面做了缓存，推荐结果本身尚未缓存
 - 当前没有结果持久化
 - 当前没有分页式多页召回
 - 当前 `demo` 接口仍保留，后续前端迁移完成后可考虑收敛
@@ -478,6 +523,7 @@ manager 将 recommender / strategy / effective request 封装进 `meta`，最终
 ## Related Files
 
 - `nassav/source/Jable.py`
+- `nassav/recommendation/cover_cache.py`
 - `nassav/recommendation/entities.py`
 - `nassav/recommendation/base.py`
 - `nassav/recommendation/seeds.py`
