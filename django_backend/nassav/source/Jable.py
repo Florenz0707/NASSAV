@@ -1,7 +1,8 @@
 import re
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
+from bs4 import BeautifulSoup
 from django.conf import settings
 from loguru import logger
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
@@ -99,13 +100,36 @@ class Jable(SourceBase):
     def search(self, keyword: str, page: int = 1) -> list[dict]:
         """搜索 Jable 站内资源。
 
-        当前仅保留接口与调用链，具体解析逻辑后续补充。
+        返回结构:
+        [
+            {
+                "avid": "ABF-001",
+                "title": "...",
+                "detail_url": "https://jable.tv/videos/...",
+                "cover_url": "https://...",
+                "source": "Jable",
+                "metrics": {
+                    "views": 123456,
+                    "likes": 789,
+                    "duration": "2:01:02",
+                },
+            }
+        ]
         """
-        _ = self._build_search_url(keyword, page)
-        logger.warning(
-            f"Jable.search 尚未实现，当前返回空结果。keyword={keyword}, page={page}"
-        )
-        return []
+        url = self._build_search_url(keyword, page)
+        referer = f"https://{self.domain}/"
+        html = self.fetch_html(url, referer=referer)
+        if not html:
+            logger.warning(
+                f"Jable.search 获取 HTML 失败，当前返回空结果。keyword={keyword}, page={page}"
+            )
+            return []
+
+        try:
+            return self._parse_search_results(html)
+        except Exception as e:
+            logger.error(f"Jable.search 解析失败: {e}")
+            return []
 
     def _build_search_url(self, keyword: str, page: int = 1) -> str:
         encoded = quote(keyword.strip())
@@ -114,5 +138,117 @@ class Jable(SourceBase):
         return f"https://{self.domain}/search/{encoded}/?page={page}"
 
     def _parse_search_results(self, html: str) -> list[dict]:
-        _ = html
-        return []
+        soup = BeautifulSoup(html, "html.parser")
+        cards = soup.select("div.video-img-box")
+
+        results: list[dict] = []
+        for card in cards:
+            title_link = card.select_one("h6.title a")
+            image_link = card.select_one("div.img-box a")
+            image = card.select_one("div.img-box img")
+            subtitle = card.select_one("p.sub-title")
+            duration_tag = card.select_one("div.absolute-bottom-right span.label")
+
+            detail_url = ""
+            title_href = self._get_tag_attr(title_link, "href")
+            image_href = self._get_tag_attr(image_link, "href")
+            if title_href:
+                detail_url = urljoin(f"https://{self.domain}/", title_href)
+            elif image_href:
+                detail_url = urljoin(f"https://{self.domain}/", image_href)
+
+            title = title_link.get_text(" ", strip=True) if title_link else ""
+            cover_url = self._extract_cover_url(image)
+            avid = self._extract_avid(title=title, detail_url=detail_url)
+            if not avid:
+                continue
+
+            metrics = self._parse_metrics(subtitle)
+            duration = duration_tag.get_text(strip=True) if duration_tag else ""
+            if duration:
+                metrics["duration"] = duration
+
+            results.append(
+                {
+                    "avid": avid,
+                    "title": title,
+                    "detail_url": detail_url,
+                    "cover_url": cover_url,
+                    "source": self.get_source_name(),
+                    "metrics": metrics,
+                }
+            )
+
+        return results
+
+    def _extract_cover_url(self, image) -> str:
+        if image is None:
+            return ""
+
+        for attr in ("data-src", "data-original", "src"):
+            value = self._get_tag_attr(image, attr)
+            if not value:
+                continue
+            if "placeholder" in value:
+                continue
+            return urljoin(f"https://{self.domain}/", value)
+        return ""
+
+    def _get_tag_attr(self, tag, attr_name: str) -> str:
+        if tag is None:
+            return ""
+
+        value = tag.get(attr_name)
+        if isinstance(value, str):
+            return value.strip()
+        return ""
+
+    def _extract_avid(self, title: str, detail_url: str) -> str:
+        title_match = re.match(r"^\s*([A-Za-z0-9]+-\d+(?:-[A-Za-z0-9]+)?)\b", title)
+        if title_match:
+            return title_match.group(1).upper()
+
+        url_match = re.search(
+            r"/videos/([a-z0-9]+-\d+(?:-[a-z0-9]+)?)/?$",
+            detail_url,
+            re.IGNORECASE,
+        )
+        if url_match:
+            return url_match.group(1).upper()
+        return ""
+
+    def _parse_metrics(self, subtitle) -> dict:
+        if subtitle is None:
+            return {}
+
+        text_nodes = [
+            text.strip() for text in subtitle.stripped_strings if text.strip()
+        ]
+        if not text_nodes:
+            return {}
+
+        metrics: dict = {}
+        if len(text_nodes) >= 2:
+            metrics["views"] = self._parse_metric_number(text_nodes[0])
+            metrics["likes"] = self._parse_metric_number(text_nodes[1])
+            return metrics
+
+        cleaned = " ".join(text_nodes)
+        if not cleaned:
+            return {}
+
+        likes_match = re.search(r"(\d+)\s*$", cleaned)
+        if likes_match:
+            likes_text = likes_match.group(1)
+            views_text = cleaned[: likes_match.start()].strip()
+            if views_text:
+                metrics["views"] = self._parse_metric_number(views_text)
+            metrics["likes"] = self._parse_metric_number(likes_text)
+            return metrics
+
+        metrics["views"] = self._parse_metric_number(cleaned)
+        return metrics
+
+    def _parse_metric_number(self, raw: str) -> int:
+        digits = re.sub(r"[^\d]", "", raw or "")
+        return int(digits) if digits else 0

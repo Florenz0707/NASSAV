@@ -3,14 +3,18 @@ import pytest
 
 @pytest.mark.django_db
 def test_recommendations_demo_endpoint_runs_with_empty_search(
-    api_client, resource_factory, actor_factory, genre_factory
+    api_client, monkeypatch, resource_factory, actor_factory, genre_factory
 ):
+    from nassav.source import Jable
+
     actor = actor_factory(name="Alice")
     genre = genre_factory(name="中文字幕")
 
     resource = resource_factory(avid="SEED-001", original_title="Seed Resource")
     resource.actors.add(actor)
     resource.genres.add(genre)
+
+    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
 
     response = api_client.get("/nassav/api/recommendations/demo")
     assert response.status_code == 200

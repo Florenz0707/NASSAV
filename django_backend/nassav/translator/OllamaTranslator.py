@@ -185,7 +185,6 @@ class OllamaTranslator(TranslatorBase):
             prompt = self.prompt_template.format(text=text)
 
             # 调用 Ollama API
-            start_time = time.time()
             response = requests.post(
                 f"{self.url}/api/generate",
                 json={
@@ -201,7 +200,6 @@ class OllamaTranslator(TranslatorBase):
                 },
                 timeout=self.timeout,
             )
-            time.time() - start_time
 
             response.raise_for_status()
             result = response.json()
