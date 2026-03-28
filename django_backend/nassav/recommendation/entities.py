@@ -85,3 +85,26 @@ class RecommendationRun:
                 "item_count": len(self.items),
             },
         }
+
+
+@dataclass
+class RecommendationExecution:
+    recommender_id: str
+    strategy_id: str
+    request: RecommendationRequest
+    run: RecommendationRun
+
+    def to_dict(self) -> dict:
+        data = self.run.to_dict()
+        data["meta"] = {
+            "recommender": self.recommender_id,
+            "strategy": self.strategy_id,
+            "effective_request": {
+                "limit": self.request.limit,
+                "per_seed_limit": self.request.per_seed_limit,
+                "actor_seed_limit": self.request.actor_seed_limit,
+                "genre_seed_limit": self.request.genre_seed_limit,
+                "seed_types": list(self.request.seed_types),
+            },
+        }
+        return data

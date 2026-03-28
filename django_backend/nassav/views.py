@@ -64,6 +64,19 @@ def _parse_positive_int(value, default: int) -> int:
         return default
 
 
+def _parse_recommendation_request_params(query_params) -> dict:
+    return {
+        "limit": _parse_positive_int(query_params.get("limit"), 24),
+        "per_seed_limit": _parse_positive_int(query_params.get("per_seed_limit"), 12),
+        "actor_seed_limit": _parse_positive_int(
+            query_params.get("actor_seed_limit"), 5
+        ),
+        "genre_seed_limit": _parse_positive_int(
+            query_params.get("genre_seed_limit"), 5
+        ),
+    }
+
+
 class SourceListView(APIView):
     """
     GET /api/source/list
@@ -494,24 +507,55 @@ class RecommendationsDemoView(APIView):
     """GET /api/recommendations/demo - 返回基于本地偏好的 demo 推荐结果"""
 
     def get(self, request):
-        from nassav.recommendation import RecommendationRequest, build_demo_recommender
-
-        recommender = build_demo_recommender()
-        recommendation_request = RecommendationRequest(
-            limit=_parse_positive_int(request.query_params.get("limit"), 24),
-            per_seed_limit=_parse_positive_int(
-                request.query_params.get("per_seed_limit"), 12
-            ),
-            actor_seed_limit=_parse_positive_int(
-                request.query_params.get("actor_seed_limit"), 5
-            ),
-            genre_seed_limit=_parse_positive_int(
-                request.query_params.get("genre_seed_limit"), 5
-            ),
+        from nassav.recommendation import (
+            RecommendationManagerError,
+            recommender_manager,
         )
 
-        run = recommender.recommend(recommendation_request)
-        return build_response(200, "success", run.to_dict())
+        try:
+            execution = recommender_manager.recommend(
+                request_params=_parse_recommendation_request_params(
+                    request.query_params
+                ),
+            )
+            return build_response(200, "success", execution.to_dict())
+        except RecommendationManagerError as e:
+            return build_response(400, str(e), None)
+
+
+class RecommendationsView(APIView):
+    """GET /api/recommendations/ - 统一推荐接口"""
+
+    def get(self, request):
+        from nassav.recommendation import (
+            RecommendationManagerError,
+            recommender_manager,
+        )
+
+        recommender_id = request.query_params.get("recommender", "").strip() or None
+        strategy_id = request.query_params.get("strategy", "").strip() or None
+
+        try:
+            execution = recommender_manager.recommend(
+                recommender_id=recommender_id,
+                strategy_id=strategy_id,
+                request_params=_parse_recommendation_request_params(
+                    request.query_params
+                ),
+            )
+            return build_response(200, "success", execution.to_dict())
+        except RecommendationManagerError as e:
+            return build_response(400, str(e), None)
+
+
+class RecommendationOptionsView(APIView):
+    """GET /api/recommendations/options - 返回可用推荐器与策略"""
+
+    def get(self, request):
+        _ = request
+        from nassav.recommendation import recommender_manager
+
+        return build_response(200, "success", recommender_manager.get_options())
 
 
 class ResourceCoverView(APIView):

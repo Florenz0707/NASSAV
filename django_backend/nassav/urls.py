@@ -13,6 +13,18 @@ urlpatterns = [
     path("api/setting", views.UserSettingView.as_view(), name="user-setting"),
     # GET /api/resources/ - 统一资源列表（过滤/分页）
     path("api/resources/", views.ResourcesListView.as_view(), name="resources-list"),
+    # GET /api/recommendations/ - 推荐结果
+    path(
+        "api/recommendations/",
+        views.RecommendationsView.as_view(),
+        name="recommendations",
+    ),
+    # GET /api/recommendations/options - 推荐器与策略选项
+    path(
+        "api/recommendations/options",
+        views.RecommendationOptionsView.as_view(),
+        name="recommendations-options",
+    ),
     # GET /api/recommendations/demo - demo 推荐结果
     path(
         "api/recommendations/demo",

@@ -2,7 +2,20 @@ import pytest
 
 
 @pytest.mark.django_db
-def test_recommendations_demo_endpoint_runs_with_empty_search(
+def test_recommendations_options_endpoint(api_client):
+    response = api_client.get("/nassav/api/recommendations/options")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["defaults"]["recommender"] == "jable_search"
+    assert body["data"]["defaults"]["strategy"] == "local_demo"
+    assert any(item["id"] == "jable_search" for item in body["data"]["recommenders"])
+    assert any(item["id"] == "local_demo" for item in body["data"]["strategies"])
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_runs_with_empty_search(
     api_client, monkeypatch, resource_factory, actor_factory, genre_factory
 ):
     from nassav.source import Jable
@@ -16,11 +29,13 @@ def test_recommendations_demo_endpoint_runs_with_empty_search(
 
     monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
 
-    response = api_client.get("/nassav/api/recommendations/demo")
+    response = api_client.get("/nassav/api/recommendations/")
     assert response.status_code == 200
 
     body = response.json()
     assert body["code"] == 200
+    assert body["data"]["meta"]["recommender"] == "jable_search"
+    assert body["data"]["meta"]["strategy"] == "local_demo"
     assert "items" in body["data"]
     assert "seeds" in body["data"]
     assert body["data"]["summary"]["seed_count"] >= 2
@@ -28,7 +43,7 @@ def test_recommendations_demo_endpoint_runs_with_empty_search(
 
 
 @pytest.mark.django_db
-def test_recommendations_demo_endpoint_merges_scores_and_filters_existing(
+def test_recommendations_endpoint_merges_scores_and_filters_existing(
     api_client,
     monkeypatch,
     resource_factory,
@@ -84,8 +99,14 @@ def test_recommendations_demo_endpoint_merges_scores_and_filters_existing(
     monkeypatch.setattr(Jable, "search", fake_search)
 
     response = api_client.get(
-        "/nassav/api/recommendations/demo",
-        {"actor_seed_limit": 1, "genre_seed_limit": 1, "per_seed_limit": 10},
+        "/nassav/api/recommendations/",
+        {
+            "recommender": "jable_search",
+            "strategy": "local_demo",
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "per_seed_limit": 10,
+        },
     )
     assert response.status_code == 200
 
@@ -101,3 +122,40 @@ def test_recommendations_demo_endpoint_merges_scores_and_filters_existing(
     reasons = items[0]["reasons"]
     assert any("Alice" in reason for reason in reasons)
     assert any("中文字幕" in reason for reason in reasons)
+
+
+@pytest.mark.django_db
+def test_recommendations_demo_endpoint_aliases_manager(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    resource = resource_factory(avid="SEED-301", original_title="Seed Resource")
+    resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-301",
+                "title": "Alias Result",
+                "detail_url": "https://jable.tv/videos/rec-301/",
+                "cover_url": "https://img/rec-301.jpg",
+                "metrics": {"views": 10, "likes": 1},
+            }
+        ],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/demo",
+        {"actor_seed_limit": 1, "genre_seed_limit": 1},
+    )
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["meta"]["recommender"] == "jable_search"
+    assert body["data"]["meta"]["strategy"] == "local_demo"
+    assert body["data"]["items"][0]["avid"] == "REC-301"
