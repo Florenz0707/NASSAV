@@ -1,5 +1,6 @@
 import re
 from typing import Optional
+from urllib.parse import quote
 
 from django.conf import settings
 from loguru import logger
@@ -94,3 +95,24 @@ class Jable(SourceBase):
         except Exception as e:
             logger.error(f"封面URL提取失败: {e}")
             return None
+
+    def search(self, keyword: str, page: int = 1) -> list[dict]:
+        """搜索 Jable 站内资源。
+
+        当前仅保留接口与调用链，具体解析逻辑后续补充。
+        """
+        _ = self._build_search_url(keyword, page)
+        logger.warning(
+            f"Jable.search 尚未实现，当前返回空结果。keyword={keyword}, page={page}"
+        )
+        return []
+
+    def _build_search_url(self, keyword: str, page: int = 1) -> str:
+        encoded = quote(keyword.strip())
+        if page <= 1:
+            return f"https://{self.domain}/search/{encoded}/"
+        return f"https://{self.domain}/search/{encoded}/?page={page}"
+
+    def _parse_search_results(self, html: str) -> list[dict]:
+        _ = html
+        return []

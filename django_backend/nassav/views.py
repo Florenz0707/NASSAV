@@ -56,6 +56,14 @@ def _serialize_resource_obj(resource):
     }
 
 
+def _parse_positive_int(value, default: int) -> int:
+    try:
+        parsed = int(value)
+        return parsed if parsed > 0 else default
+    except (TypeError, ValueError):
+        return default
+
+
 class SourceListView(APIView):
     """
     GET /api/source/list
@@ -480,6 +488,30 @@ class GenresListView(APIView):
         }
 
         return build_response(200, "success", data, pagination=pagination)
+
+
+class RecommendationsDemoView(APIView):
+    """GET /api/recommendations/demo - 返回基于本地偏好的 demo 推荐结果"""
+
+    def get(self, request):
+        from nassav.recommendation import RecommendationRequest, build_demo_recommender
+
+        recommender = build_demo_recommender()
+        recommendation_request = RecommendationRequest(
+            limit=_parse_positive_int(request.query_params.get("limit"), 24),
+            per_seed_limit=_parse_positive_int(
+                request.query_params.get("per_seed_limit"), 12
+            ),
+            actor_seed_limit=_parse_positive_int(
+                request.query_params.get("actor_seed_limit"), 5
+            ),
+            genre_seed_limit=_parse_positive_int(
+                request.query_params.get("genre_seed_limit"), 5
+            ),
+        )
+
+        run = recommender.recommend(recommendation_request)
+        return build_response(200, "success", run.to_dict())
 
 
 class ResourceCoverView(APIView):

@@ -13,6 +13,12 @@ urlpatterns = [
     path("api/setting", views.UserSettingView.as_view(), name="user-setting"),
     # GET /api/resources/ - 统一资源列表（过滤/分页）
     path("api/resources/", views.ResourcesListView.as_view(), name="resources-list"),
+    # GET /api/recommendations/demo - demo 推荐结果
+    path(
+        "api/recommendations/demo",
+        views.RecommendationsDemoView.as_view(),
+        name="recommendations-demo",
+    ),
     # GET /api/actors/ - 演员列表及作品数（分页）
     path("api/actors/", views.ActorsListView.as_view(), name="actors-list"),
     # GET /api/actors/<int:actor_id>/avatar - 获取演员头像图片
