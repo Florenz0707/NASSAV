@@ -205,9 +205,11 @@ RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
 COVER_DIR = RESOURCE_DIR / "cover"
 VIDEO_DIR = RESOURCE_DIR / "video"
 AVATAR_DIR = RESOURCE_DIR / "avatar"
+RECOMMENDATION_COVER_DIR = RESOURCE_DIR / "recommendation_cover"
 COVER_DIR.mkdir(parents=True, exist_ok=True)
 VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+RECOMMENDATION_COVER_DIR.mkdir(parents=True, exist_ok=True)
 
 # Log directory
 LOG_DIR = BASE_DIR / "log"

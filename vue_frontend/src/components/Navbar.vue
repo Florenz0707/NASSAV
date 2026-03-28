@@ -256,6 +256,28 @@ watch(
           <span class="nav-label">下载管理</span>
         </RouterLink>
 
+        <RouterLink
+          to="/recommendations"
+          class="nav-item"
+          :class="{ active: isActive('/recommendations') }"
+        >
+          <svg
+            class="nav-icon"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M10 2l1.9 4.3L16 8.1l-3 3.1.8 4.8-3.8-2.2L6.2 16l.8-4.8-3-3.1 4.1-1.8L10 2z"
+            />
+          </svg>
+          <span class="nav-label">推荐</span>
+        </RouterLink>
+
         <!-- 设置 -->
         <RouterLink to="/settings" class="nav-item" :class="{ active: isActive('/settings') }">
           <svg
@@ -409,6 +431,27 @@ watch(
           <path stroke-linecap="round" d="M3 16h14" />
         </svg>
         下载管理
+      </RouterLink>
+
+      <RouterLink
+        to="/recommendations"
+        class="mobile-nav-item"
+        :class="{ active: isActive('/recommendations') }"
+      >
+        <svg
+          class="nav-icon"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10 2l1.9 4.3L16 8.1l-3 3.1.8 4.8-3.8-2.2L6.2 16l.8-4.8-3-3.1 4.1-1.8L10 2z"
+          />
+        </svg>
+        推荐
       </RouterLink>
 
       <RouterLink to="/settings" class="mobile-nav-item" :class="{ active: isActive('/settings') }">

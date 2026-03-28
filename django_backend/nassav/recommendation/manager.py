@@ -89,8 +89,8 @@ class RecommenderManager:
         resolved_recommender_id = recommender_id or self.DEFAULT_RECOMMENDER_ID
         resolved_strategy_id = strategy_id or self.DEFAULT_STRATEGY_ID
 
+        recommender_meta = self.get_recommender_meta(resolved_recommender_id)
         strategy = self.get_strategy(resolved_strategy_id)
-        self.get_recommender_meta(resolved_recommender_id)
         self._validate_support(
             recommender_id=resolved_recommender_id,
             strategy=strategy,
@@ -110,6 +110,8 @@ class RecommenderManager:
             strategy_id=resolved_strategy_id,
             request=recommendation_request,
             run=run,
+            recommender_meta=recommender_meta,
+            strategy_meta=strategy.to_dict(),
         )
 
     def build_request(
@@ -122,11 +124,12 @@ class RecommenderManager:
             {key: value for key, value in request_params.items() if value is not None}
         )
         return RecommendationRequest(
-            limit=int(payload.get("limit", 24)),
+            limit=int(payload.get("limit", 12)),
             per_seed_limit=int(payload.get("per_seed_limit", 12)),
             actor_seed_limit=int(payload.get("actor_seed_limit", 5)),
             genre_seed_limit=int(payload.get("genre_seed_limit", 5)),
             seed_types=list(payload.get("seed_types", ["actor", "genre"])),
+            exclude_existing=bool(payload.get("exclude_existing", True)),
         )
 
     def build_recommender(

@@ -75,6 +75,19 @@ export const settingsApi = {
   update: (payload) => api.put('/setting', payload),
 }
 
+// 推荐系统
+export const recommendationApi = {
+  // 获取推荐结果
+  getList: (params = {}) => api.get('/recommendations/', { params }),
+  // 获取可用推荐器和策略
+  getOptions: () => api.get('/recommendations/options'),
+  // 获取推荐封面代理地址
+  getCoverUrl: (coverUrl) => {
+    const base = api.defaults.baseURL.replace(/\/$/, '')
+    return `${base}/recommendations/cover?url=${encodeURIComponent(coverUrl || '')}`
+  },
+}
+
 // 演员管理
 export const actorApi = {
   // 获取演员列表（聚合统计）

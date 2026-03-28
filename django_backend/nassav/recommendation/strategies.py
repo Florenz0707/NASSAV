@@ -42,10 +42,11 @@ def build_local_demo_strategy() -> RecommendationStrategy:
             PopularityFactor,
         ],
         default_request_overrides={
-            "limit": 24,
+            "limit": 12,
             "per_seed_limit": 12,
             "actor_seed_limit": 5,
             "genre_seed_limit": 5,
             "seed_types": ["actor", "genre"],
+            "exclude_existing": True,
         },
     )

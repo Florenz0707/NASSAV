@@ -64,15 +64,30 @@ def _parse_positive_int(value, default: int) -> int:
         return default
 
 
+def _parse_bool(value, default: bool) -> bool:
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def _parse_recommendation_request_params(query_params) -> dict:
     return {
-        "limit": _parse_positive_int(query_params.get("limit"), 24),
+        "limit": _parse_positive_int(query_params.get("limit"), 12),
         "per_seed_limit": _parse_positive_int(query_params.get("per_seed_limit"), 12),
         "actor_seed_limit": _parse_positive_int(
             query_params.get("actor_seed_limit"), 5
         ),
         "genre_seed_limit": _parse_positive_int(
             query_params.get("genre_seed_limit"), 5
+        ),
+        "exclude_existing": _parse_bool(
+            query_params.get("exclude_existing"),
+            True,
         ),
     }
 
@@ -556,6 +571,36 @@ class RecommendationOptionsView(APIView):
         from nassav.recommendation import recommender_manager
 
         return build_response(200, "success", recommender_manager.get_options())
+
+
+class RecommendationCoverView(APIView):
+    """GET /api/recommendations/cover - 代理并缓存推荐封面"""
+
+    def get(self, request):
+        from mimetypes import guess_type
+
+        from django.http import HttpResponse
+        from nassav.recommendation.cover_cache import RecommendationCoverCacheService
+        from nassav.source import Jable
+
+        cover_url = request.query_params.get("url", "").strip()
+        if not cover_url:
+            return build_response(400, "url 参数缺失", None)
+
+        proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
+        service = RecommendationCoverCacheService(Jable(proxy=proxy))
+        if not service.is_allowed_url(cover_url):
+            return build_response(400, "封面来源不受支持", None)
+
+        cover_path = service.ensure_cached(cover_url)
+        if cover_path is None or not cover_path.exists():
+            return HttpResponse("推荐封面获取失败", status=502)
+
+        content_type, _ = guess_type(str(cover_path))
+        return FileResponse(
+            cover_path.open("rb"),
+            content_type=content_type or "image/jpeg",
+        )
 
 
 class ResourceCoverView(APIView):

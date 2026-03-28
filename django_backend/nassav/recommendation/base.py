@@ -13,7 +13,7 @@ class AbstractRecommender(ABC):
     def recommend(self, request: RecommendationRequest) -> RecommendationRun:
         seeds = self.build_seeds(request)
         candidates = self.recall_candidates(seeds, request)
-        candidates = self.filter_existing_resources(candidates)
+        candidates = self.filter_existing_resources(candidates, request)
         candidates = self.enrich_candidates(candidates, request)
         candidates = self.score_candidates(candidates, request)
         items = self.rank_and_trim(candidates, request)
@@ -30,7 +30,11 @@ class AbstractRecommender(ABC):
     def filter_existing_resources(
         self,
         candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
+        if not request.exclude_existing:
+            return candidates
+
         if not candidates:
             return candidates
 

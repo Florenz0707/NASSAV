@@ -64,11 +64,12 @@ class RecommendationCandidate:
 
 @dataclass
 class RecommendationRequest:
-    limit: int = 24
+    limit: int = 12
     per_seed_limit: int = 12
     actor_seed_limit: int = 5
     genre_seed_limit: int = 5
     seed_types: list[str] = field(default_factory=lambda: ["actor", "genre"])
+    exclude_existing: bool = True
 
 
 @dataclass
@@ -93,18 +94,23 @@ class RecommendationExecution:
     strategy_id: str
     request: RecommendationRequest
     run: RecommendationRun
+    recommender_meta: dict | None = None
+    strategy_meta: dict | None = None
 
     def to_dict(self) -> dict:
         data = self.run.to_dict()
         data["meta"] = {
             "recommender": self.recommender_id,
             "strategy": self.strategy_id,
+            "recommender_detail": self.recommender_meta,
+            "strategy_detail": self.strategy_meta,
             "effective_request": {
                 "limit": self.request.limit,
                 "per_seed_limit": self.request.per_seed_limit,
                 "actor_seed_limit": self.request.actor_seed_limit,
                 "genre_seed_limit": self.request.genre_seed_limit,
                 "seed_types": list(self.request.seed_types),
+                "exclude_existing": self.request.exclude_existing,
             },
         }
         return data

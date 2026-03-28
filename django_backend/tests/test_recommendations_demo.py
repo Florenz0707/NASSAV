@@ -12,6 +12,10 @@ def test_recommendations_options_endpoint(api_client):
     assert body["data"]["defaults"]["strategy"] == "local_demo"
     assert any(item["id"] == "jable_search" for item in body["data"]["recommenders"])
     assert any(item["id"] == "local_demo" for item in body["data"]["strategies"])
+    local_demo = next(
+        item for item in body["data"]["strategies"] if item["id"] == "local_demo"
+    )
+    assert local_demo["default_request_overrides"]["limit"] == 12
 
 
 @pytest.mark.django_db
@@ -36,6 +40,10 @@ def test_recommendations_endpoint_runs_with_empty_search(
     assert body["code"] == 200
     assert body["data"]["meta"]["recommender"] == "jable_search"
     assert body["data"]["meta"]["strategy"] == "local_demo"
+    assert body["data"]["meta"]["recommender_detail"]["name"] == "Jable Search"
+    assert "Jable" in body["data"]["meta"]["strategy_detail"]["description"]
+    assert body["data"]["meta"]["effective_request"]["limit"] == 12
+    assert body["data"]["meta"]["effective_request"]["exclude_existing"] is True
     assert "items" in body["data"]
     assert "seeds" in body["data"]
     assert body["data"]["summary"]["seed_count"] >= 2
@@ -125,6 +133,46 @@ def test_recommendations_endpoint_merges_scores_and_filters_existing(
 
 
 @pytest.mark.django_db
+def test_recommendations_endpoint_can_include_existing_resources(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-111", original_title="Seed")
+    seed_resource.actors.add(actor)
+    resource_factory(avid="REC-EXIST", original_title="Existing Recommended")
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-EXIST",
+                "title": "Existing Result",
+                "detail_url": "https://jable.tv/videos/rec-exist/",
+                "cover_url": "https://assets-cdn.jable.tv/contents/videos_screenshots/0/11/320x180/1.jpg",
+                "metrics": {"views": 100, "likes": 10},
+            }
+        ],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "exclude_existing": "false",
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+    assert len(body["data"]["items"]) == 1
+    assert body["data"]["items"][0]["avid"] == "REC-EXIST"
+    assert body["data"]["meta"]["effective_request"]["exclude_existing"] is False
+
+
+@pytest.mark.django_db
 def test_recommendations_demo_endpoint_aliases_manager(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
@@ -159,3 +207,37 @@ def test_recommendations_demo_endpoint_aliases_manager(
     assert body["data"]["meta"]["recommender"] == "jable_search"
     assert body["data"]["meta"]["strategy"] == "local_demo"
     assert body["data"]["items"][0]["avid"] == "REC-301"
+
+
+@pytest.mark.django_db
+def test_recommendation_cover_endpoint_caches_file(api_client, monkeypatch, tmp_path):
+    from django.conf import settings
+    from nassav.source import Jable
+
+    original_dir = settings.RECOMMENDATION_COVER_DIR
+    settings.RECOMMENDATION_COVER_DIR = tmp_path
+
+    def fake_download_file(self, url, save_path, referer=""):
+        _ = self
+        _ = url
+        _ = referer
+        with open(save_path, "wb") as f:
+            f.write(b"fake-image")
+        return True
+
+    monkeypatch.setattr(Jable, "download_file", fake_download_file)
+
+    try:
+        response = api_client.get(
+            "/nassav/api/recommendations/cover",
+            {
+                "url": "https://assets-cdn.jable.tv/contents/videos_screenshots/0/11/320x180/1.jpg"
+            },
+        )
+        assert response.status_code == 200
+
+        cached_files = list(tmp_path.iterdir())
+        assert len(cached_files) == 1
+        assert cached_files[0].suffix == ".jpg"
+    finally:
+        settings.RECOMMENDATION_COVER_DIR = original_dir
