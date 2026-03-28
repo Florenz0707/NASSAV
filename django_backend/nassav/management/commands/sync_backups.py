@@ -76,6 +76,7 @@ class Command(BaseCommand):
 
             total_synced = 0
             total_size = 0
+            total_deleted = 0
 
             # 同步 backup/ 目录
             backup_dir = Path(settings.BASE_DIR) / "backup"
@@ -92,6 +93,15 @@ class Command(BaseCommand):
                         f"✓ 同步 backup/: {synced} 项，{self._format_size(size)}"
                     )
                 )
+                deleted = self._cleanup_expired_target_files(
+                    target_base / "backup",
+                    cutoff_time,
+                )
+                total_deleted += deleted
+                if deleted > 0:
+                    self.stdout.write(
+                        self.style.WARNING(f"  已清理 backup/ 过期文件: {deleted} 项")
+                    )
             else:
                 self.stdout.write(self.style.WARNING("⚠ backup/ 目录不存在"))
 
@@ -111,6 +121,18 @@ class Command(BaseCommand):
                         f"✓ 同步 celery_beat/: {synced} 项，{self._format_size(size)}"
                     )
                 )
+                deleted = self._cleanup_expired_target_files(
+                    target_base / "celery_beat",
+                    cutoff_time,
+                    exclude_files=["celerybeat-schedule", "celerybeat-schedule.db"],
+                )
+                total_deleted += deleted
+                if deleted > 0:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"  已清理 celery_beat/ 过期文件: {deleted} 项"
+                        )
+                    )
             else:
                 self.stdout.write(self.style.WARNING("⚠ celery_beat/ 目录不存在"))
 
@@ -128,6 +150,14 @@ class Command(BaseCommand):
                             f"✓ 同步 celerybeat-schedule: {self._format_size(file_size)}"
                         )
                     )
+            deleted = self._cleanup_expired_file(
+                target_base / "celerybeat-schedule", cutoff_time
+            )
+            total_deleted += deleted
+            if deleted > 0:
+                self.stdout.write(
+                    self.style.WARNING("  已清理 celerybeat-schedule 过期文件: 1 项")
+                )
 
             # 同步 log/ 目录
             log_dir = Path(settings.BASE_DIR) / "log"
@@ -144,6 +174,15 @@ class Command(BaseCommand):
                         f"✓ 同步 log/: {synced} 项，{self._format_size(size)}"
                     )
                 )
+                deleted = self._cleanup_expired_target_files(
+                    target_base / "log",
+                    cutoff_time,
+                )
+                total_deleted += deleted
+                if deleted > 0:
+                    self.stdout.write(
+                        self.style.WARNING(f"  已清理 log/ 过期文件: {deleted} 项")
+                    )
             else:
                 self.stdout.write(self.style.WARNING("⚠ log/ 目录不存在"))
 
@@ -153,6 +192,7 @@ class Command(BaseCommand):
                     f"\n{'=' * 60}\n"
                     f"同步完成！\n"
                     f"  - 总共同步: {total_synced} 项\n"
+                    f"  - 总共清理: {total_deleted} 项\n"
                     f"  - 总大小: {self._format_size(total_size)}\n"
                     f"  - 目标目录: {target_base}\n"
                     f"{'=' * 60}"
@@ -217,6 +257,69 @@ class Command(BaseCommand):
             total_size += file_size
 
         return synced_count, total_size
+
+    def _cleanup_expired_target_files(
+        self,
+        target_dir: Path,
+        cutoff_time: datetime | None,
+        exclude_files: list[str] | None = None,
+    ) -> int:
+        """
+        删除目标目录中过期的已同步文件，并清理空目录。
+
+        Args:
+            target_dir: 目标目录
+            cutoff_time: 时间阈值（None 表示不清理）
+            exclude_files: 要排除的文件名列表
+
+        Returns:
+            删除的文件数量
+        """
+        if cutoff_time is None or not target_dir.exists():
+            return 0
+
+        exclude_files = exclude_files or []
+        deleted_count = 0
+
+        for item in target_dir.rglob("*"):
+            if item.is_dir() or item.name in exclude_files:
+                continue
+            deleted_count += self._cleanup_expired_file(item, cutoff_time)
+
+        # 反向遍历，删除清空后的目录
+        for directory in sorted(
+            (p for p in target_dir.rglob("*") if p.is_dir()),
+            key=lambda path: len(path.parts),
+            reverse=True,
+        ):
+            if any(directory.iterdir()):
+                continue
+            directory.rmdir()
+
+        return deleted_count
+
+    def _cleanup_expired_file(
+        self, file_path: Path, cutoff_time: datetime | None
+    ) -> int:
+        """
+        删除单个过期文件。
+
+        Args:
+            file_path: 文件路径
+            cutoff_time: 时间阈值
+
+        Returns:
+            删除文件返回 1，否则返回 0
+        """
+        if cutoff_time is None or not file_path.exists() or file_path.is_dir():
+            return 0
+
+        mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+        if mtime >= cutoff_time:
+            return 0
+
+        file_path.unlink()
+        return 1
 
     def _should_sync_file(self, file_path: Path, cutoff_time: datetime | None) -> bool:
         """

@@ -238,6 +238,7 @@ uv run celery -A django_project beat -l info
 | `backup-database-daily`             | 每天 1:30 | 备份 SQLite 数据库和 WAL 文件，保留 30 天                   |
 | `backup-avid-list-daily`            | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天             |
 | `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配        |
+| `cleanup-logs-daily`                | 每天 3:30 | 清理 `log/` 目录中过期的本地日志文件，保留 30 天            |
 | `sync-backups-daily`                | 每天 4:00 | 同步备份文件到外部目录（/mnt/d/\_Files/Ubuntu_Data/nassav） |
 | `db-disk-consistency-daily`         | 每天 7:00 | 检查视频文件与数据库记录的一致性                            |
 | `actor-avatars-consistency-daily`   | 每天 7:05 | 检查演员头像完整性                                          |
@@ -247,8 +248,9 @@ uv run celery -A django_project beat -l info
 1. **1:30** - 备份数据库（最重要的备份，优先执行）
 2. **2:00** - 备份 AVID 列表（轻量级备份）
 3. **3:00** - 检查并修复资源一致性（生成报告文件）
-4. **4:00** - 同步所有备份文件到外部目录（确保前面的备份和报告都已完成）
-5. **7:00/7:05** - 其他一致性检查任务
+4. **3:30** - 清理本地过期日志文件
+5. **4:00** - 同步所有备份文件到外部目录（确保前面的备份、报告和日志清理都已完成）
+6. **7:00/7:05** - 其他一致性检查任务
 
 **备份文件位置：**
 
@@ -262,6 +264,7 @@ uv run celery -A django_project beat -l info
 - 应用日志：`log/{date}.log`（Loguru，保留 30 天）
 - Uvicorn 日志：`log/uvicorn.log`（按日轮转，保留 30 天）
 - Uvicorn 访问日志：`log/uvicorn_access.log`（按日轮转，保留 30 天）
+- Beat 清理任务：`cleanup-logs-daily` 每天 3:30 扫描 `log/` 目录并删除超过 30 天的日志文件
 
 #### 完整启动（推荐使用进程管理工具）
 

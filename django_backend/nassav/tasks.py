@@ -1242,6 +1242,23 @@ def sync_backups(self, target: str | None = None, days: int = 30):
         logger.error(f"同步备份文件失败: {e}")
 
 
+@shared_task(bind=True, name="nassav.tasks.cleanup_logs", ignore_result=True)
+def cleanup_logs(self, days: int = 30):
+    """
+    清理本地日志目录中的过期文件（供 Celery Beat 调度）
+
+    Args:
+        days: 日志文件保留天数（默认 30 天）
+    """
+    try:
+        from django.core.management import call_command
+
+        args = ["--days", str(days)]
+        call_command("cleanup_logs", *args)
+    except Exception as e:
+        logger.error(f"清理日志文件失败: {e}")
+
+
 @shared_task(
     bind=True, name="nassav.tasks.check_resources_consistency", ignore_result=True
 )

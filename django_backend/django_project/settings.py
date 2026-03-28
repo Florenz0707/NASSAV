@@ -305,4 +305,9 @@ CELERY_BEAT_SCHEDULE = {
             "celery_beat/resources_consistency_report.json",
         ),
     },
+    "cleanup-logs-daily": {
+        "task": "nassav.tasks.cleanup_logs",
+        "schedule": crontab(hour=3, minute=30),  # 每天凌晨 3:30 清理本地过期日志
+        "args": (30,),  # days=30
+    },
 }
