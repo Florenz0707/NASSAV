@@ -6,7 +6,7 @@ from .entities import (
     RecommendationSeed,
 )
 from .factors import MultiSeedBonusFactor, PopularityFactor, SeedWeightFactor
-from .factors import SearchRankFactor
+from .factors import NoveltyFactor, SearchRankFactor
 from .jable_search import JableSearchRecommender
 from .manager import RecommendationManagerError, RecommenderManager, recommender_manager
 from .seeds import LocalPreferenceSeedProvider
@@ -22,6 +22,7 @@ __all__ = [
     "JableSearchRecommender",
     "LocalPreferenceSeedProvider",
     "MultiSeedBonusFactor",
+    "NoveltyFactor",
     "PopularityFactor",
     "RecommendationCandidate",
     "RecommendationExecution",

@@ -56,6 +56,9 @@ def test_recommendations_endpoint_runs_with_empty_search(
         body["data"]["meta"]["effective_request"]["avoid_recent_recommendations"]
         is True
     )
+    assert (
+        body["data"]["meta"]["history_context"]["recent_history_candidate_count"] == 0
+    )
     assert "items" in body["data"]
     assert "seeds" in body["data"]
     assert body["data"]["summary"]["seed_count"] >= 2
@@ -473,3 +476,70 @@ def test_recommendations_endpoint_avoids_recent_snapshot_items_on_repeat_request
     assert second_item["avid"] == "REC-501-B"
     assert second_body["data"]["meta"]["history_context"]["filtered_history_count"] >= 1
     assert RecommendationSnapshot.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_penalizes_cross_strategy_recent_results(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-601", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-601-A",
+                "title": "Frequent Result",
+                "detail_url": "https://jable.tv/videos/rec-601-a/",
+                "cover_url": "https://img/rec-601-a.jpg",
+                "metrics": {"views": 2200, "likes": 260},
+            },
+            {
+                "avid": "REC-601-B",
+                "title": "Novel Result",
+                "detail_url": "https://jable.tv/videos/rec-601-b/",
+                "cover_url": "https://img/rec-601-b.jpg",
+                "metrics": {"views": 2000, "likes": 250},
+            },
+        ],
+    )
+
+    first_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "strategy": "local_preference",
+            "limit": 1,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "avoid_recent_recommendations": "false",
+        },
+    )
+    second_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "strategy": "balanced",
+            "limit": 1,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "avoid_recent_recommendations": "false",
+        },
+    )
+
+    assert first_response.json()["data"]["items"][0]["avid"] == "REC-601-A"
+    second_body = second_response.json()
+    assert second_body["data"]["items"][0]["avid"] == "REC-601-B"
+    assert (
+        second_body["data"]["meta"]["history_context"]["recent_history_candidate_count"]
+        >= 1
+    )
+    novelty_breakdowns = [
+        item
+        for item in second_body["data"]["items"][0]["score_breakdown"]
+        if item["factor"] == "NoveltyFactor"
+    ]
+    assert novelty_breakdowns

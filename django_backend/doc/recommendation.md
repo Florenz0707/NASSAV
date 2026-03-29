@@ -308,6 +308,13 @@ API 层只负责：
   - `likes`
     做弱加分
 
+### `NoveltyFactor`
+
+- 作用：基于最近推荐历史做新颖度调节
+- 若候选近期未在推荐历史中出现，则给予轻微 bonus
+- 若候选已经在最近的推荐 snapshots 中多次出现，则给予惩罚
+- 同时会结合本次 `random_seed` 注入小幅探索噪声，避免不同策略或连续刷新时长期完全同序
+
 对应文件：
 
 - `nassav/recommendation/factors.py`
@@ -400,6 +407,7 @@ API 层只负责：
       },
       "history_context": {
         "recently_recommended_count": 12,
+        "recent_history_candidate_count": 18,
         "filtered_history_count": 4
       }
     }
@@ -560,6 +568,8 @@ manager 内部依次执行：
 - 若当前请求开启历史过滤，则优先去掉最近同配置已经推荐过的 `avid`
 - 若过滤后没有剩余候选，则回退到未做历史过滤的结果，避免直接返回空列表
 
+此外，manager 会额外读取同一 recommender 下最近若干次推荐的 `avid` 频次，并通过 `NoveltyFactor` 在打分阶段做跨策略的重复惩罚与新颖度加分。
+
 ### Step 8. 执行 factor 打分
 
 对每个候选执行当前 strategy 配置的全部 factor：
@@ -623,6 +633,7 @@ manager 会在返回前保存 `RecommendationSnapshot` 与 `RecommendationItem`�
 - 当前只对推荐封面做了缓存，推荐结果本身尚未做 snapshot 级缓存复用
 - 当前已经有结果持久化，但还没有单独的 snapshot 查询 / 回放接口
 - 当前没有分页式多页召回
+- 当前跨策略差异化仍以历史惩罚和轻量探索为主，还没有真正的多臂 bandit / 学习排序
 - 当前 `demo` 接口仍保留，后续前端迁移完成后可考虑收敛
 
 ## Related Files

@@ -79,6 +79,7 @@ class RecommendationRequest:
     recent_snapshot_limit: int = 3
     recent_item_limit: int = 36
     recently_recommended_avids: list[str] = field(default_factory=list)
+    recent_recommendation_counts: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -133,6 +134,9 @@ class RecommendationExecution:
             "history_context": {
                 "recently_recommended_count": len(
                     self.request.recently_recommended_avids
+                ),
+                "recent_history_candidate_count": len(
+                    self.request.recent_recommendation_counts
                 ),
                 "filtered_history_count": self.filtered_history_count,
             },

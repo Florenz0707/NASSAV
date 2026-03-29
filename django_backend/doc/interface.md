@@ -311,6 +311,7 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
       },
       "history_context": {
         "recently_recommended_count": 12,
+        "recent_history_candidate_count": 18,
         "filtered_history_count": 4
       }
     }

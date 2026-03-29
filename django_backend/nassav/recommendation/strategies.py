@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from .factors import (
     MultiSeedBonusFactor,
+    NoveltyFactor,
     PopularityFactor,
     RecommendationFactor,
     SearchRankFactor,
@@ -51,6 +52,12 @@ def build_local_preference_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.5),
             lambda: SearchRankFactor(max_bonus=1.8, decay=0.18),
             lambda: PopularityFactor(),
+            lambda: NoveltyFactor(
+                fresh_bonus=0.7,
+                repeat_penalty=0.55,
+                max_penalty=2.0,
+                jitter_strength=0.12,
+            ),
         ],
         default_request_overrides={
             "limit": 12,
@@ -85,6 +92,12 @@ def build_balanced_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.35),
             lambda: SearchRankFactor(max_bonus=2.0, decay=0.2),
             lambda: PopularityFactor(views_divisor=550000.0, likes_divisor=6000.0),
+            lambda: NoveltyFactor(
+                fresh_bonus=1.1,
+                repeat_penalty=0.9,
+                max_penalty=3.2,
+                jitter_strength=0.2,
+            ),
         ],
         default_request_overrides={
             "limit": 12,
@@ -119,6 +132,12 @@ def build_actor_heavy_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.2),
             lambda: SearchRankFactor(max_bonus=1.8, decay=0.18),
             lambda: PopularityFactor(),
+            lambda: NoveltyFactor(
+                fresh_bonus=0.45,
+                repeat_penalty=0.35,
+                max_penalty=1.4,
+                jitter_strength=0.08,
+            ),
         ],
         default_request_overrides={
             "limit": 12,
@@ -155,6 +174,12 @@ def build_recent_favorite_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.4),
             lambda: SearchRankFactor(max_bonus=2.1, decay=0.18),
             lambda: PopularityFactor(views_divisor=600000.0, likes_divisor=6500.0),
+            lambda: NoveltyFactor(
+                fresh_bonus=0.95,
+                repeat_penalty=0.7,
+                max_penalty=2.6,
+                jitter_strength=0.16,
+            ),
         ],
         default_request_overrides={
             "limit": 12,

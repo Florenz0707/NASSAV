@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from hashlib import blake2b
 
 from .entities import RecommendationCandidate, RecommendationRequest
 
@@ -123,6 +124,59 @@ class PopularityFactor(RecommendationFactor):
         if score <= 0:
             return 0.0, []
         return round(score, 4), []
+
+
+class NoveltyFactor(RecommendationFactor):
+    def __init__(
+        self,
+        *,
+        fresh_bonus: float = 0.8,
+        repeat_penalty: float = 0.6,
+        max_penalty: float = 2.4,
+        jitter_strength: float = 0.2,
+    ):
+        self.fresh_bonus = fresh_bonus
+        self.repeat_penalty = repeat_penalty
+        self.max_penalty = max_penalty
+        self.jitter_strength = jitter_strength
+
+    def score(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> tuple[float, list[str]]:
+        history_count = request.recent_recommendation_counts.get(candidate.avid, 0)
+        score = 0.0
+        reasons: list[str] = []
+
+        if history_count <= 0:
+            score += self.fresh_bonus
+            if self.fresh_bonus > 0:
+                reasons.append("近期推荐历史中未出现，提升新颖度")
+        else:
+            penalty = min(history_count * self.repeat_penalty, self.max_penalty)
+            score -= penalty
+            reasons.append(f"近期已在 {history_count} 次推荐中出现，降低新颖度")
+
+        if self.jitter_strength > 0:
+            score += self._jitter(candidate, request)
+
+        if score == 0 and not reasons:
+            return 0.0, []
+        return round(score, 4), reasons
+
+    def _jitter(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> float:
+        digest = blake2b(
+            f"{request.random_seed}:{candidate.avid}:novelty".encode("utf-8"),
+            digest_size=8,
+        ).digest()
+        value = int.from_bytes(digest, "big") / float(2**64 - 1)
+        centered = (value * 2.0) - 1.0
+        return centered * self.jitter_strength
 
 
 def _to_number(value) -> float:

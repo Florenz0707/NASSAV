@@ -122,6 +122,13 @@ class RecommenderManager:
                     item_limit=recommendation_request.recent_item_limit,
                 )
             )
+        recommendation_request.recent_recommendation_counts = (
+            recommendation_snapshot_repository.get_recent_recommendation_counts(
+                recommender_id=resolved_recommender_id,
+                snapshot_limit=max(recommendation_request.recent_snapshot_limit * 2, 6),
+                item_limit=max(recommendation_request.recent_item_limit * 2, 48),
+            )
+        )
         recommender = self.build_recommender(
             recommender_id=resolved_recommender_id,
             strategy=strategy,

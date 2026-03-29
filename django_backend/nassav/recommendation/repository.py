@@ -80,6 +80,48 @@ class RecommendationSnapshotRepository:
                 break
         return output
 
+    def get_recent_recommendation_counts(
+        self,
+        *,
+        recommender_id: str,
+        snapshot_limit: int,
+        item_limit: int,
+    ) -> dict[str, int]:
+        if snapshot_limit <= 0 or item_limit <= 0:
+            return {}
+
+        snapshot_ids = list(
+            RecommendationSnapshot.objects.filter(
+                recommender_id=recommender_id,
+            )
+            .order_by("-generated_at", "-pk")
+            .values_list("pk", flat=True)[:snapshot_limit]
+        )
+        if not snapshot_ids:
+            return {}
+
+        items = RecommendationItem.objects.filter(
+            snapshot_id__in=snapshot_ids
+        ).order_by(
+            "-snapshot__generated_at",
+            "rank",
+            "pk",
+        )
+
+        counts: dict[str, int] = {}
+        seen_pairs: set[tuple[int, str]] = set()
+        seen_rows = 0
+        for snapshot_id, avid in items.values_list("snapshot_id", "avid"):
+            pair = (snapshot_id, avid)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            counts[avid] = counts.get(avid, 0) + 1
+            seen_rows += 1
+            if seen_rows >= item_limit:
+                break
+        return counts
+
     @transaction.atomic
     def save_execution(
         self,
