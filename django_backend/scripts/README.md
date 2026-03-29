@@ -183,6 +183,28 @@ uv run python scripts/backfill_actor_avatars.py --verbose
 - 按作品数倒序处理（优先处理热门演员）
 - 支持断点续传（已有头像的演员自动跳过）
 
+#### backfill_jable_actor_mappings.py
+
+通过演员已有的 Jable 作品页，回填 `ActorSourceMapping` 中的 Jable 模型名和 slug
+
+```bash
+# 预览前 10 个演员
+uv run python scripts/backfill_jable_actor_mappings.py --dry-run --limit 10
+
+# 实际执行回填
+uv run python scripts/backfill_jable_actor_mappings.py
+
+# 开启详细日志
+uv run python scripts/backfill_jable_actor_mappings.py --verbose --limit 20
+```
+
+**功能说明**:
+
+- 默认只处理已有 Jable 作品、且尚未建立 Jable mapping 的演员
+- 从作品页 `.models a.model` 解析 `source_actor_name` 和 `source_actor_slug`
+- 通过本地演员名及括号别名匹配正确的 Jable model
+- 支持 dry-run 预览，不会修改数据库
+
 #### fix_actor_avatars.py
 
 检查并修复演员头像文件

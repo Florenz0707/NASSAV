@@ -73,7 +73,7 @@ class ActorSourceMapping(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["actor", "source_name"],
-                name="nassav_actsrc_actor_source_uniq",
+                name="nas_actsrc_actor_src_uniq",
             ),
             models.UniqueConstraint(
                 fields=["source_name", "source_actor_slug"],
@@ -87,7 +87,7 @@ class ActorSourceMapping(models.Model):
             ),
             models.Index(
                 fields=["source_name", "is_active"],
-                name="nassav_actsrc_source_active_idx",
+                name="nas_actsrc_src_active_idx",
             ),
         ]
 
