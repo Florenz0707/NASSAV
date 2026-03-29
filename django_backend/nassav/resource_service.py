@@ -23,6 +23,7 @@ from nassav.scraper.ScraperManager import ScraperManager
 from nassav.signals import metadata_refreshed, resource_added, resource_deleted
 from nassav.source.SourceBase import SourceBase
 from nassav.source.SourceManager import SourceManager
+from nassav.source.jable_actor_mapping import sync_actor_source_mappings_from_jable_html
 from nassav.translator.TranslatorManager import TranslatorManager
 from nassav.utils import parse_duration
 
@@ -478,7 +479,13 @@ class ResourceService:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 4: 保存到数据库
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        resource = self._save_to_database(avid, info, source_inst, scraped_data)
+        resource = self._save_to_database(
+            avid,
+            info,
+            source_inst,
+            scraped_data,
+            html=html,
+        )
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 5: 下载演员头像（可选）
@@ -585,6 +592,7 @@ class ResourceService:
         info: AVDownloadInfo,
         source_inst: SourceBase | None,
         scraped_data: Optional[dict],
+        html: str | None = None,
     ) -> AVResource:
         """
         保存资源到数据库（创建或更新）
@@ -652,6 +660,7 @@ class ResourceService:
         if scraped_data:
             self._associate_actors(resource, scraped_data.get("actors", []))
             self._associate_genres(resource, scraped_data.get("genres", []))
+            self._sync_source_actor_mappings(resource, source_inst, html)
 
         return resource
 
@@ -677,6 +686,29 @@ class ResourceService:
             if genre_name:
                 genre, _ = Genre.objects.get_or_create(name=genre_name)
                 resource.genres.add(genre)
+
+    def _sync_source_actor_mappings(
+        self,
+        resource: AVResource,
+        source_inst: SourceBase | None,
+        html: str | None,
+    ) -> None:
+        if source_inst is None or not html:
+            return
+        if source_inst.get_source_name().strip().lower() != "jable":
+            return
+
+        actors = list(resource.actors.all())
+        if not actors:
+            return
+
+        domain = getattr(source_inst, "domain", "jable.tv") or "jable.tv"
+        sync_actor_source_mappings_from_jable_html(
+            actors=actors,
+            html=html,
+            base_url=f"https://{domain}/",
+            match_method="imported",
+        )
 
     def _download_avatars(self, scraped_data: dict):
         """

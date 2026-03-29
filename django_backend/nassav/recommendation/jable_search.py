@@ -17,6 +17,7 @@ class JableSearchRecommender(AbstractRecommender):
         diversity_penalty: float = 0.0,
         actor_diversity_weight: float = 1.0,
         genre_diversity_weight: float = 0.5,
+        max_pages_per_query: int = 5,
     ):
         super().__init__(factors=factors)
         self.jable = jable
@@ -24,6 +25,7 @@ class JableSearchRecommender(AbstractRecommender):
         self.diversity_penalty = diversity_penalty
         self.actor_diversity_weight = actor_diversity_weight
         self.genre_diversity_weight = genre_diversity_weight
+        self.max_pages_per_query = max(max_pages_per_query, 1)
 
     def recommend(self, request: RecommendationRequest):
         seeds = self.build_seeds(request)
@@ -73,17 +75,8 @@ class JableSearchRecommender(AbstractRecommender):
         if not raw_results:
             search_terms = self._search_terms_for_seed(seed)
             for keyword in search_terms:
-                for item in self.jable.search(keyword, page=1):
-                    avid = str(item.get("avid", "")).strip().upper()
-                    if not avid or avid in seen_avids:
-                        continue
-                    seen_avids.add(avid)
+                for item in self._recall_keyword_items(keyword, request, seen_avids):
                     raw_results.append(item)
-                    if (
-                        request.per_seed_limit > 0
-                        and len(raw_results) >= request.per_seed_limit
-                    ):
-                        break
                 if (
                     request.per_seed_limit > 0
                     and len(raw_results) >= request.per_seed_limit
@@ -129,20 +122,28 @@ class JableSearchRecommender(AbstractRecommender):
             return []
 
         raw_results: list[dict] = []
-        for item in self.jable.get_model_videos(
-            model_slug=model_slug,
-            page=1,
-            sort_by="video_viewed",
-        ):
-            avid = str(item.get("avid", "")).strip().upper()
-            if not avid or avid in seen_avids:
-                continue
-            seen_avids.add(avid)
-            raw_results.append(item)
-            if (
-                request.per_seed_limit > 0
-                and len(raw_results) >= request.per_seed_limit
-            ):
+        target_limit = self._seed_target_limit(request)
+        for page in range(1, self.max_pages_per_query + 1):
+            page_results = self.jable.get_model_videos(
+                model_slug=model_slug,
+                page=page,
+                sort_by="video_viewed",
+            )
+            if not page_results:
+                break
+            added_on_page = 0
+            for item in page_results:
+                avid = str(item.get("avid", "")).strip().upper()
+                if not avid or avid in seen_avids:
+                    continue
+                seen_avids.add(avid)
+                raw_results.append(item)
+                added_on_page += 1
+                if target_limit > 0 and len(raw_results) >= target_limit:
+                    break
+            if target_limit > 0 and len(raw_results) >= target_limit:
+                break
+            if added_on_page == 0:
                 break
         return raw_results
 
@@ -155,9 +156,19 @@ class JableSearchRecommender(AbstractRecommender):
 
         raw_results: list[dict] = []
         if request.include_hot_board:
-            raw_results.extend(self.jable.discover_hot_items(page=1))
+            raw_results.extend(
+                self._recall_discovery_pages(
+                    request=request,
+                    fetch_page=self.jable.discover_hot_items,
+                )
+            )
         if request.include_latest_updates:
-            raw_results.extend(self.jable.discover_latest_updates(page=1))
+            raw_results.extend(
+                self._recall_discovery_pages(
+                    request=request,
+                    fetch_page=self.jable.discover_latest_updates,
+                )
+            )
 
         candidates: list[RecommendationCandidate] = []
         seen_avids: set[str] = set()
@@ -180,6 +191,81 @@ class JableSearchRecommender(AbstractRecommender):
             if len(candidates) >= request.discovery_limit:
                 break
         return candidates
+
+    def _recall_keyword_items(
+        self,
+        keyword: str,
+        request: RecommendationRequest,
+        seen_avids: set[str],
+    ) -> list[dict]:
+        raw_results: list[dict] = []
+        target_limit = self._seed_target_limit(request)
+        for page in range(1, self.max_pages_per_query + 1):
+            page_results = self.jable.search(keyword, page=page)
+            if not page_results:
+                break
+            added_on_page = 0
+            for item in page_results:
+                avid = str(item.get("avid", "")).strip().upper()
+                if not avid or avid in seen_avids:
+                    continue
+                seen_avids.add(avid)
+                raw_results.append(item)
+                added_on_page += 1
+                if target_limit > 0 and len(raw_results) >= target_limit:
+                    break
+            if target_limit > 0 and len(raw_results) >= target_limit:
+                break
+            if added_on_page == 0:
+                break
+        return raw_results
+
+    def _recall_discovery_pages(
+        self,
+        *,
+        request: RecommendationRequest,
+        fetch_page,
+    ) -> list[dict]:
+        raw_results: list[dict] = []
+        seen_avids: set[str] = set()
+        target_limit = self._discovery_target_limit(request)
+        for page in range(1, self.max_pages_per_query + 1):
+            page_results = fetch_page(page=page)
+            if not page_results:
+                break
+            added_on_page = 0
+            for item in page_results:
+                avid = str(item.get("avid", "")).strip().upper()
+                if not avid or avid in seen_avids:
+                    continue
+                seen_avids.add(avid)
+                raw_results.append(item)
+                added_on_page += 1
+                if target_limit > 0 and len(raw_results) >= target_limit:
+                    break
+            if target_limit > 0 and len(raw_results) >= target_limit:
+                break
+            if added_on_page == 0:
+                break
+        return raw_results
+
+    def _seed_target_limit(self, request: RecommendationRequest) -> int:
+        if request.per_seed_limit <= 0:
+            return max(request.limit, 0)
+        if request.recently_recommended_avids or request.recent_recommendation_counts:
+            return request.per_seed_limit
+        if request.limit <= 0:
+            return request.per_seed_limit
+        return min(request.per_seed_limit, request.limit)
+
+    def _discovery_target_limit(self, request: RecommendationRequest) -> int:
+        if request.discovery_limit <= 0:
+            return max(request.limit, 0)
+        if request.recently_recommended_avids or request.recent_recommendation_counts:
+            return request.discovery_limit
+        if request.limit <= 0:
+            return request.discovery_limit
+        return min(request.discovery_limit, request.limit)
 
     def rerank_candidates(
         self,

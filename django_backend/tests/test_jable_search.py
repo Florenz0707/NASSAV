@@ -112,6 +112,27 @@ def test_jable_search_uses_fetch_html(monkeypatch):
     assert results[0]["metrics"]["likes"] == 67
 
 
+def test_jable_search_uses_from_parameter_for_later_pages(monkeypatch):
+    jable = Jable()
+
+    captured = {}
+
+    def fake_fetch_html(url, referer=""):
+        captured["url"] = url
+        captured["referer"] = referer
+        return ""
+
+    monkeypatch.setattr(jable, "fetch_html", fake_fetch_html)
+
+    jable.search("中文字幕", page=3)
+
+    assert (
+        captured["url"]
+        == "https://jable.tv/search/%E4%B8%AD%E6%96%87%E5%AD%97%E5%B9%95/?from=03"
+    )
+    assert captured["referer"] == "https://jable.tv/"
+
+
 def test_jable_get_model_videos_uses_model_slug_async_url(monkeypatch):
     jable = Jable()
 
@@ -145,6 +166,27 @@ def test_jable_get_model_videos_uses_model_slug_async_url(monkeypatch):
     assert captured["referer"] == "https://jable.tv/models/tsumugi-akari/"
     assert results[0]["avid"] == "ABC-123"
     assert results[0]["metrics"]["model_slug"] == "tsumugi-akari"
+
+
+def test_jable_get_model_videos_uses_from_parameter_for_later_pages(monkeypatch):
+    jable = Jable()
+
+    captured = {}
+
+    def fake_fetch_html(url, referer=""):
+        captured["url"] = url
+        captured["referer"] = referer
+        return ""
+
+    monkeypatch.setattr(jable, "fetch_html", fake_fetch_html)
+
+    jable.get_model_videos("tsumugi-akari", page=3)
+
+    assert (
+        captured["url"]
+        == "https://jable.tv/models/tsumugi-akari/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=03"
+    )
+    assert captured["referer"] == "https://jable.tv/models/tsumugi-akari/"
 
 
 def test_jable_discover_hot_items_uses_async_hot_board_urls(monkeypatch):
@@ -212,6 +254,39 @@ def test_jable_discover_hot_items_uses_async_hot_board_urls(monkeypatch):
     assert results[1]["metrics"]["hot_board_sort"] == "video_viewed_week"
 
 
+def test_jable_discover_hot_items_uses_from_parameter_for_later_pages(monkeypatch):
+    jable = Jable()
+
+    captured_urls = []
+
+    def fake_fetch_html(url, referer=""):
+        captured_urls.append((url, referer))
+        return ""
+
+    monkeypatch.setattr(jable, "fetch_html", fake_fetch_html)
+
+    jable.discover_hot_items(page=3)
+
+    assert captured_urls == [
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_today&from=03",
+            "https://jable.tv/hot/",
+        ),
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_week&from=03",
+            "https://jable.tv/hot/",
+        ),
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_month&from=03",
+            "https://jable.tv/hot/",
+        ),
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=03",
+            "https://jable.tv/hot/",
+        ),
+    ]
+
+
 def test_jable_discover_latest_updates_uses_latest_updates_path(monkeypatch):
     jable = Jable()
 
@@ -242,6 +317,26 @@ def test_jable_discover_latest_updates_uses_latest_updates_path(monkeypatch):
     assert captured["referer"] == "https://jable.tv/latest-updates/"
     assert results[0]["avid"] == "GHI-789"
     assert results[0]["metrics"]["discovery_sources"] == ["latest_updates"]
+
+
+def test_jable_discover_latest_updates_uses_from_parameter_for_later_pages(
+    monkeypatch,
+):
+    jable = Jable()
+
+    captured = {}
+
+    def fake_fetch_html(url, referer=""):
+        captured["url"] = url
+        captured["referer"] = referer
+        return ""
+
+    monkeypatch.setattr(jable, "fetch_html", fake_fetch_html)
+
+    jable.discover_latest_updates(page=3)
+
+    assert captured["url"] == "https://jable.tv/latest-updates/?from=03"
+    assert captured["referer"] == "https://jable.tv/latest-updates/"
 
 
 @pytest.mark.parametrize(

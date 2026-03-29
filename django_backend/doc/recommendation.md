@@ -14,6 +14,7 @@
 - 将每次推荐结果持久化为 snapshot，便于回放、审计与后续策略优化
 - 将用户对推荐结果的显式反馈转成学习信号，参与后续排序
 - 对明确标记为“不喜欢”的具体作品做 AVID 级屏蔽，避免后续重复推荐同一条
+- Jable 召回在需要时会继续翻后续页，减少单页候选耗尽导致的过早枯竭
 
 ## Scope
 
@@ -24,6 +25,7 @@
   - `actor_heavy`
   - `recent_favorite`
 - 当前唯一的外部召回源：`Jable.search()`
+  - 同时会优先利用 Jable `models/{slug}` 演员页与 discovery 列表页的多页结果
 
 当前实现强调“层次分离”和“后续可扩展”，因此 API 层不直接绑定具体 recommender。
 
@@ -161,6 +163,7 @@ API 层只负责：
 - 对演员 seed 展开别名查询，提升括号别名/多写法场景下的召回率
 - 若演员存在 Jable 持久化映射，则优先通过 `models/{slug}` 的演员页 async block 召回
 - 读取 Jable 热榜与最近更新，作为 discovery 候选补充召回池
+- 当单页候选不足时，会继续请求后续页，直到达到本轮目标数或无新结果
 - 当主种子召回不足，或主种子召回大多已被近期推荐历史占用时，自动扩展到低位种子继续召回
 - 合并重复候选
 - 过滤数据库中已存在的 `AVResource`
@@ -180,6 +183,7 @@ API 层只负责：
 当前使用的方法：
 
 - `Jable.search(keyword, page=1)`
+- `Jable.get_model_videos(model_slug, page=1, sort_by="video_viewed")`
 - `Jable.discover_hot_items(page=1)`
 - `Jable.discover_latest_updates(page=1)`
 
@@ -187,6 +191,7 @@ API 层只负责：
 
 - `discover_hot_items()` 会请求 Jable 热榜 async block，并依次拉取今日 / 本周 / 本月 / 全部四档热榜
 - `discover_latest_updates()` 会固定请求 `/latest-updates/`
+- 搜索页、演员页和 discovery 列表翻页统一使用 `from=NN` 查询参数，例如第 3 页为 `from=03`
 - 两者都复用搜索结果页相同的卡片解析逻辑，统一产出 `avid/title/detail_url/cover_url/metrics`
 - 命中 discovery 列表的候选会在 `metrics.discovery_sources` 中打上 `hot_board` 或 `latest_updates`
 - 热榜候选额外会记录 `metrics.hot_board_sort`，用于标记来自哪一档热榜
@@ -613,6 +618,7 @@ manager 内部依次执行：
 `JableSearchRecommender.recall_by_seed()`：
 
 - 对每个 seed 调用 `Jable.search(seed.value, page=1)`
+- 若第一页候选不足，会继续请求后续页；有近期推荐历史时会保留更大的候选池供去重和避让
 - 将搜索卡片映射为 `RecommendationCandidate`
 - 每个候选记录自己命中了哪些种子
 - 同时记录候选在搜索结果中的最佳 `search_rank`

@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
+from nassav.models import ActorSourceMapping
 
 
 @pytest.mark.django_db
@@ -171,3 +172,56 @@ def test_source_title_normalization():
     assert resource3.source_title.startswith(
         "TEST-005"
     ) or resource3.source_title.startswith("test-005")
+
+
+@pytest.mark.django_db
+def test_save_to_database_syncs_jable_actor_mapping_from_html():
+    from nassav.resource_service import ResourceService
+    from nassav.scraper import AVDownloadInfo
+    from nassav.scraper.ScraperManager import scraper_manager
+    from nassav.source.SourceManager import source_manager
+    from nassav.translator.TranslatorManager import translator_manager
+
+    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    mock_source = Mock()
+    mock_source.get_source_name.return_value = "Jable"
+    mock_source.domain = "jable.tv"
+
+    info = AVDownloadInfo(
+        avid="SSIS-075",
+        m3u8="https://example.com/test.m3u8",
+        source_title="SSIS-075 Demo",
+        source="Jable",
+    )
+    scraped_data = {
+        "title": "SSIS-075 Demo",
+        "actors": ["小宵こなん"],
+        "genres": [],
+    }
+    html = """
+    <div class="models">
+        <a class="model" href="https://jable.tv/models/20d0c4a34eda32e442cc3ff532f568fd/">
+            <span
+                class="placeholder rounded-circle"
+                data-toggle="tooltip"
+                data-placement="bottom"
+                title="小宵こなん"
+            >小</span>
+        </a>
+    </div>
+    """
+
+    service._save_to_database(
+        "SSIS-075",
+        info,
+        mock_source,
+        scraped_data,
+        html=html,
+    )
+
+    mapping = ActorSourceMapping.objects.get(
+        actor__name="小宵こなん",
+        source_name="jable",
+    )
+    assert mapping.source_actor_name == "小宵こなん"
+    assert mapping.source_actor_slug == "20d0c4a34eda32e442cc3ff532f568fd"

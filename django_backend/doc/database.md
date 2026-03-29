@@ -119,6 +119,7 @@
     - `metadata_created_at`: 首次创建时设置为当前时间。
     - `metadata_updated_at`: 自动更新为当前时间。
   - 对 `actors`/`genres` 做 `get_or_create` 并设置 M2M 关系。
+  - 若当前 source 为 `Jable` 且拿到了原始作品 HTML，会顺带解析 `div.models a.model`，把本地演员与 `ActorSourceMapping(source_name="jable")` 自动对齐。
   - 演员头像处理：从 `actor_avatars` 字典获取URL，更新 `Actor.avatar_url` 和 `avatar_filename`，使用 `utils.download_avatar()` 下载（带Referer头），保存到 `resource/avatar/` 目录。
   - `duration` 的写入规则：若爬取值是字符串（如 "150分钟"），解析为秒并写入；如果同时存在本地 MP4，优先用 `ffprobe` 获取的秒数覆盖。
 
@@ -151,6 +152,7 @@
     - 将这些学习信号注入 `RecommendationRequest`，供 `FeedbackSignalFactor` 参与打分
   - 对演员 seed，如果名称中包含括号别名，会展开多个搜索关键词参与召回
   - 若演员存在 `ActorSourceMapping(source_name="jable")`，则推荐器会优先使用 `models/{source_actor_slug}` 的 async block 召回该演员作品，再回退到普通搜索
+  - 搜索页、演员页、热榜和最近更新页在继续翻页时统一使用 `from=NN`，而不是旧的 `page=N`
   - 还会将 Jable 热榜/最近更新候选作为 discovery 补充写入同一批 `RecommendationItem`
   - 若最近推荐过滤后没有剩余候选，会回退到不过滤历史的候选列表，避免返回空结果
 

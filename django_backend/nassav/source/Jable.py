@@ -210,7 +210,10 @@ class Jable(SourceBase):
         encoded = quote(keyword.strip())
         if page <= 1:
             return f"https://{self.domain}/search/{encoded}/"
-        return f"https://{self.domain}/search/{encoded}/?page={page}"
+        return (
+            f"https://{self.domain}/search/{encoded}/?"
+            f"{urlencode({'from': self._format_page_token(page)})}"
+        )
 
     def _build_model_videos_url(
         self,
@@ -226,7 +229,7 @@ class Jable(SourceBase):
             "sort_by": sort_by,
         }
         if page > 1:
-            query["page"] = str(page)
+            query["from"] = self._format_page_token(page)
         return f"https://{self.domain}/models/{quote(model_slug)}/?{urlencode(query)}"
 
     def _discover_listing(
@@ -305,7 +308,10 @@ class Jable(SourceBase):
         if page <= 1:
             return f"https://{self.domain}{normalized_path}"
         separator = "&" if "?" in normalized_path else "?"
-        return f"https://{self.domain}{normalized_path}{separator}page={page}"
+        return (
+            f"https://{self.domain}{normalized_path}{separator}"
+            f"{urlencode({'from': self._format_page_token(page)})}"
+        )
 
     def _normalize_model_slug(self, model_slug: str) -> str:
         normalized = str(model_slug or "").strip()
@@ -324,8 +330,11 @@ class Jable(SourceBase):
             "sort_by": sort_by,
         }
         if page > 1:
-            query["page"] = str(page)
+            query["from"] = self._format_page_token(page)
         return f"https://{self.domain}/hot/?{urlencode(query)}"
+
+    def _format_page_token(self, page: int) -> str:
+        return f"{max(int(page), 1):02d}"
 
     def _parse_search_results(self, html: str) -> list[dict]:
         soup = BeautifulSoup(html, "html.parser")
