@@ -32,6 +32,9 @@ class RecommendationSnapshotRepository:
             "avoid_recent_recommendations": request.avoid_recent_recommendations,
             "recent_snapshot_limit": request.recent_snapshot_limit,
             "recent_item_limit": request.recent_item_limit,
+            "include_hot_board": request.include_hot_board,
+            "include_latest_updates": request.include_latest_updates,
+            "discovery_limit": request.discovery_limit,
         }
         return sha256(
             json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
@@ -142,6 +145,9 @@ class RecommendationSnapshotRepository:
                 "avoid_recent_recommendations": execution.request.avoid_recent_recommendations,
                 "recent_snapshot_limit": execution.request.recent_snapshot_limit,
                 "recent_item_limit": execution.request.recent_item_limit,
+                "include_hot_board": execution.request.include_hot_board,
+                "include_latest_updates": execution.request.include_latest_updates,
+                "discovery_limit": execution.request.discovery_limit,
             },
             seed_summary=[seed.to_dict() for seed in execution.run.seeds],
             item_count=len(execution.run.items),

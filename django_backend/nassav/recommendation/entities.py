@@ -7,6 +7,7 @@ class RecommendationSeed:
     value: str
     weight: float
     source: str
+    aliases: list[str] = field(default_factory=list)
     resource_count: int = 0
     preference_score: float = 0.0
 
@@ -16,6 +17,7 @@ class RecommendationSeed:
             "value": self.value,
             "weight": self.weight,
             "source": self.source,
+            "aliases": list(self.aliases),
             "resource_count": self.resource_count,
             "preference_score": self.preference_score,
         }
@@ -82,8 +84,12 @@ class RecommendationRequest:
     recent_item_limit: int = 36
     recently_recommended_avids: list[str] = field(default_factory=list)
     recent_recommendation_counts: dict[str, int] = field(default_factory=dict)
+    include_hot_board: bool = True
+    include_latest_updates: bool = True
+    discovery_limit: int = 12
     feedback_avid_scores: dict[str, float] = field(default_factory=dict)
     feedback_seed_scores: dict[str, float] = field(default_factory=dict)
+    blocked_feedback_avids: set[str] = field(default_factory=set)
     learned_feedback_count: int = 0
     learned_avid_count: int = 0
     learned_seed_count: int = 0
@@ -137,6 +143,9 @@ class RecommendationExecution:
                 "avoid_recent_recommendations": self.request.avoid_recent_recommendations,
                 "recent_snapshot_limit": self.request.recent_snapshot_limit,
                 "recent_item_limit": self.request.recent_item_limit,
+                "include_hot_board": self.request.include_hot_board,
+                "include_latest_updates": self.request.include_latest_updates,
+                "discovery_limit": self.request.discovery_limit,
             },
             "history_context": {
                 "recently_recommended_count": len(

@@ -109,6 +109,10 @@ class ScraperManager:
             if scraper:
                 return scraper.download_cover(url, save_path)
 
+        last_successful_scraper = getattr(self, "_last_successful_scraper", None)
+        if last_successful_scraper is not None:
+            return last_successful_scraper.download_cover(url, save_path)
+
         # 如果没有成功的scraper记录，尝试使用第一个注册的scraper
         scrapers = self.get_scrapers()
         if scrapers:

@@ -235,6 +235,40 @@ class FeedbackSignalFactor(RecommendationFactor):
         return round(total_score, 4), reasons
 
 
+class DiscoverySourceFactor(RecommendationFactor):
+    def __init__(
+        self,
+        *,
+        hot_board_bonus: float = 1.0,
+        latest_updates_bonus: float = 0.7,
+    ):
+        self.hot_board_bonus = hot_board_bonus
+        self.latest_updates_bonus = latest_updates_bonus
+
+    def score(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> tuple[float, list[str]]:
+        _ = request
+        discovery_sources = list(candidate.raw_metrics.get("discovery_sources") or [])
+        if not discovery_sources:
+            return 0.0, []
+
+        score = 0.0
+        reasons: list[str] = []
+        if "hot_board" in discovery_sources and self.hot_board_bonus > 0:
+            score += self.hot_board_bonus
+            reasons.append("命中 Jable 热榜候选")
+        if "latest_updates" in discovery_sources and self.latest_updates_bonus > 0:
+            score += self.latest_updates_bonus
+            reasons.append("命中 Jable 最近更新候选")
+
+        if score <= 0:
+            return 0.0, []
+        return round(score, 4), reasons
+
+
 def _to_number(value) -> float:
     if value in (None, ""):
         return 0.0

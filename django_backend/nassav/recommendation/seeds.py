@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
+import re
+from typing import cast
 
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -8,10 +10,22 @@ from nassav.models import Actor, Genre
 
 from .entities import RecommendationRequest, RecommendationSeed
 
+USE_REQUEST_LIMIT = object()
+
 
 class SeedProvider(ABC):
     @abstractmethod
     def get_seeds(self, request: RecommendationRequest) -> list[RecommendationSeed]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_additional_seeds(
+        self,
+        request: RecommendationRequest,
+        *,
+        used_seeds: list[RecommendationSeed],
+        batch_size: int,
+    ) -> list[RecommendationSeed]:
         raise NotImplementedError
 
 
@@ -41,25 +55,73 @@ class LocalPreferenceSeedProvider(SeedProvider):
             return seeds
         return self._build_seed_batch(request, only_interacted=False)
 
+    def get_additional_seeds(
+        self,
+        request: RecommendationRequest,
+        *,
+        used_seeds: list[RecommendationSeed],
+        batch_size: int,
+    ) -> list[RecommendationSeed]:
+        if batch_size <= 0:
+            return []
+
+        seed_pool = self._build_seed_batch(
+            request,
+            only_interacted=self.only_interacted,
+            actor_limit=None,
+            genre_limit=None,
+        )
+        if not seed_pool and self.only_interacted and self.fallback_to_all:
+            seed_pool = self._build_seed_batch(
+                request,
+                only_interacted=False,
+                actor_limit=None,
+                genre_limit=None,
+            )
+
+        used_keys = {(seed.seed_type, seed.value) for seed in used_seeds}
+        extras: list[RecommendationSeed] = []
+        for seed in seed_pool:
+            key = (seed.seed_type, seed.value)
+            if key in used_keys:
+                continue
+            extras.append(self._to_expansion_seed(seed))
+            if len(extras) >= batch_size:
+                break
+        return extras
+
     def _build_seed_batch(
         self,
         request: RecommendationRequest,
         *,
         only_interacted: bool,
+        actor_limit: int | None | object = USE_REQUEST_LIMIT,
+        genre_limit: int | None | object = USE_REQUEST_LIMIT,
     ) -> list[RecommendationSeed]:
         seeds: list[RecommendationSeed] = []
+        resolved_actor_limit: int | None
+        if actor_limit is USE_REQUEST_LIMIT:
+            resolved_actor_limit = request.actor_seed_limit
+        else:
+            resolved_actor_limit = cast(int | None, actor_limit)
+
+        resolved_genre_limit: int | None
+        if genre_limit is USE_REQUEST_LIMIT:
+            resolved_genre_limit = request.genre_seed_limit
+        else:
+            resolved_genre_limit = cast(int | None, genre_limit)
 
         if "actor" in request.seed_types:
             seeds.extend(
                 self.get_top_actor_seeds(
-                    request.actor_seed_limit,
+                    resolved_actor_limit,
                     only_interacted=only_interacted,
                 )
             )
         if "genre" in request.seed_types:
             seeds.extend(
                 self.get_top_genre_seeds(
-                    request.genre_seed_limit,
+                    resolved_genre_limit,
                     only_interacted=only_interacted,
                 )
             )
@@ -68,30 +130,34 @@ class LocalPreferenceSeedProvider(SeedProvider):
 
     def get_top_actor_seeds(
         self,
-        limit: int,
+        limit: int | None,
         *,
         only_interacted: bool = False,
     ) -> list[RecommendationSeed]:
         queryset = self._annotated_queryset(
             Actor.objects, only_interacted=only_interacted
         )
+        if limit is not None and limit > 0:
+            queryset = queryset[:limit]
         return self._build_seeds(
-            queryset=queryset[:limit],
+            queryset=queryset,
             seed_type="actor",
             source="local_interacted_actor" if only_interacted else "local_top_actor",
         )
 
     def get_top_genre_seeds(
         self,
-        limit: int,
+        limit: int | None,
         *,
         only_interacted: bool = False,
     ) -> list[RecommendationSeed]:
         queryset = self._annotated_queryset(
             Genre.objects, only_interacted=only_interacted
         )
+        if limit is not None and limit > 0:
+            queryset = queryset[:limit]
         return self._build_seeds(
-            queryset=queryset[:limit],
+            queryset=queryset,
             seed_type="genre",
             source="local_interacted_genre" if only_interacted else "local_top_genre",
         )
@@ -147,17 +213,75 @@ class LocalPreferenceSeedProvider(SeedProvider):
         for item in queryset:
             resource_count = int(getattr(item, "resource_count", 0) or 0)
             preference_score = self.preference_score_for_item(item)
+            aliases = self._build_seed_aliases(seed_type=seed_type, value=item.name)
             seeds.append(
                 RecommendationSeed(
                     seed_type=seed_type,
                     value=item.name,
                     weight=self.normalize_weight(preference_score, max_score),
                     source=source,
+                    aliases=aliases,
                     resource_count=resource_count,
                     preference_score=round(preference_score, 4),
                 )
             )
         return seeds
+
+    def _build_seed_aliases(self, *, seed_type: str, value: str) -> list[str]:
+        if seed_type != "actor":
+            return []
+        return self._extract_actor_aliases(value)
+
+    def _extract_actor_aliases(self, raw_name: str) -> list[str]:
+        name = str(raw_name or "").strip()
+        if not name:
+            return []
+
+        variants: list[str] = []
+        seen: set[str] = {name.casefold()}
+
+        def add_variant(candidate: str) -> None:
+            normalized = str(candidate or "").strip()
+            if not normalized:
+                return
+            token = normalized.casefold()
+            if token in seen:
+                return
+            seen.add(token)
+            variants.append(normalized)
+
+        fullwidth_match = re.match(r"^(.*?)（(.+?)）$", name)
+        halfwidth_match = re.match(r"^(.*?)\((.+?)\)$", name)
+        match = fullwidth_match or halfwidth_match
+        if match:
+            outer_name = match.group(1).strip()
+            inner_aliases = match.group(2).strip()
+            add_variant(outer_name)
+            for part in re.split(r"[、,，/／|・]+", inner_aliases):
+                add_variant(part)
+
+        compact = re.sub(r"\s+", " ", name).strip()
+        if compact != name:
+            add_variant(compact)
+
+        return variants
+
+    def _to_expansion_seed(self, seed: RecommendationSeed) -> RecommendationSeed:
+        source = seed.source
+        if source.startswith("local_top_"):
+            source = source.replace("local_top_", "local_expansion_", 1)
+        elif source.startswith("local_interacted_"):
+            source = source.replace("local_interacted_", "local_expansion_", 1)
+
+        return RecommendationSeed(
+            seed_type=seed.seed_type,
+            value=seed.value,
+            weight=seed.weight,
+            source=source,
+            aliases=list(seed.aliases),
+            resource_count=seed.resource_count,
+            preference_score=seed.preference_score,
+        )
 
     def preference_score_for_item(self, item) -> float:
         resource_count = float(getattr(item, "resource_count", 0) or 0)

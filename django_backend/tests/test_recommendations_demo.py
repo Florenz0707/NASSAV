@@ -4,6 +4,14 @@ import pytest
 from django.utils import timezone
 
 
+@pytest.fixture(autouse=True)
+def stub_recommendation_discovery(monkeypatch):
+    from nassav.source import Jable
+
+    monkeypatch.setattr(Jable, "discover_hot_items", lambda self, page=1: [])
+    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+
+
 @pytest.mark.django_db
 def test_recommendations_options_endpoint(api_client):
     response = api_client.get("/nassav/api/recommendations/options")
@@ -625,6 +633,443 @@ def test_recommendation_feedback_endpoint_updates_learning_and_ranking(
     ]
     assert feedback_breakdowns
     assert feedback_breakdowns[0]["score"] > 0
+
+
+@pytest.mark.django_db
+def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationFeedback
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-702", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-702-A",
+                "title": "Disliked Candidate",
+                "detail_url": "https://jable.tv/videos/rec-702-a/",
+                "cover_url": "https://img/rec-702-a.jpg",
+                "metrics": {"views": 3600, "likes": 420},
+            },
+            {
+                "avid": "REC-702-B",
+                "title": "Fallback Candidate",
+                "detail_url": "https://jable.tv/videos/rec-702-b/",
+                "cover_url": "https://img/rec-702-b.jpg",
+                "metrics": {"views": 2800, "likes": 300},
+            },
+            {
+                "avid": "REC-702-C",
+                "title": "Third Candidate",
+                "detail_url": "https://jable.tv/videos/rec-702-c/",
+                "cover_url": "https://img/rec-702-c.jpg",
+                "metrics": {"views": 2400, "likes": 260},
+            },
+        ],
+    )
+
+    first_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 3,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "avoid_recent_recommendations": "false",
+        },
+    )
+    first_body = first_response.json()
+    assert [item["avid"] for item in first_body["data"]["items"]] == [
+        "REC-702-A",
+        "REC-702-B",
+        "REC-702-C",
+    ]
+
+    feedback_response = api_client.post(
+        "/nassav/api/recommendations/feedback",
+        {
+            "snapshot_id": first_body["data"]["items"][0]["snapshot_id"],
+            "avid": "REC-702-A",
+            "feedback": "dislike",
+        },
+        format="json",
+    )
+    assert feedback_response.status_code == 200
+    assert RecommendationFeedback.objects.count() == 1
+
+    second_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 3,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "avoid_recent_recommendations": "false",
+        },
+    )
+    second_body = second_response.json()
+    second_avids = [item["avid"] for item in second_body["data"]["items"]]
+    assert "REC-702-A" not in second_avids
+    assert second_avids == ["REC-702-B", "REC-702-C"]
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_tops_up_when_recent_filter_would_underfill(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-901", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-901-A",
+                "title": "Result A",
+                "detail_url": "https://jable.tv/videos/rec-901-a/",
+                "cover_url": "https://img/rec-901-a.jpg",
+                "metrics": {"views": 1800, "likes": 120},
+            },
+            {
+                "avid": "REC-901-B",
+                "title": "Result B",
+                "detail_url": "https://jable.tv/videos/rec-901-b/",
+                "cover_url": "https://img/rec-901-b.jpg",
+                "metrics": {"views": 1700, "likes": 110},
+            },
+            {
+                "avid": "REC-901-C",
+                "title": "Result C",
+                "detail_url": "https://jable.tv/videos/rec-901-c/",
+                "cover_url": "https://img/rec-901-c.jpg",
+                "metrics": {"views": 900, "likes": 70},
+            },
+        ],
+    )
+
+    first_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+        },
+    )
+    second_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+        },
+    )
+
+    first_items = first_response.json()["data"]["items"]
+    second_items = second_response.json()["data"]["items"]
+
+    assert len(first_items) == 2
+    assert len(second_items) == 2
+    assert "REC-901-C" in [item["avid"] for item in second_items]
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_uses_actor_aliases_for_seed_recall(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="めぐり（藤浦めぐ）")
+    seed_resource = resource_factory(avid="SEED-902", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    captured_keywords = []
+
+    def fake_search(self, keyword, page=1):
+        _ = self
+        _ = page
+        captured_keywords.append(keyword)
+        if keyword == "藤浦めぐ":
+            return [
+                {
+                    "avid": "REC-902-A",
+                    "title": "Alias Hit",
+                    "detail_url": "https://jable.tv/videos/rec-902-a/",
+                    "cover_url": "https://img/rec-902-a.jpg",
+                    "metrics": {"views": 1500, "likes": 180},
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(Jable, "search", fake_search)
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 1,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+        },
+    )
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["items"][0]["avid"] == "REC-902-A"
+    assert "めぐり（藤浦めぐ）" in captured_keywords
+    assert "藤浦めぐ" in captured_keywords
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_expands_to_lower_ranked_seeds_when_exhausted(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    alice = actor_factory(name="Alice")
+    bob = actor_factory(name="Bob")
+    carol = actor_factory(name="Carol")
+
+    for index in range(3):
+        resource_factory(avid=f"ALICE-SEED-{index}", original_title="Seed").actors.add(
+            alice
+        )
+    for index in range(2):
+        resource_factory(avid=f"BOB-SEED-{index}", original_title="Seed").actors.add(
+            bob
+        )
+    resource_factory(avid="CAROL-SEED-0", original_title="Seed").actors.add(carol)
+
+    def fake_search(self, keyword, page=1):
+        _ = self
+        _ = page
+        mapping = {
+            "Alice": [
+                {
+                    "avid": "REC-LATE-A",
+                    "title": "Alice Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-late-a/",
+                    "cover_url": "https://img/rec-late-a.jpg",
+                    "metrics": {"views": 2400, "likes": 220},
+                }
+            ],
+            "Bob": [
+                {
+                    "avid": "REC-LATE-B",
+                    "title": "Bob Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-late-b/",
+                    "cover_url": "https://img/rec-late-b.jpg",
+                    "metrics": {"views": 2200, "likes": 210},
+                }
+            ],
+            "Carol": [
+                {
+                    "avid": "REC-LATE-C",
+                    "title": "Carol Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-late-c/",
+                    "cover_url": "https://img/rec-late-c.jpg",
+                    "metrics": {"views": 1800, "likes": 190},
+                }
+            ],
+        }
+        return mapping.get(keyword, [])
+
+    monkeypatch.setattr(Jable, "search", fake_search)
+
+    first_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 2,
+            "genre_seed_limit": 1,
+        },
+    )
+    second_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 3,
+            "actor_seed_limit": 2,
+            "genre_seed_limit": 1,
+        },
+    )
+
+    assert len(first_response.json()["data"]["items"]) == 2
+    second_items = second_response.json()["data"]["items"]
+    assert len(second_items) == 3
+    assert "REC-LATE-C" in [item["avid"] for item in second_items]
+    assert any(
+        seed["value"] == "Carol"
+        for seed in second_response.json()["data"]["seeds"]
+        if seed["source"].startswith("local_expansion_")
+    )
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_expands_when_primary_pool_is_only_recent(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    alice = actor_factory(name="Alice")
+    bob = actor_factory(name="Bob")
+    carol = actor_factory(name="Carol")
+
+    for index in range(3):
+        resource_factory(
+            avid=f"RECENT-ALICE-SEED-{index}",
+            original_title="Seed",
+        ).actors.add(alice)
+    for index in range(2):
+        resource_factory(
+            avid=f"RECENT-BOB-SEED-{index}",
+            original_title="Seed",
+        ).actors.add(bob)
+    resource_factory(avid="RECENT-CAROL-SEED-0", original_title="Seed").actors.add(
+        carol
+    )
+
+    def fake_search(self, keyword, page=1):
+        _ = self
+        _ = page
+        mapping = {
+            "Alice": [
+                {
+                    "avid": "REC-POOL-A",
+                    "title": "Alice Candidate A",
+                    "detail_url": "https://jable.tv/videos/rec-pool-a/",
+                    "cover_url": "https://img/rec-pool-a.jpg",
+                    "metrics": {"views": 2600, "likes": 260},
+                },
+                {
+                    "avid": "REC-POOL-B",
+                    "title": "Alice Candidate B",
+                    "detail_url": "https://jable.tv/videos/rec-pool-b/",
+                    "cover_url": "https://img/rec-pool-b.jpg",
+                    "metrics": {"views": 2400, "likes": 240},
+                },
+            ],
+            "Bob": [
+                {
+                    "avid": "REC-POOL-C",
+                    "title": "Bob Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-pool-c/",
+                    "cover_url": "https://img/rec-pool-c.jpg",
+                    "metrics": {"views": 2300, "likes": 230},
+                }
+            ],
+            "Carol": [
+                {
+                    "avid": "REC-POOL-D",
+                    "title": "Carol Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-pool-d/",
+                    "cover_url": "https://img/rec-pool-d.jpg",
+                    "metrics": {"views": 2100, "likes": 220},
+                }
+            ],
+        }
+        return mapping.get(keyword, [])
+
+    monkeypatch.setattr(Jable, "search", fake_search)
+
+    first_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 3,
+            "actor_seed_limit": 2,
+            "genre_seed_limit": 1,
+        },
+    )
+    second_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 3,
+            "actor_seed_limit": 2,
+            "genre_seed_limit": 1,
+        },
+    )
+
+    assert len(first_response.json()["data"]["items"]) == 3
+    second_body = second_response.json()
+    second_items = second_body["data"]["items"]
+    assert len(second_items) == 3
+    assert "REC-POOL-D" in [item["avid"] for item in second_items]
+    assert any(
+        seed["value"] == "Carol"
+        for seed in second_body["data"]["seeds"]
+        if seed["source"].startswith("local_expansion_")
+    )
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_includes_hot_and_latest_discovery_candidates(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-903", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "discover_hot_items",
+        lambda self, page=1: [
+            {
+                "avid": "REC-903-HOT",
+                "title": "Hot Candidate",
+                "detail_url": "https://jable.tv/videos/rec-903-hot/",
+                "cover_url": "https://img/rec-903-hot.jpg",
+                "metrics": {
+                    "views": 5000,
+                    "likes": 500,
+                    "discovery_sources": ["hot_board"],
+                },
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        Jable,
+        "discover_latest_updates",
+        lambda self, page=1: [
+            {
+                "avid": "REC-903-NEW",
+                "title": "Latest Candidate",
+                "detail_url": "https://jable.tv/videos/rec-903-new/",
+                "cover_url": "https://img/rec-903-new.jpg",
+                "metrics": {
+                    "views": 3200,
+                    "likes": 240,
+                    "discovery_sources": ["latest_updates"],
+                },
+            }
+        ],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+        },
+    )
+
+    body = response.json()
+    av_ids = [item["avid"] for item in body["data"]["items"]]
+    assert "REC-903-HOT" in av_ids
+    assert "REC-903-NEW" in av_ids
+    assert any(
+        entry["factor"] == "DiscoverySourceFactor"
+        for item in body["data"]["items"]
+        for entry in item["score_breakdown"]
+    )
 
 
 def test_feedback_signal_factor_supports_seed_learning():

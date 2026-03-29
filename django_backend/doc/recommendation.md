@@ -6,11 +6,14 @@
 
 - 基于本地库中高频出现的演员与类别生成推荐种子
 - 使用 Jable 搜索页召回候选资源
+- 将 Jable 热榜与最近更新作为额外 discovery 候选源
 - 过滤本地已存在资源
-- 过滤最近同配置已经推荐过的资源
+- 优先避开最近同配置已经推荐过的资源，不足时再用旧结果补位
+- 当高位种子召回不足或大多已在近期出现时，继续向低位演员/类别种子扩展召回
 - 对候选进行轻量打分并返回给前端
 - 将每次推荐结果持久化为 snapshot，便于回放、审计与后续策略优化
 - 将用户对推荐结果的显式反馈转成学习信号，参与后续排序
+- 对明确标记为“不喜欢”的具体作品做 AVID 级屏蔽，避免后续重复推荐同一条
 
 ## Scope
 
@@ -49,6 +52,9 @@ API 层只负责：
     - `avoid_recent_recommendations`
     - `recent_snapshot_limit`
     - `recent_item_limit`
+    - `include_hot_board`
+    - `include_latest_updates`
+    - `discovery_limit`
 
 - `GET /nassav/api/recommendations/options`
   - 返回当前可用的 recommenders、strategies 与默认值
@@ -152,8 +158,12 @@ API 层只负责：
 
 - 从 `SeedProvider` 获取推荐种子
 - 对每个 seed 调用 `Jable.search()`
+- 对演员 seed 展开别名查询，提升括号别名/多写法场景下的召回率
+- 读取 Jable 热榜与最近更新，作为 discovery 候选补充召回池
+- 当主种子召回不足，或主种子召回大多已被近期推荐历史占用时，自动扩展到低位种子继续召回
 - 合并重复候选
 - 过滤数据库中已存在的 `AVResource`
+- 在“尽量避开最近推荐”前提下补齐不足的返回数
 - 执行 factors 打分
 - 返回排序后的推荐结果
 
@@ -169,6 +179,17 @@ API 层只负责：
 当前使用的方法：
 
 - `Jable.search(keyword, page=1)`
+- `Jable.discover_hot_items(page=1)`
+- `Jable.discover_latest_updates(page=1)`
+
+其中 discovery 召回的处理方式为：
+
+- `discover_hot_items()` 会请求 Jable 热榜 async block，并依次拉取今日 / 本周 / 本月 / 全部四档热榜
+- `discover_latest_updates()` 会固定请求 `/latest-updates/`
+- 两者都复用搜索结果页相同的卡片解析逻辑，统一产出 `avid/title/detail_url/cover_url/metrics`
+- 命中 discovery 列表的候选会在 `metrics.discovery_sources` 中打上 `hot_board` 或 `latest_updates`
+- 热榜候选额外会记录 `metrics.hot_board_sort`，用于标记来自哪一档热榜
+- 排序阶段由 `DiscoverySourceFactor` 提供轻量加分，让 discovery 候选能进入最终列表，但不会长期压过强相关 seed 候选
 
 返回字段统一为：
 
@@ -276,9 +297,14 @@ API 层只负责：
 - `RecommendationFeedback`
   - 存储显式反馈
 - `RecommendationFeedbackRepository`
-  - 聚合历史反馈，生成 `avid_scores` 和 `seed_scores`
+  - 聚合历史反馈，生成 `avid_scores`、`seed_scores` 和需要屏蔽的 `blocked_avids`
 - `FeedbackSignalFactor`
   - 将反馈学习信号并入当前推荐打分
+
+当前额外约束：
+
+- 当某个 `avid` 的负反馈票数多于正反馈票数时，该作品会被直接从候选池中过滤掉
+- 相关 seed 的负反馈仍然只作为软信号参与打分，不会直接屏蔽整类内容
 
 对应文件：
 
@@ -292,6 +318,7 @@ API 层只负责：
 - 演员种子：
   - `Actor.objects.annotate(resource_count=Count("resources"))`
   - 取出现次数最高的演员
+  - 若演员名包含括号别名（如 `めぐり（藤浦めぐ）`），会自动展开为多个搜索别名，但推荐理由仍展示规范名
 
 - 类别种子：
   - `Genre.objects.annotate(resource_count=Count("resources"))`

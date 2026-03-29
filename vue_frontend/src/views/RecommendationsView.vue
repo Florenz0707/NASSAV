@@ -152,11 +152,12 @@ function restoreViewState() {
   }
 }
 
-function mergeRecommendationItems(existingItems, nextItems) {
+function mergeRecommendationItems(existingItems, nextItems, feedbackMap = {}) {
   const merged = []
   const seen = new Set()
   for (const item of [...(existingItems || []), ...(nextItems || [])]) {
     if (!item?.avid || seen.has(item.avid)) continue
+    if (feedbackMap[item.avid] === 'dislike') continue
     seen.add(item.avid)
     merged.push(item)
   }
@@ -291,8 +292,8 @@ async function loadRecommendations() {
 
     const payload = response.data || {}
     items.value = shouldMerge
-      ? mergeRecommendationItems(items.value, payload.items || [])
-      : payload.items || []
+      ? mergeRecommendationItems(items.value, payload.items || [], feedbackByAvid.value)
+      : (payload.items || []).filter((item) => feedbackByAvid.value[item?.avid] !== 'dislike')
     seeds.value = [...(payload.seeds || [])]
     meta.value = payload.meta || null
     lastLoadedConfigKey.value = requestConfigKey
@@ -366,6 +367,10 @@ async function handleFeedback(item, feedbackType) {
     feedbackByAvid.value = {
       ...feedbackByAvid.value,
       [item.avid]: savedFeedback,
+    }
+    if (savedFeedback === 'dislike') {
+      items.value = (items.value || []).filter((entry) => entry?.avid !== item.avid)
+      syncActiveReasonItem()
     }
     if (savedFeedback) {
       toastStore.success(`${item.avid} 的推荐反馈已更新`)

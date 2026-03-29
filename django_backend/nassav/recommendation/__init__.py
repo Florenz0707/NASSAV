@@ -6,6 +6,7 @@ from .entities import (
     RecommendationSeed,
 )
 from .factors import (
+    DiscoverySourceFactor,
     FeedbackSignalFactor,
     MultiSeedBonusFactor,
     NoveltyFactor,
@@ -33,6 +34,7 @@ __all__ = [
     "JableSearchRecommender",
     "LocalPreferenceSeedProvider",
     "FeedbackSignalFactor",
+    "DiscoverySourceFactor",
     "MultiSeedBonusFactor",
     "NoveltyFactor",
     "PopularityFactor",

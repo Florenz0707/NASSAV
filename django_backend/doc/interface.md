@@ -246,6 +246,9 @@ DELETE /nassav/api/source/cookie?source=missav
   - `avoid_recent_recommendations`：是否尽量避开最近同配置已经推荐过的结果，默认 `true`
   - `recent_snapshot_limit`：回看最近多少次同配置推荐，默认 `3`
   - `recent_item_limit`：最多读取多少条历史推荐 `avid`，默认 `36`
+  - `include_hot_board`：是否将 Jable 热榜候选并入召回池，默认 `true`
+  - `include_latest_updates`：是否将 Jable 最近更新候选并入召回池，默认 `true`
+  - `discovery_limit`：热榜/最近更新总共最多补充多少条候选，默认 `12`
 
 示例请求：
 
@@ -315,7 +318,10 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
         "random_seed": 123456789,
         "avoid_recent_recommendations": true,
         "recent_snapshot_limit": 3,
-        "recent_item_limit": 36
+        "recent_item_limit": 36,
+        "include_hot_board": true,
+        "include_latest_updates": true,
+        "discovery_limit": 12
       },
       "history_context": {
         "recently_recommended_count": 12,
@@ -337,6 +343,14 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
 - 方法：GET
 - 路径：`/nassav/api/recommendations/options`
 - 功能：返回可用推荐器、策略和默认值，供前端动态渲染选择区
+
+补充说明：
+
+- 当最近推荐过滤后剩余候选少于请求 `limit` 时，系统会用近期已推荐过但得分较低的候选补齐返回数量，避免第三次、第四次连续刷新时结果明显缩水。
+- 如果当前高位演员/类别种子召回到的候选不足，或者这些候选大多已在近期推荐中出现，系统会自动继续下探到排名更靠后的演员/类别种子补召回。
+- 演员种子会自动展开常见别名（例如括号内别名），用于提升 Jable 搜索召回率。
+- `include_hot_board=true` 时会把 Jable 热榜 async block 的今日 / 本周 / 本月 / 全部四档榜单作为 discovery 候选源；`include_latest_updates=true` 时会把 `/latest-updates/` 作为 discovery 候选源，两者都会带上来源标签参与轻量加分排序。
+- 当某个作品收到的 `dislike` 票数多于 `like` 时，系统会在后续推荐中直接屏蔽该 `avid`，而不是只做轻微降权。
 
 ### 提交推荐反馈
 

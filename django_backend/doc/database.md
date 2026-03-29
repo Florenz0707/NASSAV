@@ -127,6 +127,7 @@
     - `request_fingerprint`
       查询最近几次同配置推荐的快照
   - 将这些快照中的 `avid` 作为“最近推荐历史”注入当前请求，优先避免重复返回
+  - 若过滤后剩余候选少于本次 `limit`，会回补一部分近期已推荐候选，避免连续刷新时返回数不足
   - 推荐执行完成后：
     - 写入一条 `RecommendationSnapshot`
     - 为每个返回项写入一条 `RecommendationItem`
@@ -134,6 +135,8 @@
     - 聚合历史 `avid` 反馈，形成直接资源偏好分
     - 聚合历史 `matched_seeds` 反馈，形成演员 / 类别 seed 偏好分
     - 将这些学习信号注入 `RecommendationRequest`，供 `FeedbackSignalFactor` 参与打分
+  - 对演员 seed，如果名称中包含括号别名，会展开多个搜索关键词参与召回
+  - 还会将 Jable 热榜/最近更新候选作为 discovery 补充写入同一批 `RecommendationItem`
   - 若最近推荐过滤后没有剩余候选，会回退到不过滤历史的候选列表，避免返回空结果
 
 - 推荐反馈提交（API `POST /recommendations/feedback`）:

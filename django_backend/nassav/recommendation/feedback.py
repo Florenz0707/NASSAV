@@ -13,6 +13,7 @@ class RecommendationFeedbackError(Exception):
 class RecommendationLearningProfile:
     avid_scores: dict[str, float] = field(default_factory=dict)
     seed_scores: dict[str, float] = field(default_factory=dict)
+    blocked_avids: set[str] = field(default_factory=set)
     feedback_count: int = 0
 
     @property
@@ -96,6 +97,11 @@ class RecommendationFeedbackRepository:
                 for seed_key, votes in seed_votes.items()
                 if votes
             },
+            blocked_avids={
+                avid
+                for avid, votes in avid_votes.items()
+                if self._should_block_avid(votes)
+            },
             feedback_count=feedbacks.count(),
         )
 
@@ -112,6 +118,11 @@ class RecommendationFeedbackRepository:
         normalized = (positive_count - negative_count) / float(total)
         confidence = min(total / 3.0, 1.0)
         return round(normalized * confidence, 4)
+
+    def _should_block_avid(self, votes: list[int]) -> bool:
+        positive_count = sum(1 for value in votes if value > 0)
+        negative_count = sum(1 for value in votes if value < 0)
+        return negative_count > 0 and negative_count > positive_count
 
 
 recommendation_feedback_repository = RecommendationFeedbackRepository()

@@ -133,6 +133,7 @@ class RecommenderManager:
         learning_profile = recommendation_feedback_repository.build_learning_profile()
         recommendation_request.feedback_avid_scores = learning_profile.avid_scores
         recommendation_request.feedback_seed_scores = learning_profile.seed_scores
+        recommendation_request.blocked_feedback_avids = learning_profile.blocked_avids
         recommendation_request.learned_feedback_count = learning_profile.feedback_count
         recommendation_request.learned_avid_count = learning_profile.learned_avid_count
         recommendation_request.learned_seed_count = learning_profile.learned_seed_count
@@ -189,6 +190,9 @@ class RecommenderManager:
             ),
             recent_snapshot_limit=int(payload.get("recent_snapshot_limit", 3)),
             recent_item_limit=int(payload.get("recent_item_limit", 36)),
+            include_hot_board=bool(payload.get("include_hot_board", True)),
+            include_latest_updates=bool(payload.get("include_latest_updates", True)),
+            discovery_limit=int(payload.get("discovery_limit", 12)),
         )
 
     def build_recommender(

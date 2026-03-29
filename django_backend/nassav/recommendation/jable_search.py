@@ -25,6 +25,24 @@ class JableSearchRecommender(AbstractRecommender):
         self.actor_diversity_weight = actor_diversity_weight
         self.genre_diversity_weight = genre_diversity_weight
 
+    def recommend(self, request: RecommendationRequest):
+        seeds = self.build_seeds(request)
+        candidates = self.recall_candidates(seeds, request)
+        candidates = self.exclude_existing_resources(candidates, request)
+        candidates = self.exclude_feedback_blocked_resources(candidates, request)
+        seeds, candidates = self._expand_seed_pool_if_needed(
+            seeds=seeds,
+            candidates=candidates,
+            request=request,
+        )
+        candidates = self.filter_recent_recommendations(candidates, request)
+        candidates = self.enrich_candidates(candidates, request)
+        candidates = self.score_candidates(candidates, request)
+        items = self.rank_and_trim(candidates, request)
+        from .entities import RecommendationRun
+
+        return RecommendationRun(seeds=seeds, items=items)
+
     def build_seeds(self, request: RecommendationRequest) -> list[RecommendationSeed]:
         return self.seed_provider.get_seeds(request)
 
@@ -37,31 +55,10 @@ class JableSearchRecommender(AbstractRecommender):
         for seed in seeds:
             candidates = self.recall_by_seed(seed, request)
             for candidate in candidates:
-                existing = merged.get(candidate.avid)
-                if existing is None:
-                    merged[candidate.avid] = candidate
-                    continue
+                self._merge_candidate(merged, candidate)
 
-                for matched_seed in candidate.matched_seeds:
-                    existing.add_seed(matched_seed)
-                existing.raw_metrics = self._merge_metrics(
-                    existing.raw_metrics,
-                    candidate.raw_metrics,
-                )
-                if not existing.title and candidate.title:
-                    existing.title = candidate.title
-                if not existing.detail_url and candidate.detail_url:
-                    existing.detail_url = candidate.detail_url
-                if not existing.cover_url and candidate.cover_url:
-                    existing.cover_url = candidate.cover_url
-                if candidate.search_rank is not None:
-                    if existing.search_rank is None:
-                        existing.search_rank = candidate.search_rank
-                    else:
-                        existing.search_rank = min(
-                            existing.search_rank,
-                            candidate.search_rank,
-                        )
+        for candidate in self.recall_discovery_candidates(request):
+            self._merge_candidate(merged, candidate)
 
         return list(merged.values())
 
@@ -70,9 +67,26 @@ class JableSearchRecommender(AbstractRecommender):
         seed: RecommendationSeed,
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
-        raw_results = self.jable.search(seed.value, page=1)
-        if request.per_seed_limit > 0:
-            raw_results = raw_results[: request.per_seed_limit]
+        raw_results: list[dict] = []
+        seen_avids: set[str] = set()
+        search_terms = self._search_terms_for_seed(seed)
+        for keyword in search_terms:
+            for item in self.jable.search(keyword, page=1):
+                avid = str(item.get("avid", "")).strip().upper()
+                if not avid or avid in seen_avids:
+                    continue
+                seen_avids.add(avid)
+                raw_results.append(item)
+                if (
+                    request.per_seed_limit > 0
+                    and len(raw_results) >= request.per_seed_limit
+                ):
+                    break
+            if (
+                request.per_seed_limit > 0
+                and len(raw_results) >= request.per_seed_limit
+            ):
+                break
 
         candidates: list[RecommendationCandidate] = []
         for index, item in enumerate(raw_results, start=1):
@@ -93,6 +107,41 @@ class JableSearchRecommender(AbstractRecommender):
             candidate.add_seed(seed)
             candidates.append(candidate)
 
+        return candidates
+
+    def recall_discovery_candidates(
+        self,
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        if request.discovery_limit <= 0:
+            return []
+
+        raw_results: list[dict] = []
+        if request.include_hot_board:
+            raw_results.extend(self.jable.discover_hot_items(page=1))
+        if request.include_latest_updates:
+            raw_results.extend(self.jable.discover_latest_updates(page=1))
+
+        candidates: list[RecommendationCandidate] = []
+        seen_avids: set[str] = set()
+        for index, item in enumerate(raw_results, start=1):
+            avid = str(item.get("avid", "")).strip().upper()
+            if not avid or avid in seen_avids:
+                continue
+            seen_avids.add(avid)
+            candidates.append(
+                RecommendationCandidate(
+                    avid=avid,
+                    title=str(item.get("title", "")).strip(),
+                    detail_url=str(item.get("detail_url", "")).strip(),
+                    cover_url=str(item.get("cover_url", "")).strip(),
+                    source=str(item.get("source", "Jable")).strip() or "Jable",
+                    search_rank=index,
+                    raw_metrics=dict(item.get("metrics") or {}),
+                )
+            )
+            if len(candidates) >= request.discovery_limit:
+                break
         return candidates
 
     def rerank_candidates(
@@ -157,6 +206,102 @@ class JableSearchRecommender(AbstractRecommender):
     def _merge_metrics(self, base: dict, extra: dict) -> dict:
         merged = dict(base or {})
         for key, value in (extra or {}).items():
+            if key == "discovery_sources":
+                existing_values = list(merged.get(key) or [])
+                for source in value or []:
+                    if source not in existing_values:
+                        existing_values.append(source)
+                merged[key] = existing_values
+                continue
             if key not in merged or not merged[key]:
                 merged[key] = value
         return merged
+
+    def _merge_candidate(
+        self,
+        merged: dict[str, RecommendationCandidate],
+        candidate: RecommendationCandidate,
+    ) -> None:
+        existing = merged.get(candidate.avid)
+        if existing is None:
+            merged[candidate.avid] = candidate
+            return
+
+        for matched_seed in candidate.matched_seeds:
+            existing.add_seed(matched_seed)
+        existing.raw_metrics = self._merge_metrics(
+            existing.raw_metrics,
+            candidate.raw_metrics,
+        )
+        if not existing.title and candidate.title:
+            existing.title = candidate.title
+        if not existing.detail_url and candidate.detail_url:
+            existing.detail_url = candidate.detail_url
+        if not existing.cover_url and candidate.cover_url:
+            existing.cover_url = candidate.cover_url
+        if candidate.search_rank is not None:
+            if existing.search_rank is None:
+                existing.search_rank = candidate.search_rank
+            else:
+                existing.search_rank = min(
+                    existing.search_rank,
+                    candidate.search_rank,
+                )
+
+    def _search_terms_for_seed(self, seed: RecommendationSeed) -> list[str]:
+        search_terms: list[str] = []
+        seen: set[str] = set()
+        for term in [seed.value, *seed.aliases]:
+            normalized = str(term or "").strip()
+            if not normalized:
+                continue
+            token = normalized.casefold()
+            if token in seen:
+                continue
+            seen.add(token)
+            search_terms.append(normalized)
+        return search_terms
+
+    def _expand_seed_pool_if_needed(
+        self,
+        *,
+        seeds: list[RecommendationSeed],
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> tuple[list[RecommendationSeed], list[RecommendationCandidate]]:
+        if self.count_preferred_candidates(candidates, request) >= request.limit:
+            return seeds, candidates
+
+        expanded_seeds = list(seeds)
+        merged_candidates: dict[str, RecommendationCandidate] = {
+            candidate.avid: candidate for candidate in candidates
+        }
+        batch_size = max(request.actor_seed_limit + request.genre_seed_limit, 4)
+        expansion_rounds = 0
+
+        while (
+            self.count_preferred_candidates(list(merged_candidates.values()), request)
+            < request.limit
+            and expansion_rounds < 3
+        ):
+            extra_seeds = self.seed_provider.get_additional_seeds(
+                request,
+                used_seeds=expanded_seeds,
+                batch_size=batch_size,
+            )
+            if not extra_seeds:
+                break
+
+            expanded_seeds.extend(extra_seeds)
+            extra_candidates = self.recall_candidates(extra_seeds, request)
+            extra_candidates = self.exclude_existing_resources(
+                extra_candidates, request
+            )
+            extra_candidates = self.exclude_feedback_blocked_resources(
+                extra_candidates, request
+            )
+            for candidate in extra_candidates:
+                self._merge_candidate(merged_candidates, candidate)
+            expansion_rounds += 1
+
+        return expanded_seeds, list(merged_candidates.values())

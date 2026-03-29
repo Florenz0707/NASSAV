@@ -112,6 +112,103 @@ def test_jable_search_uses_fetch_html(monkeypatch):
     assert results[0]["metrics"]["likes"] == 67
 
 
+def test_jable_discover_hot_items_uses_async_hot_board_urls(monkeypatch):
+    jable = Jable()
+
+    captured_urls = []
+
+    def fake_fetch_html(url, referer=""):
+        captured_urls.append((url, referer))
+        if "sort_by=video_viewed_today" in url:
+            return """
+            <div class="video-img-box mb-e-20">
+              <div class="img-box cover-md">
+                <a href="/videos/abc-123/">
+                  <img data-src="https://example.com/abc.jpg">
+                </a>
+              </div>
+              <div class="detail">
+                <h6 class="title"><a href="/videos/abc-123/">ABC-123 Demo</a></h6>
+                <p class="sub-title">12 345 67</p>
+              </div>
+            </div>
+            """
+        if "sort_by=video_viewed_week" in url:
+            return """
+            <div class="video-img-box mb-e-20">
+              <div class="img-box cover-md">
+                <a href="/videos/def-456/">
+                  <img data-src="https://example.com/def.jpg">
+                </a>
+              </div>
+              <div class="detail">
+                <h6 class="title"><a href="/videos/def-456/">DEF-456 Demo</a></h6>
+                <p class="sub-title">8 765 43</p>
+              </div>
+            </div>
+            """
+        return ""
+
+    monkeypatch.setattr(jable, "fetch_html", fake_fetch_html)
+
+    results = jable.discover_hot_items()
+
+    assert [item["avid"] for item in results] == ["ABC-123", "DEF-456"]
+    assert captured_urls == [
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_today",
+            "https://jable.tv/hot/",
+        ),
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_week",
+            "https://jable.tv/hot/",
+        ),
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed_month",
+            "https://jable.tv/hot/",
+        ),
+        (
+            "https://jable.tv/hot/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed",
+            "https://jable.tv/hot/",
+        ),
+    ]
+    assert results[0]["metrics"]["discovery_sources"] == ["hot_board"]
+    assert results[0]["metrics"]["hot_board_sort"] == "video_viewed_today"
+    assert results[1]["metrics"]["hot_board_sort"] == "video_viewed_week"
+
+
+def test_jable_discover_latest_updates_uses_latest_updates_path(monkeypatch):
+    jable = Jable()
+
+    captured = {}
+
+    def fake_fetch_html(url, referer=""):
+        captured["url"] = url
+        captured["referer"] = referer
+        return """
+        <div class="video-img-box mb-e-20">
+          <div class="img-box cover-md">
+            <a href="/videos/ghi-789/">
+              <img data-src="https://example.com/ghi.jpg">
+            </a>
+          </div>
+          <div class="detail">
+            <h6 class="title"><a href="/videos/ghi-789/">GHI-789 Demo</a></h6>
+            <p class="sub-title">9 999 88</p>
+          </div>
+        </div>
+        """
+
+    monkeypatch.setattr(jable, "fetch_html", fake_fetch_html)
+
+    results = jable.discover_latest_updates()
+
+    assert captured["url"] == "https://jable.tv/latest-updates/"
+    assert captured["referer"] == "https://jable.tv/latest-updates/"
+    assert results[0]["avid"] == "GHI-789"
+    assert results[0]["metrics"]["discovery_sources"] == ["latest_updates"]
+
+
 @pytest.mark.parametrize(
     ("title", "detail_url", "expected"),
     [

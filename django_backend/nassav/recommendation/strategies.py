@@ -2,6 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .factors import (
+    DiscoverySourceFactor,
     FeedbackSignalFactor,
     MultiSeedBonusFactor,
     NoveltyFactor,
@@ -53,6 +54,9 @@ def build_local_preference_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.5),
             lambda: SearchRankFactor(max_bonus=1.8, decay=0.18),
             lambda: PopularityFactor(),
+            lambda: DiscoverySourceFactor(
+                hot_board_bonus=0.95, latest_updates_bonus=0.7
+            ),
             lambda: FeedbackSignalFactor(avid_weight=2.5, seed_weight=1.7),
             lambda: NoveltyFactor(
                 fresh_bonus=0.7,
@@ -68,6 +72,9 @@ def build_local_preference_strategy() -> RecommendationStrategy:
             "genre_seed_limit": 5,
             "seed_types": ["actor", "genre"],
             "exclude_existing": True,
+            "include_hot_board": True,
+            "include_latest_updates": True,
+            "discovery_limit": 10,
         },
         recommender_kwargs={
             "diversity_penalty": 0.45,
@@ -94,6 +101,9 @@ def build_balanced_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.35),
             lambda: SearchRankFactor(max_bonus=2.0, decay=0.2),
             lambda: PopularityFactor(views_divisor=550000.0, likes_divisor=6000.0),
+            lambda: DiscoverySourceFactor(
+                hot_board_bonus=1.0, latest_updates_bonus=0.75
+            ),
             lambda: FeedbackSignalFactor(avid_weight=2.3, seed_weight=1.8),
             lambda: NoveltyFactor(
                 fresh_bonus=1.1,
@@ -109,6 +119,9 @@ def build_balanced_strategy() -> RecommendationStrategy:
             "genre_seed_limit": 5,
             "seed_types": ["actor", "genre"],
             "exclude_existing": True,
+            "include_hot_board": True,
+            "include_latest_updates": True,
+            "discovery_limit": 12,
         },
         recommender_kwargs={
             "diversity_penalty": 0.7,
@@ -135,6 +148,9 @@ def build_actor_heavy_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.2),
             lambda: SearchRankFactor(max_bonus=1.8, decay=0.18),
             lambda: PopularityFactor(),
+            lambda: DiscoverySourceFactor(
+                hot_board_bonus=0.8, latest_updates_bonus=0.5
+            ),
             lambda: FeedbackSignalFactor(avid_weight=2.6, seed_weight=1.5),
             lambda: NoveltyFactor(
                 fresh_bonus=0.45,
@@ -150,6 +166,9 @@ def build_actor_heavy_strategy() -> RecommendationStrategy:
             "genre_seed_limit": 3,
             "seed_types": ["actor", "genre"],
             "exclude_existing": True,
+            "include_hot_board": True,
+            "include_latest_updates": True,
+            "discovery_limit": 8,
         },
         recommender_kwargs={
             "diversity_penalty": 0.55,
@@ -178,6 +197,9 @@ def build_recent_favorite_strategy() -> RecommendationStrategy:
             lambda: MultiSeedBonusFactor(bonus_per_extra=1.4),
             lambda: SearchRankFactor(max_bonus=2.1, decay=0.18),
             lambda: PopularityFactor(views_divisor=600000.0, likes_divisor=6500.0),
+            lambda: DiscoverySourceFactor(
+                hot_board_bonus=0.9, latest_updates_bonus=0.9
+            ),
             lambda: FeedbackSignalFactor(avid_weight=2.4, seed_weight=1.9),
             lambda: NoveltyFactor(
                 fresh_bonus=0.95,
@@ -193,6 +215,9 @@ def build_recent_favorite_strategy() -> RecommendationStrategy:
             "genre_seed_limit": 4,
             "seed_types": ["actor", "genre"],
             "exclude_existing": True,
+            "include_hot_board": True,
+            "include_latest_updates": True,
+            "discovery_limit": 12,
         },
         recommender_kwargs={
             "diversity_penalty": 0.8,

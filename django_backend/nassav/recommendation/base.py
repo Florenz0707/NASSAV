@@ -33,6 +33,15 @@ class AbstractRecommender(ABC):
         candidates: list[RecommendationCandidate],
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
+        candidates = self.exclude_existing_resources(candidates, request)
+        candidates = self.exclude_feedback_blocked_resources(candidates, request)
+        return self.filter_recent_recommendations(candidates, request)
+
+    def exclude_existing_resources(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
         if not candidates:
             return candidates
 
@@ -48,16 +57,83 @@ class AbstractRecommender(ABC):
                 if candidate.avid not in existing_avids
             ]
 
+        return candidates
+
+    def exclude_feedback_blocked_resources(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        if not candidates or not request.blocked_feedback_avids:
+            return candidates
+
+        return [
+            candidate
+            for candidate in candidates
+            if candidate.avid not in request.blocked_feedback_avids
+        ]
+
+    def filter_recent_recommendations(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        if not candidates:
+            return candidates
+
+        if not request.recently_recommended_avids:
+            return candidates
+
+        recent_avids = set(request.recently_recommended_avids)
+        fresh_candidates = [
+            candidate for candidate in candidates if candidate.avid not in recent_avids
+        ]
+        if not fresh_candidates:
+            return candidates
+
+        if len(fresh_candidates) >= request.limit:
+            return fresh_candidates
+
+        supplemental_candidates = [
+            candidate for candidate in candidates if candidate.avid in recent_avids
+        ]
+        if supplemental_candidates:
+            return fresh_candidates + supplemental_candidates
+        return candidates
+
+    def count_preferred_candidates(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> int:
+        if not candidates:
+            return 0
+
+        if not request.recently_recommended_avids:
+            return len(candidates)
+
+        recent_avids = set(request.recently_recommended_avids)
+        return sum(1 for candidate in candidates if candidate.avid not in recent_avids)
+
+    def prioritize_fresh_candidates(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
         if not candidates or not request.recently_recommended_avids:
             return candidates
 
         recent_avids = set(request.recently_recommended_avids)
-        filtered_candidates = [
+        fresh_candidates = [
             candidate for candidate in candidates if candidate.avid not in recent_avids
         ]
-        if filtered_candidates:
-            return filtered_candidates
-        return candidates
+        if not fresh_candidates:
+            return candidates
+
+        recent_candidates = [
+            candidate for candidate in candidates if candidate.avid in recent_avids
+        ]
+        return fresh_candidates + recent_candidates
 
     def enrich_candidates(
         self,
@@ -98,6 +174,7 @@ class AbstractRecommender(ABC):
     ) -> list[RecommendationCandidate]:
         ranked = self.rank_candidates(candidates, request)
         reranked = self.rerank_candidates(ranked, request)
+        reranked = self.prioritize_fresh_candidates(reranked, request)
         return reranked[: request.limit]
 
     def rank_candidates(

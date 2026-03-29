@@ -99,6 +99,15 @@ def _parse_recommendation_request_params(query_params) -> dict:
         "recent_item_limit": _parse_positive_int(
             query_params.get("recent_item_limit"), 36
         ),
+        "include_hot_board": _parse_bool(
+            query_params.get("include_hot_board"),
+            True,
+        ),
+        "include_latest_updates": _parse_bool(
+            query_params.get("include_latest_updates"),
+            True,
+        ),
+        "discovery_limit": _parse_positive_int(query_params.get("discovery_limit"), 12),
     }
 
 

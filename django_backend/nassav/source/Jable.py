@@ -1,6 +1,6 @@
 import re
 from typing import Optional
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urlencode, urljoin
 
 from bs4 import BeautifulSoup
 from django.conf import settings
@@ -11,6 +11,13 @@ from nassav.source.SourceBase import SourceBase
 
 class Jable(SourceBase):
     """Jable下载器"""
+
+    HOT_BOARD_SORTS = [
+        "video_viewed_today",
+        "video_viewed_week",
+        "video_viewed_month",
+        "video_viewed",
+    ]
 
     def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
         super().__init__(proxy, timeout)
@@ -131,11 +138,132 @@ class Jable(SourceBase):
             logger.error(f"Jable.search 解析失败: {e}")
             return []
 
+    def discover_hot_items(self, page: int = 1) -> list[dict]:
+        referer = f"https://{self.domain}/hot/"
+        merged_results: list[dict] = []
+        seen_avids: set[str] = set()
+
+        for sort_by in self.HOT_BOARD_SORTS:
+            url = self._build_hot_board_url(sort_by=sort_by, page=page)
+            for item in self._discover_results_from_url(
+                url=url,
+                referer=referer,
+                source_label="hot_board",
+                extra_metrics={"hot_board_sort": sort_by},
+            ):
+                avid = str(item.get("avid", "")).strip().upper()
+                if not avid or avid in seen_avids:
+                    continue
+                seen_avids.add(avid)
+                merged_results.append(item)
+
+        if merged_results:
+            return merged_results
+
+        logger.warning("Jable.hot_board 未获取到可用候选")
+        return []
+
+    def discover_latest_updates(self, page: int = 1) -> list[dict]:
+        return self._discover_results_from_url(
+            url=self._build_listing_url("/latest-updates/", page=page),
+            referer=f"https://{self.domain}/latest-updates/",
+            source_label="latest_updates",
+        )
+
     def _build_search_url(self, keyword: str, page: int = 1) -> str:
         encoded = quote(keyword.strip())
         if page <= 1:
             return f"https://{self.domain}/search/{encoded}/"
         return f"https://{self.domain}/search/{encoded}/?page={page}"
+
+    def _discover_listing(
+        self,
+        path_candidates: list[str],
+        *,
+        page: int,
+        source_label: str,
+    ) -> list[dict]:
+        referer = f"https://{self.domain}/"
+        for path in path_candidates:
+            url = self._build_listing_url(path, page=page)
+            html = self.fetch_html(url, referer=referer)
+            if not html:
+                continue
+
+            try:
+                items = self._parse_search_results(html)
+            except Exception as e:
+                logger.error(f"Jable.{source_label} 解析失败: {e}. url={url}")
+                continue
+
+            if not items:
+                continue
+
+            for item in items:
+                metrics = dict(item.get("metrics") or {})
+                discovery_sources = list(metrics.get("discovery_sources") or [])
+                if source_label not in discovery_sources:
+                    discovery_sources.append(source_label)
+                metrics["discovery_sources"] = discovery_sources
+                item["metrics"] = metrics
+            return items
+
+        logger.warning(f"Jable.{source_label} 未获取到可用候选")
+        return []
+
+    def _discover_results_from_url(
+        self,
+        *,
+        url: str,
+        referer: str,
+        source_label: str,
+        extra_metrics: dict | None = None,
+    ) -> list[dict]:
+        html = self.fetch_html(url, referer=referer)
+        if not html:
+            return []
+
+        try:
+            items = self._parse_search_results(html)
+        except Exception as e:
+            logger.error(f"Jable.{source_label} 解析失败: {e}. url={url}")
+            return []
+
+        if not items:
+            return []
+
+        for item in items:
+            metrics = dict(item.get("metrics") or {})
+            if extra_metrics:
+                for key, value in extra_metrics.items():
+                    if key not in metrics:
+                        metrics[key] = value
+            discovery_sources = list(metrics.get("discovery_sources") or [])
+            if source_label not in discovery_sources:
+                discovery_sources.append(source_label)
+            metrics["discovery_sources"] = discovery_sources
+            item["metrics"] = metrics
+        return items
+
+    def _build_listing_url(self, path: str, *, page: int = 1) -> str:
+        normalized_path = str(path or "/").strip() or "/"
+        if not normalized_path.startswith("/"):
+            normalized_path = f"/{normalized_path}"
+        if page <= 1:
+            return f"https://{self.domain}{normalized_path}"
+        separator = "&" if "?" in normalized_path else "?"
+        return f"https://{self.domain}{normalized_path}{separator}page={page}"
+
+    def _build_hot_board_url(self, *, sort_by: str, page: int = 1) -> str:
+        query = {
+            "mode": "async",
+            "function": "get_block",
+            "block_id": "list_videos_common_videos_list",
+            "sort_by": sort_by,
+        }
+        if page > 1:
+            query["page"] = str(page)
+        return f"https://{self.domain}/hot/?{urlencode(query)}"
 
     def _parse_search_results(self, html: str) -> list[dict]:
         soup = BeautifulSoup(html, "html.parser")

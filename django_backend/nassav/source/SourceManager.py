@@ -195,15 +195,24 @@ class SourceManager:
 
                 # 重建 AVDownloadInfo 对象
                 if info_dict:
+                    source = self.sources.get(source_name)
+                    source_title = info_dict.get("source_title", "")
+                    if not source_title and html and source is not None:
+                        try:
+                            repaired_info = source.parse_html(html)
+                            if repaired_info is not None:
+                                source_title = repaired_info.source_title
+                        except Exception as e:
+                            logger.warning(f"缓存 source_title 修复失败: {e}")
+
                     info = AVDownloadInfo(
                         avid=info_dict.get("avid", ""),
                         title=info_dict.get("title", ""),
                         m3u8=info_dict.get("m3u8", ""),
+                        source_title=source_title,
                         source=info_dict.get("source", ""),
                         duration=info_dict.get("duration", ""),
                     )
-                    # 获取对应的 source 对象
-                    source = self.sources.get(source_name)
                     return info, source, html, errors
             except Exception as e:
                 logger.warning(f"缓存数据反序列化失败: {e}")
@@ -244,6 +253,7 @@ class SourceManager:
                                 "avid": info.avid,
                                 "title": info.title,
                                 "m3u8": info.m3u8,
+                                "source_title": info.source_title,
                                 "source": info.source,
                                 "duration": info.duration,
                             },

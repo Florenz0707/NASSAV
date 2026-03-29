@@ -108,3 +108,33 @@ def test_recommender_manager_keeps_registry_in_class_metadata():
     assert "STRATEGY_BUILDERS" in type(manager).__dict__
     assert "RECOMMENDER_META" not in manager.__dict__
     assert "STRATEGY_BUILDERS" not in manager.__dict__
+
+
+@pytest.mark.django_db
+def test_source_manager_cache_preserves_source_title():
+    from django.core.cache import cache
+    from nassav.source.SourceManager import SourceManager
+
+    manager = SourceManager()
+    cache.set(
+        "source_info:ABC-123",
+        {
+            "info": {
+                "avid": "ABC-123",
+                "title": "Original Title",
+                "m3u8": "https://example.com/test.m3u8",
+                "source_title": "ABC-123 Source Title",
+                "source": "Jable",
+                "duration": "120",
+            },
+            "source_name": "Jable",
+            "html": "<html></html>",
+            "errors": {},
+        },
+        timeout=3600,
+    )
+
+    info, _, _, _ = manager.get_info_from_any_source("ABC-123")
+
+    assert info is not None
+    assert info.source_title == "ABC-123 Source Title"
