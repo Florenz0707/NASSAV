@@ -1,3 +1,5 @@
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -5,6 +7,7 @@ from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
 from nassav.scraper import AVDownloadInfo
+from nassav.source.CookieRepository import source_cookie_repository
 from nassav.source import Jable, Memo, MissAV, SourceBase
 
 
@@ -31,13 +34,15 @@ def normalize_source_title(avid: str, source_title: str) -> str:
 class SourceManager:
     """下载器管理器"""
 
+    LOCAL_COOKIE_CACHE_TTL = 30.0
+
     # 下载器类映射
     SOURCE_CLASSES = {"missav": MissAV, "jable": Jable, "memo": Memo}
 
     def __init__(self):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         self.sources: Dict[str, SourceBase] = {}
-        self._cookies_loaded = False
+        self._runtime_cookie_cache: Dict[str, "_CookieRuntimeState"] = {}
 
         # 注册下载器，根据配置中的权重
         source_config = settings.SOURCE_CONFIG
@@ -50,30 +55,49 @@ class SourceManager:
                 source = source_class(proxy)
                 self.sources[source.get_source_name()] = source
 
-        # Cookie 将在首次使用时懒加载
+    def refresh_source_cookie(self, source_name: str, *, force: bool = False) -> str:
+        target = self._get_source(source_name)
+        if target is None:
+            return ""
 
-    def _ensure_cookies_loaded(self):
-        """确保cookie已加载（懒加载）"""
-        if not self._cookies_loaded:
-            self.load_cookies_from_db()
-            self._cookies_loaded = True
+        normalized = source_name.lower()
+        runtime_state = self._runtime_cookie_cache.get(normalized)
+        now = time.monotonic()
+        if not force and runtime_state is not None and runtime_state.expires_at > now:
+            current_cookie = str(target.cookie or "")
+            if current_cookie and current_cookie != runtime_state.cookie:
+                self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
+                    cookie=current_cookie,
+                    expires_at=now + self.LOCAL_COOKIE_CACHE_TTL,
+                )
+                return current_cookie
+            target.set_cookie(runtime_state.cookie)
+            return runtime_state.cookie
 
-    def load_cookies_from_db(self):
-        """从数据库加载所有源的 cookie"""
-        try:
-            from nassav.models import SourceCookie
+        cookie = source_cookie_repository.get_cookie(source_name)
+        target.set_cookie(cookie)
+        self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
+            cookie=cookie,
+            expires_at=now + self.LOCAL_COOKIE_CACHE_TTL,
+        )
+        return cookie
 
-            cookies = SourceCookie.objects.all()
-            for cookie_obj in cookies:
-                source_name = cookie_obj.source_name.lower()
-                # 查找对应的源（不区分大小写）
-                for name, source in self.sources.items():
-                    if name.lower() == source_name:
-                        source.set_cookie(cookie_obj.cookie)
-                        logger.info(f"从数据库加载 {name} 的 Cookie")
-                        break
-        except Exception as e:
-            logger.warning(f"从数据库加载 Cookie 失败: {e}")
+    def set_runtime_source_cookie(self, source_name: str, cookie: str) -> None:
+        target = self._get_source(source_name)
+        if target is None:
+            return
+
+        normalized = source_name.lower()
+        target.set_cookie(cookie)
+        self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
+            cookie=cookie,
+            expires_at=time.monotonic() + self.LOCAL_COOKIE_CACHE_TTL,
+        )
+
+    def invalidate_source_cookie_cache(self, source_name: str) -> None:
+        normalized = source_name.lower()
+        self._runtime_cookie_cache.pop(normalized, None)
+        source_cookie_repository.invalidate_cookie(source_name)
 
     def set_source_cookie(self, source_name: str, cookie: str) -> bool:
         """
@@ -97,16 +121,10 @@ class SourceManager:
             return False
 
         # 更新内存中的 cookie
-        target_source.set_cookie(cookie)
-        logger.info(f"已设置 {actual_name} 的 Cookie")
-
-        # 更新数据库
         try:
-            from nassav.models import SourceCookie
-
-            SourceCookie.objects.update_or_create(
-                source_name=actual_name.lower(), defaults={"cookie": cookie}
-            )
+            source_cookie_repository.set_cookie(actual_name, cookie)
+            self.set_runtime_source_cookie(actual_name, cookie)
+            logger.info(f"已设置 {actual_name} 的 Cookie")
             return True
         except Exception as e:
             logger.error(f"保存 Cookie 到数据库失败: {e}")
@@ -170,11 +188,10 @@ class SourceManager:
                 # 缓存损坏，删除并继续正常流程
                 cache.delete(cache_key)
 
-        self._ensure_cookies_loaded()
-
         errors: Dict[str, int | None] = {}
 
         for name, source in self.get_sorted_sources():
+            self.refresh_source_cookie(name)
             logger.info(f"尝试从 {name} 获取 {avid}")
             # 重置源上的上次错误码
             try:
@@ -233,8 +250,6 @@ class SourceManager:
         从指定源获取信息
         返回: (info, source, html, errors)
         """
-        self._ensure_cookies_loaded()
-
         errors: Dict[str, int | None] = {}
 
         # 查找对应的下载器（不区分大小写）
@@ -248,6 +263,7 @@ class SourceManager:
             logger.warning(f"未找到源 {source_str} 对应的下载器")
             return None, None, None, errors
 
+        self.refresh_source_cookie(source.get_source_name())
         logger.info(f"从 {source_str} 刷新 {avid}")
         try:
             source.last_error_code = None
@@ -295,6 +311,18 @@ class SourceManager:
             except Exception as e:
                 logger.error(f"读取缓存 HTML 失败: {e}")
         return None
+
+    def _get_source(self, source_name: str) -> Optional[SourceBase]:
+        for name, source in self.sources.items():
+            if name.lower() == source_name.lower():
+                return source
+        return None
+
+
+@dataclass
+class _CookieRuntimeState:
+    cookie: str
+    expires_at: float
 
 
 source_manager = SourceManager()

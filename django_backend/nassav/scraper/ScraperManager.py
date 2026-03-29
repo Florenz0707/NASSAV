@@ -42,6 +42,10 @@ class ScraperManager:
         return [(name, scraper) for name, scraper in self.scrapers.items()]
 
     def scrape(self, avid: str) -> Optional[dict]:
+        metadata, _ = self.scrape_with_source(avid)
+        return metadata
+
+    def scrape_with_source(self, avid: str) -> tuple[Optional[dict], Optional[str]]:
         """
         遍历所有刮削器获取元数据
         返回第一个成功获取的元数据
@@ -55,40 +59,55 @@ class ScraperManager:
         cached_metadata = cache.get(cache_key)
         if cached_metadata:
             logger.info(f"从缓存获取 {avid} 的元数据")
-            return cached_metadata
+            if isinstance(cached_metadata, dict) and "metadata" in cached_metadata:
+                return cached_metadata.get("metadata"), cached_metadata.get(
+                    "scraper_name"
+                )
+            return cached_metadata, None
 
         # 缓存未命中，遍历刮削器
         for name, scraper in self.get_scrapers():
             metadata = scraper.scrape(avid)
             if metadata:
-                # 保存成功的scraper引用，供download_cover使用
-                self._last_successful_scraper = scraper
-
                 # 缓存元数据
                 try:
-                    cache.set(cache_key, metadata, timeout=3600)  # 缓存1小时
+                    cache.set(
+                        cache_key,
+                        {
+                            "metadata": metadata,
+                            "scraper_name": name,
+                        },
+                        timeout=3600,
+                    )  # 缓存1小时
                     logger.info(f"已缓存 {avid} 的元数据")
                 except Exception as e:
                     logger.warning(f"缓存元数据失败: {e}")
 
-                return metadata
+                return metadata, name
 
         logger.warning(f"无法从任何刮削源获取 {avid} 的元数据")
-        return None
+        return None, None
 
-    def download_cover(self, url: str, save_path: str) -> bool:
-        """下载封面图片（委托给最近成功的scraper）
+    def download_cover(
+        self,
+        url: str,
+        save_path: str,
+        scraper_name: str | None = None,
+    ) -> bool:
+        """下载封面图片
 
         Args:
             url: 封面图片URL
             save_path: 保存路径
+            scraper_name: 指定使用的 scraper 名称
 
         Returns:
             bool: 下载成功返回True，否则返回False
         """
-        # 使用最近成功刮削的scraper来下载封面（确保使用正确的domain和Referer）
-        if hasattr(self, "_last_successful_scraper"):
-            return self._last_successful_scraper.download_cover(url, save_path)
+        if scraper_name:
+            scraper = self.scrapers.get(scraper_name)
+            if scraper:
+                return scraper.download_cover(url, save_path)
 
         # 如果没有成功的scraper记录，尝试使用第一个注册的scraper
         scrapers = self.get_scrapers()

@@ -41,13 +41,20 @@ def test_cover_download_priority():
         html = "<html></html>"
 
         # 测试_download_cover方法
-        result = service._download_cover("TEST-001", scraped_data, mock_source, html)
+        result = service._download_cover(
+            "TEST-001",
+            scraped_data,
+            "Javbus",
+            mock_source,
+            html,
+        )
 
         # 验证使用了scraper.download_cover（Javbus封面）
         assert mock_download.called
         call_args = mock_download.call_args
         downloaded_url = call_args[0][0]
         assert "javbus.com" in downloaded_url
+        assert call_args.kwargs["scraper_name"] == "Javbus"
         # Source的download_file不应该被调用
         assert not mock_source.download_file.called
         assert result is True
@@ -83,7 +90,7 @@ def test_cover_fallback_to_source():
     html = "<html></html>"
 
     # 测试_download_cover方法
-    result = service._download_cover("TEST-002", scraped_data, mock_source, html)
+    result = service._download_cover("TEST-002", scraped_data, None, mock_source, html)
 
     # 验证调用了Source的get_cover_url
     assert mock_source.get_cover_url.called
@@ -125,7 +132,7 @@ def test_no_cover_available():
     html = "<html></html>"
 
     # 测试_download_cover方法
-    result = service._download_cover("TEST-003", scraped_data, mock_source, html)
+    result = service._download_cover("TEST-003", scraped_data, None, mock_source, html)
 
     # 验证cover_saved为False
     assert result is False

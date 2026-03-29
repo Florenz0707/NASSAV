@@ -286,14 +286,14 @@
 
 ### P0 Checklist
 
-- [ ] 明确 `SourceCookie` 是唯一真值
-- [ ] 明确 Cookie 进程内副本只是 cache，不是 source of truth
-- [ ] 去除 `SourceManager._cookies_loaded` 的一次性加载语义
-- [ ] 为 Cookie 增加统一读取入口，不再由各处自行决定何时读库
-- [ ] API 更新 Cookie 后，清理对应 source 的进程内缓存 / Django cache
+- [x] 明确 `SourceCookie` 是唯一真值
+- [x] 明确 Cookie 进程内副本只是 cache，不是 source of truth
+- [x] 去除 `SourceManager._cookies_loaded` 的一次性加载语义
+- [x] 为 Cookie 增加统一读取入口，不再由各处自行决定何时读库
+- [x] API 更新 Cookie 后，清理对应 source 的进程内缓存 / Django cache
 - [ ] 设计并实现 Cookie TTL 或版本校验机制
-- [ ] 去除 `ScraperManager._last_successful_scraper`
-- [ ] 将 scraper 选择改为请求内显式传递
+- [x] 去除 `ScraperManager._last_successful_scraper`
+- [x] 将 scraper 选择改为请求内显式传递
 
 ### P1 Checklist
 

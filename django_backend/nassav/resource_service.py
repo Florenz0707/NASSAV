@@ -458,15 +458,22 @@ class ResourceService:
         # Step 2: 刮削Javbus元数据（可选）
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         scraped_data = None
+        scraped_by = None
         if scrape:
-            scraped_data = self._scrape_metadata(avid)
+            scraped_data, scraped_by = self._scrape_metadata(avid)
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 3: 下载封面图片（可选）
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         cover_saved = False
         if download_cover:
-            cover_saved = self._download_cover(avid, scraped_data, source_inst, html)
+            cover_saved = self._download_cover(
+                avid,
+                scraped_data,
+                scraped_by,
+                source_inst,
+                html,
+            )
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 4: 保存到数据库
@@ -500,7 +507,7 @@ class ResourceService:
         logger.info(f"[ResourceService] 资源 {avid} 保存完成")
         return result
 
-    def _scrape_metadata(self, avid: str) -> Optional[dict]:
+    def _scrape_metadata(self, avid: str) -> tuple[Optional[dict], Optional[str]]:
         """
         刮削Javbus元数据
 
@@ -515,19 +522,20 @@ class ResourceService:
             }
         """
         logger.info(f"[ResourceService] 开始刮削元数据: {avid}")
-        scraped_data = self.scraper_manager.scrape(avid)
+        scraped_data, scraper_name = self.scraper_manager.scrape_with_source(avid)
 
         if scraped_data:
             logger.info(f"[ResourceService] 刮削成功: {avid}")
         else:
             logger.warning(f"[ResourceService] 刮削失败: {avid}")
 
-        return scraped_data
+        return scraped_data, scraper_name
 
     def _download_cover(
         self,
         avid: str,
         scraped_data: Optional[dict],
+        scraped_by: Optional[str],
         source_inst: SourceBase | None,
         html: str | None,
     ) -> bool:
@@ -549,7 +557,11 @@ class ResourceService:
         # 策略1: 尝试Javbus封面
         if scraped_data and scraped_data.get("cover_url"):
             cover_url = scraped_data["cover_url"]
-            if self.scraper_manager.download_cover(cover_url, str(cover_path)):
+            if self.scraper_manager.download_cover(
+                cover_url,
+                str(cover_path),
+                scraper_name=scraped_by,
+            ):
                 logger.info(f"[ResourceService] 从Javbus下载封面成功: {avid}")
                 return True
 

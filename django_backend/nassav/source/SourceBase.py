@@ -6,6 +6,7 @@ from curl_cffi.requests.exceptions import HTTPError
 from loguru import logger
 from nassav.constants import HEADERS, IMPERSONATE
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
+from nassav.source.CookieRepository import source_cookie_repository
 
 
 class ISource(Protocol):
@@ -90,19 +91,16 @@ class SourceBase:
         try:
             from time import sleep
 
-            from nassav.models import SourceCookie
-
             source_name = self.get_source_name()
 
             # 如果不强制刷新，先尝试从数据库加载
             if not force_refresh:
-                try:
-                    cookie_obj = SourceCookie.objects.get(source_name=source_name)
-                    self.cookie = cookie_obj.cookie
+                cookie = source_cookie_repository.get_cookie(source_name)
+                if cookie:
+                    self.cookie = cookie
                     logger.info(f"{source_name}: 从数据库加载cookie")
                     return True
-                except SourceCookie.DoesNotExist:
-                    logger.info(f"{source_name}: 数据库中无cookie，开始自动获取")
+                logger.info(f"{source_name}: 数据库中无cookie，开始自动获取")
 
             home_url = self._get_home_url()
             headers = HEADERS.copy()
@@ -136,9 +134,7 @@ class SourceBase:
                         f"{source_name}: 成功获取cookie: {list(cookies.keys())}"
                     )
 
-                    SourceCookie.objects.update_or_create(
-                        source_name=source_name, defaults={"cookie": cookie_str}
-                    )
+                    source_cookie_repository.set_cookie(source_name, cookie_str)
                     logger.info(f"{source_name}: Cookie已保存到数据库")
                     self.cookie = cookie_str
                     return True
@@ -156,13 +152,11 @@ class SourceBase:
             bool: 是否成功加载
         """
         try:
-            from nassav.models import SourceCookie
-
             source_name = self.get_source_name()
-            cookie_obj = SourceCookie.objects.get(source_name=source_name)
-            self.cookie = cookie_obj.cookie
+            cookie = source_cookie_repository.get_cookie(source_name)
+            self.cookie = cookie
             logger.info(f"{source_name}: 从数据库加载cookie成功")
-            return True
+            return bool(cookie)
         except Exception as e:
             logger.warning(
                 f"{self.get_source_name()}: 从数据库加载cookie失败: {str(e)}"

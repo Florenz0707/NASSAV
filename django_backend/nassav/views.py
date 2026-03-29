@@ -167,6 +167,10 @@ class SourceCookieView(APIView):
                     logger.error(f"自动获取 Cookie 失败: {e}")
 
                 if success:
+                    source_manager.set_runtime_source_cookie(
+                        source_name,
+                        str(source_instance.cookie or ""),
+                    )
                     return Response(
                         {
                             "code": 200,
