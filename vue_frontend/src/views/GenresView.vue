@@ -38,25 +38,19 @@
       </div>
 
       <div class="flex gap-3 items-center">
-        <select
+        <CustomSelect
           v-model="sortBy"
-          class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
-          style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
-          @change="onSortChange"
-        >
-          <option value="name">按类别名称</option>
-          <option value="count">按作品数</option>
-        </select>
+          :options="sortByOptions"
+          class="min-w-[10rem]"
+          @update:model-value="onSortChange"
+        />
 
-        <select
+        <CustomSelect
           v-model="sortOrder"
-          class="py-3.5 px-4 rounded-xl text-[var(--text-primary)] text-sm cursor-pointer"
-          style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
-          @change="onSortChange"
-        >
-          <option value="desc">降序</option>
-          <option value="asc">升序</option>
-        </select>
+          :options="sortOrderOptions"
+          class="min-w-[8rem]"
+          @update:model-value="onSortChange"
+        />
       </div>
     </div>
 
@@ -152,13 +146,14 @@
 
 <script>
 import GenreGroupCard from '../components/GenreGroupCard.vue'
+import CustomSelect from '../components/CustomSelect.vue'
 import { useGenreGroupsStore } from '../stores/genreGroups'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 export default {
   name: 'GenresView',
-  components: { GenreGroupCard },
+  components: { GenreGroupCard, CustomSelect },
   setup() {
     const store = useGenreGroupsStore()
     const route = useRoute()
@@ -171,6 +166,14 @@ export default {
     const searchQuery = ref(route.query.search || '')
     const sortBy = ref(route.query.sortBy || 'count')
     const sortOrder = ref(route.query.order || 'desc')
+    const sortByOptions = [
+      { value: 'name', label: '按类别名称' },
+      { value: 'count', label: '按作品数' },
+    ]
+    const sortOrderOptions = [
+      { value: 'desc', label: '降序' },
+      { value: 'asc', label: '升序' },
+    ]
 
     async function loadPage(p = 1) {
       // ensure we pass plain numbers
@@ -267,7 +270,9 @@ export default {
       loadPage,
       searchQuery,
       sortBy,
+      sortByOptions,
       sortOrder,
+      sortOrderOptions,
       onSortChange,
     }
   },

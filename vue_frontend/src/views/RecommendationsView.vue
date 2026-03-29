@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import CustomSelect from '../components/CustomSelect.vue'
 import RecommendationCard from '../components/RecommendationCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -78,6 +79,23 @@ const activeReasonItem = computed(() => {
   return visibleItems.value.find((item) => item.avid === activeReasonAvid.value) || null
 })
 const showInitialLoading = computed(() => loading.value && !visibleItems.value.length)
+const recommenderOptions = computed(() =>
+  (options.value.recommenders || []).map((item) => ({
+    value: item.id,
+    label: item.name,
+  }))
+)
+const strategyOptions = computed(() =>
+  availableStrategies.value.map((item) => ({
+    value: item.id,
+    label: item.name,
+  }))
+)
+const limitOptions = [
+  { value: 12, label: '12' },
+  { value: 24, label: '24' },
+  { value: 36, label: '36' },
+]
 
 function buildConfigKey() {
   return JSON.stringify({
@@ -403,11 +421,12 @@ onBeforeUnmount(() => {
       <div class="meta-card">
         <div class="meta-label">推荐器</div>
         <label class="meta-control">
-          <select v-model="selectedRecommender" class="meta-select">
-            <option v-for="item in options.recommenders" :key="item.id" :value="item.id">
-              {{ item.name }}
-            </option>
-          </select>
+          <CustomSelect
+            v-model="selectedRecommender"
+            :options="recommenderOptions"
+            class="meta-select"
+            full-width
+          />
         </label>
         <p class="meta-desc">
           {{
@@ -420,11 +439,12 @@ onBeforeUnmount(() => {
       <div class="meta-card strategy-card">
         <div class="meta-label">策略</div>
         <label class="meta-control">
-          <select v-model="selectedStrategy" class="meta-select">
-            <option v-for="item in availableStrategies" :key="item.id" :value="item.id">
-              {{ item.name }}
-            </option>
-          </select>
+          <CustomSelect
+            v-model="selectedStrategy"
+            :options="strategyOptions"
+            class="meta-select"
+            full-width
+          />
         </label>
         <p class="meta-desc">
           {{
@@ -437,11 +457,7 @@ onBeforeUnmount(() => {
       <div class="meta-card">
         <div class="meta-label">返回数量</div>
         <label class="meta-control">
-          <select v-model.number="limit" class="meta-select">
-            <option v-for="size in [12, 24, 36]" :key="size" :value="size">
-              {{ size }}
-            </option>
-          </select>
+          <CustomSelect v-model="limit" :options="limitOptions" class="meta-select" full-width />
         </label>
         <p class="meta-desc">默认返回 12 条推荐结果。</p>
       </div>
@@ -722,25 +738,13 @@ onBeforeUnmount(() => {
 .meta-select {
   width: 100%;
   min-height: 2.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0.95rem;
-  padding: 0.65rem 0.85rem;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
   font-size: 0.85rem;
   font-weight: 600;
-  appearance: none;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
+  padding-left: 0.85rem;
 }
 
 .meta-select:focus {
   outline: none;
-  border-color: rgba(255, 107, 107, 0.35);
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.12);
 }
 
 .strategy-card .meta-select:focus {

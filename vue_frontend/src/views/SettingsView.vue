@@ -4,6 +4,7 @@ import { sourceApi } from '../api'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import CustomSelect from '../components/CustomSelect.vue'
 import { AVAILABLE_FONTS } from '../config/fonts'
 
 const toastStore = useToastStore()
@@ -14,6 +15,15 @@ const activeMenu = ref('general')
 
 // 字体预览（临时变量，用于预览效果）
 const previewFont = ref('Mplus2')
+const displayTitleOptions = [
+  { value: 'translated_title', label: '翻译标题' },
+  { value: 'source_title', label: '源站标题' },
+  { value: 'original_title', label: '原始标题' },
+]
+const searchResultDisplayOptions = [
+  { value: 'grid', label: '标准网格' },
+  { value: 'masonry', label: '两列瀑布流' },
+]
 
 // 设置菜单项
 const menuItems = [
@@ -178,9 +188,9 @@ const handleSaveSettings = async () => {
 }
 
 // 组件挂载时加载数据
-onMounted(() => {
+onMounted(async () => {
   loadData()
-  settingsStore.loadSettings()
+  await settingsStore.loadSettings()
   // 初始化预览字体为当前设置
   previewFont.value = settingsStore.fontFamily
 })
@@ -440,19 +450,11 @@ onMounted(() => {
                         选择在资源列表中显示的标题类型
                       </div>
                     </div>
-                    <select
+                    <CustomSelect
                       v-model="settingsStore.displayTitle"
-                      class="px-4 py-2 rounded-lg text-sm focus:outline-none transition-all cursor-pointer"
-                      style="
-                        background: var(--bg-secondary);
-                        border: 1px solid var(--border-color);
-                        color: var(--text-primary);
-                      "
-                    >
-                      <option value="translated_title">翻译标题</option>
-                      <option value="source_title">源站标题</option>
-                      <option value="original_title">原始标题</option>
-                    </select>
+                      :options="displayTitleOptions"
+                      class="min-w-[10rem]"
+                    />
                   </div>
 
                   <!-- 搜索结果展示样式 -->
@@ -463,18 +465,11 @@ onMounted(() => {
                         控制推荐页搜索结果使用标准网格还是两列瀑布流
                       </div>
                     </div>
-                    <select
+                    <CustomSelect
                       v-model="settingsStore.searchResultDisplayStyle"
-                      class="px-4 py-2 rounded-lg text-sm focus:outline-none transition-all cursor-pointer"
-                      style="
-                        background: var(--bg-secondary);
-                        border: 1px solid var(--border-color);
-                        color: var(--text-primary);
-                      "
-                    >
-                      <option value="grid">标准网格</option>
-                      <option value="masonry">两列瀑布流</option>
-                    </select>
+                      :options="searchResultDisplayOptions"
+                      class="min-w-[12rem]"
+                    />
                   </div>
 
                   <!-- 字体样式 -->
@@ -484,23 +479,16 @@ onMounted(() => {
                         <div class="text-[var(--text-primary)] font-medium">字体样式</div>
                         <div class="text-sm text-[var(--text-muted)]">选择应用的全局字体样式</div>
                       </div>
-                      <select
+                      <CustomSelect
                         v-model="previewFont"
-                        class="px-4 py-2 rounded-lg text-sm focus:outline-none transition-all cursor-pointer"
-                        style="
-                          background: var(--bg-secondary);
-                          border: 1px solid var(--border-color);
-                          color: var(--text-primary);
+                        :options="
+                          AVAILABLE_FONTS.map((font) => ({
+                            value: font.value,
+                            label: `${font.label}${font.isDefault ? '（默认）' : ''}`,
+                          }))
                         "
-                      >
-                        <option
-                          v-for="font in AVAILABLE_FONTS"
-                          :key="font.value"
-                          :value="font.value"
-                        >
-                          {{ font.label }}{{ font.isDefault ? '（默认）' : '' }}
-                        </option>
-                      </select>
+                        class="min-w-[14rem]"
+                      />
                     </div>
                     <!-- 字体预览区域 -->
                     <div class="p-4 rounded-lg bg-white/[0.02] border border-white/[0.05]">

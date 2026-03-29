@@ -1,5 +1,8 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import CustomSelect from './CustomSelect.vue'
+
+const props = defineProps({
   searchQuery: {
     type: String,
     default: '',
@@ -55,6 +58,40 @@ function handleSortOrderChange(event) {
   emit('update:sortOrder', event.target.value)
   emit('sortChange')
 }
+
+const filterOptions = computed(() => {
+  const options = [
+    { value: 'all', label: '全部状态' },
+    { value: 'downloaded', label: '已下载' },
+    { value: 'pending', label: '未下载' },
+  ]
+  if (props.showWatchedFilter) {
+    options.push({ value: 'watched', label: '已观看' })
+    options.push({ value: 'unwatched', label: '未观看' })
+  }
+  if (props.showFavoriteFilter) {
+    options.push({ value: 'favorite', label: '已收藏' })
+  }
+  return options
+})
+
+const sortByOptions = computed(() => {
+  const options = [
+    { value: 'avid', label: '按编号' },
+    { value: 'metadata_create_time', label: '按元数据创建时间' },
+  ]
+  if (props.showMetadataUpdateSort) {
+    options.push({ value: 'metadata_update_time', label: '按元数据更新时间' })
+  }
+  options.push({ value: 'video_create_time', label: '按视频下载时间' })
+  options.push({ value: 'source', label: '按来源' })
+  return options
+})
+
+const sortOrderOptions = [
+  { value: 'desc', label: '降序' },
+  { value: 'asc', label: '升序' },
+]
 </script>
 
 <template>
@@ -86,38 +123,26 @@ function handleSortOrderChange(event) {
 
     <!-- Filters -->
     <div class="flex gap-3 flex-wrap">
-      <select
-        :value="filterStatus"
-        class="filter-select py-3.5 px-4 border rounded-xl text-sm cursor-pointer transition-all duration-200 focus:outline-none"
-        @change="handleFilterChange"
-      >
-        <option value="all">全部状态</option>
-        <option value="downloaded">已下载</option>
-        <option value="pending">未下载</option>
-        <option v-if="showWatchedFilter" value="watched">已观看</option>
-        <option v-if="showWatchedFilter" value="unwatched">未观看</option>
-        <option v-if="showFavoriteFilter" value="favorite">已收藏</option>
-      </select>
+      <CustomSelect
+        :model-value="filterStatus"
+        :options="filterOptions"
+        class="filter-select"
+        @update:model-value="handleFilterChange({ target: { value: $event } })"
+      />
 
-      <select
-        :value="sortBy"
-        class="filter-select py-3.5 px-4 border rounded-xl text-sm cursor-pointer transition-all duration-200 focus:outline-none"
-        @change="handleSortByChange"
-      >
-        <option value="avid">按编号</option>
-        <option value="metadata_create_time">按元数据创建时间</option>
-        <option v-if="showMetadataUpdateSort" value="metadata_update_time">按元数据更新时间</option>
-        <option value="video_create_time">按视频下载时间</option>
-        <option value="source">按来源</option>
-      </select>
-      <select
-        :value="sortOrder"
-        class="filter-select py-3.5 px-4 border rounded-xl text-sm cursor-pointer transition-all duration-200 focus:outline-none ml-2"
-        @change="handleSortOrderChange"
-      >
-        <option value="desc">降序</option>
-        <option value="asc">升序</option>
-      </select>
+      <CustomSelect
+        :model-value="sortBy"
+        :options="sortByOptions"
+        class="filter-select"
+        @update:model-value="handleSortByChange({ target: { value: $event } })"
+      />
+
+      <CustomSelect
+        :model-value="sortOrder"
+        :options="sortOrderOptions"
+        class="filter-select ml-2"
+        @update:model-value="handleSortOrderChange({ target: { value: $event } })"
+      />
     </div>
   </div>
 </template>
@@ -137,15 +162,9 @@ function handleSortOrderChange(event) {
 }
 
 .filter-select {
-  background: var(--bg-input);
-  border-color: var(--border-color);
-  color: var(--text-primary);
+  min-width: 8.5rem;
 }
 .filter-select:focus {
-  border-color: var(--accent-primary);
-}
-.filter-select option {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  outline: none;
 }
 </style>

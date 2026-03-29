@@ -5,6 +5,7 @@ import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import { resourceApi } from '../api'
+import CustomSelect from '../components/CustomSelect.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const router = useRouter()
@@ -16,6 +17,13 @@ const avid = ref('')
 const source = ref('any')
 const submitting = ref(false)
 const result = ref(null)
+const sourceOptions = computed(() => [
+  { value: 'any', label: '自动' },
+  ...resourceStore.sources.map((item) => ({
+    value: item.toLowerCase(),
+    label: item,
+  })),
+])
 
 // 根据设置选择显示的标题
 const displayedTitle = computed(() => {
@@ -224,12 +232,13 @@ function viewResource() {
 
         <div class="form-group">
           <label class="form-label">下载源</label>
-          <select v-model="source" class="form-select" :disabled="submitting">
-            <option value="any">自动</option>
-            <option v-for="s in resourceStore.sources" :key="s" :value="s.toLowerCase()">
-              {{ s }}
-            </option>
-          </select>
+          <CustomSelect
+            v-model="source"
+            :options="sourceOptions"
+            :disabled="submitting"
+            class="form-select"
+            full-width
+          />
           <p class="form-hint">选择自动将依次尝试所有可用源</p>
         </div>
 
@@ -521,8 +530,6 @@ function viewResource() {
 .form-select,
 .form-textarea {
   padding: 1rem 1.25rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
   border-radius: 12px;
   color: var(--text-primary);
   font-size: 1rem;
@@ -539,8 +546,6 @@ function viewResource() {
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
 }
 
 .form-input::placeholder,
@@ -550,11 +555,7 @@ function viewResource() {
 
 .form-select {
   cursor: pointer;
-}
-
-.form-select option {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  min-height: 3.25rem;
 }
 
 .form-hint {
