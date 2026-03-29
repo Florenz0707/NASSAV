@@ -23,9 +23,17 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  feedback: {
+    type: String,
+    default: '',
+  },
+  feedbackSubmitting: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-defineEmits(['add', 'open', 'view', 'reasons'])
+defineEmits(['add', 'open', 'view', 'reasons', 'feedback'])
 const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.cover_url))
 
 function formatCompactMetric(value) {
@@ -83,6 +91,25 @@ function formatCompactMetric(value) {
           {{
             `推荐评分：${Number(item.score || 0).toFixed(1)}，理由（${item.reasons?.length || 0}）`
           }}
+        </button>
+      </div>
+
+      <div class="feedback-row">
+        <button
+          class="feedback-btn"
+          :class="{ active: feedback === 'like' }"
+          :disabled="feedbackSubmitting"
+          @click="$emit('feedback', 'like')"
+        >
+          {{ feedback === 'like' ? '已标记喜欢' : '喜欢这条' }}
+        </button>
+        <button
+          class="feedback-btn negative"
+          :class="{ active: feedback === 'dislike' }"
+          :disabled="feedbackSubmitting"
+          @click="$emit('feedback', 'dislike')"
+        >
+          {{ feedback === 'dislike' ? '已标记不喜欢' : '减少这类' }}
         </button>
       </div>
 
@@ -213,6 +240,48 @@ function formatCompactMetric(value) {
 .reasons-wrap {
   display: flex;
   flex-direction: column;
+}
+
+.feedback-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.feedback-btn {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.82rem;
+  padding: 0.62rem 0.72rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.feedback-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.feedback-btn.active {
+  border-color: rgba(78, 205, 196, 0.34);
+  background: rgba(78, 205, 196, 0.14);
+  color: var(--text-primary);
+}
+
+.feedback-btn.negative.active {
+  border-color: rgba(255, 107, 107, 0.34);
+  background: rgba(255, 107, 107, 0.14);
+}
+
+.feedback-btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 .reason-toggle {

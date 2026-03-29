@@ -77,6 +77,18 @@
   - 约束：
     - `(snapshot, rank)` 唯一，保证每个快照中的排序位唯一。
 
+- **`RecommendationFeedback` (`nassav_recommendation_feedback`)**: 推荐反馈表。
+  - 关键字段：
+    - `item` (OneToOne FK): 对应的推荐结果明细。
+    - `avid` (Char, db_index): 被反馈的资源编号。
+    - `feedback` (Char, db_index): 显式反馈类型，当前支持 `like` / `dislike`。
+    - `feedback_value` (SmallInteger): 归一化后的反馈值，`like=1`，`dislike=-1`。
+    - `created_at` / `updated_at`: 反馈创建与最后更新时间。
+  - 用途：
+    - 记录用户对推荐结果的显式偏好
+    - 聚合为 `avid` 级别的直接偏好记忆
+    - 聚合为演员 / 类别 seed 级别的学习信号，参与后续推荐打分
+
 - **M2M 关系**：`AVResource.actors` 与 `AVResource.genres`（分别通过中间表保存关联）。
 
 ## 持久化 & 更新流程（简要）
@@ -118,7 +130,18 @@
   - 推荐执行完成后：
     - 写入一条 `RecommendationSnapshot`
     - 为每个返回项写入一条 `RecommendationItem`
+  - 执行推荐前还会读取 `RecommendationFeedback`：
+    - 聚合历史 `avid` 反馈，形成直接资源偏好分
+    - 聚合历史 `matched_seeds` 反馈，形成演员 / 类别 seed 偏好分
+    - 将这些学习信号注入 `RecommendationRequest`，供 `FeedbackSignalFactor` 参与打分
   - 若最近推荐过滤后没有剩余候选，会回退到不过滤历史的候选列表，避免返回空结果
+
+- 推荐反馈提交（API `POST /recommendations/feedback`）:
+  - 根据 `snapshot_id + avid` 定位唯一的 `RecommendationItem`
+  - 对该推荐项执行显式反馈 upsert：
+    - `like` 写为 `feedback_value=1`
+    - `dislike` 写为 `feedback_value=-1`
+    - `clear` 删除已有反馈记录
 
 ## 一致性与事务控制
 

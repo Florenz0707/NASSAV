@@ -3,6 +3,7 @@ from django.conf import settings
 from nassav.source import Jable
 
 from .entities import RecommendationExecution, RecommendationRequest
+from .feedback import recommendation_feedback_repository
 from .jable_search import JableSearchRecommender
 from .repository import recommendation_snapshot_repository
 from .strategies import (
@@ -129,6 +130,12 @@ class RecommenderManager:
                 item_limit=max(recommendation_request.recent_item_limit * 2, 48),
             )
         )
+        learning_profile = recommendation_feedback_repository.build_learning_profile()
+        recommendation_request.feedback_avid_scores = learning_profile.avid_scores
+        recommendation_request.feedback_seed_scores = learning_profile.seed_scores
+        recommendation_request.learned_feedback_count = learning_profile.feedback_count
+        recommendation_request.learned_avid_count = learning_profile.learned_avid_count
+        recommendation_request.learned_seed_count = learning_profile.learned_seed_count
         recommender = self.build_recommender(
             recommender_id=resolved_recommender_id,
             strategy=strategy,
@@ -151,6 +158,8 @@ class RecommenderManager:
         )
         snapshot = recommendation_snapshot_repository.save_execution(execution)
         execution.snapshot_id = int(snapshot.pk) if snapshot.pk is not None else None
+        for item in execution.run.items:
+            item.snapshot_id = execution.snapshot_id
         return execution
 
     def build_request(

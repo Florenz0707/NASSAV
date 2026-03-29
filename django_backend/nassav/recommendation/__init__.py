@@ -5,8 +5,19 @@ from .entities import (
     RecommendationRun,
     RecommendationSeed,
 )
-from .factors import MultiSeedBonusFactor, PopularityFactor, SeedWeightFactor
-from .factors import NoveltyFactor, SearchRankFactor
+from .factors import (
+    FeedbackSignalFactor,
+    MultiSeedBonusFactor,
+    NoveltyFactor,
+    PopularityFactor,
+    SearchRankFactor,
+    SeedWeightFactor,
+)
+from .feedback import (
+    RecommendationFeedbackError,
+    RecommendationLearningProfile,
+    recommendation_feedback_repository,
+)
 from .jable_search import JableSearchRecommender
 from .manager import RecommendationManagerError, RecommenderManager, recommender_manager
 from .seeds import LocalPreferenceSeedProvider
@@ -21,11 +32,14 @@ from .strategies import (
 __all__ = [
     "JableSearchRecommender",
     "LocalPreferenceSeedProvider",
+    "FeedbackSignalFactor",
     "MultiSeedBonusFactor",
     "NoveltyFactor",
     "PopularityFactor",
     "RecommendationCandidate",
     "RecommendationExecution",
+    "RecommendationFeedbackError",
+    "RecommendationLearningProfile",
     "RecommendationManagerError",
     "RecommendationRequest",
     "RecommendationRun",
@@ -38,5 +52,6 @@ __all__ = [
     "build_balanced_strategy",
     "build_local_preference_strategy",
     "build_recent_favorite_strategy",
+    "recommendation_feedback_repository",
     "recommender_manager",
 ]

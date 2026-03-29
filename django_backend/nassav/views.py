@@ -102,6 +102,30 @@ def _parse_recommendation_request_params(query_params) -> dict:
     }
 
 
+def _parse_recommendation_feedback_payload(data) -> dict:
+    snapshot_id = data.get("snapshot_id")
+    try:
+        parsed_snapshot_id = int(snapshot_id)
+        if parsed_snapshot_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise ValueError("snapshot_id 参数非法")
+
+    avid = str(data.get("avid", "")).strip().upper()
+    if not avid:
+        raise ValueError("avid 参数缺失")
+
+    feedback = str(data.get("feedback", "")).strip().lower()
+    if feedback not in {"like", "dislike", "clear"}:
+        raise ValueError("feedback 参数非法")
+
+    return {
+        "snapshot_id": parsed_snapshot_id,
+        "avid": avid,
+        "feedback": feedback,
+    }
+
+
 class SourceListView(APIView):
     """
     GET /api/source/list
@@ -589,6 +613,39 @@ class RecommendationOptionsView(APIView):
         from nassav.recommendation import recommender_manager
 
         return build_response(200, "success", recommender_manager.get_options())
+
+
+class RecommendationFeedbackView(APIView):
+    """POST /api/recommendations/feedback - 提交推荐结果反馈"""
+
+    def post(self, request):
+        from nassav.recommendation import (
+            RecommendationFeedbackError,
+            recommendation_feedback_repository,
+        )
+
+        try:
+            payload = _parse_recommendation_feedback_payload(request.data or {})
+        except ValueError as e:
+            return build_response(400, str(e), None)
+
+        try:
+            feedback_obj = recommendation_feedback_repository.record_feedback(**payload)
+        except RecommendationFeedbackError as e:
+            return build_response(400, str(e), None)
+
+        return build_response(
+            200,
+            "success",
+            {
+                "snapshot_id": payload["snapshot_id"],
+                "avid": payload["avid"],
+                "feedback": feedback_obj.feedback if feedback_obj is not None else None,
+                "feedback_value": (
+                    feedback_obj.feedback_value if feedback_obj is not None else 0
+                ),
+            },
+        )
 
 
 class RecommendationCoverView(APIView):

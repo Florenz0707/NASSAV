@@ -179,6 +179,62 @@ class NoveltyFactor(RecommendationFactor):
         return centered * self.jitter_strength
 
 
+class FeedbackSignalFactor(RecommendationFactor):
+    def __init__(
+        self,
+        *,
+        avid_weight: float = 2.4,
+        seed_weight: float = 1.6,
+        max_bonus: float = 3.0,
+        max_penalty: float = 3.0,
+    ):
+        self.avid_weight = avid_weight
+        self.seed_weight = seed_weight
+        self.max_bonus = max_bonus
+        self.max_penalty = max_penalty
+
+    def score(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> tuple[float, list[str]]:
+        total_score = 0.0
+        reasons: list[str] = []
+
+        avid_signal = request.feedback_avid_scores.get(candidate.avid, 0.0)
+        if avid_signal != 0:
+            total_score += avid_signal * self.avid_weight
+            if avid_signal > 0:
+                reasons.append("历史反馈偏好该资源，提升排序")
+            else:
+                reasons.append("历史反馈对该资源偏弱，降低排序")
+
+        seed_hits: list[tuple[str, float]] = []
+        for seed in candidate.matched_seeds:
+            key = f"{seed.seed_type}:{seed.value}"
+            signal = request.feedback_seed_scores.get(key, 0.0)
+            if signal == 0:
+                continue
+            seed_hits.append((seed.value, signal))
+
+        if seed_hits:
+            average_seed_signal = sum(signal for _, signal in seed_hits) / len(
+                seed_hits
+            )
+            total_score += average_seed_signal * self.seed_weight
+            seed_names = " / ".join(name for name, _ in seed_hits[:2])
+            if average_seed_signal > 0:
+                reasons.append(f"历史反馈偏好相关种子: {seed_names}")
+            else:
+                reasons.append(f"历史反馈降低相关种子权重: {seed_names}")
+
+        if total_score == 0 and not reasons:
+            return 0.0, []
+
+        total_score = max(min(total_score, self.max_bonus), -self.max_penalty)
+        return round(total_score, 4), reasons
+
+
 def _to_number(value) -> float:
     if value in (None, ""):
         return 0.0

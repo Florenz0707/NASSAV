@@ -35,6 +35,8 @@ const selectedStrategy = ref(route.query.strategy || '')
 const limit = ref(Number.parseInt(route.query.limit, 10) || 12)
 const addingAvids = ref(new Set())
 const addedAvids = ref(new Set())
+const feedbackSubmittingAvids = ref(new Set())
+const feedbackByAvid = ref({})
 const initialized = ref(false)
 const hasRequested = ref(false)
 const showScrollTop = ref(false)
@@ -120,6 +122,7 @@ function saveViewState() {
     hasRequested: hasRequested.value,
     lastLoadedConfigKey: lastLoadedConfigKey.value,
     addedAvids: serializeSet(addedAvids.value),
+    feedbackByAvid: feedbackByAvid.value || {},
     scrollY: window.scrollY || 0,
   }
   window.sessionStorage.setItem(RECOMMENDATIONS_STATE_KEY, JSON.stringify(state))
@@ -140,6 +143,8 @@ function restoreViewState() {
     hasRequested.value = Boolean(state.hasRequested)
     lastLoadedConfigKey.value = state.lastLoadedConfigKey || ''
     addedAvids.value = new Set(Array.isArray(state.addedAvids) ? state.addedAvids : [])
+    feedbackByAvid.value =
+      state.feedbackByAvid && typeof state.feedbackByAvid === 'object' ? state.feedbackByAvid : {}
     return state
   } catch (_error) {
     window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
@@ -341,6 +346,41 @@ async function handleAdd(item) {
   }
 }
 
+async function handleFeedback(item, feedbackType) {
+  if (!item?.avid || !item?.snapshot_id || feedbackSubmittingAvids.value.has(item.avid)) return
+
+  const currentFeedback = feedbackByAvid.value[item.avid] || ''
+  const nextFeedback = currentFeedback === feedbackType ? 'clear' : feedbackType
+
+  const nextSubmitting = new Set(feedbackSubmittingAvids.value)
+  nextSubmitting.add(item.avid)
+  feedbackSubmittingAvids.value = nextSubmitting
+
+  try {
+    const response = await recommendationApi.submitFeedback({
+      snapshot_id: item.snapshot_id,
+      avid: item.avid,
+      feedback: nextFeedback,
+    })
+    const savedFeedback = response.data?.feedback || ''
+    feedbackByAvid.value = {
+      ...feedbackByAvid.value,
+      [item.avid]: savedFeedback,
+    }
+    if (savedFeedback) {
+      toastStore.success(`${item.avid} 的推荐反馈已更新`)
+    } else {
+      toastStore.info(`${item.avid} 的推荐反馈已清除`)
+    }
+  } catch (err) {
+    toastStore.error(err.message || '提交推荐反馈失败')
+  } finally {
+    const done = new Set(feedbackSubmittingAvids.value)
+    done.delete(item.avid)
+    feedbackSubmittingAvids.value = done
+  }
+}
+
 function handleOpen(item) {
   if (!item?.detail_url) return
   window.open(item.detail_url, '_blank', 'noopener,noreferrer')
@@ -538,9 +578,12 @@ onBeforeUnmount(() => {
               :item="item"
               :adding="addingAvids.has(item.avid)"
               :added="addedAvids.has(item.avid)"
+              :feedback="feedbackByAvid[item.avid] || ''"
+              :feedback-submitting="feedbackSubmittingAvids.has(item.avid)"
               :layout-style="resultDisplayStyle"
               :reasons-open="activeReasonAvid === item.avid"
               @add="handleAdd(item)"
+              @feedback="handleFeedback(item, $event)"
               @open="handleOpen(item)"
               @view="handleView(item)"
               @reasons="toggleReasonPanel(item, $event)"

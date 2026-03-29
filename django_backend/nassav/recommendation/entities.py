@@ -28,6 +28,7 @@ class RecommendationCandidate:
     detail_url: str
     cover_url: str
     source: str = "Jable"
+    snapshot_id: int | None = None
     search_rank: int | None = None
     matched_seeds: list[RecommendationSeed] = field(default_factory=list)
     raw_metrics: dict = field(default_factory=dict)
@@ -57,6 +58,7 @@ class RecommendationCandidate:
             "detail_url": self.detail_url,
             "cover_url": self.cover_url,
             "source": self.source,
+            "snapshot_id": self.snapshot_id,
             "search_rank": self.search_rank,
             "score": self.total_score,
             "reasons": self.reasons(),
@@ -80,6 +82,11 @@ class RecommendationRequest:
     recent_item_limit: int = 36
     recently_recommended_avids: list[str] = field(default_factory=list)
     recent_recommendation_counts: dict[str, int] = field(default_factory=dict)
+    feedback_avid_scores: dict[str, float] = field(default_factory=dict)
+    feedback_seed_scores: dict[str, float] = field(default_factory=dict)
+    learned_feedback_count: int = 0
+    learned_avid_count: int = 0
+    learned_seed_count: int = 0
 
 
 @dataclass
@@ -139,6 +146,11 @@ class RecommendationExecution:
                     self.request.recent_recommendation_counts
                 ),
                 "filtered_history_count": self.filtered_history_count,
+            },
+            "learning_context": {
+                "feedback_count": self.request.learned_feedback_count,
+                "learned_avid_count": self.request.learned_avid_count,
+                "learned_seed_count": self.request.learned_seed_count,
             },
         }
         return data

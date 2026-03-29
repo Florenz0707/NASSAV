@@ -10,6 +10,7 @@
 - 过滤最近同配置已经推荐过的资源
 - 对候选进行轻量打分并返回给前端
 - 将每次推荐结果持久化为 snapshot，便于回放、审计与后续策略优化
+- 将用户对推荐结果的显式反馈转成学习信号，参与后续排序
 
 ## Scope
 
@@ -51,6 +52,13 @@ API 层只负责：
 
 - `GET /nassav/api/recommendations/options`
   - 返回当前可用的 recommenders、strategies 与默认值
+
+- `POST /nassav/api/recommendations/feedback`
+  - 记录某条推荐结果的显式反馈
+  - 当前支持：
+    - `like`
+    - `dislike`
+    - `clear`
 
 - `GET /nassav/api/recommendations/cover`
   - 代理并缓存推荐封面
@@ -222,6 +230,7 @@ API 层只负责：
     - `strategy_detail`
     - `effective_request`
     - `history_context`
+    - `learning_context`
 
 对应文件：
 
@@ -242,11 +251,39 @@ API 层只负责：
 - 为“刷新推荐”提供历史过滤依据
 - 为后续比较不同策略/因子效果提供审计数据
 - 为未来增加推荐回放与缓存能力预留基础
+- 为显式反馈学习保留推荐项上下文（matched seeds / 打分分解）
 
 对应文件：
 
 - `nassav/models.py`
 - `nassav/recommendation/repository.py`
+
+## Feedback Learning
+
+推荐系统现在会把用户对推荐结果的显式反馈纳入排序学习，但仍保持当前 demo 架构，不引入单独训练任务。
+
+当前反馈闭环分为两层：
+
+- 资源级反馈记忆
+  - 用户对某个 `avid` 点赞或点踩后，会在后续推荐中直接影响该资源的排序
+- 种子级偏好学习
+  - 系统会读取该推荐项命中的 `matched_seeds`
+  - 将点赞 / 点踩聚合到演员 / 类别 seed 上
+  - 后续命中这些 seed 的新候选也会被同步提升或压低
+
+实现方式：
+
+- `RecommendationFeedback`
+  - 存储显式反馈
+- `RecommendationFeedbackRepository`
+  - 聚合历史反馈，生成 `avid_scores` 和 `seed_scores`
+- `FeedbackSignalFactor`
+  - 将反馈学习信号并入当前推荐打分
+
+对应文件：
+
+- `nassav/recommendation/feedback.py`
+- `nassav/recommendation/factors.py`
 
 ## Seed Generation
 

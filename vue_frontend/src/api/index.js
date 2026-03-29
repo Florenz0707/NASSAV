@@ -81,6 +81,8 @@ export const recommendationApi = {
   getList: (params = {}) => api.get('/recommendations/', { params }),
   // 获取可用推荐器和策略
   getOptions: () => api.get('/recommendations/options'),
+  // 提交推荐反馈
+  submitFeedback: (payload) => api.post('/recommendations/feedback', payload),
   // 获取推荐封面代理地址
   getCoverUrl: (coverUrl) => {
     const base = api.defaults.baseURL.replace(/\/$/, '')

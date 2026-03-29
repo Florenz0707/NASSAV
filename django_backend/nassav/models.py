@@ -200,3 +200,45 @@ class RecommendationItem(models.Model):
         snapshot = getattr(self, "snapshot", None)
         snapshot_pk = snapshot.pk if snapshot is not None else None
         return f"{snapshot_pk}:{self.rank}:{self.avid}"
+
+
+class RecommendationFeedback(models.Model):
+    FEEDBACK_CHOICES = [
+        ("like", "喜欢"),
+        ("dislike", "不喜欢"),
+    ]
+    FEEDBACK_VALUE_MAP = {
+        "like": 1,
+        "dislike": -1,
+    }
+
+    item = models.OneToOneField(
+        RecommendationItem,
+        on_delete=models.CASCADE,
+        related_name="feedback",
+    )
+    avid = models.CharField(max_length=50, db_index=True)
+    feedback = models.CharField(max_length=16, choices=FEEDBACK_CHOICES, db_index=True)
+    feedback_value = models.SmallIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "nassav_recommendation_feedback"
+        ordering = ["-updated_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["avid", "feedback"],
+                name="nassav_recfb_af_idx",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.feedback_value = self.FEEDBACK_VALUE_MAP.get(self.feedback, 0)
+        item_id = getattr(self, "item_id", None)
+        if item_id and not self.avid:
+            self.avid = self.item.avid
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.avid}:{self.feedback}"

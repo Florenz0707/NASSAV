@@ -25,6 +25,12 @@ urlpatterns = [
         views.RecommendationOptionsView.as_view(),
         name="recommendations-options",
     ),
+    # POST /api/recommendations/feedback - 记录推荐反馈
+    path(
+        "api/recommendations/feedback",
+        views.RecommendationFeedbackView.as_view(),
+        name="recommendations-feedback",
+    ),
     # GET /api/recommendations/cover - 推荐封面代理缓存
     path(
         "api/recommendations/cover",

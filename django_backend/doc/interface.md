@@ -267,6 +267,7 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
         "detail_url": "https://jable.tv/videos/abc-123/",
         "cover_url": "https://assets-cdn.jable.tv/...",
         "source": "Jable",
+        "snapshot_id": 12,
         "score": 8.5,
         "reasons": ["命中高频actor: Alice"],
         "raw_metrics": {
@@ -320,6 +321,11 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
         "recently_recommended_count": 12,
         "recent_history_candidate_count": 18,
         "filtered_history_count": 4
+      },
+      "learning_context": {
+        "feedback_count": 6,
+        "learned_avid_count": 4,
+        "learned_seed_count": 7
       }
     }
   }
@@ -331,6 +337,42 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
 - 方法：GET
 - 路径：`/nassav/api/recommendations/options`
 - 功能：返回可用推荐器、策略和默认值，供前端动态渲染选择区
+
+### 提交推荐反馈
+
+- 方法：POST
+- 路径：`/nassav/api/recommendations/feedback`
+- 功能：记录当前推荐结果的显式反馈，并将其纳入后续推荐学习信号
+- 请求体：
+  - `snapshot_id`：该推荐项所属快照 ID
+  - `avid`：推荐项资源编号
+  - `feedback`：`like | dislike | clear`
+
+示例请求：
+
+```json
+POST /nassav/api/recommendations/feedback
+{
+  "snapshot_id": 12,
+  "avid": "ABC-123",
+  "feedback": "like"
+}
+```
+
+返回示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "snapshot_id": 12,
+    "avid": "ABC-123",
+    "feedback": "like",
+    "feedback_value": 1
+  }
+}
+```
 
 ### 获取推荐封面代理缓存
 

@@ -543,3 +543,118 @@ def test_recommendations_endpoint_penalizes_cross_strategy_recent_results(
         if item["factor"] == "NoveltyFactor"
     ]
     assert novelty_breakdowns
+
+
+@pytest.mark.django_db
+def test_recommendation_feedback_endpoint_updates_learning_and_ranking(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationFeedback
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-701", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-701-A",
+                "title": "Base Winner",
+                "detail_url": "https://jable.tv/videos/rec-701-a/",
+                "cover_url": "https://img/rec-701-a.jpg",
+                "metrics": {"views": 3200, "likes": 350},
+            },
+            {
+                "avid": "REC-701-B",
+                "title": "Feedback Winner",
+                "detail_url": "https://jable.tv/videos/rec-701-b/",
+                "cover_url": "https://img/rec-701-b.jpg",
+                "metrics": {"views": 2800, "likes": 300},
+            },
+        ],
+    )
+
+    first_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "avoid_recent_recommendations": "false",
+        },
+    )
+    first_body = first_response.json()
+    assert [item["avid"] for item in first_body["data"]["items"]] == [
+        "REC-701-A",
+        "REC-701-B",
+    ]
+
+    feedback_response = api_client.post(
+        "/nassav/api/recommendations/feedback",
+        {
+            "snapshot_id": first_body["data"]["items"][1]["snapshot_id"],
+            "avid": "REC-701-B",
+            "feedback": "like",
+        },
+        format="json",
+    )
+    feedback_body = feedback_response.json()
+    assert feedback_response.status_code == 200
+    assert feedback_body["data"]["feedback"] == "like"
+    assert RecommendationFeedback.objects.count() == 1
+
+    second_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "avoid_recent_recommendations": "false",
+        },
+    )
+    second_body = second_response.json()
+    assert second_body["data"]["meta"]["learning_context"]["feedback_count"] == 1
+    assert second_body["data"]["items"][0]["avid"] == "REC-701-B"
+    feedback_breakdowns = [
+        item
+        for item in second_body["data"]["items"][0]["score_breakdown"]
+        if item["factor"] == "FeedbackSignalFactor"
+    ]
+    assert feedback_breakdowns
+    assert feedback_breakdowns[0]["score"] > 0
+
+
+def test_feedback_signal_factor_supports_seed_learning():
+    from nassav.recommendation import (
+        FeedbackSignalFactor,
+        RecommendationCandidate,
+        RecommendationRequest,
+        RecommendationSeed,
+    )
+
+    factor = FeedbackSignalFactor()
+    candidate = RecommendationCandidate(
+        avid="REC-801",
+        title="Seed Learned Result",
+        detail_url="https://jable.tv/videos/rec-801/",
+        cover_url="https://img/rec-801.jpg",
+    )
+    candidate.add_seed(
+        RecommendationSeed(
+            seed_type="actor",
+            value="Alice",
+            weight=4.0,
+            source="local_top_actor",
+        )
+    )
+
+    request = RecommendationRequest(
+        feedback_seed_scores={"actor:Alice": 0.75},
+    )
+    score, reasons = factor.score(candidate, request)
+
+    assert score > 0
+    assert any("Alice" in reason for reason in reasons)
