@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RecommendationCard from '../components/RecommendationCard.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -34,6 +34,8 @@ const addingAvids = ref(new Set())
 const addedAvids = ref(new Set())
 const initialized = ref(false)
 const hasRequested = ref(false)
+const showScrollTop = ref(false)
+const lastLoadedConfigKey = ref('')
 
 const availableStrategies = computed(() => {
   return (options.value.strategies || []).filter((item) => {
@@ -61,9 +63,34 @@ const seedGroups = computed(() => {
   return groups
 })
 
-const visibleItems = computed(() => {
-  return (items.value || []).filter((item) => !addedAvids.value.has(item.avid))
-})
+const visibleItems = computed(() => items.value || [])
+
+function buildConfigKey() {
+  return JSON.stringify({
+    recommender: selectedRecommender.value || '',
+    strategy: selectedStrategy.value || '',
+    limit: limit.value || 12,
+  })
+}
+
+function mergeRecommendationItems(existingItems, nextItems) {
+  const merged = []
+  const seen = new Set()
+  for (const item of [...(existingItems || []), ...(nextItems || [])]) {
+    if (!item?.avid || seen.has(item.avid)) continue
+    seen.add(item.avid)
+    merged.push(item)
+  }
+  return merged
+}
+
+function updateScrollState() {
+  showScrollTop.value = window.scrollY > 360
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 function syncQuery() {
   const query = {}
@@ -96,6 +123,8 @@ async function loadRecommendations() {
   loading.value = true
   error.value = ''
   hasRequested.value = true
+  const requestConfigKey = buildConfigKey()
+  const shouldMerge = requestConfigKey === lastLoadedConfigKey.value && items.value.length > 0
 
   try {
     const response = await recommendationApi.getList({
@@ -106,13 +135,18 @@ async function loadRecommendations() {
     })
 
     const payload = response.data || {}
-    items.value = payload.items || []
+    items.value = shouldMerge
+      ? mergeRecommendationItems(items.value, payload.items || [])
+      : payload.items || []
     seeds.value = payload.seeds || []
     meta.value = payload.meta || null
+    lastLoadedConfigKey.value = requestConfigKey
   } catch (err) {
     error.value = err.message || '获取推荐失败'
-    items.value = []
-    seeds.value = []
+    if (!shouldMerge) {
+      items.value = []
+      seeds.value = []
+    }
   } finally {
     loading.value = false
   }
@@ -178,6 +212,12 @@ onMounted(async () => {
   await loadOptions()
   initialized.value = true
   syncQuery()
+  updateScrollState()
+  window.addEventListener('scroll', updateScrollState, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', updateScrollState)
 })
 </script>
 
@@ -187,9 +227,6 @@ onMounted(async () => {
       <div>
         <div class="eyebrow">Discover</div>
         <h1 class="page-title">推荐发现</h1>
-        <p class="page-subtitle">
-          基于你当前资源库中高频出现的演员与类别，从 Jable 搜索结果中召回候选资源。
-        </p>
       </div>
 
       <button class="refresh-btn" :disabled="loading" @click="loadRecommendations">
@@ -201,13 +238,15 @@ onMounted(async () => {
     </section>
 
     <section class="meta-strip">
-      <div class="meta-card selectable">
-        <div class="meta-label">当前推荐器</div>
-        <div class="meta-value">
-          {{
-            meta?.recommender_detail?.name || selectedRecommenderDetail?.name || selectedRecommender
-          }}
-        </div>
+      <div class="meta-card">
+        <div class="meta-label">推荐器</div>
+        <label class="meta-control">
+          <select v-model="selectedRecommender" class="meta-select">
+            <option v-for="item in options.recommenders" :key="item.id" :value="item.id">
+              {{ item.name }}
+            </option>
+          </select>
+        </label>
         <p class="meta-desc">
           {{
             meta?.recommender_detail?.description ||
@@ -215,23 +254,16 @@ onMounted(async () => {
             '决定从哪里召回候选资源。'
           }}
         </p>
-        <div class="meta-options">
-          <button
-            v-for="item in options.recommenders"
-            :key="item.id"
-            class="meta-option"
-            :class="{ active: selectedRecommender === item.id }"
-            @click="selectedRecommender = item.id"
-          >
-            {{ item.name }}
-          </button>
-        </div>
       </div>
-      <div class="meta-card selectable strategy-card">
-        <div class="meta-label">当前策略</div>
-        <div class="meta-value">
-          {{ meta?.strategy_detail?.name || selectedStrategyDetail?.name || selectedStrategy }}
-        </div>
+      <div class="meta-card strategy-card">
+        <div class="meta-label">策略</div>
+        <label class="meta-control">
+          <select v-model="selectedStrategy" class="meta-select">
+            <option v-for="item in availableStrategies" :key="item.id" :value="item.id">
+              {{ item.name }}
+            </option>
+          </select>
+        </label>
         <p class="meta-desc">
           {{
             meta?.strategy_detail?.description ||
@@ -239,35 +271,17 @@ onMounted(async () => {
             '决定种子来源、打分因子和默认过滤行为。'
           }}
         </p>
-        <div class="meta-options">
-          <button
-            v-for="item in availableStrategies"
-            :key="item.id"
-            class="meta-option strategy"
-            :class="{ active: selectedStrategy === item.id }"
-            @click="selectedStrategy = item.id"
-          >
-            {{ item.name }}
-          </button>
-        </div>
       </div>
-      <div class="meta-card selectable">
+      <div class="meta-card">
         <div class="meta-label">返回数量</div>
-        <div class="meta-value">
-          {{ limit }}
-        </div>
+        <label class="meta-control">
+          <select v-model.number="limit" class="meta-select">
+            <option v-for="size in [12, 24, 36]" :key="size" :value="size">
+              {{ size }}
+            </option>
+          </select>
+        </label>
         <p class="meta-desc">默认返回 12 条推荐结果。</p>
-        <div class="meta-options">
-          <button
-            v-for="size in [12, 24, 36]"
-            :key="size"
-            class="meta-option"
-            :class="{ active: limit === size }"
-            @click="limit = size"
-          >
-            {{ size }}
-          </button>
-        </div>
       </div>
     </section>
 
@@ -328,19 +342,38 @@ onMounted(async () => {
         </template>
       </EmptyState>
 
-      <div v-else class="recommendation-grid">
-        <RecommendationCard
-          v-for="item in visibleItems"
-          :key="item.avid"
-          :item="item"
-          :adding="addingAvids.has(item.avid)"
-          :added="addedAvids.has(item.avid)"
-          @add="handleAdd(item)"
-          @open="handleOpen(item)"
-          @view="handleView(item)"
-        />
+      <div v-else class="results-stack">
+        <div class="recommendation-grid">
+          <RecommendationCard
+            v-for="item in visibleItems"
+            :key="item.avid"
+            :item="item"
+            :adding="addingAvids.has(item.avid)"
+            :added="addedAvids.has(item.avid)"
+            @add="handleAdd(item)"
+            @open="handleOpen(item)"
+            @view="handleView(item)"
+          />
+        </div>
+
+        <div class="results-footer">
+          <button class="footer-refresh-btn" :disabled="loading" @click="loadRecommendations">
+            <LoadingSpinner v-if="loading" size="small" />
+            <template v-else> 继续刷新推荐 </template>
+          </button>
+        </div>
       </div>
     </section>
+
+    <button
+      v-if="showScrollTop"
+      class="scroll-top-btn"
+      type="button"
+      aria-label="回到顶部"
+      @click="scrollToTop"
+    >
+      回到顶部
+    </button>
   </div>
 </template>
 
@@ -444,10 +477,6 @@ onMounted(async () => {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.meta-card.selectable {
-  gap: 0.6rem;
-}
-
 .meta-label {
   color: var(--text-muted);
   font-size: 0.8rem;
@@ -472,44 +501,47 @@ onMounted(async () => {
   min-height: 3.9rem;
 }
 
-.meta-options {
+.meta-control {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  flex-direction: column;
+  gap: 0.45rem;
   margin-top: auto;
+  width: 100%;
 }
 
-.meta-option {
-  min-height: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  padding: 0.35rem 0.72rem;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-secondary);
-  font-size: 0.78rem;
+.meta-control-label {
+  color: var(--text-muted);
+  font-size: 0.76rem;
   font-weight: 600;
+}
+
+.meta-select {
+  width: 100%;
+  min-height: 2.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.95rem;
+  padding: 0.65rem 0.85rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  appearance: none;
   cursor: pointer;
   transition:
-    transform 0.2s ease,
     border-color 0.2s ease,
+    box-shadow 0.2s ease,
     background 0.2s ease;
 }
 
-.meta-option:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.16);
+.meta-select:focus {
+  outline: none;
+  border-color: rgba(255, 107, 107, 0.35);
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.12);
 }
 
-.meta-option.active {
-  border-color: rgba(255, 107, 107, 0.45);
-  background: rgba(255, 107, 107, 0.1);
-  color: var(--text-primary);
-}
-
-.meta-option.strategy.active,
-.strategy-card .meta-option.active {
-  border-color: rgba(78, 205, 196, 0.45);
-  background: rgba(78, 205, 196, 0.1);
+.strategy-card .meta-select:focus {
+  border-color: rgba(78, 205, 196, 0.35);
+  box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.12);
 }
 
 .seed-panel {
@@ -572,6 +604,62 @@ onMounted(async () => {
   gap: 1rem;
 }
 
+.results-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.results-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.footer-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10rem;
+  min-height: 2.85rem;
+  padding: 0 1.1rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.footer-refresh-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.scroll-top-btn {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 6.5rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(18, 18, 24, 0.82);
+  color: var(--text-primary);
+  font-weight: 600;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+}
+
+.scroll-top-btn:hover {
+  border-color: rgba(255, 107, 107, 0.28);
+}
+
 @media (max-width: 960px) {
   .page-header,
   .meta-strip,
@@ -585,6 +673,11 @@ onMounted(async () => {
 
   .refresh-btn {
     width: 100%;
+  }
+
+  .scroll-top-btn {
+    right: 1rem;
+    bottom: 1rem;
   }
 }
 </style>

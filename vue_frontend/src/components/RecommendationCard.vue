@@ -24,7 +24,7 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
 </script>
 
 <template>
-  <article class="recommendation-card">
+  <article class="recommendation-card" :class="{ added }">
     <div class="cover-shell">
       <img
         v-if="item.cover_url"
@@ -36,12 +36,14 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
       </div>
+      <div v-if="added" class="added-banner">已添加</div>
     </div>
 
     <div class="card-body">
       <div class="card-meta">
         <span class="avid-chip">{{ item.avid }}</span>
         <span v-if="item.source" class="source-chip">{{ item.source }}</span>
+        <span v-if="added" class="status-chip">已添加到资源库</span>
       </div>
 
       <h3 class="card-title">
@@ -76,9 +78,11 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
         <button v-if="!added" class="action-btn primary" :disabled="adding" @click="$emit('add')">
           {{ adding ? '添加中...' : '加入资源库' }}
         </button>
-        <button v-else class="action-btn success" @click="$emit('view')">查看详情</button>
+        <button v-else class="action-btn success" disabled>已添加</button>
 
-        <button class="action-btn secondary" @click="$emit('open')">打开来源</button>
+        <button class="action-btn secondary" @click="added ? $emit('view') : $emit('open')">
+          {{ added ? '查看详情' : '打开来源' }}
+        </button>
       </div>
     </div>
   </article>
@@ -101,6 +105,11 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
     box-shadow 0.25s ease;
 }
 
+.recommendation-card.added {
+  border-color: rgba(46, 204, 113, 0.22);
+  background: linear-gradient(180deg, rgba(46, 204, 113, 0.06), rgba(255, 255, 255, 0.02));
+}
+
 .recommendation-card:hover {
   transform: translateY(-4px);
   border-color: rgba(255, 255, 255, 0.16);
@@ -114,6 +123,22 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
   background:
     radial-gradient(circle at top left, rgba(255, 107, 107, 0.28), transparent 55%),
     linear-gradient(145deg, rgba(18, 18, 24, 0.92), rgba(28, 28, 38, 0.86));
+}
+
+.added-banner {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.85rem;
+  padding: 0.2rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(46, 204, 113, 0.9);
+  color: white;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .cover-image {
@@ -151,7 +176,8 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
 }
 
 .avid-chip,
-.source-chip {
+.source-chip,
+.status-chip {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -168,6 +194,11 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
 .source-chip {
   background: rgba(78, 205, 196, 0.12);
   color: var(--accent-tertiary);
+}
+
+.status-chip {
+  background: rgba(46, 204, 113, 0.14);
+  color: #7ff0a6;
 }
 
 .card-title {
