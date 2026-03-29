@@ -46,7 +46,14 @@ function formatCompactMetric(value) {
 </script>
 
 <template>
-  <article class="recommendation-card" :class="{ masonry: layoutStyle === 'masonry' }">
+  <article
+    class="recommendation-card"
+    :class="{
+      masonry: layoutStyle === 'masonry',
+      disliked: feedback === 'dislike',
+      liked: feedback === 'like',
+    }"
+  >
     <div class="cover-shell">
       <img
         v-if="item.cover_url"
@@ -58,12 +65,21 @@ function formatCompactMetric(value) {
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
       </div>
+      <div v-if="feedback === 'dislike'" class="feedback-overlay">
+        <span class="feedback-overlay-badge">已减少这类推荐</span>
+      </div>
     </div>
 
     <div class="card-body">
       <div class="card-meta">
         <span class="avid-chip">{{ item.avid }}</span>
         <span v-if="item.source" class="source-chip">{{ item.source }}</span>
+        <span v-if="feedback === 'dislike'" class="feedback-state-chip negative">
+          已标记不喜欢
+        </span>
+        <span v-else-if="feedback === 'like'" class="feedback-state-chip positive">
+          已标记喜欢
+        </span>
       </div>
 
       <h3 class="card-title">
@@ -150,6 +166,16 @@ function formatCompactMetric(value) {
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
 }
 
+.recommendation-card.disliked {
+  border-color: rgba(255, 107, 107, 0.24);
+  background: linear-gradient(180deg, rgba(255, 107, 107, 0.08), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+}
+
+.recommendation-card.liked {
+  border-color: rgba(78, 205, 196, 0.22);
+}
+
 .cover-shell {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -157,6 +183,31 @@ function formatCompactMetric(value) {
   background:
     radial-gradient(circle at top left, rgba(255, 107, 107, 0.28), transparent 55%),
     linear-gradient(145deg, rgba(18, 18, 24, 0.92), rgba(28, 28, 38, 0.86));
+}
+
+.feedback-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 0.8rem;
+  background: linear-gradient(180deg, rgba(20, 24, 34, 0.12), rgba(20, 24, 34, 0.42));
+  pointer-events: none;
+}
+
+.feedback-overlay-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.95rem;
+  padding: 0.28rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 107, 107, 0.88);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
 }
 
 .cover-image {
@@ -194,7 +245,8 @@ function formatCompactMetric(value) {
 }
 
 .avid-chip,
-.source-chip {
+.source-chip,
+.feedback-state-chip {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -211,6 +263,16 @@ function formatCompactMetric(value) {
 .source-chip {
   background: rgba(78, 205, 196, 0.12);
   color: var(--accent-tertiary);
+}
+
+.feedback-state-chip.positive {
+  background: rgba(78, 205, 196, 0.14);
+  color: var(--accent-tertiary);
+}
+
+.feedback-state-chip.negative {
+  background: rgba(255, 107, 107, 0.14);
+  color: #ff9b86;
 }
 
 .card-title {
@@ -277,6 +339,7 @@ function formatCompactMetric(value) {
 .feedback-btn.negative.active {
   border-color: rgba(255, 107, 107, 0.34);
   background: rgba(255, 107, 107, 0.14);
+  color: var(--text-primary);
 }
 
 .feedback-btn:disabled {

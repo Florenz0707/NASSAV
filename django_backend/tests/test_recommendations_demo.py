@@ -827,6 +827,66 @@ def test_recommendations_endpoint_uses_actor_aliases_for_seed_recall(
 
 
 @pytest.mark.django_db
+def test_recommendations_endpoint_uses_actor_source_mapping_for_model_recall(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import ActorSourceMapping
+    from nassav.source import Jable
+
+    actor = actor_factory(name="明里つむぎ")
+    seed_resource = resource_factory(avid="SEED-902-MAP", original_title="Seed")
+    seed_resource.actors.add(actor)
+    ActorSourceMapping.objects.create(
+        actor=actor,
+        source_name="jable",
+        source_actor_name="明里つむぎ",
+        source_actor_slug="tsumugi-akari",
+        aliases=["Tsumugi Akari"],
+        is_verified=True,
+    )
+
+    captured_model_slugs = []
+    captured_keywords = []
+
+    monkeypatch.setattr(
+        Jable,
+        "get_model_videos",
+        lambda self, model_slug, page=1, sort_by="video_viewed": (
+            captured_model_slugs.append((model_slug, page, sort_by))
+            or [
+                {
+                    "avid": "REC-902-MAP",
+                    "title": "Mapped Model Hit",
+                    "detail_url": "https://jable.tv/videos/rec-902-map/",
+                    "cover_url": "https://img/rec-902-map.jpg",
+                    "metrics": {"views": 2600, "likes": 240},
+                }
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: captured_keywords.append(keyword) or [],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 1,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+        },
+    )
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["items"][0]["avid"] == "REC-902-MAP"
+    assert captured_model_slugs == [("tsumugi-akari", 1, "video_viewed")]
+    assert captured_keywords == []
+
+
+@pytest.mark.django_db
 def test_recommendations_endpoint_expands_to_lower_ranked_seeds_when_exhausted(
     api_client, monkeypatch, resource_factory, actor_factory
 ):

@@ -152,12 +152,11 @@ function restoreViewState() {
   }
 }
 
-function mergeRecommendationItems(existingItems, nextItems, feedbackMap = {}) {
+function mergeRecommendationItems(existingItems, nextItems) {
   const merged = []
   const seen = new Set()
   for (const item of [...(existingItems || []), ...(nextItems || [])]) {
     if (!item?.avid || seen.has(item.avid)) continue
-    if (feedbackMap[item.avid] === 'dislike') continue
     seen.add(item.avid)
     merged.push(item)
   }
@@ -292,8 +291,8 @@ async function loadRecommendations() {
 
     const payload = response.data || {}
     items.value = shouldMerge
-      ? mergeRecommendationItems(items.value, payload.items || [], feedbackByAvid.value)
-      : (payload.items || []).filter((item) => feedbackByAvid.value[item?.avid] !== 'dislike')
+      ? mergeRecommendationItems(items.value, payload.items || [])
+      : payload.items || []
     seeds.value = [...(payload.seeds || [])]
     meta.value = payload.meta || null
     lastLoadedConfigKey.value = requestConfigKey
@@ -367,10 +366,6 @@ async function handleFeedback(item, feedbackType) {
     feedbackByAvid.value = {
       ...feedbackByAvid.value,
       [item.avid]: savedFeedback,
-    }
-    if (savedFeedback === 'dislike') {
-      items.value = (items.value || []).filter((entry) => entry?.avid !== item.avid)
-      syncActiveReasonItem()
     }
     if (savedFeedback) {
       toastStore.success(`${item.avid} 的推荐反馈已更新`)
@@ -932,19 +927,28 @@ onBeforeUnmount(() => {
   min-width: 6.5rem;
   min-height: 2.75rem;
   padding: 0 1rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-overlay) 88%, transparent);
-  color: var(--text-primary);
+  background:
+    linear-gradient(135deg, rgba(255, 107, 107, 0.22), rgba(255, 139, 95, 0.18)),
+    rgba(18, 24, 38, 0.88);
+  color: rgba(255, 255, 255, 0.96);
   font-weight: 600;
   backdrop-filter: blur(14px);
-  box-shadow: var(--shadow-lg);
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 107, 107, 0.08);
   cursor: pointer;
 }
 
 .scroll-top-btn:hover {
-  border-color: rgba(255, 107, 107, 0.28);
-  background: color-mix(in srgb, var(--bg-overlay) 94%, transparent);
+  border-color: rgba(255, 151, 117, 0.48);
+  background:
+    linear-gradient(135deg, rgba(255, 107, 107, 0.3), rgba(255, 139, 95, 0.24)),
+    rgba(22, 28, 44, 0.94);
+  box-shadow:
+    0 22px 42px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 139, 95, 0.14);
 }
 
 .reason-floating-panel {

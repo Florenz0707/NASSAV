@@ -2,6 +2,8 @@
 数据库模型
 """
 
+import re
+
 from django.db import models
 from django.utils import timezone
 
@@ -44,6 +46,80 @@ class Actor(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ActorSourceMapping(models.Model):
+    actor = models.ForeignKey(
+        Actor,
+        on_delete=models.CASCADE,
+        related_name="source_mappings",
+    )
+    source_name = models.CharField(max_length=32, db_index=True)
+    source_actor_name = models.CharField(max_length=255, blank=True)
+    source_actor_slug = models.CharField(max_length=255, null=True, blank=True)
+    source_actor_url = models.URLField(max_length=1024, blank=True)
+    aliases = models.JSONField(default=list, blank=True)
+    match_method = models.CharField(max_length=32, default="manual")
+    confidence = models.FloatField(default=1.0)
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True, db_index=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "nassav_actor_source_mapping"
+        ordering = ["source_name", "actor_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["actor", "source_name"],
+                name="nassav_actsrc_actor_source_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["source_name", "source_actor_slug"],
+                name="nassav_actsrc_source_slug_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["source_name", "source_actor_name"],
+                name="nassav_actsrc_source_name_idx",
+            ),
+            models.Index(
+                fields=["source_name", "is_active"],
+                name="nassav_actsrc_source_active_idx",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.source_name = str(self.source_name or "").strip().lower()
+        self.source_actor_name = str(self.source_actor_name or "").strip()
+        self.source_actor_url = str(self.source_actor_url or "").strip()
+
+        slug = str(self.source_actor_slug or "").strip().strip("/")
+        if not slug and self.source_name == "jable" and self.source_actor_url:
+            match = re.search(r"/models/([^/?#]+)/?", self.source_actor_url)
+            if match:
+                slug = match.group(1).strip()
+        self.source_actor_slug = slug.lower() if slug else None
+
+        if (
+            self.source_name == "jable"
+            and self.source_actor_slug
+            and not self.source_actor_url
+        ):
+            self.source_actor_url = f"https://jable.tv/models/{self.source_actor_slug}/"
+
+        if self.aliases is None:
+            self.aliases = []
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        actor_pk = getattr(self, "actor_id", None)
+        return (
+            f"{actor_pk}:{self.source_name}:"
+            f"{self.source_actor_slug or self.source_actor_name}"
+        )
 
 
 class Genre(models.Model):

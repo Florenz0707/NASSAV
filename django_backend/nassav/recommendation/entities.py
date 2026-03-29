@@ -8,6 +8,7 @@ class RecommendationSeed:
     weight: float
     source: str
     aliases: list[str] = field(default_factory=list)
+    lookup_payload: dict = field(default_factory=dict, repr=False)
     resource_count: int = 0
     preference_score: float = 0.0
 

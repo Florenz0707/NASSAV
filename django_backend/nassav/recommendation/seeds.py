@@ -6,8 +6,9 @@ from typing import cast
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from nassav.models import Actor, Genre
+from nassav.models import Actor, ActorSourceMapping, Genre
 
+from .actor_source_mapping import actor_source_mapping_service
 from .entities import RecommendationRequest, RecommendationSeed
 
 USE_REQUEST_LIMIT = object()
@@ -206,6 +207,9 @@ class LocalPreferenceSeedProvider(SeedProvider):
         if not queryset:
             return []
 
+        if seed_type == "actor":
+            return self._build_actor_seeds(queryset=queryset, source=source)
+
         max_score = (
             max(self.preference_score_for_item(item) for item in queryset) or 1.0
         )
@@ -227,10 +231,89 @@ class LocalPreferenceSeedProvider(SeedProvider):
             )
         return seeds
 
+    def _build_actor_seeds(
+        self,
+        *,
+        queryset: list[Actor],
+        source: str,
+    ) -> list[RecommendationSeed]:
+        if not queryset:
+            return []
+
+        mappings = actor_source_mapping_service.get_actor_source_mappings(
+            actor_ids=[item.pk for item in queryset if item.pk is not None],
+            source_name="jable",
+        )
+        max_score = (
+            max(self.preference_score_for_item(item) for item in queryset) or 1.0
+        )
+        seeds: list[RecommendationSeed] = []
+        for item in queryset:
+            resource_count = int(getattr(item, "resource_count", 0) or 0)
+            preference_score = self.preference_score_for_item(item)
+            mapping = mappings.get(int(item.pk)) if item.pk is not None else None
+            aliases = self._build_actor_seed_aliases(value=item.name, mapping=mapping)
+            seeds.append(
+                RecommendationSeed(
+                    seed_type="actor",
+                    value=item.name,
+                    weight=self.normalize_weight(preference_score, max_score),
+                    source=source,
+                    aliases=aliases,
+                    lookup_payload=self._build_actor_lookup_payload(mapping),
+                    resource_count=resource_count,
+                    preference_score=round(preference_score, 4),
+                )
+            )
+        return seeds
+
     def _build_seed_aliases(self, *, seed_type: str, value: str) -> list[str]:
         if seed_type != "actor":
             return []
         return self._extract_actor_aliases(value)
+
+    def _build_actor_seed_aliases(
+        self,
+        *,
+        value: str,
+        mapping: ActorSourceMapping | None,
+    ) -> list[str]:
+        aliases = self._extract_actor_aliases(value)
+        seen = {value.casefold(), *(alias.casefold() for alias in aliases)}
+
+        def add_alias(candidate: str) -> None:
+            normalized = str(candidate or "").strip()
+            if not normalized:
+                return
+            token = normalized.casefold()
+            if token in seen:
+                return
+            seen.add(token)
+            aliases.append(normalized)
+
+        if mapping is not None:
+            add_alias(mapping.source_actor_name)
+            for candidate in mapping.aliases or []:
+                add_alias(str(candidate))
+
+        return aliases
+
+    def _build_actor_lookup_payload(
+        self,
+        mapping: ActorSourceMapping | None,
+    ) -> dict:
+        if mapping is None or not mapping.source_actor_slug:
+            return {}
+
+        payload = {
+            "source_name": mapping.source_name,
+            "model_slug": mapping.source_actor_slug,
+        }
+        if mapping.source_actor_name:
+            payload["source_actor_name"] = mapping.source_actor_name
+        if mapping.source_actor_url:
+            payload["source_actor_url"] = mapping.source_actor_url
+        return payload
 
     def _extract_actor_aliases(self, raw_name: str) -> list[str]:
         name = str(raw_name or "").strip()
@@ -279,6 +362,7 @@ class LocalPreferenceSeedProvider(SeedProvider):
             weight=seed.weight,
             source=source,
             aliases=list(seed.aliases),
+            lookup_payload=dict(seed.lookup_payload),
             resource_count=seed.resource_count,
             preference_score=seed.preference_score,
         )

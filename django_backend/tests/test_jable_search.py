@@ -112,6 +112,41 @@ def test_jable_search_uses_fetch_html(monkeypatch):
     assert results[0]["metrics"]["likes"] == 67
 
 
+def test_jable_get_model_videos_uses_model_slug_async_url(monkeypatch):
+    jable = Jable()
+
+    captured = {}
+
+    def fake_fetch_html(url, referer=""):
+        captured["url"] = url
+        captured["referer"] = referer
+        return """
+        <div class="video-img-box mb-e-20">
+          <div class="img-box cover-md">
+            <a href="/videos/abc-123/">
+              <img data-src="https://example.com/abc.jpg">
+            </a>
+          </div>
+          <div class="detail">
+            <h6 class="title"><a href="/videos/abc-123/">ABC-123 Demo</a></h6>
+            <p class="sub-title">12 345 67</p>
+          </div>
+        </div>
+        """
+
+    monkeypatch.setattr(jable, "fetch_html", fake_fetch_html)
+
+    results = jable.get_model_videos("tsumugi-akari")
+
+    assert (
+        captured["url"]
+        == "https://jable.tv/models/tsumugi-akari/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed"
+    )
+    assert captured["referer"] == "https://jable.tv/models/tsumugi-akari/"
+    assert results[0]["avid"] == "ABC-123"
+    assert results[0]["metrics"]["model_slug"] == "tsumugi-akari"
+
+
 def test_jable_discover_hot_items_uses_async_hot_board_urls(monkeypatch):
     jable = Jable()
 

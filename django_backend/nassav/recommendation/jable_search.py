@@ -69,24 +69,26 @@ class JableSearchRecommender(AbstractRecommender):
     ) -> list[RecommendationCandidate]:
         raw_results: list[dict] = []
         seen_avids: set[str] = set()
-        search_terms = self._search_terms_for_seed(seed)
-        for keyword in search_terms:
-            for item in self.jable.search(keyword, page=1):
-                avid = str(item.get("avid", "")).strip().upper()
-                if not avid or avid in seen_avids:
-                    continue
-                seen_avids.add(avid)
-                raw_results.append(item)
+        raw_results.extend(self._recall_actor_model_items(seed, request, seen_avids))
+        if not raw_results:
+            search_terms = self._search_terms_for_seed(seed)
+            for keyword in search_terms:
+                for item in self.jable.search(keyword, page=1):
+                    avid = str(item.get("avid", "")).strip().upper()
+                    if not avid or avid in seen_avids:
+                        continue
+                    seen_avids.add(avid)
+                    raw_results.append(item)
+                    if (
+                        request.per_seed_limit > 0
+                        and len(raw_results) >= request.per_seed_limit
+                    ):
+                        break
                 if (
                     request.per_seed_limit > 0
                     and len(raw_results) >= request.per_seed_limit
                 ):
                     break
-            if (
-                request.per_seed_limit > 0
-                and len(raw_results) >= request.per_seed_limit
-            ):
-                break
 
         candidates: list[RecommendationCandidate] = []
         for index, item in enumerate(raw_results, start=1):
@@ -108,6 +110,41 @@ class JableSearchRecommender(AbstractRecommender):
             candidates.append(candidate)
 
         return candidates
+
+    def _recall_actor_model_items(
+        self,
+        seed: RecommendationSeed,
+        request: RecommendationRequest,
+        seen_avids: set[str],
+    ) -> list[dict]:
+        if seed.seed_type != "actor":
+            return []
+
+        lookup_payload = dict(seed.lookup_payload or {})
+        if lookup_payload.get("source_name") != "jable":
+            return []
+
+        model_slug = str(lookup_payload.get("model_slug", "")).strip()
+        if not model_slug:
+            return []
+
+        raw_results: list[dict] = []
+        for item in self.jable.get_model_videos(
+            model_slug=model_slug,
+            page=1,
+            sort_by="video_viewed",
+        ):
+            avid = str(item.get("avid", "")).strip().upper()
+            if not avid or avid in seen_avids:
+                continue
+            seen_avids.add(avid)
+            raw_results.append(item)
+            if (
+                request.per_seed_limit > 0
+                and len(raw_results) >= request.per_seed_limit
+            ):
+                break
+        return raw_results
 
     def recall_discovery_candidates(
         self,

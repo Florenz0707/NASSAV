@@ -138,6 +138,42 @@ class Jable(SourceBase):
             logger.error(f"Jable.search 解析失败: {e}")
             return []
 
+    def get_model_videos(
+        self,
+        model_slug: str,
+        page: int = 1,
+        sort_by: str = "video_viewed",
+    ) -> list[dict]:
+        normalized_slug = self._normalize_model_slug(model_slug)
+        if not normalized_slug:
+            return []
+
+        url = self._build_model_videos_url(
+            model_slug=normalized_slug,
+            page=page,
+            sort_by=sort_by,
+        )
+        referer = f"https://{self.domain}/models/{quote(normalized_slug)}/"
+        html = self.fetch_html(url, referer=referer)
+        if not html:
+            logger.warning(
+                "Jable.get_model_videos 获取 HTML 失败，当前返回空结果。"
+                f" model_slug={normalized_slug}, page={page}"
+            )
+            return []
+
+        try:
+            items = self._parse_search_results(html)
+        except Exception as e:
+            logger.error(f"Jable.get_model_videos 解析失败: {e}")
+            return []
+
+        for item in items:
+            metrics = dict(item.get("metrics") or {})
+            metrics["model_slug"] = normalized_slug
+            item["metrics"] = metrics
+        return items
+
     def discover_hot_items(self, page: int = 1) -> list[dict]:
         referer = f"https://{self.domain}/hot/"
         merged_results: list[dict] = []
@@ -175,6 +211,23 @@ class Jable(SourceBase):
         if page <= 1:
             return f"https://{self.domain}/search/{encoded}/"
         return f"https://{self.domain}/search/{encoded}/?page={page}"
+
+    def _build_model_videos_url(
+        self,
+        *,
+        model_slug: str,
+        page: int = 1,
+        sort_by: str,
+    ) -> str:
+        query = {
+            "mode": "async",
+            "function": "get_block",
+            "block_id": "list_videos_common_videos_list",
+            "sort_by": sort_by,
+        }
+        if page > 1:
+            query["page"] = str(page)
+        return f"https://{self.domain}/models/{quote(model_slug)}/?{urlencode(query)}"
 
     def _discover_listing(
         self,
@@ -253,6 +306,15 @@ class Jable(SourceBase):
             return f"https://{self.domain}{normalized_path}"
         separator = "&" if "?" in normalized_path else "?"
         return f"https://{self.domain}{normalized_path}{separator}page={page}"
+
+    def _normalize_model_slug(self, model_slug: str) -> str:
+        normalized = str(model_slug or "").strip()
+        if not normalized:
+            return ""
+        match = re.search(r"/models/([^/?#]+)/?", normalized)
+        if match:
+            normalized = match.group(1)
+        return normalized.strip().strip("/").lower()
 
     def _build_hot_board_url(self, *, sort_by: str, page: int = 1) -> str:
         query = {

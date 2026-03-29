@@ -159,6 +159,7 @@ API 层只负责：
 - 从 `SeedProvider` 获取推荐种子
 - 对每个 seed 调用 `Jable.search()`
 - 对演员 seed 展开别名查询，提升括号别名/多写法场景下的召回率
+- 若演员存在 Jable 持久化映射，则优先通过 `models/{slug}` 的演员页 async block 召回
 - 读取 Jable 热榜与最近更新，作为 discovery 候选补充召回池
 - 当主种子召回不足，或主种子召回大多已被近期推荐历史占用时，自动扩展到低位种子继续召回
 - 合并重复候选
@@ -319,6 +320,7 @@ API 层只负责：
   - `Actor.objects.annotate(resource_count=Count("resources"))`
   - 取出现次数最高的演员
   - 若演员名包含括号别名（如 `めぐり（藤浦めぐ）`），会自动展开为多个搜索别名，但推荐理由仍展示规范名
+  - 若存在 `ActorSourceMapping(source_name="jable")`，会把 `source_actor_name` / `aliases` 并入召回别名，并把 `source_actor_slug` 作为优先召回入口
 
 - 类别种子：
   - `Genre.objects.annotate(resource_count=Count("resources"))`

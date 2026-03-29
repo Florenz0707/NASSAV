@@ -42,6 +42,20 @@
     - `updated_at` (DateTime, auto_now): 最后更新时间，自动更新。
   - 默认排序：按 `name` 升序。
 
+- **`ActorSourceMapping` (`nassav_actor_source_mapping`)**: 演员到外部 source 身份的持久化映射表。
+  - 关键字段：
+    - `actor` (FK): 关联本地 `Actor`。
+    - `source_name` (Char, db_index): 外部源标识，当前主要用于 `jable`。
+    - `source_actor_name` (Char): source 侧展示名。
+    - `source_actor_slug` (Char, nullable): source 侧稳定标识；对 Jable 为 `models/{slug}` 中的 slug。
+    - `source_actor_url` (URLField): source 侧演员页 URL。
+    - `aliases` (JSONField): source 侧别名列表。
+    - `match_method` / `confidence` / `is_verified` / `is_active`: 映射来源与可信度控制字段。
+    - `last_seen_at` / `created_at` / `updated_at`: 使用与维护时间。
+  - 约束：
+    - `(actor, source_name)` 唯一，保证同一演员在同一 source 下只有一条主映射。
+    - `(source_name, source_actor_slug)` 唯一，避免两个本地演员绑定到同一个 source slug。
+
 - **`Genre` (`nassav_genre`)**: 类型/标签表。
   - 关键字段：
     - `name` (Char, unique, db_index): 类别名称。
@@ -136,6 +150,7 @@
     - 聚合历史 `matched_seeds` 反馈，形成演员 / 类别 seed 偏好分
     - 将这些学习信号注入 `RecommendationRequest`，供 `FeedbackSignalFactor` 参与打分
   - 对演员 seed，如果名称中包含括号别名，会展开多个搜索关键词参与召回
+  - 若演员存在 `ActorSourceMapping(source_name="jable")`，则推荐器会优先使用 `models/{source_actor_slug}` 的 async block 召回该演员作品，再回退到普通搜索
   - 还会将 Jable 热榜/最近更新候选作为 discovery 补充写入同一批 `RecommendationItem`
   - 若最近推荐过滤后没有剩余候选，会回退到不过滤历史的候选列表，避免返回空结果
 
