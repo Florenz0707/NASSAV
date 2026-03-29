@@ -15,28 +15,55 @@ export const useSettingsStore = defineStore('settings', () => {
   // 主题模式：light | dark
   const colorMode = ref('dark')
 
-  // 从后端加载设置（仅在应用启动时调用一次）
-  async function loadSettings() {
-    try {
-      const response = await settingsApi.get()
-      const data = response.data || {}
+  // 推荐搜索结果展示样式：grid | masonry
+  const searchResultDisplayStyle = ref('grid')
+  const loaded = ref(false)
+  let loadPromise = null
 
-      // 后端返回的 enable_avatar 是字符串 "true"/"false"
-      if (data.enable_avatar !== undefined) {
-        showActorAvatar.value = data.enable_avatar === 'true'
+  // 从后端加载设置（仅在应用启动时调用一次）
+  async function loadSettings(force = false) {
+    if (loaded.value && !force) {
+      return { success: true, cached: true }
+    }
+    if (loadPromise && !force) {
+      return loadPromise
+    }
+
+    loadPromise = (async () => {
+      try {
+        const response = await settingsApi.get()
+        const data = response.data || {}
+
+        // 后端返回的 enable_avatar 是字符串 "true"/"false"
+        if (data.enable_avatar !== undefined) {
+          showActorAvatar.value = data.enable_avatar === 'true'
+        }
+        if (data.display_title !== undefined) {
+          displayTitle.value = data.display_title
+        }
+        if (data.font_family !== undefined) {
+          fontFamily.value = data.font_family
+        }
+        if (data.color_mode !== undefined) {
+          colorMode.value = data.color_mode
+        }
+        if (data.search_result_display_style !== undefined) {
+          searchResultDisplayStyle.value = data.search_result_display_style
+        }
+        loaded.value = true
+        return { success: true }
+      } catch (err) {
+        console.error('加载用户设置失败:', err)
+        throw err
+      } finally {
+        loadPromise = null
       }
-      if (data.display_title !== undefined) {
-        displayTitle.value = data.display_title
-      }
-      if (data.font_family !== undefined) {
-        fontFamily.value = data.font_family
-      }
-      if (data.color_mode !== undefined) {
-        colorMode.value = data.color_mode
-      }
+    })()
+
+    try {
+      return await loadPromise
     } catch (err) {
-      console.error('加载用户设置失败:', err)
-      // 失败时使用默认值
+      return { success: false, error: err }
     }
   }
 
@@ -48,6 +75,7 @@ export const useSettingsStore = defineStore('settings', () => {
         display_title: displayTitle.value,
         font_family: fontFamily.value,
         color_mode: colorMode.value,
+        search_result_display_style: searchResultDisplayStyle.value,
       })
       return { success: true }
     } catch (err) {
@@ -61,6 +89,8 @@ export const useSettingsStore = defineStore('settings', () => {
     displayTitle,
     fontFamily,
     colorMode,
+    searchResultDisplayStyle,
+    loaded,
     loadSettings,
     saveSettings,
   }

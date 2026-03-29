@@ -1,16 +1,18 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RecommendationCard from '../components/RecommendationCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import { recommendationApi } from '../api'
 import { useResourceStore } from '../stores/resource'
+import { useSettingsStore } from '../stores/settings'
 import { useToastStore } from '../stores/toast'
 
 const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
+const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 
 const loading = ref(false)
@@ -36,6 +38,10 @@ const initialized = ref(false)
 const hasRequested = ref(false)
 const showScrollTop = ref(false)
 const lastLoadedConfigKey = ref('')
+const activeReasonAvid = ref('')
+const activeReasonPopoverStyle = ref({})
+const activeReasonAnchor = ref(null)
+const RECOMMENDATIONS_STATE_KEY = 'nassav:recommendations:view-state'
 
 const availableStrategies = computed(() => {
   return (options.value.strategies || []).filter((item) => {
@@ -64,6 +70,14 @@ const seedGroups = computed(() => {
 })
 
 const visibleItems = computed(() => items.value || [])
+const resultDisplayStyle = computed(() =>
+  settingsStore.searchResultDisplayStyle === 'masonry' ? 'masonry' : 'grid'
+)
+const activeReasonItem = computed(() => {
+  if (!activeReasonAvid.value) return null
+  return visibleItems.value.find((item) => item.avid === activeReasonAvid.value) || null
+})
+const showInitialLoading = computed(() => loading.value && !visibleItems.value.length)
 
 function buildConfigKey() {
   return JSON.stringify({
@@ -71,6 +85,48 @@ function buildConfigKey() {
     strategy: selectedStrategy.value || '',
     limit: limit.value || 12,
   })
+}
+
+function serializeSet(value) {
+  return Array.from(value || [])
+}
+
+function saveViewState() {
+  const state = {
+    selectedRecommender: selectedRecommender.value,
+    selectedStrategy: selectedStrategy.value,
+    limit: limit.value,
+    items: items.value || [],
+    seeds: seeds.value || [],
+    meta: meta.value || null,
+    hasRequested: hasRequested.value,
+    lastLoadedConfigKey: lastLoadedConfigKey.value,
+    addedAvids: serializeSet(addedAvids.value),
+    scrollY: window.scrollY || 0,
+  }
+  window.sessionStorage.setItem(RECOMMENDATIONS_STATE_KEY, JSON.stringify(state))
+}
+
+function restoreViewState() {
+  const raw = window.sessionStorage.getItem(RECOMMENDATIONS_STATE_KEY)
+  if (!raw) return null
+
+  try {
+    const state = JSON.parse(raw)
+    selectedRecommender.value = state.selectedRecommender || selectedRecommender.value
+    selectedStrategy.value = state.selectedStrategy || selectedStrategy.value
+    limit.value = Number.parseInt(state.limit, 10) || 12
+    items.value = Array.isArray(state.items) ? state.items : []
+    seeds.value = Array.isArray(state.seeds) ? state.seeds : []
+    meta.value = state.meta || null
+    hasRequested.value = Boolean(state.hasRequested)
+    lastLoadedConfigKey.value = state.lastLoadedConfigKey || ''
+    addedAvids.value = new Set(Array.isArray(state.addedAvids) ? state.addedAvids : [])
+    return state
+  } catch (_error) {
+    window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
+    return null
+  }
 }
 
 function mergeRecommendationItems(existingItems, nextItems) {
@@ -86,10 +142,86 @@ function mergeRecommendationItems(existingItems, nextItems) {
 
 function updateScrollState() {
   showScrollTop.value = window.scrollY > 360
+  if (activeReasonAvid.value) {
+    const anchorElement = findReasonAnchorElement(activeReasonAvid.value)
+    if (anchorElement) {
+      activeReasonAnchor.value = anchorElement
+      positionReasonPopover(anchorElement)
+    }
+  }
+}
+
+function syncActiveReasonItem() {
+  if (!activeReasonAvid.value) return
+  const exists = visibleItems.value.some((item) => item.avid === activeReasonAvid.value)
+  if (!exists) {
+    activeReasonAvid.value = ''
+    activeReasonAnchor.value = null
+    activeReasonPopoverStyle.value = {}
+  }
 }
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function closeReasonPanel() {
+  activeReasonAvid.value = ''
+  activeReasonAnchor.value = null
+  activeReasonPopoverStyle.value = {}
+}
+
+function findReasonAnchorElement(avid) {
+  if (!avid || !window.CSS?.escape) return null
+  return document.querySelector(`[data-reason-anchor="${window.CSS.escape(avid)}"]`)
+}
+
+function positionReasonPopover(anchorElement) {
+  if (!anchorElement) return
+
+  const rect = anchorElement.getBoundingClientRect()
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+
+  if (viewportWidth < 960) {
+    activeReasonPopoverStyle.value = {
+      left: '1rem',
+      right: '1rem',
+      bottom: '1rem',
+      width: 'auto',
+      maxWidth: 'none',
+    }
+    return
+  }
+
+  const popoverWidth = resultDisplayStyle.value === 'masonry' ? 240 : 300
+  const offset = 12
+  let left = rect.right + offset
+
+  if (left + popoverWidth > viewportWidth - 16) {
+    left = Math.max(16, rect.left - popoverWidth - offset)
+  }
+
+  const top = Math.min(Math.max(88, rect.top - 12), Math.max(88, viewportHeight - 360))
+
+  activeReasonPopoverStyle.value = {
+    top: `${top}px`,
+    left: `${left}px`,
+    width: `${popoverWidth}px`,
+    maxWidth: `${Math.max(220, viewportWidth - 32)}px`,
+  }
+}
+
+function toggleReasonPanel(item, event) {
+  if (!item?.avid || !item.reasons?.length) return
+  if (activeReasonAvid.value === item.avid) {
+    closeReasonPanel()
+    return
+  }
+
+  activeReasonAvid.value = item.avid
+  activeReasonAnchor.value = event?.currentTarget || null
+  positionReasonPopover(activeReasonAnchor.value)
 }
 
 function syncQuery() {
@@ -138,9 +270,18 @@ async function loadRecommendations() {
     items.value = shouldMerge
       ? mergeRecommendationItems(items.value, payload.items || [])
       : payload.items || []
-    seeds.value = payload.seeds || []
+    seeds.value = [...(payload.seeds || [])]
     meta.value = payload.meta || null
     lastLoadedConfigKey.value = requestConfigKey
+    syncActiveReasonItem()
+    window.requestAnimationFrame(() => {
+      if (!activeReasonAvid.value) return
+      const anchorElement = findReasonAnchorElement(activeReasonAvid.value)
+      if (anchorElement) {
+        activeReasonAnchor.value = anchorElement
+        positionReasonPopover(anchorElement)
+      }
+    })
   } catch (err) {
     error.value = err.message || '获取推荐失败'
     if (!shouldMerge) {
@@ -192,6 +333,16 @@ function handleView(item) {
   router.push(`/resource/${item.avid}`)
 }
 
+function handleGlobalKeydown(event) {
+  if (event.key === 'Escape') {
+    closeReasonPanel()
+  }
+}
+
+function handleViewportResize() {
+  updateScrollState()
+}
+
 watch(selectedRecommender, () => {
   const strategySupported = availableStrategies.value.some(
     (item) => item.id === selectedStrategy.value
@@ -209,15 +360,26 @@ watch([selectedStrategy, limit], () => {
 })
 
 onMounted(async () => {
+  await settingsStore.loadSettings()
+  const restoredState = restoreViewState()
   await loadOptions()
   initialized.value = true
   syncQuery()
+  if (restoredState?.scrollY) {
+    await nextTick()
+    window.scrollTo({ top: restoredState.scrollY, left: 0, behavior: 'auto' })
+  }
   updateScrollState()
   window.addEventListener('scroll', updateScrollState, { passive: true })
+  window.addEventListener('resize', handleViewportResize)
+  window.addEventListener('keydown', handleGlobalKeydown)
 })
 
 onBeforeUnmount(() => {
+  saveViewState()
   window.removeEventListener('scroll', updateScrollState)
+  window.removeEventListener('resize', handleViewportResize)
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>
 
@@ -314,18 +476,23 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="content-shell">
-      <div v-if="loading" class="loading-shell">
+      <div v-if="showInitialLoading" class="loading-shell">
         <LoadingSpinner size="large" text="正在生成推荐结果..." />
       </div>
 
       <EmptyState
-        v-else-if="!hasRequested"
+        v-else-if="!hasRequested && !visibleItems.length"
         icon="✦"
         title="尚未开始推荐"
         description="先选择推荐器与策略，再按上方按钮生成推荐结果。"
       />
 
-      <EmptyState v-else-if="error" icon="!" title="推荐加载失败" :description="error">
+      <EmptyState
+        v-else-if="error && !visibleItems.length"
+        icon="!"
+        title="推荐加载失败"
+        :description="error"
+      >
         <template #action>
           <button class="empty-action" @click="loadRecommendations">重新加载</button>
         </template>
@@ -343,17 +510,26 @@ onBeforeUnmount(() => {
       </EmptyState>
 
       <div v-else class="results-stack">
-        <div class="recommendation-grid">
-          <RecommendationCard
-            v-for="item in visibleItems"
-            :key="item.avid"
-            :item="item"
-            :adding="addingAvids.has(item.avid)"
-            :added="addedAvids.has(item.avid)"
-            @add="handleAdd(item)"
-            @open="handleOpen(item)"
-            @view="handleView(item)"
-          />
+        <div
+          class="recommendation-grid"
+          :class="{
+            'standard-layout': resultDisplayStyle === 'grid',
+            'masonry-layout': resultDisplayStyle === 'masonry',
+          }"
+        >
+          <div v-for="item in visibleItems" :key="item.avid" class="recommendation-slot">
+            <RecommendationCard
+              :item="item"
+              :adding="addingAvids.has(item.avid)"
+              :added="addedAvids.has(item.avid)"
+              :layout-style="resultDisplayStyle"
+              :reasons-open="activeReasonAvid === item.avid"
+              @add="handleAdd(item)"
+              @open="handleOpen(item)"
+              @view="handleView(item)"
+              @reasons="toggleReasonPanel(item, $event)"
+            />
+          </div>
         </div>
 
         <div class="results-footer">
@@ -374,6 +550,34 @@ onBeforeUnmount(() => {
     >
       回到顶部
     </button>
+
+    <transition name="reason-panel-fade">
+      <aside
+        v-if="activeReasonItem"
+        class="reason-floating-panel"
+        :style="activeReasonPopoverStyle"
+      >
+        <div class="reason-panel-header">
+          <div>
+            <div class="reason-panel-eyebrow">Recommendation Notes</div>
+          </div>
+          <button class="reason-panel-close" type="button" @click="closeReasonPanel">⨉</button>
+        </div>
+        <div class="reason-panel-score">
+          推荐评分 {{ Number(activeReasonItem.score || 0).toFixed(1) }}
+        </div>
+
+        <div class="reason-panel-list">
+          <div
+            v-for="reason in activeReasonItem.reasons || []"
+            :key="reason"
+            class="reason-panel-item"
+          >
+            {{ reason }}
+          </div>
+        </div>
+      </aside>
+    </transition>
   </div>
 </template>
 
@@ -599,9 +803,39 @@ onBeforeUnmount(() => {
 }
 
 .recommendation-grid {
+  align-items: start;
+}
+
+.recommendation-grid.standard-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-auto-rows: 1fr;
   gap: 1rem;
+  align-items: stretch;
+}
+
+.recommendation-grid.standard-layout .recommendation-slot {
+  display: flex;
+  position: relative;
+  height: 100%;
+}
+
+.recommendation-grid.standard-layout .recommendation-slot :deep(.recommendation-card) {
+  width: 100%;
+  height: 100%;
+}
+
+.recommendation-grid.masonry-layout {
+  width: min(30rem, 100%);
+  margin: 0 auto;
+  column-count: 2;
+  column-gap: 0.75rem;
+}
+
+.recommendation-grid.masonry-layout .recommendation-slot {
+  break-inside: avoid;
+  position: relative;
+  margin-bottom: 0.75rem;
 }
 
 .results-stack {
@@ -646,18 +880,115 @@ onBeforeUnmount(() => {
   min-width: 6.5rem;
   min-height: 2.75rem;
   padding: 0 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-color);
   border-radius: 999px;
-  background: rgba(18, 18, 24, 0.82);
+  background: color-mix(in srgb, var(--bg-overlay) 88%, transparent);
   color: var(--text-primary);
   font-weight: 600;
   backdrop-filter: blur(14px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--shadow-lg);
   cursor: pointer;
 }
 
 .scroll-top-btn:hover {
   border-color: rgba(255, 107, 107, 0.28);
+  background: color-mix(in srgb, var(--bg-overlay) 94%, transparent);
+}
+
+.reason-floating-panel {
+  position: fixed;
+  z-index: 30;
+  max-height: min(24rem, calc(100vh - 6rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1.15rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.reason-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reason-panel-eyebrow {
+  color: var(--accent-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reason-panel-title {
+  margin: 0.35rem 0 0;
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.reason-panel-close {
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.reason-panel-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.reason-panel-score {
+  display: inline-flex;
+  align-self: flex-start;
+  min-height: 2rem;
+  padding: 0.35rem 0.78rem;
+  border-radius: 999px;
+  background: rgba(255, 107, 107, 0.12);
+  color: var(--accent-primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.reason-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.reason-panel-item {
+  padding: 0.78rem 0.9rem;
+  border-radius: 1rem;
+  background: rgba(255, 107, 107, 0.06);
+  border: 1px solid rgba(255, 107, 107, 0.12);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.reason-panel-fade-enter-active,
+.reason-panel-fade-leave-active {
+  transition: all 0.22s ease;
+}
+
+.reason-panel-fade-enter-from,
+.reason-panel-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 @media (max-width: 960px) {
@@ -678,6 +1009,30 @@ onBeforeUnmount(() => {
   .scroll-top-btn {
     right: 1rem;
     bottom: 1rem;
+  }
+
+  .recommendation-grid.masonry-layout {
+    column-count: 2;
+    width: min(30rem, 100%);
+  }
+
+  .reason-floating-panel {
+    top: auto;
+    max-height: min(70vh, 34rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .recommendation-grid.masonry-layout {
+    column-count: 1;
+  }
+
+  .reason-floating-panel {
+    left: 1rem !important;
+    right: 1rem !important;
+    bottom: 1rem !important;
+    width: auto !important;
+    max-height: min(70vh, 34rem);
   }
 }
 </style>

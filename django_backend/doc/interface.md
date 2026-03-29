@@ -25,7 +25,8 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
   "message": "success",
   "data": {
     "enable_avatar": "true",
-    "display_title": "source_title"
+    "display_title": "source_title",
+    "search_result_display_style": "grid"
   }
 }
 ```
@@ -37,6 +38,9 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
   - `"original_title"`: 显示原始日语标题
   - `"source_title"`: 显示下载源标题（默认）
   - `"translated_title"`: 显示翻译后的中文标题
+- `search_result_display_style`: 推荐页搜索结果展示样式
+  - `"grid"`: 标准网格布局（默认）
+  - `"masonry"`: 两列瀑布流布局
 
 **配置文件自动重载**：
 
@@ -55,6 +59,7 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 - 请求 Body（支持部分更新）：
   - `enable_avatar`: `"true"` 或 `"false"`（可选）
   - `display_title`: `"original_title"` | `"source_title"` | `"translated_title"`（可选）
+  - `search_result_display_style`: `"grid"` | `"masonry"`（可选）
 
 示例请求：
 
@@ -62,7 +67,8 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 PUT /nassav/api/setting
 {
   "enable_avatar": "false",
-  "display_title": "translated_title"
+  "display_title": "translated_title",
+  "search_result_display_style": "masonry"
 }
 ```
 
@@ -74,7 +80,8 @@ PUT /nassav/api/setting
   "message": "设置已更新",
   "data": {
     "enable_avatar": "false",
-    "display_title": "translated_title"
+    "display_title": "translated_title",
+    "search_result_display_style": "masonry"
   }
 }
 ```

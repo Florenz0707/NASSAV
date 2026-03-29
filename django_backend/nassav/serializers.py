@@ -58,6 +58,7 @@ class UserSettingSerializer(serializers.Serializer):
     display_title = serializers.CharField()
     font_family = serializers.CharField()
     color_mode = serializers.CharField()
+    search_result_display_style = serializers.CharField()
 
 
 class UserSettingUpdateSerializer(serializers.Serializer):
@@ -67,6 +68,7 @@ class UserSettingUpdateSerializer(serializers.Serializer):
     display_title = serializers.CharField(required=False)
     font_family = serializers.CharField(required=False)
     color_mode = serializers.CharField(required=False)
+    search_result_display_style = serializers.CharField(required=False)
 
     def validate_enable_avatar(self, value):
         """验证 enable_avatar 值"""
@@ -89,6 +91,15 @@ class UserSettingUpdateSerializer(serializers.Serializer):
         if value not in valid_values:
             raise serializers.ValidationError(
                 f"color_mode 必须是 {', '.join(valid_values)} 之一"
+            )
+        return value
+
+    def validate_search_result_display_style(self, value):
+        """验证搜索结果展示样式"""
+        valid_values = ["grid", "masonry"]
+        if value not in valid_values:
+            raise serializers.ValidationError(
+                "search_result_display_style 必须是 grid, masonry 之一"
             )
         return value
 

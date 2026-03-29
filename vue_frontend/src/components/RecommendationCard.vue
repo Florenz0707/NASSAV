@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { recommendationApi } from '../api'
 
 const props = defineProps({
@@ -15,16 +15,30 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  layoutStyle: {
+    type: String,
+    default: 'grid',
+  },
+  reasonsOpen: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-defineEmits(['add', 'open', 'view'])
-
-const showReasons = ref(false)
+defineEmits(['add', 'open', 'view', 'reasons'])
 const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.cover_url))
+
+function formatCompactMetric(value) {
+  const parsed = Number(value || 0)
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  if (parsed >= 1000000) return `${Math.floor(parsed / 1000000)}M+`
+  if (parsed >= 1000) return `${Math.floor(parsed / 1000)}K+`
+  return `${parsed}`
+}
 </script>
 
 <template>
-  <article class="recommendation-card" :class="{ added }">
+  <article class="recommendation-card" :class="{ masonry: layoutStyle === 'masonry' }">
     <div class="cover-shell">
       <img
         v-if="item.cover_url"
@@ -36,14 +50,12 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
       </div>
-      <div v-if="added" class="added-banner">已添加</div>
     </div>
 
     <div class="card-body">
       <div class="card-meta">
         <span class="avid-chip">{{ item.avid }}</span>
         <span v-if="item.source" class="source-chip">{{ item.source }}</span>
-        <span v-if="added" class="status-chip">已添加到资源库</span>
       </div>
 
       <h3 class="card-title">
@@ -52,26 +64,26 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
 
       <div v-if="item.raw_metrics" class="metrics-row">
         <span v-if="item.raw_metrics.duration">时长 {{ item.raw_metrics.duration }}</span>
-        <span v-if="item.raw_metrics.views">浏览 {{ item.raw_metrics.views }}</span>
-        <span v-if="item.raw_metrics.likes">收藏 {{ item.raw_metrics.likes }}</span>
+        <span v-if="formatCompactMetric(item.raw_metrics.views)">
+          浏览 {{ formatCompactMetric(item.raw_metrics.views) }}
+        </span>
+        <span v-if="formatCompactMetric(item.raw_metrics.likes)">
+          收藏 {{ formatCompactMetric(item.raw_metrics.likes) }}
+        </span>
       </div>
 
       <div v-if="item.score !== undefined || item.reasons?.length" class="reasons-wrap">
         <button
           class="reason-toggle"
+          :data-reason-anchor="item.avid"
           :disabled="!item.reasons?.length"
-          @click="item.reasons?.length && (showReasons = !showReasons)"
+          :class="{ active: reasonsOpen }"
+          @click="item.reasons?.length && $emit('reasons', $event)"
         >
           {{
-            `推荐评分：${Number(item.score || 0).toFixed(1)}，点击查看原因（${item.reasons?.length || 0}）`
+            `推荐评分：${Number(item.score || 0).toFixed(1)}，理由（${item.reasons?.length || 0}）`
           }}
         </button>
-
-        <div v-if="showReasons" class="reasons">
-          <span v-for="reason in item.reasons" :key="reason" class="reason-pill">
-            {{ reason }}
-          </span>
-        </div>
       </div>
 
       <div class="card-actions">
@@ -105,11 +117,6 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
     box-shadow 0.25s ease;
 }
 
-.recommendation-card.added {
-  border-color: rgba(46, 204, 113, 0.22);
-  background: linear-gradient(180deg, rgba(46, 204, 113, 0.06), rgba(255, 255, 255, 0.02));
-}
-
 .recommendation-card:hover {
   transform: translateY(-4px);
   border-color: rgba(255, 255, 255, 0.16);
@@ -123,22 +130,6 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
   background:
     radial-gradient(circle at top left, rgba(255, 107, 107, 0.28), transparent 55%),
     linear-gradient(145deg, rgba(18, 18, 24, 0.92), rgba(28, 28, 38, 0.86));
-}
-
-.added-banner {
-  position: absolute;
-  top: 0.8rem;
-  right: 0.8rem;
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.85rem;
-  padding: 0.2rem 0.72rem;
-  border-radius: 999px;
-  background: rgba(46, 204, 113, 0.9);
-  color: white;
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
 .cover-image {
@@ -176,8 +167,7 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
 }
 
 .avid-chip,
-.source-chip,
-.status-chip {
+.source-chip {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -196,17 +186,14 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
   color: var(--accent-tertiary);
 }
 
-.status-chip {
-  background: rgba(46, 204, 113, 0.14);
-  color: #7ff0a6;
-}
-
 .card-title {
   color: var(--text-primary);
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.45;
   margin: 0;
+  min-height: calc(1rem * 1.45 * 3);
+  max-height: calc(1rem * 1.45 * 3);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -216,21 +203,16 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
 .metrics-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.75rem;
   color: var(--text-muted);
   font-size: 0.82rem;
-}
-
-.reasons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  min-height: 1.2rem;
 }
 
 .reasons-wrap {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
 }
 
 .reason-toggle {
@@ -243,6 +225,10 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
   font-size: 0.76rem;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .reason-toggle:disabled {
@@ -250,17 +236,10 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
   opacity: 0.8;
 }
 
-.reason-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.9rem;
-  border-radius: 999px;
-  padding: 0.28rem 0.7rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.3;
+.reason-toggle.active {
+  border-color: rgba(255, 107, 107, 0.28);
+  background: rgba(255, 107, 107, 0.08);
+  color: var(--text-primary);
 }
 
 .card-actions {
@@ -307,6 +286,56 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
 .action-btn.success {
   background: linear-gradient(135deg, rgba(46, 204, 113, 0.9), rgba(26, 188, 156, 0.9));
   color: white;
+}
+
+.recommendation-card.masonry .card-title {
+  display: block;
+  min-height: auto;
+  max-height: none;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+}
+
+.recommendation-card.masonry .card-body {
+  gap: 0.65rem;
+  padding: 0.72rem 0.72rem 0.82rem;
+}
+
+.recommendation-card.masonry .card-meta {
+  gap: 0.36rem;
+}
+
+.recommendation-card.masonry .avid-chip,
+.recommendation-card.masonry .source-chip,
+.recommendation-card.masonry .status-chip {
+  padding: 0.22rem 0.48rem;
+  font-size: 0.64rem;
+}
+
+.recommendation-card.masonry .card-title {
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.recommendation-card.masonry .metrics-row {
+  gap: 0.48rem;
+  font-size: 0.72rem;
+}
+
+.recommendation-card.masonry .reason-toggle {
+  padding: 0.32rem 0.55rem;
+  font-size: 0.68rem;
+}
+
+.recommendation-card.masonry .card-actions {
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.recommendation-card.masonry .action-btn {
+  padding: 0.62rem 0.75rem;
+  font-size: 0.78rem;
 }
 
 @media (max-width: 640px) {

@@ -455,6 +455,28 @@ onMounted(() => {
                     </select>
                   </div>
 
+                  <!-- 搜索结果展示样式 -->
+                  <div class="flex items-center justify-between pt-4 border-t border-white/[0.05]">
+                    <div>
+                      <div class="text-[var(--text-primary)] font-medium">搜索结果展示样式</div>
+                      <div class="text-sm text-[var(--text-muted)]">
+                        控制推荐页搜索结果使用标准网格还是两列瀑布流
+                      </div>
+                    </div>
+                    <select
+                      v-model="settingsStore.searchResultDisplayStyle"
+                      class="px-4 py-2 rounded-lg text-sm focus:outline-none transition-all cursor-pointer"
+                      style="
+                        background: var(--bg-secondary);
+                        border: 1px solid var(--border-color);
+                        color: var(--text-primary);
+                      "
+                    >
+                      <option value="grid">标准网格</option>
+                      <option value="masonry">两列瀑布流</option>
+                    </select>
+                  </div>
+
                   <!-- 字体样式 -->
                   <div class="pt-4 border-t border-white/[0.05]">
                     <div class="flex items-center justify-between mb-4">

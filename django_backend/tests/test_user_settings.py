@@ -25,6 +25,7 @@ def test_get_user_settings(client):
     assert "display_title" in settings
     assert "font_family" in settings
     assert "color_mode" in settings
+    assert "search_result_display_style" in settings
 
     # 验证默认值
     assert settings["enable_avatar"] in ["true", "false"]
@@ -34,6 +35,7 @@ def test_get_user_settings(client):
         "translated_title",
     ]
     assert settings["color_mode"] in ["light", "dark"]
+    assert settings["search_result_display_style"] in ["grid", "masonry"]
 
 
 @pytest.mark.django_db
@@ -47,6 +49,7 @@ def test_update_user_settings(client):
             "display_title": "translated_title",
             "font_family": "ZenKakuGothicNew",
             "color_mode": "light",
+            "search_result_display_style": "masonry",
         },
         content_type="application/json",
     )
@@ -62,6 +65,7 @@ def test_update_user_settings(client):
     assert settings["display_title"] == "translated_title"
     assert settings["font_family"] == "ZenKakuGothicNew"
     assert settings["color_mode"] == "light"
+    assert settings["search_result_display_style"] == "masonry"
 
     # 再次获取验证持久化
     response = client.get("/nassav/api/setting")
@@ -71,6 +75,7 @@ def test_update_user_settings(client):
     assert settings["display_title"] == "translated_title"
     assert settings["font_family"] == "ZenKakuGothicNew"
     assert settings["color_mode"] == "light"
+    assert settings["search_result_display_style"] == "masonry"
 
 
 @pytest.mark.django_db
@@ -136,6 +141,21 @@ def test_update_invalid_color_mode(client):
     assert "color_mode" in data["data"]
 
 
+@pytest.mark.django_db
+def test_update_invalid_search_result_display_style(client):
+    """测试更新无效的 search_result_display_style 值"""
+    response = client.put(
+        "/nassav/api/setting",
+        data={"search_result_display_style": "invalid_mode"},
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+
+    data = response.json()
+    assert data["code"] == 400
+    assert "search_result_display_style" in data["data"]
+
+
 def test_settings_manager_default_creation():
     """测试设置管理器创建默认配置"""
     from nassav.user_settings import UserSettingsManager
@@ -153,6 +173,7 @@ def test_settings_manager_default_creation():
         assert settings["display_title"] == "source_title"
         assert settings["font_family"] == "Mplus2"
         assert settings["color_mode"] == "dark"
+        assert settings["search_result_display_style"] == "grid"
 
 
 def test_settings_manager_validation():
@@ -171,11 +192,14 @@ def test_settings_manager_validation():
         assert manager.set("display_title", "translated_title") is True
         assert manager.set("color_mode", "light") is True
         assert manager.set("color_mode", "dark") is True
+        assert manager.set("search_result_display_style", "grid") is True
+        assert manager.set("search_result_display_style", "masonry") is True
 
         # 测试无效值
         assert manager.set("enable_avatar", "invalid") is False
         assert manager.set("display_title", "invalid") is False
         assert manager.set("color_mode", "invalid") is False
+        assert manager.set("search_result_display_style", "invalid") is False
 
 
 def test_settings_manager_persistence():
@@ -190,12 +214,14 @@ def test_settings_manager_persistence():
         manager1.set("enable_avatar", "false")
         manager1.set("display_title", "translated_title")
         manager1.set("color_mode", "light")
+        manager1.set("search_result_display_style", "masonry")
 
         # 重新加载验证持久化
         manager2 = UserSettingsManager(config_path)
         assert manager2.get("enable_avatar") == "false"
         assert manager2.get("display_title") == "translated_title"
         assert manager2.get("color_mode") == "light"
+        assert manager2.get("search_result_display_style") == "masonry"
 
 
 def test_get_settings_manager_is_path_scoped_cache():

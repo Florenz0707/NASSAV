@@ -24,6 +24,7 @@ class UserSettingsManager:
             "display_title": "source_title",  # original_title | source_title | translated_title
             "font_family": "Mplus2",  # Mplus2 | TheWriteRight | ZenKakuGothicNew
             "color_mode": "dark",  # light | dark
+            "search_result_display_style": "grid",  # grid | masonry
         }
     }
 
@@ -32,6 +33,7 @@ class UserSettingsManager:
         "enable_avatar": ["true", "false"],
         "display_title": ["original_title", "source_title", "translated_title"],
         "color_mode": ["light", "dark"],
+        "search_result_display_style": ["grid", "masonry"],
         # font_family 不需要验证，因为后端不提供字体资源
     }
 
