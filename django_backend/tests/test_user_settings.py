@@ -196,3 +196,39 @@ def test_settings_manager_persistence():
         assert manager2.get("enable_avatar") == "false"
         assert manager2.get("display_title") == "translated_title"
         assert manager2.get("color_mode") == "light"
+
+
+def test_get_settings_manager_is_path_scoped_cache():
+    from nassav.user_settings import (
+        clear_settings_manager_cache,
+        get_settings_manager,
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path_a = Path(tmpdir) / "settings-a.ini"
+        path_b = Path(tmpdir) / "settings-b.ini"
+
+        clear_settings_manager_cache()
+        manager_a1 = get_settings_manager(path_a)
+        manager_a2 = get_settings_manager(path_a)
+        manager_b = get_settings_manager(path_b)
+
+        assert manager_a1 is manager_a2
+        assert manager_a1 is not manager_b
+
+
+def test_clear_settings_manager_cache_recreates_instance():
+    from nassav.user_settings import (
+        clear_settings_manager_cache,
+        get_settings_manager,
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = Path(tmpdir) / "settings.ini"
+
+        clear_settings_manager_cache()
+        manager1 = get_settings_manager(config_path)
+        clear_settings_manager_cache(config_path)
+        manager2 = get_settings_manager(config_path)
+
+        assert manager1 is not manager2

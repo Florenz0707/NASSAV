@@ -11,7 +11,11 @@ from loguru import logger
 
 
 class UserSettingsManager:
-    """用户设置管理器"""
+    """用户设置管理器。
+
+    真值始终是磁盘上的 `user_settings.ini`。该对象只是在当前进程中
+    缓存解析后的文件内容，并通过 mtime 检测外部修改。
+    """
 
     # 默认配置
     DEFAULT_SETTINGS = {
@@ -218,13 +222,49 @@ class UserSettingsManager:
         self._save_config()
 
 
-# 全局单例
-_settings_manager = None
+_settings_manager_cache: dict[str, UserSettingsManager] = {}
 
 
-def get_settings_manager() -> UserSettingsManager:
-    """获取全局设置管理器实例"""
-    global _settings_manager
-    if _settings_manager is None:
-        _settings_manager = UserSettingsManager()
-    return _settings_manager
+def resolve_settings_path(config_path: Path | None = None) -> Path:
+    if config_path is not None:
+        return Path(config_path)
+
+    try:
+        from django.conf import settings
+
+        if hasattr(settings, "USER_SETTINGS_PATH"):
+            return Path(settings.USER_SETTINGS_PATH)
+    except Exception:
+        pass
+
+    base_dir = Path(__file__).resolve().parent.parent
+    return base_dir / "config" / "user_settings.ini"
+
+
+def clear_settings_manager_cache(config_path: Path | None = None) -> None:
+    if config_path is None:
+        _settings_manager_cache.clear()
+        return
+
+    resolved_path = resolve_settings_path(config_path)
+    _settings_manager_cache.pop(str(resolved_path), None)
+
+
+def get_settings_manager(
+    config_path: Path | None = None,
+    *,
+    refresh: bool = False,
+) -> UserSettingsManager:
+    """按配置路径获取设置管理器实例。
+
+    这里是“路径级缓存工厂”，不是全局强单例。相同配置路径会复用同一个
+    manager，不同路径会得到独立实例。
+    """
+
+    resolved_path = resolve_settings_path(config_path)
+    cache_key = str(resolved_path)
+
+    if refresh or cache_key not in _settings_manager_cache:
+        _settings_manager_cache[cache_key] = UserSettingsManager(resolved_path)
+
+    return _settings_manager_cache[cache_key]

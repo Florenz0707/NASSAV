@@ -181,7 +181,7 @@
 
 ## P1：应尽快治理
 
-### P1-1 UserSettingsManager 单例收敛
+### P1-1 UserSettingsManager 路径级缓存收敛
 
 问题：
 
@@ -197,8 +197,8 @@
 建议方案：
 
 1. 保留 `UserSettingsManager`
-2. 去掉全局强单例语义，改为轻量工厂或请求内获取
-3. 如果继续保留单例，至少明确它只是文件缓存，不是业务真值
+2. 去掉全局强单例语义，改为按配置路径缓存的轻量工厂
+3. 明确它只是文件缓存，不是业务真值
 4. 所有写入必须立即落盘
 
 ### P1-2 Source / Scraper / Recommender Manager 职责边界
@@ -217,6 +217,7 @@
 1. manager 内只保留 builder / registry 元数据
 2. 请求态状态不要挂到 manager 成员变量
 3. 需要共享状态时优先用 DB / Redis / Django cache
+4. 运行态 cache 应优先放入独立 helper / repository，而不是 manager 私有字段
 
 ## P2：中期治理
 
@@ -297,11 +298,18 @@
 
 ### P1 Checklist
 
-- [ ] 评估 `UserSettingsManager` 是否保留单例
-- [ ] 若保留单例，补充文档说明其仅为文件缓存
-- [ ] 梳理 `SourceManager`、`ScraperManager`、`RecommenderManager` 的成员变量
-- [ ] 将运行态状态从 manager 成员变量迁出
-- [ ] 统一 manager 层“只负责调度”的约束
+- [x] 评估 `UserSettingsManager` 是否保留单例
+- [x] 若保留单例，补充文档说明其仅为文件缓存
+- [x] 梳理 `SourceManager`、`ScraperManager`、`RecommenderManager` 的成员变量
+- [x] 将运行态状态从 manager 成员变量迁出
+- [x] 统一 manager 层“只负责调度”的约束
+
+### P1 实施结果
+
+- `UserSettingsManager` 不再是全局强单例，而是按配置路径缓存的轻量工厂
+- `SourceManager` 的 Cookie runtime cache 已抽到独立的 `SourceCookieRuntimeCache`
+- `RecommenderManager` 的 registry 与元数据改为类级常量，不再写入实例状态
+- `ScraperManager` 保留的 `scrapers` 仅表示启动时注册出的 scraper registry，不承载跨请求运行态
 
 ### P2 Checklist
 

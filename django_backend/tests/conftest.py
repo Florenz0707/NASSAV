@@ -23,16 +23,20 @@ def setup_test_user_settings():
     # 设置测试路径
     settings.USER_SETTINGS_PATH = temp_config_path
 
-    # 清除全局单例，强制重新初始化
-    import nassav.user_settings
+    # 清除路径级缓存，强制重新初始化
+    from nassav.user_settings import clear_settings_manager_cache
 
-    nassav.user_settings._settings_manager = None
+    clear_settings_manager_cache()
 
     yield temp_config_path
 
     # 测试结束后恢复原始路径
     if original_path is not None:
         settings.USER_SETTINGS_PATH = original_path
+
+    from nassav.user_settings import clear_settings_manager_cache
+
+    clear_settings_manager_cache()
 
     # 清理临时目录
     import shutil

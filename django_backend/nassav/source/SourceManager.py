@@ -1,5 +1,4 @@
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -8,6 +7,7 @@ from django.core.cache import cache
 from loguru import logger
 from nassav.scraper import AVDownloadInfo
 from nassav.source.CookieRepository import source_cookie_repository
+from nassav.source.CookieRuntimeCache import source_cookie_runtime_cache
 from nassav.source import Jable, Memo, MissAV, SourceBase
 
 
@@ -42,7 +42,6 @@ class SourceManager:
     def __init__(self):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         self.sources: Dict[str, SourceBase] = {}
-        self._runtime_cookie_cache: Dict[str, "_CookieRuntimeState"] = {}
 
         # 注册下载器，根据配置中的权重
         source_config = settings.SOURCE_CONFIG
@@ -60,8 +59,7 @@ class SourceManager:
         if target is None:
             return ""
 
-        normalized = source_name.lower()
-        runtime_state = self._runtime_cookie_cache.get(normalized)
+        runtime_state = source_cookie_runtime_cache.get_state(source_name)
         now = time.monotonic()
         shared_record = source_cookie_repository.get_cookie_record(source_name)
         shared_cookie = shared_record.cookie if shared_record is not None else ""
@@ -77,20 +75,22 @@ class SourceManager:
         ):
             current_cookie = str(target.cookie or "")
             if current_cookie and current_cookie != runtime_state.cookie:
-                self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
-                    cookie=current_cookie,
+                source_cookie_runtime_cache.set_state(
+                    source_name,
+                    current_cookie,
                     updated_at=runtime_state.updated_at,
-                    expires_at=now + self.LOCAL_COOKIE_CACHE_TTL,
+                    ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL,
                 )
                 return current_cookie
             target.set_cookie(runtime_state.cookie)
             return runtime_state.cookie
 
         target.set_cookie(shared_cookie)
-        self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
-            cookie=shared_cookie,
+        source_cookie_runtime_cache.set_state(
+            source_name,
+            shared_cookie,
             updated_at=shared_updated_at,
-            expires_at=now + self.LOCAL_COOKIE_CACHE_TTL,
+            ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL,
         )
         return shared_cookie
 
@@ -105,17 +105,16 @@ class SourceManager:
         if target is None:
             return
 
-        normalized = source_name.lower()
         target.set_cookie(cookie)
-        self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
-            cookie=cookie,
+        source_cookie_runtime_cache.set_state(
+            source_name,
+            cookie,
             updated_at=updated_at,
-            expires_at=time.monotonic() + self.LOCAL_COOKIE_CACHE_TTL,
+            ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL,
         )
 
     def invalidate_source_cookie_cache(self, source_name: str) -> None:
-        normalized = source_name.lower()
-        self._runtime_cookie_cache.pop(normalized, None)
+        source_cookie_runtime_cache.invalidate(source_name)
         source_cookie_repository.invalidate_cookie(source_name)
 
     def set_source_cookie(self, source_name: str, cookie: str) -> bool:
@@ -340,13 +339,6 @@ class SourceManager:
             if name.lower() == source_name.lower():
                 return source
         return None
-
-
-@dataclass
-class _CookieRuntimeState:
-    cookie: str
-    updated_at: str | None
-    expires_at: float
 
 
 source_manager = SourceManager()

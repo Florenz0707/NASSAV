@@ -20,28 +20,23 @@ class RecommendationManagerError(Exception):
 class RecommenderManager:
     DEFAULT_RECOMMENDER_ID = "jable_search"
     DEFAULT_STRATEGY_ID = "local_preference"
-
-    def __init__(self):
-        self.recommender_builders = {
-            "jable_search": self._build_jable_search_recommender,
+    RECOMMENDER_META = {
+        "jable_search": {
+            "id": "jable_search",
+            "name": "Jable Search",
+            "description": "通过 Jable 搜索页召回候选资源。",
         }
-        self.recommender_meta = {
-            "jable_search": {
-                "id": "jable_search",
-                "name": "Jable Search",
-                "description": "通过 Jable 搜索页召回候选资源。",
-            }
-        }
-        self.strategy_builders = {
-            "local_preference": build_local_preference_strategy,
-            "balanced": build_balanced_strategy,
-            "actor_heavy": build_actor_heavy_strategy,
-            "recent_favorite": build_recent_favorite_strategy,
-        }
+    }
+    STRATEGY_BUILDERS = {
+        "local_preference": build_local_preference_strategy,
+        "balanced": build_balanced_strategy,
+        "actor_heavy": build_actor_heavy_strategy,
+        "recent_favorite": build_recent_favorite_strategy,
+    }
 
     def list_recommenders(self) -> list[dict]:
         items: list[dict] = []
-        for recommender_id, meta in self.recommender_meta.items():
+        for recommender_id, meta in self.RECOMMENDER_META.items():
             items.append(
                 {
                     **meta,
@@ -55,7 +50,7 @@ class RecommenderManager:
 
     def list_strategies(self, recommender_id: str | None = None) -> list[dict]:
         items: list[dict] = []
-        for strategy_id in self.strategy_builders:
+        for strategy_id in self.STRATEGY_BUILDERS:
             strategy = self.get_strategy(strategy_id)
             if (
                 recommender_id is not None
@@ -67,14 +62,14 @@ class RecommenderManager:
 
     def get_strategy(self, strategy_id: str | None = None) -> RecommendationStrategy:
         resolved_id = strategy_id or self.DEFAULT_STRATEGY_ID
-        builder = self.strategy_builders.get(resolved_id)
+        builder = self.STRATEGY_BUILDERS.get(resolved_id)
         if builder is None:
             raise RecommendationManagerError(f"未知推荐策略: {resolved_id}")
         return builder()
 
     def get_recommender_meta(self, recommender_id: str | None = None) -> dict:
         resolved_id = recommender_id or self.DEFAULT_RECOMMENDER_ID
-        meta = self.recommender_meta.get(resolved_id)
+        meta = self.RECOMMENDER_META.get(resolved_id)
         if meta is None:
             raise RecommendationManagerError(f"未知推荐器: {resolved_id}")
         return meta
@@ -146,10 +141,9 @@ class RecommenderManager:
         recommender_id: str,
         strategy: RecommendationStrategy,
     ):
-        builder = self.recommender_builders.get(recommender_id)
-        if builder is None:
+        if recommender_id != self.DEFAULT_RECOMMENDER_ID:
             raise RecommendationManagerError(f"未知推荐器: {recommender_id}")
-        return builder(strategy)
+        return self._build_jable_search_recommender(strategy)
 
     def _validate_support(
         self,
