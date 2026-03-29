@@ -46,10 +46,16 @@ def test_recommendations_endpoint_runs_with_empty_search(
     assert body["code"] == 200
     assert body["data"]["meta"]["recommender"] == "jable_search"
     assert body["data"]["meta"]["strategy"] == "local_preference"
+    assert body["data"]["meta"]["snapshot_id"] is not None
+    assert body["data"]["meta"]["request_fingerprint"]
     assert body["data"]["meta"]["recommender_detail"]["name"] == "Jable Search"
     assert "Jable" in body["data"]["meta"]["strategy_detail"]["description"]
     assert body["data"]["meta"]["effective_request"]["limit"] == 12
     assert body["data"]["meta"]["effective_request"]["exclude_existing"] is True
+    assert (
+        body["data"]["meta"]["effective_request"]["avoid_recent_recommendations"]
+        is True
+    )
     assert "items" in body["data"]
     assert "seeds" in body["data"]
     assert body["data"]["summary"]["seed_count"] >= 2
@@ -366,3 +372,104 @@ def test_actor_heavy_strategy_prefers_actor_seed_matches_over_genre_only_matches
         "REC-ACTOR",
         "REC-GENRE",
     ]
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_persists_snapshot_and_items(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationItem, RecommendationSnapshot
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-401", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-401",
+                "title": "Persisted Result",
+                "detail_url": "https://jable.tv/videos/rec-401/",
+                "cover_url": "https://img/rec-401.jpg",
+                "metrics": {"views": 100, "likes": 10},
+            }
+        ],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {"actor_seed_limit": 1, "genre_seed_limit": 1},
+    )
+    assert response.status_code == 200
+
+    snapshot = RecommendationSnapshot.objects.get()
+    item = RecommendationItem.objects.get(snapshot=snapshot)
+    body = response.json()
+    assert snapshot.recommender_id == "jable_search"
+    assert snapshot.strategy_id == "local_preference"
+    assert snapshot.request_fingerprint == body["data"]["meta"]["request_fingerprint"]
+    assert snapshot.item_count == 1
+    assert item.avid == "REC-401"
+    assert item.rank == 1
+    assert item.reasons
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_avoids_recent_snapshot_items_on_repeat_request(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationSnapshot
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-501", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-501-A",
+                "title": "First Result",
+                "detail_url": "https://jable.tv/videos/rec-501-a/",
+                "cover_url": "https://img/rec-501-a.jpg",
+                "metrics": {"views": 1000, "likes": 200},
+            },
+            {
+                "avid": "REC-501-B",
+                "title": "Second Result",
+                "detail_url": "https://jable.tv/videos/rec-501-b/",
+                "cover_url": "https://img/rec-501-b.jpg",
+                "metrics": {"views": 900, "likes": 180},
+            },
+        ],
+    )
+
+    first_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "limit": 1,
+        },
+    )
+    second_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "limit": 1,
+        },
+    )
+
+    first_item = first_response.json()["data"]["items"][0]
+    second_body = second_response.json()
+    second_item = second_body["data"]["items"][0]
+    assert first_item["avid"] == "REC-501-A"
+    assert second_item["avid"] == "REC-501-B"
+    assert second_body["data"]["meta"]["history_context"]["filtered_history_count"] >= 1
+    assert RecommendationSnapshot.objects.count() == 2

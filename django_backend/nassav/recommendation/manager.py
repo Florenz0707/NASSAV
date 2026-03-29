@@ -4,6 +4,7 @@ from nassav.source import Jable
 
 from .entities import RecommendationExecution, RecommendationRequest
 from .jable_search import JableSearchRecommender
+from .repository import recommendation_snapshot_repository
 from .strategies import (
     RecommendationStrategy,
     build_actor_heavy_strategy,
@@ -104,19 +105,46 @@ class RecommenderManager:
             strategy=strategy,
             request_params=request_params or {},
         )
+        request_fingerprint = (
+            recommendation_snapshot_repository.build_request_fingerprint(
+                recommender_id=resolved_recommender_id,
+                strategy_id=resolved_strategy_id,
+                request=recommendation_request,
+            )
+        )
+        if recommendation_request.avoid_recent_recommendations:
+            recommendation_request.recently_recommended_avids = (
+                recommendation_snapshot_repository.get_recent_recommended_avids(
+                    recommender_id=resolved_recommender_id,
+                    strategy_id=resolved_strategy_id,
+                    request_fingerprint=request_fingerprint,
+                    snapshot_limit=recommendation_request.recent_snapshot_limit,
+                    item_limit=recommendation_request.recent_item_limit,
+                )
+            )
         recommender = self.build_recommender(
             recommender_id=resolved_recommender_id,
             strategy=strategy,
         )
         run = recommender.recommend(recommendation_request)
-        return RecommendationExecution(
+        filtered_history_count = sum(
+            1
+            for avid in recommendation_request.recently_recommended_avids
+            if all(item.avid != avid for item in run.items)
+        )
+        execution = RecommendationExecution(
             recommender_id=resolved_recommender_id,
             strategy_id=resolved_strategy_id,
             request=recommendation_request,
             run=run,
             recommender_meta=recommender_meta,
             strategy_meta=strategy.to_dict(),
+            request_fingerprint=request_fingerprint,
+            filtered_history_count=filtered_history_count,
         )
+        snapshot = recommendation_snapshot_repository.save_execution(execution)
+        execution.snapshot_id = int(snapshot.pk) if snapshot.pk is not None else None
+        return execution
 
     def build_request(
         self,
@@ -134,6 +162,17 @@ class RecommenderManager:
             genre_seed_limit=int(payload.get("genre_seed_limit", 5)),
             seed_types=list(payload.get("seed_types", ["actor", "genre"])),
             exclude_existing=bool(payload.get("exclude_existing", True)),
+            random_seed=int(
+                payload.get(
+                    "random_seed",
+                    recommendation_snapshot_repository.next_random_seed(),
+                )
+            ),
+            avoid_recent_recommendations=bool(
+                payload.get("avoid_recent_recommendations", True)
+            ),
+            recent_snapshot_limit=int(payload.get("recent_snapshot_limit", 3)),
+            recent_item_limit=int(payload.get("recent_item_limit", 36)),
         )
 
     def build_recommender(

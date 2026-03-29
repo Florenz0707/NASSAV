@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from hashlib import blake2b
 
 from nassav.models import AVResource
 
@@ -32,22 +33,31 @@ class AbstractRecommender(ABC):
         candidates: list[RecommendationCandidate],
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
-        if not request.exclude_existing:
-            return candidates
-
         if not candidates:
             return candidates
 
-        existing_avids = set(
-            AVResource.objects.filter(
-                avid__in=[candidate.avid for candidate in candidates]
-            ).values_list("avid", flat=True)
-        )
-        return [
-            candidate
-            for candidate in candidates
-            if candidate.avid not in existing_avids
+        if request.exclude_existing:
+            existing_avids = set(
+                AVResource.objects.filter(
+                    avid__in=[candidate.avid for candidate in candidates]
+                ).values_list("avid", flat=True)
+            )
+            candidates = [
+                candidate
+                for candidate in candidates
+                if candidate.avid not in existing_avids
+            ]
+
+        if not candidates or not request.recently_recommended_avids:
+            return candidates
+
+        recent_avids = set(request.recently_recommended_avids)
+        filtered_candidates = [
+            candidate for candidate in candidates if candidate.avid not in recent_avids
         ]
+        if filtered_candidates:
+            return filtered_candidates
+        return candidates
 
     def enrich_candidates(
         self,
@@ -101,7 +111,7 @@ class AbstractRecommender(ABC):
             key=lambda item: (
                 -item.total_score,
                 item.search_rank if item.search_rank is not None else 10**9,
-                item.avid,
+                self._seeded_rank_token(item, request),
             ),
         )
 
@@ -112,3 +122,14 @@ class AbstractRecommender(ABC):
     ) -> list[RecommendationCandidate]:
         _ = request
         return ranked_candidates
+
+    def _seeded_rank_token(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> str:
+        digest = blake2b(
+            f"{request.random_seed}:{candidate.avid}".encode("utf-8"),
+            digest_size=8,
+        ).hexdigest()
+        return digest

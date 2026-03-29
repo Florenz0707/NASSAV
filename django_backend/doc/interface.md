@@ -236,6 +236,9 @@ DELETE /nassav/api/source/cookie?source=missav
   - `actor_seed_limit`：演员种子数量，默认 `5`
   - `genre_seed_limit`：类别种子数量，默认 `5`
   - `exclude_existing`：是否过滤本地已存在资源，默认 `true`
+  - `avoid_recent_recommendations`：是否尽量避开最近同配置已经推荐过的结果，默认 `true`
+  - `recent_snapshot_limit`：回看最近多少次同配置推荐，默认 `3`
+  - `recent_item_limit`：最多读取多少条历史推荐 `avid`，默认 `36`
 
 示例请求：
 
@@ -282,6 +285,8 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
     "meta": {
       "recommender": "jable_search",
       "strategy": "local_preference",
+      "snapshot_id": 12,
+      "request_fingerprint": "e6fd...",
       "recommender_detail": {
         "id": "jable_search",
         "name": "Jable Search",
@@ -298,7 +303,15 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
         "actor_seed_limit": 5,
         "genre_seed_limit": 5,
         "seed_types": ["actor", "genre"],
-        "exclude_existing": true
+        "exclude_existing": true,
+        "random_seed": 123456789,
+        "avoid_recent_recommendations": true,
+        "recent_snapshot_limit": 3,
+        "recent_item_limit": 36
+      },
+      "history_context": {
+        "recently_recommended_count": 12,
+        "filtered_history_count": 4
       }
     }
   }

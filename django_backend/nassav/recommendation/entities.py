@@ -74,6 +74,11 @@ class RecommendationRequest:
     genre_seed_limit: int = 5
     seed_types: list[str] = field(default_factory=lambda: ["actor", "genre"])
     exclude_existing: bool = True
+    random_seed: int = 0
+    avoid_recent_recommendations: bool = True
+    recent_snapshot_limit: int = 3
+    recent_item_limit: int = 36
+    recently_recommended_avids: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -100,12 +105,17 @@ class RecommendationExecution:
     run: RecommendationRun
     recommender_meta: dict | None = None
     strategy_meta: dict | None = None
+    snapshot_id: int | None = None
+    request_fingerprint: str | None = None
+    filtered_history_count: int = 0
 
     def to_dict(self) -> dict:
         data = self.run.to_dict()
         data["meta"] = {
             "recommender": self.recommender_id,
             "strategy": self.strategy_id,
+            "snapshot_id": self.snapshot_id,
+            "request_fingerprint": self.request_fingerprint,
             "recommender_detail": self.recommender_meta,
             "strategy_detail": self.strategy_meta,
             "effective_request": {
@@ -115,6 +125,16 @@ class RecommendationExecution:
                 "genre_seed_limit": self.request.genre_seed_limit,
                 "seed_types": list(self.request.seed_types),
                 "exclude_existing": self.request.exclude_existing,
+                "random_seed": self.request.random_seed,
+                "avoid_recent_recommendations": self.request.avoid_recent_recommendations,
+                "recent_snapshot_limit": self.request.recent_snapshot_limit,
+                "recent_item_limit": self.request.recent_item_limit,
+            },
+            "history_context": {
+                "recently_recommended_count": len(
+                    self.request.recently_recommended_avids
+                ),
+                "filtered_history_count": self.filtered_history_count,
             },
         }
         return data

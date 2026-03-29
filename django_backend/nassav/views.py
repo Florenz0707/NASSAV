@@ -89,6 +89,16 @@ def _parse_recommendation_request_params(query_params) -> dict:
             query_params.get("exclude_existing"),
             True,
         ),
+        "avoid_recent_recommendations": _parse_bool(
+            query_params.get("avoid_recent_recommendations"),
+            True,
+        ),
+        "recent_snapshot_limit": _parse_positive_int(
+            query_params.get("recent_snapshot_limit"), 3
+        ),
+        "recent_item_limit": _parse_positive_int(
+            query_params.get("recent_item_limit"), 36
+        ),
     }
 
 

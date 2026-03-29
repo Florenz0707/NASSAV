@@ -134,3 +134,69 @@ class AVResource(models.Model):
 
     def __str__(self):
         return f"{self.avid} - {self.original_title}"
+
+
+class RecommendationSnapshot(models.Model):
+    recommender_id = models.CharField(max_length=64, db_index=True)
+    strategy_id = models.CharField(max_length=64, db_index=True)
+    request_fingerprint = models.CharField(max_length=64, db_index=True)
+    request_payload = models.JSONField(default=dict)
+    seed_summary = models.JSONField(default=list)
+    item_count = models.PositiveIntegerField(default=0)
+    random_seed = models.BigIntegerField(default=0)
+    generated_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        db_table = "nassav_recommendation_snapshot"
+        ordering = ["-generated_at"]
+        indexes = [
+            models.Index(
+                fields=["recommender_id", "strategy_id", "request_fingerprint"],
+                name="nassav_recsnap_lkp_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.recommender_id}:{self.strategy_id}#{self.pk}"
+
+
+class RecommendationItem(models.Model):
+    snapshot = models.ForeignKey(
+        RecommendationSnapshot,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    rank = models.PositiveIntegerField()
+    avid = models.CharField(max_length=50, db_index=True)
+    title = models.CharField(max_length=512, blank=True)
+    detail_url = models.URLField(max_length=1024, blank=True)
+    cover_url = models.URLField(max_length=1024, blank=True)
+    source = models.CharField(max_length=128, blank=True, db_index=True)
+    score = models.FloatField(default=0.0)
+    search_rank = models.IntegerField(null=True, blank=True)
+    reasons = models.JSONField(default=list)
+    matched_seeds = models.JSONField(default=list)
+    score_breakdown = models.JSONField(default=list)
+    raw_metrics = models.JSONField(default=dict)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "nassav_recommendation_item"
+        ordering = ["snapshot_id", "rank"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["snapshot", "rank"],
+                name="nassav_recitem_sr_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["snapshot", "avid"],
+                name="nassav_recitem_sa_idx",
+            ),
+        ]
+
+    def __str__(self):
+        snapshot = getattr(self, "snapshot", None)
+        snapshot_pk = snapshot.pk if snapshot is not None else None
+        return f"{snapshot_pk}:{self.rank}:{self.avid}"

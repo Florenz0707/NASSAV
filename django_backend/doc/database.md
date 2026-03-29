@@ -47,6 +47,36 @@
     - `name` (Char, unique, db_index): 类别名称。
   - 默认排序：按 `name` 升序。
 
+- **`RecommendationSnapshot` (`nassav_recommendation_snapshot`)**: 推荐快照表。
+  - 关键字段：
+    - `recommender_id` (Char, db_index): 推荐器标识。
+    - `strategy_id` (Char, db_index): 推荐策略标识。
+    - `request_fingerprint` (Char, db_index): 去除随机因素后的请求指纹，用于识别“同一组推荐配置”。
+    - `request_payload` (JSONField): 实际执行时的请求参数，包括 limit、seed 参数、历史过滤开关与 `random_seed`。
+    - `seed_summary` (JSONField): 本次推荐使用的 seeds 摘要。
+    - `item_count` (PositiveInteger): 返回结果数量。
+    - `random_seed` (BigInteger): 本次排序使用的随机种子。
+    - `generated_at` (DateTime, db_index): 快照生成时间。
+  - 用途：
+    - 推荐结果审计
+    - 为“刷新推荐”提供最近推荐历史
+    - 后续策略分析和回放
+
+- **`RecommendationItem` (`nassav_recommendation_item`)**: 推荐结果明细表。
+  - 关键字段：
+    - `snapshot` (FK): 所属推荐快照。
+    - `rank` (PositiveInteger): 在该 snapshot 中的名次。
+    - `avid` (Char, db_index): 推荐项对应的资源编号。
+    - `title` / `detail_url` / `cover_url` / `source`: 展示与来源字段。
+    - `score` (Float): 最终推荐分数。
+    - `search_rank` (Integer, nullable): 在外站搜索结果中的位置。
+    - `reasons` (JSONField): 对前端展示的推荐理由列表。
+    - `matched_seeds` (JSONField): 命中的 seeds 摘要。
+    - `score_breakdown` (JSONField): 各 factor 的打分分解。
+    - `raw_metrics` (JSONField): views / likes 等原始热度指标。
+  - 约束：
+    - `(snapshot, rank)` 唯一，保证每个快照中的排序位唯一。
+
 - **M2M 关系**：`AVResource.actors` 与 `AVResource.genres`（分别通过中间表保存关联）。
 
 ## 持久化 & 更新流程（简要）
@@ -77,6 +107,18 @@
 
 - 删除资源（API/视图）:
   - 删除磁盘上的封面/MP4 后，会尝试更新 `AVResource`：将 `file_exists=False`、`file_size=None`、`video_saved_at=None`。元数据（JSON）默认保留，除非明确发起数据库删除操作。
+
+- 推荐请求完成（RecommenderManager）:
+  - 执行推荐前会根据：
+    - `recommender_id`
+    - `strategy_id`
+    - `request_fingerprint`
+      查询最近几次同配置推荐的快照
+  - 将这些快照中的 `avid` 作为“最近推荐历史”注入当前请求，优先避免重复返回
+  - 推荐执行完成后：
+    - 写入一条 `RecommendationSnapshot`
+    - 为每个返回项写入一条 `RecommendationItem`
+  - 若最近推荐过滤后没有剩余候选，会回退到不过滤历史的候选列表，避免返回空结果
 
 ## 一致性与事务控制
 

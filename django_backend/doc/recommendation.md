@@ -7,7 +7,9 @@
 - 基于本地库中高频出现的演员与类别生成推荐种子
 - 使用 Jable 搜索页召回候选资源
 - 过滤本地已存在资源
+- 过滤最近同配置已经推荐过的资源
 - 对候选进行轻量打分并返回给前端
+- 将每次推荐结果持久化为 snapshot，便于回放、审计与后续策略优化
 
 ## Scope
 
@@ -43,6 +45,9 @@ API 层只负责：
     - `actor_seed_limit`
     - `genre_seed_limit`
     - `exclude_existing`
+    - `avoid_recent_recommendations`
+    - `recent_snapshot_limit`
+    - `recent_item_limit`
 
 - `GET /nassav/api/recommendations/options`
   - 返回当前可用的 recommenders、strategies 与默认值
@@ -71,8 +76,10 @@ API 层只负责：
 - 校验 recommender 和 strategy 是否兼容
 - 合并 strategy 默认参数和请求参数
 - 构造 `RecommendationRequest`
+- 构造请求指纹并读取最近推荐历史
 - 实例化具体 recommender
 - 执行推荐并返回统一结果结构
+- 持久化推荐 snapshot 与 item
 
 当前 manager 实现在：
 
@@ -194,6 +201,12 @@ API 层只负责：
 
 - `RecommendationRequest`
   - 表示一次推荐请求的参数
+  - 除基础分页/seed 参数外，还包含：
+    - `random_seed`
+    - `avoid_recent_recommendations`
+    - `recent_snapshot_limit`
+    - `recent_item_limit`
+    - `recently_recommended_avids`
 
 - `RecommendationRun`
   - 表示 recommender 的原始执行结果
@@ -201,15 +214,39 @@ API 层只负责：
 - `RecommendationExecution`
   - 表示经过 manager 调度后的最终执行结果
   - 在 `RecommendationRun` 外增加：
+    - `snapshot_id`
+    - `request_fingerprint`
     - `recommender`
     - `strategy`
     - `recommender_detail`
     - `strategy_detail`
     - `effective_request`
+    - `history_context`
 
 对应文件：
 
 - `nassav/recommendation/entities.py`
+
+## Snapshot Persistence
+
+推荐系统现在会为每次请求保存一份 snapshot。
+
+- `RecommendationSnapshot`
+  - 保存推荐器、策略、请求指纹、请求参数、seed 摘要、返回数量、随机种子和生成时间
+- `RecommendationItem`
+  - 保存某次 snapshot 中的每一条推荐结果
+  - 包含排名、`avid`、标题、封面、分数、理由、命中的 seeds、分数分解和原始热度指标
+
+当前用途：
+
+- 为“刷新推荐”提供历史过滤依据
+- 为后续比较不同策略/因子效果提供审计数据
+- 为未来增加推荐回放与缓存能力预留基础
+
+对应文件：
+
+- `nassav/models.py`
+- `nassav/recommendation/repository.py`
 
 ## Seed Generation
 
@@ -290,6 +327,9 @@ API 层只负责：
 - `actor_seed_limit`: 可选
 - `genre_seed_limit`: 可选
 - `exclude_existing`: 可选，默认 `true`
+- `avoid_recent_recommendations`: 可选，默认 `true`
+- `recent_snapshot_limit`: 可选，默认 `3`
+- `recent_item_limit`: 可选，默认 `36`
 
 响应示例：
 
@@ -325,6 +365,8 @@ API 层只负责：
     "meta": {
       "recommender": "jable_search",
       "strategy": "local_preference",
+      "snapshot_id": 12,
+      "request_fingerprint": "e6fd...",
       "recommender_detail": {
         "id": "jable_search",
         "name": "Jable Search",
@@ -350,7 +392,15 @@ API 层只负责：
         "actor_seed_limit": 5,
         "genre_seed_limit": 5,
         "seed_types": ["actor", "genre"],
-        "exclude_existing": true
+        "exclude_existing": true,
+        "random_seed": 123456789,
+        "avoid_recent_recommendations": true,
+        "recent_snapshot_limit": 3,
+        "recent_item_limit": 36
+      },
+      "history_context": {
+        "recently_recommended_count": 12,
+        "filtered_history_count": 4
       }
     }
   }
@@ -444,6 +494,7 @@ API 层只负责：
   - `strategy`
   - 各种 limit 参数
   - `exclude_existing`
+  - `avoid_recent_recommendations`
 
 ### Step 2. View 调用 `RecommenderManager`
 
@@ -457,7 +508,9 @@ manager 内部依次执行：
 4. 校验 strategy 是否支持该 recommender
 5. 合并 strategy 默认参数和请求参数
 6. 构造 `RecommendationRequest`
-7. 构造具体 recommender
+7. 生成 `request_fingerprint`
+8. 根据同一组配置对应的最近 snapshots，读取需要回避的 `avid`
+9. 构造具体 recommender
 
 ### Step 3. Recommender 执行主流程
 
@@ -504,6 +557,8 @@ manager 内部依次执行：
 
 - 批量查询 `AVResource.avid`
 - 去掉本地库中已经存在的资源
+- 若当前请求开启历史过滤，则优先去掉最近同配置已经推荐过的 `avid`
+- 若过滤后没有剩余候选，则回退到未做历史过滤的结果，避免直接返回空列表
 
 ### Step 8. 执行 factor 打分
 
@@ -528,7 +583,13 @@ manager 内部依次执行：
 
 ### Step 10. 返回 API 响应
 
-manager 将 recommender / strategy / effective request 封装进 `meta`，最终由 view 返回统一 envelope。
+manager 会在返回前保存 `RecommendationSnapshot` 与 `RecommendationItem`，并将：
+
+- `snapshot_id`
+- `request_fingerprint`
+- `history_context`
+
+封装进 `meta`，最终由 view 返回统一 envelope。
 
 ## Current Extension Points
 
@@ -559,8 +620,8 @@ manager 将 recommender / strategy / effective request 封装进 `meta`，最终
 - 当前只有一个 recommender
 - 当前召回完全依赖 Jable 搜索页
 - 当前类别种子直接用站内搜索词匹配，精度有限
-- 当前只对推荐封面做了缓存，推荐结果本身尚未缓存
-- 当前没有结果持久化
+- 当前只对推荐封面做了缓存，推荐结果本身尚未做 snapshot 级缓存复用
+- 当前已经有结果持久化，但还没有单独的 snapshot 查询 / 回放接口
 - 当前没有分页式多页召回
 - 当前 `demo` 接口仍保留，后续前端迁移完成后可考虑收敛
 
@@ -575,5 +636,6 @@ manager 将 recommender / strategy / effective request 封装进 `meta`，最终
 - `nassav/recommendation/strategies.py`
 - `nassav/recommendation/jable_search.py`
 - `nassav/recommendation/manager.py`
+- `nassav/recommendation/repository.py`
 - `nassav/views.py`
 - `nassav/urls.py`
