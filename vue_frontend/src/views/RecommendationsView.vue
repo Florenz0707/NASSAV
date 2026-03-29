@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
         <div class="results-footer">
           <button class="footer-refresh-btn" :disabled="loading" @click="loadRecommendations">
             <LoadingSpinner v-if="loading" size="small" />
-            <template v-else> 继续刷新推荐 </template>
+            <template v-else> 继续推荐 </template>
           </button>
         </div>
       </div>

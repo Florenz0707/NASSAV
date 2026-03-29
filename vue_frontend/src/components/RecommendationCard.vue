@@ -63,7 +63,7 @@ const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.
           @click="item.reasons?.length && (showReasons = !showReasons)"
         >
           {{
-            `推荐评分：${Number(item.score || 0).toFixed(1)}，理由（${item.reasons?.length || 0}）`
+            `推荐评分：${Number(item.score || 0).toFixed(1)}，点击查看原因（${item.reasons?.length || 0}）`
           }}
         </button>
 
