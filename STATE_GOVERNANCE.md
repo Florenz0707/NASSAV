@@ -291,7 +291,7 @@
 - [x] 去除 `SourceManager._cookies_loaded` 的一次性加载语义
 - [x] 为 Cookie 增加统一读取入口，不再由各处自行决定何时读库
 - [x] API 更新 Cookie 后，清理对应 source 的进程内缓存 / Django cache
-- [ ] 设计并实现 Cookie TTL 或版本校验机制
+- [x] 设计并实现 Cookie TTL 或版本校验机制
 - [x] 去除 `ScraperManager._last_successful_scraper`
 - [x] 将 scraper 选择改为请求内显式传递
 

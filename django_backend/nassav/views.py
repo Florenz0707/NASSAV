@@ -167,9 +167,13 @@ class SourceCookieView(APIView):
                     logger.error(f"自动获取 Cookie 失败: {e}")
 
                 if success:
+                    from nassav.source.CookieRepository import source_cookie_repository
+
+                    record = source_cookie_repository.get_cookie_record(source_name)
                     source_manager.set_runtime_source_cookie(
                         source_name,
                         str(source_instance.cookie or ""),
+                        updated_at=record.updated_at if record is not None else None,
                     )
                     return Response(
                         {

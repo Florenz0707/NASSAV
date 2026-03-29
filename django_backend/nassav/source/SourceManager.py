@@ -63,26 +63,44 @@ class SourceManager:
         normalized = source_name.lower()
         runtime_state = self._runtime_cookie_cache.get(normalized)
         now = time.monotonic()
-        if not force and runtime_state is not None and runtime_state.expires_at > now:
+        shared_record = source_cookie_repository.get_cookie_record(source_name)
+        shared_cookie = shared_record.cookie if shared_record is not None else ""
+        shared_updated_at = (
+            shared_record.updated_at if shared_record is not None else None
+        )
+
+        if (
+            not force
+            and runtime_state is not None
+            and runtime_state.expires_at > now
+            and runtime_state.updated_at == shared_updated_at
+        ):
             current_cookie = str(target.cookie or "")
             if current_cookie and current_cookie != runtime_state.cookie:
                 self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
                     cookie=current_cookie,
+                    updated_at=runtime_state.updated_at,
                     expires_at=now + self.LOCAL_COOKIE_CACHE_TTL,
                 )
                 return current_cookie
             target.set_cookie(runtime_state.cookie)
             return runtime_state.cookie
 
-        cookie = source_cookie_repository.get_cookie(source_name)
-        target.set_cookie(cookie)
+        target.set_cookie(shared_cookie)
         self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
-            cookie=cookie,
+            cookie=shared_cookie,
+            updated_at=shared_updated_at,
             expires_at=now + self.LOCAL_COOKIE_CACHE_TTL,
         )
-        return cookie
+        return shared_cookie
 
-    def set_runtime_source_cookie(self, source_name: str, cookie: str) -> None:
+    def set_runtime_source_cookie(
+        self,
+        source_name: str,
+        cookie: str,
+        *,
+        updated_at: str | None = None,
+    ) -> None:
         target = self._get_source(source_name)
         if target is None:
             return
@@ -91,6 +109,7 @@ class SourceManager:
         target.set_cookie(cookie)
         self._runtime_cookie_cache[normalized] = _CookieRuntimeState(
             cookie=cookie,
+            updated_at=updated_at,
             expires_at=time.monotonic() + self.LOCAL_COOKIE_CACHE_TTL,
         )
 
@@ -122,8 +141,12 @@ class SourceManager:
 
         # 更新内存中的 cookie
         try:
-            source_cookie_repository.set_cookie(actual_name, cookie)
-            self.set_runtime_source_cookie(actual_name, cookie)
+            record = source_cookie_repository.set_cookie(actual_name, cookie)
+            self.set_runtime_source_cookie(
+                actual_name,
+                cookie,
+                updated_at=record.updated_at,
+            )
             logger.info(f"已设置 {actual_name} 的 Cookie")
             return True
         except Exception as e:
@@ -322,6 +345,7 @@ class SourceManager:
 @dataclass
 class _CookieRuntimeState:
     cookie: str
+    updated_at: str | None
     expires_at: float
 
 
