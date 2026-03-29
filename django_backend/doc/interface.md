@@ -230,7 +230,7 @@ DELETE /nassav/api/source/cookie?source=missav
 - 功能：统一推荐入口
 - 支持 Query 参数：
   - `recommender`：推荐器标识，默认 `jable_search`
-  - `strategy`：推荐策略标识，默认 `local_demo`
+  - `strategy`：推荐策略标识，默认 `local_preference`
   - `limit`：返回数量，默认 `12`
   - `per_seed_limit`：每个 seed 的召回上限，默认 `12`
   - `actor_seed_limit`：演员种子数量，默认 `5`
@@ -240,7 +240,7 @@ DELETE /nassav/api/source/cookie?source=missav
 示例请求：
 
 ```json
-GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_demo&limit=12&exclude_existing=true
+GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_preference&limit=12&exclude_existing=true
 ```
 
 返回示例：
@@ -281,15 +281,15 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_demo&li
     },
     "meta": {
       "recommender": "jable_search",
-      "strategy": "local_demo",
+      "strategy": "local_preference",
       "recommender_detail": {
         "id": "jable_search",
         "name": "Jable Search",
         "description": "通过 Jable 搜索页召回候选资源。"
       },
       "strategy_detail": {
-        "id": "local_demo",
-        "name": "Local Demo",
+        "id": "local_preference",
+        "name": "Local Preference",
         "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。"
       },
       "effective_request": {

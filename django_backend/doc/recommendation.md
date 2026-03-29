@@ -12,7 +12,11 @@
 ## Scope
 
 - 当前唯一的 recommender：`jable_search`
-- 当前唯一的 strategy：`local_demo`
+- 当前内置 strategy：
+  - `local_preference`
+  - `balanced`
+  - `actor_heavy`
+  - `recent_favorite`
 - 当前唯一的外部召回源：`Jable.search()`
 
 当前实现强调“层次分离”和“后续可扩展”，因此 API 层不直接绑定具体 recommender。
@@ -88,11 +92,12 @@ API 层只负责：
 
 当前内置 strategy：
 
-- `local_demo`
+- `local_preference`
   - `seed_provider`: `LocalPreferenceSeedProvider`
   - `factors`:
     - `SeedWeightFactor`
     - `MultiSeedBonusFactor`
+    - `SearchRankFactor`
     - `PopularityFactor`
   - 默认参数：
     - `limit=12`
@@ -101,6 +106,18 @@ API 层只负责：
     - `genre_seed_limit=5`
     - `seed_types=["actor", "genre"]`
     - `exclude_existing=true`
+
+- `balanced`
+  - 更均衡地使用 actor / genre 偏好
+  - 启用更强的多样性重排，减少结果扎堆
+
+- `actor_heavy`
+  - 提高 actor 命中的权重
+  - 降低 genre 命中的影响
+
+- `recent_favorite`
+  - 优先使用最近新增、已观看、已收藏资源生成种子
+  - 当交互种子为空时回退到全量本地偏好
 
 对应文件：
 
@@ -208,7 +225,19 @@ API 层只负责：
 
 权重归一化规则：
 
-- 使用当前批次最大 `resource_count` 作为分母
+- `LocalPreferenceSeedProvider` 会综合以下信号计算 `preference_score`
+  - `resource_count`
+  - `watched_count`
+  - `favorite_count`
+  - `recent_count`
+- 不同 strategy 通过调整：
+  - `watched_boost`
+  - `favorite_boost`
+  - `recent_boost`
+  - `recent_days`
+  - `only_interacted`
+    来改变 seed 排序结果
+- 使用当前批次最大 `preference_score` 作为分母
 - 归一到 `0 ~ 5` 区间
 
 对应文件：
@@ -230,6 +259,11 @@ API 层只负责：
 
 - 作用：同一个候选命中多个种子时追加 bonus
 
+### `SearchRankFactor`
+
+- 作用：利用 Jable 搜索结果中的卡片位置做弱加分
+- 结果越靠前，bonus 越高
+
 ### `PopularityFactor`
 
 - 作用：利用 Jable 搜索卡片中的：
@@ -250,7 +284,7 @@ API 层只负责：
 请求参数：
 
 - `recommender`: 可选，默认 `jable_search`
-- `strategy`: 可选，默认 `local_demo`
+- `strategy`: 可选，默认 `local_preference`
 - `limit`: 可选
 - `per_seed_limit`: 可选
 - `actor_seed_limit`: 可选
@@ -290,15 +324,15 @@ API 层只负责：
     },
     "meta": {
       "recommender": "jable_search",
-      "strategy": "local_demo",
+      "strategy": "local_preference",
       "recommender_detail": {
         "id": "jable_search",
         "name": "Jable Search",
         "description": "通过 Jable 搜索页召回候选资源。"
       },
       "strategy_detail": {
-        "id": "local_demo",
-        "name": "Local Demo",
+        "id": "local_preference",
+        "name": "Local Preference",
         "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
         "supported_recommenders": ["jable_search"],
         "default_request_overrides": {
@@ -336,20 +370,20 @@ API 层只负责：
   "data": {
     "defaults": {
       "recommender": "jable_search",
-      "strategy": "local_demo"
+      "strategy": "local_preference"
     },
     "recommenders": [
       {
         "id": "jable_search",
         "name": "Jable Search",
         "description": "通过 Jable 搜索页召回候选资源。",
-        "strategies": ["local_demo"]
+        "strategies": ["local_preference", "balanced", "actor_heavy", "recent_favorite"]
       }
     ],
     "strategies": [
       {
-        "id": "local_demo",
-        "name": "Local Demo",
+        "id": "local_preference",
+        "name": "Local Preference",
         "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
         "supported_recommenders": ["jable_search"],
         "default_request_overrides": {
@@ -360,6 +394,12 @@ API 层只负责：
           "seed_types": ["actor", "genre"],
           "exclude_existing": true
         }
+      },
+      {
+        "id": "actor_heavy",
+        "name": "Actor Heavy",
+        "description": "以演员命中为主，类别只作为弱召回信号，适合演员偏好明显的库。",
+        "supported_recommenders": ["jable_search"]
       }
     ]
   }
@@ -390,7 +430,7 @@ API 层只负责：
 - 内部仍然转发到 `RecommenderManager.recommend()`
 - 使用默认：
   - `recommender=jable_search`
-  - `strategy=local_demo`
+  - `strategy=local_preference`
 
 ## Call Flow
 
@@ -438,6 +478,7 @@ manager 内部依次执行：
 
 - 从本地 `Actor` 聚合得到 top actors
 - 从本地 `Genre` 聚合得到 top genres
+- 综合观看、收藏和近期新增信号计算 `preference_score`
 - 生成 `RecommendationSeed[]`
 
 ### Step 5. Jable 搜索召回
@@ -447,6 +488,7 @@ manager 内部依次执行：
 - 对每个 seed 调用 `Jable.search(seed.value, page=1)`
 - 将搜索卡片映射为 `RecommendationCandidate`
 - 每个候选记录自己命中了哪些种子
+- 同时记录候选在搜索结果中的最佳 `search_rank`
 
 ### Step 6. 合并重复候选
 
@@ -469,6 +511,7 @@ manager 内部依次执行：
 
 - `SeedWeightFactor`
 - `MultiSeedBonusFactor`
+- `SearchRankFactor`
 - `PopularityFactor`
 
 最终得到：
@@ -479,7 +522,8 @@ manager 内部依次执行：
 
 ### Step 9. 排序与裁剪
 
-- 按 `total_score` 降序排序
+- 先按 `total_score` 和 `search_rank` 做基础排序
+- 再执行一次基于 seed 重复度的多样性重排，减少相同 actor / genre 扎堆
 - 截断为 `limit`
 
 ### Step 10. 返回 API 响应
@@ -512,7 +556,7 @@ manager 将 recommender / strategy / effective request 封装进 `meta`，最终
 
 ## Current Limitations
 
-- 当前只有一个 recommender 和一个 strategy
+- 当前只有一个 recommender
 - 当前召回完全依赖 Jable 搜索页
 - 当前类别种子直接用站内搜索词匹配，精度有限
 - 当前只对推荐封面做了缓存，推荐结果本身尚未缓存

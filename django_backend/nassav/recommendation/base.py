@@ -86,8 +86,29 @@ class AbstractRecommender(ABC):
         candidates: list[RecommendationCandidate],
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
-        ranked = sorted(
+        ranked = self.rank_candidates(candidates, request)
+        reranked = self.rerank_candidates(ranked, request)
+        return reranked[: request.limit]
+
+    def rank_candidates(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        _ = request
+        return sorted(
             candidates,
-            key=lambda item: (-item.total_score, item.avid),
+            key=lambda item: (
+                -item.total_score,
+                item.search_rank if item.search_rank is not None else 10**9,
+                item.avid,
+            ),
         )
-        return ranked[: request.limit]
+
+    def rerank_candidates(
+        self,
+        ranked_candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        _ = request
+        return ranked_candidates

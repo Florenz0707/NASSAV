@@ -8,6 +8,7 @@ class RecommendationSeed:
     weight: float
     source: str
     resource_count: int = 0
+    preference_score: float = 0.0
 
     def to_dict(self) -> dict:
         return {
@@ -16,6 +17,7 @@ class RecommendationSeed:
             "weight": self.weight,
             "source": self.source,
             "resource_count": self.resource_count,
+            "preference_score": self.preference_score,
         }
 
 
@@ -26,6 +28,7 @@ class RecommendationCandidate:
     detail_url: str
     cover_url: str
     source: str = "Jable"
+    search_rank: int | None = None
     matched_seeds: list[RecommendationSeed] = field(default_factory=list)
     raw_metrics: dict = field(default_factory=dict)
     score_breakdown: list[dict] = field(default_factory=list)
@@ -54,6 +57,7 @@ class RecommendationCandidate:
             "detail_url": self.detail_url,
             "cover_url": self.cover_url,
             "source": self.source,
+            "search_rank": self.search_rank,
             "score": self.total_score,
             "reasons": self.reasons(),
             "matched_seeds": [seed.to_dict() for seed in self.matched_seeds],

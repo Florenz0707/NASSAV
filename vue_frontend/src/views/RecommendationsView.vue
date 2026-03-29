@@ -21,7 +21,7 @@ const meta = ref(null)
 const options = ref({
   defaults: {
     recommender: 'jable_search',
-    strategy: 'local_demo',
+    strategy: 'local_preference',
   },
   recommenders: [],
   strategies: [],
@@ -81,7 +81,7 @@ async function loadOptions() {
     selectedRecommender.value = options.value.defaults?.recommender || 'jable_search'
   }
   if (!selectedStrategy.value) {
-    selectedStrategy.value = options.value.defaults?.strategy || 'local_demo'
+    selectedStrategy.value = options.value.defaults?.strategy || 'local_preference'
   }
 
   const strategySupported = availableStrategies.value.some(

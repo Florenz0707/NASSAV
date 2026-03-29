@@ -4,7 +4,13 @@ from nassav.source import Jable
 
 from .entities import RecommendationExecution, RecommendationRequest
 from .jable_search import JableSearchRecommender
-from .strategies import RecommendationStrategy, build_local_demo_strategy
+from .strategies import (
+    RecommendationStrategy,
+    build_actor_heavy_strategy,
+    build_balanced_strategy,
+    build_local_preference_strategy,
+    build_recent_favorite_strategy,
+)
 
 
 class RecommendationManagerError(Exception):
@@ -13,7 +19,7 @@ class RecommendationManagerError(Exception):
 
 class RecommenderManager:
     DEFAULT_RECOMMENDER_ID = "jable_search"
-    DEFAULT_STRATEGY_ID = "local_demo"
+    DEFAULT_STRATEGY_ID = "local_preference"
 
     def __init__(self):
         self.recommender_builders = {
@@ -27,7 +33,10 @@ class RecommenderManager:
             }
         }
         self.strategy_builders = {
-            "local_demo": build_local_demo_strategy,
+            "local_preference": build_local_preference_strategy,
+            "balanced": build_balanced_strategy,
+            "actor_heavy": build_actor_heavy_strategy,
+            "recent_favorite": build_recent_favorite_strategy,
         }
 
     def list_recommenders(self) -> list[dict]:
@@ -161,6 +170,7 @@ class RecommenderManager:
             jable=Jable(proxy=proxy),
             seed_provider=strategy.seed_provider_builder(),
             factors=[builder() for builder in strategy.factor_builders],
+            **strategy.recommender_kwargs,
         )
 
 

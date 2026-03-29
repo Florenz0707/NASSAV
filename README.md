@@ -609,7 +609,7 @@ setInterval(async () => {
 
 - **推荐系统主链路**：新增基于本地高频演员/类别与 Jable 搜索结果的 demo 推荐系统
   - 后端新增 `RecommenderManager`、`RecommendationStrategy`、`AbstractRecommender` 等分层结构
-  - 当前提供 `jable_search` recommender 与 `local_demo` strategy，可继续扩展更多推荐器与策略
+  - 当前提供 `jable_search` recommender 与 `local_preference` strategy，可继续扩展更多推荐器与策略
   - `Jable.search()` 已支持直接解析站内搜索结果页，输出统一候选结构
 - **推荐接口**：新增推荐相关 REST API
   - `GET /api/recommendations/`

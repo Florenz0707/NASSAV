@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
 
 
 @pytest.mark.django_db
@@ -9,13 +12,16 @@ def test_recommendations_options_endpoint(api_client):
     body = response.json()
     assert body["code"] == 200
     assert body["data"]["defaults"]["recommender"] == "jable_search"
-    assert body["data"]["defaults"]["strategy"] == "local_demo"
+    assert body["data"]["defaults"]["strategy"] == "local_preference"
     assert any(item["id"] == "jable_search" for item in body["data"]["recommenders"])
-    assert any(item["id"] == "local_demo" for item in body["data"]["strategies"])
-    local_demo = next(
-        item for item in body["data"]["strategies"] if item["id"] == "local_demo"
+    assert any(item["id"] == "local_preference" for item in body["data"]["strategies"])
+    assert any(item["id"] == "balanced" for item in body["data"]["strategies"])
+    assert any(item["id"] == "actor_heavy" for item in body["data"]["strategies"])
+    assert any(item["id"] == "recent_favorite" for item in body["data"]["strategies"])
+    local_preference = next(
+        item for item in body["data"]["strategies"] if item["id"] == "local_preference"
     )
-    assert local_demo["default_request_overrides"]["limit"] == 12
+    assert local_preference["default_request_overrides"]["limit"] == 12
 
 
 @pytest.mark.django_db
@@ -39,7 +45,7 @@ def test_recommendations_endpoint_runs_with_empty_search(
     body = response.json()
     assert body["code"] == 200
     assert body["data"]["meta"]["recommender"] == "jable_search"
-    assert body["data"]["meta"]["strategy"] == "local_demo"
+    assert body["data"]["meta"]["strategy"] == "local_preference"
     assert body["data"]["meta"]["recommender_detail"]["name"] == "Jable Search"
     assert "Jable" in body["data"]["meta"]["strategy_detail"]["description"]
     assert body["data"]["meta"]["effective_request"]["limit"] == 12
@@ -110,7 +116,7 @@ def test_recommendations_endpoint_merges_scores_and_filters_existing(
         "/nassav/api/recommendations/",
         {
             "recommender": "jable_search",
-            "strategy": "local_demo",
+            "strategy": "local_preference",
             "actor_seed_limit": 1,
             "genre_seed_limit": 1,
             "per_seed_limit": 10,
@@ -205,7 +211,7 @@ def test_recommendations_demo_endpoint_aliases_manager(
     body = response.json()
     assert body["code"] == 200
     assert body["data"]["meta"]["recommender"] == "jable_search"
-    assert body["data"]["meta"]["strategy"] == "local_demo"
+    assert body["data"]["meta"]["strategy"] == "local_preference"
     assert body["data"]["items"][0]["avid"] == "REC-301"
 
 
@@ -241,3 +247,122 @@ def test_recommendation_cover_endpoint_caches_file(api_client, monkeypatch, tmp_
         assert cached_files[0].suffix == ".jpg"
     finally:
         settings.RECOMMENDATION_COVER_DIR = original_dir
+
+
+@pytest.mark.django_db
+def test_recent_favorite_strategy_prefers_interacted_recent_seeds(
+    api_client,
+    monkeypatch,
+    resource_factory,
+    actor_factory,
+):
+    from nassav.source import Jable
+
+    recent_actor = actor_factory(name="Recent Favorite Actor")
+    legacy_actor = actor_factory(name="Legacy Actor")
+
+    recent_resource = resource_factory(
+        avid="RECENT-001",
+        original_title="Recent Favorite",
+        watched=True,
+        is_favorite=True,
+        created_at=timezone.now(),
+    )
+    recent_resource.actors.add(recent_actor)
+
+    legacy_resource_1 = resource_factory(
+        avid="LEGACY-001",
+        original_title="Legacy 1",
+        created_at=timezone.now() - timedelta(days=365),
+    )
+    legacy_resource_1.actors.add(legacy_actor)
+
+    legacy_resource_2 = resource_factory(
+        avid="LEGACY-002",
+        original_title="Legacy 2",
+        created_at=timezone.now() - timedelta(days=300),
+    )
+    legacy_resource_2.actors.add(legacy_actor)
+
+    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "strategy": "recent_favorite",
+            "actor_seed_limit": 2,
+            "genre_seed_limit": 1,
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+
+    actor_seeds = [
+        seed for seed in body["data"]["seeds"] if seed["seed_type"] == "actor"
+    ]
+    assert len(actor_seeds) == 1
+    assert actor_seeds[0]["value"] == "Recent Favorite Actor"
+    assert actor_seeds[0]["source"] == "local_interacted_actor"
+    assert actor_seeds[0]["preference_score"] > 0
+
+
+@pytest.mark.django_db
+def test_actor_heavy_strategy_prefers_actor_seed_matches_over_genre_only_matches(
+    api_client,
+    monkeypatch,
+    resource_factory,
+    actor_factory,
+    genre_factory,
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    genre = genre_factory(name="中文字幕")
+
+    actor_seed = resource_factory(avid="ACTOR-SEED-001", original_title="Actor Seed")
+    actor_seed.actors.add(actor)
+
+    genre_seed = resource_factory(avid="GENRE-SEED-001", original_title="Genre Seed")
+    genre_seed.genres.add(genre)
+
+    def fake_search(self, keyword, page=1):
+        _ = self
+        _ = page
+        if keyword == "Alice":
+            return [
+                {
+                    "avid": "REC-ACTOR",
+                    "title": "Actor Match",
+                    "detail_url": "https://jable.tv/videos/rec-actor/",
+                    "cover_url": "https://img/rec-actor.jpg",
+                    "metrics": {"views": 100, "likes": 10},
+                }
+            ]
+        if keyword == "中文字幕":
+            return [
+                {
+                    "avid": "REC-GENRE",
+                    "title": "Genre Match",
+                    "detail_url": "https://jable.tv/videos/rec-genre/",
+                    "cover_url": "https://img/rec-genre.jpg",
+                    "metrics": {"views": 100, "likes": 10},
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(Jable, "search", fake_search)
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "strategy": "actor_heavy",
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+    assert [item["avid"] for item in body["data"]["items"]] == [
+        "REC-ACTOR",
+        "REC-GENRE",
+    ]
