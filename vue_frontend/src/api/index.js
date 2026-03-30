@@ -83,6 +83,8 @@ export const recommendationApi = {
   getOptions: () => api.get('/recommendations/options'),
   // 提交推荐反馈
   submitFeedback: (payload) => api.post('/recommendations/feedback', payload),
+  // 清空推荐状态（快照与反馈黑名单）
+  resetState: () => api.post('/recommendations/reset', {}),
   // 获取推荐封面代理地址
   getCoverUrl: (coverUrl) => {
     const base = api.defaults.baseURL.replace(/\/$/, '')

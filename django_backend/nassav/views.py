@@ -75,6 +75,13 @@ def _parse_bool(value, default: bool) -> bool:
     return default
 
 
+def _parse_choice(value, default: str, choices: set[str]) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized in choices:
+        return normalized
+    return default
+
+
 def _parse_recommendation_request_params(query_params) -> dict:
     return {
         "limit": _parse_positive_int(query_params.get("limit"), 12),
@@ -108,6 +115,21 @@ def _parse_recommendation_request_params(query_params) -> dict:
             True,
         ),
         "discovery_limit": _parse_positive_int(query_params.get("discovery_limit"), 12),
+        "type_preference": _parse_choice(
+            query_params.get("type_preference"),
+            "balanced",
+            {"actor_heavy", "balanced", "genre_heavy"},
+        ),
+        "actor_preference": _parse_choice(
+            query_params.get("actor_preference"),
+            "balanced",
+            {"familiar", "balanced", "rare"},
+        ),
+        "genre_preference": _parse_choice(
+            query_params.get("genre_preference"),
+            "balanced",
+            {"familiar", "balanced", "rare"},
+        ),
     }
 
 
@@ -125,8 +147,8 @@ def _parse_recommendation_feedback_payload(data) -> dict:
         raise ValueError("avid 参数缺失")
 
     feedback = str(data.get("feedback", "")).strip().lower()
-    if feedback not in {"like", "dislike", "clear"}:
-        raise ValueError("feedback 参数非法")
+    if feedback != "dislike":
+        raise ValueError("feedback 仅支持 dislike")
 
     return {
         "snapshot_id": parsed_snapshot_id,
@@ -598,12 +620,10 @@ class RecommendationsView(APIView):
             recommender_manager,
         )
 
-        recommender_id = request.query_params.get("recommender", "").strip() or None
         strategy_id = request.query_params.get("strategy", "").strip() or None
 
         try:
             execution = recommender_manager.recommend(
-                recommender_id=recommender_id,
                 strategy_id=strategy_id,
                 request_params=_parse_recommendation_request_params(
                     request.query_params
@@ -655,6 +675,17 @@ class RecommendationFeedbackView(APIView):
                 ),
             },
         )
+
+
+class RecommendationResetView(APIView):
+    """POST /api/recommendations/reset - 清空推荐历史与反馈黑名单状态"""
+
+    def post(self, request):
+        _ = request
+        from nassav.recommendation.repository import recommendation_snapshot_repository
+
+        result = recommendation_snapshot_repository.reset_state()
+        return build_response(200, "success", result)
 
 
 class RecommendationCoverView(APIView):

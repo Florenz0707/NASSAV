@@ -21,17 +21,9 @@ const error = ref('')
 const items = ref([])
 const seeds = ref([])
 const meta = ref(null)
-const options = ref({
-  defaults: {
-    recommender: 'jable_search',
-    strategy: 'local_preference',
-  },
-  recommenders: [],
-  strategies: [],
-})
-
-const selectedRecommender = ref(route.query.recommender || '')
-const selectedStrategy = ref(route.query.strategy || '')
+const typePreference = ref(route.query.type_preference || 'balanced')
+const actorPreference = ref(route.query.actor_preference || 'balanced')
+const genrePreference = ref(route.query.genre_preference || 'balanced')
 const limit = ref(Number.parseInt(route.query.limit, 10) || 12)
 const addingAvids = ref(new Set())
 const addedAvids = ref(new Set())
@@ -45,23 +37,6 @@ const activeReasonAvid = ref('')
 const activeReasonPopoverStyle = ref({})
 const activeReasonAnchor = ref(null)
 const RECOMMENDATIONS_STATE_KEY = 'nassav:recommendations:view-state'
-
-const availableStrategies = computed(() => {
-  return (options.value.strategies || []).filter((item) => {
-    if (!selectedRecommender.value) return true
-    return item.supported_recommenders?.includes(selectedRecommender.value)
-  })
-})
-
-const selectedRecommenderDetail = computed(() => {
-  return (
-    (options.value.recommenders || []).find((item) => item.id === selectedRecommender.value) || null
-  )
-})
-
-const selectedStrategyDetail = computed(() => {
-  return availableStrategies.value.find((item) => item.id === selectedStrategy.value) || null
-})
 
 const seedGroups = computed(() => {
   const groups = { actor: [], genre: [] }
@@ -81,18 +56,21 @@ const activeReasonItem = computed(() => {
   return visibleItems.value.find((item) => item.avid === activeReasonAvid.value) || null
 })
 const showInitialLoading = computed(() => loading.value && !visibleItems.value.length)
-const recommenderOptions = computed(() =>
-  (options.value.recommenders || []).map((item) => ({
-    value: item.id,
-    label: item.name,
-  }))
-)
-const strategyOptions = computed(() =>
-  availableStrategies.value.map((item) => ({
-    value: item.id,
-    label: item.name,
-  }))
-)
+const typePreferenceOptions = [
+  { value: 'actor_heavy', label: '演员' },
+  { value: 'balanced', label: '平衡' },
+  { value: 'genre_heavy', label: '类别' },
+]
+const actorPreferenceOptions = [
+  { value: 'familiar', label: '熟悉' },
+  { value: 'balanced', label: '平衡' },
+  { value: 'rare', label: '少见' },
+]
+const genrePreferenceOptions = [
+  { value: 'familiar', label: '熟悉' },
+  { value: 'balanced', label: '平衡' },
+  { value: 'rare', label: '少见' },
+]
 const limitOptions = [
   { value: 12, label: '12' },
   { value: 24, label: '24' },
@@ -101,8 +79,9 @@ const limitOptions = [
 
 function buildConfigKey() {
   return JSON.stringify({
-    recommender: selectedRecommender.value || '',
-    strategy: selectedStrategy.value || '',
+    type_preference: typePreference.value || 'balanced',
+    actor_preference: actorPreference.value || 'balanced',
+    genre_preference: genrePreference.value || 'balanced',
     limit: limit.value || 12,
   })
 }
@@ -113,8 +92,9 @@ function serializeSet(value) {
 
 function saveViewState() {
   const state = {
-    selectedRecommender: selectedRecommender.value,
-    selectedStrategy: selectedStrategy.value,
+    typePreference: typePreference.value,
+    actorPreference: actorPreference.value,
+    genrePreference: genrePreference.value,
     limit: limit.value,
     items: items.value || [],
     seeds: seeds.value || [],
@@ -134,8 +114,9 @@ function restoreViewState() {
 
   try {
     const state = JSON.parse(raw)
-    selectedRecommender.value = state.selectedRecommender || selectedRecommender.value
-    selectedStrategy.value = state.selectedStrategy || selectedStrategy.value
+    typePreference.value = state.typePreference || typePreference.value
+    actorPreference.value = state.actorPreference || actorPreference.value
+    genrePreference.value = state.genrePreference || genrePreference.value
     limit.value = Number.parseInt(state.limit, 10) || 12
     items.value = Array.isArray(state.items) ? state.items : []
     seeds.value = Array.isArray(state.seeds) ? state.seeds : []
@@ -186,6 +167,17 @@ function syncActiveReasonItem() {
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function clearPageRecommendations() {
+  items.value = []
+  seeds.value = []
+  meta.value = null
+  error.value = ''
+  hasRequested.value = false
+  lastLoadedConfigKey.value = ''
+  feedbackByAvid.value = {}
+  closeReasonPanel()
 }
 
 function closeReasonPanel() {
@@ -249,29 +241,17 @@ function toggleReasonPanel(item, event) {
 
 function syncQuery() {
   const query = {}
-  if (selectedRecommender.value) query.recommender = selectedRecommender.value
-  if (selectedStrategy.value) query.strategy = selectedStrategy.value
+  if (typePreference.value && typePreference.value !== 'balanced') {
+    query.type_preference = typePreference.value
+  }
+  if (actorPreference.value && actorPreference.value !== 'balanced') {
+    query.actor_preference = actorPreference.value
+  }
+  if (genrePreference.value && genrePreference.value !== 'balanced') {
+    query.genre_preference = genrePreference.value
+  }
   if (limit.value !== 12) query.limit = limit.value
   router.replace({ query })
-}
-
-async function loadOptions() {
-  const response = await recommendationApi.getOptions()
-  options.value = response.data || options.value
-
-  if (!selectedRecommender.value) {
-    selectedRecommender.value = options.value.defaults?.recommender || 'jable_search'
-  }
-  if (!selectedStrategy.value) {
-    selectedStrategy.value = options.value.defaults?.strategy || 'local_preference'
-  }
-
-  const strategySupported = availableStrategies.value.some(
-    (item) => item.id === selectedStrategy.value
-  )
-  if (!strategySupported && availableStrategies.value.length > 0) {
-    selectedStrategy.value = availableStrategies.value[0].id
-  }
 }
 
 async function loadRecommendations() {
@@ -283,8 +263,9 @@ async function loadRecommendations() {
 
   try {
     const response = await recommendationApi.getList({
-      recommender: selectedRecommender.value,
-      strategy: selectedStrategy.value,
+      type_preference: typePreference.value,
+      actor_preference: actorPreference.value,
+      genre_preference: genrePreference.value,
       limit: limit.value,
       exclude_existing: true,
     })
@@ -348,9 +329,7 @@ async function handleAdd(item) {
 
 async function handleFeedback(item, feedbackType) {
   if (!item?.avid || !item?.snapshot_id || feedbackSubmittingAvids.value.has(item.avid)) return
-
-  const currentFeedback = feedbackByAvid.value[item.avid] || ''
-  const nextFeedback = currentFeedback === feedbackType ? 'clear' : feedbackType
+  if (feedbackType !== 'dislike') return
 
   const nextSubmitting = new Set(feedbackSubmittingAvids.value)
   nextSubmitting.add(item.avid)
@@ -360,24 +339,37 @@ async function handleFeedback(item, feedbackType) {
     const response = await recommendationApi.submitFeedback({
       snapshot_id: item.snapshot_id,
       avid: item.avid,
-      feedback: nextFeedback,
+      feedback: 'dislike',
     })
     const savedFeedback = response.data?.feedback || ''
     feedbackByAvid.value = {
       ...feedbackByAvid.value,
       [item.avid]: savedFeedback,
     }
-    if (savedFeedback) {
-      toastStore.success(`${item.avid} 的推荐反馈已更新`)
-    } else {
-      toastStore.info(`${item.avid} 的推荐反馈已清除`)
-    }
+    toastStore.success(`${item.avid} 已加入不喜欢黑名单`)
   } catch (err) {
     toastStore.error(err.message || '提交推荐反馈失败')
   } finally {
     const done = new Set(feedbackSubmittingAvids.value)
     done.delete(item.avid)
     feedbackSubmittingAvids.value = done
+  }
+}
+
+async function handleResetRecommendations() {
+  loading.value = true
+  error.value = ''
+  try {
+    const response = await recommendationApi.resetState()
+    clearPageRecommendations()
+    window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
+    const snapshotCount = response.data?.snapshot_count || 0
+    const feedbackCount = response.data?.feedback_count || 0
+    toastStore.success(`推荐已清空（快照 ${snapshotCount}，黑名单 ${feedbackCount}）`)
+  } catch (err) {
+    toastStore.error(err.message || '清空推荐失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -401,18 +393,7 @@ function handleViewportResize() {
   updateScrollState()
 }
 
-watch(selectedRecommender, () => {
-  const strategySupported = availableStrategies.value.some(
-    (item) => item.id === selectedStrategy.value
-  )
-  if (!strategySupported && availableStrategies.value.length > 0) {
-    selectedStrategy.value = availableStrategies.value[0].id
-  }
-  if (!initialized.value) return
-  syncQuery()
-})
-
-watch([selectedStrategy, limit], () => {
+watch([typePreference, actorPreference, genrePreference, limit], () => {
   if (!initialized.value) return
   syncQuery()
 })
@@ -420,7 +401,6 @@ watch([selectedStrategy, limit], () => {
 onMounted(async () => {
   await settingsStore.loadSettings()
   const restoredState = restoreViewState()
-  await loadOptions()
   initialized.value = true
   syncQuery()
   if (restoredState?.scrollY) {
@@ -449,50 +429,55 @@ onBeforeUnmount(() => {
         <h1 class="page-title">推荐发现</h1>
       </div>
 
-      <button class="refresh-btn" :disabled="loading" @click="loadRecommendations">
-        <LoadingSpinner v-if="loading" size="small" />
-        <template v-else>
-          {{ hasRequested ? '刷新推荐' : '开始推荐' }}
-        </template>
-      </button>
+      <div class="header-actions">
+        <button class="reset-btn" :disabled="loading" @click="handleResetRecommendations">
+          清空推荐
+        </button>
+        <button class="refresh-btn" :disabled="loading" @click="loadRecommendations">
+          <LoadingSpinner v-if="loading" size="small" />
+          <template v-else>
+            {{ hasRequested ? '刷新推荐' : '开始推荐' }}
+          </template>
+        </button>
+      </div>
     </section>
 
     <section class="meta-strip">
       <div class="meta-card">
-        <div class="meta-label">推荐器</div>
+        <div class="meta-label">种子偏好</div>
         <label class="meta-control">
           <CustomSelect
-            v-model="selectedRecommender"
-            :options="recommenderOptions"
+            v-model="typePreference"
+            :options="typePreferenceOptions"
             class="meta-select"
             full-width
           />
         </label>
-        <p class="meta-desc">
-          {{
-            meta?.recommender_detail?.description ||
-            selectedRecommenderDetail?.description ||
-            '决定从哪里召回候选资源。'
-          }}
-        </p>
+        <p class="meta-desc">控制演员种子与类别种子的整体权重倾向。</p>
       </div>
       <div class="meta-card strategy-card">
-        <div class="meta-label">策略</div>
+        <div class="meta-label">演员偏好</div>
         <label class="meta-control">
           <CustomSelect
-            v-model="selectedStrategy"
-            :options="strategyOptions"
+            v-model="actorPreference"
+            :options="actorPreferenceOptions"
             class="meta-select"
             full-width
           />
         </label>
-        <p class="meta-desc">
-          {{
-            meta?.strategy_detail?.description ||
-            selectedStrategyDetail?.description ||
-            '决定种子来源、打分因子和默认过滤行为。'
-          }}
-        </p>
+        <p class="meta-desc">控制演员种子“熟悉/平衡/少见”偏好，叠加种子轮换抑制。</p>
+      </div>
+      <div class="meta-card strategy-card">
+        <div class="meta-label">类别偏好</div>
+        <label class="meta-control">
+          <CustomSelect
+            v-model="genrePreference"
+            :options="genrePreferenceOptions"
+            class="meta-select"
+            full-width
+          />
+        </label>
+        <p class="meta-desc">控制类别种子“熟悉/平衡/少见”偏好，叠加种子轮换抑制。</p>
       </div>
       <div class="meta-card">
         <div class="meta-label">返回数量</div>
@@ -540,7 +525,7 @@ onBeforeUnmount(() => {
         v-else-if="!hasRequested && !visibleItems.length"
         icon="✦"
         title="尚未开始推荐"
-        description="先选择推荐器与策略，再按上方按钮生成推荐结果。"
+        description="先设置偏好参数，再按上方按钮生成推荐结果。"
       />
 
       <EmptyState
@@ -708,12 +693,38 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 24px rgba(255, 107, 107, 0.22);
 }
 
+.header-actions {
+  display: inline-flex;
+  gap: 0.6rem;
+}
+
+.reset-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7.6rem;
+  min-height: 2.9rem;
+  padding: 0 1rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reset-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .refresh-btn:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
 
 .meta-strip,
+.strategy-params-panel,
 .seed-panel,
 .content-shell {
   border-radius: 1.35rem;
@@ -800,6 +811,120 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   padding: 1.15rem;
+}
+
+.strategy-params-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  padding: 1.1rem;
+}
+
+.strategy-params-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.strategy-params-header-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.strategy-params-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.04rem;
+  font-weight: 700;
+}
+
+.strategy-params-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.strategy-params-toggle {
+  min-height: 2.1rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.strategy-params-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.strategy-params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.strategy-params-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.strategy-params-section-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.strategy-params-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.strategy-param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.strategy-param-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.strategy-param-key {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.strategy-param-value {
+  color: var(--accent-tertiary);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.strategy-param-meaning {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
 }
 
 .seed-section {
@@ -1050,6 +1175,7 @@ onBeforeUnmount(() => {
 @media (max-width: 960px) {
   .page-header,
   .meta-strip,
+  .strategy-params-grid,
   .seed-panel {
     grid-template-columns: 1fr;
   }
@@ -1060,6 +1186,12 @@ onBeforeUnmount(() => {
 
   .refresh-btn {
     width: 100%;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .scroll-top-btn {

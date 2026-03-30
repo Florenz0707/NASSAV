@@ -15,6 +15,22 @@ class RecommendationFactor(ABC):
 
 
 class SeedWeightFactor(RecommendationFactor):
+    TYPE_PREFERENCE_MULTIPLIERS = {
+        "actor_heavy": {"actor": 1.3, "genre": 0.7},
+        "balanced": {"actor": 1.0, "genre": 1.0},
+        "genre_heavy": {"actor": 0.7, "genre": 1.3},
+    }
+    ACTOR_NOVELTY_TIER_MULTIPLIERS = {
+        "familiar": {"high": 1.25, "mid": 1.0, "low": 0.75},
+        "balanced": {"high": 0.8, "mid": 1.2, "low": 1.0},
+        "rare": {"high": 0.2, "mid": 1.5, "low": 2.3},
+    }
+    GENRE_NOVELTY_TIER_MULTIPLIERS = {
+        "familiar": {"high": 1.25, "mid": 1.0, "low": 0.75},
+        "balanced": {"high": 0.8, "mid": 1.2, "low": 1.0},
+        "rare": {"high": 0.2, "mid": 1.5, "low": 2.3},
+    }
+
     def __init__(
         self,
         *,
@@ -39,9 +55,20 @@ class SeedWeightFactor(RecommendationFactor):
             key=lambda item: (-item.weight, item.value),
         ):
             multiplier = self._get_multiplier(seed.seed_type)
-            total += seed.weight * multiplier
+            type_multiplier = self._get_type_preference_multiplier(
+                seed.seed_type, request
+            )
+            tier_multiplier = self._get_novelty_tier_multiplier(seed, request)
+            rotation_multiplier = self._get_rotation_multiplier(seed, request)
+            total += (
+                seed.weight
+                * multiplier
+                * type_multiplier
+                * tier_multiplier
+                * rotation_multiplier
+            )
             reasons.append(
-                f"命中高频{seed.seed_type}: {seed.value} (x{multiplier:.2f})"
+                f"命中高频{seed.seed_type}: {seed.value} (基础x{multiplier:.2f}, 类型x{type_multiplier:.2f}, 新旧x{tier_multiplier:.2f}, 轮换x{rotation_multiplier:.2f})"
             )
 
         return round(total, 4), reasons
@@ -52,6 +79,50 @@ class SeedWeightFactor(RecommendationFactor):
         if seed_type == "genre":
             return self.genre_multiplier
         return 1.0
+
+    def _get_type_preference_multiplier(
+        self,
+        seed_type: str,
+        request: RecommendationRequest,
+    ) -> float:
+        profile = str(request.type_preference or "balanced").strip().lower()
+        multipliers = self.TYPE_PREFERENCE_MULTIPLIERS.get(
+            profile, self.TYPE_PREFERENCE_MULTIPLIERS["balanced"]
+        )
+        return multipliers.get(seed_type, 1.0)
+
+    def _get_novelty_tier_multiplier(
+        self,
+        seed,
+        request: RecommendationRequest,
+    ) -> float:
+        profile = (
+            request.actor_preference
+            if seed.seed_type == "actor"
+            else request.genre_preference
+        )
+        profile_token = str(profile or "balanced").strip().lower()
+        profile_map = (
+            self.ACTOR_NOVELTY_TIER_MULTIPLIERS
+            if seed.seed_type == "actor"
+            else self.GENRE_NOVELTY_TIER_MULTIPLIERS
+        )
+        multipliers = profile_map.get(profile_token, profile_map["balanced"])
+        key = f"{seed.seed_type}:{seed.value}"
+        tier = request.seed_occurrence_tiers.get(key, "mid")
+        return multipliers.get(tier, 1.0)
+
+    def _get_rotation_multiplier(
+        self,
+        seed,
+        request: RecommendationRequest,
+    ) -> float:
+        key = f"{seed.seed_type}:{seed.value}"
+        count = max(int(request.recent_seed_counts.get(key, 0)), 0)
+        if count <= 0:
+            return 1.0
+        # Penalize repeatedly exposed seeds to enforce rotation across requests.
+        return max(1.0 / (1.0 + (count * 0.35)), 0.45)
 
 
 class MultiSeedBonusFactor(RecommendationFactor):

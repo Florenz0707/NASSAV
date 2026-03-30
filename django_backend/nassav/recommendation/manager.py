@@ -5,14 +5,10 @@ from nassav.source import Jable
 from .entities import RecommendationExecution, RecommendationRequest
 from .feedback import recommendation_feedback_repository
 from .jable_page_lookup import JablePageLookupRecommender
-from .jable_search import JableSearchRecommender
 from .repository import recommendation_snapshot_repository
 from .strategies import (
     RecommendationStrategy,
-    build_actor_heavy_strategy,
-    build_balanced_strategy,
     build_local_preference_strategy,
-    build_recent_favorite_strategy,
 )
 
 
@@ -21,14 +17,9 @@ class RecommendationManagerError(Exception):
 
 
 class RecommenderManager:
-    DEFAULT_RECOMMENDER_ID = "jable_search"
+    DEFAULT_RECOMMENDER_ID = "jable_page_lookup"
     DEFAULT_STRATEGY_ID = "local_preference"
     RECOMMENDER_META = {
-        "jable_search": {
-            "id": "jable_search",
-            "name": "Jable Search",
-            "description": "通过 Jable 搜索页召回候选资源。",
-        },
         "jable_page_lookup": {
             "id": "jable_page_lookup",
             "name": "Jable Page Lookup",
@@ -37,9 +28,6 @@ class RecommenderManager:
     }
     STRATEGY_BUILDERS = {
         "local_preference": build_local_preference_strategy,
-        "balanced": build_balanced_strategy,
-        "actor_heavy": build_actor_heavy_strategy,
-        "recent_favorite": build_recent_favorite_strategy,
     }
 
     def list_recommenders(self) -> list[dict]:
@@ -136,13 +124,16 @@ class RecommenderManager:
                 item_limit=max(recommendation_request.recent_item_limit * 2, 48),
             )
         )
+        recommendation_request.recent_seed_counts = (
+            recommendation_snapshot_repository.get_recent_seed_counts(
+                recommender_id=resolved_recommender_id,
+                snapshot_limit=max(recommendation_request.recent_snapshot_limit * 3, 8),
+                item_limit=max(recommendation_request.recent_item_limit * 3, 72),
+            )
+        )
         learning_profile = recommendation_feedback_repository.build_learning_profile()
-        recommendation_request.feedback_avid_scores = learning_profile.avid_scores
-        recommendation_request.feedback_seed_scores = learning_profile.seed_scores
         recommendation_request.blocked_feedback_avids = learning_profile.blocked_avids
         recommendation_request.learned_feedback_count = learning_profile.feedback_count
-        recommendation_request.learned_avid_count = learning_profile.learned_avid_count
-        recommendation_request.learned_seed_count = learning_profile.learned_seed_count
         recommender = self.build_recommender(
             recommender_id=resolved_recommender_id,
             strategy=strategy,
@@ -199,6 +190,9 @@ class RecommenderManager:
             include_hot_board=bool(payload.get("include_hot_board", True)),
             include_latest_updates=bool(payload.get("include_latest_updates", True)),
             discovery_limit=int(payload.get("discovery_limit", 12)),
+            type_preference=str(payload.get("type_preference", "balanced")),
+            actor_preference=str(payload.get("actor_preference", "balanced")),
+            genre_preference=str(payload.get("genre_preference", "balanced")),
         )
 
     def build_recommender(
@@ -206,8 +200,6 @@ class RecommenderManager:
         recommender_id: str,
         strategy: RecommendationStrategy,
     ):
-        if recommender_id == "jable_search":
-            return self._build_jable_search_recommender(strategy)
         if recommender_id == "jable_page_lookup":
             return self._build_jable_page_lookup_recommender(strategy)
         raise RecommendationManagerError(f"未知推荐器: {recommender_id}")
@@ -221,18 +213,6 @@ class RecommenderManager:
             raise RecommendationManagerError(
                 f"推荐策略 {strategy.strategy_id} 不支持推荐器 {recommender_id}"
             )
-
-    def _build_jable_search_recommender(
-        self,
-        strategy: RecommendationStrategy,
-    ) -> JableSearchRecommender:
-        proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
-        return JableSearchRecommender(
-            jable=Jable(proxy=proxy),
-            seed_provider=strategy.seed_provider_builder(),
-            factors=[builder() for builder in strategy.factor_builders],
-            **strategy.recommender_kwargs,
-        )
 
     def _build_jable_page_lookup_recommender(
         self,

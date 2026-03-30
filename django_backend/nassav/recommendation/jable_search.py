@@ -29,6 +29,7 @@ class JableSearchRecommender(AbstractRecommender):
 
     def recommend(self, request: RecommendationRequest):
         seeds = self.build_seeds(request)
+        self._hydrate_seed_occurrence_tiers(request, seeds)
         candidates = self.recall_candidates(seeds, request)
         candidates = self.exclude_existing_resources(candidates, request)
         candidates = self.exclude_feedback_blocked_resources(candidates, request)
@@ -37,6 +38,9 @@ class JableSearchRecommender(AbstractRecommender):
             candidates=candidates,
             request=request,
         )
+        candidates = self.exclude_existing_resources(candidates, request)
+        candidates = self.exclude_feedback_blocked_resources(candidates, request)
+        self._hydrate_seed_occurrence_tiers(request, seeds)
         candidates = self.filter_recent_recommendations(candidates, request)
         candidates = self.enrich_candidates(candidates, request)
         candidates = self.score_candidates(candidates, request)
@@ -325,6 +329,49 @@ class JableSearchRecommender(AbstractRecommender):
         if key.startswith("genre:"):
             return self.genre_diversity_weight
         return 1.0
+
+    def _hydrate_seed_occurrence_tiers(
+        self,
+        request: RecommendationRequest,
+        seeds: list[RecommendationSeed],
+    ) -> None:
+        request.seed_occurrence_tiers = self._build_seed_occurrence_tiers(seeds)
+
+    def _build_seed_occurrence_tiers(
+        self,
+        seeds: list[RecommendationSeed],
+    ) -> dict[str, str]:
+        grouped: dict[str, list[RecommendationSeed]] = {}
+        for seed in seeds:
+            grouped.setdefault(seed.seed_type, []).append(seed)
+
+        tiers: dict[str, str] = {}
+        for seed_group in grouped.values():
+            ordered = sorted(
+                seed_group,
+                key=lambda item: (
+                    -(item.resource_count or 0),
+                    -item.preference_score,
+                    item.value,
+                ),
+            )
+            total = len(ordered)
+            if total <= 0:
+                continue
+            high_size = max(total // 3, 1)
+            low_size = max(total // 3, 1)
+            low_start = max(total - low_size, high_size)
+
+            for index, seed in enumerate(ordered):
+                if index < high_size:
+                    tier = "high"
+                elif index >= low_start:
+                    tier = "low"
+                else:
+                    tier = "mid"
+                tiers[f"{seed.seed_type}:{seed.value}"] = tier
+
+        return tiers
 
     def _merge_metrics(self, base: dict, extra: dict) -> dict:
         merged = dict(base or {})

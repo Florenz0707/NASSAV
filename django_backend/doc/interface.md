@@ -236,8 +236,10 @@ DELETE /nassav/api/source/cookie?source=missav
 - 路径：`/nassav/api/recommendations/`
 - 功能：统一推荐入口
 - 支持 Query 参数：
-  - `recommender`：推荐器标识，默认 `jable_search`，可选 `jable_search` / `jable_page_lookup`
-  - `strategy`：推荐策略标识，默认 `local_preference`
+  - `strategy`：推荐策略标识，默认 `local_preference`（当前仅此一项）
+  - `type_preference`：种子类型偏好，`actor_heavy | balanced | genre_heavy`
+  - `actor_preference`：演员偏好，`familiar | balanced | rare`
+  - `genre_preference`：类别偏好，`familiar | balanced | rare`
   - `limit`：返回数量，默认 `12`
   - `per_seed_limit`：每个 seed 的召回上限，默认 `12`
   - `actor_seed_limit`：演员种子数量，默认 `5`
@@ -253,7 +255,7 @@ DELETE /nassav/api/source/cookie?source=missav
 示例请求：
 
 ```json
-GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_preference&limit=12&exclude_existing=true
+GET /nassav/api/recommendations/?strategy=local_preference&type_preference=balanced&actor_preference=rare&genre_preference=balanced&limit=12&exclude_existing=true
 ```
 
 返回示例：
@@ -294,19 +296,31 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
       "item_count": 1
     },
     "meta": {
-      "recommender": "jable_search",
+      "recommender": "jable_page_lookup",
       "strategy": "local_preference",
       "snapshot_id": 12,
       "request_fingerprint": "e6fd...",
       "recommender_detail": {
-        "id": "jable_search",
-        "name": "Jable Search",
-        "description": "通过 Jable 搜索页召回候选资源。"
+        "id": "jable_page_lookup",
+        "name": "Jable Page Lookup",
+        "description": "优先通过 Jable actor/genre 映射页召回，回退到搜索页。"
       },
       "strategy_detail": {
         "id": "local_preference",
         "name": "Local Preference",
-        "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。"
+        "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
+        "parameter_profile": [
+          {
+            "title": "新鲜感控制",
+            "items": [
+              {
+                "key": "fresh_bonus",
+                "value": 0.7,
+                "meaning": "近期历史未出现的候选加分。"
+              }
+            ]
+          }
+        ]
       },
       "effective_request": {
         "limit": 12,
@@ -321,18 +335,17 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
         "recent_item_limit": 36,
         "include_hot_board": true,
         "include_latest_updates": true,
-        "discovery_limit": 12
+        "discovery_limit": 12,
+        "type_preference": "balanced",
+        "actor_preference": "rare",
+        "genre_preference": "balanced"
       },
       "history_context": {
         "recently_recommended_count": 12,
         "recent_history_candidate_count": 18,
         "filtered_history_count": 4
       },
-      "learning_context": {
-        "feedback_count": 6,
-        "learned_avid_count": 4,
-        "learned_seed_count": 7
-      }
+      "learning_context": { "feedback_count": 6, "learned_avid_count": 0, "learned_seed_count": 0 }
     }
   }
 }
@@ -351,16 +364,17 @@ GET /nassav/api/recommendations/?recommender=jable_search&strategy=local_prefere
 - 演员种子会自动展开常见别名（例如括号内别名），用于提升 Jable 搜索召回率。
 - `include_hot_board=true` 时会把 Jable 热榜 async block 的今日 / 本周 / 本月 / 全部四档榜单作为 discovery 候选源；`include_latest_updates=true` 时会把 `/latest-updates/` 作为 discovery 候选源，两者都会带上来源标签参与轻量加分排序。
 - 当某个作品收到的 `dislike` 票数多于 `like` 时，系统会在后续推荐中直接屏蔽该 `avid`，而不是只做轻微降权。
+- `strategy_detail.parameter_profile` 会返回每个策略参数的实际值和参数含义，前端可直接用于“策略参数说明”展示。
 
 ### 提交推荐反馈
 
 - 方法：POST
 - 路径：`/nassav/api/recommendations/feedback`
-- 功能：记录当前推荐结果的显式反馈，并将其纳入后续推荐学习信号
+- 功能：将推荐项加入不喜欢黑名单（AVID 级屏蔽）
 - 请求体：
   - `snapshot_id`：该推荐项所属快照 ID
   - `avid`：推荐项资源编号
-  - `feedback`：`like | dislike | clear`
+  - `feedback`：固定为 `dislike`
 
 示例请求：
 
@@ -369,7 +383,7 @@ POST /nassav/api/recommendations/feedback
 {
   "snapshot_id": 12,
   "avid": "ABC-123",
-  "feedback": "like"
+  "feedback": "dislike"
 }
 ```
 
@@ -382,8 +396,28 @@ POST /nassav/api/recommendations/feedback
   "data": {
     "snapshot_id": 12,
     "avid": "ABC-123",
-    "feedback": "like",
-    "feedback_value": 1
+    "feedback": "dislike",
+    "feedback_value": -1
+  }
+}
+```
+
+### 清空推荐状态
+
+- 方法：POST
+- 路径：`/nassav/api/recommendations/reset`
+- 功能：清空推荐快照、推荐项和不喜欢黑名单反馈
+
+返回示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "snapshot_count": 12,
+    "item_count": 144,
+    "feedback_count": 8
   }
 }
 ```

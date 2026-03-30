@@ -1,7 +1,4 @@
-from datetime import timedelta
-
 import pytest
-from django.utils import timezone
 
 
 @pytest.fixture(autouse=True)
@@ -19,20 +16,22 @@ def test_recommendations_options_endpoint(api_client):
 
     body = response.json()
     assert body["code"] == 200
-    assert body["data"]["defaults"]["recommender"] == "jable_search"
+    assert body["data"]["defaults"]["recommender"] == "jable_page_lookup"
     assert body["data"]["defaults"]["strategy"] == "local_preference"
-    assert any(item["id"] == "jable_search" for item in body["data"]["recommenders"])
-    assert any(
-        item["id"] == "jable_page_lookup" for item in body["data"]["recommenders"]
-    )
+    assert [item["id"] for item in body["data"]["recommenders"]] == [
+        "jable_page_lookup"
+    ]
     assert any(item["id"] == "local_preference" for item in body["data"]["strategies"])
-    assert any(item["id"] == "balanced" for item in body["data"]["strategies"])
-    assert any(item["id"] == "actor_heavy" for item in body["data"]["strategies"])
-    assert any(item["id"] == "recent_favorite" for item in body["data"]["strategies"])
+    assert len(body["data"]["strategies"]) == 1
     local_preference = next(
         item for item in body["data"]["strategies"] if item["id"] == "local_preference"
     )
     assert local_preference["default_request_overrides"]["limit"] == 12
+    assert isinstance(local_preference["parameter_profile"], list)
+    assert any(
+        section["title"] == "基础参数"
+        for section in local_preference["parameter_profile"]
+    )
 
 
 @pytest.mark.django_db
@@ -55,12 +54,12 @@ def test_recommendations_endpoint_runs_with_empty_search(
 
     body = response.json()
     assert body["code"] == 200
-    assert body["data"]["meta"]["recommender"] == "jable_search"
+    assert body["data"]["meta"]["recommender"] == "jable_page_lookup"
     assert body["data"]["meta"]["strategy"] == "local_preference"
     assert body["data"]["meta"]["snapshot_id"] is not None
     assert body["data"]["meta"]["request_fingerprint"]
-    assert body["data"]["meta"]["recommender_detail"]["name"] == "Jable Search"
-    assert "Jable" in body["data"]["meta"]["strategy_detail"]["description"]
+    assert body["data"]["meta"]["recommender_detail"]["name"] == "Jable Page Lookup"
+    assert "page lookup" in body["data"]["meta"]["strategy_detail"]["description"]
     assert body["data"]["meta"]["effective_request"]["limit"] == 12
     assert body["data"]["meta"]["effective_request"]["exclude_existing"] is True
     assert (
@@ -135,7 +134,6 @@ def test_recommendations_endpoint_merges_scores_and_filters_existing(
     response = api_client.get(
         "/nassav/api/recommendations/",
         {
-            "recommender": "jable_search",
             "strategy": "local_preference",
             "actor_seed_limit": 1,
             "genre_seed_limit": 1,
@@ -230,7 +228,7 @@ def test_recommendations_demo_endpoint_aliases_manager(
 
     body = response.json()
     assert body["code"] == 200
-    assert body["data"]["meta"]["recommender"] == "jable_search"
+    assert body["data"]["meta"]["recommender"] == "jable_page_lookup"
     assert body["data"]["meta"]["strategy"] == "local_preference"
     assert body["data"]["items"][0]["avid"] == "REC-301"
 
@@ -270,64 +268,7 @@ def test_recommendation_cover_endpoint_caches_file(api_client, monkeypatch, tmp_
 
 
 @pytest.mark.django_db
-def test_recent_favorite_strategy_prefers_interacted_recent_seeds(
-    api_client,
-    monkeypatch,
-    resource_factory,
-    actor_factory,
-):
-    from nassav.source import Jable
-
-    recent_actor = actor_factory(name="Recent Favorite Actor")
-    legacy_actor = actor_factory(name="Legacy Actor")
-
-    recent_resource = resource_factory(
-        avid="RECENT-001",
-        original_title="Recent Favorite",
-        watched=True,
-        is_favorite=True,
-        created_at=timezone.now(),
-    )
-    recent_resource.actors.add(recent_actor)
-
-    legacy_resource_1 = resource_factory(
-        avid="LEGACY-001",
-        original_title="Legacy 1",
-        created_at=timezone.now() - timedelta(days=365),
-    )
-    legacy_resource_1.actors.add(legacy_actor)
-
-    legacy_resource_2 = resource_factory(
-        avid="LEGACY-002",
-        original_title="Legacy 2",
-        created_at=timezone.now() - timedelta(days=300),
-    )
-    legacy_resource_2.actors.add(legacy_actor)
-
-    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
-
-    response = api_client.get(
-        "/nassav/api/recommendations/",
-        {
-            "strategy": "recent_favorite",
-            "actor_seed_limit": 2,
-            "genre_seed_limit": 1,
-        },
-    )
-    body = response.json()
-    assert body["code"] == 200
-
-    actor_seeds = [
-        seed for seed in body["data"]["seeds"] if seed["seed_type"] == "actor"
-    ]
-    assert len(actor_seeds) == 1
-    assert actor_seeds[0]["value"] == "Recent Favorite Actor"
-    assert actor_seeds[0]["source"] == "local_interacted_actor"
-    assert actor_seeds[0]["preference_score"] > 0
-
-
-@pytest.mark.django_db
-def test_actor_heavy_strategy_prefers_actor_seed_matches_over_genre_only_matches(
+def test_type_preference_controls_actor_vs_genre_weight(
     api_client,
     monkeypatch,
     resource_factory,
@@ -375,17 +316,66 @@ def test_actor_heavy_strategy_prefers_actor_seed_matches_over_genre_only_matches
     response = api_client.get(
         "/nassav/api/recommendations/",
         {
-            "strategy": "actor_heavy",
             "actor_seed_limit": 1,
             "genre_seed_limit": 1,
+            "type_preference": "actor_heavy",
         },
     )
     body = response.json()
     assert body["code"] == 200
-    assert [item["avid"] for item in body["data"]["items"]] == [
-        "REC-ACTOR",
-        "REC-GENRE",
+    assert body["data"]["items"][0]["avid"] == "REC-ACTOR"
+
+    genre_heavy_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 1,
+            "type_preference": "genre_heavy",
+            "avoid_recent_recommendations": "false",
+        },
+    )
+    genre_heavy_body = genre_heavy_response.json()
+    assert genre_heavy_body["code"] == 200
+    assert genre_heavy_body["data"]["items"][0]["avid"] == "REC-GENRE"
+
+
+@pytest.mark.django_db
+def test_rare_actor_preference_includes_mid_and_low_frequency_actor_seeds(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actors = [actor_factory(name=f"Actor-{index:02d}") for index in range(1, 10)]
+    for index, actor in enumerate(actors, start=1):
+        resource_count = 10 - index
+        for replica in range(resource_count):
+            resource = resource_factory(
+                avid=f"SEED-RARE-{index:02d}-{replica:02d}",
+                original_title=f"Seed {index}-{replica}",
+            )
+            resource.actors.add(actor)
+
+    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "actor_seed_limit": 5,
+            "genre_seed_limit": 0,
+            "actor_preference": "rare",
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+    actor_seeds = [
+        seed["value"]
+        for seed in body["data"]["seeds"]
+        if seed["seed_type"] == "actor"
+        and seed["source"] in {"local_top_actor", "local_interacted_actor"}
     ]
+    assert len(actor_seeds) == 5
+    assert any(value in {"Actor-07", "Actor-08", "Actor-09"} for value in actor_seeds)
+    assert any(value in {"Actor-04", "Actor-05", "Actor-06"} for value in actor_seeds)
 
 
 @pytest.mark.django_db
@@ -422,7 +412,7 @@ def test_recommendations_endpoint_persists_snapshot_and_items(
     snapshot = RecommendationSnapshot.objects.get()
     item = RecommendationItem.objects.get(snapshot=snapshot)
     body = response.json()
-    assert snapshot.recommender_id == "jable_search"
+    assert snapshot.recommender_id == "jable_page_lookup"
     assert snapshot.strategy_id == "local_preference"
     assert snapshot.request_fingerprint == body["data"]["meta"]["request_fingerprint"]
     assert snapshot.item_count == 1
@@ -533,11 +523,11 @@ def test_recommendations_endpoint_penalizes_cross_strategy_recent_results(
     second_response = api_client.get(
         "/nassav/api/recommendations/",
         {
-            "strategy": "balanced",
             "limit": 1,
             "actor_seed_limit": 1,
             "genre_seed_limit": 1,
             "avoid_recent_recommendations": "false",
+            "type_preference": "genre_heavy",
         },
     )
 
@@ -557,10 +547,9 @@ def test_recommendations_endpoint_penalizes_cross_strategy_recent_results(
 
 
 @pytest.mark.django_db
-def test_recommendation_feedback_endpoint_updates_learning_and_ranking(
+def test_recommendation_feedback_endpoint_accepts_only_dislike(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
-    from nassav.models import RecommendationFeedback
     from nassav.source import Jable
 
     actor = actor_factory(name="Alice")
@@ -603,39 +592,29 @@ def test_recommendation_feedback_endpoint_updates_learning_and_ranking(
         "REC-701-B",
     ]
 
-    feedback_response = api_client.post(
+    invalid_feedback_response = api_client.post(
         "/nassav/api/recommendations/feedback",
         {
-            "snapshot_id": first_body["data"]["items"][1]["snapshot_id"],
-            "avid": "REC-701-B",
-            "feedback": "like",
+            "snapshot_id": first_body["data"]["items"][0]["snapshot_id"],
+            "avid": "REC-701-A",
+            "feedback": "clear",
         },
         format="json",
     )
-    feedback_body = feedback_response.json()
-    assert feedback_response.status_code == 200
-    assert feedback_body["data"]["feedback"] == "like"
-    assert RecommendationFeedback.objects.count() == 1
+    assert invalid_feedback_response.status_code == 400
+    assert invalid_feedback_response.json()["code"] == 400
 
-    second_response = api_client.get(
-        "/nassav/api/recommendations/",
+    dislike_response = api_client.post(
+        "/nassav/api/recommendations/feedback",
         {
-            "limit": 2,
-            "actor_seed_limit": 1,
-            "genre_seed_limit": 1,
-            "avoid_recent_recommendations": "false",
+            "snapshot_id": first_body["data"]["items"][0]["snapshot_id"],
+            "avid": "REC-701-A",
+            "feedback": "dislike",
         },
+        format="json",
     )
-    second_body = second_response.json()
-    assert second_body["data"]["meta"]["learning_context"]["feedback_count"] == 1
-    assert second_body["data"]["items"][0]["avid"] == "REC-701-B"
-    feedback_breakdowns = [
-        item
-        for item in second_body["data"]["items"][0]["score_breakdown"]
-        if item["factor"] == "FeedbackSignalFactor"
-    ]
-    assert feedback_breakdowns
-    assert feedback_breakdowns[0]["score"] > 0
+    assert dislike_response.status_code == 200
+    assert dislike_response.json()["data"]["feedback"] == "dislike"
 
 
 @pytest.mark.django_db
@@ -717,7 +696,62 @@ def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
     second_body = second_response.json()
     second_avids = [item["avid"] for item in second_body["data"]["items"]]
     assert "REC-702-A" not in second_avids
-    assert second_avids == ["REC-702-B", "REC-702-C"]
+    assert set(second_avids) == {"REC-702-B", "REC-702-C"}
+
+
+@pytest.mark.django_db
+def test_recommendation_reset_endpoint_clears_snapshots_and_feedback(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import (
+        RecommendationFeedback,
+        RecommendationItem,
+        RecommendationSnapshot,
+    )
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-703", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-703-A",
+                "title": "Candidate",
+                "detail_url": "https://jable.tv/videos/rec-703-a/",
+                "cover_url": "https://img/rec-703-a.jpg",
+                "metrics": {"views": 3200, "likes": 260},
+            }
+        ],
+    )
+
+    first_response = api_client.get("/nassav/api/recommendations/", {"limit": 1})
+    snapshot_id = first_response.json()["data"]["items"][0]["snapshot_id"]
+    feedback_response = api_client.post(
+        "/nassav/api/recommendations/feedback",
+        {"snapshot_id": snapshot_id, "avid": "REC-703-A", "feedback": "dislike"},
+        format="json",
+    )
+    assert feedback_response.status_code == 200
+    assert RecommendationSnapshot.objects.count() == 1
+    assert RecommendationItem.objects.count() == 1
+    assert RecommendationFeedback.objects.count() == 1
+
+    reset_response = api_client.post(
+        "/nassav/api/recommendations/reset", {}, format="json"
+    )
+    reset_body = reset_response.json()
+    assert reset_response.status_code == 200
+    assert reset_body["code"] == 200
+    assert reset_body["data"]["snapshot_count"] == 1
+    assert reset_body["data"]["item_count"] == 1
+    assert reset_body["data"]["feedback_count"] == 1
+    assert RecommendationSnapshot.objects.count() == 0
+    assert RecommendationItem.objects.count() == 0
+    assert RecommendationFeedback.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -967,9 +1001,7 @@ def test_recommendations_endpoint_expands_to_lower_ranked_seeds_when_exhausted(
     assert len(second_items) == 3
     assert "REC-LATE-C" in [item["avid"] for item in second_items]
     assert any(
-        seed["value"] == "Carol"
-        for seed in second_response.json()["data"]["seeds"]
-        if seed["source"].startswith("local_expansion_")
+        seed["value"] == "Carol" for seed in second_response.json()["data"]["seeds"]
     )
 
 
@@ -1062,11 +1094,7 @@ def test_recommendations_endpoint_expands_when_primary_pool_is_only_recent(
     second_items = second_body["data"]["items"]
     assert len(second_items) == 3
     assert "REC-POOL-D" in [item["avid"] for item in second_items]
-    assert any(
-        seed["value"] == "Carol"
-        for seed in second_body["data"]["seeds"]
-        if seed["source"].startswith("local_expansion_")
-    )
+    assert any(seed["value"] == "Carol" for seed in second_body["data"]["seeds"])
 
 
 @pytest.mark.django_db
@@ -1135,34 +1163,81 @@ def test_recommendations_endpoint_includes_hot_and_latest_discovery_candidates(
     )
 
 
-def test_feedback_signal_factor_supports_seed_learning():
+@pytest.mark.django_db
+def test_feedback_learning_profile_only_builds_dislike_blacklist(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.recommendation.feedback import recommendation_feedback_repository
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-905", original_title="Seed")
+    seed_resource.actors.add(actor)
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-905-A",
+                "title": "Feedback Candidate",
+                "detail_url": "https://jable.tv/videos/rec-905-a/",
+                "cover_url": "https://img/rec-905-a.jpg",
+                "metrics": {"views": 3200, "likes": 350},
+            }
+        ],
+    )
+    response = api_client.get("/nassav/api/recommendations/", {"limit": 1})
+    snapshot_id = response.json()["data"]["items"][0]["snapshot_id"]
+
+    api_client.post(
+        "/nassav/api/recommendations/feedback",
+        {"snapshot_id": snapshot_id, "avid": "REC-905-A", "feedback": "dislike"},
+        format="json",
+    )
+    profile = recommendation_feedback_repository.build_learning_profile()
+    assert profile.avid_scores == {}
+    assert profile.seed_scores == {}
+    assert "REC-905-A" in profile.blocked_avids
+
+
+def test_seed_weight_factor_uses_seed_occurrence_tiers_with_custom_preferences():
     from nassav.recommendation import (
-        FeedbackSignalFactor,
         RecommendationCandidate,
         RecommendationRequest,
         RecommendationSeed,
+        SeedWeightFactor,
     )
 
-    factor = FeedbackSignalFactor()
+    factor = SeedWeightFactor(actor_multiplier=1.0, genre_multiplier=1.0)
     candidate = RecommendationCandidate(
-        avid="REC-801",
-        title="Seed Learned Result",
-        detail_url="https://jable.tv/videos/rec-801/",
-        cover_url="https://img/rec-801.jpg",
+        avid="REC-901",
+        title="Tiered Seed Candidate",
+        detail_url="https://jable.tv/videos/rec-901/",
+        cover_url="https://img/rec-901.jpg",
     )
     candidate.add_seed(
         RecommendationSeed(
             seed_type="actor",
             value="Alice",
-            weight=4.0,
+            weight=1.0,
             source="local_top_actor",
         )
     )
-
-    request = RecommendationRequest(
-        feedback_seed_scores={"actor:Alice": 0.75},
+    common_tiers = {
+        "actor:Alice": "high",
+    }
+    rare_request = RecommendationRequest(
+        seed_occurrence_tiers=common_tiers,
+        actor_preference="rare",
+        genre_preference="rare",
     )
-    score, reasons = factor.score(candidate, request)
+    familiar_request = RecommendationRequest(
+        seed_occurrence_tiers=common_tiers,
+        actor_preference="familiar",
+        genre_preference="familiar",
+    )
 
-    assert score > 0
-    assert any("Alice" in reason for reason in reasons)
+    rare_score, _ = factor.score(candidate, rare_request)
+    familiar_score, _ = factor.score(candidate, familiar_request)
+
+    assert rare_score < familiar_score

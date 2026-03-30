@@ -31,6 +31,12 @@ urlpatterns = [
         views.RecommendationFeedbackView.as_view(),
         name="recommendations-feedback",
     ),
+    # POST /api/recommendations/reset - 清空推荐状态
+    path(
+        "api/recommendations/reset",
+        views.RecommendationResetView.as_view(),
+        name="recommendations-reset",
+    ),
     # GET /api/recommendations/cover - 推荐封面代理缓存
     path(
         "api/recommendations/cover",

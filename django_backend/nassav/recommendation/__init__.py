@@ -25,10 +25,7 @@ from .manager import RecommendationManagerError, RecommenderManager, recommender
 from .seeds import LocalPreferenceSeedProvider
 from .strategies import (
     RecommendationStrategy,
-    build_actor_heavy_strategy,
-    build_balanced_strategy,
     build_local_preference_strategy,
-    build_recent_favorite_strategy,
 )
 
 __all__ = [
@@ -52,10 +49,7 @@ __all__ = [
     "RecommenderManager",
     "SearchRankFactor",
     "SeedWeightFactor",
-    "build_actor_heavy_strategy",
-    "build_balanced_strategy",
     "build_local_preference_strategy",
-    "build_recent_favorite_strategy",
     "recommendation_feedback_repository",
     "recommender_manager",
 ]

@@ -13,7 +13,8 @@
 - 对候选进行轻量打分并返回给前端
 - 将每次推荐结果持久化为 snapshot，便于回放、审计与后续策略优化
 - 将用户对推荐结果的显式反馈转成学习信号，参与后续排序
-- 对明确标记为“不喜欢”的具体作品做 AVID 级屏蔽，避免后续重复推荐同一条
+- 对明确标记为“不喜欢”的具体作品做 AVID 级屏蔽（只要出现负反馈即屏蔽），避免后续重复推荐同一条
+- 将种子按出现次数分为高频/中频/低频三档，并按 novelty 档位动态调整三档权重
 - Jable 召回在需要时会继续翻后续页，减少单页候选耗尽导致的过早枯竭
 
 ## Scope
@@ -25,7 +26,11 @@
   - `local_preference`
   - `balanced`
   - `actor_heavy`
+  - `genre_heavy`
   - `recent_favorite`
+  - `novelty_explore`
+  - `novelty_balanced`
+  - `novelty_familiar`
 - 当前外部召回源：
   - `Jable.search()`
   - `Jable models/tags/categories` 页面查询
@@ -116,6 +121,7 @@ API 层只负责：
 - 使用哪个 `SeedProvider`
 - 使用哪些 `RecommendationFactor`
 - 默认请求参数覆盖项
+- 参数说明元数据（`parameter_profile`，用于前端展示每个参数的值和含义）
 
 当前内置 strategy：
 
@@ -142,9 +148,25 @@ API 层只负责：
   - 提高 actor 命中的权重
   - 降低 genre 命中的影响
 
+- `genre_heavy`
+  - 提高 genre 命中的权重
+  - 增加 genre 种子数量
+
 - `recent_favorite`
   - 优先使用最近新增、已观看、已收藏资源生成种子
   - 当交互种子为空时回退到全量本地偏好
+
+- `novelty_explore`
+  - 更陌生，强化新鲜奖励与重复惩罚
+  - 种子分层权重偏向低频种子（低频提升、高频抑制）
+
+- `novelty_balanced`
+  - 平衡新鲜感与熟悉度
+  - 种子分层权重在高频/低频之间做中性折中
+
+- `novelty_familiar`
+  - 更熟悉，弱化新鲜奖励并降低重复惩罚
+  - 种子分层权重偏向高频种子（高频提升、低频抑制）
 
 对应文件：
 
@@ -154,9 +176,10 @@ API 层只负责：
 
 `AbstractRecommender` 定义推荐主流程模板，具体 recommender 只需要实现关键步骤。
 
-当前唯一具体实现：
+当前具体实现：
 
 - `JableSearchRecommender`
+- `JablePageLookupRecommender`
 
 它只依赖 `Jable`，不直接依赖 `ScraperManager`。
 
@@ -179,6 +202,7 @@ API 层只负责：
 
 - `nassav/recommendation/base.py`
 - `nassav/recommendation/jable_search.py`
+- `nassav/recommendation/jable_page_lookup.py`
 
 ### 5. Source / Recall Layer
 
@@ -188,6 +212,8 @@ API 层只负责：
 
 - `Jable.search(keyword, page=1)`
 - `Jable.get_model_videos(model_slug, page=1, sort_by="video_viewed")`
+- `Jable.get_tag_videos(tag_slug, page=1)`
+- `Jable.get_category_videos(category_slug, page=1)`
 - `Jable.discover_hot_items(page=1)`
 - `Jable.discover_latest_updates(page=1)`
 
@@ -510,7 +536,31 @@ API 层只负责：
         "id": "jable_search",
         "name": "Jable Search",
         "description": "通过 Jable 搜索页召回候选资源。",
-        "strategies": ["local_preference", "balanced", "actor_heavy", "recent_favorite"]
+        "strategies": [
+          "local_preference",
+          "balanced",
+          "actor_heavy",
+          "genre_heavy",
+          "recent_favorite",
+          "novelty_explore",
+          "novelty_balanced",
+          "novelty_familiar"
+        ]
+      },
+      {
+        "id": "jable_page_lookup",
+        "name": "Jable Page Lookup",
+        "description": "优先通过 Jable actor/genre 映射页召回，回退到搜索页。",
+        "strategies": [
+          "local_preference",
+          "balanced",
+          "actor_heavy",
+          "genre_heavy",
+          "recent_favorite",
+          "novelty_explore",
+          "novelty_balanced",
+          "novelty_familiar"
+        ]
       }
     ],
     "strategies": [
@@ -518,7 +568,7 @@ API 层只负责：
         "id": "local_preference",
         "name": "Local Preference",
         "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
-        "supported_recommenders": ["jable_search"],
+        "supported_recommenders": ["jable_search", "jable_page_lookup"],
         "default_request_overrides": {
           "limit": 12,
           "per_seed_limit": 12,
@@ -526,13 +576,25 @@ API 层只负责：
           "genre_seed_limit": 5,
           "seed_types": ["actor", "genre"],
           "exclude_existing": true
-        }
+        },
+        "parameter_profile": [
+          {
+            "title": "新鲜感控制",
+            "items": [
+              {
+                "key": "fresh_bonus",
+                "value": 0.7,
+                "meaning": "近期历史未出现的候选加分。"
+              }
+            ]
+          }
+        ]
       },
       {
-        "id": "actor_heavy",
-        "name": "Actor Heavy",
-        "description": "以演员命中为主，类别只作为弱召回信号，适合演员偏好明显的库。",
-        "supported_recommenders": ["jable_search"]
+        "id": "novelty_explore",
+        "name": "Novelty Explore",
+        "description": "偏向更陌生内容，显著提升新内容加分并强化重复惩罚。",
+        "supported_recommenders": ["jable_search", "jable_page_lookup"]
       }
     ]
   }

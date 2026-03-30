@@ -4,7 +4,11 @@ from hashlib import sha256
 
 from django.db import transaction
 
-from nassav.models import RecommendationItem, RecommendationSnapshot
+from nassav.models import (
+    RecommendationFeedback,
+    RecommendationItem,
+    RecommendationSnapshot,
+)
 
 from .entities import RecommendationExecution, RecommendationRequest
 
@@ -35,6 +39,9 @@ class RecommendationSnapshotRepository:
             "include_hot_board": request.include_hot_board,
             "include_latest_updates": request.include_latest_updates,
             "discovery_limit": request.discovery_limit,
+            "type_preference": request.type_preference,
+            "actor_preference": request.actor_preference,
+            "genre_preference": request.genre_preference,
         }
         return sha256(
             json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
@@ -125,6 +132,48 @@ class RecommendationSnapshotRepository:
                 break
         return counts
 
+    def get_recent_seed_counts(
+        self,
+        *,
+        recommender_id: str,
+        snapshot_limit: int,
+        item_limit: int,
+    ) -> dict[str, int]:
+        if snapshot_limit <= 0 or item_limit <= 0:
+            return {}
+
+        snapshot_ids = list(
+            RecommendationSnapshot.objects.filter(
+                recommender_id=recommender_id,
+            )
+            .order_by("-generated_at", "-pk")
+            .values_list("pk", flat=True)[:snapshot_limit]
+        )
+        if not snapshot_ids:
+            return {}
+
+        items = RecommendationItem.objects.filter(
+            snapshot_id__in=snapshot_ids
+        ).order_by(
+            "-snapshot__generated_at",
+            "rank",
+            "pk",
+        )
+        counts: dict[str, int] = {}
+        seen_items = 0
+        for matched_seeds in items.values_list("matched_seeds", flat=True):
+            seen_items += 1
+            for seed in matched_seeds or []:
+                seed_type = str(seed.get("seed_type", "")).strip()
+                seed_value = str(seed.get("value", "")).strip()
+                if not seed_type or not seed_value:
+                    continue
+                key = f"{seed_type}:{seed_value}"
+                counts[key] = counts.get(key, 0) + 1
+            if seen_items >= item_limit:
+                break
+        return counts
+
     @transaction.atomic
     def save_execution(
         self,
@@ -148,6 +197,9 @@ class RecommendationSnapshotRepository:
                 "include_hot_board": execution.request.include_hot_board,
                 "include_latest_updates": execution.request.include_latest_updates,
                 "discovery_limit": execution.request.discovery_limit,
+                "type_preference": execution.request.type_preference,
+                "actor_preference": execution.request.actor_preference,
+                "genre_preference": execution.request.genre_preference,
             },
             seed_summary=[seed.to_dict() for seed in execution.run.seeds],
             item_count=len(execution.run.items),
@@ -175,6 +227,18 @@ class RecommendationSnapshotRepository:
             ]
         )
         return snapshot
+
+    @transaction.atomic
+    def reset_state(self) -> dict[str, int]:
+        feedback_count = RecommendationFeedback.objects.count()
+        item_count = RecommendationItem.objects.count()
+        snapshot_count = RecommendationSnapshot.objects.count()
+        RecommendationSnapshot.objects.all().delete()
+        return {
+            "feedback_count": feedback_count,
+            "item_count": item_count,
+            "snapshot_count": snapshot_count,
+        }
 
 
 recommendation_snapshot_repository = RecommendationSnapshotRepository()

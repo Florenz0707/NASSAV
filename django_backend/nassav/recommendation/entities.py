@@ -94,6 +94,11 @@ class RecommendationRequest:
     learned_feedback_count: int = 0
     learned_avid_count: int = 0
     learned_seed_count: int = 0
+    seed_occurrence_tiers: dict[str, str] = field(default_factory=dict)
+    recent_seed_counts: dict[str, int] = field(default_factory=dict)
+    type_preference: str = "balanced"
+    actor_preference: str = "balanced"
+    genre_preference: str = "balanced"
 
 
 @dataclass
@@ -147,6 +152,9 @@ class RecommendationExecution:
                 "include_hot_board": self.request.include_hot_board,
                 "include_latest_updates": self.request.include_latest_updates,
                 "discovery_limit": self.request.discovery_limit,
+                "type_preference": self.request.type_preference,
+                "actor_preference": self.request.actor_preference,
+                "genre_preference": self.request.genre_preference,
             },
             "history_context": {
                 "recently_recommended_count": len(

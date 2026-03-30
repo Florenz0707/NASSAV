@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 
 from .factors import (
     DiscoverySourceFactor,
-    FeedbackSignalFactor,
     MultiSeedBonusFactor,
     NoveltyFactor,
     PopularityFactor,
@@ -26,6 +25,7 @@ class RecommendationStrategy:
     )
     default_request_overrides: dict = field(default_factory=dict)
     recommender_kwargs: dict = field(default_factory=dict)
+    parameter_profile: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -34,194 +34,271 @@ class RecommendationStrategy:
             "description": self.description,
             "supported_recommenders": list(self.supported_recommenders),
             "default_request_overrides": dict(self.default_request_overrides),
+            "parameter_profile": [dict(section) for section in self.parameter_profile],
         }
 
 
+def _make_section(title: str, items: list[dict]) -> dict:
+    return {"title": title, "items": items}
+
+
+def _make_item(key: str, value, meaning: str) -> dict:
+    return {"key": key, "value": value, "meaning": meaning}
+
+
+def _build_parameter_profile(
+    *,
+    seed_provider_params: dict,
+    seed_weight_params: dict,
+    multi_seed_params: dict,
+    search_rank_params: dict,
+    popularity_params: dict,
+    discovery_params: dict,
+    novelty_params: dict,
+    default_request_overrides: dict,
+    recommender_kwargs: dict,
+) -> list[dict]:
+    return [
+        _make_section(
+            "基础参数",
+            [
+                _make_item(
+                    "type_preference",
+                    "balanced",
+                    "类型偏好：actor_heavy / balanced / genre_heavy。",
+                ),
+                _make_item(
+                    "actor_preference",
+                    "balanced",
+                    "演员偏好：familiar / balanced / rare。",
+                ),
+                _make_item(
+                    "genre_preference",
+                    "balanced",
+                    "类别偏好：familiar / balanced / rare。",
+                ),
+            ],
+        ),
+        _make_section(
+            "种子生成",
+            [
+                _make_item(
+                    "watched_boost",
+                    seed_provider_params["watched_boost"],
+                    "已观看资源对本地偏好分数的加成系数。",
+                ),
+                _make_item(
+                    "favorite_boost",
+                    seed_provider_params["favorite_boost"],
+                    "已收藏资源对本地偏好分数的加成系数。",
+                ),
+                _make_item(
+                    "recent_boost",
+                    seed_provider_params["recent_boost"],
+                    "最近新增资源对偏好分数的加成系数。",
+                ),
+                _make_item(
+                    "recent_days",
+                    seed_provider_params["recent_days"],
+                    "“最近新增”统计窗口（天）。",
+                ),
+            ],
+        ),
+        _make_section(
+            "打分因子",
+            [
+                _make_item(
+                    "actor_multiplier",
+                    seed_weight_params["actor_multiplier"],
+                    "演员种子命中的基础权重乘数（会叠加前端偏好与轮换抑制）。",
+                ),
+                _make_item(
+                    "genre_multiplier",
+                    seed_weight_params["genre_multiplier"],
+                    "类别种子命中的基础权重乘数（会叠加前端偏好与轮换抑制）。",
+                ),
+                _make_item(
+                    "bonus_per_extra",
+                    multi_seed_params["bonus_per_extra"],
+                    "每多命中一个种子时追加的加分。",
+                ),
+                _make_item(
+                    "search_rank_max_bonus",
+                    search_rank_params["max_bonus"],
+                    "搜索/列表排序第 1 位的最高加分。",
+                ),
+                _make_item(
+                    "search_rank_decay",
+                    search_rank_params["decay"],
+                    "排序名次下降时每位扣减的加分。",
+                ),
+                _make_item(
+                    "popularity_views_divisor",
+                    popularity_params["views_divisor"],
+                    "播放量折算分的分母，越小热度分越敏感。",
+                ),
+                _make_item(
+                    "popularity_likes_divisor",
+                    popularity_params["likes_divisor"],
+                    "点赞量折算分的分母，越小热度分越敏感。",
+                ),
+                _make_item(
+                    "discovery_hot_board_bonus",
+                    discovery_params["hot_board_bonus"],
+                    "命中热榜候选时的额外加分。",
+                ),
+                _make_item(
+                    "discovery_latest_updates_bonus",
+                    discovery_params["latest_updates_bonus"],
+                    "命中最近更新候选时的额外加分。",
+                ),
+            ],
+        ),
+        _make_section(
+            "新鲜感控制",
+            [
+                _make_item(
+                    "fresh_bonus",
+                    novelty_params["fresh_bonus"],
+                    "近期历史未出现的候选加分。",
+                ),
+                _make_item(
+                    "repeat_penalty",
+                    novelty_params["repeat_penalty"],
+                    "近期重复出现时每次的扣分。",
+                ),
+                _make_item(
+                    "max_penalty",
+                    novelty_params["max_penalty"],
+                    "重复惩罚的最大扣分上限。",
+                ),
+                _make_item(
+                    "jitter_strength",
+                    novelty_params["jitter_strength"],
+                    "轻微随机扰动强度，用于打散同分结果。",
+                ),
+            ],
+        ),
+        _make_section(
+            "请求默认值",
+            [
+                _make_item(
+                    "actor_seed_limit",
+                    default_request_overrides["actor_seed_limit"],
+                    "默认演员种子数量。",
+                ),
+                _make_item(
+                    "genre_seed_limit",
+                    default_request_overrides["genre_seed_limit"],
+                    "默认类别种子数量。",
+                ),
+                _make_item(
+                    "per_seed_limit",
+                    default_request_overrides["per_seed_limit"],
+                    "每个种子最多召回候选数量。",
+                ),
+                _make_item(
+                    "discovery_limit",
+                    default_request_overrides["discovery_limit"],
+                    "热榜/最近更新最多补充的候选数。",
+                ),
+            ],
+        ),
+        _make_section(
+            "多样性重排",
+            [
+                _make_item(
+                    "diversity_penalty",
+                    recommender_kwargs["diversity_penalty"],
+                    "候选过于相似时的重排惩罚强度。",
+                ),
+                _make_item(
+                    "actor_diversity_weight",
+                    recommender_kwargs["actor_diversity_weight"],
+                    "演员维度的去重权重。",
+                ),
+                _make_item(
+                    "genre_diversity_weight",
+                    recommender_kwargs["genre_diversity_weight"],
+                    "类别维度的去重权重。",
+                ),
+            ],
+        ),
+    ]
+
+
 def build_local_preference_strategy() -> RecommendationStrategy:
+    seed_provider_params = {
+        "watched_boost": 0.75,
+        "favorite_boost": 1.15,
+        "recent_boost": 0.9,
+        "recent_days": 160,
+        "only_interacted": False,
+        "fallback_to_all": True,
+    }
+    seed_weight_params = {"actor_multiplier": 1.0, "genre_multiplier": 1.0}
+    multi_seed_params = {"bonus_per_extra": 1.35}
+    search_rank_params = {"max_bonus": 1.9, "decay": 0.2}
+    popularity_params = {"views_divisor": 560000.0, "likes_divisor": 6200.0}
+    discovery_params = {"hot_board_bonus": 1.0, "latest_updates_bonus": 0.78}
+    novelty_params = {
+        "fresh_bonus": 1.0,
+        "repeat_penalty": 0.9,
+        "max_penalty": 3.1,
+        "jitter_strength": 0.16,
+    }
+    default_request_overrides = {
+        "limit": 12,
+        "per_seed_limit": 12,
+        "actor_seed_limit": 5,
+        "genre_seed_limit": 5,
+        "seed_types": ["actor", "genre"],
+        "exclude_existing": True,
+        "include_hot_board": True,
+        "include_latest_updates": True,
+        "discovery_limit": 12,
+    }
+    recommender_kwargs = {
+        "diversity_penalty": 0.72,
+        "actor_diversity_weight": 1.0,
+        "genre_diversity_weight": 0.72,
+    }
+
     return RecommendationStrategy(
         strategy_id="local_preference",
         name="Local Preference",
-        description="基于本地高频演员与类别的 Jable 搜索推荐 demo。",
-        supported_recommenders=["jable_search", "jable_page_lookup"],
+        description="统一 page lookup + 搜索回退推荐，支持类型/演员/类别偏好参数和种子轮换。",
+        supported_recommenders=["jable_page_lookup"],
         seed_provider_builder=lambda: LocalPreferenceSeedProvider(
-            watched_boost=0.6,
-            favorite_boost=1.0,
-            recent_boost=0.8,
-            recent_days=180,
+            watched_boost=seed_provider_params["watched_boost"],
+            favorite_boost=seed_provider_params["favorite_boost"],
+            recent_boost=seed_provider_params["recent_boost"],
+            recent_days=seed_provider_params["recent_days"],
+            only_interacted=seed_provider_params["only_interacted"],
+            fallback_to_all=seed_provider_params["fallback_to_all"],
         ),
         factor_builders=[
-            lambda: SeedWeightFactor(actor_multiplier=1.0, genre_multiplier=0.72),
-            lambda: MultiSeedBonusFactor(bonus_per_extra=1.5),
-            lambda: SearchRankFactor(max_bonus=1.8, decay=0.18),
-            lambda: PopularityFactor(),
-            lambda: DiscoverySourceFactor(
-                hot_board_bonus=0.95, latest_updates_bonus=0.7
+            lambda: SeedWeightFactor(**seed_weight_params),
+            lambda: MultiSeedBonusFactor(**multi_seed_params),
+            lambda: SearchRankFactor(**search_rank_params),
+            lambda: PopularityFactor(
+                views_divisor=popularity_params["views_divisor"],
+                likes_divisor=popularity_params["likes_divisor"],
             ),
-            lambda: FeedbackSignalFactor(avid_weight=2.5, seed_weight=1.7),
-            lambda: NoveltyFactor(
-                fresh_bonus=0.7,
-                repeat_penalty=0.55,
-                max_penalty=2.0,
-                jitter_strength=0.12,
-            ),
+            lambda: DiscoverySourceFactor(**discovery_params),
+            lambda: NoveltyFactor(**novelty_params),
         ],
-        default_request_overrides={
-            "limit": 12,
-            "per_seed_limit": 12,
-            "actor_seed_limit": 5,
-            "genre_seed_limit": 5,
-            "seed_types": ["actor", "genre"],
-            "exclude_existing": True,
-            "include_hot_board": True,
-            "include_latest_updates": True,
-            "discovery_limit": 10,
-        },
-        recommender_kwargs={
-            "diversity_penalty": 0.45,
-            "actor_diversity_weight": 1.0,
-            "genre_diversity_weight": 0.55,
-        },
-    )
-
-
-def build_balanced_strategy() -> RecommendationStrategy:
-    return RecommendationStrategy(
-        strategy_id="balanced",
-        name="Balanced",
-        description="均衡使用演员与类别偏好，并通过搜索排序与多样性重排控制扎堆。",
-        supported_recommenders=["jable_search", "jable_page_lookup"],
-        seed_provider_builder=lambda: LocalPreferenceSeedProvider(
-            watched_boost=0.75,
-            favorite_boost=1.1,
-            recent_boost=0.9,
-            recent_days=150,
+        default_request_overrides=default_request_overrides,
+        recommender_kwargs=recommender_kwargs,
+        parameter_profile=_build_parameter_profile(
+            seed_provider_params=seed_provider_params,
+            seed_weight_params=seed_weight_params,
+            multi_seed_params=multi_seed_params,
+            search_rank_params=search_rank_params,
+            popularity_params=popularity_params,
+            discovery_params=discovery_params,
+            novelty_params=novelty_params,
+            default_request_overrides=default_request_overrides,
+            recommender_kwargs=recommender_kwargs,
         ),
-        factor_builders=[
-            lambda: SeedWeightFactor(actor_multiplier=0.95, genre_multiplier=0.82),
-            lambda: MultiSeedBonusFactor(bonus_per_extra=1.35),
-            lambda: SearchRankFactor(max_bonus=2.0, decay=0.2),
-            lambda: PopularityFactor(views_divisor=550000.0, likes_divisor=6000.0),
-            lambda: DiscoverySourceFactor(
-                hot_board_bonus=1.0, latest_updates_bonus=0.75
-            ),
-            lambda: FeedbackSignalFactor(avid_weight=2.3, seed_weight=1.8),
-            lambda: NoveltyFactor(
-                fresh_bonus=1.1,
-                repeat_penalty=0.9,
-                max_penalty=3.2,
-                jitter_strength=0.2,
-            ),
-        ],
-        default_request_overrides={
-            "limit": 12,
-            "per_seed_limit": 12,
-            "actor_seed_limit": 5,
-            "genre_seed_limit": 5,
-            "seed_types": ["actor", "genre"],
-            "exclude_existing": True,
-            "include_hot_board": True,
-            "include_latest_updates": True,
-            "discovery_limit": 12,
-        },
-        recommender_kwargs={
-            "diversity_penalty": 0.7,
-            "actor_diversity_weight": 1.0,
-            "genre_diversity_weight": 0.7,
-        },
-    )
-
-
-def build_actor_heavy_strategy() -> RecommendationStrategy:
-    return RecommendationStrategy(
-        strategy_id="actor_heavy",
-        name="Actor Heavy",
-        description="以演员命中为主，类别只作为弱召回信号，适合演员偏好明显的库。",
-        supported_recommenders=["jable_search", "jable_page_lookup"],
-        seed_provider_builder=lambda: LocalPreferenceSeedProvider(
-            watched_boost=0.8,
-            favorite_boost=1.2,
-            recent_boost=0.85,
-            recent_days=180,
-        ),
-        factor_builders=[
-            lambda: SeedWeightFactor(actor_multiplier=1.25, genre_multiplier=0.45),
-            lambda: MultiSeedBonusFactor(bonus_per_extra=1.2),
-            lambda: SearchRankFactor(max_bonus=1.8, decay=0.18),
-            lambda: PopularityFactor(),
-            lambda: DiscoverySourceFactor(
-                hot_board_bonus=0.8, latest_updates_bonus=0.5
-            ),
-            lambda: FeedbackSignalFactor(avid_weight=2.6, seed_weight=1.5),
-            lambda: NoveltyFactor(
-                fresh_bonus=0.45,
-                repeat_penalty=0.35,
-                max_penalty=1.4,
-                jitter_strength=0.08,
-            ),
-        ],
-        default_request_overrides={
-            "limit": 12,
-            "per_seed_limit": 12,
-            "actor_seed_limit": 6,
-            "genre_seed_limit": 3,
-            "seed_types": ["actor", "genre"],
-            "exclude_existing": True,
-            "include_hot_board": True,
-            "include_latest_updates": True,
-            "discovery_limit": 8,
-        },
-        recommender_kwargs={
-            "diversity_penalty": 0.55,
-            "actor_diversity_weight": 1.0,
-            "genre_diversity_weight": 0.4,
-        },
-    )
-
-
-def build_recent_favorite_strategy() -> RecommendationStrategy:
-    return RecommendationStrategy(
-        strategy_id="recent_favorite",
-        name="Recent Favorite",
-        description="优先使用最近新增、已观看和已收藏资源生成种子，贴近近期兴趣。",
-        supported_recommenders=["jable_search", "jable_page_lookup"],
-        seed_provider_builder=lambda: LocalPreferenceSeedProvider(
-            watched_boost=1.0,
-            favorite_boost=1.6,
-            recent_boost=1.3,
-            recent_days=90,
-            only_interacted=True,
-            fallback_to_all=True,
-        ),
-        factor_builders=[
-            lambda: SeedWeightFactor(actor_multiplier=1.1, genre_multiplier=0.6),
-            lambda: MultiSeedBonusFactor(bonus_per_extra=1.4),
-            lambda: SearchRankFactor(max_bonus=2.1, decay=0.18),
-            lambda: PopularityFactor(views_divisor=600000.0, likes_divisor=6500.0),
-            lambda: DiscoverySourceFactor(
-                hot_board_bonus=0.9, latest_updates_bonus=0.9
-            ),
-            lambda: FeedbackSignalFactor(avid_weight=2.4, seed_weight=1.9),
-            lambda: NoveltyFactor(
-                fresh_bonus=0.95,
-                repeat_penalty=0.7,
-                max_penalty=2.6,
-                jitter_strength=0.16,
-            ),
-        ],
-        default_request_overrides={
-            "limit": 12,
-            "per_seed_limit": 10,
-            "actor_seed_limit": 6,
-            "genre_seed_limit": 4,
-            "seed_types": ["actor", "genre"],
-            "exclude_existing": True,
-            "include_hot_board": True,
-            "include_latest_updates": True,
-            "discovery_limit": 12,
-        },
-        recommender_kwargs={
-            "diversity_penalty": 0.8,
-            "actor_diversity_weight": 1.0,
-            "genre_diversity_weight": 0.6,
-        },
     )

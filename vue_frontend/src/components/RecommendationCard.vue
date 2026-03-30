@@ -51,7 +51,6 @@ function formatCompactMetric(value) {
     :class="{
       masonry: layoutStyle === 'masonry',
       disliked: feedback === 'dislike',
-      liked: feedback === 'like',
     }"
   >
     <div class="cover-shell">
@@ -66,7 +65,7 @@ function formatCompactMetric(value) {
         <span>{{ item.avid }}</span>
       </div>
       <div v-if="feedback === 'dislike'" class="feedback-overlay">
-        <span class="feedback-overlay-badge">已减少这类推荐</span>
+        <span class="feedback-overlay-badge">已加入不喜欢黑名单</span>
       </div>
     </div>
 
@@ -76,9 +75,6 @@ function formatCompactMetric(value) {
         <span v-if="item.source" class="source-chip">{{ item.source }}</span>
         <span v-if="feedback === 'dislike'" class="feedback-state-chip negative">
           已标记不喜欢
-        </span>
-        <span v-else-if="feedback === 'like'" class="feedback-state-chip positive">
-          已标记喜欢
         </span>
       </div>
 
@@ -112,20 +108,12 @@ function formatCompactMetric(value) {
 
       <div class="feedback-row">
         <button
-          class="feedback-btn"
-          :class="{ active: feedback === 'like' }"
-          :disabled="feedbackSubmitting"
-          @click="$emit('feedback', 'like')"
-        >
-          {{ feedback === 'like' ? '已标记喜欢' : '喜欢这条' }}
-        </button>
-        <button
           class="feedback-btn negative"
           :class="{ active: feedback === 'dislike' }"
-          :disabled="feedbackSubmitting"
+          :disabled="feedbackSubmitting || feedback === 'dislike'"
           @click="$emit('feedback', 'dislike')"
         >
-          {{ feedback === 'dislike' ? '已标记不喜欢' : '减少这类' }}
+          {{ feedback === 'dislike' ? '已加入黑名单' : '不喜欢（拉黑）' }}
         </button>
       </div>
 
@@ -170,10 +158,6 @@ function formatCompactMetric(value) {
   border-color: rgba(255, 107, 107, 0.24);
   background: linear-gradient(180deg, rgba(255, 107, 107, 0.08), rgba(255, 255, 255, 0.02));
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
-}
-
-.recommendation-card.liked {
-  border-color: rgba(78, 205, 196, 0.22);
 }
 
 .cover-shell {
@@ -265,11 +249,6 @@ function formatCompactMetric(value) {
   color: var(--accent-tertiary);
 }
 
-.feedback-state-chip.positive {
-  background: rgba(78, 205, 196, 0.14);
-  color: var(--accent-tertiary);
-}
-
 .feedback-state-chip.negative {
   background: rgba(255, 107, 107, 0.14);
   color: #ff9b86;
@@ -305,9 +284,7 @@ function formatCompactMetric(value) {
 }
 
 .feedback-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+  display: flex;
 }
 
 .feedback-btn {
