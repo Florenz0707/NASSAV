@@ -19,6 +19,7 @@ from .feedback import (
     RecommendationLearningProfile,
     recommendation_feedback_repository,
 )
+from .jable_page_lookup import JablePageLookupRecommender
 from .jable_search import JableSearchRecommender
 from .manager import RecommendationManagerError, RecommenderManager, recommender_manager
 from .seeds import LocalPreferenceSeedProvider
@@ -32,6 +33,7 @@ from .strategies import (
 
 __all__ = [
     "JableSearchRecommender",
+    "JablePageLookupRecommender",
     "LocalPreferenceSeedProvider",
     "FeedbackSignalFactor",
     "DiscoverySourceFactor",

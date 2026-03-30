@@ -206,6 +206,64 @@ class Jable(SourceBase):
             source_label="latest_updates",
         )
 
+    def get_tag_videos(self, tag_slug: str, page: int = 1) -> list[dict]:
+        normalized_slug = self._normalize_taxonomy_slug(tag_slug, prefix="tags")
+        if not normalized_slug:
+            return []
+
+        path = f"/tags/{quote(normalized_slug)}/"
+        url = self._build_listing_url(path, page=page)
+        referer = f"https://{self.domain}{path}"
+        html = self.fetch_html(url, referer=referer)
+        if not html:
+            logger.warning(
+                "Jable.get_tag_videos 获取 HTML 失败，当前返回空结果。"
+                f" tag_slug={normalized_slug}, page={page}"
+            )
+            return []
+
+        try:
+            items = self._parse_search_results(html)
+        except Exception as e:
+            logger.error(f"Jable.get_tag_videos 解析失败: {e}")
+            return []
+
+        for item in items:
+            metrics = dict(item.get("metrics") or {})
+            metrics["tag_slug"] = normalized_slug
+            item["metrics"] = metrics
+        return items
+
+    def get_category_videos(self, category_slug: str, page: int = 1) -> list[dict]:
+        normalized_slug = self._normalize_taxonomy_slug(
+            category_slug, prefix="categories"
+        )
+        if not normalized_slug:
+            return []
+
+        path = f"/categories/{quote(normalized_slug)}/"
+        url = self._build_listing_url(path, page=page)
+        referer = f"https://{self.domain}{path}"
+        html = self.fetch_html(url, referer=referer)
+        if not html:
+            logger.warning(
+                "Jable.get_category_videos 获取 HTML 失败，当前返回空结果。"
+                f" category_slug={normalized_slug}, page={page}"
+            )
+            return []
+
+        try:
+            items = self._parse_search_results(html)
+        except Exception as e:
+            logger.error(f"Jable.get_category_videos 解析失败: {e}")
+            return []
+
+        for item in items:
+            metrics = dict(item.get("metrics") or {})
+            metrics["category_slug"] = normalized_slug
+            item["metrics"] = metrics
+        return items
+
     def _build_search_url(self, keyword: str, page: int = 1) -> str:
         encoded = quote(keyword.strip())
         if page <= 1:
@@ -318,6 +376,16 @@ class Jable(SourceBase):
         if not normalized:
             return ""
         match = re.search(r"/models/([^/?#]+)/?", normalized)
+        if match:
+            normalized = match.group(1)
+        return normalized.strip().strip("/").lower()
+
+    def _normalize_taxonomy_slug(self, raw_slug: str, *, prefix: str) -> str:
+        normalized = str(raw_slug or "").strip()
+        if not normalized:
+            return ""
+        pattern = rf"/{re.escape(prefix)}/([^/?#]+)/?"
+        match = re.search(pattern, normalized)
         if match:
             normalized = match.group(1)
         return normalized.strip().strip("/").lower()

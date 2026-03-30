@@ -4,6 +4,7 @@ from nassav.source import Jable
 
 from .entities import RecommendationExecution, RecommendationRequest
 from .feedback import recommendation_feedback_repository
+from .jable_page_lookup import JablePageLookupRecommender
 from .jable_search import JableSearchRecommender
 from .repository import recommendation_snapshot_repository
 from .strategies import (
@@ -27,7 +28,12 @@ class RecommenderManager:
             "id": "jable_search",
             "name": "Jable Search",
             "description": "通过 Jable 搜索页召回候选资源。",
-        }
+        },
+        "jable_page_lookup": {
+            "id": "jable_page_lookup",
+            "name": "Jable Page Lookup",
+            "description": "优先通过 Jable actor/genre 映射页召回，回退到搜索页。",
+        },
     }
     STRATEGY_BUILDERS = {
         "local_preference": build_local_preference_strategy,
@@ -200,9 +206,11 @@ class RecommenderManager:
         recommender_id: str,
         strategy: RecommendationStrategy,
     ):
-        if recommender_id != self.DEFAULT_RECOMMENDER_ID:
-            raise RecommendationManagerError(f"未知推荐器: {recommender_id}")
-        return self._build_jable_search_recommender(strategy)
+        if recommender_id == "jable_search":
+            return self._build_jable_search_recommender(strategy)
+        if recommender_id == "jable_page_lookup":
+            return self._build_jable_page_lookup_recommender(strategy)
+        raise RecommendationManagerError(f"未知推荐器: {recommender_id}")
 
     def _validate_support(
         self,
@@ -220,6 +228,18 @@ class RecommenderManager:
     ) -> JableSearchRecommender:
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         return JableSearchRecommender(
+            jable=Jable(proxy=proxy),
+            seed_provider=strategy.seed_provider_builder(),
+            factors=[builder() for builder in strategy.factor_builders],
+            **strategy.recommender_kwargs,
+        )
+
+    def _build_jable_page_lookup_recommender(
+        self,
+        strategy: RecommendationStrategy,
+    ) -> JablePageLookupRecommender:
+        proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
+        return JablePageLookupRecommender(
             jable=Jable(proxy=proxy),
             seed_provider=strategy.seed_provider_builder(),
             factors=[builder() for builder in strategy.factor_builders],

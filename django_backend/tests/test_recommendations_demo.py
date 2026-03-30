@@ -22,6 +22,9 @@ def test_recommendations_options_endpoint(api_client):
     assert body["data"]["defaults"]["recommender"] == "jable_search"
     assert body["data"]["defaults"]["strategy"] == "local_preference"
     assert any(item["id"] == "jable_search" for item in body["data"]["recommenders"])
+    assert any(
+        item["id"] == "jable_page_lookup" for item in body["data"]["recommenders"]
+    )
     assert any(item["id"] == "local_preference" for item in body["data"]["strategies"])
     assert any(item["id"] == "balanced" for item in body["data"]["strategies"])
     assert any(item["id"] == "actor_heavy" for item in body["data"]["strategies"])

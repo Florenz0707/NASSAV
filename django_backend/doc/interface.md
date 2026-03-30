@@ -228,7 +228,7 @@ DELETE /nassav/api/source/cookie?source=missav
 
 - [`recommendation.md`](./recommendation.md)
 
-当前推荐接口为 demo 级实现，主要基于本地库中高频演员/类别与 Jable 搜索结果做轻量召回和排序。
+当前推荐接口为 demo 级实现，主要基于本地库中高频演员/类别与 Jable 页面或搜索结果做轻量召回和排序。
 
 ### 获取推荐结果
 
@@ -236,7 +236,7 @@ DELETE /nassav/api/source/cookie?source=missav
 - 路径：`/nassav/api/recommendations/`
 - 功能：统一推荐入口
 - 支持 Query 参数：
-  - `recommender`：推荐器标识，默认 `jable_search`
+  - `recommender`：推荐器标识，默认 `jable_search`，可选 `jable_search` / `jable_page_lookup`
   - `strategy`：推荐策略标识，默认 `local_preference`
   - `limit`：返回数量，默认 `12`
   - `per_seed_limit`：每个 seed 的召回上限，默认 `12`

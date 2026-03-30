@@ -18,14 +18,18 @@
 
 ## Scope
 
-- 当前唯一的 recommender：`jable_search`
+- 当前 recommender：
+  - `jable_search`
+  - `jable_page_lookup`（优先 actor/genre 映射页召回，回退搜索）
 - 当前内置 strategy：
   - `local_preference`
   - `balanced`
   - `actor_heavy`
   - `recent_favorite`
-- 当前唯一的外部召回源：`Jable.search()`
-  - 同时会优先利用 Jable `models/{slug}` 演员页与 discovery 列表页的多页结果
+- 当前外部召回源：
+  - `Jable.search()`
+  - `Jable models/tags/categories` 页面查询
+  - 同时会利用 Jable discovery 列表页的多页结果
 
 当前实现强调“层次分离”和“后续可扩展”，因此 API 层不直接绑定具体 recommender。
 

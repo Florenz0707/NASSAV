@@ -976,7 +976,7 @@ onBeforeUnmount(() => {
 
 .reason-panel-eyebrow {
   color: var(--accent-primary);
-  font-size: 0.72rem;
+  font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1014,14 +1014,14 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: rgba(255, 107, 107, 0.12);
   color: var(--accent-primary);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
 .reason-panel-list {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.5rem;
   overflow-y: auto;
   padding-right: 0.15rem;
 }
@@ -1032,8 +1032,8 @@ onBeforeUnmount(() => {
   background: rgba(255, 107, 107, 0.06);
   border: 1px solid rgba(255, 107, 107, 0.12);
   color: var(--text-primary);
-  font-size: 0.88rem;
-  line-height: 1.6;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .reason-panel-fade-enter-active,

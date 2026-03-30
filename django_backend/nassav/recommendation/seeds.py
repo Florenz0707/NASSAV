@@ -6,9 +6,10 @@ from typing import cast
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from nassav.models import Actor, ActorSourceMapping, Genre
+from nassav.models import Actor, ActorSourceMapping, Genre, GenreSourceMapping
 
 from .actor_source_mapping import actor_source_mapping_service
+from .genre_source_mapping import genre_source_mapping_service
 from .entities import RecommendationRequest, RecommendationSeed
 
 USE_REQUEST_LIMIT = object()
@@ -209,6 +210,8 @@ class LocalPreferenceSeedProvider(SeedProvider):
 
         if seed_type == "actor":
             return self._build_actor_seeds(queryset=queryset, source=source)
+        if seed_type == "genre":
+            return self._build_genre_seeds(queryset=queryset, source=source)
 
         max_score = (
             max(self.preference_score_for_item(item) for item in queryset) or 1.0
@@ -225,6 +228,40 @@ class LocalPreferenceSeedProvider(SeedProvider):
                     weight=self.normalize_weight(preference_score, max_score),
                     source=source,
                     aliases=aliases,
+                    resource_count=resource_count,
+                    preference_score=round(preference_score, 4),
+                )
+            )
+        return seeds
+
+    def _build_genre_seeds(
+        self,
+        *,
+        queryset: list[Genre],
+        source: str,
+    ) -> list[RecommendationSeed]:
+        if not queryset:
+            return []
+
+        mappings = genre_source_mapping_service.get_genre_source_mappings(
+            genre_ids=[item.pk for item in queryset if item.pk is not None],
+            source_name="jable",
+        )
+        max_score = (
+            max(self.preference_score_for_item(item) for item in queryset) or 1.0
+        )
+        seeds: list[RecommendationSeed] = []
+        for item in queryset:
+            resource_count = int(getattr(item, "resource_count", 0) or 0)
+            preference_score = self.preference_score_for_item(item)
+            mapping = mappings.get(int(item.pk)) if item.pk is not None else None
+            seeds.append(
+                RecommendationSeed(
+                    seed_type="genre",
+                    value=item.name,
+                    weight=self.normalize_weight(preference_score, max_score),
+                    source=source,
+                    lookup_payload=self._build_genre_lookup_payload(mapping),
                     resource_count=resource_count,
                     preference_score=round(preference_score, 4),
                 )
@@ -313,6 +350,27 @@ class LocalPreferenceSeedProvider(SeedProvider):
             payload["source_actor_name"] = mapping.source_actor_name
         if mapping.source_actor_url:
             payload["source_actor_url"] = mapping.source_actor_url
+        return payload
+
+    def _build_genre_lookup_payload(
+        self,
+        mapping: GenreSourceMapping | None,
+    ) -> dict:
+        if mapping is None or not mapping.source_genre_slug:
+            return {}
+
+        payload = {
+            "source_name": mapping.source_name,
+            "genre_slug": mapping.source_genre_slug,
+        }
+        if mapping.source_genre_name:
+            payload["source_genre_name"] = mapping.source_genre_name
+        if mapping.source_genre_url:
+            payload["source_genre_url"] = mapping.source_genre_url
+            if "/categories/" in mapping.source_genre_url:
+                payload["genre_taxonomy"] = "category"
+            elif "/tags/" in mapping.source_genre_url:
+                payload["genre_taxonomy"] = "tag"
         return payload
 
     def _extract_actor_aliases(self, raw_name: str) -> list[str]:

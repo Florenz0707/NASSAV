@@ -42,7 +42,7 @@ def build_local_preference_strategy() -> RecommendationStrategy:
         strategy_id="local_preference",
         name="Local Preference",
         description="基于本地高频演员与类别的 Jable 搜索推荐 demo。",
-        supported_recommenders=["jable_search"],
+        supported_recommenders=["jable_search", "jable_page_lookup"],
         seed_provider_builder=lambda: LocalPreferenceSeedProvider(
             watched_boost=0.6,
             favorite_boost=1.0,
@@ -89,7 +89,7 @@ def build_balanced_strategy() -> RecommendationStrategy:
         strategy_id="balanced",
         name="Balanced",
         description="均衡使用演员与类别偏好，并通过搜索排序与多样性重排控制扎堆。",
-        supported_recommenders=["jable_search"],
+        supported_recommenders=["jable_search", "jable_page_lookup"],
         seed_provider_builder=lambda: LocalPreferenceSeedProvider(
             watched_boost=0.75,
             favorite_boost=1.1,
@@ -136,7 +136,7 @@ def build_actor_heavy_strategy() -> RecommendationStrategy:
         strategy_id="actor_heavy",
         name="Actor Heavy",
         description="以演员命中为主，类别只作为弱召回信号，适合演员偏好明显的库。",
-        supported_recommenders=["jable_search"],
+        supported_recommenders=["jable_search", "jable_page_lookup"],
         seed_provider_builder=lambda: LocalPreferenceSeedProvider(
             watched_boost=0.8,
             favorite_boost=1.2,
@@ -183,7 +183,7 @@ def build_recent_favorite_strategy() -> RecommendationStrategy:
         strategy_id="recent_favorite",
         name="Recent Favorite",
         description="优先使用最近新增、已观看和已收藏资源生成种子，贴近近期兴趣。",
-        supported_recommenders=["jable_search"],
+        supported_recommenders=["jable_search", "jable_page_lookup"],
         seed_provider_builder=lambda: LocalPreferenceSeedProvider(
             watched_boost=1.0,
             favorite_boost=1.6,
