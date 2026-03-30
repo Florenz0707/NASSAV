@@ -205,6 +205,73 @@ uv run python scripts/backfill_jable_actor_mappings.py --verbose --limit 20
 - 通过本地演员名及括号别名匹配正确的 Jable model
 - 支持 dry-run 预览，不会修改数据库
 
+#### export_jable_home_tags.py
+
+抓取 Jable 首页中的标签和分类链接，并导出到本地临时 JSON 文件
+
+```bash
+# 使用默认临时文件输出
+uv run python scripts/export_jable_home_tags.py
+
+# 指定输出路径
+uv run python scripts/export_jable_home_tags.py --output /tmp/jable-tags.json
+
+# 查看详细日志
+uv run python scripts/export_jable_home_tags.py --verbose
+```
+
+**功能说明**:
+
+- 访问 `https://jable.tv/` 首页
+- 解析首页中指向 `/tags/...` 和 `/categories/...` 的链接
+- 将 `name`、`url`、`kind` 导出到 JSON 文件，默认路径为 `/tmp/nassav_jable_home_tags.json`
+
+#### match_local_genres_to_jable_tags.py
+
+读取本地 `Genre` 和已导出的 Jable 首页标签，生成类别到 Jable 标签的匹配建议
+
+```bash
+# 使用默认输入输出
+uv run python scripts/match_local_genres_to_jable_tags.py
+
+# 指定输入与输出
+uv run python scripts/match_local_genres_to_jable_tags.py --input /tmp/jable-tags.json --output /tmp/jable-genre-matches.json
+
+# 调整阈值和候选数
+uv run python scripts/match_local_genres_to_jable_tags.py --min-score 0.72 --candidate-limit 3
+```
+
+**功能说明**:
+
+- 从数据库读取当前资源库中的 `Genre`
+- 读取 `export_jable_home_tags.py` 生成的标签 JSON
+- 基于精确匹配、规范化匹配和字符串相似度，给出每个类别的最佳候选和备选列表
+- 输出 JSON 默认路径为 `/tmp/nassav_jable_genre_tag_matches.json`
+
+#### import_jable_genre_mappings.py
+
+读取人工整理的 Jable 类别映射 YAML，并将 `high` / `medium` 置信度项写入 `GenreSourceMapping`
+
+```bash
+# 使用默认映射文件导入
+uv run python scripts/import_jable_genre_mappings.py
+
+# 仅预览
+uv run python scripts/import_jable_genre_mappings.py --dry-run
+
+# 指定输入文件
+uv run python scripts/import_jable_genre_mappings.py --input doc/jable_genre_manual_matches.yaml
+```
+
+**功能说明**:
+
+- 读取 `doc/jable_genre_manual_matches.yaml`
+- 仅导入 `confidence in {"high", "medium"}` 的条目
+- 通过 `update_or_create` 写入 `GenreSourceMapping(source_name="jable")`
+- 自动跳过 `low` 置信度项和数据库中不存在的本地类别
+- 自动清理 `jable_name` 中类似 `1234 部影片` 的尾部计数字样
+- 这类写库脚本默认以 `--dry-run` 预览和日志核对作为主要验证方式，不额外维护脚本测试文件
+
 #### fix_actor_avatars.py
 
 检查并修复演员头像文件

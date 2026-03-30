@@ -133,6 +133,71 @@ class Genre(models.Model):
         return self.name
 
 
+class GenreSourceMapping(models.Model):
+    genre = models.ForeignKey(
+        Genre,
+        on_delete=models.CASCADE,
+        related_name="source_mappings",
+    )
+    source_name = models.CharField(max_length=32, db_index=True)
+    source_genre_name = models.CharField(max_length=255, blank=True)
+    source_genre_slug = models.CharField(max_length=255, null=True, blank=True)
+    source_genre_url = models.URLField(max_length=1024, blank=True)
+    aliases = models.JSONField(default=list, blank=True)
+    match_method = models.CharField(max_length=32, default="manual")
+    confidence = models.FloatField(default=1.0)
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True, db_index=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "nassav_genre_source_mapping"
+        ordering = ["source_name", "genre_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["genre", "source_name"],
+                name="nas_gensrc_genre_src_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["source_name", "source_genre_name"],
+                name="nassav_gensrc_source_name_idx",
+            ),
+            models.Index(
+                fields=["source_name", "is_active"],
+                name="nas_gensrc_src_active_idx",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.source_name = str(self.source_name or "").strip().lower()
+        self.source_genre_name = str(self.source_genre_name or "").strip()
+        self.source_genre_url = str(self.source_genre_url or "").strip()
+
+        slug = str(self.source_genre_slug or "").strip().strip("/")
+        if not slug and self.source_name == "jable" and self.source_genre_url:
+            match = re.search(
+                r"/(?:tags|categories)/([^/?#]+)/?", self.source_genre_url
+            )
+            if match:
+                slug = match.group(1).strip()
+        self.source_genre_slug = slug.lower() if slug else None
+
+        if self.aliases is None:
+            self.aliases = []
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        genre_pk = getattr(self, "genre_id", None)
+        return (
+            f"{genre_pk}:{self.source_name}:"
+            f"{self.source_genre_slug or self.source_genre_name}"
+        )
+
+
 class AVResource(models.Model):
     # 翻译状态选项
     TRANSLATION_STATUS_CHOICES = [

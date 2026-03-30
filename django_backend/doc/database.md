@@ -61,6 +61,21 @@
     - `name` (Char, unique, db_index): 类别名称。
   - 默认排序：按 `name` 升序。
 
+- **`GenreSourceMapping` (`nassav_genre_source_mapping`)**: 本地类别到外部 source 标签/分类身份的持久化映射表。
+  - 关键字段：
+    - `genre` (FK): 关联本地 `Genre`。
+    - `source_name` (Char, db_index): 外部源标识，当前预期主要用于 `jable`。
+    - `source_genre_name` (Char): source 侧展示名。
+    - `source_genre_slug` (Char, nullable): source 侧稳定标识；对 Jable 为 `tags/{slug}` 或 `categories/{slug}` 中的 slug。
+    - `source_genre_url` (URLField): source 侧标签页或分类页 URL。
+    - `aliases` (JSONField): source 侧别名或人工补充同义词。
+    - `match_method` / `confidence` / `is_verified` / `is_active`: 映射来源与可信度控制字段。
+    - `last_seen_at` / `created_at` / `updated_at`: 使用与维护时间。
+  - 约束：
+    - `(genre, source_name)` 唯一，保证同一本地类别在同一 source 下只有一条主映射。
+  - 说明：
+    - `source_genre_slug` 不要求唯一；多个本地类别共享同一个 source 标签/分类 slug 是允许的。
+
 - **`RecommendationSnapshot` (`nassav_recommendation_snapshot`)**: 推荐快照表。
   - 关键字段：
     - `recommender_id` (Char, db_index): 推荐器标识。
