@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
       aria-label="回到顶部"
       @click="scrollToTop"
     >
-      ⨇
+      ⩟
     </button>
 
     <transition name="reason-panel-fade">

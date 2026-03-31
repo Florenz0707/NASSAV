@@ -59,6 +59,9 @@ function formatCompactMetric(value) {
         :src="proxiedCoverUrl"
         :alt="item.title || item.avid"
         class="cover-image"
+        :class="{
+          disliked: feedback === 'dislike',
+        }"
         loading="lazy"
       />
       <div v-else class="cover-fallback">
@@ -121,7 +124,8 @@ function formatCompactMetric(value) {
 <style scoped>
 .recommendation-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid;
+  border-color: rgba(255, 255, 255, 0.16);
   border-radius: 1.25rem;
   overflow: hidden;
   backdrop-filter: blur(16px);
@@ -137,13 +141,12 @@ function formatCompactMetric(value) {
 
 .recommendation-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 107, 107, 0.24);
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
 }
 
 .recommendation-card.disliked {
-  border-color: rgba(255, 107, 107, 0.24);
-  background: linear-gradient(180deg, rgba(255, 107, 107, 0.08), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(180deg, rgba(255, 107, 107, 0.03), rgba(255, 255, 255, 0.01));
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
 }
 
@@ -203,6 +206,11 @@ function formatCompactMetric(value) {
   height: 100%;
   object-fit: cover;
   display: block;
+  filter: brightness(1.05);
+}
+
+.cover-image.disliked {
+  filter: brightness(0.5) grayscale(0.4);
 }
 
 .cover-fallback {
