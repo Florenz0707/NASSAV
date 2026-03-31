@@ -53,7 +53,7 @@ function formatCompactMetric(value) {
       disliked: feedback === 'dislike',
     }"
   >
-    <div class="cover-shell">
+    <div class="cover-shell" :class="{ disliked: feedback === 'dislike' }">
       <img
         v-if="item.cover_url"
         :src="proxiedCoverUrl"
@@ -64,8 +64,11 @@ function formatCompactMetric(value) {
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
       </div>
-      <div v-if="feedback === 'dislike'" class="feedback-overlay">
-        <span class="feedback-overlay-badge">已加入不喜欢黑名单</span>
+      <div class="feedback-overlay">
+        <span v-if="feedback === 'dislike'" class="feedback-overlay-badge"> 已屏蔽 </span>
+        <button v-else class="feedback-overlay-button" @click="$emit('feedback', 'dislike')">
+          ⨉
+        </button>
       </div>
     </div>
 
@@ -73,9 +76,6 @@ function formatCompactMetric(value) {
       <div class="card-meta">
         <span class="avid-chip">{{ item.avid }}</span>
         <span v-if="item.source" class="source-chip">{{ item.source }}</span>
-        <span v-if="feedback === 'dislike'" class="feedback-state-chip negative">
-          已标记不喜欢
-        </span>
       </div>
 
       <h3 class="card-title">
@@ -100,20 +100,7 @@ function formatCompactMetric(value) {
           :class="{ active: reasonsOpen }"
           @click="item.reasons?.length && $emit('reasons', $event)"
         >
-          {{
-            `推荐评分：${Number(item.score || 0).toFixed(1)}，理由（${item.reasons?.length || 0}）`
-          }}
-        </button>
-      </div>
-
-      <div class="feedback-row">
-        <button
-          class="feedback-btn negative"
-          :class="{ active: feedback === 'dislike' }"
-          :disabled="feedbackSubmitting || feedback === 'dislike'"
-          @click="$emit('feedback', 'dislike')"
-        >
-          {{ feedback === 'dislike' ? '已加入黑名单' : '不喜欢（拉黑）' }}
+          {{ `推荐分：${Number(item.score || 0).toFixed(1)}（${item.reasons?.length || 0}）` }}
         </button>
       </div>
 
@@ -124,7 +111,7 @@ function formatCompactMetric(value) {
         <button v-else class="action-btn success" disabled>已添加</button>
 
         <button class="action-btn secondary" @click="added ? $emit('view') : $emit('open')">
-          {{ added ? '查看详情' : '打开来源' }}
+          {{ added ? '查看详情' : '跳转来源' }}
         </button>
       </div>
     </div>
@@ -175,7 +162,7 @@ function formatCompactMetric(value) {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  padding: 0.8rem;
+  padding: 0.4rem;
   background: linear-gradient(180deg, rgba(20, 24, 34, 0.12), rgba(20, 24, 34, 0.42));
   pointer-events: none;
 }
@@ -186,12 +173,29 @@ function formatCompactMetric(value) {
   min-height: 1.95rem;
   padding: 0.28rem 0.72rem;
   border-radius: 999px;
-  background: rgba(255, 107, 107, 0.88);
+  background: rgba(255, 107, 107, 0.5);
   color: white;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
+  pointer-events: auto;
+}
+
+.feedback-overlay-button {
+  display: inline-flex;
+  align-items: center;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
+  padding: 0.28rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 107, 107, 0.3);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
+  pointer-events: auto;
 }
 
 .cover-image {
@@ -263,6 +267,7 @@ function formatCompactMetric(value) {
   min-height: calc(1rem * 1.45 * 3);
   max-height: calc(1rem * 1.45 * 3);
   display: -webkit-box;
+  line-clamp: 3;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -280,7 +285,7 @@ function formatCompactMetric(value) {
 
 .reasons-wrap {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
 .feedback-row {
@@ -401,6 +406,7 @@ function formatCompactMetric(value) {
   display: block;
   min-height: auto;
   max-height: none;
+  line-clamp: unset;
   -webkit-line-clamp: unset;
   -webkit-box-orient: initial;
   overflow: visible;

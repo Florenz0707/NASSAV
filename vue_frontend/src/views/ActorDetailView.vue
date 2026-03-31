@@ -432,18 +432,18 @@ function goBack() {
         :resource="resource"
         :selectable="batchMode"
         :selected="selectedAvids.has(resource.avid)"
-        :coverSize="'medium'"
+        :cover-size="'medium'"
         @toggle-select="toggleSelect"
         @download="handleDownload"
         @refresh="handleRefresh"
         @delete="handleDeleteResource"
-        @deleteFile="handleDeleteFile"
+        @delete-file="handleDeleteFile"
       />
     </div>
     <ResourcePagination
       :page="page"
       :pages="resourceStore.pagination.pages"
-      :pageSize="pageSize"
+      :page-size="pageSize"
       :total="resourceStore.pagination.total"
       @change-page="changePage"
       @change-page-size="onPageSizeChange"

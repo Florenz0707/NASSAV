@@ -431,12 +431,12 @@ onBeforeUnmount(() => {
 
       <div class="header-actions">
         <button class="reset-btn" :disabled="loading" @click="handleResetRecommendations">
-          清空推荐
+          重置个性化历史
         </button>
         <button class="refresh-btn" :disabled="loading" @click="loadRecommendations">
           <LoadingSpinner v-if="loading" size="small" />
           <template v-else>
-            {{ hasRequested ? '刷新推荐' : '开始推荐' }}
+            {{ hasRequested ? '继续推荐' : '开始推荐' }}
           </template>
         </button>
       </div>
@@ -518,14 +518,14 @@ onBeforeUnmount(() => {
 
     <section class="content-shell">
       <div v-if="showInitialLoading" class="loading-shell">
-        <LoadingSpinner size="large" text="正在生成推荐结果..." />
+        <LoadingSpinner size="large" text="正在和妈妈桑交涉..." />
       </div>
 
       <EmptyState
         v-else-if="!hasRequested && !visibleItems.length"
         icon="✦"
         title="尚未开始推荐"
-        description="先设置偏好参数，再按上方按钮生成推荐结果。"
+        description="设置偏好，开始推荐"
       />
 
       <EmptyState
@@ -542,8 +542,8 @@ onBeforeUnmount(() => {
       <EmptyState
         v-else-if="!visibleItems.length"
         icon="✦"
-        title="暂时没有可展示的推荐"
-        description="可以先增加资源，或者稍后重新刷新推荐结果。"
+        title="暂时没有推荐结果"
+        description="尝试添加本地资源，或者稍后重试。"
       >
         <template #action>
           <button class="empty-action" @click="loadRecommendations">再试一次</button>
@@ -592,7 +592,7 @@ onBeforeUnmount(() => {
       aria-label="回到顶部"
       @click="scrollToTop"
     >
-      回到顶部
+      ⨇
     </button>
 
     <transition name="reason-panel-fade">
@@ -1043,22 +1043,22 @@ onBeforeUnmount(() => {
 
 .scroll-top-btn {
   position: fixed;
-  right: 1.5rem;
-  bottom: 1.5rem;
+  right: 2rem;
+  bottom: 2rem;
   z-index: 20;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 6.5rem;
-  min-height: 2.75rem;
-  padding: 0 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  min-width: 3rem;
+  min-height: 3rem;
+  padding: 0 0.5rem;
+  border: 1px solid rgba(223, 218, 218, 0.5);
   border-radius: 999px;
   background:
     linear-gradient(135deg, rgba(255, 107, 107, 0.22), rgba(255, 139, 95, 0.18)),
-    rgba(18, 24, 38, 0.88);
-  color: rgba(255, 255, 255, 0.96);
-  font-weight: 600;
+    rgba(18, 24, 38, 0);
+  color: rgba(255, 255, 255, 1);
+  font-weight: 700;
   backdrop-filter: blur(14px);
   box-shadow:
     0 18px 36px rgba(0, 0, 0, 0.34),
