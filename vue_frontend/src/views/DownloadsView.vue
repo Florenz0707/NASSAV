@@ -16,7 +16,7 @@ const pollingTimer = ref(null)
 const POLLING_INTERVAL = 1000 // API 轮询间隔
 
 // 调试模式 - 设为 true 显示样例数据
-const DEBUG_MODE = false
+const DEBUG_MODE = true
 
 // helper to normalize resources array (store may expose a ref)
 function getResourcesArray() {

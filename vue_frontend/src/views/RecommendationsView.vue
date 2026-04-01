@@ -693,6 +693,10 @@ onBeforeUnmount(() => {
   gap: 0.6rem;
 }
 
+.rec-primary-btn {
+  border-radius: 0.95rem;
+}
+
 .meta-strip,
 .strategy-params-panel,
 .seed-panel,

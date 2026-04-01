@@ -522,27 +522,6 @@ async function navigateToGenre(genreName) {
 
           <!-- 操作按钮 -->
           <div class="flex flex-wrap gap-4">
-            <button
-              v-if="!metadata.file_exists"
-              class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-              style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
-              :disabled="downloading"
-              @click="handleDownload"
-            >
-              {{ downloading ? '提交中...' : '下载视频' }}
-            </button>
-            <button
-              v-if="metadata.file_exists"
-              class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
-              style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
-              @click="jumpPlay"
-            >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              点击播放
-            </button>
-
             <!-- 刷新按钮容器 -->
             <div class="relative" @click.stop>
               <button
@@ -570,6 +549,27 @@ async function navigateToGenre(genreName) {
                 </button>
               </div>
             </div>
+
+            <button
+              v-if="!metadata.file_exists"
+              class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+              :disabled="downloading"
+              @click="handleDownload"
+            >
+              {{ downloading ? '提交中...' : '下载视频' }}
+            </button>
+            <button
+              v-if="metadata.file_exists"
+              class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+              style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+              @click="jumpPlay"
+            >
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              点击播放
+            </button>
 
             <!-- 删除按钮容器 -->
             <div class="relative" @click.stop>

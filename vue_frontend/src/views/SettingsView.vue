@@ -212,6 +212,34 @@ const cookieTextareaStyle = computed(() => {
     color: 'var(--text-primary)',
   }
 })
+
+const copyCookie = async () => {
+  const text = viewCookieValue.value || ''
+  if (!text) {
+    toastStore.warning('暂无可复制内容')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(text)
+    toastStore.success('Cookie 已复制到剪贴板')
+  } catch (_error) {
+    try {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      const copied = document.execCommand('copy')
+      document.body.removeChild(textarea)
+      if (copied) toastStore.success('Cookie 已复制到剪贴板')
+      else toastStore.error('复制失败，请手动复制')
+    } catch (__error) {
+      toastStore.error('复制失败，请手动复制')
+    }
+  }
+}
 </script>
 
 <template>
@@ -231,29 +259,31 @@ const cookieTextareaStyle = computed(() => {
 
       <!-- Right Content Panel -->
       <div class="flex-1">
-        <div class="tw-surface-overlay rounded-xl p-6">
-          <!-- Cookie 管理面板 -->
-          <CookieManagementPanel
-            v-if="activeMenu === 'cookies'"
-            :loading="loading"
-            :sources="sources"
-            @view="viewCookie"
-            @edit="openEditModal"
-            @delete="confirmDelete"
-          />
+        <transition name="settings-panel-fade" mode="out-in">
+          <div :key="activeMenu" class="tw-surface-overlay rounded-xl p-6">
+            <!-- Cookie 管理面板 -->
+            <CookieManagementPanel
+              v-if="activeMenu === 'cookies'"
+              :loading="loading"
+              :sources="sources"
+              @view="viewCookie"
+              @edit="openEditModal"
+              @delete="confirmDelete"
+            />
 
-          <!-- 通用设置面板 -->
-          <GeneralSettingsPanel
-            v-else-if="activeMenu === 'general'"
-            :settings="settingsStore"
-            :preview-font="previewFont"
-            :display-title-options="displayTitleOptions"
-            :search-result-display-options="searchResultDisplayOptions"
-            :available-fonts="AVAILABLE_FONTS"
-            @update:preview-font="previewFont = $event"
-            @save="handleSaveSettings"
-          />
-        </div>
+            <!-- 通用设置面板 -->
+            <GeneralSettingsPanel
+              v-else-if="activeMenu === 'general'"
+              :settings="settingsStore"
+              :preview-font="previewFont"
+              :display-title-options="displayTitleOptions"
+              :search-result-display-options="searchResultDisplayOptions"
+              :available-fonts="AVAILABLE_FONTS"
+              @update:preview-font="previewFont = $event"
+              @save="handleSaveSettings"
+            />
+          </div>
+        </transition>
       </div>
     </div>
 
@@ -264,14 +294,15 @@ const cookieTextareaStyle = computed(() => {
       @close="showViewModal = false"
     >
       <div
-        class="bg-black/40 rounded-xl p-4 font-mono text-sm text-[var(--text-muted)] break-all max-h-[400px] overflow-y-auto border border-white/5"
+        class="bg-black/40 rounded-xl p-4 font-mono text-sm text-white break-all max-h-[400px] overflow-y-auto border border-white/5"
       >
         {{ viewCookieValue || '无内容' }}
       </div>
 
       <template #footer>
-        <div class="flex justify-end">
-          <button class="tw-btn-muted" @click="showViewModal = false">关闭</button>
+        <div class="flex items-center justify-between">
+          <button class="settings-modal-action-btn" @click="copyCookie">复制</button>
+          <button class="settings-modal-action-btn" @click="showViewModal = false">关闭</button>
         </div>
       </template>
     </SettingsModal>
@@ -300,10 +331,7 @@ const cookieTextareaStyle = computed(() => {
           >
             ✨ 自动获取
           </button>
-          <div class="flex gap-3">
-            <button class="tw-btn-muted" @click="showEditModal = false">取消</button>
-            <button class="tw-btn-settings-primary" @click="saveCookie">保存设置</button>
-          </div>
+          <button class="settings-modal-primary-btn" @click="saveCookie">保存</button>
         </div>
       </template>
     </SettingsModal>
@@ -323,6 +351,72 @@ const cookieTextareaStyle = computed(() => {
 <style scoped>
 .settings-page {
   animation: fadeIn 0.5s ease;
+}
+
+.settings-panel-fade-enter-active,
+.settings-panel-fade-leave-active {
+  transition:
+    opacity 0.26s ease,
+    transform 0.26s ease,
+    filter 0.26s ease;
+}
+
+.settings-panel-fade-enter-from,
+.settings-panel-fade-leave-to {
+  opacity: 0;
+  transform: translateX(14px);
+  filter: blur(4px);
+}
+
+.settings-modal-action-btn {
+  display: inline-flex;
+  min-height: 2.7rem;
+  min-width: 5.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 107, 107, 0.32);
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--accent-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.settings-modal-action-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 107, 107, 0.5);
+  background: rgba(255, 107, 107, 0.16);
+  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.16);
+}
+
+.settings-modal-primary-btn {
+  display: inline-flex;
+  min-height: 2.2rem;
+  min-width: 6.6rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 107, 107, 0.56);
+  background: linear-gradient(135deg, var(--accent-primary), #ff8b5f);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 12px 26px rgba(255, 107, 107, 0.24);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.settings-modal-primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(255, 107, 107, 0.3);
+  filter: saturate(1.05);
 }
 
 @keyframes fadeIn {
