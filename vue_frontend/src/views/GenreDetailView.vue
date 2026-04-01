@@ -316,10 +316,7 @@ function goBack() {
 
 <template>
   <div class="px-6 pt-2 pb-6">
-    <button
-      class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-transparent rounded-lg text-[var(--text-muted)] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[var(--text-primary)]"
-      @click="goBack"
-    >
+    <button class="tw-back-btn" @click="goBack">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
@@ -387,11 +384,7 @@ function goBack() {
       @cancel="() => (showBatchDeleteConfirm = false)"
     >
       <template #extra-button>
-        <button
-          class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
-          style="background: var(--accent-danger)"
-          @click="() => confirmBatchDelete('delete-all')"
-        >
+        <button class="tw-btn-danger" @click="() => confirmBatchDelete('delete-all')">
           全部删除
         </button>
       </template>
@@ -408,13 +401,7 @@ function goBack() {
       :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
     >
       <template #action>
-        <RouterLink
-          to="/add"
-          class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
-          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
-        >
-          添加资源
-        </RouterLink>
+        <RouterLink to="/add" class="tw-btn-primary"> 添加资源 </RouterLink>
       </template>
     </EmptyState>
 

@@ -430,10 +430,18 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="header-actions">
-        <button class="reset-btn" :disabled="loading" @click="handleResetRecommendations">
+        <button
+          class="tw-btn-outline-muted rec-reset-btn"
+          :disabled="loading"
+          @click="handleResetRecommendations"
+        >
           重置个性化历史
         </button>
-        <button class="refresh-btn" :disabled="loading" @click="loadRecommendations">
+        <button
+          class="tw-btn-accent rec-primary-btn"
+          :disabled="loading"
+          @click="loadRecommendations"
+        >
           <LoadingSpinner v-if="loading" size="small" />
           <template v-else>
             {{ hasRequested ? '继续推荐' : '开始推荐' }}
@@ -535,7 +543,9 @@ onBeforeUnmount(() => {
         :description="error"
       >
         <template #action>
-          <button class="empty-action" @click="loadRecommendations">重新加载</button>
+          <button class="tw-btn-accent rec-primary-btn" @click="loadRecommendations">
+            重新加载
+          </button>
         </template>
       </EmptyState>
 
@@ -546,7 +556,9 @@ onBeforeUnmount(() => {
         description="尝试添加本地资源，或者稍后重试。"
       >
         <template #action>
-          <button class="empty-action" @click="loadRecommendations">再试一次</button>
+          <button class="tw-btn-accent rec-primary-btn" @click="loadRecommendations">
+            再试一次
+          </button>
         </template>
       </EmptyState>
 
@@ -577,7 +589,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="results-footer">
-          <button class="footer-refresh-btn" :disabled="loading" @click="loadRecommendations">
+          <button class="tw-btn-footer" :disabled="loading" @click="loadRecommendations">
             <LoadingSpinner v-if="loading" size="small" />
             <template v-else> 继续推荐 </template>
           </button>
@@ -676,51 +688,9 @@ onBeforeUnmount(() => {
   line-height: 1.65;
 }
 
-.refresh-btn,
-.empty-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 8rem;
-  min-height: 2.9rem;
-  padding: 0 1rem;
-  border: none;
-  border-radius: 0.95rem;
-  background: linear-gradient(135deg, var(--accent-primary), #ff8b5f);
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.22);
-}
-
 .header-actions {
   display: inline-flex;
   gap: 0.6rem;
-}
-
-.reset-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 7.6rem;
-  min-height: 2.9rem;
-  padding: 0 1rem;
-  border-radius: 0.95rem;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-secondary);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.reset-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.refresh-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
 }
 
 .meta-strip,
@@ -1021,26 +991,6 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-.footer-refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 10rem;
-  min-height: 2.85rem;
-  padding: 0 1.1rem;
-  border-radius: 0.95rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.footer-refresh-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
 .scroll-top-btn {
   position: fixed;
   right: 2rem;
@@ -1184,7 +1134,7 @@ onBeforeUnmount(() => {
     align-items: stretch;
   }
 
-  .refresh-btn {
+  .rec-primary-btn {
     width: 100%;
   }
 

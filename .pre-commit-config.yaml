@@ -55,7 +55,13 @@ repos:
         always_run: true
       - id: vue-frontend-build-check
         name: vue_frontend build check
-        entry: bash -c 'cd vue_frontend && pnpm run build'
+        entry: bash -c 'cd vue_frontend && pnpm i && pnpm run build'
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: vue-frontend-eslint
+        name: vue_frontend eslint
+        entry: bash -c 'cd vue_frontend && pnpm run lint:fix'
         language: system
         pass_filenames: false
         always_run: true

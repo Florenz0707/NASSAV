@@ -415,23 +415,11 @@ onUnmounted(() => {
         <!-- 刷新按钮容器 -->
         <div class="relative" @click.stop>
           <button
-            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200"
+            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)]"
             :data-avid="resource.avid"
             title="刷新资源"
-            style="
-              background: var(--bg-secondary);
-              color: var(--text-secondary);
-              border: 1px solid var(--border-color);
-            "
+            style="border-color: rgba(255, 255, 255, 0.65); background: rgba(128, 128, 128, 0.22)"
             @click="showRefreshMenu = !showRefreshMenu"
-            @mouseenter="
-              (($event.target.style.background = 'var(--bg-overlay)'),
-              ($event.target.style.color = 'var(--text-primary)'))
-            "
-            @mouseleave="
-              (($event.target.style.background = 'var(--bg-secondary)'),
-              ($event.target.style.color = 'var(--text-secondary)'))
-            "
           >
             刷新
           </button>
@@ -446,14 +434,13 @@ onUnmounted(() => {
                 ? 'absolute top-[calc(100%+0.5rem)] left-0'
                 : 'absolute bottom-[calc(100%+0.5rem)] left-0'
             "
-            class="refresh-menu border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[100] overflow-hidden"
-            style="background: var(--bg-overlay); border-color: var(--border-color)"
+            class="refresh-menu tw-card-menu-popover"
           >
             <button
               v-for="option in refreshOptions"
               :key="option.text"
               role="menuitem"
-              class="w-full px-4 py-2.5 text-left bg-transparent border-none text-[var(--text-secondary)] text-[0.85rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
+              class="tw-card-menu-item"
               @click="handleRefreshOption(option)"
             >
               {{ option.text }}
@@ -520,8 +507,7 @@ onUnmounted(() => {
                 ? 'absolute top-[calc(100%+0.5rem)] right-0'
                 : 'absolute bottom-[calc(100%+0.5rem)] right-0'
             "
-            class="delete-menu border rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[85px] z-[100] overflow-hidden max-h-[calc(100vh-20px)] overflow-y-auto"
-            style="background: var(--bg-overlay); border-color: var(--border-color)"
+            class="delete-menu tw-card-menu-popover min-w-[85px] max-h-[calc(100vh-20px)] overflow-y-auto"
           >
             <button
               v-for="option in deleteOptions"

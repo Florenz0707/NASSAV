@@ -400,3 +400,156 @@ select option {
     transform: none;
   }
 }
+
+@layer components {
+  .tw-back-btn {
+    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-white/5 hover:text-[var(--text-primary)];
+  }
+
+  .tw-btn-primary {
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-[10px] border-none px-6 py-3 text-[0.95rem] font-medium text-white no-underline transition-all duration-200 hover:-translate-y-0.5;
+    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+  }
+
+  .tw-btn-primary-elevated {
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-[10px] border-none px-6 py-3.5 text-[0.95rem] font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)];
+    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+  }
+
+  .tw-btn-danger {
+    @apply flex-1 cursor-pointer rounded-[10px] border-none px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)];
+    font: inherit;
+    background: var(--accent-danger);
+  }
+
+  .tw-fab-primary {
+    @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full border-none text-xl text-white shadow-[0_4px_20px_rgba(255,107,107,0.3)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0;
+    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+  }
+
+  .tw-btn-accent {
+    @apply inline-flex min-h-[2.9rem] min-w-[8rem] cursor-pointer items-center justify-center rounded-[0.95rem] border-none px-4 font-semibold text-white;
+    background: linear-gradient(135deg, var(--accent-primary), #ff8b5f);
+    box-shadow: 0 10px 24px rgba(255, 107, 107, 0.22);
+  }
+
+  .tw-btn-outline-muted {
+    @apply inline-flex min-h-[2.9rem] min-w-[7.6rem] cursor-pointer items-center justify-center rounded-[0.95rem] border px-4 font-semibold text-[var(--text-secondary)];
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .tw-btn-footer {
+    @apply inline-flex min-h-[2.85rem] min-w-[10rem] cursor-pointer items-center justify-center rounded-[0.95rem] border px-[1.1rem] font-semibold text-[var(--text-primary)];
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .tw-btn-accent:disabled,
+  .tw-btn-outline-muted:disabled,
+  .tw-btn-footer:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .tw-home-hero-primary-btn {
+    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border-none px-8 py-4 text-lg font-medium text-white no-underline transition-all duration-300 hover:-translate-y-1 active:translate-y-0 active:shadow-none;
+    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+    box-shadow: 0 8px 20px rgba(255, 107, 107, 0.25);
+  }
+
+  .tw-home-hero-primary-btn:hover {
+    box-shadow: 0 12px 25px rgba(255, 107, 107, 0.35);
+  }
+
+  .tw-home-hero-secondary-btn {
+    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-8 py-4 text-lg font-medium text-[var(--text-primary)] no-underline backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.1];
+  }
+
+  .tw-home-feature-card {
+    @apply min-h-[20rem] rounded-2xl border border-white/[0.05] bg-white/[0.02] p-10 md:p-12 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/[0.04];
+  }
+
+  .tw-home-feature-icon {
+    @apply flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl border transition-transform duration-300 group-hover:scale-110;
+    background-image: linear-gradient(to bottom right, var(--feature-from), var(--feature-to));
+    border-color: var(--feature-border);
+  }
+
+  .tw-surface-overlay {
+    @apply border;
+    border-color: var(--border-color);
+    background: var(--bg-overlay);
+  }
+
+  .tw-btn-muted {
+    @apply rounded-xl bg-white/5 px-6 py-2 font-medium text-[var(--text-primary)] transition-all hover:bg-white/10;
+  }
+
+  .tw-btn-settings-primary {
+    @apply rounded-xl px-6 py-2.5 font-medium text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,107,107,0.3)];
+    background: var(--accent-primary);
+  }
+
+  .tw-btn-settings-danger-soft {
+    @apply rounded-lg border border-white/[0.08] bg-white/5 px-3 py-1.5 text-sm text-red-400 transition-all hover:border-red-500/20 hover:bg-red-500/10;
+  }
+
+  .tw-card-action-neutral {
+    @apply inline-flex cursor-pointer items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3.5 py-2 text-[0.9rem] font-medium text-[var(--text-secondary)] transition-all duration-200 hover:bg-[var(--bg-overlay)] hover:text-[var(--text-primary)];
+  }
+
+  .tw-card-menu-popover {
+    @apply z-[100] min-w-[120px] overflow-hidden rounded-lg border shadow-[0_4px_12px_rgba(0,0,0,0.2)];
+    border-color: var(--border-color);
+    background: var(--bg-overlay);
+  }
+
+  .tw-card-menu-item {
+    @apply w-full border-none bg-transparent px-4 py-2.5 text-left text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)];
+  }
+
+  .tw-cookie-btn-view {
+    @apply rounded-lg border px-3 py-1.5 text-sm transition-all;
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+  }
+
+  .tw-cookie-btn-view:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+  }
+
+  .tw-cookie-btn-view:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .tw-cookie-btn-update {
+    @apply rounded-lg border px-3 py-1.5 text-sm transition-all;
+    border-color: rgba(255, 107, 107, 0.22);
+    background: rgba(255, 107, 107, 0.1);
+    color: var(--accent-primary);
+  }
+
+  .tw-cookie-btn-update:hover {
+    border-color: rgba(255, 107, 107, 0.32);
+    background: rgba(255, 107, 107, 0.16);
+    color: #ff8f8f;
+  }
+
+  .tw-cookie-btn-delete {
+    @apply rounded-lg border px-3 py-1.5 text-sm transition-all;
+    border-color: rgba(239, 68, 68, 0.24);
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+  }
+
+  .tw-cookie-btn-delete:hover {
+    border-color: rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.16);
+    color: #fca5a5;
+  }
+}

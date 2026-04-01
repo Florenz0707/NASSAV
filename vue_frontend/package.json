@@ -21,7 +21,9 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@vitejs/plugin-vue": "^5.0.4",
     "autoprefixer": "^10.4.23",
+    "eslint": "9.39.4",
     "eslint-plugin-vue": "^10.6.2",
+    "globals": "^17.4.0",
     "tailwindcss": "^4.1.18",
     "vite": "^5.2.0"
   },

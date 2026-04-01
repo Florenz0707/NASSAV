@@ -358,11 +358,7 @@ function onPageSizeChange(newSize) {
       @cancel="() => (showBatchDeleteConfirm = false)"
     >
       <template #extra-button>
-        <button
-          class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)]"
-          style="background: var(--accent-danger)"
-          @click="() => confirmBatchDelete('delete-all')"
-        >
+        <button class="tw-btn-danger" @click="() => confirmBatchDelete('delete-all')">
           删除全部
         </button>
       </template>
@@ -388,13 +384,7 @@ function onPageSizeChange(newSize) {
       :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
     >
       <template #action>
-        <RouterLink
-          to="/add"
-          class="inline-flex items-center gap-2 px-6 py-3 border-none rounded-[10px] text-[0.95rem] font-medium no-underline cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
-          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
-        >
-          添加资源
-        </RouterLink>
+        <RouterLink to="/add" class="tw-btn-primary"> 添加资源 </RouterLink>
       </template>
     </EmptyState>
 
@@ -425,8 +415,7 @@ function onPageSizeChange(newSize) {
 
     <!-- Floating Refresh Button -->
     <button
-      class="fixed bottom-8 right-8 w-[60px] h-[60px] rounded-full border-none shadow-[0_4px_20px_rgba(255,107,107,0.3)] cursor-pointer transition-all duration-300 z-[1000] flex items-center justify-center text-white text-xl hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-      style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+      class="tw-fab-primary"
       :disabled="refreshing"
       :title="refreshing ? '刷新中...' : '刷新资源列表'"
       @click="handleManualRefresh"

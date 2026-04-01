@@ -311,10 +311,7 @@ async function navigateToGenre(genreName) {
 <template>
   <div class="animate-[fadeIn_0.5s_ease]">
     <!-- 返回按钮 -->
-    <button
-      class="inline-flex items-center gap-2 px-4 py-2.5 bg-transparent border border-transparent rounded-lg text-[var(--text-muted)] text-sm cursor-pointer transition-all duration-200 mb-8 hover:bg-white/5 hover:text-[var(--text-primary)]"
-      @click="goBack"
-    >
+    <button class="tw-back-btn" @click="goBack">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
@@ -348,13 +345,7 @@ async function navigateToGenre(genreName) {
       <p class="text-[var(--text-muted)] mb-6">
         {{ error }}
       </p>
-      <button
-        class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
-        style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
-        @click="fetchMetadata"
-      >
-        重试
-      </button>
+      <button class="tw-btn-primary-elevated" @click="fetchMetadata">重试</button>
     </div>
 
     <!-- 详情内容 -->
