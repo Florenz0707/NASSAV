@@ -33,8 +33,18 @@ const props = defineProps({
   },
 })
 
-defineEmits(['add', 'open', 'view', 'reasons', 'feedback'])
-const proxiedCoverUrl = computed(() => recommendationApi.getCoverUrl(props.item.cover_url))
+const emit = defineEmits(['add', 'open', 'view', 'reasons', 'feedback'])
+
+const isDisliked = computed(() => props.feedback === 'dislike')
+const hasReasons = computed(
+  () => Array.isArray(props.item?.reasons) && props.item.reasons.length > 0
+)
+const displayTitle = computed(() => props.item?.title || props.item?.avid || '')
+const reasonsCount = computed(() => (hasReasons.value ? props.item.reasons.length : 0))
+const formattedScore = computed(() => Number(props.item?.score || 0).toFixed(1))
+const proxiedCoverUrl = computed(() =>
+  props.item?.cover_url ? recommendationApi.getCoverUrl(props.item.cover_url) : ''
+)
 
 function formatCompactMetric(value) {
   const parsed = Number(value || 0)
@@ -43,6 +53,20 @@ function formatCompactMetric(value) {
   if (parsed >= 1000) return `${Math.floor(parsed / 1000)}K+`
   return `${parsed}`
 }
+
+const metrics = computed(() => {
+  const raw = props.item?.raw_metrics || {}
+  return {
+    duration: raw.duration || '',
+    views: formatCompactMetric(raw.views),
+    likes: formatCompactMetric(raw.likes),
+  }
+})
+
+function handleReasonsClick(event) {
+  if (!hasReasons.value) return
+  emit('reasons', event)
+}
 </script>
 
 <template>
@@ -50,26 +74,31 @@ function formatCompactMetric(value) {
     class="recommendation-card"
     :class="{
       masonry: layoutStyle === 'masonry',
-      disliked: feedback === 'dislike',
+      disliked: isDisliked,
     }"
   >
-    <div class="cover-shell" :class="{ disliked: feedback === 'dislike' }">
+    <div class="cover-shell">
       <img
         v-if="item.cover_url"
         :src="proxiedCoverUrl"
-        :alt="item.title || item.avid"
+        :alt="displayTitle"
         class="cover-image"
-        :class="{
-          disliked: feedback === 'dislike',
-        }"
+        :class="{ disliked: isDisliked }"
         loading="lazy"
       />
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
       </div>
       <div class="feedback-overlay">
-        <span v-if="feedback === 'dislike'" class="feedback-overlay-badge"> 已屏蔽 </span>
-        <button v-else class="feedback-overlay-button" @click="$emit('feedback', 'dislike')">
+        <span v-if="isDisliked" class="feedback-overlay-badge">已屏蔽</span>
+        <button
+          v-else
+          type="button"
+          class="feedback-overlay-button"
+          :disabled="feedbackSubmitting"
+          aria-label="不感兴趣"
+          @click="emit('feedback', 'dislike')"
+        >
           ⨉
         </button>
       </div>
@@ -82,38 +111,45 @@ function formatCompactMetric(value) {
       </div>
 
       <h3 class="card-title">
-        {{ item.title || item.avid }}
+        {{ displayTitle }}
       </h3>
 
       <div v-if="item.raw_metrics" class="metrics-row">
-        <span v-if="item.raw_metrics.duration">时长 {{ item.raw_metrics.duration }}</span>
-        <span v-if="formatCompactMetric(item.raw_metrics.views)">
-          浏览 {{ formatCompactMetric(item.raw_metrics.views) }}
-        </span>
-        <span v-if="formatCompactMetric(item.raw_metrics.likes)">
-          收藏 {{ formatCompactMetric(item.raw_metrics.likes) }}
-        </span>
+        <span v-if="metrics.duration">时长 {{ metrics.duration }}</span>
+        <span v-if="metrics.views">浏览 {{ metrics.views }}</span>
+        <span v-if="metrics.likes">收藏 {{ metrics.likes }}</span>
       </div>
 
       <div v-if="item.score !== undefined || item.reasons?.length" class="reasons-wrap">
         <button
+          type="button"
           class="reason-toggle"
           :data-reason-anchor="item.avid"
-          :disabled="!item.reasons?.length"
+          :disabled="!hasReasons"
           :class="{ active: reasonsOpen }"
-          @click="item.reasons?.length && $emit('reasons', $event)"
+          @click="handleReasonsClick"
         >
-          {{ `推荐分：${Number(item.score || 0).toFixed(1)}（${item.reasons?.length || 0}）` }}
+          {{ `推荐分：${formattedScore}（${reasonsCount}）` }}
         </button>
       </div>
 
       <div class="card-actions">
-        <button v-if="!added" class="action-btn primary" :disabled="adding" @click="$emit('add')">
+        <button
+          v-if="!added"
+          type="button"
+          class="action-btn primary"
+          :disabled="adding"
+          @click="emit('add')"
+        >
           {{ adding ? '添加中...' : '加入资源库' }}
         </button>
-        <button v-else class="action-btn success" disabled>已添加</button>
+        <button v-else type="button" class="action-btn success" disabled>已添加</button>
 
-        <button class="action-btn secondary" @click="added ? $emit('view') : $emit('open')">
+        <button
+          type="button"
+          class="action-btn secondary"
+          @click="added ? emit('view') : emit('open')"
+        >
           {{ added ? '查看详情' : '跳转来源' }}
         </button>
       </div>
@@ -188,9 +224,11 @@ function formatCompactMetric(value) {
 .feedback-overlay-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-width: 1.7rem;
   min-height: 1.7rem;
   padding: 0.28rem 0.72rem;
+  border: 0;
   border-radius: 999px;
   background: rgba(255, 107, 107, 0.3);
   color: white;
@@ -199,6 +237,12 @@ function formatCompactMetric(value) {
   letter-spacing: 0.02em;
   box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
   pointer-events: auto;
+  cursor: pointer;
+}
+
+.feedback-overlay-button:disabled {
+  cursor: progress;
+  opacity: 0.75;
 }
 
 .cover-image {
@@ -241,8 +285,7 @@ function formatCompactMetric(value) {
 }
 
 .avid-chip,
-.source-chip,
-.feedback-state-chip {
+.source-chip {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -259,11 +302,6 @@ function formatCompactMetric(value) {
 .source-chip {
   background: rgba(78, 205, 196, 0.12);
   color: var(--accent-tertiary);
-}
-
-.feedback-state-chip.negative {
-  background: rgba(255, 107, 107, 0.14);
-  color: #ff9b86;
 }
 
 .card-title {
@@ -294,47 +332,6 @@ function formatCompactMetric(value) {
 .reasons-wrap {
   display: flex;
   flex-direction: row;
-}
-
-.feedback-row {
-  display: flex;
-}
-
-.feedback-btn {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.82rem;
-  padding: 0.62rem 0.72rem;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease;
-}
-
-.feedback-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.feedback-btn.active {
-  border-color: rgba(78, 205, 196, 0.34);
-  background: rgba(78, 205, 196, 0.14);
-  color: var(--text-primary);
-}
-
-.feedback-btn.negative.active {
-  border-color: rgba(255, 107, 107, 0.34);
-  background: rgba(255, 107, 107, 0.14);
-  color: var(--text-primary);
-}
-
-.feedback-btn:disabled {
-  cursor: progress;
-  opacity: 0.7;
 }
 
 .reason-toggle {
@@ -430,8 +427,7 @@ function formatCompactMetric(value) {
 }
 
 .recommendation-card.masonry .avid-chip,
-.recommendation-card.masonry .source-chip,
-.recommendation-card.masonry .status-chip {
+.recommendation-card.masonry .source-chip {
   padding: 0.22rem 0.48rem;
   font-size: 0.64rem;
 }
