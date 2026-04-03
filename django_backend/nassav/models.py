@@ -464,11 +464,11 @@ class RecommendationSeedProfile(models.Model):
         indexes = [
             models.Index(
                 fields=["seed_type", "is_blocked"],
-                name="nas_recseedprofile_type_block_idx",
+                name="nas_recseed_ty_blk_idx",
             ),
             models.Index(
                 fields=["source_name", "source_identifier"],
-                name="nas_recseedprofile_src_ident_idx",
+                name="nas_recseed_src_id_idx",
             ),
         ]
 

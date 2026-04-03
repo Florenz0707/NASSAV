@@ -5,7 +5,6 @@ from nassav.source import Jable
 from .entities import RecommendationExecution, RecommendationRequest
 from .feedback import recommendation_feedback_repository
 from .jable_page_lookup import JablePageLookupRecommender
-from .lazy_actor_mapping import recommendation_actor_mapping_learner
 from .repository import recommendation_snapshot_repository
 from .strategies import (
     RecommendationStrategy,
@@ -144,10 +143,6 @@ class RecommenderManager:
             strategy=strategy,
         )
         run = recommender.recommend(recommendation_request)
-        recommendation_actor_mapping_learner.sync_from_items(
-            jable=getattr(recommender, "jable", None),
-            items=run.items,
-        )
         filtered_history_count = sum(
             1
             for avid in recommendation_request.recently_recommended_avids

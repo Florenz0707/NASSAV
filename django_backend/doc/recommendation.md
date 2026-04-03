@@ -318,17 +318,19 @@ actor 种子还会自动提取别名，用于搜索回退时提升召回率。
 
 当前屏蔽能力主要面向“库中已有的演员 / 类别”。
 
-对于 actor，还额外有一条 lazy mapping 链路：
+对于 actor，还保留了一条基于推荐历史的 lazy mapping 链路：
 
-- 当某条推荐结果是由 actor seed 命中，但该 actor 尚无 Jable `model_slug` 映射
-- 推荐完成后会同时读取该 `avid` 的 JavBus 与 Jable 页面
+- 推荐接口本身不再实时写入映射，避免拖慢响应
+- 定时脚本会读取历史 `RecommendationItem`
+- 对最近推荐过的 `avid` 同时读取 JavBus 与 Jable 页面
 - 先从 JavBus 提取演员名，映射回本地 `Actor.name`
 - 再从 Jable 详情页解析 `div.models a.model`
 - 最后用 JavBus 演员名和 Jable `source_actor_name` 做对齐，自动补 `ActorSourceMapping`
 
 这意味着：
 
-- actor 的映射会随着推荐次数逐步补全
+- actor 的映射仍可随着推荐历史逐步补全
+- 但补全动作转移到了离线脚本 / 定时任务
 - 后续该 actor 更容易走 `model` 页召回
 - genre 当前不做类似的 lazy mapping
 
@@ -657,6 +659,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - 反馈 API 只支持 `dislike`
 - `accepted_count` 已有数据结构预留，但尚未通过 API 写入
 - genre 当前不做 lazy mapping
+- actor 的 lazy mapping 不在推荐请求内执行，而是交给离线脚本
 - 没有把 snapshot 当作结果缓存复用，每次请求仍会重新召回和计算
 
 ## 相关文件

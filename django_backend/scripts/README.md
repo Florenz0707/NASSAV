@@ -214,6 +214,28 @@ uv run python scripts/backfill_jable_actor_mappings.py --allow-single-fallback
 - 支持 dry-run 预览，不会修改数据库
 - 支持 `--skip-existing`，当 slug 已绑定到其他演员时直接跳过
 
+#### sync_recommendation_actor_mappings.py
+
+基于推荐历史中的 `RecommendationItem`，离线同步 Jable 演员映射
+
+```bash
+# 同步最近 100 个推荐结果
+uv run python scripts/sync_recommendation_actor_mappings.py
+
+# 仅同步最近 20 个推荐结果
+uv run python scripts/sync_recommendation_actor_mappings.py --limit 20
+
+# 输出详细日志
+uv run python scripts/sync_recommendation_actor_mappings.py --verbose
+```
+
+**功能说明**:
+
+- 从最近的推荐结果中提取去重后的 Jable `avid`
+- 对每个 `avid` 做 JavBus + Jable 双源对齐
+- 自动补写缺失的 `ActorSourceMapping`
+- 适合作为 cron / 定时任务执行，不阻塞推荐接口
+
 #### export_jable_home_tags.py
 
 抓取 Jable 首页中的标签和分类链接，并导出到本地临时 JSON 文件

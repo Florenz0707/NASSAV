@@ -1059,56 +1059,28 @@ def test_recommendations_endpoint_uses_actor_source_mapping_for_model_recall(
 
 
 @pytest.mark.django_db
-def test_recommendations_endpoint_lazy_learns_actor_source_mapping(
+def test_recommendations_endpoint_does_not_write_actor_mapping(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
-    from nassav.models import ActorSourceMapping
-    from nassav.scraper import Javbus
-    from nassav.source import Jable
-
     actor = actor_factory(name="めぐり（藤浦めぐ）")
-    seed_resource = resource_factory(avid="SEED-LAZY-001", original_title="Seed")
+    seed_resource = resource_factory(avid="SEED-LAZY-404", original_title="Seed")
     seed_resource.actors.add(actor)
+
+    from nassav.models import ActorSourceMapping
+    from nassav.source import Jable
 
     monkeypatch.setattr(
         Jable,
         "search",
         lambda self, keyword, page=1: [
             {
-                "avid": "REC-LAZY-001",
-                "title": "Lazy Mapping Hit",
-                "detail_url": "https://jable.tv/videos/rec-lazy-001/",
-                "cover_url": "https://img/rec-lazy-001.jpg",
+                "avid": "REC-LAZY-404",
+                "title": "Lazy Mapping 404",
+                "detail_url": "https://jable.tv/videos/rec-lazy-404/",
+                "cover_url": "https://img/rec-lazy-404.jpg",
                 "metrics": {"views": 100, "likes": 10},
             }
         ],
-    )
-    monkeypatch.setattr(
-        Javbus,
-        "get_html",
-        lambda self, avid: "<html></html>" if avid == "REC-LAZY-001" else None,
-    )
-    monkeypatch.setattr(
-        Javbus,
-        "parse_html",
-        lambda self, html, avid: (
-            {"actors": ["めぐり（藤浦めぐ）"]} if avid == "REC-LAZY-001" else None
-        ),
-    )
-    monkeypatch.setattr(
-        Jable,
-        "get_html",
-        lambda self, avid: (
-            """
-        <div class="models">
-            <a class="model" href="https://jable.tv/models/meguri-fujiura/">
-                <img data-original-title="藤浦めぐ">
-            </a>
-        </div>
-        """
-            if avid == "REC-LAZY-001"
-            else None
-        ),
     )
 
     response = api_client.get(
@@ -1117,13 +1089,13 @@ def test_recommendations_endpoint_lazy_learns_actor_source_mapping(
     )
 
     body = response.json()
+    assert response.status_code == 200
     assert body["code"] == 200
-    assert body["data"]["items"][0]["avid"] == "REC-LAZY-001"
-
-    mapping = ActorSourceMapping.objects.get(actor=actor, source_name="jable")
-    assert mapping.source_actor_name == "藤浦めぐ"
-    assert mapping.source_actor_slug == "meguri-fujiura"
-    assert mapping.match_method == "recommendation_lazy"
+    assert body["data"]["items"][0]["avid"] == "REC-LAZY-404"
+    assert not ActorSourceMapping.objects.filter(
+        actor=actor,
+        source_name="jable",
+    ).exists()
 
 
 @pytest.mark.django_db

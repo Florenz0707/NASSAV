@@ -1,3 +1,5 @@
+from loguru import logger
+
 from nassav.models import Actor, ActorSourceMapping
 from nassav.scraper import Javbus
 from nassav.source.jable_actor_mapping import (
@@ -11,13 +13,24 @@ from .entities import RecommendationCandidate
 
 class RecommendationActorMappingLearner:
     def sync_from_items(self, *, jable, items: list[RecommendationCandidate]) -> dict:
-        if jable is None or not items:
+        return self.sync_from_avids(
+            jable=jable,
+            avids=[
+                str(item.avid or "").strip().upper()
+                for item in items
+                if str(item.avid or "").strip()
+            ],
+        )
+
+    def sync_from_avids(self, *, jable, avids: list[str]) -> dict:
+        if jable is None or not avids:
             return {
                 "javbus_fetched": 0,
                 "jable_fetched": 0,
                 "saved": 0,
                 "unmatched": 0,
                 "conflict": 0,
+                "skipped_errors": 0,
             }
 
         javbus = Javbus(proxy=getattr(jable, "proxy", None), timeout=jable.timeout)
@@ -29,11 +42,12 @@ class RecommendationActorMappingLearner:
             "saved": 0,
             "unmatched": 0,
             "conflict": 0,
+            "skipped_errors": 0,
         }
         base_url = f"https://{jable.domain}/"
 
-        for item in items:
-            avid = str(item.avid or "").strip().upper()
+        for raw_avid in avids:
+            avid = str(raw_avid or "").strip().upper()
             if not avid:
                 continue
 
@@ -61,31 +75,64 @@ class RecommendationActorMappingLearner:
                 continue
 
             if avid not in jable_html_cache:
-                jable_html_cache[avid] = jable.get_html(avid)
-                stats["jable_fetched"] += 1
+                try:
+                    jable_html_cache[avid] = jable.get_html(avid)
+                except Exception as exc:
+                    logger.warning(
+                        f"[RecommendationActorMappingLearner] 跳过 {avid}: "
+                        f"Jable 抓取失败: {exc}"
+                    )
+                    jable_html_cache[avid] = None
+                    stats["skipped_errors"] += 1
+                else:
+                    stats["jable_fetched"] += 1
             jable_html = jable_html_cache.get(avid)
             if not jable_html:
                 continue
 
-            candidates = parse_jable_model_candidates(jable_html, base_url=base_url)
+            try:
+                candidates = parse_jable_model_candidates(jable_html, base_url=base_url)
+            except Exception as exc:
+                logger.warning(
+                    f"[RecommendationActorMappingLearner] 跳过 {avid}: "
+                    f"Jable models 解析失败: {exc}"
+                )
+                stats["skipped_errors"] += 1
+                continue
             if not candidates:
                 continue
 
             for actor in actors_needing_mapping:
-                candidate, confidence, _ = select_best_model_candidate(
-                    actor_name=actor.name,
-                    candidates=candidates,
-                )
+                try:
+                    candidate, confidence, _ = select_best_model_candidate(
+                        actor_name=actor.name,
+                        candidates=candidates,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[RecommendationActorMappingLearner] 跳过 "
+                        f"{avid}/{actor.name}: model 匹配失败: {exc}"
+                    )
+                    stats["skipped_errors"] += 1
+                    continue
                 if candidate is None:
                     stats["unmatched"] += 1
                     continue
 
-                ok, _ = persist_actor_source_mapping(
-                    actor=actor,
-                    candidate=candidate,
-                    confidence=confidence,
-                    match_method="recommendation_lazy",
-                )
+                try:
+                    ok, _ = persist_actor_source_mapping(
+                        actor=actor,
+                        candidate=candidate,
+                        confidence=confidence,
+                        match_method="recommendation_lazy",
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[RecommendationActorMappingLearner] 跳过 "
+                        f"{avid}/{actor.name}: mapping 持久化失败: {exc}"
+                    )
+                    stats["skipped_errors"] += 1
+                    continue
                 if ok:
                     stats["saved"] += 1
                 else:
@@ -101,12 +148,26 @@ class RecommendationActorMappingLearner:
         html_cache: dict[str, str | None],
     ) -> list[Actor] | None:
         if avid not in html_cache:
-            html_cache[avid] = javbus.get_html(avid)
+            try:
+                html_cache[avid] = javbus.get_html(avid)
+            except Exception as exc:
+                logger.warning(
+                    f"[RecommendationActorMappingLearner] 跳过 {avid}: "
+                    f"JavBus 抓取失败: {exc}"
+                )
+                html_cache[avid] = None
         html = html_cache.get(avid)
         if not html:
             return None
 
-        metadata = javbus.parse_html(html, avid)
+        try:
+            metadata = javbus.parse_html(html, avid)
+        except Exception as exc:
+            logger.warning(
+                f"[RecommendationActorMappingLearner] 跳过 {avid}: "
+                f"JavBus 解析失败: {exc}"
+            )
+            return None
         if not metadata:
             return None
 
