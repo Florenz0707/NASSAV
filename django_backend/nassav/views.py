@@ -157,6 +157,27 @@ def _parse_recommendation_feedback_payload(data) -> dict:
     }
 
 
+def _parse_recommendation_seed_block_payload(data) -> dict:
+    seed_type = str(data.get("seed_type", "")).strip().lower()
+    if seed_type not in {"actor", "genre"}:
+        raise ValueError("seed_type 仅支持 actor 或 genre")
+
+    entity_id = data.get("id")
+    try:
+        parsed_entity_id = int(entity_id)
+        if parsed_entity_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise ValueError("id 参数非法")
+
+    reason = str(data.get("reason", "")).strip() or "manual"
+    return {
+        "seed_type": seed_type,
+        "id": parsed_entity_id,
+        "reason": reason,
+    }
+
+
 class SourceListView(APIView):
     """
     GET /api/source/list
@@ -430,6 +451,9 @@ class ActorsListView(APIView):
         from django.db.models import Count
         from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
         from nassav.models import Actor
+        from nassav.recommendation.seed_profiles import (
+            recommendation_seed_profile_repository,
+        )
 
         # 获取参数
         page = int(request.query_params.get("page", 1))
@@ -470,6 +494,12 @@ class ActorsListView(APIView):
         # 分页
         paginator = Paginator(qs, page_size)
         page_obj = paginator.get_page(page)
+        blocked_names = (
+            recommendation_seed_profile_repository.get_blocked_normalized_values(
+                seed_type="actor",
+                values=[actor.name for actor in page_obj.object_list],
+            )
+        )
 
         data = [
             {
@@ -482,6 +512,10 @@ class ActorsListView(APIView):
                 "avatar_filename": a.avatar_filename
                 if a.avatar_url not in ACTOR_AVATAR_PLACEHOLDER_URLS
                 else None,
+                "is_blocked": (
+                    recommendation_seed_profile_repository.normalize_value(a.name)
+                    in blocked_names
+                ),
             }
             for a in page_obj.object_list
         ]
@@ -531,6 +565,9 @@ class GenresListView(APIView):
         from django.core.paginator import Paginator
         from django.db.models import Count
         from nassav.models import Genre
+        from nassav.recommendation.seed_profiles import (
+            recommendation_seed_profile_repository,
+        )
 
         # 获取参数
         page = int(request.query_params.get("page", 1))
@@ -571,12 +608,22 @@ class GenresListView(APIView):
         # 分页
         paginator = Paginator(qs, page_size)
         page_obj = paginator.get_page(page)
+        blocked_names = (
+            recommendation_seed_profile_repository.get_blocked_normalized_values(
+                seed_type="genre",
+                values=[genre.name for genre in page_obj.object_list],
+            )
+        )
 
         data = [
             {
                 "id": g.id,
                 "name": g.name,
                 "resource_count": getattr(g, "resource_count", 0),
+                "is_blocked": (
+                    recommendation_seed_profile_repository.normalize_value(g.name)
+                    in blocked_names
+                ),
             }
             for g in page_obj.object_list
         ]
@@ -675,6 +722,100 @@ class RecommendationFeedbackView(APIView):
                 ),
             },
         )
+
+
+class RecommendationSeedBlockView(APIView):
+    """POST/DELETE /api/recommendations/seed-block - 手动屏蔽或取消屏蔽 actor/genre"""
+
+    def post(self, request):
+        from nassav.models import Actor, Genre
+        from nassav.recommendation.seed_profiles import (
+            recommendation_seed_profile_repository,
+        )
+
+        try:
+            payload = _parse_recommendation_seed_block_payload(request.data or {})
+        except ValueError as e:
+            return build_response(400, str(e), None)
+
+        if payload["seed_type"] == "actor":
+            try:
+                actor = Actor.objects.get(pk=payload["id"])
+            except Actor.DoesNotExist:
+                return build_response(404, "演员不存在", None)
+            profile = recommendation_seed_profile_repository.block_actor(
+                actor=actor,
+                reason=payload["reason"],
+            )
+            data = {
+                "seed_type": "actor",
+                "id": actor.pk,
+                "name": actor.name,
+                "is_blocked": profile.is_blocked,
+                "block_reason": profile.block_reason,
+            }
+            return build_response(200, "success", data)
+
+        try:
+            genre = Genre.objects.get(pk=payload["id"])
+        except Genre.DoesNotExist:
+            return build_response(404, "类别不存在", None)
+        profile = recommendation_seed_profile_repository.block_genre(
+            genre=genre,
+            reason=payload["reason"],
+        )
+        data = {
+            "seed_type": "genre",
+            "id": genre.pk,
+            "name": genre.name,
+            "is_blocked": profile.is_blocked,
+            "block_reason": profile.block_reason,
+        }
+        return build_response(200, "success", data)
+
+    def delete(self, request):
+        from nassav.models import Actor, Genre
+        from nassav.recommendation.seed_profiles import (
+            recommendation_seed_profile_repository,
+        )
+
+        try:
+            payload = _parse_recommendation_seed_block_payload(request.data or {})
+        except ValueError as e:
+            return build_response(400, str(e), None)
+
+        if payload["seed_type"] == "actor":
+            try:
+                actor = Actor.objects.get(pk=payload["id"])
+            except Actor.DoesNotExist:
+                return build_response(404, "演员不存在", None)
+            profile = recommendation_seed_profile_repository.unblock_actor(actor=actor)
+            if profile is None:
+                return build_response(404, "演员屏蔽记录不存在", None)
+            data = {
+                "seed_type": "actor",
+                "id": actor.pk,
+                "name": actor.name,
+                "is_blocked": profile.is_blocked,
+                "block_reason": profile.block_reason,
+            }
+            return build_response(200, "success", data)
+
+        try:
+            genre = Genre.objects.get(pk=payload["id"])
+        except Genre.DoesNotExist:
+            return build_response(404, "类别不存在", None)
+        profile = recommendation_seed_profile_repository.unblock_genre(genre=genre)
+        if profile is None:
+            return build_response(404, "类别屏蔽记录不存在", None)
+        data = {
+            "seed_type": "genre",
+            "id": genre.pk,
+            "name": genre.name,
+            "is_blocked": profile.is_blocked,
+            "block_reason": profile.block_reason,
+        }
+        return build_response(200, "success", data)
 
 
 class RecommendationResetView(APIView):

@@ -478,6 +478,61 @@ def test_blocked_seed_profile_excludes_matching_seed_from_recommendation_pool(
 
 
 @pytest.mark.django_db
+def test_recommendation_seed_block_endpoint_blocks_and_unblocks_actor(
+    api_client, actor_factory
+):
+    actor = actor_factory(name="Alice")
+
+    block_response = api_client.post(
+        "/nassav/api/recommendations/seed-block",
+        {"seed_type": "actor", "id": actor.id, "reason": "manual"},
+        format="json",
+    )
+    assert block_response.status_code == 200
+    block_body = block_response.json()
+    assert block_body["code"] == 200
+    assert block_body["data"]["is_blocked"] is True
+
+    list_response = api_client.get("/nassav/api/actors/", {"id": actor.id})
+    list_body = list_response.json()
+    assert list_body["code"] == 200
+    assert list_body["data"][0]["is_blocked"] is True
+
+    unblock_response = api_client.delete(
+        "/nassav/api/recommendations/seed-block",
+        {"seed_type": "actor", "id": actor.id},
+        format="json",
+    )
+    assert unblock_response.status_code == 200
+    unblock_body = unblock_response.json()
+    assert unblock_body["data"]["is_blocked"] is False
+
+    refreshed_list_response = api_client.get("/nassav/api/actors/", {"id": actor.id})
+    refreshed_list_body = refreshed_list_response.json()
+    assert refreshed_list_body["data"][0]["is_blocked"] is False
+
+
+@pytest.mark.django_db
+def test_recommendation_seed_block_endpoint_blocks_genre(api_client, genre_factory):
+    genre = genre_factory(name="中文字幕")
+
+    response = api_client.post(
+        "/nassav/api/recommendations/seed-block",
+        {"seed_type": "genre", "id": genre.id, "reason": "manual"},
+        format="json",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["is_blocked"] is True
+
+    list_response = api_client.get("/nassav/api/genres/", {"id": genre.id})
+    list_body = list_response.json()
+    assert list_body["code"] == 200
+    assert list_body["data"][0]["is_blocked"] is True
+
+
+@pytest.mark.django_db
 def test_recommendations_endpoint_avoids_recent_snapshot_items_on_repeat_request(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
@@ -1001,6 +1056,74 @@ def test_recommendations_endpoint_uses_actor_source_mapping_for_model_recall(
     assert body["data"]["items"][0]["avid"] == "REC-902-MAP"
     assert captured_model_slugs == [("tsumugi-akari", 1, "video_viewed")]
     assert captured_keywords == []
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_lazy_learns_actor_source_mapping(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import ActorSourceMapping
+    from nassav.scraper import Javbus
+    from nassav.source import Jable
+
+    actor = actor_factory(name="めぐり（藤浦めぐ）")
+    seed_resource = resource_factory(avid="SEED-LAZY-001", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-LAZY-001",
+                "title": "Lazy Mapping Hit",
+                "detail_url": "https://jable.tv/videos/rec-lazy-001/",
+                "cover_url": "https://img/rec-lazy-001.jpg",
+                "metrics": {"views": 100, "likes": 10},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        Javbus,
+        "get_html",
+        lambda self, avid: "<html></html>" if avid == "REC-LAZY-001" else None,
+    )
+    monkeypatch.setattr(
+        Javbus,
+        "parse_html",
+        lambda self, html, avid: (
+            {"actors": ["めぐり（藤浦めぐ）"]} if avid == "REC-LAZY-001" else None
+        ),
+    )
+    monkeypatch.setattr(
+        Jable,
+        "get_html",
+        lambda self, avid: (
+            """
+        <div class="models">
+            <a class="model" href="https://jable.tv/models/meguri-fujiura/">
+                <img data-original-title="藤浦めぐ">
+            </a>
+        </div>
+        """
+            if avid == "REC-LAZY-001"
+            else None
+        ),
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {"limit": 1, "actor_seed_limit": 1, "genre_seed_limit": 0},
+    )
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["items"][0]["avid"] == "REC-LAZY-001"
+
+    mapping = ActorSourceMapping.objects.get(actor=actor, source_name="jable")
+    assert mapping.source_actor_name == "藤浦めぐ"
+    assert mapping.source_actor_slug == "meguri-fujiura"
+    assert mapping.match_method == "recommendation_lazy"
 
 
 @pytest.mark.django_db

@@ -109,7 +109,38 @@
 - `RecommendationAvidBlocklist`
 - `RecommendationSeedProfile`
 
-### 6. `GET /nassav/api/recommendations/cover`
+### 6. `POST /nassav/api/recommendations/seed-block`
+
+手动屏蔽库中已有的 actor / genre。
+
+请求体：
+
+```json
+{
+  "seed_type": "actor",
+  "id": 12,
+  "reason": "manual"
+}
+```
+
+当前支持：
+
+- `seed_type = actor`
+- `seed_type = genre`
+
+说明：
+
+- 这里只支持屏蔽数据库中已存在的 actor / genre
+- actor / genre 的屏蔽状态最终落在 `RecommendationSeedProfile.is_blocked`
+- 被屏蔽的 seed 在生成阶段直接被过滤，不会参与本轮推荐
+
+### 7. `DELETE /nassav/api/recommendations/seed-block`
+
+取消手动屏蔽。
+
+请求体与 `POST` 相同，只是不再需要 `reason`。
+
+### 8. `GET /nassav/api/recommendations/cover`
 
 代理并缓存推荐封面，避免前端直接访问受限站点资源。
 
@@ -127,6 +158,7 @@
 - 解析 query/body 参数
 - 调用 `recommender_manager`
 - 返回统一响应结构
+- 处理 actor / genre 的手动屏蔽写接口
 
 ### 2. Manager 层
 
@@ -284,7 +316,21 @@ actor 种子还会自动提取别名，用于搜索回退时提升召回率。
 - 且名称或 source 身份匹配
 - 则该 seed 不会进入本轮推荐
 
-这使得系统可以表达“屏蔽某个演员 / 类别”，即使它当前不在本地资源库里。
+当前屏蔽能力主要面向“库中已有的演员 / 类别”。
+
+对于 actor，还额外有一条 lazy mapping 链路：
+
+- 当某条推荐结果是由 actor seed 命中，但该 actor 尚无 Jable `model_slug` 映射
+- 推荐完成后会同时读取该 `avid` 的 JavBus 与 Jable 页面
+- 先从 JavBus 提取演员名，映射回本地 `Actor.name`
+- 再从 Jable 详情页解析 `div.models a.model`
+- 最后用 JavBus 演员名和 Jable `source_actor_name` 做对齐，自动补 `ActorSourceMapping`
+
+这意味着：
+
+- actor 的映射会随着推荐次数逐步补全
+- 后续该 actor 更容易走 `model` 页召回
+- genre 当前不做类似的 lazy mapping
 
 ## 候选召回机制
 
@@ -563,6 +609,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - 在保存推荐结果时累计 `recommended_count`
 - 在用户点 `dislike` 时累计 `disliked_count`
 - 在生成种子时过滤 `is_blocked=true` 的 seed
+- 在手动调用 block 接口时把库中已有 actor / genre 写入 `is_blocked=true`
 
 ### 7. Feedback
 
@@ -609,6 +656,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - API 不支持切换 recommender
 - 反馈 API 只支持 `dislike`
 - `accepted_count` 已有数据结构预留，但尚未通过 API 写入
+- genre 当前不做 lazy mapping
 - 没有把 snapshot 当作结果缓存复用，每次请求仍会重新召回和计算
 
 ## 相关文件

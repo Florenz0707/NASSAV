@@ -9,17 +9,20 @@
 4. 将结果持久化到 ActorSourceMapping
 
 使用方法：
-    uv run python scripts/backfill_jable_actor_mappings.py [--limit N] [--dry-run] [--verbose]
+    uv run python scripts/backfill_jable_actor_mappings.py [--limit N] [--dry-run] [--verbose] [--skip-existing] [--allow-single-fallback]
 
 选项：
-    --limit N       限制处理的演员数量（用于测试）
-    --dry-run       仅模拟运行，不实际写入数据库
-    --verbose       显示详细日志
+    --limit N                限制处理的演员数量（用于测试）
+    --dry-run                仅模拟运行，不实际写入数据库
+    --verbose                显示详细日志
+    --skip-existing          冲突时跳过，等价于 on conflict do nothing
+    --allow-single-fallback  仅解析到一个 model 时，允许按单候选回填
 """
 
 import argparse
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 
 import django
@@ -80,6 +83,39 @@ def build_target_actor_queryset():
     )
 
 
+def build_missing_mapping_report() -> dict[str, object]:
+    actors_missing_mapping = Actor.objects.exclude(
+        source_mappings__source_name="jable",
+        source_mappings__is_active=True,
+    ).distinct()
+
+    source_breakdown: Counter[str] = Counter()
+    missing_with_jable_resource = 0
+    missing_without_jable_resource = 0
+
+    for actor in actors_missing_mapping:
+        sources = {
+            str(source or "").strip()
+            for source in actor.resources.values_list("source", flat=True)
+            if str(source or "").strip()
+        }
+        if "Jable" in sources:
+            missing_with_jable_resource += 1
+        else:
+            missing_without_jable_resource += 1
+        for source in sorted(sources):
+            if source != "Jable":
+                source_breakdown[source] += 1
+
+    return {
+        "total_actor_count": Actor.objects.count(),
+        "actors_missing_mapping": actors_missing_mapping.count(),
+        "missing_with_jable_resource": missing_with_jable_resource,
+        "missing_without_jable_resource": missing_without_jable_resource,
+        "other_source_breakdown": dict(source_breakdown),
+    }
+
+
 def pick_jable_resource(actor: Actor) -> AVResource | None:
     return (
         actor.resources.filter(source__iexact="Jable")
@@ -94,15 +130,19 @@ def persist_mapping(
     candidate: JableModelCandidate,
     confidence: float,
     dry_run: bool,
+    skip_existing: bool,
 ) -> tuple[bool, str]:
     if dry_run:
         return True, "dry_run"
-    return persist_actor_source_mapping(
+    ok, result = persist_actor_source_mapping(
         actor=actor,
         candidate=candidate,
         confidence=confidence,
         match_method="imported",
     )
+    if not ok and skip_existing:
+        return True, "skip_existing"
+    return ok, result
 
 
 def backfill_jable_actor_mappings(
@@ -110,11 +150,14 @@ def backfill_jable_actor_mappings(
     limit: int | None = None,
     dry_run: bool = False,
     verbose: bool = False,
+    skip_existing: bool = False,
+    allow_single_fallback: bool = False,
 ) -> dict[str, int]:
     configure_logger(verbose)
 
     queryset = build_target_actor_queryset()
     total_candidates = queryset.count()
+    report = build_missing_mapping_report()
     if limit is not None and limit > 0:
         queryset = queryset[:limit]
 
@@ -122,9 +165,23 @@ def backfill_jable_actor_mappings(
     logger.info("=" * 60)
     logger.info("回填 Jable 演员映射")
     logger.info("=" * 60)
+    logger.info(
+        "演员覆盖概览: "
+        f"总演员={report['total_actor_count']}, "
+        f"缺少jable mapping={report['actors_missing_mapping']}, "
+        f"其中可由本脚本处理={report['missing_with_jable_resource']}, "
+        f"无Jable作品={report['missing_without_jable_resource']}"
+    )
+    other_source_breakdown = report["other_source_breakdown"]
+    if other_source_breakdown:
+        logger.info(f"缺少 mapping 的其他来源分布: {other_source_breakdown}")
     logger.info(f"待处理演员数: {len(actors)} / {total_candidates}")
     if dry_run:
         logger.warning("当前为 DRY-RUN 模式，不会实际写入数据库")
+    if skip_existing:
+        logger.warning("当前启用 skip-existing，冲突时将直接跳过")
+    if allow_single_fallback:
+        logger.warning("当前启用 allow-single-fallback，单候选也会尝试写入")
 
     jable = Jable(proxy=get_proxy())
     jable.load_cookie_from_db()
@@ -137,6 +194,7 @@ def backfill_jable_actor_mappings(
         "failed_fetch": 0,
         "no_models": 0,
         "ambiguous": 0,
+        "fallback_blocked": 0,
         "conflict": 0,
     }
 
@@ -190,16 +248,31 @@ def backfill_jable_actor_mappings(
             )
             stats["ambiguous"] += 1
             continue
+        if reason == "single_model_fallback" and not allow_single_fallback:
+            logger.warning(
+                "  跳过: 仅命中单候选 fallback，默认不自动绑定，"
+                f"候选={selected.source_actor_name}<{selected.source_actor_slug}>"
+            )
+            stats["fallback_blocked"] += 1
+            continue
 
         ok, result = persist_mapping(
             actor=actor,
             candidate=selected,
             confidence=confidence,
             dry_run=dry_run,
+            skip_existing=skip_existing,
         )
         if not ok:
             logger.warning(f"  跳过: {result}")
             stats["conflict"] += 1
+            continue
+        if result == "skip_existing":
+            logger.info(
+                "  [SKIP-EXISTING] 冲突已跳过: "
+                f"{selected.source_actor_name} <{selected.source_actor_slug}>"
+            )
+            stats["skipped"] += 1
             continue
 
         logger.info(
@@ -222,6 +295,7 @@ def backfill_jable_actor_mappings(
     logger.info(f"抓取失败: {stats['failed_fetch']}")
     logger.info(f"无models:  {stats['no_models']}")
     logger.info(f"歧义:     {stats['ambiguous']}")
+    logger.info(f"禁用回退: {stats['fallback_blocked']}")
     logger.info(f"冲突:     {stats['conflict']}")
 
     return stats
@@ -241,6 +315,12 @@ def main() -> None:
 
   # 开启详细日志
   uv run python scripts/backfill_jable_actor_mappings.py --verbose --limit 20
+
+  # 冲突时跳过
+  uv run python scripts/backfill_jable_actor_mappings.py --skip-existing
+
+  # 允许仅凭单候选 fallback 回填
+  uv run python scripts/backfill_jable_actor_mappings.py --allow-single-fallback
         """,
     )
     parser.add_argument("--limit", type=int, help="限制处理的演员数量（用于测试）")
@@ -248,6 +328,16 @@ def main() -> None:
         "--dry-run", action="store_true", help="仅模拟运行，不实际写入数据库"
     )
     parser.add_argument("--verbose", action="store_true", help="显示详细日志")
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="冲突时跳过，等价于 on conflict do nothing",
+    )
+    parser.add_argument(
+        "--allow-single-fallback",
+        action="store_true",
+        help="允许仅凭单候选 fallback 回填（默认关闭，避免误绑）",
+    )
 
     args = parser.parse_args()
 
@@ -256,6 +346,8 @@ def main() -> None:
             limit=args.limit,
             dry_run=args.dry_run,
             verbose=args.verbose,
+            skip_existing=args.skip_existing,
+            allow_single_fallback=args.allow_single_fallback,
         )
     except KeyboardInterrupt:
         logger.info("用户中断")

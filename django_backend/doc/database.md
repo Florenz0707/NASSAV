@@ -144,7 +144,7 @@
     - `(seed_type, normalized_value, source_name, source_identifier)` 唯一。
   - 用途：
     - 表达演员 / 类别级别的长期偏好画像
-    - 支持对库外演员 / 类别进行显式屏蔽
+    - 支持对库中已有演员 / 类别进行显式屏蔽
     - 为后续 actor / genre 级别的降权与统计提供基础
 
 - **`RecommendationFeedback` (`nassav_recommendation_feedback`)**: 推荐反馈表。

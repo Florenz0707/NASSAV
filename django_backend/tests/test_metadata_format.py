@@ -225,3 +225,61 @@ def test_save_to_database_syncs_jable_actor_mapping_from_html():
     )
     assert mapping.source_actor_name == "小宵こなん"
     assert mapping.source_actor_slug == "20d0c4a34eda32e442cc3ff532f568fd"
+
+
+@pytest.mark.django_db
+def test_save_all_resources_syncs_jable_actor_mapping_during_add_flow(monkeypatch):
+    from nassav.resource_service import ResourceService
+    from nassav.scraper import AVDownloadInfo
+    from nassav.scraper.ScraperManager import scraper_manager
+    from nassav.source.SourceManager import source_manager
+    from nassav.translator.TranslatorManager import translator_manager
+
+    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    mock_source = Mock()
+    mock_source.get_source_name.return_value = "Jable"
+    mock_source.domain = "jable.tv"
+
+    info = AVDownloadInfo(
+        avid="SSIS-076",
+        m3u8="https://example.com/test.m3u8",
+        source_title="SSIS-076 Demo",
+        source="Jable",
+    )
+    html = """
+    <div class="models">
+        <a class="model" href="https://jable.tv/models/20d0c4a34eda32e442cc3ff532f568fd/">
+            <span title="小宵こなん">小</span>
+        </a>
+    </div>
+    """
+    monkeypatch.setattr(
+        service,
+        "_scrape_metadata",
+        lambda avid: (
+            {
+                "title": "SSIS-076 Demo",
+                "actors": ["小宵こなん"],
+                "genres": [],
+            },
+            "Javbus",
+        ),
+    )
+
+    result = service._save_all_resources(
+        "SSIS-076",
+        info,
+        mock_source,
+        html,
+        scrape=True,
+        download_cover=False,
+        submit_translate=False,
+    )
+
+    assert result["resource"]["avid"] == "SSIS-076"
+    mapping = ActorSourceMapping.objects.get(
+        actor__name="小宵こなん",
+        source_name="jable",
+    )
+    assert mapping.source_actor_name == "小宵こなん"
+    assert mapping.source_actor_slug == "20d0c4a34eda32e442cc3ff532f568fd"

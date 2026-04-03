@@ -31,6 +31,12 @@ urlpatterns = [
         views.RecommendationFeedbackView.as_view(),
         name="recommendations-feedback",
     ),
+    # POST/DELETE /api/recommendations/seed-block - 手动屏蔽或取消屏蔽 actor/genre
+    path(
+        "api/recommendations/seed-block",
+        views.RecommendationSeedBlockView.as_view(),
+        name="recommendations-seed-block",
+    ),
     # POST /api/recommendations/reset - 清空推荐状态
     path(
         "api/recommendations/reset",

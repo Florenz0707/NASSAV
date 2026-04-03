@@ -693,9 +693,15 @@ class ResourceService:
         source_inst: SourceBase | None,
         html: str | None,
     ) -> None:
-        if source_inst is None or not html:
+        if not html:
             return
-        if source_inst.get_source_name().strip().lower() != "jable":
+
+        source_name = ""
+        if source_inst is not None:
+            source_name = str(source_inst.get_source_name() or "").strip().lower()
+        if not source_name:
+            source_name = str(resource.source or "").strip().lower()
+        if source_name != "jable":
             return
 
         actors = list(resource.actors.all())
@@ -703,12 +709,21 @@ class ResourceService:
             return
 
         domain = getattr(source_inst, "domain", "jable.tv") or "jable.tv"
-        sync_actor_source_mappings_from_jable_html(
+        stats = sync_actor_source_mappings_from_jable_html(
             actors=actors,
             html=html,
             base_url=f"https://{domain}/",
             match_method="imported",
         )
+        if any(
+            int(stats.get(key, 0)) > 0 for key in ("saved", "unmatched", "conflict")
+        ):
+            logger.info(
+                "[ResourceService] Jable 演员映射同步完成: "
+                f"saved={stats.get('saved', 0)}, "
+                f"unmatched={stats.get('unmatched', 0)}, "
+                f"conflict={stats.get('conflict', 0)}"
+            )
 
     def _download_avatars(self, scraped_data: dict):
         """

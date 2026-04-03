@@ -196,14 +196,23 @@ uv run python scripts/backfill_jable_actor_mappings.py
 
 # 开启详细日志
 uv run python scripts/backfill_jable_actor_mappings.py --verbose --limit 20
+
+# 冲突时跳过（on conflict do nothing）
+uv run python scripts/backfill_jable_actor_mappings.py --skip-existing
+
+# 允许仅凭单候选 fallback 回填
+uv run python scripts/backfill_jable_actor_mappings.py --allow-single-fallback
 ```
 
 **功能说明**:
 
 - 默认只处理已有 Jable 作品、且尚未建立 Jable mapping 的演员
+- 启动时会打印缺口概览，区分“可由本脚本处理”和“没有 Jable 作品因而无法处理”
 - 从作品页 `.models a.model` 解析 `source_actor_name` 和 `source_actor_slug`
 - 通过本地演员名及括号别名匹配正确的 Jable model
+- 默认不会因为“页面上只有一个 model”就盲目落库；如确需这样做，可显式传 `--allow-single-fallback`
 - 支持 dry-run 预览，不会修改数据库
+- 支持 `--skip-existing`，当 slug 已绑定到其他演员时直接跳过
 
 #### export_jable_home_tags.py
 

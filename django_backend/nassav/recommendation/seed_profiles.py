@@ -4,12 +4,35 @@ from collections.abc import Iterable
 from django.db.models import F
 from django.utils import timezone
 
+from nassav.models import Actor, Genre
 from nassav.models import RecommendationItem, RecommendationSeedProfile
 
 from .entities import RecommendationSeed
 
 
 class RecommendationSeedProfileRepository:
+    def get_blocked_normalized_values(
+        self,
+        *,
+        seed_type: str,
+        values: Iterable[str],
+    ) -> set[str]:
+        normalized_values = {
+            self.normalize_value(value)
+            for value in values
+            if self.normalize_value(value)
+        }
+        if not normalized_values:
+            return set()
+
+        return set(
+            RecommendationSeedProfile.objects.filter(
+                seed_type=str(seed_type or "").strip().lower(),
+                is_blocked=True,
+                normalized_value__in=normalized_values,
+            ).values_list("normalized_value", flat=True)
+        )
+
     def filter_allowed_seeds(
         self,
         seeds: list[RecommendationSeed],
@@ -145,6 +168,42 @@ class RecommendationSeedProfileRepository:
             )
         return output
 
+    def block_actor(
+        self,
+        *,
+        actor: Actor,
+        reason: str = "manual",
+    ) -> RecommendationSeedProfile:
+        return self._set_manual_block(
+            seed_type="actor",
+            value=actor.name,
+            reason=reason,
+        )
+
+    def unblock_actor(self, *, actor: Actor) -> RecommendationSeedProfile | None:
+        return self._clear_manual_block(
+            seed_type="actor",
+            value=actor.name,
+        )
+
+    def block_genre(
+        self,
+        *,
+        genre: Genre,
+        reason: str = "manual",
+    ) -> RecommendationSeedProfile:
+        return self._set_manual_block(
+            seed_type="genre",
+            value=genre.name,
+            reason=reason,
+        )
+
+    def unblock_genre(self, *, genre: Genre) -> RecommendationSeedProfile | None:
+        return self._clear_manual_block(
+            seed_type="genre",
+            value=genre.name,
+        )
+
     def increment_dislike_counts_for_item(self, item: RecommendationItem) -> None:
         seen_profiles: set[tuple[str, str, str, str]] = set()
         seed_rows = getattr(item, "item_seeds").all()
@@ -204,6 +263,54 @@ class RecommendationSeedProfileRepository:
     @staticmethod
     def normalize_value(value: str) -> str:
         return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+    def _set_manual_block(
+        self,
+        *,
+        seed_type: str,
+        value: str,
+        reason: str,
+    ) -> RecommendationSeedProfile:
+        normalized_value = self.normalize_value(value)
+        profile, _ = RecommendationSeedProfile.objects.get_or_create(
+            seed_type=seed_type,
+            normalized_value=normalized_value,
+            source_name="",
+            source_identifier="",
+            defaults={
+                "value": str(value or "").strip(),
+            },
+        )
+        profile.value = profile.value or str(value or "").strip()
+        profile.is_blocked = True
+        profile.block_reason = str(reason or "").strip() or "manual"
+        profile.save()
+        return profile
+
+    def _clear_manual_block(
+        self,
+        *,
+        seed_type: str,
+        value: str,
+    ) -> RecommendationSeedProfile | None:
+        normalized_value = self.normalize_value(value)
+        profile = (
+            RecommendationSeedProfile.objects.filter(
+                seed_type=seed_type,
+                normalized_value=normalized_value,
+                source_name="",
+                source_identifier="",
+            )
+            .order_by("id")
+            .first()
+        )
+        if profile is None:
+            return None
+
+        profile.is_blocked = False
+        profile.block_reason = ""
+        profile.save()
+        return profile
 
 
 recommendation_seed_profile_repository = RecommendationSeedProfileRepository()

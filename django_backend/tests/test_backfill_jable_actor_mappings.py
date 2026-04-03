@@ -146,3 +146,111 @@ def test_backfill_jable_actor_mappings_dry_run_does_not_persist(
     assert not ActorSourceMapping.objects.filter(
         actor=actor, source_name="jable"
     ).exists()
+
+
+@pytest.mark.django_db
+def test_backfill_jable_actor_mappings_skip_existing_treats_conflict_as_skip(
+    monkeypatch, actor_factory, resource_factory
+):
+    module = load_script_module()
+
+    actor = actor_factory(name="明里つむぎ")
+    other_actor = actor_factory(name="其他演员")
+    resource = resource_factory(avid="JAB-003", original_title="Demo", source="Jable")
+    resource.actors.add(actor)
+    ActorSourceMapping.objects.create(
+        actor=other_actor,
+        source_name="jable",
+        source_actor_name="明里つむぎ",
+        source_actor_slug="tsumugi-akari",
+        is_verified=True,
+    )
+
+    html = """
+    <div class="models">
+        <a class="model" href="https://jable.tv/models/tsumugi-akari/">
+            <img data-original-title="明里つむぎ">
+        </a>
+    </div>
+    """
+
+    monkeypatch.setattr(module.Jable, "load_cookie_from_db", lambda self: False)
+    monkeypatch.setattr(module.Jable, "get_html", lambda self, avid: html)
+
+    stats = module.backfill_jable_actor_mappings(
+        dry_run=False,
+        verbose=False,
+        skip_existing=True,
+    )
+
+    assert stats["saved"] == 0
+    assert stats["conflict"] == 0
+    assert stats["skipped"] >= 1
+    assert not ActorSourceMapping.objects.filter(
+        actor=actor,
+        source_name="jable",
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_backfill_jable_actor_mappings_blocks_single_candidate_fallback_by_default(
+    monkeypatch, actor_factory, resource_factory
+):
+    module = load_script_module()
+
+    actor = actor_factory(name="愛里るい")
+    resource = resource_factory(avid="JAB-004", original_title="Demo", source="Jable")
+    resource.actors.add(actor)
+
+    html = """
+    <div class="models">
+        <a class="model" href="https://jable.tv/models/tsumugi-akari/">
+            <img data-original-title="明里つむぎ">
+        </a>
+    </div>
+    """
+
+    monkeypatch.setattr(module.Jable, "load_cookie_from_db", lambda self: False)
+    monkeypatch.setattr(module.Jable, "get_html", lambda self, avid: html)
+
+    stats = module.backfill_jable_actor_mappings(dry_run=False, verbose=False)
+
+    assert stats["saved"] == 0
+    assert stats["fallback_blocked"] == 1
+    assert not ActorSourceMapping.objects.filter(
+        actor=actor,
+        source_name="jable",
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_backfill_jable_actor_mappings_allows_single_candidate_fallback_when_enabled(
+    monkeypatch, actor_factory, resource_factory
+):
+    module = load_script_module()
+
+    actor = actor_factory(name="愛里るい")
+    resource = resource_factory(avid="JAB-005", original_title="Demo", source="Jable")
+    resource.actors.add(actor)
+
+    html = """
+    <div class="models">
+        <a class="model" href="https://jable.tv/models/tsumugi-akari/">
+            <img data-original-title="明里つむぎ">
+        </a>
+    </div>
+    """
+
+    monkeypatch.setattr(module.Jable, "load_cookie_from_db", lambda self: False)
+    monkeypatch.setattr(module.Jable, "get_html", lambda self, avid: html)
+
+    stats = module.backfill_jable_actor_mappings(
+        dry_run=False,
+        verbose=False,
+        allow_single_fallback=True,
+    )
+
+    mapping = ActorSourceMapping.objects.get(actor=actor, source_name="jable")
+    assert stats["saved"] == 1
+    assert stats["fallback_blocked"] == 0
+    assert mapping.source_actor_slug == "tsumugi-akari"
