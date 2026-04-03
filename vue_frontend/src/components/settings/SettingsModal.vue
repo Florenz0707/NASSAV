@@ -34,7 +34,10 @@ const emit = defineEmits(['close'])
         class="p-6 flex justify-between items-center"
         style="border-bottom: 1px solid var(--border-color)"
       >
-        <h3 class="text-xl font-bold text-[var(--text-primary)]">{{ title }}</h3>
+        <div class="settings-modal-header-main">
+          <h3 class="text-xl font-bold text-[var(--text-primary)]">{{ title }}</h3>
+          <slot name="header-extra" />
+        </div>
         <button v-if="showClose" class="settings-modal-close-btn" @click="emit('close')">✕</button>
       </div>
 
@@ -50,6 +53,15 @@ const emit = defineEmits(['close'])
 </template>
 
 <style scoped>
+.settings-modal-header-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .settings-modal-close-btn {
   display: inline-flex;
   min-width: 2.35rem;

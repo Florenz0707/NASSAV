@@ -5,7 +5,8 @@ import CustomSelect from '../components/CustomSelect.vue'
 import RecommendationCard from '../components/RecommendationCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
-import { recommendationApi } from '../api'
+import SettingsModal from '../components/settings/SettingsModal.vue'
+import { actorApi, genreApi, recommendationApi } from '../api'
 import { useResourceStore } from '../stores/resource'
 import { useSettingsStore } from '../stores/settings'
 import { useToastStore } from '../stores/toast'
@@ -36,7 +37,21 @@ const lastLoadedConfigKey = ref('')
 const activeReasonAvid = ref('')
 const activeReasonPopoverStyle = ref({})
 const activeReasonAnchor = ref(null)
+const showPersonalizationModal = ref(false)
+const blacklistSeedType = ref('actor')
+const blacklistSearch = ref('')
+const blacklistBlockedOnly = ref(true)
+const blacklistLoading = ref(false)
+const blacklistItems = ref([])
+const blacklistPagination = ref(null)
+const blacklistSubmittingKey = ref('')
 const RECOMMENDATIONS_STATE_KEY = 'nassav:recommendations:view-state'
+const blacklistCache = new Map()
+const blacklistTabs = [
+  { value: 'actor', label: '演员黑名单' },
+  { value: 'genre', label: '类别黑名单' },
+  { value: 'resource', label: '资源黑名单' },
+]
 
 const seedGroups = computed(() => {
   const groups = { actor: [], genre: [] }
@@ -56,6 +71,11 @@ const activeReasonItem = computed(() => {
   return visibleItems.value.find((item) => item.avid === activeReasonAvid.value) || null
 })
 const showInitialLoading = computed(() => loading.value && !visibleItems.value.length)
+const normalizedBlacklistSearch = computed(() =>
+  blacklistSeedType.value === 'resource'
+    ? blacklistSearch.value.trim().toUpperCase()
+    : blacklistSearch.value.trim()
+)
 const recommendationActionLabel = computed(() => {
   if (visibleItems.value.length && lastLoadedConfigKey.value !== buildConfigKey()) {
     return '重新推荐'
@@ -184,6 +204,169 @@ function clearPageRecommendations() {
   lastLoadedConfigKey.value = ''
   feedbackByAvid.value = {}
   closeReasonPanel()
+}
+
+function openPersonalizationModal() {
+  showPersonalizationModal.value = true
+}
+
+function closePersonalizationModal() {
+  showPersonalizationModal.value = false
+}
+
+function buildBlacklistCacheKey() {
+  return JSON.stringify({
+    type: blacklistSeedType.value,
+    search: normalizedBlacklistSearch.value,
+    blockedOnly: blacklistSeedType.value === 'resource' ? true : blacklistBlockedOnly.value,
+  })
+}
+
+function invalidateBlacklistCache(seedType = '') {
+  const keys = Array.from(blacklistCache.keys())
+  for (const key of keys) {
+    if (!seedType || key.includes(`"type":"${seedType}"`)) {
+      blacklistCache.delete(key)
+    }
+  }
+}
+
+async function loadBlacklistItems() {
+  const cacheKey = buildBlacklistCacheKey()
+  const cached = blacklistCache.get(cacheKey)
+  if (cached) {
+    blacklistItems.value = cached.items
+    blacklistPagination.value = cached.pagination
+    return
+  }
+
+  blacklistLoading.value = true
+  try {
+    let response = null
+    let list = []
+    let pagination = null
+
+    if (blacklistSeedType.value === 'actor' || blacklistSeedType.value === 'genre') {
+      const params = {
+        page: 1,
+        page_size: 200,
+        order_by: blacklistBlockedOnly.value ? 'name' : 'count',
+        order: blacklistBlockedOnly.value ? 'asc' : 'desc',
+      }
+      if (normalizedBlacklistSearch.value) {
+        params.search = normalizedBlacklistSearch.value
+      }
+
+      response =
+        blacklistSeedType.value === 'actor'
+          ? await actorApi.getList(params)
+          : await genreApi.getList(params)
+      list = Array.isArray(response.data) ? response.data : []
+      list = blacklistBlockedOnly.value ? list.filter((item) => item.is_blocked) : list
+      pagination = response.pagination || null
+    } else {
+      const params = { page: 1, page_size: 200 }
+      if (normalizedBlacklistSearch.value) {
+        params.search = normalizedBlacklistSearch.value
+      }
+      response = await recommendationApi.getAvidBlocklist(params)
+      list = Array.isArray(response.data) ? response.data : []
+      pagination = response.pagination || null
+    }
+
+    blacklistItems.value = list
+    blacklistPagination.value = pagination
+    blacklistCache.set(cacheKey, {
+      items: list.map((item) => ({ ...item })),
+      pagination: pagination ? { ...pagination } : null,
+    })
+  } catch (err) {
+    toastStore.error(err.message || '加载黑名单列表失败')
+    blacklistItems.value = []
+    blacklistPagination.value = null
+  } finally {
+    blacklistLoading.value = false
+  }
+}
+
+async function toggleSeedBlocked(item) {
+  const itemKey =
+    blacklistSeedType.value === 'resource'
+      ? `${blacklistSeedType.value}:${item?.avid || ''}`
+      : `${blacklistSeedType.value}:${item?.id || ''}`
+  if (!itemKey || itemKey.endsWith(':')) return
+  const submitKey = itemKey
+  if (blacklistSubmittingKey.value === submitKey) return
+
+  blacklistSubmittingKey.value = submitKey
+  try {
+    if (blacklistSeedType.value === 'resource') {
+      if (item.is_blocked) {
+        await recommendationApi.unblockAvid({ avid: item.avid })
+        toastStore.success(`已移除资源 ${item.avid} 的屏蔽`)
+      } else {
+        await recommendationApi.blockAvid({ avid: item.avid, reason: 'manual' })
+        toastStore.success(`已将资源 ${item.avid} 加入黑名单`)
+      }
+    } else {
+      if (item.is_blocked) {
+        await recommendationApi.unblockSeed({
+          seed_type: blacklistSeedType.value,
+          id: item.id,
+        })
+        toastStore.success(`已移除${blacklistSeedType.value === 'actor' ? '演员' : '类别'}屏蔽`)
+      } else {
+        await recommendationApi.blockSeed({
+          seed_type: blacklistSeedType.value,
+          id: item.id,
+          reason: 'manual',
+        })
+        toastStore.success(`已加入${blacklistSeedType.value === 'actor' ? '演员' : '类别'}屏蔽`)
+      }
+    }
+
+    invalidateBlacklistCache(blacklistSeedType.value)
+    blacklistItems.value = blacklistItems.value
+      .map((entry) =>
+        (blacklistSeedType.value === 'resource' ? entry.avid === item.avid : entry.id === item.id)
+          ? {
+              ...entry,
+              is_blocked: !item.is_blocked,
+            }
+          : entry
+      )
+      .filter(
+        (entry) =>
+          !(
+            blacklistSeedType.value !== 'resource' &&
+            blacklistBlockedOnly.value &&
+            !entry.is_blocked
+          )
+      )
+  } catch (err) {
+    toastStore.error(err.message || '更新屏蔽状态失败')
+  } finally {
+    blacklistSubmittingKey.value = ''
+  }
+}
+
+async function addResourceBlacklist() {
+  const avid = normalizedBlacklistSearch.value
+  if (!avid) return
+  const submitKey = `resource:${avid}`
+  if (blacklistSubmittingKey.value === submitKey) return
+
+  blacklistSubmittingKey.value = submitKey
+  try {
+    await recommendationApi.blockAvid({ avid, reason: 'manual' })
+    toastStore.success(`已将资源 ${avid} 加入黑名单`)
+    invalidateBlacklistCache('resource')
+    await loadBlacklistItems()
+  } catch (err) {
+    toastStore.error(err.message || '添加资源黑名单失败')
+  } finally {
+    blacklistSubmittingKey.value = ''
+  }
 }
 
 function closeReasonPanel() {
@@ -352,6 +535,7 @@ async function handleFeedback(item, feedbackType) {
       ...feedbackByAvid.value,
       [item.avid]: savedFeedback,
     }
+    invalidateBlacklistCache('resource')
     toastStore.success(`${item.avid} 已加入不喜欢黑名单`)
   } catch (err) {
     toastStore.error(err.message || '提交推荐反馈失败')
@@ -365,6 +549,7 @@ async function handleFeedback(item, feedbackType) {
 function handleResetRecommendations() {
   error.value = ''
   clearPageRecommendations()
+  invalidateBlacklistCache()
   window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
   toastStore.success('当前推荐列表已清空')
 }
@@ -381,6 +566,10 @@ function handleView(item) {
 
 function handleGlobalKeydown(event) {
   if (event.key === 'Escape') {
+    if (showPersonalizationModal.value) {
+      closePersonalizationModal()
+      return
+    }
     closeReasonPanel()
   }
 }
@@ -415,6 +604,26 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleViewportResize)
   window.removeEventListener('keydown', handleGlobalKeydown)
 })
+
+watch(showPersonalizationModal, (visible) => {
+  if (visible) {
+    loadBlacklistItems()
+  }
+})
+
+watch([blacklistSeedType, blacklistBlockedOnly], () => {
+  if (blacklistSeedType.value === 'resource' && !blacklistBlockedOnly.value) {
+    blacklistBlockedOnly.value = true
+    return
+  }
+  if (!showPersonalizationModal.value) return
+  loadBlacklistItems()
+})
+
+watch(blacklistSearch, () => {
+  if (!showPersonalizationModal.value) return
+  loadBlacklistItems()
+})
 </script>
 
 <template>
@@ -427,19 +636,22 @@ onBeforeUnmount(() => {
 
       <div class="header-actions">
         <button
-          class="tw-btn-outline-muted rec-reset-btn"
-          :disabled="loading"
-          @click="handleResetRecommendations"
-        >
-          清空推荐列表
-        </button>
-        <button
-          class="tw-btn-accent rec-primary-btn"
+          class="rec-action-btn rec-action-btn-primary"
           :disabled="loading"
           @click="loadRecommendations"
         >
           <LoadingSpinner v-if="loading" size="small" />
           <template v-else>{{ recommendationActionLabel }}</template>
+        </button>
+        <button class="rec-action-btn rec-action-btn-secondary" @click="openPersonalizationModal">
+          个性化
+        </button>
+        <button
+          class="rec-action-btn rec-action-btn-muted"
+          :disabled="loading"
+          @click="handleResetRecommendations"
+        >
+          清空页面
         </button>
       </div>
     </section>
@@ -583,7 +795,11 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="results-footer">
-          <button class="tw-btn-footer" :disabled="loading" @click="loadRecommendations">
+          <button
+            class="tw-btn-footer rec-footer-btn"
+            :disabled="loading"
+            @click="loadRecommendations"
+          >
             <LoadingSpinner v-if="loading" size="small" />
             <template v-else> 继续推荐 </template>
           </button>
@@ -628,6 +844,147 @@ onBeforeUnmount(() => {
         </div>
       </aside>
     </transition>
+
+    <SettingsModal
+      :show="showPersonalizationModal"
+      title="个性化"
+      max-width-class="max-w-4xl"
+      @close="closePersonalizationModal"
+    >
+      <template #header-extra>
+        <div class="blacklist-tabs header-tabs">
+          <button
+            v-for="tab in blacklistTabs"
+            :key="tab.value"
+            class="blacklist-tab"
+            :class="{ active: blacklistSeedType === tab.value }"
+            @click="blacklistSeedType = tab.value"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+      </template>
+
+      <div class="blacklist-modal">
+        <div class="blacklist-toolbar">
+          <label class="blacklist-search">
+            <span class="blacklist-search-label"></span>
+            <input
+              v-model.trim="blacklistSearch"
+              type="text"
+              :placeholder="
+                blacklistSeedType === 'actor'
+                  ? '搜索演员名'
+                  : blacklistSeedType === 'genre'
+                    ? '搜索类别名'
+                    : '输入 AVID，例如 IPZZ-001'
+              "
+            />
+          </label>
+
+          <label class="pretty-toggle" :class="{ disabled: blacklistSeedType === 'resource' }">
+            <input
+              v-model="blacklistBlockedOnly"
+              type="checkbox"
+              :disabled="blacklistSeedType === 'resource'"
+            />
+            <span class="pretty-toggle-track">
+              <span class="pretty-toggle-thumb" />
+            </span>
+            <span class="pretty-toggle-label">仅看已屏蔽</span>
+          </label>
+        </div>
+
+        <div
+          v-if="blacklistSeedType === 'resource' && normalizedBlacklistSearch"
+          class="blacklist-add-strip"
+        >
+          <div class="blacklist-add-copy">
+            <strong>{{ normalizedBlacklistSearch }}</strong>
+            <span>将当前 AVID 直接加入资源黑名单</span>
+          </div>
+          <button
+            class="blacklist-action-btn is-block"
+            :disabled="blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}`"
+            @click="addResourceBlacklist"
+          >
+            {{
+              blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}`
+                ? '...'
+                : '添加资源'
+            }}
+          </button>
+        </div>
+
+        <div class="blacklist-summary">
+          <span>
+            当前类型：
+            {{
+              blacklistSeedType === 'actor'
+                ? '演员'
+                : blacklistSeedType === 'genre'
+                  ? '类别'
+                  : '资源'
+            }}
+          </span>
+          <span v-if="blacklistPagination">
+            {{ blacklistSeedType === 'resource' ? '屏蔽条目' : '总条目' }}
+            {{ blacklistPagination.total }}
+          </span>
+          <span>当前展示 {{ blacklistItems.length }}</span>
+        </div>
+
+        <div v-if="blacklistLoading" class="blacklist-loading">
+          <LoadingSpinner size="medium" text="正在读取..." />
+        </div>
+
+        <div v-else-if="!blacklistItems.length" class="blacklist-empty">
+          {{ blacklistBlockedOnly ? '当前没有已屏蔽项。' : '没有匹配到可操作的条目。' }}
+        </div>
+
+        <div v-else class="blacklist-list">
+          <div
+            v-for="item in blacklistItems"
+            :key="`${blacklistSeedType}-${item.avid || item.id}`"
+            class="blacklist-row"
+          >
+            <div class="blacklist-main">
+              <div class="blacklist-name">
+                {{ item.name || item.title || item.avid }} （{{
+                  blacklistSeedType === 'resource' ? '' : `${item.resource_count ?? 0}个资源`
+                }}
+                {{ `${item.is_blocked ? '已屏蔽' : '未屏蔽'}` }}）
+              </div>
+            </div>
+
+            <button
+              class="blacklist-action-btn"
+              :class="item.is_blocked ? 'is-unblock' : 'is-block'"
+              :disabled="
+                blacklistSubmittingKey ===
+                `${blacklistSeedType}:${blacklistSeedType === 'resource' ? item.avid : item.id}`
+              "
+              @click="toggleSeedBlocked(item)"
+            >
+              {{
+                blacklistSubmittingKey ===
+                `${blacklistSeedType}:${blacklistSeedType === 'resource' ? item.avid : item.id}`
+                  ? '...'
+                  : item.is_blocked
+                    ? '取消'
+                    : '屏蔽'
+              }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="blacklist-footer">
+          <button class="tw-btn-outline-muted" @click="closePersonalizationModal">关闭</button>
+        </div>
+      </template>
+    </SettingsModal>
   </div>
 </template>
 
@@ -685,10 +1042,57 @@ onBeforeUnmount(() => {
 .header-actions {
   display: inline-flex;
   gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .rec-primary-btn {
   border-radius: 0.95rem;
+}
+
+.rec-action-btn {
+  display: inline-flex;
+  min-height: 2.9rem;
+  min-width: 7.8rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.95rem;
+  border: 1px solid transparent;
+  padding: 0 1rem;
+  font-weight: 700;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.rec-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.rec-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.rec-action-btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+  box-shadow: 0 10px 22px rgba(255, 107, 107, 0.22);
+}
+
+.rec-action-btn-secondary {
+  color: #fff7ef;
+  background: var(--accent-danger);
+  box-shadow: 0 10px 22px rgba(255, 159, 67, 0.2);
+}
+
+.rec-action-btn-muted {
+  color: var(--text-secondary);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .meta-strip,
@@ -989,6 +1393,16 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
+.rec-footer-btn {
+  border-width: 1.5px;
+  border-color: rgba(255, 107, 107, 0.32);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 107, 107, 0.12), rgba(255, 107, 107, 0.05)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: 0 12px 28px rgba(255, 107, 107, 0.12);
+}
+
 .scroll-top-btn {
   position: fixed;
   right: 2rem;
@@ -1109,6 +1523,253 @@ onBeforeUnmount(() => {
   line-height: 1.4;
 }
 
+.blacklist-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.blacklist-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: left;
+  gap: 1rem;
+}
+
+.blacklist-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.blacklist-tab {
+  min-height: 2.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 60px;
+  padding: 0 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 400;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.blacklist-tab.active {
+  border-color: rgba(255, 159, 67, 0.32);
+  background: rgba(255, 159, 67, 0.12);
+  color: #fff7ef;
+}
+
+.header-tabs {
+  margin-left: 0.5rem;
+}
+
+.blacklist-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  margin: left -0.5rem;
+}
+
+.blacklist-search-label {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.blacklist-search input {
+  min-height: 2.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0 0.9rem;
+  color: var(--text-primary);
+}
+
+.pretty-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pretty-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pretty-toggle-track {
+  position: relative;
+  display: inline-flex;
+  width: 2.7rem;
+  height: 1.2rem;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.pretty-toggle-thumb {
+  position: absolute;
+  left: 0.2rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: #fff7ef;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.pretty-toggle input:checked + .pretty-toggle-track {
+  border-color: rgba(255, 159, 67, 0.28);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-danger));
+}
+
+.pretty-toggle input:checked + .pretty-toggle-track .pretty-toggle-thumb {
+  transform: translateX(1.1rem);
+}
+
+.pretty-toggle.disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.pretty-toggle-label {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.blacklist-add-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(255, 159, 67, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 159, 67, 0.06);
+  padding: 0.9rem 1rem;
+}
+
+.blacklist-add-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.18rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.blacklist-add-copy strong {
+  color: var(--text-primary);
+  font-size: 0.96rem;
+}
+
+.blacklist-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.blacklist-loading,
+.blacklist-empty {
+  display: flex;
+  min-height: 13rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+}
+
+.blacklist-list {
+  display: flex;
+  max-height: min(56vh, 38rem);
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.blacklist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.95rem 1rem;
+}
+
+.blacklist-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.blacklist-name {
+  color: var(--text-primary);
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.blacklist-action-btn {
+  min-width: 5.5rem;
+  min-height: 1.5rem;
+  border-radius: 0.9rem;
+  padding: 0.5rem 2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.blacklist-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.blacklist-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.blacklist-action-btn.is-block {
+  border: none;
+  background: var(--accent-primary);
+  color: #fff7ef;
+}
+
+.blacklist-action-btn.is-unblock {
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--accent-danger);
+}
+
+.blacklist-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .reason-panel-fade-enter-active,
 .reason-panel-fade-leave-active {
   transition: all 0.22s ease;
@@ -1132,14 +1793,13 @@ onBeforeUnmount(() => {
     align-items: stretch;
   }
 
-  .rec-primary-btn {
+  .header-actions {
     width: 100%;
   }
 
-  .header-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr;
+  .rec-action-btn {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .scroll-top-btn {
@@ -1155,6 +1815,25 @@ onBeforeUnmount(() => {
   .reason-floating-panel {
     top: auto;
     max-height: min(70vh, 34rem);
+  }
+
+  .blacklist-toolbar,
+  .blacklist-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .blacklist-search {
+    width: 100%;
+  }
+
+  .blacklist-action-btn,
+  .blacklist-add-strip {
+    width: 100%;
+  }
+
+  .header-tabs {
+    margin-left: 0;
   }
 }
 

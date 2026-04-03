@@ -533,6 +533,49 @@ def test_recommendation_seed_block_endpoint_blocks_genre(api_client, genre_facto
 
 
 @pytest.mark.django_db
+def test_recommendation_avid_blocklist_endpoint_lists_adds_and_removes(
+    api_client, resource_factory
+):
+    resource = resource_factory(
+        avid="ABC-123",
+        original_title="Blocked Resource",
+        source="Jable",
+    )
+
+    create_response = api_client.post(
+        "/nassav/api/recommendations/avid-blocklist",
+        {"avid": resource.avid, "reason": "manual"},
+        format="json",
+    )
+    assert create_response.status_code == 200
+    create_body = create_response.json()
+    assert create_body["code"] == 200
+    assert create_body["data"]["avid"] == "ABC-123"
+    assert create_body["data"]["is_blocked"] is True
+
+    list_response = api_client.get(
+        "/nassav/api/recommendations/avid-blocklist",
+        {"search": "ABC"},
+    )
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    assert list_body["code"] == 200
+    assert list_body["data"][0]["avid"] == "ABC-123"
+    assert list_body["data"][0]["title"] == "Blocked Resource"
+    assert list_body["data"][0]["exists_in_library"] is True
+
+    delete_response = api_client.delete(
+        "/nassav/api/recommendations/avid-blocklist",
+        {"avid": resource.avid},
+        format="json",
+    )
+    assert delete_response.status_code == 200
+    delete_body = delete_response.json()
+    assert delete_body["data"]["avid"] == "ABC-123"
+    assert delete_body["data"]["is_blocked"] is False
+
+
+@pytest.mark.django_db
 def test_recommendations_endpoint_avoids_recent_snapshot_items_on_repeat_request(
     api_client, monkeypatch, resource_factory, actor_factory
 ):

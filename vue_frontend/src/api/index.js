@@ -83,6 +83,16 @@ export const recommendationApi = {
   getOptions: () => api.get('/recommendations/options'),
   // 提交推荐反馈
   submitFeedback: (payload) => api.post('/recommendations/feedback', payload),
+  // 手动屏蔽推荐种子
+  blockSeed: (payload) => api.post('/recommendations/seed-block', payload),
+  // 取消屏蔽推荐种子
+  unblockSeed: (payload) => api.delete('/recommendations/seed-block', { data: payload }),
+  // 获取资源黑名单
+  getAvidBlocklist: (params = {}) => api.get('/recommendations/avid-blocklist', { params }),
+  // 手动加入资源黑名单
+  blockAvid: (payload) => api.post('/recommendations/avid-blocklist', payload),
+  // 取消资源黑名单
+  unblockAvid: (payload) => api.delete('/recommendations/avid-blocklist', { data: payload }),
   // 清空推荐状态（快照与反馈黑名单）
   resetState: () => api.post('/recommendations/reset', {}),
   // 获取推荐封面代理地址

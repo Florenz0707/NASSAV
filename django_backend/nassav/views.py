@@ -178,6 +178,18 @@ def _parse_recommendation_seed_block_payload(data) -> dict:
     }
 
 
+def _parse_recommendation_avid_block_payload(data) -> dict:
+    avid = str(data.get("avid", "")).strip().upper()
+    if not avid:
+        raise ValueError("avid 参数缺失")
+
+    reason = str(data.get("reason", "")).strip() or "manual"
+    return {
+        "avid": avid,
+        "reason": reason,
+    }
+
+
 class SourceListView(APIView):
     """
     GET /api/source/list
@@ -816,6 +828,113 @@ class RecommendationSeedBlockView(APIView):
             "block_reason": profile.block_reason,
         }
         return build_response(200, "success", data)
+
+
+class RecommendationAvidBlocklistView(APIView):
+    """GET/POST/DELETE /api/recommendations/avid-blocklist - 管理资源黑名单"""
+
+    def get(self, request):
+        from django.core.paginator import Paginator
+        from nassav.models import AVResource, RecommendationAvidBlocklist
+
+        page = _parse_positive_int(request.query_params.get("page"), 1)
+        page_size = _parse_positive_int(request.query_params.get("page_size"), 50)
+        search = str(request.query_params.get("search", "")).strip()
+
+        qs = RecommendationAvidBlocklist.objects.all().order_by("-updated_at", "-id")
+        if search:
+            qs = qs.filter(avid__icontains=search.upper())
+
+        paginator = Paginator(qs, page_size)
+        page_obj = paginator.get_page(page)
+        avids = [str(item.avid or "").strip().upper() for item in page_obj.object_list]
+        resources = {
+            resource.avid.upper(): resource
+            for resource in AVResource.objects.filter(avid__in=avids)
+        }
+
+        data = []
+        for item in page_obj.object_list:
+            resource = resources.get(item.avid.upper())
+            title = ""
+            source = ""
+            if resource is not None:
+                title = (
+                    resource.translated_title
+                    or resource.original_title
+                    or resource.source_title
+                    or ""
+                )
+                source = resource.source or ""
+            data.append(
+                {
+                    "avid": item.avid,
+                    "title": title,
+                    "source": source,
+                    "reason": item.reason,
+                    "is_blocked": True,
+                    "exists_in_library": resource is not None,
+                    "updated_at": item.updated_at.isoformat()
+                    if item.updated_at is not None
+                    else None,
+                }
+            )
+
+        pagination = {
+            "total": paginator.count,
+            "page": page_obj.number,
+            "page_size": page_size,
+            "pages": paginator.num_pages,
+        }
+        return build_response(200, "success", data, pagination=pagination)
+
+    def post(self, request):
+        from nassav.models import RecommendationAvidBlocklist
+
+        try:
+            payload = _parse_recommendation_avid_block_payload(request.data or {})
+        except ValueError as e:
+            return build_response(400, str(e), None)
+
+        block, _ = RecommendationAvidBlocklist.objects.update_or_create(
+            avid=payload["avid"],
+            defaults={
+                "source": "manual",
+                "reason": payload["reason"],
+            },
+        )
+        return build_response(
+            200,
+            "success",
+            {
+                "avid": block.avid,
+                "reason": block.reason,
+                "source": block.source,
+                "is_blocked": True,
+            },
+        )
+
+    def delete(self, request):
+        from nassav.models import RecommendationAvidBlocklist
+
+        try:
+            payload = _parse_recommendation_avid_block_payload(request.data or {})
+        except ValueError as e:
+            return build_response(400, str(e), None)
+
+        deleted_count, _ = RecommendationAvidBlocklist.objects.filter(
+            avid=payload["avid"]
+        ).delete()
+        if deleted_count == 0:
+            return build_response(404, "资源屏蔽记录不存在", None)
+        return build_response(
+            200,
+            "success",
+            {
+                "avid": payload["avid"],
+                "is_blocked": False,
+            },
+        )
 
 
 class RecommendationResetView(APIView):

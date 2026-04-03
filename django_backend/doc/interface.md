@@ -387,6 +387,62 @@ POST /nassav/api/recommendations/feedback
 }
 ```
 
+### 管理推荐黑名单
+
+#### 演员 / 类别黑名单
+
+- 方法：POST / DELETE
+- 路径：`/nassav/api/recommendations/seed-block`
+- 功能：手动屏蔽或取消屏蔽库内 actor / genre
+
+示例请求：
+
+```json
+POST /nassav/api/recommendations/seed-block
+{
+  "seed_type": "actor",
+  "id": 12,
+  "reason": "manual"
+}
+```
+
+```json
+DELETE /nassav/api/recommendations/seed-block
+{
+  "seed_type": "genre",
+  "id": 5
+}
+```
+
+#### 资源黑名单
+
+- 方法：GET / POST / DELETE
+- 路径：`/nassav/api/recommendations/avid-blocklist`
+- 功能：查看、添加、删除 AVID 级资源黑名单
+
+`GET` Query 参数：
+
+- `page`
+- `page_size`
+- `search`：按 `avid` 过滤
+
+示例请求：
+
+```json
+POST /nassav/api/recommendations/avid-blocklist
+{
+  "avid": "ABC-123",
+  "reason": "manual"
+}
+```
+
+```json
+DELETE /nassav/api/recommendations/avid-blocklist
+{
+  "avid": "ABC-123"
+}
+```
+
 返回示例：
 
 ```json

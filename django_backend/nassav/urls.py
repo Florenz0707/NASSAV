@@ -37,6 +37,12 @@ urlpatterns = [
         views.RecommendationSeedBlockView.as_view(),
         name="recommendations-seed-block",
     ),
+    # GET/POST/DELETE /api/recommendations/avid-blocklist - 手动管理资源黑名单
+    path(
+        "api/recommendations/avid-blocklist",
+        views.RecommendationAvidBlocklistView.as_view(),
+        name="recommendations-avid-blocklist",
+    ),
     # POST /api/recommendations/reset - 清空推荐状态
     path(
         "api/recommendations/reset",

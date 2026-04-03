@@ -318,7 +318,7 @@ function goBack() {
 
 <template>
   <div class="px-6 pt-2 pb-6">
-    <button class="tw-back-btn" @click="goBack">
+    <button class="tw-back-btn mb-10" @click="goBack">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
