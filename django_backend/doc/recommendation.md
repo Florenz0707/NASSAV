@@ -1,790 +1,567 @@
 # Recommendation Overview
 
-本文档说明当前后端推荐系统的设计、组件职责、API 入口与一次请求的完整调用过程。
+本文档说明当前后端实际生效的推荐机制实现。内容以 `django_backend/nassav/recommendation/`、`nassav/views.py` 与现有测试为准，不再保留历史方案设想。
 
-当前实现目标是一个可扩展的 demo 推荐链路：
+## 当前实现结论
 
-- 基于本地库中高频出现的演员与类别生成推荐种子
-- 使用 Jable 搜索页召回候选资源
-- 将 Jable 热榜与最近更新作为额外 discovery 候选源
-- 过滤本地已存在资源
-- 优先避开最近同配置已经推荐过的资源，不足时再用旧结果补位
-- 当高位种子召回不足或大多已在近期出现时，继续向低位演员/类别种子扩展召回
-- 对候选进行轻量打分并返回给前端
-- 将每次推荐结果持久化为 snapshot，便于回放、审计与后续策略优化
-- 将用户对推荐结果的显式反馈转成学习信号，参与后续排序
-- 对明确标记为“不喜欢”的具体作品做 AVID 级屏蔽（只要出现负反馈即屏蔽），避免后续重复推荐同一条
-- 将种子按出现次数分为高频/中频/低频三档，并按 novelty 档位动态调整三档权重
-- Jable 召回在需要时会继续翻后续页，减少单页候选耗尽导致的过早枯竭
+当前后端只提供一条推荐链路：
 
-## Scope
+- recommender: `jable_page_lookup`
+- strategy: `local_preference`
+- 召回源：
+  - 本地库偏好种子
+  - Jable actor/model 页
+  - Jable genre tag/category 页
+  - 搜索页回退召回
+  - Jable 热榜与最近更新 discovery 页
 
-- 当前 recommender：
-  - `jable_search`
-  - `jable_page_lookup`（优先 actor/genre 映射页召回，回退搜索）
-- 当前内置 strategy：
-  - `local_preference`
-  - `balanced`
-  - `actor_heavy`
-  - `genre_heavy`
-  - `recent_favorite`
-  - `novelty_explore`
-  - `novelty_balanced`
-  - `novelty_familiar`
-- 当前外部召回源：
-  - `Jable.search()`
-  - `Jable models/tags/categories` 页面查询
-  - 同时会利用 Jable discovery 列表页的多页结果
+推荐流程概括如下：
 
-当前实现强调“层次分离”和“后续可扩展”，因此 API 层不直接绑定具体 recommender。
+1. 从本地 `AVResource` 统计 actor / genre 偏好，生成推荐种子
+2. 优先走 Jable 映射页召回，不足时回退搜索页
+3. 额外引入 Jable 热榜与最近更新作为 discovery 候选
+4. 过滤本地已存在资源与被负反馈屏蔽的 `avid`
+5. 如果候选仍不足，则继续向低位种子扩展召回
+6. 对候选做历史避让、打分、去重和多样性重排
+7. 持久化 snapshot / items，供下次历史避让与审计使用
 
-## Main Layers
+## API
 
-### 1. API Layer
+### 1. `GET /nassav/api/recommendations/`
 
-API 层只负责：
+统一推荐接口。
 
-- 解析 Query 参数
-- 调用 `RecommenderManager`
-- 返回统一 envelope 响应
+当前支持的 query 参数：
 
-当前接口：
+- `strategy`
+  - 当前仅支持 `local_preference`
+- `limit`
+- `per_seed_limit`
+- `actor_seed_limit`
+- `genre_seed_limit`
+- `exclude_existing`
+- `avoid_recent_recommendations`
+- `recent_snapshot_limit`
+- `recent_item_limit`
+- `include_hot_board`
+- `include_latest_updates`
+- `discovery_limit`
+- `type_preference`
+  - `actor_heavy | balanced | genre_heavy`
+- `actor_preference`
+  - `familiar | balanced | rare`
+- `genre_preference`
+  - `familiar | balanced | rare`
 
-- `GET /nassav/api/recommendations/`
-  - 统一推荐接口
-  - 支持参数：
-    - `recommender`
-    - `strategy`
-    - `limit`
-    - `per_seed_limit`
-    - `actor_seed_limit`
-    - `genre_seed_limit`
-    - `exclude_existing`
-    - `avoid_recent_recommendations`
-    - `recent_snapshot_limit`
-    - `recent_item_limit`
-    - `include_hot_board`
-    - `include_latest_updates`
-    - `discovery_limit`
+注意：
 
-- `GET /nassav/api/recommendations/options`
-  - 返回当前可用的 recommenders、strategies 与默认值
+- 当前接口没有开放 `recommender` 参数
+- 实际固定使用 `jable_page_lookup`
 
-- `POST /nassav/api/recommendations/feedback`
-  - 记录某条推荐结果的显式反馈
-  - 当前支持：
-    - `like`
-    - `dislike`
-    - `clear`
+### 2. `GET /nassav/api/recommendations/options`
 
-- `GET /nassav/api/recommendations/cover`
-  - 代理并缓存推荐封面
-  - 用于前端加载 Jable 推荐封面，避免直接访问受限站点资源
+返回当前默认配置、可用 recommender 和 strategy。
 
-- `GET /nassav/api/recommendations/demo`
-  - 兼容性的 demo 入口
-  - 当前内部同样走 `RecommenderManager`
+当前返回结果中：
 
-对应文件：
+- `defaults.recommender = jable_page_lookup`
+- `defaults.strategy = local_preference`
+
+### 3. `GET /nassav/api/recommendations/demo`
+
+兼容性 demo 入口。
+
+- 内部仍然直接转发到 `recommender_manager.recommend()`
+- 与 `/api/recommendations/` 使用同一条默认推荐链路
+
+### 4. `POST /nassav/api/recommendations/feedback`
+
+记录推荐反馈。
+
+当前 API 层只接受：
+
+- `feedback = dislike`
+
+请求体：
+
+```json
+{
+  "snapshot_id": 12,
+  "avid": "ABCD-123",
+  "feedback": "dislike"
+}
+```
+
+效果：
+
+- 为对应 `RecommendationItem` 记录负反馈
+- 后续推荐时，该 `avid` 会被直接屏蔽
+
+### 5. `POST /nassav/api/recommendations/reset`
+
+清空推荐状态：
+
+- `RecommendationSnapshot`
+- `RecommendationItem`
+- `RecommendationFeedback`
+
+### 6. `GET /nassav/api/recommendations/cover`
+
+代理并缓存推荐封面，避免前端直接访问受限站点资源。
+
+## 代码分层
+
+### 1. API 层
+
+文件：
 
 - `nassav/views.py`
 - `nassav/urls.py`
 
-### 2. Manager Layer
+职责：
 
-`RecommenderManager` 是推荐系统的中间调度层，作用类似现有的 `SourceManager` / `ScraperManager`。
+- 解析 query/body 参数
+- 调用 `recommender_manager`
+- 返回统一响应结构
 
-它负责：
+### 2. Manager 层
 
-- 注册可用 recommender
-- 注册可用 strategy
-- 校验 recommender 和 strategy 是否兼容
-- 合并 strategy 默认参数和请求参数
-- 构造 `RecommendationRequest`
-- 构造请求指纹并读取最近推荐历史
-- 实例化具体 recommender
-- 执行推荐并返回统一结果结构
-- 持久化推荐 snapshot 与 item
-
-当前 manager 实现在：
+文件：
 
 - `nassav/recommendation/manager.py`
 
-### 3. Strategy Layer
+职责：
 
-`RecommendationStrategy` 描述“推荐配置”，而不是单个算法函数。
+- 维护 recommender / strategy 注册表
+- 构造 `RecommendationRequest`
+- 计算请求指纹
+- 读取近期推荐历史与种子历史
+- 读取负反馈学习结果
+- 构造具体 recommender
+- 执行推荐
+- 持久化 snapshot 与 item
 
-它负责定义：
+当前注册表非常简单：
 
-- strategy 标识与说明
-- 支持哪些 recommender
-- 使用哪个 `SeedProvider`
-- 使用哪些 `RecommendationFactor`
-- 默认请求参数覆盖项
-- 参数说明元数据（`parameter_profile`，用于前端展示每个参数的值和含义）
+- recommender:
+  - `jable_page_lookup`
+- strategy:
+  - `local_preference`
 
-当前内置 strategy：
+### 3. Strategy 层
 
-- `local_preference`
-  - `seed_provider`: `LocalPreferenceSeedProvider`
-  - `factors`:
-    - `SeedWeightFactor`
-    - `MultiSeedBonusFactor`
-    - `SearchRankFactor`
-    - `PopularityFactor`
-  - 默认参数：
-    - `limit=12`
-    - `per_seed_limit=12`
-    - `actor_seed_limit=5`
-    - `genre_seed_limit=5`
-    - `seed_types=["actor", "genre"]`
-    - `exclude_existing=true`
-
-- `balanced`
-  - 更均衡地使用 actor / genre 偏好
-  - 启用更强的多样性重排，减少结果扎堆
-
-- `actor_heavy`
-  - 提高 actor 命中的权重
-  - 降低 genre 命中的影响
-
-- `genre_heavy`
-  - 提高 genre 命中的权重
-  - 增加 genre 种子数量
-
-- `recent_favorite`
-  - 优先使用最近新增、已观看、已收藏资源生成种子
-  - 当交互种子为空时回退到全量本地偏好
-
-- `novelty_explore`
-  - 更陌生，强化新鲜奖励与重复惩罚
-  - 种子分层权重偏向低频种子（低频提升、高频抑制）
-
-- `novelty_balanced`
-  - 平衡新鲜感与熟悉度
-  - 种子分层权重在高频/低频之间做中性折中
-
-- `novelty_familiar`
-  - 更熟悉，弱化新鲜奖励并降低重复惩罚
-  - 种子分层权重偏向高频种子（高频提升、低频抑制）
-
-对应文件：
+文件：
 
 - `nassav/recommendation/strategies.py`
 
-### 4. Recommender Layer
+`RecommendationStrategy` 负责描述一套“推荐配置”，包括：
 
-`AbstractRecommender` 定义推荐主流程模板，具体 recommender 只需要实现关键步骤。
+- 种子提供器
+- 打分因子
+- 默认请求参数
+- recommender 额外参数
+- 参数说明元数据 `parameter_profile`
 
-当前具体实现：
+当前唯一 strategy 为 `local_preference`，关键配置如下：
 
-- `JableSearchRecommender`
-- `JablePageLookupRecommender`
+- 默认请求：
+  - `limit=12`
+  - `per_seed_limit=12`
+  - `actor_seed_limit=5`
+  - `genre_seed_limit=5`
+  - `seed_types=["actor", "genre"]`
+  - `exclude_existing=true`
+  - `include_hot_board=true`
+  - `include_latest_updates=true`
+  - `discovery_limit=12`
+- 多样性重排参数：
+  - `diversity_penalty=0.72`
+  - `actor_diversity_weight=1.0`
+  - `genre_diversity_weight=0.72`
 
-它只依赖 `Jable`，不直接依赖 `ScraperManager`。
+### 4. Recommender 层
 
-职责：
-
-- 从 `SeedProvider` 获取推荐种子
-- 对每个 seed 调用 `Jable.search()`
-- 对演员 seed 展开别名查询，提升括号别名/多写法场景下的召回率
-- 若演员存在 Jable 持久化映射，则优先通过 `models/{slug}` 的演员页 async block 召回
-- 读取 Jable 热榜与最近更新，作为 discovery 候选补充召回池
-- 当单页候选不足时，会继续请求后续页，直到达到本轮目标数或无新结果
-- 当主种子召回不足，或主种子召回大多已被近期推荐历史占用时，自动扩展到低位种子继续召回
-- 合并重复候选
-- 过滤数据库中已存在的 `AVResource`
-- 在“尽量避开最近推荐”前提下补齐不足的返回数
-- 执行 factors 打分
-- 返回排序后的推荐结果
-
-对应文件：
+文件：
 
 - `nassav/recommendation/base.py`
 - `nassav/recommendation/jable_search.py`
 - `nassav/recommendation/jable_page_lookup.py`
 
-### 5. Source / Recall Layer
+当前实际使用的类是 `JablePageLookupRecommender`，它继承自 `JableSearchRecommender`，在 `recall_by_seed()` 中采用如下优先级：
 
-`Jable` 负责访问 Jable 站点并解析搜索结果页面。
+1. actor 种子先尝试 Jable model 页
+2. genre 种子先尝试 Jable tag/category 页
+3. 若页映射召回不到结果，再按种子值与别名搜索
 
-当前使用的方法：
+`JableSearchRecommender.recommend()` 的完整执行顺序为：
 
-- `Jable.search(keyword, page=1)`
-- `Jable.get_model_videos(model_slug, page=1, sort_by="video_viewed")`
-- `Jable.get_tag_videos(tag_slug, page=1)`
-- `Jable.get_category_videos(category_slug, page=1)`
-- `Jable.discover_hot_items(page=1)`
-- `Jable.discover_latest_updates(page=1)`
+1. `build_seeds()`
+2. 计算种子出现档位 `seed_occurrence_tiers`
+3. `recall_candidates()`
+4. 过滤本地已有资源
+5. 过滤被负反馈屏蔽的资源
+6. 若“优先候选”不足，扩展种子池并再次召回
+7. 再次过滤本地已有资源与负反馈屏蔽资源
+8. 再次刷新种子档位
+9. 做近期推荐避让
+10. `enrich_candidates()`，当前未做额外 enrich
+11. `score_candidates()`
+12. `rank_and_trim()`
 
-其中 discovery 召回的处理方式为：
+其中 `rank_and_trim()` 又分为：
 
-- `discover_hot_items()` 会请求 Jable 热榜 async block，并依次拉取今日 / 本周 / 本月 / 全部四档热榜
-- `discover_latest_updates()` 会固定请求 `/latest-updates/`
-- 搜索页、演员页和 discovery 列表翻页统一使用 `from=NN` 查询参数，例如第 3 页为 `from=03`
-- 两者都复用搜索结果页相同的卡片解析逻辑，统一产出 `avid/title/detail_url/cover_url/metrics`
-- 命中 discovery 列表的候选会在 `metrics.discovery_sources` 中打上 `hot_board` 或 `latest_updates`
-- 热榜候选额外会记录 `metrics.hot_board_sort`，用于标记来自哪一档热榜
-- 排序阶段由 `DiscoverySourceFactor` 提供轻量加分，让 discovery 候选能进入最终列表，但不会长期压过强相关 seed 候选
+1. 先按 `total_score desc`、`search_rank asc`、`random_seed` 稳定排序
+2. 再做多样性重排 `rerank_candidates()`
+3. 最后把“新候选”放到“近期已推荐候选”前面
+4. 截断到 `limit`
 
-返回字段统一为：
+## 种子生成机制
 
-```json
-[
-  {
-    "avid": "FSDSS-717",
-    "title": "...",
-    "detail_url": "https://jable.tv/videos/fsdss-717/",
-    "cover_url": "https://assets-cdn.jable.tv/...",
-    "source": "Jable",
-    "metrics": {
-      "views": 3290381,
-      "likes": 9370,
-      "duration": "2:00:15"
-    }
-  }
-]
-```
-
-对应文件：
-
-- `nassav/source/Jable.py`
-
-## Domain Objects
-
-推荐系统内部主要使用以下对象：
-
-- `RecommendationSeed`
-  - 表示一个推荐种子
-  - 例如：
-    - `actor = Alice`
-    - `genre = 中文字幕`
-
-- `RecommendationCandidate`
-  - 表示一个待打分候选
-  - 保存 `avid`、标题、封面、命中的种子、原始热度指标、分数分解等
-
-- `RecommendationRequest`
-  - 表示一次推荐请求的参数
-  - 除基础分页/seed 参数外，还包含：
-    - `random_seed`
-    - `avoid_recent_recommendations`
-    - `recent_snapshot_limit`
-    - `recent_item_limit`
-    - `recently_recommended_avids`
-
-- `RecommendationRun`
-  - 表示 recommender 的原始执行结果
-
-- `RecommendationExecution`
-  - 表示经过 manager 调度后的最终执行结果
-  - 在 `RecommendationRun` 外增加：
-    - `snapshot_id`
-    - `request_fingerprint`
-    - `recommender`
-    - `strategy`
-    - `recommender_detail`
-    - `strategy_detail`
-    - `effective_request`
-    - `history_context`
-    - `learning_context`
-
-对应文件：
-
-- `nassav/recommendation/entities.py`
-
-## Snapshot Persistence
-
-推荐系统现在会为每次请求保存一份 snapshot。
-
-- `RecommendationSnapshot`
-  - 保存推荐器、策略、请求指纹、请求参数、seed 摘要、返回数量、随机种子和生成时间
-- `RecommendationItem`
-  - 保存某次 snapshot 中的每一条推荐结果
-  - 包含排名、`avid`、标题、封面、分数、理由、命中的 seeds、分数分解和原始热度指标
-
-当前用途：
-
-- 为“刷新推荐”提供历史过滤依据
-- 为后续比较不同策略/因子效果提供审计数据
-- 为未来增加推荐回放与缓存能力预留基础
-- 为显式反馈学习保留推荐项上下文（matched seeds / 打分分解）
-
-对应文件：
-
-- `nassav/models.py`
-- `nassav/recommendation/repository.py`
-
-## Feedback Learning
-
-推荐系统现在会把用户对推荐结果的显式反馈纳入排序学习，但仍保持当前 demo 架构，不引入单独训练任务。
-
-当前反馈闭环分为两层：
-
-- 资源级反馈记忆
-  - 用户对某个 `avid` 点赞或点踩后，会在后续推荐中直接影响该资源的排序
-- 种子级偏好学习
-  - 系统会读取该推荐项命中的 `matched_seeds`
-  - 将点赞 / 点踩聚合到演员 / 类别 seed 上
-  - 后续命中这些 seed 的新候选也会被同步提升或压低
-
-实现方式：
-
-- `RecommendationFeedback`
-  - 存储显式反馈
-- `RecommendationFeedbackRepository`
-  - 聚合历史反馈，生成 `avid_scores`、`seed_scores` 和需要屏蔽的 `blocked_avids`
-- `FeedbackSignalFactor`
-  - 将反馈学习信号并入当前推荐打分
-
-当前额外约束：
-
-- 当某个 `avid` 的负反馈票数多于正反馈票数时，该作品会被直接从候选池中过滤掉
-- 相关 seed 的负反馈仍然只作为软信号参与打分，不会直接屏蔽整类内容
-
-对应文件：
-
-- `nassav/recommendation/feedback.py`
-- `nassav/recommendation/factors.py`
-
-## Seed Generation
-
-当前种子生成逻辑来自本地数据库聚合：
-
-- 演员种子：
-  - `Actor.objects.annotate(resource_count=Count("resources"))`
-  - 取出现次数最高的演员
-  - 若演员名包含括号别名（如 `めぐり（藤浦めぐ）`），会自动展开为多个搜索别名，但推荐理由仍展示规范名
-  - 若存在 `ActorSourceMapping(source_name="jable")`，会把 `source_actor_name` / `aliases` 并入召回别名，并把 `source_actor_slug` 作为优先召回入口
-
-- 类别种子：
-  - `Genre.objects.annotate(resource_count=Count("resources"))`
-  - 取出现次数最高的类别
-
-权重归一化规则：
-
-- `LocalPreferenceSeedProvider` 会综合以下信号计算 `preference_score`
-  - `resource_count`
-  - `watched_count`
-  - `favorite_count`
-  - `recent_count`
-- 不同 strategy 通过调整：
-  - `watched_boost`
-  - `favorite_boost`
-  - `recent_boost`
-  - `recent_days`
-  - `only_interacted`
-    来改变 seed 排序结果
-- 使用当前批次最大 `preference_score` 作为分母
-- 归一到 `0 ~ 5` 区间
-
-对应文件：
+文件：
 
 - `nassav/recommendation/seeds.py`
 
-## Scoring Factors
+当前只使用 `LocalPreferenceSeedProvider`。
 
-当前评分较轻量，主要用于 demo 排序。
+### 偏好来源
 
-### `SeedWeightFactor`
+种子来自本地库中的 `Actor` 与 `Genre` 统计，并对每个标签计算偏好分数：
 
-- 作用：把命中的种子权重累加到候选分数上
-- 结果示例：
-  - `命中高频actor: Alice`
-  - `命中高频genre: 中文字幕`
+- `resource_count`
+- `watched_count`
+- `favorite_count`
+- `recent_count`
 
-### `MultiSeedBonusFactor`
+偏好分受以下参数影响：
 
-- 作用：同一个候选命中多个种子时追加 bonus
+- `watched_boost = 0.75`
+- `favorite_boost = 1.15`
+- `recent_boost = 0.9`
+- `recent_days = 160`
 
-### `SearchRankFactor`
+### 种子选择
 
-- 作用：利用 Jable 搜索结果中的卡片位置做弱加分
-- 结果越靠前，bonus 越高
+生成种子时会：
 
-### `PopularityFactor`
+- 按偏好分排序
+- 将同类种子拆为 `high / mid / low` 三档
+- 根据前端传入的 `actor_preference` 与 `genre_preference`，从三档中按比例选种子
+- 使用 `recent_seed_counts` 对近期反复暴露过的种子施加轮换抑制
 
-- 作用：利用 Jable 搜索卡片中的：
-  - `views`
-  - `likes`
-    做弱加分
+当前三档偏好模式：
 
-### `NoveltyFactor`
+- `familiar`
+  - 更偏向高频种子
+- `balanced`
+  - 高频、中频、低频相对均衡
+- `rare`
+  - 更偏向低频种子
 
-- 作用：基于最近推荐历史做新颖度调节
-- 若候选近期未在推荐历史中出现，则给予轻微 bonus
-- 若候选已经在最近的推荐 snapshots 中多次出现，则给予惩罚
-- 同时会结合本次 `random_seed` 注入小幅探索噪声，避免不同策略或连续刷新时长期完全同序
+### 映射与别名
 
-对应文件：
+actor / genre 种子会尽量复用映射信息：
+
+- actor:
+  - 读取 `ActorSourceMapping`
+  - 携带 `model_slug`、源站名称、演员别名
+- genre:
+  - 读取 `GenreSourceMapping`
+  - 携带 `genre_slug` 与 taxonomy 信息
+
+actor 种子还会自动提取别名，用于搜索回退时提升召回率。
+
+## 候选召回机制
+
+文件：
+
+- `nassav/recommendation/jable_search.py`
+- `nassav/recommendation/jable_page_lookup.py`
+- `nassav/source/Jable.py`
+
+### 1. 按种子召回
+
+每个种子独立召回候选。
+
+actor 种子：
+
+- 若存在 Jable `model_slug`，优先调用 `get_model_videos()`
+- 否则按 `seed.value + aliases` 依次调用 `search()`
+
+genre 种子：
+
+- 若存在 genre 映射，优先调用 `get_tag_videos()` 或 `get_category_videos()`
+- 否则按关键词调用 `search()`
+
+翻页规则：
+
+- actor/model 页、genre 页、搜索页都支持最多 `max_pages_per_query=5` 页
+- 每轮召回遇到无新结果或达到目标数即停止
+
+### 2. Discovery 补充召回
+
+除种子召回外，还会补充 discovery 候选：
+
+- `discover_hot_items()`
+- `discover_latest_updates()`
+
+控制参数：
+
+- `include_hot_board`
+- `include_latest_updates`
+- `discovery_limit`
+
+命中 discovery 的候选会在 `raw_metrics.discovery_sources` 中记录来源，供后续打分。
+
+### 3. 候选合并
+
+候选按 `avid` 合并。
+
+合并时会：
+
+- 合并 `matched_seeds`
+- 合并 `raw_metrics`
+- 保留更小的 `search_rank`
+- 补齐标题、详情页、封面等基础字段
+
+### 4. 候选补量
+
+如果过滤后“优先候选”仍不足 `limit`，系统会继续：
+
+- 从 `SeedProvider.get_additional_seeds()` 获取额外种子
+- 再做最多 3 轮扩展召回
+
+这里的“优先候选”指：
+
+- 当开启近期避让时，优先统计“不在最近推荐历史里的候选”
+- 当未开启近期避让时，统计全部候选
+
+## 过滤与历史避让
+
+### 1. 过滤本地已存在资源
+
+`exclude_existing=true` 时，会查询 `AVResource.avid`，剔除本地已存在条目。
+
+### 2. 过滤负反馈资源
+
+当前学习机制非常直接：
+
+- 仅统计 `dislike`
+- 只做 `avid` 级黑名单
+- 不做 seed 级正负反馈学习
+
+实现位置：
+
+- `nassav/recommendation/feedback.py`
+
+`build_learning_profile()` 当前返回：
+
+- `blocked_avids`
+- `feedback_count`
+
+manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_avids`，后续在召回后立即过滤。
+
+### 3. 同配置近期避让
+
+`avoid_recent_recommendations=true` 时，manager 会基于以下条件读取最近推荐结果：
+
+- 同一 `recommender_id`
+- 同一 `strategy_id`
+- 同一 `request_fingerprint`
+
+随后将这些 `avid` 写入 `recently_recommended_avids`。
+
+过滤策略不是“硬剔除到底”，而是：
+
+- 先尽量保留新候选
+- 如果新候选已经足够 `limit`，则完全不返回历史候选
+- 如果新候选不够，则允许近期候选回填补位
+
+因此该逻辑更接近“优先避让”，不是绝对屏蔽。
+
+### 4. 跨请求重复惩罚
+
+除了同配置避让之外，manager 还会读取：
+
+- `recent_recommendation_counts`
+  - 同一 recommender 下最近若干个 snapshot 中，各 `avid` 的出现次数
+- `recent_seed_counts`
+  - 同一 recommender 下最近若干个 snapshot item 中，各 seed 的出现次数
+
+这些历史统计会参与：
+
+- `NoveltyFactor`
+- `SeedWeightFactor` 中的轮换抑制
+
+## 打分机制
+
+文件：
 
 - `nassav/recommendation/factors.py`
 
-## API Design
+当前 `local_preference` 使用以下 factor：
 
-### 1. `GET /nassav/api/recommendations/`
+### 1. `SeedWeightFactor`
 
-功能：统一推荐入口。
+基础作用：
 
-请求参数：
+- 根据命中的 seed 权重加分
 
-- `recommender`: 可选，默认 `jable_search`
-- `strategy`: 可选，默认 `local_preference`
-- `limit`: 可选
-- `per_seed_limit`: 可选
-- `actor_seed_limit`: 可选
-- `genre_seed_limit`: 可选
-- `exclude_existing`: 可选，默认 `true`
-- `avoid_recent_recommendations`: 可选，默认 `true`
-- `recent_snapshot_limit`: 可选，默认 `3`
-- `recent_item_limit`: 可选，默认 `36`
+同时叠加四类乘数：
 
-响应示例：
+- actor / genre 基础乘数
+- `type_preference` 类型偏好乘数
+- `actor_preference` / `genre_preference` 对应的高中低频档位乘数
+- 基于 `recent_seed_counts` 的轮换抑制乘数
 
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "items": [
-      {
-        "avid": "REC-001",
-        "title": "Alice Result",
-        "detail_url": "https://jable.tv/videos/rec-001/",
-        "cover_url": "https://img/rec-001.jpg",
-        "source": "Jable",
-        "score": 10.5,
-        "reasons": ["命中高频actor: Alice", "命中高频genre: 中文字幕"]
-      }
-    ],
-    "seeds": [
-      {
-        "seed_type": "actor",
-        "value": "Alice",
-        "weight": 5.0,
-        "source": "local_top_actor",
-        "resource_count": 12
-      }
-    ],
-    "summary": {
-      "seed_count": 2,
-      "item_count": 1
-    },
-    "meta": {
-      "recommender": "jable_search",
-      "strategy": "local_preference",
-      "snapshot_id": 12,
-      "request_fingerprint": "e6fd...",
-      "recommender_detail": {
-        "id": "jable_search",
-        "name": "Jable Search",
-        "description": "通过 Jable 搜索页召回候选资源。"
-      },
-      "strategy_detail": {
-        "id": "local_preference",
-        "name": "Local Preference",
-        "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
-        "supported_recommenders": ["jable_search"],
-        "default_request_overrides": {
-          "limit": 12,
-          "per_seed_limit": 12,
-          "actor_seed_limit": 5,
-          "genre_seed_limit": 5,
-          "seed_types": ["actor", "genre"],
-          "exclude_existing": true
-        }
-      },
-      "effective_request": {
-        "limit": 12,
-        "per_seed_limit": 12,
-        "actor_seed_limit": 5,
-        "genre_seed_limit": 5,
-        "seed_types": ["actor", "genre"],
-        "exclude_existing": true,
-        "random_seed": 123456789,
-        "avoid_recent_recommendations": true,
-        "recent_snapshot_limit": 3,
-        "recent_item_limit": 36
-      },
-      "history_context": {
-        "recently_recommended_count": 12,
-        "recent_history_candidate_count": 18,
-        "filtered_history_count": 4
-      }
-    }
-  }
-}
-```
+### 2. `MultiSeedBonusFactor`
 
-### 2. `GET /nassav/api/recommendations/options`
+若候选同时命中多个种子，按数量追加加分。
 
-功能：返回当前可选的 recommender / strategy / defaults，便于前端动态渲染筛选项。
+### 3. `SearchRankFactor`
 
-响应示例：
+按 `search_rank` 提供线性衰减加分，排序越靠前分越高。
 
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "defaults": {
-      "recommender": "jable_search",
-      "strategy": "local_preference"
-    },
-    "recommenders": [
-      {
-        "id": "jable_search",
-        "name": "Jable Search",
-        "description": "通过 Jable 搜索页召回候选资源。",
-        "strategies": [
-          "local_preference",
-          "balanced",
-          "actor_heavy",
-          "genre_heavy",
-          "recent_favorite",
-          "novelty_explore",
-          "novelty_balanced",
-          "novelty_familiar"
-        ]
-      },
-      {
-        "id": "jable_page_lookup",
-        "name": "Jable Page Lookup",
-        "description": "优先通过 Jable actor/genre 映射页召回，回退到搜索页。",
-        "strategies": [
-          "local_preference",
-          "balanced",
-          "actor_heavy",
-          "genre_heavy",
-          "recent_favorite",
-          "novelty_explore",
-          "novelty_balanced",
-          "novelty_familiar"
-        ]
-      }
-    ],
-    "strategies": [
-      {
-        "id": "local_preference",
-        "name": "Local Preference",
-        "description": "基于本地高频演员与类别的 Jable 搜索推荐 demo。",
-        "supported_recommenders": ["jable_search", "jable_page_lookup"],
-        "default_request_overrides": {
-          "limit": 12,
-          "per_seed_limit": 12,
-          "actor_seed_limit": 5,
-          "genre_seed_limit": 5,
-          "seed_types": ["actor", "genre"],
-          "exclude_existing": true
-        },
-        "parameter_profile": [
-          {
-            "title": "新鲜感控制",
-            "items": [
-              {
-                "key": "fresh_bonus",
-                "value": 0.7,
-                "meaning": "近期历史未出现的候选加分。"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "id": "novelty_explore",
-        "name": "Novelty Explore",
-        "description": "偏向更陌生内容，显著提升新内容加分并强化重复惩罚。",
-        "supported_recommenders": ["jable_search", "jable_page_lookup"]
-      }
-    ]
-  }
-}
-```
+### 4. `PopularityFactor`
 
-### 3. `GET /nassav/api/recommendations/cover`
+根据 `views` 和 `likes` 提供热度分，分值有上限。
 
-功能：后端代理并缓存推荐封面。
+### 5. `DiscoverySourceFactor`
 
-请求参数：
+命中以下来源时额外加分：
 
-- `url`: 原始封面地址
+- `hot_board`
+- `latest_updates`
 
-说明：
+### 6. `NoveltyFactor`
 
-- 当前只允许 Jable 相关域名的封面地址
-- 服务端会将图片缓存在 `resource/recommendation_cover/`
-- 该接口与现有资源封面接口 `GET /nassav/api/resource/cover` 分离，避免和本地资源封面混淆
+根据 `recent_recommendation_counts` 调整新鲜度：
 
-### 4. `GET /nassav/api/recommendations/demo`
+- 近期未出现：加 `fresh_bonus`
+- 近期出现过：按次数扣 `repeat_penalty`
+- 使用 `random_seed` 生成轻微抖动，打散同分项
 
-功能：兼容历史 demo 调用方式。
+注意：
 
-说明：
+- 代码中存在 `FeedbackSignalFactor`
+- 当前 strategy 并未启用它
+- 因此当前实现没有基于 seed 级反馈做排序学习
 
-- 当前并不直接构建 recommender
-- 内部仍然转发到 `RecommenderManager.recommend()`
-- 使用默认：
-  - `recommender=jable_search`
-  - `strategy=local_preference`
+## 请求指纹与持久化
 
-## Call Flow
+文件：
 
-以下是一次 `GET /nassav/api/recommendations/` 请求的完整调用过程。
+- `nassav/recommendation/repository.py`
+- `nassav/models.py`
 
-### Step 1. View 接收请求
+### 1. 请求指纹
 
-- `RecommendationsView.get()`
-- 读取：
-  - `recommender`
-  - `strategy`
-  - 各种 limit 参数
-  - `exclude_existing`
-  - `avoid_recent_recommendations`
+`request_fingerprint` 由以下参数计算 SHA-256：
 
-### Step 2. View 调用 `RecommenderManager`
+- recommender / strategy
+- limit / per_seed_limit
+- actor_seed_limit / genre_seed_limit
+- seed_types
+- exclude_existing
+- avoid_recent_recommendations
+- recent_snapshot_limit / recent_item_limit
+- include_hot_board / include_latest_updates
+- discovery_limit
+- type_preference / actor_preference / genre_preference
 
-- `recommender_manager.recommend(...)`
+注意：
 
-manager 内部依次执行：
+- `random_seed` 不参与指纹计算
+- 因此同一配置下的不同随机次序仍会被视为同一类请求
 
-1. 解析 recommender id
-2. 解析 strategy id
-3. 读取 strategy 定义
-4. 校验 strategy 是否支持该 recommender
-5. 合并 strategy 默认参数和请求参数
-6. 构造 `RecommendationRequest`
-7. 生成 `request_fingerprint`
-8. 根据同一组配置对应的最近 snapshots，读取需要回避的 `avid`
-9. 构造具体 recommender
+### 2. Snapshot
 
-### Step 3. Recommender 执行主流程
+每次推荐执行后都会写入 `RecommendationSnapshot`：
 
-`AbstractRecommender.recommend()` 的固定流程为：
+- `recommender_id`
+- `strategy_id`
+- `request_fingerprint`
+- `request_payload`
+- `seed_summary`
+- `item_count`
+- `random_seed`
+- `generated_at`
 
-1. `build_seeds()`
-2. `recall_candidates()`
-3. `filter_existing_resources()`
-4. `enrich_candidates()`
-5. `score_candidates()`
-6. `rank_and_trim()`
+### 3. Item
 
-当前 `enrich_candidates()` 仍为 no-op，保留为后续扩展点。
+每个返回候选会写入 `RecommendationItem`：
 
-### Step 4. SeedProvider 生成种子
-
-`LocalPreferenceSeedProvider`：
-
-- 从本地 `Actor` 聚合得到 top actors
-- 从本地 `Genre` 聚合得到 top genres
-- 综合观看、收藏和近期新增信号计算 `preference_score`
-- 生成 `RecommendationSeed[]`
-
-### Step 5. Jable 搜索召回
-
-`JableSearchRecommender.recall_by_seed()`：
-
-- 对每个 seed 调用 `Jable.search(seed.value, page=1)`
-- 若第一页候选不足，会继续请求后续页；有近期推荐历史时会保留更大的候选池供去重和避让
-- 将搜索卡片映射为 `RecommendationCandidate`
-- 每个候选记录自己命中了哪些种子
-- 同时记录候选在搜索结果中的最佳 `search_rank`
-
-### Step 6. 合并重复候选
-
-如果多个 seed 都召回了同一 `avid`：
-
-- 按 `avid` 去重
-- 合并 `matched_seeds`
-- 合并 `raw_metrics`
-
-### Step 7. 过滤本地已存在资源
-
-`AbstractRecommender.filter_existing_resources()`：
-
-- 批量查询 `AVResource.avid`
-- 去掉本地库中已经存在的资源
-- 若当前请求开启历史过滤，则优先去掉最近同配置已经推荐过的 `avid`
-- 若过滤后没有剩余候选，则回退到未做历史过滤的结果，避免直接返回空列表
-
-此外，manager 会额外读取同一 recommender 下最近若干次推荐的 `avid` 频次，并通过 `NoveltyFactor` 在打分阶段做跨策略的重复惩罚与新颖度加分。
-
-### Step 8. 执行 factor 打分
-
-对每个候选执行当前 strategy 配置的全部 factor：
-
-- `SeedWeightFactor`
-- `MultiSeedBonusFactor`
-- `SearchRankFactor`
-- `PopularityFactor`
-
-最终得到：
-
-- `total_score`
-- `score_breakdown`
+- `rank`
+- `avid`
+- `title`
+- `detail_url`
+- `cover_url`
+- `source`
+- `score`
+- `search_rank`
 - `reasons`
+- `matched_seeds`
+- `score_breakdown`
+- `raw_metrics`
 
-### Step 9. 排序与裁剪
+### 4. Feedback
 
-- 先按 `total_score` 和 `search_rank` 做基础排序
-- 再执行一次基于 seed 重复度的多样性重排，减少相同 actor / genre 扎堆
-- 截断为 `limit`
+负反馈保存在 `RecommendationFeedback`：
 
-### Step 10. 返回 API 响应
+- 与 `RecommendationItem` 一对一
+- 同时冗余存储 `avid`
+- 当前只在推荐阶段用于构建 `blocked_avids`
 
-manager 会在返回前保存 `RecommendationSnapshot` 与 `RecommendationItem`，并将：
+## 返回结构
 
+`execution.to_dict()` 返回：
+
+- `items`
+- `seeds`
+- `summary`
+- `meta`
+
+`meta` 中重点字段：
+
+- `recommender`
+- `strategy`
 - `snapshot_id`
 - `request_fingerprint`
+- `recommender_detail`
+- `strategy_detail`
+- `effective_request`
 - `history_context`
+- `learning_context`
 
-封装进 `meta`，最终由 view 返回统一 envelope。
+其中：
 
-## Current Extension Points
+- `history_context.filtered_history_count`
+  - 表示这次请求关联的近期历史中，有多少 `avid` 没有再次出现在本次最终结果里
+- `learning_context.feedback_count`
+  - 表示当前负反馈样本数
 
-当前设计已经预留以下扩展点：
+## 当前限制
 
-- 新增 recommender
-  - 例如：`jable_actor_page`
-  - 例如：`hybrid_search`
+截至当前代码版本，推荐机制有以下边界：
 
-- 新增 strategy
-  - 例如：`actor_heavy`
-  - 例如：`fresh_first`
+- 只有一个 recommender：`jable_page_lookup`
+- 只有一个 strategy：`local_preference`
+- API 不支持切换 recommender
+- 反馈 API 只支持 `dislike`
+- 负反馈只做 `avid` 级屏蔽
+- 没有把 snapshot 当作结果缓存复用，每次请求仍会重新召回和计算
 
-- 新增 seed provider
-  - 例如：只基于收藏资源生成种子
-  - 例如：只基于最近观看记录生成种子
+## 相关文件
 
-- 新增 factor
-  - 例如：发布日期加分
-  - 例如：演员精确匹配 bonus
-
-- 新增 enrich 阶段
-  - 例如：补抓详情页
-  - 例如：使用 scraper 做进一步校验
-
-## Current Limitations
-
-- 当前只有一个 recommender
-- 当前召回完全依赖 Jable 搜索页
-- 当前类别种子直接用站内搜索词匹配，精度有限
-- 当前只对推荐封面做了缓存，推荐结果本身尚未做 snapshot 级缓存复用
-- 当前已经有结果持久化，但还没有单独的 snapshot 查询 / 回放接口
-- 当前没有分页式多页召回
-- 当前跨策略差异化仍以历史惩罚和轻量探索为主，还没有真正的多臂 bandit / 学习排序
-- 当前 `demo` 接口仍保留，后续前端迁移完成后可考虑收敛
-
-## Related Files
-
-- `nassav/source/Jable.py`
-- `nassav/recommendation/cover_cache.py`
+- `nassav/views.py`
+- `nassav/models.py`
+- `nassav/recommendation/manager.py`
 - `nassav/recommendation/entities.py`
 - `nassav/recommendation/base.py`
 - `nassav/recommendation/seeds.py`
 - `nassav/recommendation/factors.py`
 - `nassav/recommendation/strategies.py`
 - `nassav/recommendation/jable_search.py`
-- `nassav/recommendation/manager.py`
+- `nassav/recommendation/jable_page_lookup.py`
+- `nassav/recommendation/feedback.py`
 - `nassav/recommendation/repository.py`
-- `nassav/views.py`
-- `nassav/urls.py`
+- `nassav/recommendation/cover_cache.py`

@@ -56,6 +56,12 @@ const activeReasonItem = computed(() => {
   return visibleItems.value.find((item) => item.avid === activeReasonAvid.value) || null
 })
 const showInitialLoading = computed(() => loading.value && !visibleItems.value.length)
+const recommendationActionLabel = computed(() => {
+  if (visibleItems.value.length && lastLoadedConfigKey.value !== buildConfigKey()) {
+    return '重新推荐'
+  }
+  return hasRequested.value ? '继续推荐' : '开始推荐'
+})
 const typePreferenceOptions = [
   { value: 'actor_heavy', label: '演员' },
   { value: 'balanced', label: '平衡' },
@@ -356,21 +362,11 @@ async function handleFeedback(item, feedbackType) {
   }
 }
 
-async function handleResetRecommendations() {
-  loading.value = true
+function handleResetRecommendations() {
   error.value = ''
-  try {
-    const response = await recommendationApi.resetState()
-    clearPageRecommendations()
-    window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
-    const snapshotCount = response.data?.snapshot_count || 0
-    const feedbackCount = response.data?.feedback_count || 0
-    toastStore.success(`推荐已清空（快照 ${snapshotCount}，黑名单 ${feedbackCount}）`)
-  } catch (err) {
-    toastStore.error(err.message || '清空推荐失败')
-  } finally {
-    loading.value = false
-  }
+  clearPageRecommendations()
+  window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
+  toastStore.success('当前推荐列表已清空')
 }
 
 function handleOpen(item) {
@@ -435,7 +431,7 @@ onBeforeUnmount(() => {
           :disabled="loading"
           @click="handleResetRecommendations"
         >
-          重置个性化历史
+          清空推荐列表
         </button>
         <button
           class="tw-btn-accent rec-primary-btn"
@@ -443,9 +439,7 @@ onBeforeUnmount(() => {
           @click="loadRecommendations"
         >
           <LoadingSpinner v-if="loading" size="small" />
-          <template v-else>
-            {{ hasRequested ? '继续推荐' : '开始推荐' }}
-          </template>
+          <template v-else>{{ recommendationActionLabel }}</template>
         </button>
       </div>
     </section>
