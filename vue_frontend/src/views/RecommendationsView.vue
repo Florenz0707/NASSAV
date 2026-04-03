@@ -882,7 +882,7 @@ watch(blacklistSearch, () => {
             />
           </label>
 
-          <label class="pretty-toggle" :class="{ disabled: blacklistSeedType === 'resource' }">
+          <label v-if="blacklistSeedType !== 'resource'" class="pretty-toggle">
             <input
               v-model="blacklistBlockedOnly"
               type="checkbox"
@@ -900,7 +900,6 @@ watch(blacklistSearch, () => {
           class="blacklist-add-strip"
         >
           <div class="blacklist-add-copy">
-            <strong>{{ normalizedBlacklistSearch }}</strong>
             <span>将当前 AVID 直接加入资源黑名单</span>
           </div>
           <button
@@ -909,9 +908,7 @@ watch(blacklistSearch, () => {
             @click="addResourceBlacklist"
           >
             {{
-              blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}`
-                ? '...'
-                : '添加资源'
+              blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}` ? '...' : '屏蔽'
             }}
           </button>
         </div>
@@ -1639,11 +1636,6 @@ watch(blacklistSearch, () => {
   transform: translateX(1.1rem);
 }
 
-.pretty-toggle.disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
 .pretty-toggle-label {
   color: var(--text-secondary);
   font-size: 0.92rem;
@@ -1698,7 +1690,7 @@ watch(blacklistSearch, () => {
 
 .blacklist-list {
   display: flex;
-  max-height: min(56vh, 38rem);
+  max-height: 13rem;
   flex-direction: column;
   gap: 0.75rem;
   overflow-y: auto;
@@ -1734,7 +1726,7 @@ watch(blacklistSearch, () => {
   min-width: 5.5rem;
   min-height: 1.5rem;
   border-radius: 0.9rem;
-  padding: 0.5rem 2rem;
+  padding: 0.3rem 1.7rem;
   font-size: 1rem;
   font-weight: 500;
   transition:
