@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from .factors import (
     DiscoverySourceFactor,
+    FeedbackSignalFactor,
     MultiSeedBonusFactor,
     NoveltyFactor,
     PopularityFactor,
@@ -54,6 +55,7 @@ def _build_parameter_profile(
     search_rank_params: dict,
     popularity_params: dict,
     discovery_params: dict,
+    feedback_params: dict,
     novelty_params: dict,
     default_request_overrides: dict,
     recommender_kwargs: dict,
@@ -152,6 +154,11 @@ def _build_parameter_profile(
                     discovery_params["latest_updates_bonus"],
                     "命中最近更新候选时的额外加分。",
                 ),
+                _make_item(
+                    "feedback_seed_weight",
+                    feedback_params["seed_weight"],
+                    "历史反馈对演员/类别种子的调权强度。",
+                ),
             ],
         ),
         _make_section(
@@ -241,6 +248,7 @@ def build_local_preference_strategy() -> RecommendationStrategy:
     search_rank_params = {"max_bonus": 1.9, "decay": 0.2}
     popularity_params = {"views_divisor": 560000.0, "likes_divisor": 6200.0}
     discovery_params = {"hot_board_bonus": 1.0, "latest_updates_bonus": 0.78}
+    feedback_params = {"seed_weight": 1.6}
     novelty_params = {
         "fresh_bonus": 1.0,
         "repeat_penalty": 0.9,
@@ -286,6 +294,10 @@ def build_local_preference_strategy() -> RecommendationStrategy:
                 likes_divisor=popularity_params["likes_divisor"],
             ),
             lambda: DiscoverySourceFactor(**discovery_params),
+            lambda: FeedbackSignalFactor(
+                avid_weight=0.0,
+                seed_weight=feedback_params["seed_weight"],
+            ),
             lambda: NoveltyFactor(**novelty_params),
         ],
         default_request_overrides=default_request_overrides,
@@ -297,6 +309,7 @@ def build_local_preference_strategy() -> RecommendationStrategy:
             search_rank_params=search_rank_params,
             popularity_params=popularity_params,
             discovery_params=discovery_params,
+            feedback_params=feedback_params,
             novelty_params=novelty_params,
             default_request_overrides=default_request_overrides,
             recommender_kwargs=recommender_kwargs,

@@ -1,16 +1,21 @@
 import json
 import secrets
 from hashlib import sha256
+import re
 
 from django.db import transaction
 
 from nassav.models import (
+    RecommendationAvidBlocklist,
     RecommendationFeedback,
     RecommendationItem,
+    RecommendationItemSeed,
+    RecommendationSeedProfile,
     RecommendationSnapshot,
 )
 
 from .entities import RecommendationExecution, RecommendationRequest
+from .seed_profiles import recommendation_seed_profile_repository
 
 
 class RecommendationSnapshotRepository:
@@ -152,26 +157,24 @@ class RecommendationSnapshotRepository:
         if not snapshot_ids:
             return {}
 
-        items = RecommendationItem.objects.filter(
-            snapshot_id__in=snapshot_ids
-        ).order_by(
-            "-snapshot__generated_at",
-            "rank",
-            "pk",
-        )
         counts: dict[str, int] = {}
-        seen_items = 0
-        for matched_seeds in items.values_list("matched_seeds", flat=True):
-            seen_items += 1
-            for seed in matched_seeds or []:
-                seed_type = str(seed.get("seed_type", "")).strip()
-                seed_value = str(seed.get("value", "")).strip()
-                if not seed_type or not seed_value:
-                    continue
-                key = f"{seed_type}:{seed_value}"
-                counts[key] = counts.get(key, 0) + 1
-            if seen_items >= item_limit:
-                break
+        item_ids = list(
+            RecommendationItem.objects.filter(snapshot_id__in=snapshot_ids)
+            .order_by("-snapshot__generated_at", "rank", "pk")
+            .values_list("pk", flat=True)[:item_limit]
+        )
+        if not item_ids:
+            return counts
+
+        for seed_type, seed_value in RecommendationItemSeed.objects.filter(
+            item_id__in=item_ids
+        ).values_list("seed_type", "seed_value"):
+            normalized_seed_type = str(seed_type or "").strip()
+            normalized_seed_value = str(seed_value or "").strip()
+            if not normalized_seed_type or not normalized_seed_value:
+                continue
+            key = f"{normalized_seed_type}:{normalized_seed_value}"
+            counts[key] = counts.get(key, 0) + 1
         return counts
 
     @transaction.atomic
@@ -206,7 +209,7 @@ class RecommendationSnapshotRepository:
             random_seed=execution.request.random_seed,
         )
 
-        RecommendationItem.objects.bulk_create(
+        created_items = RecommendationItem.objects.bulk_create(
             [
                 RecommendationItem(
                     snapshot=snapshot,
@@ -226,19 +229,71 @@ class RecommendationSnapshotRepository:
                 for index, item in enumerate(execution.run.items, start=1)
             ]
         )
+        item_seed_rows: list[RecommendationItemSeed] = []
+        for item_obj, runtime_item in zip(
+            created_items, execution.run.items, strict=False
+        ):
+            for seed in runtime_item.matched_seeds:
+                lookup_payload = dict(seed.lookup_payload or {})
+                source_name = str(lookup_payload.get("source_name", "")).strip().lower()
+                source_identifier = ""
+                if seed.seed_type == "actor":
+                    source_identifier = str(
+                        lookup_payload.get("model_slug", "")
+                    ).strip()
+                elif seed.seed_type == "genre":
+                    source_identifier = str(
+                        lookup_payload.get("genre_slug", "")
+                    ).strip()
+                item_seed_rows.append(
+                    RecommendationItemSeed(
+                        item=item_obj,
+                        seed_type=seed.seed_type,
+                        seed_value=seed.value,
+                        normalized_value=_normalize_seed_value(seed.value),
+                        seed_key=f"{seed.seed_type}:{seed.value}",
+                        source=seed.source,
+                        source_name=source_name,
+                        source_identifier=source_identifier.lower(),
+                        aliases=list(seed.aliases),
+                        weight=seed.weight,
+                        resource_count=max(int(seed.resource_count or 0), 0),
+                        preference_score=seed.preference_score,
+                    )
+                )
+        if item_seed_rows:
+            RecommendationItemSeed.objects.bulk_create(item_seed_rows)
+            recommendation_seed_profile_repository.sync_seed_profiles(
+                items=RecommendationItem.objects.filter(
+                    pk__in=[item.pk for item in created_items if item.pk is not None]
+                ).prefetch_related("item_seeds"),
+                timestamp=snapshot.generated_at,
+            )
         return snapshot
 
     @transaction.atomic
     def reset_state(self) -> dict[str, int]:
+        blocklist_count = RecommendationAvidBlocklist.objects.count()
         feedback_count = RecommendationFeedback.objects.count()
+        item_seed_count = RecommendationItemSeed.objects.count()
         item_count = RecommendationItem.objects.count()
+        seed_profile_count = RecommendationSeedProfile.objects.count()
         snapshot_count = RecommendationSnapshot.objects.count()
+        RecommendationAvidBlocklist.objects.all().delete()
+        RecommendationSeedProfile.objects.all().delete()
         RecommendationSnapshot.objects.all().delete()
         return {
+            "blocklist_count": blocklist_count,
             "feedback_count": feedback_count,
+            "item_seed_count": item_seed_count,
             "item_count": item_count,
+            "seed_profile_count": seed_profile_count,
             "snapshot_count": snapshot_count,
         }
 
 
 recommendation_snapshot_repository = RecommendationSnapshotRepository()
+
+
+def _normalize_seed_value(value: str) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip()).casefold()

@@ -11,6 +11,7 @@ from nassav.models import Actor, ActorSourceMapping, Genre, GenreSourceMapping
 from .actor_source_mapping import actor_source_mapping_service
 from .genre_source_mapping import genre_source_mapping_service
 from .entities import RecommendationRequest, RecommendationSeed
+from .seed_profiles import recommendation_seed_profile_repository
 
 USE_REQUEST_LIMIT = object()
 
@@ -59,9 +60,13 @@ class LocalPreferenceSeedProvider(SeedProvider):
 
     def get_seeds(self, request: RecommendationRequest) -> list[RecommendationSeed]:
         seeds = self._build_seed_batch(request, only_interacted=self.only_interacted)
+        seeds = recommendation_seed_profile_repository.filter_allowed_seeds(seeds)
         if seeds or not self.only_interacted or not self.fallback_to_all:
             return seeds
-        return self._build_seed_batch(request, only_interacted=False)
+        fallback_seeds = self._build_seed_batch(request, only_interacted=False)
+        return recommendation_seed_profile_repository.filter_allowed_seeds(
+            fallback_seeds
+        )
 
     def get_additional_seeds(
         self,
@@ -86,6 +91,9 @@ class LocalPreferenceSeedProvider(SeedProvider):
                 actor_limit=None,
                 genre_limit=None,
             )
+        seed_pool = recommendation_seed_profile_repository.filter_allowed_seeds(
+            seed_pool
+        )
 
         used_keys = {(seed.seed_type, seed.value) for seed in used_seeds}
         extras: list[RecommendationSeed] = []

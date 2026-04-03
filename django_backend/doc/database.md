@@ -106,17 +106,58 @@
   - 约束：
     - `(snapshot, rank)` 唯一，保证每个快照中的排序位唯一。
 
+- **`RecommendationItemSeed` (`nassav_recommendation_item_seed`)**: 推荐结果命中的结构化 seed 明细表。
+  - 关键字段：
+    - `item` (FK): 所属推荐结果明细。
+    - `seed_type` (Char, db_index): seed 类型，当前为 `actor` 或 `genre`。
+    - `seed_value` / `normalized_value` / `seed_key`: seed 的展示值、归一化值与逻辑键。
+    - `source` / `source_name` / `source_identifier`: seed 来源与外部 source 侧身份。
+    - `aliases` (JSONField): seed 的别名列表。
+    - `weight` / `resource_count` / `preference_score`: 本轮推荐时该 seed 的权重上下文。
+  - 约束：
+    - `(item, seed_key)` 唯一，保证同一推荐结果里同一 seed 只记录一次。
+  - 用途：
+    - 替代 `RecommendationItem.matched_seeds` 上的统计职责
+    - 支撑近期 seed 暴露统计与后续 seed 级反馈分析
+
+- **`RecommendationAvidBlocklist` (`nassav_recommendation_avid_blocklist`)**: AVID 级永久屏蔽表。
+  - 关键字段：
+    - `avid` (Char, unique, db_index): 被永久屏蔽的资源编号。
+    - `source` (Char, db_index): 屏蔽来源，当前主要为 `user_feedback` 或迁移过来的 `legacy_feedback`。
+    - `reason` (Char): 屏蔽原因。
+    - `created_at` / `updated_at`: 创建与最近更新时间。
+  - 用途：
+    - 对用户明确点“不喜欢”的具体作品做永久屏蔽
+    - 供推荐流程直接构建 `blocked_avids`
+
+- **`RecommendationSeedProfile` (`nassav_recommendation_seed_profile`)**: 推荐因素画像表。
+  - 关键字段：
+    - `seed_type` (Char, db_index): `actor` 或 `genre`。
+    - `value` / `normalized_value`: seed 展示值与归一化值。
+    - `source_name` / `source_identifier`: 外部 source 侧稳定身份，可用于表达库外演员/类别。
+    - `aliases` (JSONField): 该 seed 的别名。
+    - `is_blocked` (Bool, db_index): 是否显式屏蔽该推荐因素。
+    - `block_reason` (Char): 屏蔽原因。
+    - `recommended_count` / `accepted_count` / `disliked_count`: 推荐次数、采纳次数、不喜欢次数。
+    - `last_recommended_at`: 最近一次命中的时间。
+  - 约束：
+    - `(seed_type, normalized_value, source_name, source_identifier)` 唯一。
+  - 用途：
+    - 表达演员 / 类别级别的长期偏好画像
+    - 支持对库外演员 / 类别进行显式屏蔽
+    - 为后续 actor / genre 级别的降权与统计提供基础
+
 - **`RecommendationFeedback` (`nassav_recommendation_feedback`)**: 推荐反馈表。
   - 关键字段：
     - `item` (OneToOne FK): 对应的推荐结果明细。
     - `avid` (Char, db_index): 被反馈的资源编号。
-    - `feedback` (Char, db_index): 显式反馈类型，当前支持 `like` / `dislike`。
-    - `feedback_value` (SmallInteger): 归一化后的反馈值，`like=1`，`dislike=-1`。
+    - `feedback` (Char, db_index): 显式反馈类型，当前实际只使用 `dislike`。
+    - `feedback_value` (SmallInteger): 归一化后的反馈值，当前主要为 `-1`。
     - `created_at` / `updated_at`: 反馈创建与最后更新时间。
   - 用途：
-    - 记录用户对推荐结果的显式偏好
-    - 聚合为 `avid` 级别的直接偏好记忆
-    - 聚合为演员 / 类别 seed 级别的学习信号，参与后续推荐打分
+    - 记录用户对具体推荐结果的显式反馈事件
+    - 作为迁移与审计上下文保留
+    - 与 `RecommendationAvidBlocklist`、`RecommendationSeedProfile` 联合构成新的长期偏好状态
 
 - **M2M 关系**：`AVResource.actors` 与 `AVResource.genres`（分别通过中间表保存关联）。
 

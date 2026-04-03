@@ -382,7 +382,12 @@ def test_rare_actor_preference_includes_mid_and_low_frequency_actor_seeds(
 def test_recommendations_endpoint_persists_snapshot_and_items(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
-    from nassav.models import RecommendationItem, RecommendationSnapshot
+    from nassav.models import (
+        RecommendationItem,
+        RecommendationItemSeed,
+        RecommendationSeedProfile,
+        RecommendationSnapshot,
+    )
     from nassav.source import Jable
 
     actor = actor_factory(name="Alice")
@@ -419,6 +424,57 @@ def test_recommendations_endpoint_persists_snapshot_and_items(
     assert item.avid == "REC-401"
     assert item.rank == 1
     assert item.reasons
+    item_seed = RecommendationItemSeed.objects.get(item=item)
+    assert item_seed.seed_type == "actor"
+    assert item_seed.seed_value == "Alice"
+    profile = RecommendationSeedProfile.objects.get(
+        seed_type="actor",
+        normalized_value="alice",
+    )
+    assert profile.recommended_count >= 1
+
+
+@pytest.mark.django_db
+def test_blocked_seed_profile_excludes_matching_seed_from_recommendation_pool(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationSeedProfile
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-BLOCK-001", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    RecommendationSeedProfile.objects.create(
+        seed_type="actor",
+        value="Alice",
+        normalized_value="alice",
+        is_blocked=True,
+        block_reason="manual",
+    )
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: [
+            {
+                "avid": "REC-BLOCK-001",
+                "title": "Blocked Seed Result",
+                "detail_url": "https://jable.tv/videos/rec-block-001/",
+                "cover_url": "https://img/rec-block-001.jpg",
+                "metrics": {"views": 100, "likes": 10},
+            }
+        ],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {"actor_seed_limit": 1, "genre_seed_limit": 0},
+    )
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["items"] == []
+    assert all(seed["value"] != "Alice" for seed in body["data"]["seeds"])
 
 
 @pytest.mark.django_db
@@ -621,7 +677,11 @@ def test_recommendation_feedback_endpoint_accepts_only_dislike(
 def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
-    from nassav.models import RecommendationFeedback
+    from nassav.models import (
+        RecommendationAvidBlocklist,
+        RecommendationFeedback,
+        RecommendationSeedProfile,
+    )
     from nassav.source import Jable
 
     actor = actor_factory(name="Alice")
@@ -683,6 +743,14 @@ def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
     )
     assert feedback_response.status_code == 200
     assert RecommendationFeedback.objects.count() == 1
+    assert RecommendationAvidBlocklist.objects.filter(avid="REC-702-A").exists()
+    assert (
+        RecommendationSeedProfile.objects.get(
+            seed_type="actor",
+            normalized_value="alice",
+        ).disliked_count
+        >= 1
+    )
 
     second_response = api_client.get(
         "/nassav/api/recommendations/",
@@ -704,8 +772,11 @@ def test_recommendation_reset_endpoint_clears_snapshots_and_feedback(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import (
+        RecommendationAvidBlocklist,
         RecommendationFeedback,
         RecommendationItem,
+        RecommendationItemSeed,
+        RecommendationSeedProfile,
         RecommendationSnapshot,
     )
     from nassav.source import Jable
@@ -738,7 +809,10 @@ def test_recommendation_reset_endpoint_clears_snapshots_and_feedback(
     assert feedback_response.status_code == 200
     assert RecommendationSnapshot.objects.count() == 1
     assert RecommendationItem.objects.count() == 1
+    assert RecommendationItemSeed.objects.count() == 1
     assert RecommendationFeedback.objects.count() == 1
+    assert RecommendationAvidBlocklist.objects.count() == 1
+    assert RecommendationSeedProfile.objects.count() >= 1
 
     reset_response = api_client.post(
         "/nassav/api/recommendations/reset", {}, format="json"
@@ -748,10 +822,16 @@ def test_recommendation_reset_endpoint_clears_snapshots_and_feedback(
     assert reset_body["code"] == 200
     assert reset_body["data"]["snapshot_count"] == 1
     assert reset_body["data"]["item_count"] == 1
+    assert reset_body["data"]["item_seed_count"] == 1
     assert reset_body["data"]["feedback_count"] == 1
+    assert reset_body["data"]["blocklist_count"] == 1
+    assert reset_body["data"]["seed_profile_count"] >= 1
     assert RecommendationSnapshot.objects.count() == 0
     assert RecommendationItem.objects.count() == 0
+    assert RecommendationItemSeed.objects.count() == 0
     assert RecommendationFeedback.objects.count() == 0
+    assert RecommendationAvidBlocklist.objects.count() == 0
+    assert RecommendationSeedProfile.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -1164,7 +1244,7 @@ def test_recommendations_endpoint_includes_hot_and_latest_discovery_candidates(
 
 
 @pytest.mark.django_db
-def test_feedback_learning_profile_only_builds_dislike_blacklist(
+def test_feedback_learning_profile_builds_dislike_blacklist_and_seed_penalty(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.recommendation.feedback import recommendation_feedback_repository
@@ -1196,7 +1276,7 @@ def test_feedback_learning_profile_only_builds_dislike_blacklist(
     )
     profile = recommendation_feedback_repository.build_learning_profile()
     assert profile.avid_scores == {}
-    assert profile.seed_scores == {}
+    assert profile.seed_scores["actor:Alice"] < 0
     assert "REC-905-A" in profile.blocked_avids
 
 

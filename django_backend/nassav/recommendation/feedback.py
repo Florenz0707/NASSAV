@@ -2,7 +2,13 @@ from dataclasses import dataclass, field
 
 from django.db import transaction
 
-from nassav.models import RecommendationFeedback, RecommendationItem
+from nassav.models import (
+    RecommendationAvidBlocklist,
+    RecommendationFeedback,
+    RecommendationItem,
+)
+
+from .seed_profiles import recommendation_seed_profile_repository
 
 
 class RecommendationFeedbackError(Exception):
@@ -59,18 +65,26 @@ class RecommendationFeedbackRepository:
                 "feedback": normalized_feedback,
             },
         )
+        RecommendationAvidBlocklist.objects.update_or_create(
+            avid=normalized_avid,
+            defaults={
+                "source": "user_feedback",
+                "reason": "dislike",
+            },
+        )
+        recommendation_seed_profile_repository.increment_dislike_counts_for_item(item)
         return feedback_obj
 
     def build_learning_profile(self) -> RecommendationLearningProfile:
-        feedbacks = RecommendationFeedback.objects.select_related("item").filter(
-            feedback="dislike"
+        blocked_avids = set(
+            RecommendationAvidBlocklist.objects.values_list("avid", flat=True)
         )
-        if not feedbacks:
-            return RecommendationLearningProfile()
-
         return RecommendationLearningProfile(
-            blocked_avids=set(feedbacks.values_list("avid", flat=True)),
-            feedback_count=feedbacks.count(),
+            seed_scores=recommendation_seed_profile_repository.build_seed_score_map(),
+            blocked_avids=blocked_avids,
+            feedback_count=RecommendationFeedback.objects.filter(
+                feedback="dislike"
+            ).count(),
         )
 
 

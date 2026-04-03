@@ -95,7 +95,8 @@
 效果：
 
 - 为对应 `RecommendationItem` 记录负反馈
-- 后续推荐时，该 `avid` 会被直接屏蔽
+- 将该 `avid` 同步写入永久屏蔽表
+- 将命中的 actor / genre seed 计入负反馈统计，后续只做降权，不做 seed 级硬屏蔽
 
 ### 5. `POST /nassav/api/recommendations/reset`
 
@@ -103,7 +104,10 @@
 
 - `RecommendationSnapshot`
 - `RecommendationItem`
+- `RecommendationItemSeed`
 - `RecommendationFeedback`
+- `RecommendationAvidBlocklist`
+- `RecommendationSeedProfile`
 
 ### 6. `GET /nassav/api/recommendations/cover`
 
@@ -178,6 +182,10 @@
   - `diversity_penalty=0.72`
   - `actor_diversity_weight=1.0`
   - `genre_diversity_weight=0.72`
+- 反馈调权：
+  - 启用 `FeedbackSignalFactor`
+  - 当前只对 actor / genre seed 画像做调权
+  - 不对 `avid` 做软调权，`avid` 级 dislike 直接走永久屏蔽
 
 ### 4. Recommender 层
 
@@ -270,6 +278,14 @@ actor / genre 种子会尽量复用映射信息：
 
 actor 种子还会自动提取别名，用于搜索回退时提升召回率。
 
+在种子真正进入推荐流程前，还会先经过 `RecommendationSeedProfile` 过滤：
+
+- 若某个 actor / genre seed 被显式标记为 `is_blocked=true`
+- 且名称或 source 身份匹配
+- 则该 seed 不会进入本轮推荐
+
+这使得系统可以表达“屏蔽某个演员 / 类别”，即使它当前不在本地资源库里。
+
 ## 候选召回机制
 
 文件：
@@ -346,19 +362,23 @@ genre 种子：
 当前学习机制非常直接：
 
 - 仅统计 `dislike`
-- 只做 `avid` 级黑名单
-- 不做 seed 级正负反馈学习
+- `avid` 级别做永久黑名单
+- actor / genre 级别累积到 `RecommendationSeedProfile.disliked_count`
+- 当前 `accepted_count` 预留但尚未通过 API 写入
 
 实现位置：
 
 - `nassav/recommendation/feedback.py`
+- `nassav/recommendation/seed_profiles.py`
 
 `build_learning_profile()` 当前返回：
 
 - `blocked_avids`
 - `feedback_count`
+- `seed_scores`
 
 manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_avids`，后续在召回后立即过滤。
+同时会把 `seed_scores` 写入 `RecommendationRequest.feedback_seed_scores`，供排序阶段做 actor / genre 级降权。
 
 ### 3. 同配置近期避让
 
@@ -443,8 +463,9 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 注意：
 
 - 代码中存在 `FeedbackSignalFactor`
-- 当前 strategy 并未启用它
-- 因此当前实现没有基于 seed 级反馈做排序学习
+- 当前 strategy 已启用它
+- 当前仅使用其中的 seed 级信号
+- `avid_weight` 为 0，`avid` 级不喜欢直接通过永久屏蔽表处理
 
 ## 请求指纹与持久化
 
@@ -503,13 +524,53 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - `score_breakdown`
 - `raw_metrics`
 
-### 4. Feedback
+### 4. ItemSeed
+
+每个结果命中的 actor / genre seed 会额外写入 `RecommendationItemSeed`：
+
+- `seed_type`
+- `seed_value`
+- `normalized_value`
+- `seed_key`
+- `source_name`
+- `source_identifier`
+- `aliases`
+- `weight`
+- `resource_count`
+- `preference_score`
+
+这张表承担了“结构化 seed 统计”的职责，后续近期 seed 轮换统计直接读它，不再依赖 `matched_seeds` JSON。
+
+### 5. AvidBlocklist
+
+用户对具体作品点 `dislike` 后，会把 `avid` 写入 `RecommendationAvidBlocklist`：
+
+- 该表中的 `avid` 会在后续推荐中被直接过滤
+- 现有历史 `dislike` 已迁移到该表
+
+### 6. SeedProfile
+
+系统会把 actor / genre 级别的长期状态写入 `RecommendationSeedProfile`：
+
+- `recommended_count`
+- `accepted_count`
+- `disliked_count`
+- `is_blocked`
+- `block_reason`
+
+当前系统已经会：
+
+- 在保存推荐结果时累计 `recommended_count`
+- 在用户点 `dislike` 时累计 `disliked_count`
+- 在生成种子时过滤 `is_blocked=true` 的 seed
+
+### 7. Feedback
 
 负反馈保存在 `RecommendationFeedback`：
 
 - 与 `RecommendationItem` 一对一
 - 同时冗余存储 `avid`
-- 当前只在推荐阶段用于构建 `blocked_avids`
+- 当前主要承担“反馈事件”与历史迁移上下文职责
 
 ## 返回结构
 
@@ -547,7 +608,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - 只有一个 strategy：`local_preference`
 - API 不支持切换 recommender
 - 反馈 API 只支持 `dislike`
-- 负反馈只做 `avid` 级屏蔽
+- `accepted_count` 已有数据结构预留，但尚未通过 API 写入
 - 没有把 snapshot 当作结果缓存复用，每次请求仍会重新召回和计算
 
 ## 相关文件

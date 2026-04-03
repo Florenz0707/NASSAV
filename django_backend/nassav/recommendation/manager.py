@@ -132,8 +132,12 @@ class RecommenderManager:
             )
         )
         learning_profile = recommendation_feedback_repository.build_learning_profile()
+        recommendation_request.feedback_avid_scores = learning_profile.avid_scores
+        recommendation_request.feedback_seed_scores = learning_profile.seed_scores
         recommendation_request.blocked_feedback_avids = learning_profile.blocked_avids
         recommendation_request.learned_feedback_count = learning_profile.feedback_count
+        recommendation_request.learned_avid_count = learning_profile.learned_avid_count
+        recommendation_request.learned_seed_count = learning_profile.learned_seed_count
         recommender = self.build_recommender(
             recommender_id=resolved_recommender_id,
             strategy=strategy,

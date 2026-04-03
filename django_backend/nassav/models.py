@@ -343,6 +343,159 @@ class RecommendationItem(models.Model):
         return f"{snapshot_pk}:{self.rank}:{self.avid}"
 
 
+class RecommendationItemSeed(models.Model):
+    item = models.ForeignKey(
+        RecommendationItem,
+        on_delete=models.CASCADE,
+        related_name="item_seeds",
+    )
+    seed_type = models.CharField(max_length=16, db_index=True)
+    seed_value = models.CharField(max_length=255)
+    normalized_value = models.CharField(max_length=255, db_index=True)
+    seed_key = models.CharField(max_length=320, db_index=True)
+    source = models.CharField(max_length=64, blank=True, db_index=True)
+    source_name = models.CharField(max_length=32, blank=True, db_index=True)
+    source_identifier = models.CharField(max_length=255, blank=True, db_index=True)
+    aliases = models.JSONField(default=list, blank=True)
+    weight = models.FloatField(default=0.0)
+    resource_count = models.PositiveIntegerField(default=0)
+    preference_score = models.FloatField(default=0.0)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "nassav_recommendation_item_seed"
+        ordering = ["item_id", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item", "seed_key"],
+                name="nassav_recitemseed_item_key_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["seed_type", "normalized_value"],
+                name="nas_recseed_type_norm_idx",
+            ),
+            models.Index(
+                fields=["source_name", "source_identifier"],
+                name="nas_recseed_src_ident_idx",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.seed_type = str(self.seed_type or "").strip().lower()
+        self.seed_value = str(self.seed_value or "").strip()
+        self.normalized_value = self._normalize_value(self.seed_value)
+        self.seed_key = f"{self.seed_type}:{self.seed_value}"
+        self.source = str(self.source or "").strip()
+        self.source_name = str(self.source_name or "").strip().lower()
+        self.source_identifier = str(self.source_identifier or "").strip().lower()
+        if self.aliases is None:
+            self.aliases = []
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _normalize_value(value: str) -> str:
+        return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+    def __str__(self):
+        item_pk = getattr(self, "item_id", None)
+        return f"{item_pk}:{self.seed_key}"
+
+
+class RecommendationAvidBlocklist(models.Model):
+    avid = models.CharField(max_length=50, unique=True, db_index=True)
+    source = models.CharField(max_length=32, default="user_feedback", db_index=True)
+    reason = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "nassav_recommendation_avid_blocklist"
+        ordering = ["-updated_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        self.avid = str(self.avid or "").strip().upper()
+        self.source = str(self.source or "").strip().lower()
+        self.reason = str(self.reason or "").strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.avid
+
+
+class RecommendationSeedProfile(models.Model):
+    SEED_TYPE_CHOICES = [
+        ("actor", "演员"),
+        ("genre", "类别"),
+    ]
+
+    seed_type = models.CharField(
+        max_length=16, choices=SEED_TYPE_CHOICES, db_index=True
+    )
+    value = models.CharField(max_length=255)
+    normalized_value = models.CharField(max_length=255, db_index=True)
+    source_name = models.CharField(max_length=32, blank=True, db_index=True)
+    source_identifier = models.CharField(max_length=255, blank=True, db_index=True)
+    aliases = models.JSONField(default=list, blank=True)
+    is_blocked = models.BooleanField(default=False, db_index=True)
+    block_reason = models.CharField(max_length=255, blank=True)
+    recommended_count = models.PositiveIntegerField(default=0)
+    accepted_count = models.PositiveIntegerField(default=0)
+    disliked_count = models.PositiveIntegerField(default=0)
+    last_recommended_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "nassav_recommendation_seed_profile"
+        ordering = ["seed_type", "normalized_value", "source_name", "source_identifier"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "seed_type",
+                    "normalized_value",
+                    "source_name",
+                    "source_identifier",
+                ],
+                name="nassav_recseedprofile_identity_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["seed_type", "is_blocked"],
+                name="nas_recseedprofile_type_block_idx",
+            ),
+            models.Index(
+                fields=["source_name", "source_identifier"],
+                name="nas_recseedprofile_src_ident_idx",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.seed_type = str(self.seed_type or "").strip().lower()
+        self.value = str(self.value or "").strip()
+        self.normalized_value = self._normalize_value(self.value)
+        self.source_name = str(self.source_name or "").strip().lower()
+        self.source_identifier = str(self.source_identifier or "").strip().lower()
+        self.block_reason = str(self.block_reason or "").strip()
+        if self.aliases is None:
+            self.aliases = []
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _normalize_value(value: str) -> str:
+        return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+
+    def __str__(self):
+        if self.source_name and self.source_identifier:
+            return (
+                f"{self.seed_type}:{self.value}"
+                f"@{self.source_name}:{self.source_identifier}"
+            )
+        return f"{self.seed_type}:{self.value}"
+
+
 class RecommendationFeedback(models.Model):
     FEEDBACK_CHOICES = [
         ("like", "喜欢"),
