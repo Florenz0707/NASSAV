@@ -18,6 +18,8 @@ from .M3u8DownloaderBase import M3u8DownloaderBase
 class N_m3u8DL_RE(M3u8DownloaderBase):
     """N_m3u8DL-RE 下载器"""
 
+    SPEED_PATTERN = r"([\d.]+\s*[KMGT]?i?B(?:/s|ps))"
+
     def __init__(self, proxy: Optional[str] = None):
         super().__init__(proxy)
 
@@ -104,7 +106,9 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                         percent_match = re.search(r"(\d+\.?\d*)%", line)
                         # 尝试匹配速度
                         speed_match = re.search(
-                            r"([\d.]+\s*[KMG]?B/s)", line, re.IGNORECASE
+                            self.SPEED_PATTERN,
+                            line,
+                            re.IGNORECASE,
                         )
 
                         if percent_match:
