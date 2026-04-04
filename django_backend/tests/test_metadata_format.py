@@ -283,3 +283,208 @@ def test_save_all_resources_syncs_jable_actor_mapping_during_add_flow(monkeypatc
     )
     assert mapping.source_actor_name == "小宵こなん"
     assert mapping.source_actor_slug == "20d0c4a34eda32e442cc3ff532f568fd"
+
+
+@pytest.mark.django_db
+def test_refresh_resource_preserves_existing_actor_relations_when_scrape_fails(
+    monkeypatch,
+):
+    from nassav.models import AVResource, Actor
+    from nassav.resource_service import ResourceService
+    from nassav.scraper import AVDownloadInfo
+    from nassav.scraper.ScraperManager import scraper_manager
+    from nassav.source.SourceManager import source_manager
+    from nassav.translator.TranslatorManager import translator_manager
+
+    service = ResourceService(source_manager, scraper_manager, translator_manager)
+
+    actor = Actor.objects.create(name="明里つむぎ")
+    resource = AVResource.objects.create(
+        avid="JAB-REF-001",
+        source="Jable",
+        source_title="JAB-REF-001 Seed Title",
+        m3u8="https://stream/original.m3u8",
+    )
+    resource.actors.add(actor)
+
+    info = AVDownloadInfo(
+        avid="JAB-REF-001",
+        m3u8="https://stream/refreshed.m3u8",
+        source_title="JAB-REF-001 Refreshed Title",
+        source="Jable",
+    )
+
+    monkeypatch.setattr(
+        service,
+        "_get_source_info",
+        lambda avid, source: (info, None, "<html></html>", {"jable": None}),
+    )
+    monkeypatch.setattr(service, "_scrape_metadata", lambda avid: (None, None))
+    monkeypatch.setattr(
+        service,
+        "_download_cover",
+        lambda avid, scraped_data, scraped_by, source_inst, html: False,
+    )
+
+    result = service.refresh_resource("JAB-REF-001", scrape=True)
+
+    resource.refresh_from_db()
+    assert result["resource"]["actors"] == ["明里つむぎ"]
+    assert list(resource.actors.values_list("name", flat=True)) == ["明里つむぎ"]
+    assert resource.m3u8 == "https://stream/refreshed.m3u8"
+
+
+@pytest.mark.django_db
+def test_save_to_database_preserves_metadata_when_scrape_is_skipped():
+    from nassav.models import AVResource
+    from nassav.resource_service import ResourceService
+    from nassav.scraper import AVDownloadInfo
+    from nassav.scraper.ScraperManager import scraper_manager
+    from nassav.source.SourceManager import source_manager
+    from nassav.translator.TranslatorManager import translator_manager
+
+    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    mock_source = Mock()
+    mock_source.get_source_name.return_value = "Jable"
+
+    existing = AVResource.objects.create(
+        avid="META-KEEP-001",
+        source="Jable",
+        source_title="META-KEEP-001 Old",
+        m3u8="https://old.m3u8",
+        metadata={
+            "avid": "META-KEEP-001",
+            "source": "Jable",
+            "source_title": "META-KEEP-001 Old",
+            "m3u8": "https://old.m3u8",
+            "actors": ["Existing Actor"],
+            "genres": ["Existing Genre"],
+            "title": "Existing Title",
+        },
+    )
+
+    info = AVDownloadInfo(
+        avid="META-KEEP-001",
+        m3u8="https://new.m3u8",
+        source_title="META-KEEP-001 New",
+        source="Jable",
+    )
+
+    updated = service._save_to_database(
+        "META-KEEP-001",
+        info,
+        mock_source,
+        scraped_data=None,
+        html=None,
+    )
+
+    assert updated.metadata["actors"] == ["Existing Actor"]
+    assert updated.metadata["genres"] == ["Existing Genre"]
+    assert updated.metadata["title"] == "Existing Title"
+    assert updated.metadata["m3u8"] == "https://new.m3u8"
+    assert updated.metadata["source_title"] == "META-KEEP-001 New"
+    existing.refresh_from_db()
+    assert existing.metadata["actors"] == ["Existing Actor"]
+
+
+@pytest.mark.django_db
+def test_save_to_database_preserves_metadata_when_scrape_is_skipped_even_with_jable_html():
+    from nassav.models import AVResource
+    from nassav.resource_service import ResourceService
+    from nassav.scraper import AVDownloadInfo
+    from nassav.scraper.ScraperManager import scraper_manager
+    from nassav.source.SourceManager import source_manager
+    from nassav.translator.TranslatorManager import translator_manager
+
+    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    mock_source = Mock()
+    mock_source.get_source_name.return_value = "Jable"
+    mock_source.domain = "jable.tv"
+
+    AVResource.objects.create(
+        avid="META-KEEP-002",
+        source="Jable",
+        source_title="META-KEEP-002 Old",
+        m3u8="https://old.m3u8",
+        metadata={
+            "avid": "META-KEEP-002",
+            "source": "Jable",
+            "source_title": "META-KEEP-002 Old",
+            "m3u8": "https://old.m3u8",
+            "actors": ["Existing Actor"],
+            "genres": ["Existing Genre"],
+            "title": "Existing Title",
+        },
+    )
+
+    info = AVDownloadInfo(
+        avid="META-KEEP-002",
+        m3u8="https://new.m3u8",
+        source_title="META-KEEP-002 New",
+        source="Jable",
+    )
+    html = """
+    <div class="models">
+        <a class="model" href="https://jable.tv/models/demo-slug/">
+            <span title="HTML Actor">H</span>
+        </a>
+    </div>
+    """
+
+    updated = service._save_to_database(
+        "META-KEEP-002",
+        info,
+        mock_source,
+        scraped_data=None,
+        html=html,
+    )
+
+    assert updated.metadata["actors"] == ["Existing Actor"]
+    assert updated.metadata["genres"] == ["Existing Genre"]
+    assert updated.metadata["title"] == "Existing Title"
+    assert updated.metadata["m3u8"] == "https://new.m3u8"
+    assert updated.metadata["source_title"] == "META-KEEP-002 New"
+
+
+@pytest.mark.django_db
+def test_save_to_database_uses_jable_html_actor_fallback_when_scraper_has_no_actor():
+    from nassav.resource_service import ResourceService
+    from nassav.scraper import AVDownloadInfo
+    from nassav.scraper.ScraperManager import scraper_manager
+    from nassav.source.SourceManager import source_manager
+    from nassav.translator.TranslatorManager import translator_manager
+
+    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    mock_source = Mock()
+    mock_source.get_source_name.return_value = "Jable"
+    mock_source.domain = "jable.tv"
+
+    info = AVDownloadInfo(
+        avid="ABF-308",
+        m3u8="https://example.com/abf-308.m3u8",
+        source_title="ABF-308 Demo",
+        source="Jable",
+    )
+    scraped_data = {
+        "title": "ABF-308 Demo",
+        "actors": [],
+        "genres": [],
+    }
+    html = """
+    <div class="models">
+        <a class="model" href="https://jable.tv/models/7ffb432871f53eda0b4d80be34fff86a/">
+            <span title="瀧本雫葉">瀧</span>
+        </a>
+    </div>
+    """
+
+    resource = service._save_to_database(
+        "ABF-308",
+        info,
+        mock_source,
+        scraped_data,
+        html=html,
+    )
+
+    assert list(resource.actors.values_list("name", flat=True)) == ["瀧本雫葉"]
+    assert resource.metadata["actors"] == ["瀧本雫葉"]
