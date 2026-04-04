@@ -1,6 +1,7 @@
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { downloadApi, resourceApi } from '../api'
+import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import { RouterLink, useRoute } from 'vue-router'
@@ -33,6 +34,7 @@ if (typeof emit === 'function') {
 }
 
 const route = useRoute()
+const resourceStore = useResourceStore()
 const settingsStore = useSettingsStore()
 const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 const coverUrl = ref(placeholder)
@@ -117,22 +119,25 @@ const showDeleteMenu = ref(false)
 const showRefreshMenu = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteOption = ref(null)
-const downloading = ref(false)
 const refreshMenuFlip = ref(false)
 const deleteMenuFlip = ref(false)
+const downloadState = computed(() => resourceStore.getDownloadState(props.resource.avid))
+const isSubmittingDownload = computed(() => downloadState.value === 'submitting')
+const isDownloading = computed(() => downloadState.value === 'downloading')
+const isDownloadBusy = computed(() => isSubmittingDownload.value || isDownloading.value)
 
 // 生成刷新菜单选项
 const refreshOptions = [
   { text: '全部刷新', params: { refresh_m3u8: true, refresh_metadata: true, retranslate: false } },
   {
-    text: '刷新 M3U8',
+    text: '仅M3U8',
     params: { refresh_m3u8: true, refresh_metadata: false, retranslate: false },
   },
   {
-    text: '刷新元数据',
+    text: '仅元数据',
     params: { refresh_m3u8: false, refresh_metadata: true, retranslate: false },
   },
-  { text: '重新翻译', params: { refresh_m3u8: false, refresh_metadata: false, retranslate: true } },
+  { text: '仅翻译', params: { refresh_m3u8: false, refresh_metadata: false, retranslate: true } },
   {
     text: '元数据+翻译',
     params: { refresh_m3u8: false, refresh_metadata: true, retranslate: true },
@@ -140,25 +145,22 @@ const refreshOptions = [
 ]
 
 function handleDownloadClick() {
-  if (downloading.value || props.resource.has_video) return
-  downloading.value = true
+  if (isDownloadBusy.value || props.resource.has_video) return
   emit('download', props.resource.avid)
-  setTimeout(() => {
-    downloading.value = false
-  }, 4000)
 }
-
-watch(
-  () => props.resource.has_video,
-  (val) => {
-    if (val) downloading.value = false
-  }
-)
 
 function openDeleteMenu(event) {
   const rect = event.currentTarget.getBoundingClientRect()
   deleteMenuFlip.value = rect.top < 140
+  showRefreshMenu.value = false
   showDeleteMenu.value = !showDeleteMenu.value
+}
+
+function openRefreshMenu(event) {
+  const rect = event.currentTarget.getBoundingClientRect()
+  refreshMenuFlip.value = rect.top < 140
+  showDeleteMenu.value = false
+  showRefreshMenu.value = !showRefreshMenu.value
 }
 
 function handleRefreshOption(option) {
@@ -415,11 +417,13 @@ onUnmounted(() => {
         <!-- 刷新按钮容器 -->
         <div class="relative" @click.stop>
           <button
-            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)]"
+            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)] border border-white/10 bg-white/[0.08] hover:bg-white/[0.14]"
             :data-avid="resource.avid"
             title="刷新资源"
-            style="border-color: rgba(255, 255, 255, 0.65); background: rgba(128, 128, 128, 0.22)"
-            @click="showRefreshMenu = !showRefreshMenu"
+            aria-label="刷新资源"
+            aria-haspopup="menu"
+            :aria-expanded="showRefreshMenu"
+            @click="openRefreshMenu($event)"
           >
             刷新
           </button>
@@ -434,13 +438,13 @@ onUnmounted(() => {
                 ? 'absolute top-[calc(100%+0.5rem)] left-0'
                 : 'absolute bottom-[calc(100%+0.5rem)] left-0'
             "
-            class="refresh-menu tw-card-menu-popover"
+            class="refresh-menu tw-card-menu-popover min-w-[110px] max-h-[calc(110vh-20px)] overflow-y-auto"
           >
             <button
               v-for="option in refreshOptions"
               :key="option.text"
               role="menuitem"
-              class="tw-card-menu-item"
+              class="w-full px-4 py-2.5 text-center border-none text-[0.75rem] cursor-pointer transition-colors duration-200 text-[var(--text-secondary)] bg-white/[0.08] hover:bg-white/[0.14] hover:text-[var(--text-primary)]"
               @click="handleRefreshOption(option)"
             >
               {{ option.text }}
@@ -451,36 +455,44 @@ onUnmounted(() => {
         <button
           :class="[
             'inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
-            resource.has_video || downloading
+            resource.has_video
               ? 'cursor-not-allowed opacity-60'
-              : 'text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5',
+              : isSubmittingDownload
+                ? 'cursor-not-allowed text-white shadow-[0_8px_20px_rgba(78,205,196,0.24)]'
+                : isDownloading
+                  ? 'cursor-not-allowed text-white shadow-[0_8px_20px_rgba(255,159,67,0.28)]'
+                  : 'text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5',
           ]"
           :style="
-            resource.has_video || downloading
+            resource.has_video
               ? 'background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color)'
-              : 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)'
+              : isSubmittingDownload
+                ? 'background: linear-gradient(135deg, var(--accent-tertiary), #66e6d8)'
+                : isDownloading
+                  ? 'background: linear-gradient(135deg, var(--accent-secondary), #ffbf69)'
+                  : 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)'
           "
-          :disabled="resource.has_video || downloading"
-          :title="resource.has_video ? '视频已下载' : downloading ? '下载中...' : '提交下载任务'"
+          :disabled="resource.has_video || isDownloadBusy"
+          :title="
+            resource.has_video
+              ? '视频已下载'
+              : isSubmittingDownload
+                ? '正在提交下载请求...'
+                : isDownloading
+                  ? '视频下载中...'
+                  : '提交下载任务'
+          "
           @click="handleDownloadClick"
         >
-          <svg
-            v-if="downloading"
-            class="w-3.5 h-3.5 animate-spin"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-              stroke-width="2.5"
-              stroke-dasharray="32"
-              stroke-dashoffset="12"
-            />
-          </svg>
-          {{ resource.has_video ? '已下载' : downloading ? '下载中' : '下载' }}
+          {{
+            resource.has_video
+              ? '已下载'
+              : isSubmittingDownload
+                ? '提交中'
+                : isDownloading
+                  ? '下载中'
+                  : '下载'
+          }}
         </button>
 
         <!-- 删除按钮容器 -->

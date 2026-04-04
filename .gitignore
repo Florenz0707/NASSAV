@@ -2,3 +2,5 @@
 .vscode/
 .DS_STORE
 .claude/
+
+.codex

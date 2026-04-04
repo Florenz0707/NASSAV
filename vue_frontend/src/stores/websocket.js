@@ -199,6 +199,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
           const avid = message.data.avid
           if (avid) {
             toastStore.info(`开始下载: ${avid}`)
+            resourceStore.setDownloadState(avid, 'downloading')
           }
           updateTaskData(message.data)
         }
@@ -224,6 +225,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
           const error = message.data.error || '未知错误'
           if (avid) {
             toastStore.error(`下载失败: ${avid} - ${error}`)
+            resourceStore.clearDownloadState(avid)
           }
           updateTaskData(message.data)
         }
@@ -236,6 +238,18 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   // 更新任务数据
   function updateTaskData(data) {
+    if (
+      !data ||
+      (!Array.isArray(data.active_tasks) &&
+        !Array.isArray(data.pending_tasks) &&
+        typeof data.active_count === 'undefined' &&
+        typeof data.pending_count === 'undefined' &&
+        typeof data.total_count === 'undefined')
+    ) {
+      return
+    }
+
+    const resourceStore = useResourceStore()
     // 更新任务列表时，先从缓存应用标题
     activeTasks.value = (data.active_tasks || []).map((task) => {
       const cachedTitle = titleCache.value.get(task.avid)?.title
@@ -263,6 +277,11 @@ export const useWebSocketStore = defineStore('websocket', () => {
     activeCount.value = data.active_count || 0
     pendingCount.value = data.pending_count || 0
     totalCount.value = data.total_count || 0
+
+    resourceStore.syncDownloadingAvids([
+      ...activeTasks.value.map((task) => task.avid),
+      ...pendingTasks.value.map((task) => task.avid),
+    ])
 
     // 检查并补充缺失的元数据
     fetchMissingMetadata()

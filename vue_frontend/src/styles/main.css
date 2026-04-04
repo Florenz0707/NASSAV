@@ -500,13 +500,13 @@ select option {
   }
 
   .tw-card-menu-popover {
-    @apply z-[100] min-w-[120px] overflow-hidden rounded-lg border shadow-[0_4px_12px_rgba(0,0,0,0.2)];
+    @apply z-[100] min-w-[130px] overflow-hidden rounded-lg border shadow-[0_4px_12px_rgba(0,0,0,0.2)];
     border-color: var(--border-color);
     background: var(--bg-overlay);
   }
 
   .tw-card-menu-item {
-    @apply w-full border-none bg-transparent px-4 py-2.5 text-left text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)];
+    @apply w-full border-none bg-transparent px-4 py-2.5 text-center text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)];
   }
 
   .tw-cookie-btn-view {

@@ -18,7 +18,6 @@ const avid = computed(() => route.params.avid)
 const metadata = ref(null)
 const loading = ref(true)
 const error = ref(null)
-const downloading = ref(false)
 const refreshing = ref(false)
 const showRefreshMenu = ref(false)
 const showDeleteMenu = ref(false)
@@ -67,6 +66,10 @@ const deleteOptions = computed(() => {
 })
 
 const coverUrl = ref(null)
+const downloadState = computed(() => resourceStore.getDownloadState(avid.value))
+const isSubmittingDownload = computed(() => downloadState.value === 'submitting')
+const isDownloading = computed(() => downloadState.value === 'downloading')
+const isDownloadBusy = computed(() => isSubmittingDownload.value || isDownloading.value)
 
 // 根据设置选择显示的标题
 const displayedTitle = computed(() => {
@@ -170,12 +173,9 @@ async function fetchMetadata(bypassCache = false) {
 }
 
 async function handleDownload() {
-  downloading.value = true
   try {
     await resourceStore.submitDownload(avid.value)
     toastStore.success('下载任务已提交')
-    // 重新获取元数据以更新下载状态
-    await fetchMetadata()
   } catch (err) {
     if (err.code === 409) {
       toastStore.info('视频已下载')
@@ -184,8 +184,6 @@ async function handleDownload() {
     } else {
       toastStore.error(err.message || '提交下载失败')
     }
-  } finally {
-    downloading.value = false
   }
 }
 
@@ -311,7 +309,7 @@ async function navigateToGenre(genreName) {
 <template>
   <div class="animate-[fadeIn_0.5s_ease]">
     <!-- 返回按钮 -->
-    <button class="tw-back-btn" @click="goBack">
+    <button class="tw-back-btn mb-10" @click="goBack">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
@@ -553,11 +551,17 @@ async function navigateToGenre(genreName) {
             <button
               v-if="!metadata.file_exists"
               class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-              style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
-              :disabled="downloading"
+              :style="
+                isSubmittingDownload
+                  ? 'background: linear-gradient(135deg, var(--accent-tertiary), #66e6d8)'
+                  : isDownloading
+                    ? 'background: linear-gradient(135deg, var(--accent-secondary), #ffbf69)'
+                    : 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)'
+              "
+              :disabled="isDownloadBusy"
               @click="handleDownload"
             >
-              {{ downloading ? '提交中...' : '下载视频' }}
+              {{ isSubmittingDownload ? '提交中...' : isDownloading ? '下载中...' : '下载视频' }}
             </button>
             <button
               v-if="metadata.file_exists"

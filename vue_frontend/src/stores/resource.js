@@ -6,6 +6,7 @@ export const useResourceStore = defineStore('resource', () => {
   const resources = ref([])
   const sources = ref([])
   const downloads = ref([])
+  const downloadStates = ref(new Map())
   const loading = ref(false)
   const error = ref(null)
 
@@ -206,14 +207,79 @@ export const useResourceStore = defineStore('resource', () => {
 
   // 提交下载
   async function submitDownload(avid) {
-    const response = await downloadApi.submitDownload(avid)
-    return response
+    if (!avid) return null
+    setDownloadState(avid, 'submitting')
+    try {
+      const response = await downloadApi.submitDownload(avid)
+      setDownloadState(avid, 'downloading')
+      return response
+    } catch (err) {
+      if (err && err.code === 409) {
+        updateResourceDownloadStatus(avid, true)
+      } else {
+        clearDownloadState(avid)
+      }
+      throw err
+    }
   }
 
   async function batchSubmitDownload(avids = []) {
     if (!Array.isArray(avids) || avids.length === 0) return
-    const resp = await downloadApi.batchSubmit(avids)
-    return resp
+    for (const avid of avids) {
+      setDownloadState(avid, 'submitting')
+    }
+    try {
+      const resp = await downloadApi.batchSubmit(avids)
+      for (const avid of avids) {
+        setDownloadState(avid, 'downloading')
+      }
+      return resp
+    } catch (err) {
+      for (const avid of avids) {
+        clearDownloadState(avid)
+      }
+      throw err
+    }
+  }
+
+  function setDownloadState(avid, state) {
+    if (!avid || !state) return
+    const next = new Map(downloadStates.value)
+    next.set(avid, state)
+    downloadStates.value = next
+  }
+
+  function clearDownloadState(avid) {
+    if (!avid || !downloadStates.value.has(avid)) return
+    const next = new Map(downloadStates.value)
+    next.delete(avid)
+    downloadStates.value = next
+  }
+
+  function getDownloadState(avid) {
+    if (!avid) return null
+    return downloadStates.value.get(avid) || null
+  }
+
+  function syncDownloadingAvids(avids = []) {
+    const activeAvids = new Set((Array.isArray(avids) ? avids : []).filter(Boolean))
+    const next = new Map(downloadStates.value)
+
+    for (const [avid, state] of next.entries()) {
+      if (state === 'downloading' && !activeAvids.has(avid)) {
+        next.delete(avid)
+      }
+    }
+
+    for (const avid of activeAvids) {
+      if (!_resourceHasVideo(avid)) {
+        next.set(avid, 'downloading')
+      } else {
+        next.delete(avid)
+      }
+    }
+
+    downloadStates.value = next
   }
 
   // helper: normalize resources to an array
@@ -277,6 +343,15 @@ export const useResourceStore = defineStore('resource', () => {
       resource.has_video = hasVideo
       console.debug('[resource] 更新资源下载状态:', avid, hasVideo)
     }
+    if (hasVideo) {
+      clearDownloadState(avid)
+    }
+  }
+
+  function _resourceHasVideo(avid) {
+    if (!avid) return false
+    const arr = _resourcesArray()
+    return arr.some((resource) => resource.avid === avid && resource.has_video)
   }
 
   // 统计信息
@@ -298,6 +373,7 @@ export const useResourceStore = defineStore('resource', () => {
     resources,
     sources,
     downloads,
+    downloadStates,
     loading,
     error,
     pagination,
@@ -310,6 +386,10 @@ export const useResourceStore = defineStore('resource', () => {
     batchRefresh,
     batchDelete,
     batchSubmitDownload,
+    getDownloadState,
+    setDownloadState,
+    clearDownloadState,
+    syncDownloadingAvids,
     updateResourceDownloadStatus,
   }
 })

@@ -415,7 +415,7 @@ function onPageSizeChange(newSize) {
 
     <!-- Floating Refresh Button -->
     <button
-      class="tw-fab-primary"
+      class="tw-fab-primary floating-refresh-btn"
       :disabled="refreshing"
       :title="refreshing ? '刷新中...' : '刷新资源列表'"
       @click="handleManualRefresh"
@@ -491,12 +491,24 @@ select option {
 }
 
 /* 响应式 */
+.floating-refresh-btn {
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
+  padding: 0;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
   .floating-refresh-btn {
     bottom: 1.5rem;
     right: 1.5rem;
     width: 50px;
     height: 50px;
+    min-width: 50px;
+    min-height: 50px;
     font-size: 1rem;
   }
 }
