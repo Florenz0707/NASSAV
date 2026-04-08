@@ -402,7 +402,7 @@ const copyCookie = async () => {
   justify-content: center;
   border-radius: 0.9rem;
   border: 1px solid rgba(255, 107, 107, 0.56);
-  background: linear-gradient(135deg, var(--accent-primary), #ff8b5f);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   color: #fff;
   font-size: 0.95rem;
   font-weight: 700;

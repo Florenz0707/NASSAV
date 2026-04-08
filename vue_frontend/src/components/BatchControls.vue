@@ -23,7 +23,7 @@
             class="w-5 h-5 flex items-center justify-center rounded-md transition border-2"
             :style="
               selectedCount === totalCount && totalCount > 0
-                ? 'background: linear-gradient(135deg, var(--accent-primary), #ff5252); border-color: white;'
+                ? 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary)); border-color: white;'
                 : 'background: rgba(128,128,128,0.6); border-color: white;'
             "
           >
@@ -53,7 +53,7 @@
       </button>
       <button
         class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md text-white shadow text-sm hover:brightness-105 disabled:opacity-60 transition-all duration-200"
-        style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
         :disabled="batchLoading"
         @click="$emit('batch-download')"
       >

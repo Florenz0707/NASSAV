@@ -150,7 +150,11 @@ onBeforeUnmount(() => {
     </button>
 
     <transition name="custom-select-fade">
-      <div v-if="open" class="custom-select-menu" role="listbox">
+      <div
+        v-if="open"
+        class="custom-select-menu bg-secondary border border-white/10 rounded-lg shadow-lg"
+        role="listbox"
+      >
         <button
           v-for="(option, index) in options"
           :key="`${option.value}`"
@@ -167,10 +171,16 @@ onBeforeUnmount(() => {
           <span class="custom-select-option-label">{{ option.label }}</span>
           <span
             v-if="String(option.value) === String(modelValue)"
-            class="custom-select-option-check"
+            class="custom-select-option-check flex items-center"
             aria-hidden="true"
           >
-            ✓
+            <svg class="w-4 h-4 text-accent-tertiary" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
           </span>
         </button>
       </div>
@@ -277,12 +287,6 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.28rem;
   padding: 0.4rem;
-  border: 1px solid var(--border-color);
-  border-radius: 1rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)), var(--bg-overlay);
-  box-shadow: 0 22px 40px rgba(15, 23, 42, 0.22);
-  backdrop-filter: blur(18px);
 }
 
 .custom-select-option {

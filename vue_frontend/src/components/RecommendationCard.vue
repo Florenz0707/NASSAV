@@ -99,7 +99,14 @@ function handleReasonsClick(event) {
           aria-label="不感兴趣"
           @click="emit('feedback', 'dislike')"
         >
-          ⨉
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
         </button>
       </div>
     </div>
@@ -391,7 +398,7 @@ function handleReasonsClick(event) {
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, var(--accent-primary), #ff8b5f);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   color: white;
   box-shadow: 0 10px 20px rgba(255, 107, 107, 0.22);
 }

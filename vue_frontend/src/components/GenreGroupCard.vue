@@ -25,7 +25,7 @@ export default {
       return n ? n.substring(0, 2) : '类别'
     },
     bgColor() {
-      return '#1f2937'
+      return 'var(--bg-secondary)'
     },
   },
 }

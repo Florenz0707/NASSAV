@@ -317,7 +317,9 @@ onUnmounted(() => {
                 : 'bg-[rgba(128,128,128,0.6)] border-white text-white',
             ]"
             :style="
-              selected ? 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)' : ''
+              selected
+                ? 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
+                : ''
             "
           >
             <svg
@@ -470,7 +472,7 @@ onUnmounted(() => {
                 ? 'background: linear-gradient(135deg, var(--accent-tertiary), #66e6d8)'
                 : isDownloading
                   ? 'background: linear-gradient(135deg, var(--accent-secondary), #ffbf69)'
-                  : 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)'
+                  : 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
           "
           :disabled="resource.has_video || isDownloadBusy"
           :title="

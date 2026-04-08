@@ -18,12 +18,17 @@ defineProps({
 <template>
   <div class="flex flex-col items-center justify-center py-16 px-8 text-center">
     <div class="text-6xl opacity-30 mb-6 animate-[float_3s_ease-in-out_infinite]">
-      {{ icon }}
+      <template v-if="icon.startsWith('<svg')">
+        <span v-html="icon"></span>
+      </template>
+      <template v-else>
+        {{ icon }}
+      </template>
     </div>
-    <h3 class="text-xl font-semibold text-[#f4f4f5] mb-2">
+    <h3 class="text-xl font-semibold text-primary mb-2">
       {{ title }}
     </h3>
-    <p v-if="description" class="text-[0.95rem] text-[#71717a] max-w-[400px] leading-relaxed">
+    <p v-if="description" class="text-[0.95rem] text-muted max-w-[400px] leading-relaxed">
       {{ description }}
     </p>
     <div class="mt-6">

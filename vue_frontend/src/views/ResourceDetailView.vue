@@ -556,7 +556,7 @@ async function navigateToGenre(genreName) {
                   ? 'background: linear-gradient(135deg, var(--accent-tertiary), #66e6d8)'
                   : isDownloading
                     ? 'background: linear-gradient(135deg, var(--accent-secondary), #ffbf69)'
-                    : 'background: linear-gradient(135deg, var(--accent-primary), #ff5252)'
+                    : 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
               "
               :disabled="isDownloadBusy"
               @click="handleDownload"
@@ -566,7 +566,9 @@ async function navigateToGenre(genreName) {
             <button
               v-if="metadata.file_exists"
               class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
-              style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+              style="
+                background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
+              "
               @click="jumpPlay"
             >
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -594,7 +596,7 @@ async function navigateToGenre(genreName) {
                 <button
                   v-for="option in deleteOptions"
                   :key="option.text"
-                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--accent-danger)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[#ef476f]/10 min-w-[120px]"
+                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-accent-danger text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-accent-danger/10 min-w-[120px]"
                   @click="handleDeleteOption(option)"
                 >
                   {{ option.text }}

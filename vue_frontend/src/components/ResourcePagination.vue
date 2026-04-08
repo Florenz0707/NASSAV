@@ -4,7 +4,7 @@
       <button
         :disabled="page === 1"
         class="hidden sm:inline-flex px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
         @click="goFirst"
       >
         跳转开头
@@ -12,7 +12,7 @@
       <button
         :disabled="page === 1"
         class="px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
         @click="goPrev"
       >
         上一页
@@ -23,7 +23,7 @@
       <button
         :disabled="page === pages"
         class="px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
         @click="goNext"
       >
         下一页
@@ -31,7 +31,7 @@
       <button
         :disabled="page === pages"
         class="hidden sm:inline-flex px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
         @click="goLast"
       >
         跳转末尾
@@ -41,7 +41,7 @@
       <div class="flex items-center gap-2">
         <button
           class="px-3 py-1 rounded-md text-white shadow-md text-sm"
-          style="background: linear-gradient(135deg, var(--accent-primary), #ff5252)"
+          style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
           @click="emitGoTo(localPage)"
         >
           跳转至第

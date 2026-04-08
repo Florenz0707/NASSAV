@@ -827,7 +827,16 @@ watch(blacklistSearch, () => {
           <div>
             <div class="reason-panel-eyebrow">Recommendation Notes</div>
           </div>
-          <button class="reason-panel-close" type="button" @click="closeReasonPanel">⨉</button>
+          <button class="reason-panel-close" type="button" @click="closeReasonPanel">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
         </div>
         <div class="reason-panel-score">
           推荐评分 {{ Number(activeReasonItem.score || 0).toFixed(1) }}
@@ -1076,7 +1085,7 @@ watch(blacklistSearch, () => {
 
 .rec-action-btn-primary {
   color: #fff;
-  background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   box-shadow: 0 10px 22px rgba(255, 107, 107, 0.22);
 }
 

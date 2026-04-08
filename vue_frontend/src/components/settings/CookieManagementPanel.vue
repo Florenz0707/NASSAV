@@ -94,11 +94,24 @@ const emit = defineEmits(['view', 'edit', 'delete'])
       class="mt-6 p-4 rounded-lg"
       style="background: rgba(78, 205, 196, 0.05); border: 1px solid rgba(78, 205, 196, 0.2)"
     >
-      <div class="flex gap-3">
-        <span class="text-[var(--accent-tertiary)] text-lg flex-shrink-0">ℹ️</span>
-        <div class="text-sm text-[var(--text-muted)]">
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <svg
+          class="w-5 h-5 text-accent-tertiary flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01"
+          ></path>
+        </svg>
+        <div class="text-sm text-muted">
           <p class="mb-2">
-            <span class="text-[var(--text-primary)] font-medium">关于 Cookie：</span>
+            <span class="text-primary font-medium">关于 Cookie：</span>
           </p>
           <ul class="list-disc list-inside space-y-1 text-[var(--text-muted)]">
             <li>Cookie 用于访问需要登录的下载源（如 MissAV）</li>
@@ -141,24 +154,24 @@ const emit = defineEmits(['view', 'edit', 'delete'])
 .cookie-btn-update {
   border-color: rgba(255, 107, 107, 0.25);
   background: rgba(255, 107, 107, 0.12);
-  color: #ff8b8b;
+  color: var(--accent-primary);
 }
 
 .cookie-btn-update:hover {
   border-color: rgba(255, 107, 107, 0.38);
   background: rgba(255, 107, 107, 0.2);
-  color: #ffb3b3;
+  color: var(--text-primary);
 }
 
 .cookie-btn-delete {
   border-color: rgba(239, 68, 68, 0.25);
   background: rgba(239, 68, 68, 0.11);
-  color: #f87171;
+  color: var(--accent-danger);
 }
 
 .cookie-btn-delete:hover {
   border-color: rgba(239, 68, 68, 0.4);
   background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  color: var(--text-primary);
 }
 </style>

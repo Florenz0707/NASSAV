@@ -40,7 +40,7 @@ const initial = computed(() => {
 
 const bgColor = computed(() => {
   // use a unified dark background for all avatars
-  return '#1f2937'
+  return 'var(--bg-secondary)'
 })
 </script>
 

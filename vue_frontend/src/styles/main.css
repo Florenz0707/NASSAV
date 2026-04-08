@@ -407,40 +407,40 @@ select option {
   }
 
   .tw-btn-primary {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-[10px] border-none px-6 py-3 text-[0.95rem] font-medium text-white no-underline transition-all duration-200 hover:-translate-y-0.5;
-    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3 text-[0.95rem] font-medium text-white no-underline transition-all duration-200 hover:-translate-y-0.5;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
   .tw-btn-primary-elevated {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-[10px] border-none px-6 py-3.5 text-[0.95rem] font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)];
-    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3.5 text-[0.95rem] font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)];
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
   .tw-btn-danger {
-    @apply flex-1 cursor-pointer rounded-[10px] border-none px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)];
+    @apply flex-1 cursor-pointer rounded-lg border-none px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)];
     font: inherit;
     background: var(--accent-danger);
   }
 
   .tw-fab-primary {
     @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full border-none text-xl text-white shadow-[0_4px_20px_rgba(255,107,107,0.3)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0;
-    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
   .tw-btn-accent {
-    @apply inline-flex min-h-[2.9rem] min-w-[8rem] cursor-pointer items-center justify-center rounded-[0.95rem] border-none px-4 font-semibold text-white;
-    background: linear-gradient(135deg, var(--accent-primary), #ff8b5f);
+    @apply inline-flex min-h-[2.9rem] min-w-[8rem] cursor-pointer items-center justify-center rounded-lg border-none px-4 font-semibold text-white;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
     box-shadow: 0 10px 24px rgba(255, 107, 107, 0.22);
   }
 
   .tw-btn-outline-muted {
-    @apply inline-flex min-h-[2.9rem] min-w-[7.6rem] cursor-pointer items-center justify-center rounded-[0.95rem] border px-4 font-semibold text-[var(--text-secondary)];
+    @apply inline-flex min-h-[2.9rem] min-w-[7.6rem] cursor-pointer items-center justify-center rounded-lg border px-4 font-semibold text-[var(--text-secondary)];
     border-color: rgba(255, 255, 255, 0.16);
     background: rgba(255, 255, 255, 0.04);
   }
 
   .tw-btn-footer {
-    @apply inline-flex min-h-[2.85rem] min-w-[10rem] cursor-pointer items-center justify-center rounded-[0.95rem] border px-[1.1rem] font-semibold text-[var(--text-primary)];
+    @apply inline-flex min-h-[2.85rem] min-w-[10rem] cursor-pointer items-center justify-center rounded-lg border px-[1.1rem] font-semibold text-[var(--text-primary)];
     border-color: rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.05);
   }
@@ -454,7 +454,7 @@ select option {
 
   .tw-home-hero-primary-btn {
     @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border-none px-8 py-4 text-lg font-medium text-white no-underline transition-all duration-300 hover:-translate-y-1 active:translate-y-0 active:shadow-none;
-    background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
     box-shadow: 0 8px 20px rgba(255, 107, 107, 0.25);
   }
 
@@ -477,9 +477,11 @@ select option {
   }
 
   .tw-surface-overlay {
-    @apply border;
-    border-color: var(--border-color);
-    background: var(--bg-overlay);
+    background: var(--bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -4px rgba(0, 0, 0, 0.1);
   }
 
   .tw-btn-muted {
@@ -537,19 +539,19 @@ select option {
   .tw-cookie-btn-update:hover {
     border-color: rgba(255, 107, 107, 0.32);
     background: rgba(255, 107, 107, 0.16);
-    color: #ff8f8f;
+    color: var(--accent-danger);
   }
 
   .tw-cookie-btn-delete {
     @apply rounded-lg border px-3 py-1.5 text-sm transition-all;
     border-color: rgba(239, 68, 68, 0.24);
     background: rgba(239, 68, 68, 0.1);
-    color: #f87171;
+    color: var(--accent-danger);
   }
 
   .tw-cookie-btn-delete:hover {
     border-color: rgba(239, 68, 68, 0.35);
     background: rgba(239, 68, 68, 0.16);
-    color: #fca5a5;
+    color: var(--accent-danger);
   }
 }

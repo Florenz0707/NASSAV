@@ -80,8 +80,7 @@ watch(isVisible, (val) => {
         @click.self="handleCancel"
       >
         <div
-          class="rounded-2xl border shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden"
-          style="background: var(--bg-secondary); border-color: var(--border-color)"
+          class="rounded-2xl border border-white/10 bg-secondary shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden confirm-dialog"
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-dialog-title"
@@ -92,25 +91,12 @@ watch(isVisible, (val) => {
           <div class="py-6 px-6 pb-4 flex flex-col items-center gap-3">
             <div
               class="w-14 h-14 rounded-full flex items-center justify-center border-2"
-              :style="{
-                background:
-                  type === 'warning'
-                    ? 'rgba(255,159,67,0.15)'
-                    : type === 'danger'
-                      ? 'rgba(239,71,111,0.15)'
-                      : 'rgba(78,205,196,0.15)',
-                color:
-                  type === 'warning'
-                    ? 'var(--accent-secondary)'
-                    : type === 'danger'
-                      ? 'var(--accent-danger)'
-                      : 'var(--accent-tertiary)',
-                borderColor:
-                  type === 'warning'
-                    ? 'rgba(255,159,67,0.3)'
-                    : type === 'danger'
-                      ? 'rgba(239,71,111,0.3)'
-                      : 'rgba(78,205,196,0.3)',
+              :class="{
+                'bg-accent-secondary/15 border-accent-secondary/30 text-accent-secondary':
+                  type === 'warning',
+                'bg-accent-danger/15 border-accent-danger/30 text-accent-danger': type === 'danger',
+                'bg-accent-tertiary/15 border-accent-tertiary/30 text-accent-tertiary':
+                  type !== 'warning' && type !== 'danger',
               }"
             >
               <!-- warning -->
@@ -167,21 +153,18 @@ watch(isVisible, (val) => {
           <!-- Footer -->
           <div class="py-4 px-6 pb-6 flex gap-3 justify-center">
             <button
-              class="flex-1 py-3 px-6 border rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit bg-white/[0.08] hover:bg-white/[0.12] hover:-translate-y-0.5"
-              style="color: var(--text-secondary); border-color: var(--border-color)"
+              class="flex-1 py-3 px-6 border border-white/10 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 text-secondary bg-white/[0.08] hover:bg-white/[0.12] hover:-translate-y-0.5"
               @click="handleCancel"
             >
               {{ cancelText }}
             </button>
             <button
-              class="flex-1 py-3 px-6 border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-all duration-200 font-inherit text-white hover:-translate-y-0.5"
-              :style="{
-                background:
-                  type === 'warning'
-                    ? 'var(--accent-secondary)'
-                    : type === 'danger'
-                      ? 'var(--accent-danger)'
-                      : 'var(--accent-tertiary)',
+              class="flex-1 py-3 px-6 border-none rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
+              :class="{
+                'bg-accent-secondary hover:bg-accent-secondary/80': type === 'warning',
+                'bg-accent-danger hover:bg-accent-danger/80': type === 'danger',
+                'bg-accent-tertiary hover:bg-accent-tertiary/80':
+                  type !== 'warning' && type !== 'danger',
               }"
               @click="handleConfirm"
             >

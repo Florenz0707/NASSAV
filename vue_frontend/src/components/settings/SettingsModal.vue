@@ -38,7 +38,21 @@ const emit = defineEmits(['close'])
           <h3 class="text-xl font-bold text-[var(--text-primary)]">{{ title }}</h3>
           <slot name="header-extra" />
         </div>
-        <button v-if="showClose" class="settings-modal-close-btn" @click="emit('close')">✕</button>
+        <button v-if="showClose" class="settings-modal-close-btn" @click="emit('close')">
+          <svg
+            class="w-5 h-5 flex items-center"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
       </div>
 
       <div class="p-6">
@@ -72,6 +86,8 @@ const emit = defineEmits(['close'])
   border: 1px solid rgba(255, 107, 107, 0.22);
   background: rgba(255, 107, 107, 0.08);
   color: var(--accent-primary);
+  background: theme('backgroundColor.accent-primary/10');
+  color: var(--accent-primary);
   font-size: 1rem;
   line-height: 1;
   transition:
@@ -82,7 +98,9 @@ const emit = defineEmits(['close'])
 
 .settings-modal-close-btn:hover {
   transform: translateY(-1px);
+  transform: translateY(-1px);
   border-color: rgba(255, 107, 107, 0.42);
   background: rgba(255, 107, 107, 0.14);
+  background: theme('backgroundColor.accent-primary/20');
 }
 </style>

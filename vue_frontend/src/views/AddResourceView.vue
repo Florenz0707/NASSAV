@@ -244,7 +244,7 @@ function viewResource() {
 
         <button
           type="submit"
-          class="btn btn-primary btn-large btn-full"
+          class="btn-primary w-full text-lg flex items-center justify-center gap-2 rounded-lg px-6 py-4 hover:bg-opacity-80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           :disabled="submitting || parseAvids().length === 0"
         >
           <LoadingSpinner v-if="submitting" size="small" />
@@ -273,7 +273,49 @@ function viewResource() {
       >
         <div class="result-header">
           <div class="result-icon">
-            {{ result.success.length > 0 ? '✓' : result.exists.length > 0 ? 'ℹ' : '✕' }}
+            <svg
+              v-if="result.success.length > 0"
+              class="w-6 h-6 text-accent-success"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              ></path>
+            </svg>
+            <svg
+              v-else-if="result.exists.length > 0"
+              class="w-6 h-6 text-accent-tertiary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4m0 4h.01"
+              ></path>
+            </svg>
+            <svg
+              v-else
+              class="w-6 h-6 text-accent-danger"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
           </div>
           <h3 class="result-title">
             {{
@@ -301,22 +343,103 @@ function viewResource() {
           </div>
           <div v-if="result.success.length > 0 || result.exists.length > 0" class="result-checks">
             <div class="check-item" :class="{ done: result.data.cover_downloaded }">
-              <span class="check-icon">{{ result.data.cover_downloaded ? '✓' : '○' }}</span>
+              <span class="check-icon">
+                <svg
+                  v-if="result.data.cover_downloaded"
+                  class="w-4 h-4 text-accent-success"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  ></path>
+                </svg>
+                <svg
+                  v-else
+                  class="w-4 h-4 text-text-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                </svg>
+              </span>
               封面下载
             </div>
             <div class="check-item" :class="{ done: result.data.metadata_saved }">
-              <span class="check-icon">{{ result.data.metadata_saved ? '✓' : '○' }}</span>
+              <span class="check-icon">
+                <svg
+                  v-if="result.data.metadata_saved"
+                  class="w-4 h-4 text-accent-success"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  ></path>
+                </svg>
+                <svg
+                  v-else
+                  class="w-4 h-4 text-text-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                </svg>
+              </span>
               元数据保存
             </div>
-            <div class="check-item" :class="{ done: result.data.scraped }">
-              <span class="check-icon">{{ result.data.scraped ? '✓' : '○' }}</span>
+            <div
+              v-if="result.data.source"
+              class="check-item"
+              :class="{ done: result.data.scraped }"
+            >
+              <span class="check-icon">
+                <svg
+                  v-if="result.data.scraped"
+                  class="w-4 h-4 text-accent-success"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  ></path>
+                </svg>
+                <svg
+                  v-else
+                  class="w-4 h-4 text-text-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                </svg>
+              </span>
               信息刮削
             </div>
           </div>
         </div>
 
         <div class="result-actions">
-          <button class="btn btn-primary" @click="viewResource">查看详情</button>
+          <button
+            class="btn-primary rounded-lg px-6 py-3 hover:bg-opacity-80 transition-colors duration-200"
+            @click="viewResource"
+          >
+            查看详情
+          </button>
         </div>
       </div>
     </Transition>
@@ -330,17 +453,57 @@ function viewResource() {
           </h3>
           <div class="batch-result-stats">
             <div class="stat-item success">
-              <span class="stat-icon">✓</span>
+              <span class="stat-icon"
+                ><svg
+                  class="w-4 h-4 text-accent-success"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  ></path></svg
+              ></span>
               <span class="stat-label">成功</span>
               <span class="stat-value">{{ result.success.length }}</span>
             </div>
             <div class="stat-item exists">
-              <span class="stat-icon">ℹ</span>
+              <span class="stat-icon"
+                ><svg
+                  class="w-4 h-4 text-accent-tertiary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4m0 4h.01"
+                  ></path></svg
+              ></span>
               <span class="stat-label">已存在</span>
               <span class="stat-value">{{ result.exists.length }}</span>
             </div>
             <div class="stat-item failed">
-              <span class="stat-icon">✕</span>
+              <span class="stat-icon"
+                ><svg
+                  class="w-4 h-4 text-accent-danger"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  ></path></svg
+              ></span>
               <span class="stat-label">失败</span>
               <span class="stat-value">{{ result.failed.length }}</span>
             </div>
@@ -388,7 +551,11 @@ function viewResource() {
         </div>
 
         <div class="result-actions">
-          <button v-if="result.success.length === 1" class="btn btn-primary" @click="viewResource">
+          <button
+            v-if="result.success.length === 1"
+            class="btn-primary rounded-lg px-6 py-3 hover:bg-opacity-80 transition-colors duration-200"
+            @click="viewResource"
+          >
             查看详情
           </button>
         </div>
@@ -592,7 +759,7 @@ function viewResource() {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary), #ff5252);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   color: white;
 }
 
