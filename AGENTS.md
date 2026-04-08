@@ -85,12 +85,6 @@
 如果任务只涉及后端，还应优先补充：
 
 - `cd django_backend && uv run pytest tests/ -v`
-- `cd django_backend && uv run pyright`
-
-如果任务只涉及前端，还应优先补充：
-
-- `cd vue_frontend && pnpm run build`
-- `cd vue_frontend && pnpm run lint:fix`
 
 如果 `pre-commit run -a` 失败：
 
