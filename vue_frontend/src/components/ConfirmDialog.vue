@@ -80,7 +80,7 @@ watch(isVisible, (val) => {
         @click.self="handleCancel"
       >
         <div
-          class="rounded-2xl border border-white/10 bg-secondary shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden confirm-dialog"
+          class="rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden confirm-dialog confirm-dialog-box"
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-dialog-title"
@@ -153,19 +153,14 @@ watch(isVisible, (val) => {
           <!-- Footer -->
           <div class="py-4 px-6 pb-6 flex gap-3 justify-center">
             <button
-              class="flex-1 py-3 px-6 border border-white/10 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 text-secondary bg-white/[0.08] hover:bg-white/[0.12] hover:-translate-y-0.5"
+              class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 cancel-btn"
               @click="handleCancel"
             >
               {{ cancelText }}
             </button>
             <button
-              class="flex-1 py-3 px-6 border-none rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5"
-              :class="{
-                'bg-accent-secondary hover:bg-accent-secondary/80': type === 'warning',
-                'bg-accent-danger hover:bg-accent-danger/80': type === 'danger',
-                'bg-accent-tertiary hover:bg-accent-tertiary/80':
-                  type !== 'warning' && type !== 'danger',
-              }"
+              class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 confirm-btn"
+              :class="`is-${type}`"
               @click="handleConfirm"
             >
               {{ confirmText }}
@@ -179,6 +174,46 @@ watch(isVisible, (val) => {
 </template>
 
 <style scoped>
+.confirm-dialog-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.cancel-btn {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.cancel-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  transform: translateY(-1px);
+}
+
+.confirm-btn {
+  border: 1px solid transparent;
+  color: #ffffff;
+}
+
+.confirm-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.confirm-btn.is-warning {
+  background: var(--accent-secondary);
+}
+
+.confirm-btn.is-danger {
+  background: #ef4444;
+}
+
+.confirm-btn.is-info {
+  background: var(--accent-primary);
+}
+
 /* 对话框动画 */
 .dialog-enter-active,
 .dialog-leave-active {

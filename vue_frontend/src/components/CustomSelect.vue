@@ -206,8 +206,7 @@ onBeforeUnmount(() => {
   gap: 0.85rem;
   border: 1px solid var(--border-color);
   border-radius: 1rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)), var(--bg-input);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -287,6 +286,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.28rem;
   padding: 0.4rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.4);
 }
 
 .custom-select-option {
@@ -306,20 +309,23 @@ onBeforeUnmount(() => {
   transition:
     background 0.18s ease,
     border-color 0.18s ease,
-    transform 0.18s ease;
+    transform 0.18s ease,
+    color 0.18s ease;
 }
 
 .custom-select-option:hover:not(.is-disabled),
 .custom-select-option:focus-visible {
   outline: none;
-  background: rgba(255, 107, 107, 0.08);
-  border-color: rgba(255, 107, 107, 0.14);
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
   transform: translateY(-1px);
 }
 
 .custom-select-option.is-selected {
-  background: rgba(255, 107, 107, 0.12);
-  border-color: rgba(255, 107, 107, 0.2);
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
 }
 
 .custom-select-option.is-disabled {
