@@ -32,6 +32,7 @@ class Jable(SourceBase):
             f"https://{self.domain}/videos/{avid.lower()}/",
             f"https://{self.domain}/videos/{avid.lower()}v/",
             f"https://{self.domain}/videos/{avid.lower()}bf/",
+            f"https://{self.domain}/videos/{avid.lower()}ntum/",
         ]
         for url in urls:
             result = self.fetch_html(
