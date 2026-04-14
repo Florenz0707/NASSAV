@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
+  gap: 0.4rem;
   padding: 0.4rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -299,7 +299,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 0.75rem;
   min-height: 2.55rem;
-  padding: 0.65rem 0.8rem;
+  padding: 0.65rem 0.6rem;
   border: 1px solid transparent;
   border-radius: 0.82rem;
   background: transparent;
@@ -316,16 +316,16 @@ onBeforeUnmount(() => {
 .custom-select-option:hover:not(.is-disabled),
 .custom-select-option:focus-visible {
   outline: none;
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
-  color: white;
+  background: var(--bg-white-8);
+  border-color: var(--border-white-10);
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
 .custom-select-option.is-selected {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: white;
+  color: var(--text-inverse);
 }
 
 .custom-select-option.is-disabled {

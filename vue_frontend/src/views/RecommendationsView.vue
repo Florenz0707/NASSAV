@@ -1417,31 +1417,26 @@ watch(blacklistSearch, () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 3rem;
-  min-height: 3rem;
+  min-width: 3.5rem;
+  min-height: 3.5rem;
   padding: 0 0.5rem;
-  border: 1px solid rgba(223, 218, 218, 0.5);
+  border: 1px solid var(--accent-primary);
   border-radius: 999px;
-  background:
-    linear-gradient(135deg, rgba(255, 107, 107, 0.22), rgba(255, 139, 95, 0.18)),
-    rgba(18, 24, 38, 0);
-  color: rgba(255, 255, 255, 1);
+  background: var(--accent-primary);
+  color: #ffffff;
   font-weight: 700;
+  font-size: 1.2rem;
   backdrop-filter: blur(14px);
-  box-shadow:
-    0 18px 36px rgba(0, 0, 0, 0.34),
-    0 0 0 1px rgba(255, 107, 107, 0.08);
+  box-shadow: var(--shadow-accent-lg);
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .scroll-top-btn:hover {
-  border-color: rgba(255, 151, 117, 0.48);
-  background:
-    linear-gradient(135deg, rgba(255, 107, 107, 0.3), rgba(255, 139, 95, 0.24)),
-    rgba(22, 28, 44, 0.94);
-  box-shadow:
-    0 22px 42px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 139, 95, 0.14);
+  transform: translateY(-2px);
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+  box-shadow: var(--shadow-accent-xl);
 }
 
 .reason-floating-panel {

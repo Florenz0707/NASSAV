@@ -658,8 +658,8 @@ function viewResource() {
   background: var(--card-bg);
   border-radius: 20px;
   border: 1px solid var(--border-color);
-  padding: 2rem;
-  margin-bottom: 2rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .add-form {
@@ -697,6 +697,8 @@ function viewResource() {
 .form-select,
 .form-textarea {
   padding: 1rem 1.25rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
   border-radius: 12px;
   color: var(--text-primary);
   font-size: 1rem;
@@ -713,6 +715,8 @@ function viewResource() {
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
 }
 
 .form-input::placeholder,
