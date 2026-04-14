@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
     <transition name="custom-select-fade">
       <div
         v-if="open"
-        class="custom-select-menu bg-secondary border border-white/10 rounded-lg shadow-lg"
+        class="custom-select-menu bg-secondary border border-[var(--border-white-10)] rounded-lg shadow-lg"
         role="listbox"
       >
         <button

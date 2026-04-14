@@ -365,7 +365,7 @@ async function navigateToGenre(genreName) {
           <!-- 收藏和观看按钮 -->
           <div class="flex justify-between gap-3">
             <button
-              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 border"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-white-5)] border"
               :style="
                 metadata.is_favorite
                   ? 'background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.3);'
@@ -409,7 +409,7 @@ async function navigateToGenre(genreName) {
             </button>
 
             <button
-              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 border"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-white-5)] border"
               :style="
                 metadata.watched
                   ? 'background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);'
@@ -523,7 +523,7 @@ async function navigateToGenre(genreName) {
             <!-- 刷新按钮容器 -->
             <div class="relative" @click.stop>
               <button
-                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-white/[0.08] text-[var(--text-primary)] hover:bg-white/[0.12] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
+                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-[var(--bg-white-8)] text-[var(--text-primary)] hover:bg-[var(--bg-white-12)] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
                 style="border: 1px solid var(--border-color)"
                 :disabled="refreshing"
                 @click="showRefreshMenu = !showRefreshMenu"
@@ -540,7 +540,7 @@ async function navigateToGenre(genreName) {
                 <button
                   v-for="option in refreshOptions"
                   :key="option.text"
-                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--text-muted)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)]"
+                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--text-muted)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[var(--bg-white-8)] hover:text-[var(--text-primary)]"
                   @click="handleRefreshOption(option)"
                 >
                   {{ option.text }}

@@ -16,7 +16,7 @@ const toastStore = useToastStore()
           v-for="toast in toastStore.toasts"
           :key="toast.id"
           :role="toast.type === 'error' ? 'alert' : 'status'"
-          class="flex items-center gap-3 px-5 py-4 rounded-xl backdrop-blur-[10px] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] cursor-pointer min-w-[280px] max-w-[400px]"
+          class="flex items-center gap-3 px-5 py-4 rounded-xl backdrop-blur-[10px] border border-[var(--border-white-10)] shadow-[0_8px_32px_rgba(0,0,0,0.3)] cursor-pointer min-w-[280px] max-w-[400px]"
           :class="`toast-${toast.type}`"
           style="background: var(--bg-overlay)"
           @click="toastStore.remove(toast.id)"

@@ -35,7 +35,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
     </div>
 
     <div class="space-y-6">
-      <div class="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+      <div class="p-4 rounded-xl bg-white/[0.02] border border-[var(--border-white-5)]">
         <h3 class="text-sm font-medium text-[var(--text-muted)] mb-4 uppercase tracking-wider">
           显示设置
         </h3>
@@ -51,7 +51,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
                 :class="
                   settings.colorMode === 'light'
                     ? 'bg-[var(--accent-primary)] text-white'
-                    : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'
+                    : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
                 @click="settings.colorMode = 'light'"
               >
@@ -62,7 +62,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
                 :class="
                   settings.colorMode === 'dark'
                     ? 'bg-[var(--accent-primary)] text-white'
-                    : 'bg-white/5 text-[var(--text-muted)] hover:bg-white/10'
+                    : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
                 @click="settings.colorMode = 'dark'"
               >
@@ -71,7 +71,9 @@ const emit = defineEmits(['update:previewFont', 'save'])
             </div>
           </div>
 
-          <div class="flex items-center justify-between pt-4 border-t border-white/[0.05]">
+          <div
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+          >
             <div>
               <div class="text-[var(--text-primary)] font-medium">显示女优头像</div>
               <div class="text-sm text-[var(--text-muted)]">在列表和详情页中渲染女优头像图片</div>
@@ -92,7 +94,9 @@ const emit = defineEmits(['update:previewFont', 'save'])
             </button>
           </div>
 
-          <div class="flex items-center justify-between pt-4 border-t border-white/[0.05]">
+          <div
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+          >
             <div>
               <div class="text-[var(--text-primary)] font-medium">标题显示字段</div>
               <div class="text-sm text-[var(--text-muted)]">选择在资源列表中显示的标题类型</div>
@@ -105,7 +109,9 @@ const emit = defineEmits(['update:previewFont', 'save'])
             />
           </div>
 
-          <div class="flex items-center justify-between pt-4 border-t border-white/[0.05]">
+          <div
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+          >
             <div>
               <div class="text-[var(--text-primary)] font-medium">搜索结果展示样式</div>
               <div class="text-sm text-[var(--text-muted)]">
@@ -120,7 +126,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
             />
           </div>
 
-          <div class="pt-4 border-t border-white/[0.05]">
+          <div class="pt-4 border-t border-[var(--border-white-5)]">
             <div class="flex items-center justify-between mb-4">
               <div>
                 <div class="text-[var(--text-primary)] font-medium">字体样式</div>
@@ -139,7 +145,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
               />
             </div>
 
-            <div class="p-4 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+            <div class="p-4 rounded-lg bg-white/[0.02] border border-[var(--border-white-5)]">
               <div class="text-xs text-[var(--text-muted)] mb-2">预览效果：</div>
               <div
                 class="text-[var(--text-primary)] leading-relaxed"

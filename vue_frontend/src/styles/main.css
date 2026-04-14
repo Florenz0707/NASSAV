@@ -39,6 +39,7 @@ body.dark-mode {
   --text-primary: #f4f4f5;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
+  --text-inverse: #ffffff;
 
   /* Accent Colors */
   --accent-primary: #ff6b6b;
@@ -55,12 +56,30 @@ body.dark-mode {
   --bg-overlay: rgba(18, 18, 28, 0.95);
   --bg-input: rgba(18, 18, 28, 0.8);
 
+  /* Utilities for subtle backgrounds */
+  --bg-white-5: rgba(255, 255, 255, 0.05);
+  --bg-white-8: rgba(255, 255, 255, 0.08);
+  --bg-white-10: rgba(255, 255, 255, 0.1);
+  --bg-white-12: rgba(255, 255, 255, 0.12);
+  --border-white-5: rgba(255, 255, 255, 0.05);
+  --border-white-10: rgba(255, 255, 255, 0.1);
+  --bg-black-40: rgba(0, 0, 0, 0.4);
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.3);
+  --shadow-2xl: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-toast: 0 8px 32px rgba(0, 0, 0, 0.4);
+
   --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.3);
+  --shadow-accent-lg: 0 8px 20px rgba(255, 107, 107, 0.25);
+  --shadow-accent-xl: 0 12px 25px rgba(255, 107, 107, 0.35);
   --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.3);
+  --shadow-tertiary: 0 8px 20px rgba(78, 205, 196, 0.24);
+  --shadow-secondary: 0 8px 20px rgba(255, 159, 67, 0.28);
 
   /* View-specific contrast tokens */
   --feature-title-color: #fafafa;
@@ -82,6 +101,7 @@ body.light-mode {
   --text-primary: #1d1d1f;
   --text-secondary: #6e6e73;
   --text-muted: #86868b;
+  --text-inverse: #ffffff;
 
   /* Accent Colors */
   --accent-primary: #ff6b6b;
@@ -98,12 +118,30 @@ body.light-mode {
   --bg-overlay: rgba(255, 255, 255, 0.95);
   --bg-input: rgba(255, 255, 255, 0.8);
 
+  /* Utilities for subtle backgrounds inverted for light mode */
+  --bg-white-5: rgba(0, 0, 0, 0.03);
+  --bg-white-8: rgba(0, 0, 0, 0.05);
+  --bg-white-10: rgba(0, 0, 0, 0.08);
+  --bg-white-12: rgba(0, 0, 0, 0.1);
+  --border-white-5: rgba(0, 0, 0, 0.05);
+  --border-white-10: rgba(0, 0, 0, 0.1);
+  --bg-black-40: rgba(0, 0, 0, 0.04);
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
-  --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.2);
-  --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.2);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.1);
+  --shadow-2xl: 0 20px 60px rgba(0, 0, 0, 0.15);
+  --shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-toast: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+  --shadow-accent: 0 4px 12px rgba(255, 107, 107, 0.15);
+  --shadow-accent-lg: 0 8px 20px rgba(255, 107, 107, 0.15);
+  --shadow-accent-xl: 0 12px 25px rgba(255, 107, 107, 0.2);
+  --shadow-danger: 0 4px 12px rgba(239, 71, 111, 0.15);
+  --shadow-tertiary: 0 8px 20px rgba(78, 205, 196, 0.15);
+  --shadow-secondary: 0 8px 20px rgba(255, 159, 67, 0.15);
 
   /* View-specific contrast tokens */
   --feature-title-color: #1f2937;
@@ -403,7 +441,7 @@ select option {
 
 @layer components {
   .tw-back-btn {
-    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-white/5 hover:text-[var(--text-primary)];
+    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-[var(--bg-white-5)] hover:text-[var(--text-primary)];
   }
 
   .tw-btn-primary {
@@ -463,11 +501,11 @@ select option {
   }
 
   .tw-home-hero-secondary-btn {
-    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-8 py-4 text-lg font-medium text-[var(--text-primary)] no-underline backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.1];
+    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border-white-10)] bg-[var(--bg-white-5)] px-8 py-4 text-lg font-medium text-[var(--text-primary)] no-underline backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-[var(--bg-white-10)];
   }
 
   .tw-home-feature-card {
-    @apply min-h-[20rem] rounded-2xl border border-white/[0.05] bg-white/[0.02] p-10 md:p-12 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/[0.04];
+    @apply min-h-[20rem] rounded-2xl border border-[var(--border-white-5)] bg-white/[0.02] p-10 md:p-12 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/[0.04];
   }
 
   .tw-home-feature-icon {
@@ -485,7 +523,7 @@ select option {
   }
 
   .tw-btn-muted {
-    @apply rounded-xl bg-white/5 px-6 py-2 font-medium text-[var(--text-primary)] transition-all hover:bg-white/10;
+    @apply rounded-xl bg-[var(--bg-white-5)] px-6 py-2 font-medium text-[var(--text-primary)] transition-all hover:bg-[var(--bg-white-10)];
   }
 
   .tw-btn-settings-primary {
@@ -494,7 +532,7 @@ select option {
   }
 
   .tw-btn-settings-danger-soft {
-    @apply rounded-lg border border-white/[0.08] bg-white/5 px-3 py-1.5 text-sm text-red-400 transition-all hover:border-red-500/20 hover:bg-red-500/10;
+    @apply rounded-lg border border-white/[0.08] bg-[var(--bg-white-5)] px-3 py-1.5 text-sm text-red-400 transition-all hover:border-red-500/20 hover:bg-red-500/10;
   }
 
   .tw-card-action-neutral {
@@ -508,7 +546,7 @@ select option {
   }
 
   .tw-card-menu-item {
-    @apply w-full border-none bg-transparent px-4 py-2.5 text-center text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-white/[0.08] hover:text-[var(--text-primary)];
+    @apply w-full border-none bg-transparent px-4 py-2.5 text-center text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--bg-white-8)] hover:text-[var(--text-primary)];
   }
 
   .tw-cookie-btn-view {

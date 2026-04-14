@@ -419,7 +419,7 @@ onUnmounted(() => {
         <!-- 刷新按钮容器 -->
         <div class="relative" @click.stop>
           <button
-            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)] border border-white/10 bg-white/[0.08] hover:bg-white/[0.14]"
+            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)] border border-[var(--border-white-10)] bg-[var(--bg-white-8)] hover:bg-white/[0.14]"
             :data-avid="resource.avid"
             title="刷新资源"
             aria-label="刷新资源"
@@ -446,7 +446,7 @@ onUnmounted(() => {
               v-for="option in refreshOptions"
               :key="option.text"
               role="menuitem"
-              class="w-full px-4 py-2.5 text-center border-none text-[0.75rem] cursor-pointer transition-colors duration-200 text-[var(--text-secondary)] bg-white/[0.08] hover:bg-white/[0.14] hover:text-[var(--text-primary)]"
+              class="w-full px-4 py-2.5 text-center border-none text-[0.75rem] cursor-pointer transition-colors duration-200 text-[var(--text-secondary)] bg-[var(--bg-white-8)] hover:bg-white/[0.14] hover:text-[var(--text-primary)]"
               @click="handleRefreshOption(option)"
             >
               {{ option.text }}
