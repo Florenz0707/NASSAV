@@ -4,6 +4,7 @@ import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
 import { genreApi, resourceApi, downloadApi } from '../api'
+import RecommendationCard from '../components/RecommendationCard.vue'
 import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -18,6 +19,7 @@ const resourceStore = useResourceStore()
 
 const genreId = ref(route.params.genreId || '')
 // 从 URL query 初始化状态
+const currentTab = ref(route.query.tab || 'local')
 const page = ref(parseInt(route.query.page) || 1)
 const pageSize = ref(parseInt(route.query.pageSize) || 18)
 const sortBy = ref(route.query.sortBy || 'metadata_create_time')
@@ -28,6 +30,119 @@ const filterStatus = ref(route.query.status || 'all')
 const loadingGenre = ref(false)
 const genre = ref({ id: genreId.value, name: '', resource_count: 0 })
 const toastStore = useToastStore()
+
+// External Search states
+const externalSearched = ref(false)
+const loadingExternal = ref(false)
+const externalResources = ref([])
+const externalMeta = ref({})
+const externalPage = ref(1)
+
+const addingExternalAvids = ref(new Set())
+
+function saveExternalCache() {
+  const key = `external_genre_${genreId.value}`
+  sessionStorage.setItem(
+    key,
+    JSON.stringify({
+      results: externalResources.value,
+      meta: externalMeta.value,
+      page: externalPage.value,
+      searched: externalSearched.value,
+      timestamp: Date.now(),
+    })
+  )
+}
+
+function restoreExternalCache() {
+  const key = `external_genre_${genreId.value}`
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(key))
+    if (cached && Date.now() - cached.timestamp < 1000 * 60 * 60) {
+      externalResources.value = cached.results
+      externalMeta.value = cached.meta
+      externalPage.value = cached.page
+      externalSearched.value = cached.searched
+      return true
+    }
+  } catch (e) {}
+  return false
+}
+
+async function startExternalSearch(p = 1) {
+  loadingExternal.value = true
+  externalSearched.value = true
+  externalPage.value = p
+  try {
+    const params = {
+      source: 'jable',
+      page: p,
+      page_size: 20,
+      ordering:
+        sortBy.value === 'metadata_create_time'
+          ? '-views'
+          : sortOrder.value === 'asc'
+            ? sortBy.value
+            : '-' + sortBy.value,
+    }
+    const response = await genreApi.getDetail(genreId.value, params)
+    if (response && response.data) {
+      const formattedResults = (response.data.external_results || []).map((r) => ({
+        ...r,
+        title: r.source_title || r.original_title,
+        cover_url: r.thumbnail_url,
+        raw_metrics: r.metrics,
+      }))
+      if (p === 1) {
+        externalResources.value = formattedResults
+      } else {
+        externalResources.value = externalResources.value.concat(formattedResults)
+      }
+      externalMeta.value = response.data.external_meta || {}
+      if (response.data.detail) {
+        genre.value = response.data.detail
+      }
+      saveExternalCache()
+    }
+  } catch (err) {
+    toastStore.error(err.message || '获取外部搜索失败')
+    if (p === 1) externalResources.value = []
+  } finally {
+    loadingExternal.value = false
+  }
+}
+
+async function handleAddExternal(item) {
+  if (addingExternalAvids.value.has(item.avid)) return
+  addingExternalAvids.value.add(item.avid)
+  try {
+    await resourceStore.addResource(item.avid, 'any')
+    toastStore.success(`${item.avid} 已加入资源库`)
+    item.metadata_create_time = Date.now() / 1000
+    saveExternalCache()
+  } catch (err) {
+    if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
+      toastStore.info(`${item.avid} 已经在资源库中`)
+      item.metadata_create_time = Date.now() / 1000
+      saveExternalCache()
+    } else {
+      toastStore.error(err.message || '添加失败')
+    }
+  } finally {
+    addingExternalAvids.value.delete(item.avid)
+  }
+}
+
+function handleOpenExternal(item) {
+  if (item.detail_url) {
+    window.open(item.detail_url, '_blank')
+  }
+}
+
+function handleViewExternal(item) {
+  router.push({ path: `/resource/${item.avid}` })
+}
+
 // batch & search state (reuse logic from ResourcesView)
 const selectedAvids = ref(new Set())
 const batchLoading = ref(false)
@@ -223,13 +338,15 @@ onMounted(async () => {
   genreId.value = route.params.genreId
   await loadGenreInfo(genreId.value)
   await fetchResources(1)
+  restoreExternalCache()
 })
 
 // 状态变化时同步到 URL
 watch(
-  [page, pageSize, searchQuery, sortBy, sortOrder],
+  [currentTab, page, pageSize, searchQuery, sortBy, sortOrder],
   () => {
     const query = {
+      tab: currentTab.value,
       page: page.value,
     }
     if (pageSize.value !== 18) query.pageSize = pageSize.value
@@ -347,87 +464,177 @@ function goBack() {
       </div>
     </div>
 
-    <!-- Controls -->
-    <ResourceSearchBar
-      v-model:search-query="searchQuery"
-      v-model:filter-status="filterStatus"
-      v-model:sort-by="sortBy"
-      v-model:sort-order="sortOrder"
-      :show-favorite-filter="true"
-      :show-watched-filter="true"
-      :show-metadata-update-sort="true"
-      @sort-change="onSortChange"
-    />
+    <!-- Tabs -->
+    <div class="flex border-b border-[var(--border-color)] mb-6 gap-6">
+      <button
+        :class="[
+          'py-2 px-1 border-b-2 font-medium transition-colors',
+          currentTab === 'local'
+            ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
+            : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+        ]"
+        @click="currentTab = 'local'"
+      >
+        本地资源
+      </button>
+      <button
+        :class="[
+          'py-2 px-1 border-b-2 font-medium transition-colors',
+          currentTab === 'external'
+            ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
+            : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+        ]"
+        @click="currentTab = 'external'"
+      >
+        外部搜索
+      </button>
+    </div>
 
-    <!-- Batch controls -->
-    <BatchControls
-      :batch-mode="batchMode"
-      :batch-loading="batchLoading"
-      :selected-count="selectedCount"
-      :total-count="displayedResources.length"
-      @toggle-batch-mode="toggleBatchMode"
-      @toggle-select-all="toggleSelectAll"
-      @batch-refresh="handleBatchRefresh"
-      @batch-download="handleBatchDownload"
-      @batch-delete="handleBatchDelete"
-    />
+    <div v-show="currentTab === 'local'">
+      <!-- Controls -->
+      <ResourceSearchBar
+        v-model:search-query="searchQuery"
+        v-model:filter-status="filterStatus"
+        v-model:sort-by="sortBy"
+        v-model:sort-order="sortOrder"
+        :show-favorite-filter="true"
+        :show-watched-filter="true"
+        :show-metadata-update-sort="true"
+        @sort-change="onSortChange"
+      />
 
-    <!-- 批量删除确认对话框 -->
-    <ConfirmDialog
-      v-model:show="showBatchDeleteConfirm"
-      title="批量删除资源"
-      :message="`即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`"
-      type="danger"
-      confirm-text="只删除视频"
-      cancel-text="取消"
-      @confirm="() => confirmBatchDelete('delete-video')"
-      @cancel="() => (showBatchDeleteConfirm = false)"
-    >
-      <template #extra-button>
-        <button class="tw-btn-danger" @click="() => confirmBatchDelete('delete-all')">
-          全部删除
-        </button>
-      </template>
-    </ConfirmDialog>
+      <!-- Batch controls -->
+      <BatchControls
+        :batch-mode="batchMode"
+        :batch-loading="batchLoading"
+        :selected-count="selectedCount"
+        :total-count="displayedResources.length"
+        @toggle-batch-mode="toggleBatchMode"
+        @toggle-select-all="toggleSelectAll"
+        @batch-refresh="handleBatchRefresh"
+        @batch-download="handleBatchDownload"
+        @batch-delete="handleBatchDelete"
+      />
 
-    <!-- Loading State -->
-    <LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
+      <!-- 批量删除确认对话框 -->
+      <ConfirmDialog
+        v-model:show="showBatchDeleteConfirm"
+        title="批量删除资源"
+        :message="`即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`"
+        type="danger"
+        confirm-text="只删除视频"
+        cancel-text="取消"
+        @confirm="() => confirmBatchDelete('delete-video')"
+        @cancel="() => (showBatchDeleteConfirm = false)"
+      >
+        <template #extra-button>
+          <button class="tw-btn-danger" @click="() => confirmBatchDelete('delete-all')">
+            全部删除
+          </button>
+        </template>
+      </ConfirmDialog>
 
-    <!-- Empty State -->
-    <EmptyState
-      v-else-if="displayedResources.length === 0"
-      icon="◇"
-      title="暂无资源"
-      :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
-    >
-      <template #action>
-        <RouterLink to="/add" class="tw-btn-primary"> 添加资源 </RouterLink>
-      </template>
-    </EmptyState>
+      <!-- Loading State -->
+      <LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
 
-    <!-- Resources Grid -->
-    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
-      <ResourceCard
-        v-for="resource in displayedResources"
-        :key="resource.avid"
-        :resource="resource"
-        :selectable="batchMode"
-        :selected="selectedAvids.has(resource.avid)"
-        :cover-size="'medium'"
-        @toggle-select="toggleSelect"
-        @download="handleDownload"
-        @refresh="handleRefresh"
-        @delete="handleDeleteResource"
-        @delete-file="handleDeleteFile"
+      <!-- Empty State -->
+      <EmptyState
+        v-else-if="displayedResources.length === 0"
+        icon="◇"
+        title="暂无资源"
+        :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
+      >
+        <template #action>
+          <RouterLink to="/add" class="tw-btn-primary"> 添加资源 </RouterLink>
+        </template>
+      </EmptyState>
+
+      <!-- Resources Grid -->
+      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+        <ResourceCard
+          v-for="resource in displayedResources"
+          :key="resource.avid"
+          :resource="resource"
+          :selectable="batchMode"
+          :selected="selectedAvids.has(resource.avid)"
+          :cover-size="'medium'"
+          @toggle-select="toggleSelect"
+          @download="handleDownload"
+          @refresh="handleRefresh"
+          @delete="handleDeleteResource"
+          @delete-file="handleDeleteFile"
+        />
+      </div>
+      <ResourcePagination
+        :page="page"
+        :pages="resourceStore.pagination.pages"
+        :page-size="pageSize"
+        :total="resourceStore.pagination.total"
+        @change-page="changePage"
+        @change-page-size="onPageSizeChange"
       />
     </div>
-    <ResourcePagination
-      :page="page"
-      :pages="resourceStore.pagination.pages"
-      :page-size="pageSize"
-      :total="resourceStore.pagination.total"
-      @change-page="changePage"
-      @change-page-size="onPageSizeChange"
-    />
+
+    <div v-show="currentTab === 'external'">
+      <div
+        v-if="!externalSearched && !loadingExternal"
+        class="flex flex-col items-center justify-center py-20 text-center"
+      >
+        <div class="text-4xl mb-4 opacity-50">🌐</div>
+        <h3 class="text-xl font-medium text-[var(--text-primary)] mb-2">外部搜索</h3>
+        <p class="text-[var(--text-muted)] mb-6 max-w-md">
+          点击下方按钮，开始使用外部数据源 (当前仅支持 Jable)
+          搜索与该类别相关的资源。搜索过程可能需要一些时间，请耐心等待。
+        </p>
+        <button class="tw-btn tw-btn-primary px-8 py-2 rounded-lg" @click="startExternalSearch(1)">
+          开始搜索
+        </button>
+      </div>
+
+      <LoadingSpinner
+        v-else-if="loadingExternal && externalPage === 1"
+        size="large"
+        text="正在执行外部搜索，请耐心等待..."
+      />
+
+      <template v-else>
+        <div class="mb-4 text-sm text-[var(--text-muted)] flex justify-between">
+          <span
+            >来源: {{ externalMeta.supported_sources?.includes('jable') ? 'jable' : 'jable' }}</span
+          >
+          <span>排序: 按播放量降低</span>
+        </div>
+
+        <EmptyState
+          v-if="externalResources.length === 0"
+          icon="◇"
+          title="外部搜索暂无结果"
+          description="未能从外部源获取到关于该类别的更多资源"
+        />
+
+        <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-6">
+          <RecommendationCard
+            v-for="resource in externalResources"
+            :key="resource.avid"
+            :item="resource"
+            :added="!!resource.metadata_create_time"
+            :adding="addingExternalAvids.has(resource.avid)"
+            @add="handleAddExternal(resource)"
+            @view="handleViewExternal(resource)"
+            @open="handleOpenExternal(resource)"
+          />
+        </div>
+
+        <div v-if="externalResources.length > 0" class="flex justify-center mt-6">
+          <button
+            class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-8 py-2 rounded-lg"
+            :disabled="loadingExternal"
+            @click="startExternalSearch(externalPage + 1)"
+          >
+            {{ loadingExternal ? '加载中...' : '加载下一页' }}
+          </button>
+        </div>
+      </template>
+    </div>
   </div>
 </template>

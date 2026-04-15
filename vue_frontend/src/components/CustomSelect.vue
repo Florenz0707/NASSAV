@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineOptions, nextTick, onBeforeUnmount, onMounted, ref, useAttrs } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useAttrs } from 'vue'
 
 defineOptions({
   inheritAttrs: false,
