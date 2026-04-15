@@ -645,6 +645,76 @@ GET /nassav/api/actors/1/avatar
 
 ---
 
+## 演员详情（含外部源搜索）
+
+- 方法：GET
+- 路径：`/nassav/api/actors/<actor_id>/detail`
+- 功能：返回演员详情与外部源搜索结果（首期仅 Jable 实现，其他源保留占位逻辑）
+- 路径参数：
+  - `actor_id`：演员 ID（整数）
+- 支持 Query 参数：
+  - `source`：外部源名称，默认 `jable`
+  - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
+  - `ordering`：排序字段，支持 `-views`（默认）、`views`、`-likes`、`likes`、`avid`、`-avid`、`source_title`、`-source_title`
+
+示例请求：
+
+```json
+GET /nassav/api/actors/1/detail?source=jable&page=1&page_size=20&ordering=-views
+GET /nassav/api/actors/1/detail?source=missav&page=1&page_size=20
+```
+
+返回示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "detail": {
+      "id": 1,
+      "name": "桥本有菜",
+      "resource_count": 85,
+      "avatar_url": "https://...",
+      "avatar_filename": "abc_a.jpg"
+    },
+    "external_source": "jable",
+    "external_meta": {
+      "implemented": true,
+      "message": "success",
+      "ordering": "-views",
+      "fetch_pages": 5,
+      "cache": { "enabled": false, "hit": false },
+      "supported_sources": []
+    },
+    "external_results": [
+      {
+        "avid": "ABP-123",
+        "source_title": "ABP-123 ...",
+        "source": "Jable",
+        "thumbnail_url": "https://...",
+        "detail_url": "https://...",
+        "metrics": { "views": 12345, "likes": 123 }
+      }
+    ]
+  },
+  "pagination": {
+    "total": 20,
+    "page": 1,
+    "page_size": 20,
+    "pages": 1
+  }
+}
+```
+
+说明：
+
+- 当前采用用时获取（实时抓取）作为 Demo。
+- 已预留缓存策略，后续可通过配置开启查询结果缓存。
+- 对于未实现的源（如 `missav`、`memo`），接口返回 `implemented=false` 且 `external_results=[]`，不会影响详情页主信息。
+
+---
+
 ## 类别列表（聚合统计）
 
 - 方法：GET
@@ -684,6 +754,28 @@ GET /nassav/api/genres/?order_by=name&order=asc
   }
 }
 ```
+
+---
+
+## 类别详情（含外部源搜索）
+
+- 方法：GET
+- 路径：`/nassav/api/genres/<genre_id>/detail`
+- 功能：返回类别详情与外部源搜索结果（首期仅 Jable 实现，其他源保留占位逻辑）
+- 路径参数：
+  - `genre_id`：类别 ID（整数）
+- 支持 Query 参数：
+  - `source`：外部源名称，默认 `jable`
+  - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
+  - `ordering`：排序字段，支持 `-views`（默认）、`views`、`-likes`、`likes`、`avid`、`-avid`、`source_title`、`-source_title`
+
+示例请求：
+
+```json
+GET /nassav/api/genres/1/detail?source=jable&page=1&page_size=20&ordering=-views
+```
+
+返回结构与演员详情接口一致，`data.detail` 对象改为类别信息（`id`、`name`、`resource_count`）。
 
 ---
 

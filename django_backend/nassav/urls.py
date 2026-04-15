@@ -63,6 +63,12 @@ urlpatterns = [
     ),
     # GET /api/actors/ - 演员列表及作品数（分页）
     path("api/actors/", views.ActorsListView.as_view(), name="actors-list"),
+    # GET /api/actors/<int:actor_id>/detail - 获取演员详情与外部搜索结果
+    path(
+        "api/actors/<int:actor_id>/detail",
+        views.ActorDetailView.as_view(),
+        name="actor-detail",
+    ),
     # GET /api/actors/<int:actor_id>/avatar - 获取演员头像图片
     path(
         "api/actors/<int:actor_id>/avatar",
@@ -71,6 +77,12 @@ urlpatterns = [
     ),
     # GET /api/genres/ - 类别列表及作品数（分页）
     path("api/genres/", views.GenresListView.as_view(), name="genres-list"),
+    # GET /api/genres/<int:genre_id>/detail - 获取类别详情与外部搜索结果
+    path(
+        "api/genres/<int:genre_id>/detail",
+        views.GenreDetailView.as_view(),
+        name="genre-detail",
+    ),
     # GET /api/resource/cover?avid= - 根据avid获取封面图片
     path(
         "api/resource/cover", views.ResourceCoverView.as_view(), name="resource-cover"

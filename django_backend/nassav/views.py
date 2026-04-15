@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .api_utils import build_response
+from .external_search import external_search_service
 from .serializers import (
     NewResourceSerializer,
     SourceCookieListSerializer,
@@ -570,6 +571,44 @@ class ActorAvatarView(APIView):
         return response
 
 
+class ActorDetailView(APIView):
+    """GET /api/actors/<int:actor_id>/detail - 演员详情与外部源搜索结果"""
+
+    def get(self, request, actor_id):
+        from nassav.models import Actor
+
+        source_name = str(request.query_params.get("source", "jable")).strip()
+        page = _parse_positive_int(request.query_params.get("page"), 1)
+        page_size = _parse_positive_int(request.query_params.get("page_size"), 20)
+        ordering = str(request.query_params.get("ordering", "-views")).strip()
+
+        try:
+            result = external_search_service.search_actor_detail(
+                actor_id=actor_id,
+                source_name=source_name,
+                page=page,
+                page_size=page_size,
+                ordering=ordering,
+            )
+        except Actor.DoesNotExist:
+            return build_response(404, "演员不存在", None)
+
+        data = {
+            "detail": result.meta.get("actor"),
+            "external_source": result.meta.get("source", source_name.lower()),
+            "external_meta": {
+                "implemented": result.meta.get("implemented", False),
+                "message": result.meta.get("message", "success"),
+                "ordering": result.meta.get("ordering"),
+                "fetch_pages": result.meta.get("fetch_pages"),
+                "cache": result.meta.get("cache", {}),
+                "supported_sources": result.meta.get("supported_sources", []),
+            },
+            "external_results": result.items,
+        }
+        return build_response(200, "success", data, pagination=result.pagination)
+
+
 class GenresListView(APIView):
     """GET /api/genres/ - 返回类别列表及每个类别的作品数，支持分页"""
 
@@ -648,6 +687,44 @@ class GenresListView(APIView):
         }
 
         return build_response(200, "success", data, pagination=pagination)
+
+
+class GenreDetailView(APIView):
+    """GET /api/genres/<int:genre_id>/detail - 类别详情与外部源搜索结果"""
+
+    def get(self, request, genre_id):
+        from nassav.models import Genre
+
+        source_name = str(request.query_params.get("source", "jable")).strip()
+        page = _parse_positive_int(request.query_params.get("page"), 1)
+        page_size = _parse_positive_int(request.query_params.get("page_size"), 20)
+        ordering = str(request.query_params.get("ordering", "-views")).strip()
+
+        try:
+            result = external_search_service.search_genre_detail(
+                genre_id=genre_id,
+                source_name=source_name,
+                page=page,
+                page_size=page_size,
+                ordering=ordering,
+            )
+        except Genre.DoesNotExist:
+            return build_response(404, "类别不存在", None)
+
+        data = {
+            "detail": result.meta.get("genre"),
+            "external_source": result.meta.get("source", source_name.lower()),
+            "external_meta": {
+                "implemented": result.meta.get("implemented", False),
+                "message": result.meta.get("message", "success"),
+                "ordering": result.meta.get("ordering"),
+                "fetch_pages": result.meta.get("fetch_pages"),
+                "cache": result.meta.get("cache", {}),
+                "supported_sources": result.meta.get("supported_sources", []),
+            },
+            "external_results": result.items,
+        }
+        return build_response(200, "success", data, pagination=result.pagination)
 
 
 class RecommendationsDemoView(APIView):
