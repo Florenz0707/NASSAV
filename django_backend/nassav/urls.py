@@ -1,10 +1,23 @@
 from django.urls import path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from . import views
 
 app_name = "nassav"
 
 urlpatterns = [
+    # GET /docs - Swagger UI
+    path(
+        "docs",
+        SpectacularSwaggerView.as_view(url_name="nassav:openapi-schema"),
+        name="docs",
+    ),
+    # GET /openapi - OpenAPI schema (JSON/YAML via Accept)
+    path(
+        "openapi",
+        SpectacularAPIView.as_view(),
+        name="openapi-schema",
+    ),
     # GET /api/source/list - 获取可用的下载源列表
     path("api/source/list", views.SourceListView.as_view(), name="source-list"),
     # GET/POST/DELETE /api/source/cookie - 源Cookie管理
@@ -159,5 +172,4 @@ urlpatterns = [
         views.TaskQueueStatusView.as_view(),
         name="task-queue-status",
     ),
-    # Schema endpoints for OpenAPI (drf-spectacular)
 ]

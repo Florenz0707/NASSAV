@@ -12,6 +12,29 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ---
 
+## OpenAPI 文档
+
+项目已启用基于 drf-spectacular 的 OpenAPI 支持，可通过以下端点访问：
+
+- Swagger UI：`/nassav/docs`
+- OpenAPI Schema：`/nassav/openapi`
+
+示例：
+
+```bash
+curl "http://localhost:9790/nassav/openapi" | head
+```
+
+如需离线生成文档文件，可执行：
+
+```bash
+cd django_backend && uv run python scripts/generate_openapi.py
+```
+
+生成结果默认写入：`django_backend/doc/openapi.yaml`。
+
+---
+
 ## 获取用户设置
 
 - 方法：GET

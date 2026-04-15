@@ -7,8 +7,10 @@ API视图：实现资源管理接口
 from django.conf import settings
 from django.http import FileResponse
 from django.utils.http import http_date
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from loguru import logger
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -26,6 +28,16 @@ from .utils import (
     generate_thumbnail,
     parse_http_if_modified_since,
 )
+
+
+class EmptySchemaSerializer(serializers.Serializer):
+    """Fallback serializer used only for OpenAPI schema generation."""
+
+
+class SchemaAPIView(APIView):
+    """Provide default serializer for drf-spectacular on plain APIViews."""
+
+    serializer_class = EmptySchemaSerializer
 
 
 def _serialize_resource_obj(resource):
@@ -191,7 +203,7 @@ def _parse_recommendation_avid_block_payload(data) -> dict:
     }
 
 
-class SourceListView(APIView):
+class SourceListView(SchemaAPIView):
     """
     GET /api/source/list
     获取所有可用的下载源名称列表
@@ -202,7 +214,7 @@ class SourceListView(APIView):
         return Response({"code": 200, "message": "success", "data": sources})
 
 
-class SourceCookieView(APIView):
+class SourceCookieView(SchemaAPIView):
     """
     GET /api/source/cookie
     获取所有源的 Cookie 列表。
@@ -352,7 +364,7 @@ class SourceCookieView(APIView):
             )
 
 
-class UserSettingView(APIView):
+class UserSettingView(SchemaAPIView):
     """
     GET /api/setting
     获取用户设置。
@@ -423,7 +435,7 @@ class UserSettingView(APIView):
             )
 
 
-class ResourcesListView(APIView):
+class ResourcesListView(SchemaAPIView):
     """GET /api/resources/ - consolidated resource listing with filters/pagination"""
 
     def get(self, request):
@@ -456,7 +468,7 @@ class ResourcesListView(APIView):
         return build_response(200, "success", serializer.data, pagination=pagination)
 
 
-class ActorsListView(APIView):
+class ActorsListView(SchemaAPIView):
     """GET /api/actors/ - 返回演员列表及每个演员的作品数，支持分页"""
 
     def get(self, request):
@@ -543,7 +555,7 @@ class ActorsListView(APIView):
         return build_response(200, "success", data, pagination=pagination)
 
 
-class ActorAvatarView(APIView):
+class ActorAvatarView(SchemaAPIView):
     """GET /api/actors/<int:actor_id>/avatar - 返回演员头像图片"""
 
     def get(self, request, actor_id):
@@ -571,7 +583,7 @@ class ActorAvatarView(APIView):
         return response
 
 
-class ActorDetailView(APIView):
+class ActorDetailView(SchemaAPIView):
     """GET /api/actors/<int:actor_id>/detail - 演员详情与外部源搜索结果"""
 
     def get(self, request, actor_id):
@@ -609,7 +621,7 @@ class ActorDetailView(APIView):
         return build_response(200, "success", data, pagination=result.pagination)
 
 
-class GenresListView(APIView):
+class GenresListView(SchemaAPIView):
     """GET /api/genres/ - 返回类别列表及每个类别的作品数，支持分页"""
 
     def get(self, request):
@@ -689,7 +701,7 @@ class GenresListView(APIView):
         return build_response(200, "success", data, pagination=pagination)
 
 
-class GenreDetailView(APIView):
+class GenreDetailView(SchemaAPIView):
     """GET /api/genres/<int:genre_id>/detail - 类别详情与外部源搜索结果"""
 
     def get(self, request, genre_id):
@@ -727,7 +739,7 @@ class GenreDetailView(APIView):
         return build_response(200, "success", data, pagination=result.pagination)
 
 
-class RecommendationsDemoView(APIView):
+class RecommendationsDemoView(SchemaAPIView):
     """GET /api/recommendations/demo - 返回基于本地偏好的 demo 推荐结果"""
 
     def get(self, request):
@@ -747,7 +759,7 @@ class RecommendationsDemoView(APIView):
             return build_response(400, str(e), None)
 
 
-class RecommendationsView(APIView):
+class RecommendationsView(SchemaAPIView):
     """GET /api/recommendations/ - 统一推荐接口"""
 
     def get(self, request):
@@ -770,7 +782,7 @@ class RecommendationsView(APIView):
             return build_response(400, str(e), None)
 
 
-class RecommendationOptionsView(APIView):
+class RecommendationOptionsView(SchemaAPIView):
     """GET /api/recommendations/options - 返回可用推荐器与策略"""
 
     def get(self, request):
@@ -780,7 +792,7 @@ class RecommendationOptionsView(APIView):
         return build_response(200, "success", recommender_manager.get_options())
 
 
-class RecommendationFeedbackView(APIView):
+class RecommendationFeedbackView(SchemaAPIView):
     """POST /api/recommendations/feedback - 提交推荐结果反馈"""
 
     def post(self, request):
@@ -813,7 +825,7 @@ class RecommendationFeedbackView(APIView):
         )
 
 
-class RecommendationSeedBlockView(APIView):
+class RecommendationSeedBlockView(SchemaAPIView):
     """POST/DELETE /api/recommendations/seed-block - 手动屏蔽或取消屏蔽 actor/genre"""
 
     def post(self, request):
@@ -907,7 +919,7 @@ class RecommendationSeedBlockView(APIView):
         return build_response(200, "success", data)
 
 
-class RecommendationAvidBlocklistView(APIView):
+class RecommendationAvidBlocklistView(SchemaAPIView):
     """GET/POST/DELETE /api/recommendations/avid-blocklist - 管理资源黑名单"""
 
     def get(self, request):
@@ -1014,7 +1026,7 @@ class RecommendationAvidBlocklistView(APIView):
         )
 
 
-class RecommendationResetView(APIView):
+class RecommendationResetView(SchemaAPIView):
     """POST /api/recommendations/reset - 清空推荐历史与反馈黑名单状态"""
 
     def post(self, request):
@@ -1025,7 +1037,7 @@ class RecommendationResetView(APIView):
         return build_response(200, "success", result)
 
 
-class RecommendationCoverView(APIView):
+class RecommendationCoverView(SchemaAPIView):
     """GET /api/recommendations/cover - 代理并缓存推荐封面"""
 
     def get(self, request):
@@ -1055,7 +1067,7 @@ class RecommendationCoverView(APIView):
         )
 
 
-class ResourceCoverView(APIView):
+class ResourceCoverView(SchemaAPIView):
     """
     GET /api/resource/cover?avid=
     根据avid获取封面图片
@@ -1196,7 +1208,7 @@ class ResourceCoverView(APIView):
         return resp
 
 
-class ResourcePreviewView(APIView):
+class ResourcePreviewView(SchemaAPIView):
     """GET /api/resource/{avid}/preview - 返回 metadata + thumbnail_url（small 默认为首屏预览）"""
 
     def get(self, request, avid):
@@ -1249,7 +1261,7 @@ class ResourcePreviewView(APIView):
             return build_response(500, f"生成 preview 失败: {str(e)}", None)
 
 
-class DownloadAbspathView(APIView):
+class DownloadAbspathView(SchemaAPIView):
     """
     GET /api/downloads/abspath?avid=
     返回视频文件的绝对路径，并在前面拼接 config.FilePathPrefix 作为前缀
@@ -1292,7 +1304,7 @@ class DownloadAbspathView(APIView):
         return build_response(200, "success", {"abspath": prefixed})
 
 
-class ResourceMetadataView(APIView):
+class ResourceMetadataView(SchemaAPIView):
     """
     GET /api/resource/downloads/metadata?avid=
     根据avid获取视频元数据
@@ -1399,7 +1411,7 @@ class ResourceMetadataView(APIView):
             return build_response(500, f"读取元数据失败: {str(e)}", None)
 
 
-class ResourceView(APIView):
+class ResourceView(SchemaAPIView):
     """
     POST /api/resource/new
     通过avid获取资源信息并保存（HTML、封面、元数据）
@@ -1496,7 +1508,7 @@ class ResourceView(APIView):
         # (clean) end of ResourceView.post
 
 
-class DownloadView(APIView):
+class DownloadView(SchemaAPIView):
     def post(self, request, avid):
         """
         POST /api/resource/downloads
@@ -1588,7 +1600,7 @@ class DownloadView(APIView):
             return build_response(500, f"删除失败: {str(e)}", None)
 
 
-class RefreshResourceView(APIView):
+class RefreshResourceView(SchemaAPIView):
     """
     POST /api/resource/refresh/{avid}
     刷新已有资源的元数据和m3u8链接，使用原有source获取
@@ -1684,7 +1696,7 @@ class RefreshResourceView(APIView):
         return build_response(200, "success", result_info)
 
 
-class DeleteResourceView(APIView):
+class DeleteResourceView(SchemaAPIView):
     """
     DELETE /api/resource/{avid}
     删除整个资源目录（包括 HTML、封面、元数据、视频）
@@ -1793,7 +1805,7 @@ class DeleteResourceView(APIView):
             return build_response(500, f"删除失败: {str(e)}", None)
 
 
-class TaskQueueStatusView(APIView):
+class TaskQueueStatusView(SchemaAPIView):
     """
     GET /api/tasks/queue/status
     获取当前任务队列状态
@@ -1802,6 +1814,16 @@ class TaskQueueStatusView(APIView):
     解决了 Celery inspect() 只能获取部分任务的限制问题。
     """
 
+    @extend_schema(
+        operation_id="task_queue_status",
+        summary="获取任务队列状态",
+        description="返回任务队列的完整状态（含 PENDING 与 STARTED 任务）。",
+        responses={
+            200: OpenApiResponse(response=OpenApiTypes.OBJECT, description="成功"),
+            500: OpenApiResponse(response=OpenApiTypes.OBJECT, description="获取失败"),
+        },
+        tags=["tasks"],
+    )
     def get(self, request):
         from .tasks import get_full_task_queue
 
@@ -1813,7 +1835,7 @@ class TaskQueueStatusView(APIView):
             return build_response(500, f"获取队列状态失败: {str(e)}", None)
 
 
-class ResourcesBatchView(APIView):
+class ResourcesBatchView(SchemaAPIView):
     """POST /api/resources/batch
 
     Body example:
@@ -2239,7 +2261,7 @@ class ResourcesBatchView(APIView):
         return build_response(200, "success", {"results": results})
 
 
-class DownloadsBatchSubmitView(APIView):
+class DownloadsBatchSubmitView(SchemaAPIView):
     """POST /api/downloads/batch_submit
 
     Body example: { "avids": ["ABC-123","DEF-222"] }
@@ -2284,7 +2306,7 @@ class DownloadsBatchSubmitView(APIView):
         return build_response(200, "success", {"results": results})
 
 
-class ResourceStatusView(APIView):
+class ResourceStatusView(SchemaAPIView):
     """
     PATCH /api/resource/{avid}/status
     更新资源的观看状态和收藏状态
@@ -2342,7 +2364,7 @@ class ResourceStatusView(APIView):
             return build_response(500, f"更新失败: {str(e)}", None)
 
 
-class MockDownloadView(APIView):
+class MockDownloadView(SchemaAPIView):
     """
     POST /api/downloads/mock/{avid}
     模拟下载任务接口（仅在 DEBUG 模式下可用）
