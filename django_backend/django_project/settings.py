@@ -128,6 +128,12 @@ CACHES = {
     }
 }
 
+# External source search cache (single-user NAS friendly defaults)
+EXTERNAL_SOURCE_SEARCH_CACHE_ENABLED = True
+EXTERNAL_SOURCE_SEARCH_CACHE_TTL_DEFAULT = 1800  # actor/genre/keyword page
+EXTERNAL_SOURCE_SEARCH_CACHE_TTL_HOT = 300  # hot board
+EXTERNAL_SOURCE_SEARCH_CACHE_TTL_LATEST = 300  # latest updates
+
 # Database
 DATABASES = {
     "default": {

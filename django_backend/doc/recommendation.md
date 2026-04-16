@@ -144,6 +144,34 @@
 
 代理并缓存推荐封面，避免前端直接访问受限站点资源。
 
+## 外部搜索缓存（单用户 NAS 场景）
+
+为减少重复抓取外部页面带来的耗时，Jable 搜索相关入口已启用页面结果缓存。
+
+当前缓存策略：
+
+- 缓存层：Django cache（默认 Redis）
+- 缓存粒度：page 级搜索结果（keyword / model / tag / category / hot / latest）
+- 生效链路：
+  - 详情页外部搜索（ActorDetail / GenreDetail）
+  - 推荐召回链路（`jable_page_lookup` / `jable_search`）
+
+配置项（`django_project/settings.py`）：
+
+- `EXTERNAL_SOURCE_SEARCH_CACHE_ENABLED`
+  - 是否启用外部搜索缓存，默认 `True`
+- `EXTERNAL_SOURCE_SEARCH_CACHE_TTL_DEFAULT`
+  - 通用搜索缓存 TTL（秒），默认 `1800`
+- `EXTERNAL_SOURCE_SEARCH_CACHE_TTL_HOT`
+  - 热榜缓存 TTL（秒），默认 `300`
+- `EXTERNAL_SOURCE_SEARCH_CACHE_TTL_LATEST`
+  - 最新更新缓存 TTL（秒），默认 `300`
+
+说明：
+
+- 该缓存为“单用户、低复杂度”设计，不引入分布式锁或多层缓存。
+- 在默认配置下，能显著减少同一时间段重复请求外部站点造成的延迟与波动。
+
 ## 代码分层
 
 ### 1. API 层

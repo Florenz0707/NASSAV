@@ -1,9 +1,11 @@
 import re
+from copy import deepcopy
 from typing import Optional
 from urllib.parse import quote, urlencode, urljoin
 
 from bs4 import BeautifulSoup
 from django.conf import settings
+from django.core.cache import cache
 from loguru import logger
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
@@ -23,6 +25,18 @@ class Jable(SourceBase):
         super().__init__(proxy, timeout)
         source_config = settings.SOURCE_CONFIG.get("jable", {})
         self.domain = source_config.get("domain", "jable.tv")
+        self.cache_enabled = bool(
+            getattr(settings, "EXTERNAL_SOURCE_SEARCH_CACHE_ENABLED", True)
+        )
+        self.cache_ttl_default = int(
+            getattr(settings, "EXTERNAL_SOURCE_SEARCH_CACHE_TTL_DEFAULT", 1800)
+        )
+        self.cache_ttl_hot = int(
+            getattr(settings, "EXTERNAL_SOURCE_SEARCH_CACHE_TTL_HOT", 300)
+        )
+        self.cache_ttl_latest = int(
+            getattr(settings, "EXTERNAL_SOURCE_SEARCH_CACHE_TTL_LATEST", 300)
+        )
 
     def get_source_name(self) -> str:
         return "Jable"
@@ -106,7 +120,9 @@ class Jable(SourceBase):
             logger.error(f"封面URL提取失败: {e}")
             return None
 
-    def search(self, keyword: str, page: int = 1) -> list[dict]:
+    def search(
+        self, keyword: str, page: int = 1, *, force_refresh: bool = False
+    ) -> list[dict]:
         """搜索 Jable 站内资源。
 
         返回结构:
@@ -125,7 +141,21 @@ class Jable(SourceBase):
             }
         ]
         """
-        url = self._build_search_url(keyword, page)
+        normalized_keyword = str(keyword or "").strip()
+        if not normalized_keyword:
+            return []
+
+        cache_key = self._build_cache_key(
+            "search",
+            keyword=normalized_keyword.casefold(),
+            page=page,
+        )
+        if not force_refresh:
+            cached_items = self._get_cached_items(cache_key)
+            if cached_items is not None:
+                return cached_items
+
+        url = self._build_search_url(normalized_keyword, page)
         referer = f"https://{self.domain}/"
         html = self.fetch_html(url, referer=referer)
         if not html:
@@ -135,7 +165,11 @@ class Jable(SourceBase):
             return []
 
         try:
-            return self._parse_search_results(html)
+            parsed = self._parse_search_results(html)
+            self._set_cached_items(
+                cache_key, parsed, ttl_seconds=self.cache_ttl_default
+            )
+            return parsed
         except Exception as e:
             logger.error(f"Jable.search 解析失败: {e}")
             return []
@@ -145,10 +179,23 @@ class Jable(SourceBase):
         model_slug: str,
         page: int = 1,
         sort_by: str = "video_viewed",
+        *,
+        force_refresh: bool = False,
     ) -> list[dict]:
         normalized_slug = self._normalize_model_slug(model_slug)
         if not normalized_slug:
             return []
+
+        cache_key = self._build_cache_key(
+            "model_videos",
+            slug=normalized_slug,
+            page=page,
+            sort_by=sort_by,
+        )
+        if not force_refresh:
+            cached_items = self._get_cached_items(cache_key)
+            if cached_items is not None:
+                return cached_items
 
         url = self._build_model_videos_url(
             model_slug=normalized_slug,
@@ -174,9 +221,18 @@ class Jable(SourceBase):
             metrics = dict(item.get("metrics") or {})
             metrics["model_slug"] = normalized_slug
             item["metrics"] = metrics
+        self._set_cached_items(cache_key, items, ttl_seconds=self.cache_ttl_default)
         return items
 
-    def discover_hot_items(self, page: int = 1) -> list[dict]:
+    def discover_hot_items(
+        self, page: int = 1, *, force_refresh: bool = False
+    ) -> list[dict]:
+        cache_key = self._build_cache_key("discover_hot", page=page)
+        if not force_refresh:
+            cached_items = self._get_cached_items(cache_key)
+            if cached_items is not None:
+                return cached_items
+
         referer = f"https://{self.domain}/hot/"
         merged_results: list[dict] = []
         seen_avids: set[str] = set()
@@ -196,22 +252,55 @@ class Jable(SourceBase):
                 merged_results.append(item)
 
         if merged_results:
+            self._set_cached_items(
+                cache_key, merged_results, ttl_seconds=self.cache_ttl_hot
+            )
             return merged_results
 
         logger.warning("Jable.hot_board 未获取到可用候选")
         return []
 
-    def discover_latest_updates(self, page: int = 1) -> list[dict]:
-        return self._discover_results_from_url(
+    def discover_latest_updates(
+        self,
+        page: int = 1,
+        *,
+        force_refresh: bool = False,
+    ) -> list[dict]:
+        cache_key = self._build_cache_key("discover_latest", page=page)
+        if not force_refresh:
+            cached_items = self._get_cached_items(cache_key)
+            if cached_items is not None:
+                return cached_items
+
+        items = self._discover_results_from_url(
             url=self._build_listing_url("/latest-updates/", page=page),
             referer=f"https://{self.domain}/latest-updates/",
             source_label="latest_updates",
         )
+        if items:
+            self._set_cached_items(cache_key, items, ttl_seconds=self.cache_ttl_latest)
+        return items
 
-    def get_tag_videos(self, tag_slug: str, page: int = 1) -> list[dict]:
+    def get_tag_videos(
+        self,
+        tag_slug: str,
+        page: int = 1,
+        *,
+        force_refresh: bool = False,
+    ) -> list[dict]:
         normalized_slug = self._normalize_taxonomy_slug(tag_slug, prefix="tags")
         if not normalized_slug:
             return []
+
+        cache_key = self._build_cache_key(
+            "tag_videos",
+            slug=normalized_slug,
+            page=page,
+        )
+        if not force_refresh:
+            cached_items = self._get_cached_items(cache_key)
+            if cached_items is not None:
+                return cached_items
 
         path = f"/tags/{quote(normalized_slug)}/"
         url = self._build_listing_url(path, page=page)
@@ -234,14 +323,31 @@ class Jable(SourceBase):
             metrics = dict(item.get("metrics") or {})
             metrics["tag_slug"] = normalized_slug
             item["metrics"] = metrics
+        self._set_cached_items(cache_key, items, ttl_seconds=self.cache_ttl_default)
         return items
 
-    def get_category_videos(self, category_slug: str, page: int = 1) -> list[dict]:
+    def get_category_videos(
+        self,
+        category_slug: str,
+        page: int = 1,
+        *,
+        force_refresh: bool = False,
+    ) -> list[dict]:
         normalized_slug = self._normalize_taxonomy_slug(
             category_slug, prefix="categories"
         )
         if not normalized_slug:
             return []
+
+        cache_key = self._build_cache_key(
+            "category_videos",
+            slug=normalized_slug,
+            page=page,
+        )
+        if not force_refresh:
+            cached_items = self._get_cached_items(cache_key)
+            if cached_items is not None:
+                return cached_items
 
         path = f"/categories/{quote(normalized_slug)}/"
         url = self._build_listing_url(path, page=page)
@@ -264,7 +370,32 @@ class Jable(SourceBase):
             metrics = dict(item.get("metrics") or {})
             metrics["category_slug"] = normalized_slug
             item["metrics"] = metrics
+        self._set_cached_items(cache_key, items, ttl_seconds=self.cache_ttl_default)
         return items
+
+    def _build_cache_key(self, kind: str, **kwargs) -> str:
+        segments = [f"{name}={kwargs[name]}" for name in sorted(kwargs)]
+        payload = "|".join(segments)
+        return f"jable:search:{self.domain}:{kind}:{payload}"
+
+    def _get_cached_items(self, key: str) -> list[dict] | None:
+        if not self.cache_enabled:
+            return None
+        cached_payload = cache.get(key)
+        if not isinstance(cached_payload, list):
+            return None
+        return deepcopy(cached_payload)
+
+    def _set_cached_items(
+        self,
+        key: str,
+        payload: list[dict],
+        *,
+        ttl_seconds: int,
+    ) -> None:
+        if not self.cache_enabled:
+            return
+        cache.set(key, deepcopy(payload), timeout=max(int(ttl_seconds), 1))
 
     def _build_search_url(self, keyword: str, page: int = 1) -> str:
         encoded = quote(keyword.strip())
