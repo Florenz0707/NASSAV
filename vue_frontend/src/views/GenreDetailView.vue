@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
@@ -8,6 +8,7 @@ import RecommendationCard from '../components/RecommendationCard.vue'
 import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import CustomSelect from '../components/CustomSelect.vue'
 import EmptyState from '../components/EmptyState.vue'
 import BatchControls from '../components/BatchControls.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -37,6 +38,26 @@ const loadingExternal = ref(false)
 const externalResources = ref([])
 const externalMeta = ref({})
 const externalPage = ref(1)
+const EXTERNAL_CACHE_TTL_MS = 1000 * 60 * 60
+
+// queryKey -> pageNumber -> { results, meta }
+const externalPageCache = ref({})
+
+const externalSortBy = ref('views')
+const externalSortOrder = ref('desc')
+const externalSortByOptions = [
+  { value: 'views', label: '播放量' },
+  { value: 'latest', label: '发布时间' },
+]
+const externalSortOrderOptions = [
+  { value: 'desc', label: '降序' },
+  { value: 'asc', label: '升序' },
+]
+
+function onExternalSortChange() {
+  externalPage.value = 1
+  startExternalSearch(1)
+}
 
 const addingExternalAvids = ref(new Set())
 
@@ -49,20 +70,61 @@ function saveExternalCache() {
       meta: externalMeta.value,
       page: externalPage.value,
       searched: externalSearched.value,
+      sortBy: externalSortBy.value,
+      sortOrder: externalSortOrder.value,
+      pageCache: externalPageCache.value,
       timestamp: Date.now(),
     })
   )
+}
+
+function getExternalQueryKey() {
+  return `${externalSortBy.value}|${externalSortOrder.value}`
+}
+
+function getCachedExternalPage(pageNumber) {
+  const queryKey = getExternalQueryKey()
+  const queryCache = externalPageCache.value[queryKey]
+  if (!queryCache) return null
+  return queryCache[String(pageNumber)] || null
+}
+
+function setCachedExternalPage(pageNumber, payload) {
+  const queryKey = getExternalQueryKey()
+  if (!externalPageCache.value[queryKey]) {
+    externalPageCache.value[queryKey] = {}
+  }
+  externalPageCache.value[queryKey][String(pageNumber)] = payload
+}
+
+function isExternalItemInLibrary(item) {
+  return Boolean(item?.is_in_library || item?.in_library)
+}
+
+function markExternalItemInLibrary(item) {
+  item.is_in_library = true
+  item.in_library = true
+}
+
+async function scrollToTopAfterExternalRefresh() {
+  await nextTick()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function restoreExternalCache() {
   const key = `external_genre_${genreId.value}`
   try {
     const cached = JSON.parse(sessionStorage.getItem(key))
-    if (cached && Date.now() - cached.timestamp < 1000 * 60 * 60) {
+    if (cached && Date.now() - cached.timestamp < EXTERNAL_CACHE_TTL_MS) {
       externalResources.value = cached.results
       externalMeta.value = cached.meta
       externalPage.value = cached.page
       externalSearched.value = cached.searched
+      if (cached.sortBy) externalSortBy.value = cached.sortBy
+      if (cached.sortOrder) externalSortOrder.value = cached.sortOrder
+      if (cached.pageCache && typeof cached.pageCache === 'object') {
+        externalPageCache.value = cached.pageCache
+      }
       return true
     }
   } catch (e) {}
@@ -70,20 +132,25 @@ function restoreExternalCache() {
 }
 
 async function startExternalSearch(p = 1) {
-  loadingExternal.value = true
   externalSearched.value = true
   externalPage.value = p
+
+  const cachedPage = getCachedExternalPage(p)
+  if (cachedPage) {
+    externalResources.value = cachedPage.results || []
+    externalMeta.value = cachedPage.meta || externalMeta.value
+    await scrollToTopAfterExternalRefresh()
+    return
+  }
+
+  loadingExternal.value = true
   try {
     const params = {
       source: 'jable',
       page: p,
       page_size: 20,
       ordering:
-        sortBy.value === 'metadata_create_time'
-          ? '-views'
-          : sortOrder.value === 'asc'
-            ? sortBy.value
-            : '-' + sortBy.value,
+        externalSortOrder.value === 'desc' ? '-' + externalSortBy.value : externalSortBy.value,
     }
     const response = await genreApi.getDetail(genreId.value, params)
     if (response && response.data) {
@@ -92,17 +159,19 @@ async function startExternalSearch(p = 1) {
         title: r.source_title || r.original_title,
         cover_url: r.thumbnail_url,
         raw_metrics: r.metrics,
+        is_in_library: isExternalItemInLibrary(r),
       }))
-      if (p === 1) {
-        externalResources.value = formattedResults
-      } else {
-        externalResources.value = externalResources.value.concat(formattedResults)
-      }
+      externalResources.value = formattedResults
       externalMeta.value = response.data.external_meta || {}
       if (response.data.detail) {
         genre.value = response.data.detail
       }
+      setCachedExternalPage(p, {
+        results: formattedResults,
+        meta: externalMeta.value,
+      })
       saveExternalCache()
+      await scrollToTopAfterExternalRefresh()
     }
   } catch (err) {
     toastStore.error(err.message || '获取外部搜索失败')
@@ -118,12 +187,12 @@ async function handleAddExternal(item) {
   try {
     await resourceStore.addResource(item.avid, 'any')
     toastStore.success(`${item.avid} 已加入资源库`)
-    item.metadata_create_time = Date.now() / 1000
+    markExternalItemInLibrary(item)
     saveExternalCache()
   } catch (err) {
     if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
       toastStore.info(`${item.avid} 已经在资源库中`)
-      item.metadata_create_time = Date.now() / 1000
+      markExternalItemInLibrary(item)
       saveExternalCache()
     } else {
       toastStore.error(err.message || '添加失败')
@@ -591,18 +660,32 @@ function goBack() {
         </button>
       </div>
 
-      <LoadingSpinner
-        v-else-if="loadingExternal && externalPage === 1"
-        size="large"
-        text="正在执行外部搜索，请耐心等待..."
-      />
+      <div v-else-if="loadingExternal" class="flex items-center justify-center py-20">
+        <LoadingSpinner size="large" text="正在执行外部搜索，请耐心等待..." />
+      </div>
 
       <template v-else>
-        <div class="mb-4 text-sm text-[var(--text-muted)] flex justify-between">
+        <div
+          class="mb-4 text-sm text-[var(--text-muted)] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        >
           <span
             >来源: {{ externalMeta.supported_sources?.includes('jable') ? 'jable' : 'jable' }}</span
           >
-          <span>排序: 按播放量降低</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[var(--text-muted)]">排序</span>
+            <CustomSelect
+              :model-value="externalSortBy"
+              :options="externalSortByOptions"
+              class="w-28"
+              @update:model-value="(v) => ((externalSortBy = v), onExternalSortChange())"
+            />
+            <CustomSelect
+              :model-value="externalSortOrder"
+              :options="externalSortOrderOptions"
+              class="w-24"
+              @update:model-value="(v) => ((externalSortOrder = v), onExternalSortChange())"
+            />
+          </div>
         </div>
 
         <EmptyState
@@ -617,7 +700,7 @@ function goBack() {
             v-for="resource in externalResources"
             :key="resource.avid"
             :item="resource"
-            :added="!!resource.metadata_create_time"
+            :added="isExternalItemInLibrary(resource)"
             :adding="addingExternalAvids.has(resource.avid)"
             @add="handleAddExternal(resource)"
             @view="handleViewExternal(resource)"
@@ -625,13 +708,24 @@ function goBack() {
           />
         </div>
 
-        <div v-if="externalResources.length > 0" class="flex justify-center mt-6">
+        <div
+          v-if="externalResources.length > 0"
+          class="flex justify-center items-center gap-4 mt-6"
+        >
           <button
-            class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-8 py-2 rounded-lg"
-            :disabled="loadingExternal"
+            class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="externalPage === 1 || loadingExternal"
+            @click="startExternalSearch(externalPage - 1)"
+          >
+            上一页
+          </button>
+          <span class="text-[var(--text-muted)] text-sm">第 {{ externalPage }} 页</span>
+          <button
+            class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="externalResources.length < 20 || loadingExternal"
             @click="startExternalSearch(externalPage + 1)"
           >
-            {{ loadingExternal ? '加载中...' : '加载下一页' }}
+            下一页
           </button>
         </div>
       </template>

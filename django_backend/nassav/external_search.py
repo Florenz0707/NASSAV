@@ -9,7 +9,7 @@ from django.core.cache import cache
 from django.db.models import Count
 from loguru import logger
 
-from nassav.models import Actor, Genre
+from nassav.models import AVResource, Actor, Genre
 from nassav.recommendation.actor_source_mapping import actor_source_mapping_service
 from nassav.recommendation.genre_source_mapping import genre_source_mapping_service
 from nassav.services import source_manager
@@ -186,24 +186,33 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
             output.append(
                 {
                     "avid": str(item.get("avid", "")).strip().upper(),
-                    "original_title": "",
                     "source_title": str(item.get("title", "")).strip(),
-                    "translated_title": "",
                     "source": str(item.get("source", "Jable")).strip() or "Jable",
-                    "release_date": "",
-                    "has_video": False,
-                    "watched": False,
-                    "is_favorite": False,
-                    "metadata_create_time": None,
-                    "metadata_update_time": None,
-                    "video_create_time": None,
-                    "genres": [],
                     "thumbnail_url": str(item.get("cover_url", "")).strip(),
                     "detail_url": str(item.get("detail_url", "")).strip(),
                     "metrics": metrics,
                 }
             )
-        return [item for item in output if item["avid"]]
+        valid_items = [item for item in output if item["avid"]]
+        self._attach_library_presence(valid_items)
+        return valid_items
+
+    def _attach_library_presence(self, items: list[dict]) -> None:
+        avids = [str(item.get("avid", "")).strip().upper() for item in items]
+        valid_avids = [avid for avid in avids if avid]
+        if not valid_avids:
+            return
+
+        existing_avids = {
+            str(avid).strip().upper()
+            for avid in AVResource.objects.filter(avid__in=valid_avids).values_list(
+                "avid",
+                flat=True,
+            )
+        }
+        for item in items:
+            avid = str(item.get("avid", "")).strip().upper()
+            item["in_library"] = avid in existing_avids
 
 
 class ExternalSearchService:

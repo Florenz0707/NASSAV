@@ -256,7 +256,7 @@ DELETE /nassav/api/source/cookie?source=missav
 ### 获取推荐结果
 
 - 方法：GET
-- 路径：`/nassav/api/recommendations/`
+- 路径：`/nassav/api/recommendations`
 - 功能：统一推荐入口
 - 支持 Query 参数：
   - `strategy`：推荐策略标识，默认 `local_preference`（当前仅此一项）
@@ -278,7 +278,7 @@ DELETE /nassav/api/source/cookie?source=missav
 示例请求：
 
 ```json
-GET /nassav/api/recommendations/?strategy=local_preference&type_preference=balanced&actor_preference=rare&genre_preference=balanced&limit=12&exclude_existing=true
+GET /nassav/api/recommendations?strategy=local_preference&type_preference=balanced&actor_preference=rare&genre_preference=balanced&limit=12&exclude_existing=true
 ```
 
 返回示例：
@@ -520,7 +520,7 @@ DELETE /nassav/api/recommendations/avid-blocklist
 ## 资源列表（服务端过滤/搜索/排序/分页）
 
 - 方法：GET
-- 路径：`/nassav/api/resources/`
+- 路径：`/nassav/api/resources`
 - 支持 Query 参数：
   - `status`：`downloaded|pending|all`（等同于 file_exists）
   - `watched`：`true|false`（按观看状态过滤）
@@ -535,13 +535,13 @@ DELETE /nassav/api/recommendations/avid-blocklist
 示例请求：
 
 ```json
-GET /nassav/api/resources/?status=pending&sort_by=metadata_create_time&order=desc&page=1&page_size=18
-GET /nassav/api/resources/?watched=true                       # 已观看的资源
-GET /nassav/api/resources/?is_favorite=true                   # 已收藏的资源
-GET /nassav/api/resources/?actor=1                           # 按演员 ID 过滤
-GET /nassav/api/resources/?actor=桥本                         # 按演员名称模糊匹配
-GET /nassav/api/resources/?genre=中文字幕                      # 按类别名称模糊匹配
-GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
+GET /nassav/api/resources?status=pending&sort_by=metadata_create_time&order=desc&page=1&page_size=18
+GET /nassav/api/resources?watched=true                       # 已观看的资源
+GET /nassav/api/resources?is_favorite=true                   # 已收藏的资源
+GET /nassav/api/resources?actor=1                           # 按演员 ID 过滤
+GET /nassav/api/resources?actor=桥本                         # 按演员名称模糊匹配
+GET /nassav/api/resources?genre=中文字幕                      # 按类别名称模糊匹配
+GET /nassav/api/resources?actor=1&genre=2&status=downloaded  # 组合过滤
 ```
 
 返回：`data` 为数组（资源摘要），响应内含 `pagination` 字段：
@@ -584,7 +584,7 @@ GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
 ## 演员列表（聚合统计）
 
 - 方法：GET
-- 路径：`/nassav/api/actors/`
+- 路径：`/nassav/api/actors`
 - 功能：返回所有演员及其作品数统计，支持分页、搜索和排序（包含头像信息）
 - 支持 Query 参数：
   - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
@@ -596,10 +596,10 @@ GET /nassav/api/resources/?actor=1&genre=2&status=downloaded  # 组合过滤
 示例请求：
 
 ```json
-GET /nassav/api/actors/?page=1&page_size=20&order_by=count&order=desc
-GET /nassav/api/actors/?search=桥本
-GET /nassav/api/actors/?id=1
-GET /nassav/api/actors/?order_by=name&order=asc
+GET /nassav/api/actors?page=1&page_size=20&order_by=count&order=desc
+GET /nassav/api/actors?search=桥本
+GET /nassav/api/actors?id=1
+GET /nassav/api/actors?order_by=name&order=asc
 ```
 
 返回示例：
@@ -741,7 +741,7 @@ GET /nassav/api/actors/1/detail?source=missav&page=1&page_size=20
 ## 类别列表（聚合统计）
 
 - 方法：GET
-- 路径：`/nassav/api/genres/`
+- 路径：`/nassav/api/genres`
 - 功能：返回所有类别及其作品数统计，支持分页、搜索和排序
 - 支持 Query 参数：
   - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
@@ -753,10 +753,10 @@ GET /nassav/api/actors/1/detail?source=missav&page=1&page_size=20
 示例请求：
 
 ```json
-GET /nassav/api/genres/?page=1&page_size=20&order_by=count&order=desc
-GET /nassav/api/genres/?search=中文
-GET /nassav/api/genres/?id=1
-GET /nassav/api/genres/?order_by=name&order=asc
+GET /nassav/api/genres?page=1&page_size=20&order_by=count&order=desc
+GET /nassav/api/genres?search=中文
+GET /nassav/api/genres?id=1
+GET /nassav/api/genres?order_by=name&order=asc
 ```
 
 返回示例：

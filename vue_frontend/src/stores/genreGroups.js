@@ -7,7 +7,7 @@ export const useGenreGroupsStore = defineStore('genreGroups', () => {
   const loading = ref(false)
   const error = ref(null)
 
-  // direct call to /genres/ to get groups
+  // direct call to /genres to get groups
   async function load({
     page = 1,
     page_size = 15,
@@ -24,7 +24,7 @@ export const useGenreGroupsStore = defineStore('genreGroups', () => {
       if (typeof search !== 'undefined' && search !== null && String(search).trim() !== '')
         params.search = String(search).trim()
       const qs = new URLSearchParams(params)
-      const r = await fetch(`/nassav/api/genres/?${qs.toString()}`)
+      const r = await fetch(`/nassav/api/genres?${qs.toString()}`)
       const body = await r.json()
       if (body && body.code === 200) {
         groups.value = body.data || []

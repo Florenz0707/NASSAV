@@ -11,14 +11,18 @@ urlpatterns = [
     path("api/source/cookie", views.SourceCookieView.as_view(), name="source-cookie"),
     # GET/PUT /api/setting - 用户设置管理
     path("api/setting", views.UserSettingView.as_view(), name="user-setting"),
-    # GET /api/resources/ - 统一资源列表（过滤/分页）
-    path("api/resources/", views.ResourcesListView.as_view(), name="resources-list"),
-    # GET /api/recommendations/ - 推荐结果
+    # GET /api/resources - 统一资源列表（过滤/分页）
+    path("api/resources", views.ResourcesListView.as_view(), name="resources-list"),
+    # backward compatibility for legacy trailing slash path
+    path("api/resources/", views.ResourcesListView.as_view()),
+    # GET /api/recommendations - 推荐结果
     path(
-        "api/recommendations/",
+        "api/recommendations",
         views.RecommendationsView.as_view(),
         name="recommendations",
     ),
+    # backward compatibility for legacy trailing slash path
+    path("api/recommendations/", views.RecommendationsView.as_view()),
     # GET /api/recommendations/options - 推荐器与策略选项
     path(
         "api/recommendations/options",
@@ -61,8 +65,10 @@ urlpatterns = [
         views.RecommendationsDemoView.as_view(),
         name="recommendations-demo",
     ),
-    # GET /api/actors/ - 演员列表及作品数（分页）
-    path("api/actors/", views.ActorsListView.as_view(), name="actors-list"),
+    # GET /api/actors - 演员列表及作品数（分页）
+    path("api/actors", views.ActorsListView.as_view(), name="actors-list"),
+    # backward compatibility for legacy trailing slash path
+    path("api/actors/", views.ActorsListView.as_view()),
     # GET /api/actors/<int:actor_id>/detail - 获取演员详情与外部搜索结果
     path(
         "api/actors/<int:actor_id>/detail",
@@ -75,8 +81,10 @@ urlpatterns = [
         views.ActorAvatarView.as_view(),
         name="actor-avatar",
     ),
-    # GET /api/genres/ - 类别列表及作品数（分页）
-    path("api/genres/", views.GenresListView.as_view(), name="genres-list"),
+    # GET /api/genres - 类别列表及作品数（分页）
+    path("api/genres", views.GenresListView.as_view(), name="genres-list"),
+    # backward compatibility for legacy trailing slash path
+    path("api/genres/", views.GenresListView.as_view()),
     # GET /api/genres/<int:genre_id>/detail - 获取类别详情与外部搜索结果
     path(
         "api/genres/<int:genre_id>/detail",

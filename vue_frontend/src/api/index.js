@@ -78,7 +78,7 @@ export const settingsApi = {
 // 推荐系统
 export const recommendationApi = {
   // 获取推荐结果
-  getList: (params = {}) => api.get('/recommendations/', { params }),
+  getList: (params = {}) => api.get('/recommendations', { params }),
   // 获取可用推荐器和策略
   getOptions: () => api.get('/recommendations/options'),
   // 提交推荐反馈
@@ -105,7 +105,7 @@ export const recommendationApi = {
 // 演员管理
 export const actorApi = {
   // 获取演员列表（聚合统计）
-  getList: (params = {}) => api.get('/actors/', { params }),
+  getList: (params = {}) => api.get('/actors', { params }),
   // 获取演员详情（包括外部搜索）
   getDetail: (actorId, params = {}) => api.get(`/actors/${actorId}/detail`, { params }),
   // 获取演员头像图片URL
@@ -118,15 +118,15 @@ export const actorApi = {
 // 类别管理
 export const genreApi = {
   // 获取类别列表（聚合统计）
-  getList: (params = {}) => api.get('/genres/', { params }),
+  getList: (params = {}) => api.get('/genres', { params }),
   // 获取类别详情（包括外部搜索）
   getDetail: (genreId, params = {}) => api.get(`/genres/${genreId}/detail`, { params }),
 }
 
 // 资源管理
 export const resourceApi = {
-  // 获取所有已保存资源列表（推荐使用新的 /resources/ 统一入口）
-  getList: (params = {}) => api.get('/resources/', { params }),
+  // 获取所有已保存资源列表（推荐使用新的 /resources 统一入口）
+  getList: (params = {}) => api.get('/resources', { params }),
 
   // 获取资源预览信息（首屏快速渲染）
   getPreview: (avid) => api.get(`/resource/${encodeURIComponent(avid)}/preview`),
