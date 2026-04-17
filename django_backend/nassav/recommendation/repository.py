@@ -47,6 +47,7 @@ class RecommendationSnapshotRepository:
             "type_preference": request.type_preference,
             "actor_preference": request.actor_preference,
             "genre_preference": request.genre_preference,
+            "force_refresh_external": request.force_refresh_external,
         }
         return sha256(
             json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
@@ -203,6 +204,7 @@ class RecommendationSnapshotRepository:
                 "type_preference": execution.request.type_preference,
                 "actor_preference": execution.request.actor_preference,
                 "genre_preference": execution.request.genre_preference,
+                "force_refresh_external": execution.request.force_refresh_external,
             },
             seed_summary=[seed.to_dict() for seed in execution.run.seeds],
             item_count=len(execution.run.items),

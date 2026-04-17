@@ -143,6 +143,10 @@ def _parse_recommendation_request_params(query_params) -> dict:
             "balanced",
             {"familiar", "balanced", "rare"},
         ),
+        "force_refresh_external": _parse_bool(
+            query_params.get("force_refresh_external"),
+            False,
+        ),
     }
 
 
@@ -593,6 +597,7 @@ class ActorDetailView(SchemaAPIView):
         page = _parse_positive_int(request.query_params.get("page"), 1)
         page_size = _parse_positive_int(request.query_params.get("page_size"), 20)
         ordering = str(request.query_params.get("ordering", "-views")).strip()
+        force_refresh = _parse_bool(request.query_params.get("force_refresh"), False)
 
         try:
             result = external_search_service.search_actor_detail(
@@ -601,6 +606,7 @@ class ActorDetailView(SchemaAPIView):
                 page=page,
                 page_size=page_size,
                 ordering=ordering,
+                force_refresh=force_refresh,
             )
         except Actor.DoesNotExist:
             return build_response(404, "演员不存在", None)
@@ -711,6 +717,7 @@ class GenreDetailView(SchemaAPIView):
         page = _parse_positive_int(request.query_params.get("page"), 1)
         page_size = _parse_positive_int(request.query_params.get("page_size"), 20)
         ordering = str(request.query_params.get("ordering", "-views")).strip()
+        force_refresh = _parse_bool(request.query_params.get("force_refresh"), False)
 
         try:
             result = external_search_service.search_genre_detail(
@@ -719,6 +726,7 @@ class GenreDetailView(SchemaAPIView):
                 page=page,
                 page_size=page_size,
                 ordering=ordering,
+                force_refresh=force_refresh,
             )
         except Genre.DoesNotExist:
             return build_response(404, "类别不存在", None)

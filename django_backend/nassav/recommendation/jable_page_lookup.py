@@ -70,7 +70,12 @@ class JablePageLookupRecommender(JableSearchRecommender):
         raw_results: list[dict] = []
         target_limit = self._seed_target_limit(request)
         for page in range(1, self.max_pages_per_query + 1):
-            page_results = fetch_page(genre_slug, page=page)
+            page_results = self._call_genre_page_fetch(
+                fetch_page=fetch_page,
+                genre_slug=genre_slug,
+                page=page,
+                force_refresh=request.force_refresh_external,
+            )
             if not page_results:
                 break
             added_on_page = 0
@@ -100,3 +105,20 @@ class JablePageLookupRecommender(JableSearchRecommender):
         if "/tags/" in source_genre_url:
             return "tag"
         return "tag"
+
+    def _call_genre_page_fetch(
+        self,
+        *,
+        fetch_page,
+        genre_slug: str,
+        page: int,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return fetch_page(
+                genre_slug,
+                page=page,
+                force_refresh=force_refresh,
+            )
+        except TypeError:
+            return fetch_page(genre_slug, page=page)

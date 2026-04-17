@@ -128,10 +128,11 @@ class JableSearchRecommender(AbstractRecommender):
         raw_results: list[dict] = []
         target_limit = self._seed_target_limit(request)
         for page in range(1, self.max_pages_per_query + 1):
-            page_results = self.jable.get_model_videos(
+            page_results = self._call_get_model_videos(
                 model_slug=model_slug,
                 page=page,
                 sort_by="video_viewed",
+                force_refresh=request.force_refresh_external,
             )
             if not page_results:
                 break
@@ -205,7 +206,11 @@ class JableSearchRecommender(AbstractRecommender):
         raw_results: list[dict] = []
         target_limit = self._seed_target_limit(request)
         for page in range(1, self.max_pages_per_query + 1):
-            page_results = self.jable.search(keyword, page=page)
+            page_results = self._call_search(
+                keyword=keyword,
+                page=page,
+                force_refresh=request.force_refresh_external,
+            )
             if not page_results:
                 break
             added_on_page = 0
@@ -234,7 +239,11 @@ class JableSearchRecommender(AbstractRecommender):
         seen_avids: set[str] = set()
         target_limit = self._discovery_target_limit(request)
         for page in range(1, self.max_pages_per_query + 1):
-            page_results = fetch_page(page=page)
+            page_results = self._call_discovery_fetch(
+                fetch_page=fetch_page,
+                page=page,
+                force_refresh=request.force_refresh_external,
+            )
             if not page_results:
                 break
             added_on_page = 0
@@ -270,6 +279,56 @@ class JableSearchRecommender(AbstractRecommender):
         if request.limit <= 0:
             return request.discovery_limit
         return min(request.discovery_limit, request.limit)
+
+    def _call_get_model_videos(
+        self,
+        *,
+        model_slug: str,
+        page: int,
+        sort_by: str,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return self.jable.get_model_videos(
+                model_slug=model_slug,
+                page=page,
+                sort_by=sort_by,
+                force_refresh=force_refresh,
+            )
+        except TypeError:
+            return self.jable.get_model_videos(
+                model_slug=model_slug,
+                page=page,
+                sort_by=sort_by,
+            )
+
+    def _call_search(
+        self,
+        *,
+        keyword: str,
+        page: int,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return self.jable.search(
+                keyword,
+                page=page,
+                force_refresh=force_refresh,
+            )
+        except TypeError:
+            return self.jable.search(keyword, page=page)
+
+    def _call_discovery_fetch(
+        self,
+        *,
+        fetch_page,
+        page: int,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return fetch_page(page=page, force_refresh=force_refresh)
+        except TypeError:
+            return fetch_page(page=page)
 
     def rerank_candidates(
         self,

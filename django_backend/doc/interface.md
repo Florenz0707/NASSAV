@@ -274,6 +274,7 @@ DELETE /nassav/api/source/cookie?source=missav
   - `include_hot_board`：是否将 Jable 热榜候选并入召回池，默认 `true`
   - `include_latest_updates`：是否将 Jable 最近更新候选并入召回池，默认 `true`
   - `discovery_limit`：热榜/最近更新总共最多补充多少条候选，默认 `12`
+  - `force_refresh_external`：是否强制外部源跳过搜索缓存并重新抓取，默认 `false`
 
 示例请求：
 
@@ -361,7 +362,8 @@ GET /nassav/api/recommendations?strategy=local_preference&type_preference=balanc
         "discovery_limit": 12,
         "type_preference": "balanced",
         "actor_preference": "rare",
-        "genre_preference": "balanced"
+        "genre_preference": "balanced",
+        "force_refresh_external": false
       },
       "history_context": {
         "recently_recommended_count": 12,
@@ -679,11 +681,13 @@ GET /nassav/api/actors/1/avatar
   - `source`：外部源名称，默认 `jable`
   - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
   - `ordering`：排序字段，支持 `-views`（默认）、`views`、`-likes`、`likes`、`avid`、`-avid`、`source_title`、`-source_title`
+  - `force_refresh`：是否强制跳过外部搜索缓存并重新抓取，默认 `false`
 
 示例请求：
 
 ```json
 GET /nassav/api/actors/1/detail?source=jable&page=1&page_size=20&ordering=-views
+GET /nassav/api/actors/1/detail?source=jable&page=1&page_size=20&ordering=-views&force_refresh=true
 GET /nassav/api/actors/1/detail?source=missav&page=1&page_size=20
 ```
 
@@ -707,7 +711,7 @@ GET /nassav/api/actors/1/detail?source=missav&page=1&page_size=20
       "message": "success",
       "ordering": "-views",
       "fetch_pages": 5,
-      "cache": { "enabled": false, "hit": false },
+      "cache": { "enabled": false, "hit": false, "force_refresh": false },
       "supported_sources": []
     },
     "external_results": [
@@ -791,11 +795,13 @@ GET /nassav/api/genres?order_by=name&order=asc
   - `source`：外部源名称，默认 `jable`
   - `page`、`page_size`：分页参数（默认 page=1, page_size=20）
   - `ordering`：排序字段，支持 `-views`（默认）、`views`、`-likes`、`likes`、`avid`、`-avid`、`source_title`、`-source_title`
+  - `force_refresh`：是否强制跳过外部搜索缓存并重新抓取，默认 `false`
 
 示例请求：
 
 ```json
 GET /nassav/api/genres/1/detail?source=jable&page=1&page_size=20&ordering=-views
+GET /nassav/api/genres/1/detail?source=jable&page=1&page_size=20&ordering=-views&force_refresh=true
 ```
 
 返回结构与演员详情接口一致，`data.detail` 对象改为类别信息（`id`、`name`、`resource_count`）。

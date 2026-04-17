@@ -197,6 +197,7 @@ class RecommenderManager:
             type_preference=str(payload.get("type_preference", "balanced")),
             actor_preference=str(payload.get("actor_preference", "balanced")),
             genre_preference=str(payload.get("genre_preference", "balanced")),
+            force_refresh_external=bool(payload.get("force_refresh_external", False)),
         )
 
     def build_recommender(

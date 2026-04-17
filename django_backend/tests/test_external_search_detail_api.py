@@ -14,8 +14,10 @@ class _FakeJableSource:
     def get_source_name(self):
         return "Jable"
 
-    def get_model_videos(self, model_slug, page=1, sort_by="video_viewed"):
-        self.model_calls.append((model_slug, page, sort_by))
+    def get_model_videos(
+        self, model_slug, page=1, sort_by="video_viewed", force_refresh=False
+    ):
+        self.model_calls.append((model_slug, page, sort_by, force_refresh))
         if page > 1:
             return []
         return [
@@ -29,8 +31,8 @@ class _FakeJableSource:
             }
         ]
 
-    def search(self, keyword, page=1):
-        self.search_calls.append((keyword, page))
+    def search(self, keyword, page=1, force_refresh=False):
+        self.search_calls.append((keyword, page, force_refresh))
         if page > 1:
             return []
         return [
@@ -44,8 +46,8 @@ class _FakeJableSource:
             }
         ]
 
-    def get_tag_videos(self, tag_slug, page=1):
-        self.tag_calls.append((tag_slug, page))
+    def get_tag_videos(self, tag_slug, page=1, force_refresh=False):
+        self.tag_calls.append((tag_slug, page, force_refresh))
         if page > 1:
             return []
         return [
@@ -59,8 +61,8 @@ class _FakeJableSource:
             }
         ]
 
-    def get_category_videos(self, category_slug, page=1):
-        self.category_calls.append((category_slug, page))
+    def get_category_videos(self, category_slug, page=1, force_refresh=False):
+        self.category_calls.append((category_slug, page, force_refresh))
         return []
 
 
@@ -94,7 +96,7 @@ def test_external_search_service_prefers_actor_mapping(
     assert result.meta["implemented"] is True
     assert result.pagination["total"] == 1
     assert result.items[0]["avid"] == "JAB-100"
-    assert fake_source.model_calls == [("alice-mapped", 1, "video_viewed")]
+    assert fake_source.model_calls == [("alice-mapped", 1, "video_viewed", False)]
     assert fake_source.search_calls == []
 
 
@@ -129,7 +131,61 @@ def test_external_search_service_uses_genre_tag_mapping(
     assert result.meta["implemented"] is True
     assert result.pagination["total"] == 1
     assert result.items[0]["avid"] == "GEN-901"
-    assert fake_source.tag_calls == [("zh", 1)]
+    assert fake_source.tag_calls == [("zh", 1, False)]
+
+
+@pytest.mark.django_db
+def test_actor_detail_api_propagates_force_refresh_query(
+    actor_factory, api_client, monkeypatch
+):
+    actor = actor_factory(name="Actor Force Refresh")
+    captured = {}
+
+    def _fake_search_actor_detail(**kwargs):
+        captured.update(kwargs)
+        return type(
+            "Result",
+            (),
+            {
+                "items": [],
+                "pagination": {
+                    "total": 0,
+                    "page": 1,
+                    "page_size": 20,
+                    "pages": 0,
+                },
+                "meta": {
+                    "actor": {
+                        "id": actor.id,
+                        "name": actor.name,
+                        "resource_count": 0,
+                        "avatar_url": None,
+                        "avatar_filename": None,
+                    },
+                    "source": "jable",
+                    "implemented": True,
+                    "ordering": "-views",
+                    "fetch_pages": 1,
+                    "cache": {
+                        "enabled": True,
+                        "hit": False,
+                        "force_refresh": True,
+                    },
+                },
+            },
+        )()
+
+    monkeypatch.setattr(
+        "nassav.views.external_search_service.search_actor_detail",
+        _fake_search_actor_detail,
+    )
+
+    resp = api_client.get(
+        f"/nassav/api/actors/{actor.id}/detail",
+        {"force_refresh": "true"},
+    )
+    assert resp.status_code == 200
+    assert captured.get("force_refresh") is True
 
 
 @pytest.mark.django_db

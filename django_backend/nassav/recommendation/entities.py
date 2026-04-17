@@ -99,6 +99,7 @@ class RecommendationRequest:
     type_preference: str = "balanced"
     actor_preference: str = "balanced"
     genre_preference: str = "balanced"
+    force_refresh_external: bool = False
 
 
 @dataclass
@@ -155,6 +156,7 @@ class RecommendationExecution:
                 "type_preference": self.request.type_preference,
                 "actor_preference": self.request.actor_preference,
                 "genre_preference": self.request.genre_preference,
+                "force_refresh_external": self.request.force_refresh_external,
             },
             "history_context": {
                 "recently_recommended_count": len(

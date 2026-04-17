@@ -443,12 +443,15 @@ function syncQuery() {
   router.replace({ query })
 }
 
-async function loadRecommendations() {
+async function loadRecommendations(forceRefreshExternal = false) {
   loading.value = true
   error.value = ''
   hasRequested.value = true
   const requestConfigKey = buildConfigKey()
-  const shouldMerge = requestConfigKey === lastLoadedConfigKey.value && items.value.length > 0
+  const shouldMerge =
+    !forceRefreshExternal &&
+    requestConfigKey === lastLoadedConfigKey.value &&
+    items.value.length > 0
 
   try {
     const response = await recommendationApi.getList({
@@ -457,6 +460,7 @@ async function loadRecommendations() {
       genre_preference: genrePreference.value,
       limit: limit.value,
       exclude_existing: true,
+      force_refresh_external: forceRefreshExternal,
     })
 
     const payload = response.data || {}
@@ -645,6 +649,13 @@ watch(blacklistSearch, () => {
         </button>
         <button class="rec-action-btn rec-action-btn-secondary" @click="openPersonalizationModal">
           个性化
+        </button>
+        <button
+          class="rec-action-btn rec-action-btn-secondary"
+          :disabled="loading"
+          @click="loadRecommendations(true)"
+        >
+          刷新外部结果
         </button>
         <button
           class="rec-action-btn rec-action-btn-muted"

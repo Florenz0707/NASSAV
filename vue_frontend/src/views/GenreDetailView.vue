@@ -59,6 +59,18 @@ function onExternalSortChange() {
   startExternalSearch(1)
 }
 
+function clearExternalQueryCache() {
+  const queryKey = getExternalQueryKey()
+  if (externalPageCache.value[queryKey]) {
+    delete externalPageCache.value[queryKey]
+  }
+}
+
+function refreshExternalSearch() {
+  clearExternalQueryCache()
+  startExternalSearch(externalPage.value || 1, true)
+}
+
 const addingExternalAvids = ref(new Set())
 
 function saveExternalCache() {
@@ -131,12 +143,12 @@ function restoreExternalCache() {
   return false
 }
 
-async function startExternalSearch(p = 1) {
+async function startExternalSearch(p = 1, forceRefresh = false) {
   externalSearched.value = true
   externalPage.value = p
 
   const cachedPage = getCachedExternalPage(p)
-  if (cachedPage) {
+  if (!forceRefresh && cachedPage) {
     externalResources.value = cachedPage.results || []
     externalMeta.value = cachedPage.meta || externalMeta.value
     await scrollToTopAfterExternalRefresh()
@@ -151,6 +163,9 @@ async function startExternalSearch(p = 1) {
       page_size: 20,
       ordering:
         externalSortOrder.value === 'desc' ? '-' + externalSortBy.value : externalSortBy.value,
+    }
+    if (forceRefresh) {
+      params.force_refresh = true
     }
     const response = await genreApi.getDetail(genreId.value, params)
     if (response && response.data) {
@@ -685,6 +700,13 @@ function goBack() {
               class="w-24"
               @update:model-value="(v) => ((externalSortOrder = v), onExternalSortChange())"
             />
+            <button
+              class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="loadingExternal"
+              @click="refreshExternalSearch"
+            >
+              刷新外部结果
+            </button>
           </div>
         </div>
 

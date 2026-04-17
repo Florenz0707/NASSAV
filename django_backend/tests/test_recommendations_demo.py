@@ -5,8 +5,16 @@ import pytest
 def stub_recommendation_discovery(monkeypatch):
     from nassav.source import Jable
 
-    monkeypatch.setattr(Jable, "discover_hot_items", lambda self, page=1: [])
-    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "discover_hot_items",
+        lambda self, page=1, force_refresh=False: [],
+    )
+    monkeypatch.setattr(
+        Jable,
+        "discover_latest_updates",
+        lambda self, page=1, force_refresh=False: [],
+    )
 
 
 @pytest.mark.django_db
@@ -47,7 +55,11 @@ def test_recommendations_endpoint_runs_with_empty_search(
     resource.actors.add(actor)
     resource.genres.add(genre)
 
-    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1, force_refresh=False: [],
+    )
 
     response = api_client.get("/nassav/api/recommendations/")
     assert response.status_code == 200
@@ -97,9 +109,10 @@ def test_recommendations_endpoint_merges_scores_and_filters_existing(
 
     resource_factory(avid="REC-002", original_title="Existing Recommended")
 
-    def fake_search(self, keyword, page=1):
+    def fake_search(self, keyword, page=1, force_refresh=False):
         _ = self
         _ = page
+        _ = force_refresh
         if keyword == "Alice":
             return [
                 {
@@ -170,7 +183,7 @@ def test_recommendations_endpoint_can_include_existing_resources(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, force_refresh=False: [
             {
                 "avid": "REC-EXIST",
                 "title": "Existing Result",
@@ -209,7 +222,7 @@ def test_recommendations_demo_endpoint_aliases_manager(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, force_refresh=False: [
             {
                 "avid": "REC-301",
                 "title": "Alias Result",
@@ -231,6 +244,33 @@ def test_recommendations_demo_endpoint_aliases_manager(
     assert body["data"]["meta"]["recommender"] == "jable_page_lookup"
     assert body["data"]["meta"]["strategy"] == "local_preference"
     assert body["data"]["items"][0]["avid"] == "REC-301"
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_accepts_force_refresh_external(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-401", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1, force_refresh=False: [],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {"force_refresh_external": "true"},
+    )
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["meta"]["effective_request"]["force_refresh_external"] is True
 
 
 @pytest.mark.django_db

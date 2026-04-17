@@ -58,13 +58,13 @@ class ExternalSourceAdapter(ABC):
 
     @abstractmethod
     def search_actor_items(
-        self, *, actor: Actor, page: int, ordering: str
+        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
     ) -> list[dict]:
         raise NotImplementedError
 
     @abstractmethod
     def search_genre_items(
-        self, *, genre: Genre, page: int, ordering: str
+        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
     ) -> list[dict]:
         raise NotImplementedError
 
@@ -75,15 +75,15 @@ class PlaceholderExternalSourceAdapter(ExternalSourceAdapter):
         self.implemented = False
 
     def search_actor_items(
-        self, *, actor: Actor, page: int, ordering: str
+        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
     ) -> list[dict]:
-        _ = (actor, page, ordering)
+        _ = (actor, page, ordering, force_refresh)
         return []
 
     def search_genre_items(
-        self, *, genre: Genre, page: int, ordering: str
+        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
     ) -> list[dict]:
-        _ = (genre, page, ordering)
+        _ = (genre, page, ordering, force_refresh)
         return []
 
 
@@ -92,7 +92,7 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
     implemented = True
 
     def search_actor_items(
-        self, *, actor: Actor, page: int, ordering: str
+        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
     ) -> list[dict]:
         jable = self._get_jable_source()
         if jable is None:
@@ -108,17 +108,26 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
             source_name=self.source_name,
         ).get(actor_pk)
         if mapping is not None and mapping.source_actor_slug:
-            records = jable.get_model_videos(
+            records = self._call_get_model_videos(
+                jable=jable,
                 model_slug=mapping.source_actor_slug,
                 page=page,
                 sort_by=sort_by,
+                force_refresh=force_refresh,
             )
             return self._normalize_items(records)
 
-        return self._normalize_items(jable.search(actor.name, page=page))
+        return self._normalize_items(
+            self._call_search(
+                jable=jable,
+                keyword=actor.name,
+                page=page,
+                force_refresh=force_refresh,
+            )
+        )
 
     def search_genre_items(
-        self, *, genre: Genre, page: int, ordering: str
+        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
     ) -> list[dict]:
         _ = ordering
         jable = self._get_jable_source()
@@ -134,22 +143,125 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
             source_name=self.source_name,
         ).get(genre_pk)
         if mapping is None or not mapping.source_genre_slug:
-            return self._normalize_items(jable.search(genre.name, page=page))
+            return self._normalize_items(
+                self._call_search(
+                    jable=jable,
+                    keyword=genre.name,
+                    page=page,
+                    force_refresh=force_refresh,
+                )
+            )
 
         source_url = str(mapping.source_genre_url or "").strip().lower()
         slug = mapping.source_genre_slug
 
         if "/categories/" in source_url:
-            records = jable.get_category_videos(slug, page=page)
+            records = self._call_get_category_videos(
+                jable=jable,
+                category_slug=slug,
+                page=page,
+                force_refresh=force_refresh,
+            )
             return self._normalize_items(records)
         if "/tags/" in source_url:
-            records = jable.get_tag_videos(slug, page=page)
+            records = self._call_get_tag_videos(
+                jable=jable,
+                tag_slug=slug,
+                page=page,
+                force_refresh=force_refresh,
+            )
             return self._normalize_items(records)
 
-        records = jable.get_tag_videos(slug, page=page)
+        records = self._call_get_tag_videos(
+            jable=jable,
+            tag_slug=slug,
+            page=page,
+            force_refresh=force_refresh,
+        )
         if records:
             return self._normalize_items(records)
-        return self._normalize_items(jable.get_category_videos(slug, page=page))
+        return self._normalize_items(
+            self._call_get_category_videos(
+                jable=jable,
+                category_slug=slug,
+                page=page,
+                force_refresh=force_refresh,
+            )
+        )
+
+    def _call_get_model_videos(
+        self,
+        *,
+        jable: "JableSearchProtocol",
+        model_slug: str,
+        page: int,
+        sort_by: str,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return jable.get_model_videos(
+                model_slug=model_slug,
+                page=page,
+                sort_by=sort_by,
+                force_refresh=force_refresh,
+            )
+        except TypeError:
+            return jable.get_model_videos(
+                model_slug=model_slug,
+                page=page,
+                sort_by=sort_by,
+            )
+
+    def _call_search(
+        self,
+        *,
+        jable: "JableSearchProtocol",
+        keyword: str,
+        page: int,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return jable.search(
+                keyword,
+                page=page,
+                force_refresh=force_refresh,
+            )
+        except TypeError:
+            return jable.search(keyword, page=page)
+
+    def _call_get_tag_videos(
+        self,
+        *,
+        jable: "JableSearchProtocol",
+        tag_slug: str,
+        page: int,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return jable.get_tag_videos(
+                tag_slug,
+                page=page,
+                force_refresh=force_refresh,
+            )
+        except TypeError:
+            return jable.get_tag_videos(tag_slug, page=page)
+
+    def _call_get_category_videos(
+        self,
+        *,
+        jable: "JableSearchProtocol",
+        category_slug: str,
+        page: int,
+        force_refresh: bool,
+    ) -> list[dict]:
+        try:
+            return jable.get_category_videos(
+                category_slug,
+                page=page,
+                force_refresh=force_refresh,
+            )
+        except TypeError:
+            return jable.get_category_videos(category_slug, page=page)
 
     def _get_jable_source(self) -> "JableSearchProtocol | None":
         for source in source_manager.sources.values():
@@ -236,6 +348,7 @@ class ExternalSearchService:
         page: int,
         page_size: int,
         ordering: str,
+        force_refresh: bool = False,
     ) -> ExternalSearchResult:
         actor = (
             Actor.objects.annotate(resource_count=Count("resources"))
@@ -259,7 +372,9 @@ class ExternalSearchService:
                 actor=actor,
                 page=target_page,
                 ordering=requested_ordering,
+                force_refresh=force_refresh,
             ),
+            force_refresh=force_refresh,
         )
         result.meta["actor"] = {
             "id": actor_pk,
@@ -278,6 +393,7 @@ class ExternalSearchService:
         page: int,
         page_size: int,
         ordering: str,
+        force_refresh: bool = False,
     ) -> ExternalSearchResult:
         genre = (
             Genre.objects.annotate(resource_count=Count("resources"))
@@ -301,7 +417,9 @@ class ExternalSearchService:
                 genre=genre,
                 page=target_page,
                 ordering=requested_ordering,
+                force_refresh=force_refresh,
             ),
+            force_refresh=force_refresh,
         )
         result.meta["genre"] = {
             "id": genre_pk,
@@ -329,6 +447,7 @@ class ExternalSearchService:
         page_size: int,
         ordering: str,
         fetch_page,
+        force_refresh: bool = False,
     ) -> ExternalSearchResult:
         normalized_source = self._normalize_source(source_name)
         adapter = self.adapters.get(normalized_source)
@@ -378,10 +497,13 @@ class ExternalSearchService:
             f"{fetch_pages}:{safe_ordering}"
         )
         cache_hit = False
-        normalized_items = cache_backend.get(cache_key)
-        if normalized_items is not None:
-            cache_hit = True
-        else:
+        normalized_items: list[dict] | None = None
+        if not force_refresh:
+            normalized_items = cache_backend.get(cache_key)
+            if normalized_items is not None:
+                cache_hit = True
+
+        if normalized_items is None:
             normalized_items = self._collect_items(
                 fetch_page=fetch_page,
                 ordering=safe_ordering,
@@ -403,7 +525,11 @@ class ExternalSearchService:
                 "implemented": True,
                 "ordering": safe_ordering,
                 "fetch_pages": fetch_pages,
-                "cache": {"enabled": cache_enabled, "hit": cache_hit},
+                "cache": {
+                    "enabled": cache_enabled,
+                    "hit": cache_hit,
+                    "force_refresh": force_refresh,
+                },
             },
         )
 
@@ -550,14 +676,30 @@ class JableSearchProtocol(Protocol):
         model_slug: str,
         page: int = 1,
         sort_by: str = "video_viewed",
+        *,
+        force_refresh: bool = False,
     ) -> list[dict]: ...
 
-    def search(self, keyword: str, page: int = 1) -> list[dict]: ...
+    def search(
+        self,
+        keyword: str,
+        page: int = 1,
+        *,
+        force_refresh: bool = False,
+    ) -> list[dict]: ...
 
-    def get_tag_videos(self, tag_slug: str, page: int = 1) -> list[dict]: ...
+    def get_tag_videos(
+        self,
+        tag_slug: str,
+        page: int = 1,
+        *,
+        force_refresh: bool = False,
+    ) -> list[dict]: ...
 
     def get_category_videos(
         self,
         category_slug: str,
         page: int = 1,
+        *,
+        force_refresh: bool = False,
     ) -> list[dict]: ...
