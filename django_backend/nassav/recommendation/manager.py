@@ -131,6 +131,16 @@ class RecommenderManager:
                 item_limit=max(recommendation_request.recent_item_limit * 3, 72),
             )
         )
+        from .seed_profiles import recommendation_seed_profile_repository
+
+        blocked_name_keys, blocked_source_keys = (
+            recommendation_seed_profile_repository.build_blocked_seed_keys()
+        )
+        recommendation_request.blocked_seed_name_keys = blocked_name_keys
+        recommendation_request.blocked_seed_source_keys = blocked_source_keys
+        recommendation_request.seed_blacklist_active = bool(
+            blocked_name_keys or blocked_source_keys
+        )
         learning_profile = recommendation_feedback_repository.build_learning_profile()
         recommendation_request.feedback_avid_scores = learning_profile.avid_scores
         recommendation_request.feedback_seed_scores = learning_profile.seed_scores

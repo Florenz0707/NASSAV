@@ -99,6 +99,39 @@ def test_genres_list_api(api_client, setup_genres_with_resources):
 
 
 @pytest.mark.django_db
+def test_genres_list_api_returns_source_mapping(
+    api_client, genre_factory, resource_factory
+):
+    from nassav.models import GenreSourceMapping
+
+    genre = genre_factory(name="中文字幕")
+    resource = resource_factory(avid="GEN-MAP-1", original_title="Mapped Genre Seed")
+    resource.genres.add(genre)
+    GenreSourceMapping.objects.create(
+        genre=genre,
+        source_name="jable",
+        source_genre_name="中文字幕",
+        source_genre_slug="chinese-subtitle",
+        source_genre_url="https://jable.tv/tags/chinese-subtitle/",
+        aliases=["Chinese Subtitle"],
+        is_active=True,
+    )
+
+    resp = api_client.get("/nassav/api/genres/", {"id": genre.id})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["code"] == 200
+    assert len(body["data"]) == 1
+
+    mapping = body["data"][0]["source_mapping"]
+    assert mapping["source_name"] == "jable"
+    assert mapping["source_seed_name"] == "中文字幕"
+    assert mapping["source_seed_slug"] == "chinese-subtitle"
+    assert mapping["source_seed_url"] == "https://jable.tv/tags/chinese-subtitle/"
+    assert mapping["aliases"] == ["Chinese Subtitle"]
+
+
+@pytest.mark.django_db
 def test_genres_list_sorting_by_count(api_client, setup_genres_with_resources):
     """测试类别列表按数量排序"""
     resp = api_client.get(

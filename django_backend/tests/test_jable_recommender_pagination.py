@@ -124,3 +124,116 @@ def test_jable_recommender_paginates_latest_discovery(monkeypatch):
 
     assert calls == [1, 2]
     assert [candidate.avid for candidate in candidates] == ["LAT-001", "LAT-002"]
+
+
+@pytest.mark.django_db
+def test_jable_recommender_recommend_filters_seed_blocked_candidates(
+    actor_factory,
+    monkeypatch,
+    resource_factory,
+):
+    from nassav.recommendation.entities import RecommendationRequest
+    from nassav.recommendation.jable_search import JableSearchRecommender
+    from nassav.recommendation.seeds import LocalPreferenceSeedProvider
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-BLK-001", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    jable = Jable()
+    monkeypatch.setattr(
+        jable,
+        "search",
+        lambda keyword, page=1: [
+            {
+                "avid": "REC-BLK-001",
+                "title": "Blocked Candidate",
+                "detail_url": "https://jable.tv/videos/rec-blk-001/",
+                "cover_url": "https://img/rec-blk-001.jpg",
+                "metrics": {"views": 100, "likes": 10},
+            }
+        ],
+    )
+    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
+    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+
+    recommender = JableSearchRecommender(
+        jable=jable,
+        seed_provider=LocalPreferenceSeedProvider(),
+        max_pages_per_query=1,
+    )
+    request = RecommendationRequest(
+        limit=2,
+        per_seed_limit=2,
+        actor_seed_limit=1,
+        genre_seed_limit=0,
+        seed_types=["actor"],
+        include_hot_board=False,
+        include_latest_updates=False,
+        seed_blacklist_active=True,
+        blocked_seed_name_keys={("actor", "alice")},
+    )
+
+    run = recommender.recommend(request)
+
+    assert run.seeds != []
+    assert run.items == []
+
+
+@pytest.mark.django_db
+def test_jable_recommender_filters_candidate_by_blocked_genre_slug_metrics(
+    actor_factory,
+    monkeypatch,
+    resource_factory,
+):
+    from nassav.recommendation.entities import RecommendationRequest
+    from nassav.recommendation.jable_search import JableSearchRecommender
+    from nassav.recommendation.seeds import LocalPreferenceSeedProvider
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Bob")
+    seed_resource = resource_factory(avid="SEED-BLK-002", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    jable = Jable()
+    monkeypatch.setattr(
+        jable,
+        "search",
+        lambda keyword, page=1: [
+            {
+                "avid": "REC-BLK-002",
+                "title": "Has Blocked Tag",
+                "detail_url": "https://jable.tv/videos/rec-blk-002/",
+                "cover_url": "https://img/rec-blk-002.jpg",
+                "metrics": {
+                    "views": 100,
+                    "likes": 10,
+                    "tag_slug": "groupsex",
+                },
+            }
+        ],
+    )
+    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
+    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+
+    recommender = JableSearchRecommender(
+        jable=jable,
+        seed_provider=LocalPreferenceSeedProvider(),
+        max_pages_per_query=1,
+    )
+    request = RecommendationRequest(
+        limit=2,
+        per_seed_limit=2,
+        actor_seed_limit=1,
+        genre_seed_limit=0,
+        seed_types=["actor"],
+        include_hot_board=False,
+        include_latest_updates=False,
+        seed_blacklist_active=True,
+        blocked_seed_source_keys={("genre", "jable", "groupsex")},
+    )
+
+    run = recommender.recommend(request)
+
+    assert run.items == []

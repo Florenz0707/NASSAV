@@ -76,6 +76,32 @@ const normalizedBlacklistSearch = computed(() =>
     ? blacklistSearch.value.trim().toUpperCase()
     : blacklistSearch.value.trim()
 )
+
+function formatSeedSourceMapping(item) {
+  const mapping = item?.source_mapping
+  if (!mapping || typeof mapping !== 'object') return ''
+
+  const sourceName = String(mapping.source_name || '')
+    .trim()
+    .toUpperCase()
+  const sourceSeedName = String(mapping.source_seed_name || '').trim()
+  const sourceSeedSlug = String(mapping.source_seed_slug || '').trim()
+  const aliases = Array.isArray(mapping.aliases)
+    ? mapping.aliases
+        .map((alias) => String(alias || '').trim())
+        .filter((alias) => Boolean(alias))
+        .slice(0, 3)
+    : []
+
+  const segments = []
+  if (sourceName) segments.push(sourceName)
+  if (sourceSeedName) segments.push(sourceSeedName)
+  if (sourceSeedSlug) segments.push(`slug:${sourceSeedSlug}`)
+  if (aliases.length) segments.push(`alias:${aliases.join(' / ')}`)
+
+  return segments.join(' · ')
+}
+
 const recommendationActionLabel = computed(() => {
   if (visibleItems.value.length && lastLoadedConfigKey.value !== buildConfigKey()) {
     return '重新推荐'
@@ -108,7 +134,7 @@ function buildConfigKey() {
     type_preference: typePreference.value || 'balanced',
     actor_preference: actorPreference.value || 'balanced',
     genre_preference: genrePreference.value || 'balanced',
-    limit: limit.value || 12,
+    limit: limit.value || 24,
   })
 }
 
@@ -143,7 +169,7 @@ function restoreViewState() {
     typePreference.value = state.typePreference || typePreference.value
     actorPreference.value = state.actorPreference || actorPreference.value
     genrePreference.value = state.genrePreference || genrePreference.value
-    limit.value = Number.parseInt(state.limit, 10) || 12
+    limit.value = Number.parseInt(state.limit, 10) || 24
     items.value = Array.isArray(state.items) ? state.items : []
     seeds.value = Array.isArray(state.seeds) ? state.seeds : []
     meta.value = state.meta || null
@@ -443,15 +469,14 @@ function syncQuery() {
   router.replace({ query })
 }
 
-async function loadRecommendations(forceRefreshExternal = false) {
+async function loadRecommendations(options = {}) {
+  const forceRefreshExternal = Boolean(options.forceRefreshExternal)
+  const append = Boolean(options.append)
   loading.value = true
   error.value = ''
   hasRequested.value = true
   const requestConfigKey = buildConfigKey()
-  const shouldMerge =
-    !forceRefreshExternal &&
-    requestConfigKey === lastLoadedConfigKey.value &&
-    items.value.length > 0
+  const shouldMerge = append && !forceRefreshExternal && items.value.length > 0
 
   try {
     const response = await recommendationApi.getList({
@@ -488,6 +513,21 @@ async function loadRecommendations(forceRefreshExternal = false) {
   } finally {
     loading.value = false
   }
+}
+
+function runPrimaryRecommendationAction() {
+  const requestConfigKey = buildConfigKey()
+  const canAppend =
+    requestConfigKey === lastLoadedConfigKey.value && hasRequested.value && items.value.length > 0
+  loadRecommendations({ append: canAppend })
+}
+
+function continueRecommendations() {
+  loadRecommendations({ append: true })
+}
+
+function refreshExternalRecommendations() {
+  loadRecommendations({ forceRefreshExternal: true })
 }
 
 async function handleAdd(item) {
@@ -642,7 +682,7 @@ watch(blacklistSearch, () => {
         <button
           class="rec-action-btn rec-action-btn-primary"
           :disabled="loading"
-          @click="loadRecommendations"
+          @click="runPrimaryRecommendationAction"
         >
           <LoadingSpinner v-if="loading" size="small" />
           <template v-else>{{ recommendationActionLabel }}</template>
@@ -653,7 +693,7 @@ watch(blacklistSearch, () => {
         <button
           class="rec-action-btn rec-action-btn-secondary"
           :disabled="loading"
-          @click="loadRecommendations(true)"
+          @click="refreshExternalRecommendations"
         >
           刷新外部结果
         </button>
@@ -709,7 +749,7 @@ watch(blacklistSearch, () => {
         <label class="meta-control">
           <CustomSelect v-model="limit" :options="limitOptions" class="meta-select" full-width />
         </label>
-        <p class="meta-desc">默认返回 12 条推荐结果。</p>
+        <p class="meta-desc">默认返回 24 条推荐结果。</p>
       </div>
     </section>
 
@@ -809,7 +849,7 @@ watch(blacklistSearch, () => {
           <button
             class="tw-btn-footer rec-footer-btn"
             :disabled="loading"
-            @click="loadRecommendations"
+            @click="continueRecommendations"
           >
             <LoadingSpinner v-if="loading" size="small" />
             <template v-else> 继续推荐 </template>
@@ -971,6 +1011,12 @@ watch(blacklistSearch, () => {
                   blacklistSeedType === 'resource' ? '' : `${item.resource_count ?? 0}个资源`
                 }}
                 {{ `${item.is_blocked ? '已屏蔽' : '未屏蔽'}` }}）
+              </div>
+              <div
+                v-if="blacklistSeedType !== 'resource' && formatSeedSourceMapping(item)"
+                class="blacklist-mapping"
+              >
+                映射：{{ formatSeedSourceMapping(item) }}
               </div>
             </div>
 
@@ -1734,6 +1780,12 @@ watch(blacklistSearch, () => {
 .blacklist-name {
   color: var(--text-primary);
   font-weight: 700;
+  word-break: break-word;
+}
+
+.blacklist-mapping {
+  color: var(--text-muted);
+  font-size: 0.82rem;
   word-break: break-word;
 }
 

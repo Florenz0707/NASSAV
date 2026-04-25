@@ -4,7 +4,7 @@ import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
 import { genreApi, resourceApi, downloadApi } from '../api'
-import RecommendationCard from '../components/RecommendationCard.vue'
+import ExternalSearchCard from '../components/ExternalSearchCard.vue'
 import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -38,6 +38,7 @@ const loadingExternal = ref(false)
 const externalResources = ref([])
 const externalMeta = ref({})
 const externalPage = ref(1)
+const externalPagination = ref(null)
 const EXTERNAL_CACHE_TTL_MS = 1000 * 60 * 60
 
 // queryKey -> pageNumber -> { results, meta }
@@ -81,6 +82,7 @@ function saveExternalCache() {
       results: externalResources.value,
       meta: externalMeta.value,
       page: externalPage.value,
+      pagination: externalPagination.value,
       searched: externalSearched.value,
       sortBy: externalSortBy.value,
       sortOrder: externalSortOrder.value,
@@ -131,6 +133,7 @@ function restoreExternalCache() {
       externalResources.value = cached.results
       externalMeta.value = cached.meta
       externalPage.value = cached.page
+      externalPagination.value = cached.pagination || null
       externalSearched.value = cached.searched
       if (cached.sortBy) externalSortBy.value = cached.sortBy
       if (cached.sortOrder) externalSortOrder.value = cached.sortOrder
@@ -151,6 +154,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
   if (!forceRefresh && cachedPage) {
     externalResources.value = cachedPage.results || []
     externalMeta.value = cachedPage.meta || externalMeta.value
+    externalPagination.value = cachedPage.pagination || externalPagination.value
     await scrollToTopAfterExternalRefresh()
     return
   }
@@ -178,22 +182,36 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
       }))
       externalResources.value = formattedResults
       externalMeta.value = response.data.external_meta || {}
+      externalPagination.value = response.pagination || null
       if (response.data.detail) {
         genre.value = response.data.detail
       }
       setCachedExternalPage(p, {
         results: formattedResults,
         meta: externalMeta.value,
+        pagination: externalPagination.value,
       })
       saveExternalCache()
       await scrollToTopAfterExternalRefresh()
     }
   } catch (err) {
     toastStore.error(err.message || '获取外部搜索失败')
-    if (p === 1) externalResources.value = []
+    if (p === 1) {
+      externalResources.value = []
+      externalPagination.value = null
+    }
   } finally {
     loadingExternal.value = false
   }
+}
+
+function resetExternalSearchState() {
+  externalSearched.value = false
+  externalResources.value = []
+  externalMeta.value = {}
+  externalPage.value = 1
+  externalPagination.value = null
+  externalPageCache.value = {}
 }
 
 async function handleAddExternal(item) {
@@ -451,6 +469,8 @@ watch(
     await loadGenreInfo(genreId.value)
     page.value = 1
     await fetchResources(1)
+    resetExternalSearchState()
+    restoreExternalCache()
   }
 )
 
@@ -634,7 +654,7 @@ function goBack() {
       </EmptyState>
 
       <!-- Resources Grid -->
-      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+      <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         <ResourceCard
           v-for="resource in displayedResources"
           :key="resource.avid"
@@ -718,7 +738,7 @@ function goBack() {
         />
 
         <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-6">
-          <RecommendationCard
+          <ExternalSearchCard
             v-for="resource in externalResources"
             :key="resource.avid"
             :item="resource"
@@ -741,10 +761,20 @@ function goBack() {
           >
             上一页
           </button>
-          <span class="text-[var(--text-muted)] text-sm">第 {{ externalPage }} 页</span>
+          <span class="text-[var(--text-muted)] text-sm">
+            第 {{ externalPage }} 页
+            <template v-if="externalPagination && externalPagination.pages">
+              / 共 {{ externalPagination.pages }} 页
+            </template>
+          </span>
           <button
             class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="externalResources.length < 20 || loadingExternal"
+            :disabled="
+              loadingExternal ||
+              (externalPagination && externalPagination.pages
+                ? externalPage >= externalPagination.pages
+                : externalResources.length < 20)
+            "
             @click="startExternalSearch(externalPage + 1)"
           >
             下一页

@@ -479,7 +479,7 @@ class ActorsListView(SchemaAPIView):
         from django.core.paginator import Paginator
         from django.db.models import Count
         from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
-        from nassav.models import Actor
+        from nassav.models import Actor, ActorSourceMapping
         from nassav.recommendation.seed_profiles import (
             recommendation_seed_profile_repository,
         )
@@ -529,6 +529,29 @@ class ActorsListView(SchemaAPIView):
                 values=[actor.name for actor in page_obj.object_list],
             )
         )
+        actor_ids = [
+            int(actor.pk) for actor in page_obj.object_list if actor.pk is not None
+        ]
+        mappings = {}
+        for mapping in ActorSourceMapping.objects.filter(
+            actor_id__in=actor_ids,
+            source_name="jable",
+            is_active=True,
+        ):
+            mapping_actor_id = getattr(mapping, "actor_id", None)
+            if mapping_actor_id is None:
+                continue
+            mappings[int(mapping_actor_id)] = mapping
+        blocked_actor_source_identifiers = (
+            recommendation_seed_profile_repository.get_blocked_source_identifiers(
+                seed_type="actor",
+                source_name="jable",
+                identifiers=[
+                    str(getattr(mapping, "source_actor_slug", "") or "")
+                    for mapping in mappings.values()
+                ],
+            )
+        )
 
         data = [
             {
@@ -544,7 +567,22 @@ class ActorsListView(SchemaAPIView):
                 "is_blocked": (
                     recommendation_seed_profile_repository.normalize_value(a.name)
                     in blocked_names
+                    or str(
+                        getattr(mappings.get(int(a.id)), "source_actor_slug", "") or ""
+                    )
+                    .strip()
+                    .lower()
+                    in blocked_actor_source_identifiers
                 ),
+                "source_mapping": {
+                    "source_name": mapping.source_name,
+                    "source_seed_name": mapping.source_actor_name,
+                    "source_seed_slug": mapping.source_actor_slug,
+                    "source_seed_url": mapping.source_actor_url,
+                    "aliases": list(mapping.aliases or []),
+                }
+                if (mapping := mappings.get(int(a.id))) is not None
+                else None,
             }
             for a in page_obj.object_list
         ]
@@ -633,7 +671,7 @@ class GenresListView(SchemaAPIView):
     def get(self, request):
         from django.core.paginator import Paginator
         from django.db.models import Count
-        from nassav.models import Genre
+        from nassav.models import Genre, GenreSourceMapping
         from nassav.recommendation.seed_profiles import (
             recommendation_seed_profile_repository,
         )
@@ -683,6 +721,29 @@ class GenresListView(SchemaAPIView):
                 values=[genre.name for genre in page_obj.object_list],
             )
         )
+        genre_ids = [
+            int(genre.pk) for genre in page_obj.object_list if genre.pk is not None
+        ]
+        mappings = {}
+        for mapping in GenreSourceMapping.objects.filter(
+            genre_id__in=genre_ids,
+            source_name="jable",
+            is_active=True,
+        ):
+            mapping_genre_id = getattr(mapping, "genre_id", None)
+            if mapping_genre_id is None:
+                continue
+            mappings[int(mapping_genre_id)] = mapping
+        blocked_genre_source_identifiers = (
+            recommendation_seed_profile_repository.get_blocked_source_identifiers(
+                seed_type="genre",
+                source_name="jable",
+                identifiers=[
+                    str(getattr(mapping, "source_genre_slug", "") or "")
+                    for mapping in mappings.values()
+                ],
+            )
+        )
 
         data = [
             {
@@ -692,7 +753,22 @@ class GenresListView(SchemaAPIView):
                 "is_blocked": (
                     recommendation_seed_profile_repository.normalize_value(g.name)
                     in blocked_names
+                    or str(
+                        getattr(mappings.get(int(g.id)), "source_genre_slug", "") or ""
+                    )
+                    .strip()
+                    .lower()
+                    in blocked_genre_source_identifiers
                 ),
+                "source_mapping": {
+                    "source_name": mapping.source_name,
+                    "source_seed_name": mapping.source_genre_name,
+                    "source_seed_slug": mapping.source_genre_slug,
+                    "source_seed_url": mapping.source_genre_url,
+                    "aliases": list(mapping.aliases or []),
+                }
+                if (mapping := mappings.get(int(g.id))) is not None
+                else None,
             }
             for g in page_obj.object_list
         ]
