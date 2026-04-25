@@ -51,6 +51,7 @@ const externalSortBy = ref('views')
 const externalSortOrder = ref('desc')
 const externalSortByOptions = [
   { value: 'views', label: '播放量' },
+  { value: 'likes', label: '收藏量' },
   { value: 'latest', label: '发布时间' },
 ]
 const externalSortOrderOptions = [
