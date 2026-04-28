@@ -31,11 +31,17 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  blocked: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['add', 'open', 'view', 'reasons', 'feedback'])
+const emit = defineEmits(['add', 'open', 'view', 'reasons', 'feedback', 'block'])
 
+const isLiked = computed(() => props.feedback === 'like')
 const isDisliked = computed(() => props.feedback === 'dislike')
+const isBlocked = computed(() => props.blocked)
 const hasReasons = computed(
   () => Array.isArray(props.item?.reasons) && props.item.reasons.length > 0
 )
@@ -74,7 +80,7 @@ function handleReasonsClick(event) {
     class="recommendation-card"
     :class="{
       masonry: layoutStyle === 'masonry',
-      disliked: isDisliked,
+      blocked: isBlocked,
     }"
   >
     <div class="cover-shell">
@@ -83,22 +89,23 @@ function handleReasonsClick(event) {
         :src="proxiedCoverUrl"
         :alt="displayTitle"
         class="cover-image"
-        :class="{ disliked: isDisliked }"
+        :class="{ blocked: isBlocked }"
         loading="lazy"
       />
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
       </div>
       <div class="feedback-overlay">
-        <span v-if="isDisliked" class="feedback-overlay-badge">已屏蔽</span>
         <button
-          v-else
           type="button"
-          class="feedback-overlay-button"
+          class="feedback-overlay-button danger"
+          :class="{ active: isBlocked }"
           :disabled="feedbackSubmitting"
-          aria-label="不感兴趣"
-          @click="emit('feedback', 'dislike')"
+          :aria-label="isBlocked ? '取消屏蔽' : '屏蔽'"
+          :title="isBlocked ? '取消屏蔽' : '屏蔽'"
+          @click="emit('block')"
         >
+          <span v-if="isBlocked" class="feedback-overlay-label">已屏蔽</span>
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
@@ -138,6 +145,44 @@ function handleReasonsClick(event) {
         >
           {{ `推荐分：${formattedScore}（${reasonsCount}）` }}
         </button>
+        <div class="inline-feedback-actions">
+          <button
+            type="button"
+            class="inline-feedback-btn"
+            :class="{ active: isLiked }"
+            :disabled="feedbackSubmitting"
+            aria-label="喜欢"
+            title="喜欢"
+            @click="emit('feedback', 'like')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M14 9V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10.28a2 2 0 0 0 1.9-1.37l2.44-7.32A2 2 0 0 0 17.72 9H14Z"
+              ></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="inline-feedback-btn danger"
+            :class="{ active: isDisliked }"
+            :disabled="feedbackSubmitting"
+            aria-label="不喜欢"
+            title="不喜欢"
+            @click="emit('feedback', 'dislike')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 15v4a3 3 0 1 0 6 0v-4h3a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8.72a2 2 0 0 0-1.9 1.37L4.38 11.7A2 2 0 0 0 6.28 15H10Z"
+              ></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="card-actions">
@@ -188,7 +233,7 @@ function handleReasonsClick(event) {
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
 }
 
-.recommendation-card.disliked {
+.recommendation-card.blocked {
   background: linear-gradient(180deg, rgba(255, 107, 107, 0.03), rgba(255, 255, 255, 0.01));
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
 }
@@ -208,6 +253,7 @@ function handleReasonsClick(event) {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
+  gap: 0.35rem;
   padding: 0.4rem;
   background: linear-gradient(180deg, rgba(20, 24, 34, 0.12), rgba(20, 24, 34, 0.42));
   pointer-events: none;
@@ -219,13 +265,16 @@ function handleReasonsClick(event) {
   min-height: 1.95rem;
   padding: 0.28rem 0.72rem;
   border-radius: 999px;
-  background: rgba(255, 107, 107, 0.5);
   color: white;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
   pointer-events: auto;
+}
+
+.feedback-overlay-badge.blocked {
+  background: rgba(255, 107, 107, 0.5);
+  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
 }
 
 .feedback-overlay-button {
@@ -237,14 +286,33 @@ function handleReasonsClick(event) {
   padding: 0.28rem 0.72rem;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 107, 107, 0.3);
+  background: rgba(78, 205, 196, 0.24);
   color: white;
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
+  box-shadow: 0 10px 24px rgba(78, 205, 196, 0.18);
   pointer-events: auto;
   cursor: pointer;
+  gap: 0.35rem;
+}
+
+.feedback-overlay-button.danger {
+  background: rgba(255, 107, 107, 0.3);
+  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.22);
+}
+
+.feedback-overlay-button.active {
+  background: var(--accent-tertiary);
+}
+
+.feedback-overlay-button.danger.active {
+  background: var(--accent-primary);
+}
+
+.feedback-overlay-label {
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .feedback-overlay-button:disabled {
@@ -260,7 +328,7 @@ function handleReasonsClick(event) {
   filter: brightness(1.05);
 }
 
-.cover-image.disliked {
+.cover-image.blocked {
   filter: brightness(0.5) grayscale(0.4);
 }
 
@@ -339,6 +407,8 @@ function handleReasonsClick(event) {
 .reasons-wrap {
   display: flex;
   flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .reason-toggle {
@@ -366,6 +436,63 @@ function handleReasonsClick(event) {
   border-color: rgba(255, 107, 107, 0.28);
   background: rgba(255, 107, 107, 0.08);
   color: var(--text-primary);
+}
+
+.inline-feedback-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.inline-feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(78, 205, 196, 0.1);
+  color: var(--accent-tertiary);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.inline-feedback-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(78, 205, 196, 0.25);
+  background: rgba(78, 205, 196, 0.16);
+}
+
+.inline-feedback-btn.danger {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--accent-primary);
+}
+
+.inline-feedback-btn.danger:hover:not(:disabled) {
+  border-color: rgba(255, 107, 107, 0.28);
+  background: rgba(255, 107, 107, 0.16);
+}
+
+.inline-feedback-btn.active {
+  border-color: rgba(78, 205, 196, 0.36);
+  background: var(--accent-tertiary);
+  color: white;
+}
+
+.inline-feedback-btn.danger.active {
+  border-color: rgba(255, 107, 107, 0.36);
+  background: var(--accent-primary);
+  color: white;
+}
+
+.inline-feedback-btn:disabled {
+  cursor: progress;
+  opacity: 0.72;
 }
 
 .card-actions {
@@ -452,6 +579,11 @@ function handleReasonsClick(event) {
 .recommendation-card.masonry .reason-toggle {
   padding: 0.32rem 0.55rem;
   font-size: 0.68rem;
+}
+
+.recommendation-card.masonry .inline-feedback-btn {
+  width: 1.8rem;
+  height: 1.8rem;
 }
 
 .recommendation-card.masonry .card-actions {

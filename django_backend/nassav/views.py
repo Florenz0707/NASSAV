@@ -167,8 +167,8 @@ def _parse_recommendation_feedback_payload(data) -> dict:
         raise ValueError("avid 参数缺失")
 
     feedback = str(data.get("feedback", "")).strip().lower()
-    if feedback not in {"like", "dislike"}:
-        raise ValueError("feedback 仅支持 like 或 dislike")
+    if feedback not in {"like", "dislike", "clear"}:
+        raise ValueError("feedback 仅支持 like、dislike 或 clear")
 
     return {
         "snapshot_id": parsed_snapshot_id,

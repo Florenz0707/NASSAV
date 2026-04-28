@@ -405,7 +405,7 @@ class RecommendationItemSeed(models.Model):
 
 class RecommendationAvidBlocklist(models.Model):
     avid = models.CharField(max_length=50, unique=True, db_index=True)
-    source = models.CharField(max_length=32, default="user_feedback", db_index=True)
+    source = models.CharField(max_length=32, default="manual", db_index=True)
     reason = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)

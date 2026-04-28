@@ -22,12 +22,15 @@ const error = ref('')
 const items = ref([])
 const seeds = ref([])
 const meta = ref(null)
+const metrics = ref(null)
+const metricsLoading = ref(false)
 const typePreference = ref(route.query.type_preference || 'balanced')
 const actorPreference = ref(route.query.actor_preference || 'balanced')
 const genrePreference = ref(route.query.genre_preference || 'balanced')
 const limit = ref(Number.parseInt(route.query.limit, 10) || 12)
 const addingAvids = ref(new Set())
 const addedAvids = ref(new Set())
+const blockedAvids = ref(new Set())
 const feedbackSubmittingAvids = ref(new Set())
 const feedbackByAvid = ref({})
 const initialized = ref(false)
@@ -35,8 +38,6 @@ const hasRequested = ref(false)
 const showScrollTop = ref(false)
 const lastLoadedConfigKey = ref('')
 const activeReasonAvid = ref('')
-const activeReasonPopoverStyle = ref({})
-const activeReasonAnchor = ref(null)
 const showPersonalizationModal = ref(false)
 const blacklistSeedType = ref('actor')
 const blacklistSearch = ref('')
@@ -66,16 +67,42 @@ const visibleItems = computed(() => items.value || [])
 const resultDisplayStyle = computed(() =>
   settingsStore.searchResultDisplayStyle === 'masonry' ? 'masonry' : 'grid'
 )
-const activeReasonItem = computed(() => {
-  if (!activeReasonAvid.value) return null
-  return visibleItems.value.find((item) => item.avid === activeReasonAvid.value) || null
-})
 const showInitialLoading = computed(() => loading.value && !visibleItems.value.length)
 const normalizedBlacklistSearch = computed(() =>
   blacklistSeedType.value === 'resource'
     ? blacklistSearch.value.trim().toUpperCase()
     : blacklistSearch.value.trim()
 )
+const metricCards = computed(() => {
+  const data = metrics.value || {}
+  return [
+    {
+      key: 'snapshots',
+      label: '推荐批次',
+      value: formatMetricNumber(data.snapshot_count),
+    },
+    {
+      key: 'repeat',
+      label: '重复率',
+      value: formatPercent(data.repeat_rate),
+    },
+    {
+      key: 'like',
+      label: '喜欢',
+      value: formatMetricNumber(data.feedback_counts?.like),
+    },
+    {
+      key: 'dislike',
+      label: '不喜欢',
+      value: formatMetricNumber(data.feedback_counts?.dislike),
+    },
+    {
+      key: 'blocked',
+      label: '黑名单',
+      value: formatMetricNumber(data.avid_blocklist_count),
+    },
+  ]
+})
 
 function formatSeedSourceMapping(item) {
   const mapping = item?.source_mapping
@@ -138,6 +165,18 @@ function buildConfigKey() {
   })
 }
 
+function formatMetricNumber(value) {
+  const parsed = Number(value || 0)
+  if (!Number.isFinite(parsed) || parsed <= 0) return '0'
+  return parsed.toLocaleString('zh-CN')
+}
+
+function formatPercent(value) {
+  const parsed = Number(value || 0)
+  if (!Number.isFinite(parsed) || parsed <= 0) return '0%'
+  return `${(parsed * 100).toFixed(1)}%`
+}
+
 function serializeSet(value) {
   return Array.from(value || [])
 }
@@ -151,9 +190,11 @@ function saveViewState() {
     items: items.value || [],
     seeds: seeds.value || [],
     meta: meta.value || null,
+    metrics: metrics.value || null,
     hasRequested: hasRequested.value,
     lastLoadedConfigKey: lastLoadedConfigKey.value,
     addedAvids: serializeSet(addedAvids.value),
+    blockedAvids: serializeSet(blockedAvids.value),
     feedbackByAvid: feedbackByAvid.value || {},
     scrollY: window.scrollY || 0,
   }
@@ -173,9 +214,11 @@ function restoreViewState() {
     items.value = Array.isArray(state.items) ? state.items : []
     seeds.value = Array.isArray(state.seeds) ? state.seeds : []
     meta.value = state.meta || null
+    metrics.value = state.metrics || null
     hasRequested.value = Boolean(state.hasRequested)
     lastLoadedConfigKey.value = state.lastLoadedConfigKey || ''
     addedAvids.value = new Set(Array.isArray(state.addedAvids) ? state.addedAvids : [])
+    blockedAvids.value = new Set(Array.isArray(state.blockedAvids) ? state.blockedAvids : [])
     feedbackByAvid.value =
       state.feedbackByAvid && typeof state.feedbackByAvid === 'object' ? state.feedbackByAvid : {}
     return state
@@ -198,13 +241,6 @@ function mergeRecommendationItems(existingItems, nextItems) {
 
 function updateScrollState() {
   showScrollTop.value = window.scrollY > 360
-  if (activeReasonAvid.value) {
-    const anchorElement = findReasonAnchorElement(activeReasonAvid.value)
-    if (anchorElement) {
-      activeReasonAnchor.value = anchorElement
-      positionReasonPopover(anchorElement)
-    }
-  }
 }
 
 function syncActiveReasonItem() {
@@ -212,8 +248,6 @@ function syncActiveReasonItem() {
   const exists = visibleItems.value.some((item) => item.avid === activeReasonAvid.value)
   if (!exists) {
     activeReasonAvid.value = ''
-    activeReasonAnchor.value = null
-    activeReasonPopoverStyle.value = {}
   }
 }
 
@@ -229,7 +263,20 @@ function clearPageRecommendations() {
   hasRequested.value = false
   lastLoadedConfigKey.value = ''
   feedbackByAvid.value = {}
+  blockedAvids.value = new Set()
   closeReasonPanel()
+}
+
+async function loadRecommendationMetrics() {
+  metricsLoading.value = true
+  try {
+    const response = await recommendationApi.getMetrics()
+    metrics.value = response.data || null
+  } catch (err) {
+    toastStore.error(err.message || '加载推荐指标失败')
+  } finally {
+    metricsLoading.value = false
+  }
 }
 
 function openPersonalizationModal() {
@@ -329,9 +376,15 @@ async function toggleSeedBlocked(item) {
     if (blacklistSeedType.value === 'resource') {
       if (item.is_blocked) {
         await recommendationApi.unblockAvid({ avid: item.avid })
+        const nextBlocked = new Set(blockedAvids.value)
+        nextBlocked.delete(item.avid)
+        blockedAvids.value = nextBlocked
         toastStore.success(`已移除资源 ${item.avid} 的屏蔽`)
       } else {
         await recommendationApi.blockAvid({ avid: item.avid, reason: 'manual' })
+        const nextBlocked = new Set(blockedAvids.value)
+        nextBlocked.add(item.avid)
+        blockedAvids.value = nextBlocked
         toastStore.success(`已将资源 ${item.avid} 加入黑名单`)
       }
     } else {
@@ -385,6 +438,9 @@ async function addResourceBlacklist() {
   blacklistSubmittingKey.value = submitKey
   try {
     await recommendationApi.blockAvid({ avid, reason: 'manual' })
+    const nextBlocked = new Set(blockedAvids.value)
+    nextBlocked.add(avid)
+    blockedAvids.value = nextBlocked
     toastStore.success(`已将资源 ${avid} 加入黑名单`)
     invalidateBlacklistCache('resource')
     await loadBlacklistItems()
@@ -397,52 +453,9 @@ async function addResourceBlacklist() {
 
 function closeReasonPanel() {
   activeReasonAvid.value = ''
-  activeReasonAnchor.value = null
-  activeReasonPopoverStyle.value = {}
 }
 
-function findReasonAnchorElement(avid) {
-  if (!avid || !window.CSS?.escape) return null
-  return document.querySelector(`[data-reason-anchor="${window.CSS.escape(avid)}"]`)
-}
-
-function positionReasonPopover(anchorElement) {
-  if (!anchorElement) return
-
-  const rect = anchorElement.getBoundingClientRect()
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-
-  if (viewportWidth < 960) {
-    activeReasonPopoverStyle.value = {
-      left: '1rem',
-      right: '1rem',
-      bottom: '1rem',
-      width: 'auto',
-      maxWidth: 'none',
-    }
-    return
-  }
-
-  const popoverWidth = resultDisplayStyle.value === 'masonry' ? 240 : 300
-  const offset = 12
-  let left = rect.right + offset
-
-  if (left + popoverWidth > viewportWidth - 16) {
-    left = Math.max(16, rect.left - popoverWidth - offset)
-  }
-
-  const top = Math.min(Math.max(88, rect.top - 12), Math.max(88, viewportHeight - 360))
-
-  activeReasonPopoverStyle.value = {
-    top: `${top}px`,
-    left: `${left}px`,
-    width: `${popoverWidth}px`,
-    maxWidth: `${Math.max(220, viewportWidth - 32)}px`,
-  }
-}
-
-function toggleReasonPanel(item, event) {
+function toggleReasonPanel(item) {
   if (!item?.avid || !item.reasons?.length) return
   if (activeReasonAvid.value === item.avid) {
     closeReasonPanel()
@@ -450,8 +463,6 @@ function toggleReasonPanel(item, event) {
   }
 
   activeReasonAvid.value = item.avid
-  activeReasonAnchor.value = event?.currentTarget || null
-  positionReasonPopover(activeReasonAnchor.value)
 }
 
 function syncQuery() {
@@ -495,15 +506,8 @@ async function loadRecommendations(options = {}) {
     seeds.value = [...(payload.seeds || [])]
     meta.value = payload.meta || null
     lastLoadedConfigKey.value = requestConfigKey
+    loadRecommendationMetrics()
     syncActiveReasonItem()
-    window.requestAnimationFrame(() => {
-      if (!activeReasonAvid.value) return
-      const anchorElement = findReasonAnchorElement(activeReasonAvid.value)
-      if (anchorElement) {
-        activeReasonAnchor.value = anchorElement
-        positionReasonPopover(anchorElement)
-      }
-    })
   } catch (err) {
     error.value = err.message || '获取推荐失败'
     if (!shouldMerge) {
@@ -544,12 +548,14 @@ async function handleAdd(item) {
     const added = new Set(addedAvids.value)
     added.add(item.avid)
     addedAvids.value = added
+    persistRecommendationFeedback(item, 'like').catch(() => {})
   } catch (err) {
     if (err.code === 409) {
       toastStore.info(`${item.avid} 已存在于资源库`)
       const added = new Set(addedAvids.value)
       added.add(item.avid)
       addedAvids.value = added
+      persistRecommendationFeedback(item, 'like').catch(() => {})
       return
     }
     toastStore.error(err.message || '添加资源失败')
@@ -560,29 +566,96 @@ async function handleAdd(item) {
   }
 }
 
+async function persistRecommendationFeedback(item, feedbackType) {
+  if (!item?.avid || !item?.snapshot_id || !['like', 'dislike', 'clear'].includes(feedbackType)) {
+    return ''
+  }
+
+  const response = await recommendationApi.submitFeedback({
+    snapshot_id: item.snapshot_id,
+    avid: item.avid,
+    feedback: feedbackType,
+  })
+  const savedFeedback = response.data?.feedback || ''
+  if (feedbackType === 'clear') {
+    const nextFeedback = { ...feedbackByAvid.value }
+    delete nextFeedback[item.avid]
+    feedbackByAvid.value = nextFeedback
+  } else if (savedFeedback) {
+    feedbackByAvid.value = {
+      ...feedbackByAvid.value,
+      [item.avid]: savedFeedback,
+    }
+  }
+  loadRecommendationMetrics()
+  return savedFeedback
+}
+
 async function handleFeedback(item, feedbackType) {
   if (!item?.avid || !item?.snapshot_id || feedbackSubmittingAvids.value.has(item.avid)) return
-  if (feedbackType !== 'dislike') return
+  if (!['like', 'dislike'].includes(feedbackType)) return
 
   const nextSubmitting = new Set(feedbackSubmittingAvids.value)
   nextSubmitting.add(item.avid)
   feedbackSubmittingAvids.value = nextSubmitting
 
   try {
-    const response = await recommendationApi.submitFeedback({
-      snapshot_id: item.snapshot_id,
-      avid: item.avid,
-      feedback: 'dislike',
-    })
-    const savedFeedback = response.data?.feedback || ''
-    feedbackByAvid.value = {
-      ...feedbackByAvid.value,
-      [item.avid]: savedFeedback,
+    const currentFeedback = feedbackByAvid.value[item.avid] || ''
+    const nextFeedback = currentFeedback === feedbackType ? 'clear' : feedbackType
+    const savedFeedback = await persistRecommendationFeedback(item, nextFeedback)
+    if (nextFeedback === 'clear') {
+      toastStore.success(`${item.avid} 已取消反馈`)
+    } else {
+      toastStore.success(
+        savedFeedback === 'like' ? `${item.avid} 已标记喜欢` : `${item.avid} 已标记不喜欢`
+      )
     }
-    invalidateBlacklistCache('resource')
-    toastStore.success(`${item.avid} 已加入不喜欢黑名单`)
   } catch (err) {
     toastStore.error(err.message || '提交推荐反馈失败')
+  } finally {
+    const done = new Set(feedbackSubmittingAvids.value)
+    done.delete(item.avid)
+    feedbackSubmittingAvids.value = done
+  }
+}
+
+async function handleBlockRecommendation(item) {
+  if (!item?.avid || feedbackSubmittingAvids.value.has(item.avid)) return
+
+  const nextSubmitting = new Set(feedbackSubmittingAvids.value)
+  nextSubmitting.add(item.avid)
+  feedbackSubmittingAvids.value = nextSubmitting
+
+  try {
+    if (blockedAvids.value.has(item.avid)) {
+      await recommendationApi.unblockAvid({ avid: item.avid })
+      const nextBlocked = new Set(blockedAvids.value)
+      nextBlocked.delete(item.avid)
+      blockedAvids.value = nextBlocked
+      invalidateBlacklistCache('resource')
+      loadRecommendationMetrics()
+      toastStore.success(`${item.avid} 已移出黑名单`)
+      return
+    }
+
+    try {
+      await persistRecommendationFeedback(item, 'dislike')
+    } catch (_feedbackError) {
+      // 黑名单是更强的显式操作，反馈失败时仍继续屏蔽 AVID。
+    }
+    await recommendationApi.blockAvid({ avid: item.avid, reason: 'manual' })
+    const nextBlocked = new Set(blockedAvids.value)
+    nextBlocked.add(item.avid)
+    blockedAvids.value = nextBlocked
+    feedbackByAvid.value = {
+      ...feedbackByAvid.value,
+      [item.avid]: 'dislike',
+    }
+    invalidateBlacklistCache('resource')
+    loadRecommendationMetrics()
+    toastStore.success(`${item.avid} 已加入黑名单`)
+  } catch (err) {
+    toastStore.error(err.message || '加入黑名单失败')
   } finally {
     const done = new Set(feedbackSubmittingAvids.value)
     done.delete(item.avid)
@@ -596,6 +669,20 @@ function handleResetRecommendations() {
   invalidateBlacklistCache()
   window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
   toastStore.success('当前推荐列表已清空')
+}
+
+async function handleResetRecommendationHistory() {
+  if (loading.value || metricsLoading.value) return
+  try {
+    await recommendationApi.resetState({ preserve_blocklist: true })
+    clearPageRecommendations()
+    invalidateBlacklistCache()
+    window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
+    await loadRecommendationMetrics()
+    toastStore.success('推荐历史已重置，黑名单已保留')
+  } catch (err) {
+    toastStore.error(err.message || '重置推荐历史失败')
+  }
 }
 
 function handleOpen(item) {
@@ -630,6 +717,7 @@ watch([typePreference, actorPreference, genrePreference, limit], () => {
 onMounted(async () => {
   await settingsStore.loadSettings()
   const restoredState = restoreViewState()
+  loadRecommendationMetrics()
   initialized.value = true
   syncQuery()
   if (restoredState?.scrollY) {
@@ -704,6 +792,13 @@ watch(blacklistSearch, () => {
         >
           清空页面
         </button>
+        <button
+          class="rec-action-btn rec-action-btn-muted"
+          :disabled="loading || metricsLoading"
+          @click="handleResetRecommendationHistory"
+        >
+          重置历史
+        </button>
       </div>
     </section>
 
@@ -751,6 +846,29 @@ watch(blacklistSearch, () => {
         </label>
         <p class="meta-desc">默认返回 24 条推荐结果。</p>
       </div>
+    </section>
+
+    <section class="metrics-panel">
+      <div v-for="card in metricCards" :key="card.key" class="metrics-card">
+        <span class="metrics-label">{{ card.label }}</span>
+        <span class="metrics-value">{{ metricsLoading ? '...' : card.value }}</span>
+      </div>
+      <button
+        class="metrics-refresh-btn"
+        type="button"
+        :disabled="metricsLoading"
+        aria-label="刷新推荐指标"
+        @click="loadRecommendationMetrics"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v6h6M20 20v-6h-6M5.64 18.36A9 9 0 0 0 18.36 5.64M18.36 5.64H14M5.64 18.36H10"
+          ></path>
+        </svg>
+      </button>
     </section>
 
     <section v-if="seeds.length" class="seed-panel">
@@ -832,16 +950,46 @@ watch(blacklistSearch, () => {
               :item="item"
               :adding="addingAvids.has(item.avid)"
               :added="addedAvids.has(item.avid)"
+              :blocked="blockedAvids.has(item.avid)"
               :feedback="feedbackByAvid[item.avid] || ''"
               :feedback-submitting="feedbackSubmittingAvids.has(item.avid)"
               :layout-style="resultDisplayStyle"
               :reasons-open="activeReasonAvid === item.avid"
               @add="handleAdd(item)"
+              @block="handleBlockRecommendation(item)"
               @feedback="handleFeedback(item, $event)"
               @open="handleOpen(item)"
               @view="handleView(item)"
-              @reasons="toggleReasonPanel(item, $event)"
+              @reasons="toggleReasonPanel(item)"
             />
+            <transition name="reason-panel-fade">
+              <aside v-if="activeReasonAvid === item.avid" class="reason-floating-panel">
+                <div class="reason-panel-header">
+                  <div>
+                    <div class="reason-panel-eyebrow">Recommendation Notes</div>
+                  </div>
+                  <button class="reason-panel-close" type="button" @click="closeReasonPanel">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+                <div class="reason-panel-score">
+                  推荐评分 {{ Number(item.score || 0).toFixed(1) }}
+                </div>
+
+                <div class="reason-panel-list">
+                  <div v-for="reason in item.reasons || []" :key="reason" class="reason-panel-item">
+                    {{ reason }}
+                  </div>
+                </div>
+              </aside>
+            </transition>
           </div>
         </div>
 
@@ -867,43 +1015,6 @@ watch(blacklistSearch, () => {
     >
       ⩟
     </button>
-
-    <transition name="reason-panel-fade">
-      <aside
-        v-if="activeReasonItem"
-        class="reason-floating-panel"
-        :style="activeReasonPopoverStyle"
-      >
-        <div class="reason-panel-header">
-          <div>
-            <div class="reason-panel-eyebrow">Recommendation Notes</div>
-          </div>
-          <button class="reason-panel-close" type="button" @click="closeReasonPanel">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-          </button>
-        </div>
-        <div class="reason-panel-score">
-          推荐评分 {{ Number(activeReasonItem.score || 0).toFixed(1) }}
-        </div>
-
-        <div class="reason-panel-list">
-          <div
-            v-for="reason in activeReasonItem.reasons || []"
-            :key="reason"
-            class="reason-panel-item"
-          >
-            {{ reason }}
-          </div>
-        </div>
-      </aside>
-    </transition>
 
     <SettingsModal
       :show="showPersonalizationModal"
@@ -1159,6 +1270,7 @@ watch(blacklistSearch, () => {
 }
 
 .meta-strip,
+.metrics-panel,
 .strategy-params-panel,
 .seed-panel,
 .content-shell {
@@ -1239,6 +1351,66 @@ watch(blacklistSearch, () => {
 .strategy-card .meta-select:focus {
   border-color: rgba(78, 205, 196, 0.35);
   box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.12);
+}
+
+.metrics-panel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 0.75rem;
+  align-items: stretch;
+  padding: 0.85rem;
+}
+
+.metrics-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 4.4rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.metrics-label {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.metrics-value {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.metrics-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  min-height: 4.4rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.metrics-refresh-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.metrics-refresh-btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 .seed-panel {
@@ -1497,9 +1669,12 @@ watch(blacklistSearch, () => {
 }
 
 .reason-floating-panel {
-  position: fixed;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  left: 0.75rem;
   z-index: 30;
-  max-height: min(24rem, calc(100vh - 6rem));
+  max-height: calc(100% - 1.5rem);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -1843,9 +2018,15 @@ watch(blacklistSearch, () => {
 @media (max-width: 960px) {
   .page-header,
   .meta-strip,
+  .metrics-panel,
   .strategy-params-grid,
   .seed-panel {
     grid-template-columns: 1fr;
+  }
+
+  .metrics-refresh-btn {
+    width: 100%;
+    min-height: 3rem;
   }
 
   .page-header {
@@ -1871,11 +2052,6 @@ watch(blacklistSearch, () => {
     width: min(30rem, 100%);
   }
 
-  .reason-floating-panel {
-    top: auto;
-    max-height: min(70vh, 34rem);
-  }
-
   .blacklist-toolbar,
   .blacklist-row {
     flex-direction: column;
@@ -1899,14 +2075,6 @@ watch(blacklistSearch, () => {
 @media (max-width: 640px) {
   .recommendation-grid.masonry-layout {
     column-count: 1;
-  }
-
-  .reason-floating-panel {
-    left: 1rem !important;
-    right: 1rem !important;
-    bottom: 1rem !important;
-    width: auto !important;
-    max-height: min(70vh, 34rem);
   }
 }
 </style>

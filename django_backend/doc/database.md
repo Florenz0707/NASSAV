@@ -123,11 +123,11 @@
 - **`RecommendationAvidBlocklist` (`nassav_recommendation_avid_blocklist`)**: AVID 级永久屏蔽表。
   - 关键字段：
     - `avid` (Char, unique, db_index): 被永久屏蔽的资源编号。
-    - `source` (Char, db_index): 屏蔽来源，当前主要为 `user_feedback` 或迁移过来的 `legacy_feedback`。
+    - `source` (Char, db_index): 屏蔽来源，当前主要为 `manual` 或迁移过来的 `legacy_feedback`。
     - `reason` (Char): 屏蔽原因。
     - `created_at` / `updated_at`: 创建与最近更新时间。
   - 用途：
-    - 对用户明确点“不喜欢”的具体作品做永久屏蔽
+    - 对用户明确拉黑/屏蔽的具体作品做永久屏蔽
     - 供推荐流程直接构建 `blocked_avids`
 
 - **`RecommendationSeedProfile` (`nassav_recommendation_seed_profile`)**: 推荐因素画像表。
@@ -151,7 +151,7 @@
   - 关键字段：
     - `item` (OneToOne FK): 对应的推荐结果明细。
     - `avid` (Char, db_index): 被反馈的资源编号。
-    - `feedback` (Char, db_index): 显式反馈类型，当前支持 `like` 与 `dislike`。
+    - `feedback` (Char, db_index): 显式反馈类型，当前持久化 `like` 与 `dislike`；接口提交 `clear` 会删除反馈记录。
     - `feedback_value` (SmallInteger): 归一化后的反馈值，`like=1`，`dislike=-1`。
     - `created_at` / `updated_at`: 反馈创建与最后更新时间。
   - 用途：
@@ -218,9 +218,11 @@
   - 对该推荐项执行显式反馈 upsert：
     - `like` 写为 `feedback_value=1`
     - `dislike` 写为 `feedback_value=-1`
-  - `like` 会累计命中 seed 的 `accepted_count`，并删除同一 AVID 上由用户反馈产生的黑名单记录
-  - `dislike` 会累计命中 seed 的 `disliked_count`，并把 AVID 写入 `RecommendationAvidBlocklist`
-  - 如果同一推荐项从旧反馈切换为新反馈，系统会按差异修正 seed 的正负反馈计数
+    - `clear` 删除当前反馈记录
+  - `like` 会累计命中 seed 的 `accepted_count`
+  - `dislike` 会累计命中 seed 的 `disliked_count`
+  - 如果同一推荐项从旧反馈切换为新反馈或清除反馈，系统会按差异修正 seed 的正负反馈计数
+  - AVID 级屏蔽由 `POST /recommendations/avid-blocklist` 独立写入
 
 ## 一致性与事务控制
 

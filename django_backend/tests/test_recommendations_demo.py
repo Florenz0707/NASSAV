@@ -1073,7 +1073,7 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
         {
             "snapshot_id": first_body["data"]["items"][0]["snapshot_id"],
             "avid": "REC-701-A",
-            "feedback": "clear",
+            "feedback": "invalid",
         },
         format="json",
     )
@@ -1111,18 +1111,36 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
     )
     assert dislike_response.status_code == 200
     assert dislike_response.json()["data"]["feedback"] == "dislike"
-    assert RecommendationAvidBlocklist.objects.filter(avid="REC-701-A").exists()
+    assert not RecommendationAvidBlocklist.objects.filter(avid="REC-701-A").exists()
+    profile = RecommendationSeedProfile.objects.get(
+        seed_type="actor",
+        normalized_value="alice",
+    )
+    assert profile.accepted_count == 0
+    assert profile.disliked_count >= 1
+
+    clear_response = api_client.post(
+        "/nassav/api/recommendations/feedback",
+        {
+            "snapshot_id": first_body["data"]["items"][0]["snapshot_id"],
+            "avid": "REC-701-A",
+            "feedback": "clear",
+        },
+        format="json",
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["data"]["feedback"] is None
+    profile.refresh_from_db()
+    assert profile.accepted_count == 0
+    assert profile.disliked_count == 0
 
 
 @pytest.mark.django_db
-def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
+def test_recommendation_dislike_feedback_does_not_block_same_avid_from_future_results(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
-    from nassav.models import (
-        RecommendationAvidBlocklist,
-        RecommendationFeedback,
-        RecommendationSeedProfile,
-    )
+    from nassav.models import RecommendationAvidBlocklist, RecommendationFeedback
+    from nassav.models import RecommendationSeedProfile
     from nassav.source import Jable
 
     actor = actor_factory(name="Alice")
@@ -1184,7 +1202,7 @@ def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
     )
     assert feedback_response.status_code == 200
     assert RecommendationFeedback.objects.count() == 1
-    assert RecommendationAvidBlocklist.objects.filter(avid="REC-702-A").exists()
+    assert not RecommendationAvidBlocklist.objects.filter(avid="REC-702-A").exists()
     assert (
         RecommendationSeedProfile.objects.get(
             seed_type="actor",
@@ -1204,8 +1222,7 @@ def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
     )
     second_body = second_response.json()
     second_avids = [item["avid"] for item in second_body["data"]["items"]]
-    assert "REC-702-A" not in second_avids
-    assert set(second_avids) == {"REC-702-B", "REC-702-C"}
+    assert "REC-702-A" in second_avids
 
 
 @pytest.mark.django_db
@@ -1248,6 +1265,11 @@ def test_recommendation_reset_endpoint_clears_history_but_preserves_blocklist(
         format="json",
     )
     assert feedback_response.status_code == 200
+    RecommendationAvidBlocklist.objects.create(
+        avid="REC-703-A",
+        source="manual",
+        reason="manual",
+    )
     assert RecommendationSnapshot.objects.count() == 1
     assert RecommendationItem.objects.count() == 1
     assert RecommendationItemSeed.objects.count() == 1
@@ -1854,9 +1876,10 @@ def test_recommendations_enriches_discovery_candidates_with_matching_seed_detail
 
 
 @pytest.mark.django_db
-def test_feedback_learning_profile_builds_dislike_blacklist_and_seed_penalty(
+def test_feedback_learning_profile_separates_dislike_from_avid_blocklist(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
+    from nassav.models import RecommendationAvidBlocklist
     from nassav.recommendation.feedback import recommendation_feedback_repository
     from nassav.source import Jable
 
@@ -1887,6 +1910,14 @@ def test_feedback_learning_profile_builds_dislike_blacklist_and_seed_penalty(
     profile = recommendation_feedback_repository.build_learning_profile()
     assert profile.avid_scores == {}
     assert profile.seed_scores["actor:Alice"] < 0
+    assert "REC-905-A" not in profile.blocked_avids
+
+    RecommendationAvidBlocklist.objects.create(
+        avid="REC-905-A",
+        source="manual",
+        reason="manual",
+    )
+    profile = recommendation_feedback_repository.build_learning_profile()
     assert "REC-905-A" in profile.blocked_avids
 
 

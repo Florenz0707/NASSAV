@@ -391,7 +391,7 @@ GET /nassav/api/recommendations?strategy=local_preference&type_preference=balanc
 - 演员种子会自动展开常见别名（例如括号内别名），用于提升 Jable 搜索召回率。
 - `include_hot_board=true` 时会把 Jable 热榜 async block 的今日 / 本周 / 本月 / 全部四档榜单作为 discovery 候选源；`include_latest_updates=true` 时会把 `/latest-updates/` 作为 discovery 候选源，两者都会带上来源标签参与轻量加分排序。
 - discovery 候选会在 `detail_enrichment_limit` 范围内尝试抓取详情页 actor/genre 元数据；若详情命中本轮种子，会补充 `matched_seeds` 并参与 seed 加分。
-- 当某个作品收到 `dislike` 时，系统会在后续推荐中直接屏蔽该 `avid`，而不是只做轻微降权；`like` 会作为 actor/genre seed 的正反馈进入后续排序。
+- `like` / `dislike` 是偏好反馈，只影响 actor/genre seed 的后续排序；AVID 级过滤由资源黑名单接口负责。
 - `strategy_detail.parameter_profile` 会返回每个策略参数的实际值和参数含义，前端可直接用于“策略参数说明”展示。
 
 ### 获取推荐效果概览
@@ -408,7 +408,7 @@ GET /nassav/api/recommendations?strategy=local_preference&type_preference=balanc
 - 请求体：
   - `snapshot_id`：该推荐项所属快照 ID
   - `avid`：推荐项资源编号
-  - `feedback`：`like | dislike`
+  - `feedback`：`like | dislike | clear`
 
 示例请求：
 
@@ -424,7 +424,9 @@ POST /nassav/api/recommendations/feedback
 说明：
 
 - `like` 会累计到命中的 actor / genre seed，作为后续排序的正反馈。
-- `dislike` 会累计到命中的 actor / genre seed，并把该 `avid` 写入资源黑名单。
+- `dislike` 会累计到命中的 actor / genre seed，作为后续排序的负反馈。
+- `clear` 会取消该推荐项现有反馈，并按差异回退 actor / genre seed 的反馈计数。
+- 若需要后续直接过滤某个 AVID，应同时调用资源黑名单接口。
 
 ### 管理推荐黑名单
 

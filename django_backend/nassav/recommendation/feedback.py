@@ -32,7 +32,7 @@ class RecommendationLearningProfile:
 
 
 class RecommendationFeedbackRepository:
-    VALID_FEEDBACKS = {"like", "dislike"}
+    VALID_FEEDBACKS = {"like", "dislike", "clear"}
 
     @transaction.atomic
     def record_feedback(
@@ -63,6 +63,15 @@ class RecommendationFeedbackRepository:
             .values_list("feedback", flat=True)
             .first()
         )
+        if normalized_feedback == "clear":
+            RecommendationFeedback.objects.filter(item=item).delete()
+            recommendation_seed_profile_repository.adjust_feedback_counts_for_item(
+                item,
+                old_feedback=existing_feedback or "",
+                new_feedback="",
+            )
+            return None
+
         feedback_obj, _ = RecommendationFeedback.objects.update_or_create(
             item=item,
             defaults={
@@ -70,19 +79,6 @@ class RecommendationFeedbackRepository:
                 "feedback": normalized_feedback,
             },
         )
-        if normalized_feedback == "dislike":
-            RecommendationAvidBlocklist.objects.update_or_create(
-                avid=normalized_avid,
-                defaults={
-                    "source": "user_feedback",
-                    "reason": "dislike",
-                },
-            )
-        elif normalized_feedback == "like":
-            RecommendationAvidBlocklist.objects.filter(
-                avid=normalized_avid,
-                source="user_feedback",
-            ).delete()
         recommendation_seed_profile_repository.adjust_feedback_counts_for_item(
             item,
             old_feedback=existing_feedback or "",

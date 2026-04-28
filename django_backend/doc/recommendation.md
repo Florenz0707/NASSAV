@@ -108,7 +108,9 @@
 
 - 为对应 `RecommendationItem` 记录显式反馈
 - `like` 会将命中的 actor / genre seed 计入正反馈统计，后续排序加权
-- `dislike` 会将该 `avid` 同步写入永久屏蔽表，并将命中的 actor / genre seed 计入负反馈统计
+- `dislike` 会将命中的 actor / genre seed 计入负反馈统计，后续排序降权
+- `clear` 会取消该推荐项的现有反馈，并回退对应 seed 反馈计数
+- AVID 级屏蔽由 `/recommendations/avid-blocklist` 独立管理
 
 ### 6. `POST /nassav/api/recommendations/reset`
 
@@ -256,7 +258,7 @@
 - 反馈调权：
   - 启用 `FeedbackSignalFactor`
   - 当前只对 actor / genre seed 画像做调权
-  - 不对 `avid` 做软调权，`avid` 级 dislike 直接走永久屏蔽
+  - 不对 `avid` 做软调权，AVID 级过滤由黑名单管理
 
 ### 4. Recommender 层
 
@@ -461,7 +463,7 @@ genre 种子：
 
 - `like` 累计到 `RecommendationSeedProfile.accepted_count`
 - `dislike` 累计到 `RecommendationSeedProfile.disliked_count`
-- `avid` 级别的 `dislike` 做永久黑名单
+- AVID 级别永久屏蔽由 `RecommendationAvidBlocklist` 单独管理
 - 重复提交反馈时，会按旧值和新值的差异修正 seed 计数
 
 实现位置：
@@ -562,7 +564,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 
 - `FeedbackSignalFactor` 已在当前 strategy 中启用
 - 当前主要使用 seed 级正负反馈信号
-- `avid_weight` 为 0，`avid` 级不喜欢直接通过永久屏蔽表处理
+- `avid_weight` 为 0，AVID 级过滤直接通过永久屏蔽表处理
 
 ## 请求指纹与持久化
 
@@ -641,10 +643,10 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 
 ### 5. AvidBlocklist
 
-用户对具体作品点 `dislike` 后，会把 `avid` 写入 `RecommendationAvidBlocklist`：
+用户对具体作品执行“拉黑/屏蔽”后，会把 `avid` 写入 `RecommendationAvidBlocklist`：
 
 - 该表中的 `avid` 会在后续推荐中被直接过滤
-- 现有历史 `dislike` 已迁移到该表
+- `like` / `dislike` 反馈本身不会自动修改该表
 
 ### 6. SeedProfile
 
@@ -670,7 +672,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 
 - 与 `RecommendationItem` 一对一
 - 同时冗余存储 `avid`
-- `feedback` 当前支持 `like` 与 `dislike`
+- `feedback` 当前持久化 `like` 与 `dislike`；接口提交 `clear` 会删除现有记录
 - 当前主要承担“反馈事件”与审计上下文职责
 
 ## 返回结构
