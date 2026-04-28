@@ -218,6 +218,31 @@ function resetExternalSearchState() {
   externalPageCache.value = {}
 }
 
+function syncExternalResourceStatus(avid, inLibrary) {
+  let updated = false
+  const item = externalResources.value.find((r) => r.avid === avid)
+  if (item) {
+    item.is_in_library = inLibrary
+    item.in_library = inLibrary
+    updated = true
+  }
+  const queryKey = getExternalQueryKey()
+  const pageCache = externalPageCache.value[queryKey]
+  if (pageCache) {
+    Object.values(pageCache).forEach((payload) => {
+      if (payload && payload.results) {
+        const cachedItem = payload.results.find((r) => r.avid === avid)
+        if (cachedItem) {
+          cachedItem.is_in_library = inLibrary
+          cachedItem.in_library = inLibrary
+          updated = true
+        }
+      }
+    })
+  }
+  if (updated) saveExternalCache()
+}
+
 async function handleAddExternal(item) {
   if (addingExternalAvids.value.has(item.avid)) return
   addingExternalAvids.value.add(item.avid)
@@ -226,6 +251,9 @@ async function handleAddExternal(item) {
     toastStore.success(`${item.avid} 已加入资源库`)
     markExternalItemInLibrary(item)
     saveExternalCache()
+    // 优雅地自动更新有关状态
+    await loadActorInfo(actorId.value)
+    fetchResources(page.value)
   } catch (err) {
     if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
       toastStore.info(`${item.avid} 已经在资源库中`)
@@ -328,6 +356,10 @@ async function confirmBatchDelete(action) {
     toastStore.success(`已${actionText}: ${avids.length} 个资源`)
     selectedAvids.value = new Set()
     await fetchResources()
+    if (action === 'delete' || action === 'delete-all') {
+      avids.forEach((avid) => syncExternalResourceStatus(avid, false))
+      loadActorInfo(actorId.value)
+    }
   } catch (err) {
     toastStore.error(err.message || '批量删除失败')
   } finally {
@@ -413,6 +445,9 @@ async function handleDeleteResource(avid) {
     await resourceApi.delete(avid)
     await handleManualRefresh()
     toastStore.success(`${avid} 已被完全删除`)
+    // 同步到外部搜索列表
+    syncExternalResourceStatus(avid, false)
+    loadActorInfo(actorId.value)
   } catch (err) {
     toastStore.error(err.message || '删除失败')
   }
@@ -446,6 +481,16 @@ onMounted(async () => {
   await fetchResources(1)
   restoreExternalCache()
 })
+
+watch(
+  currentTab,
+  (newTab) => {
+    if (newTab === 'external' && !externalSearched.value && !loadingExternal.value) {
+      startExternalSearch(1)
+    }
+  },
+  { immediate: true }
+)
 
 // 状态变化时同步到 URL
 watch(
