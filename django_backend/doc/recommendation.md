@@ -46,6 +46,7 @@
 - `include_hot_board`
 - `include_latest_updates`
 - `discovery_limit`
+- `detail_enrichment_limit`
 - `type_preference`
   - `actor_heavy | balanced | genre_heavy`
 - `actor_preference`
@@ -74,12 +75,23 @@
 - 内部仍然直接转发到 `recommender_manager.recommend()`
 - 与 `/api/recommendations/` 使用同一条默认推荐链路
 
-### 4. `POST /nassav/api/recommendations/feedback`
+### 4. `GET /nassav/api/recommendations/metrics`
+
+返回推荐效果与状态概览：
+
+- snapshot / item / distinct avid 数量
+- 重复推荐率
+- `like` / `dislike` 反馈数量
+- AVID 黑名单与 seed 屏蔽数量
+- 最近 seed 曝光排行
+
+### 5. `POST /nassav/api/recommendations/feedback`
 
 记录推荐反馈。
 
-当前 API 层只接受：
+当前 API 层接受：
 
+- `feedback = like`
 - `feedback = dislike`
 
 请求体：
@@ -88,28 +100,27 @@
 {
   "snapshot_id": 12,
   "avid": "ABCD-123",
-  "feedback": "dislike"
+  "feedback": "like"
 }
 ```
 
 效果：
 
-- 为对应 `RecommendationItem` 记录负反馈
-- 将该 `avid` 同步写入永久屏蔽表
-- 将命中的 actor / genre seed 计入负反馈统计，后续只做降权，不做 seed 级硬屏蔽
+- 为对应 `RecommendationItem` 记录显式反馈
+- `like` 会将命中的 actor / genre seed 计入正反馈统计，后续排序加权
+- `dislike` 会将该 `avid` 同步写入永久屏蔽表，并将命中的 actor / genre seed 计入负反馈统计
 
-### 5. `POST /nassav/api/recommendations/reset`
+### 6. `POST /nassav/api/recommendations/reset`
 
-清空推荐状态：
+清空推荐状态。默认 `preserve_blocklist=true`，只清空推荐历史、推荐项和反馈事件，保留 AVID 黑名单与手动 seed 屏蔽；传 `preserve_blocklist=false` 时会连同黑名单状态一起清空。
 
 - `RecommendationSnapshot`
 - `RecommendationItem`
 - `RecommendationItemSeed`
 - `RecommendationFeedback`
-- `RecommendationAvidBlocklist`
-- `RecommendationSeedProfile`
+- 非屏蔽用途的 `RecommendationSeedProfile`
 
-### 6. `POST /nassav/api/recommendations/seed-block`
+### 7. `POST /nassav/api/recommendations/seed-block`
 
 手动屏蔽库中已有的 actor / genre。
 
@@ -134,13 +145,13 @@
 - actor / genre 的屏蔽状态最终落在 `RecommendationSeedProfile.is_blocked`
 - 被屏蔽的 seed 在生成阶段直接被过滤，不会参与本轮推荐
 
-### 7. `DELETE /nassav/api/recommendations/seed-block`
+### 8. `DELETE /nassav/api/recommendations/seed-block`
 
 取消手动屏蔽。
 
 请求体与 `POST` 相同，只是不再需要 `reason`。
 
-### 8. `GET /nassav/api/recommendations/cover`
+### 9. `GET /nassav/api/recommendations/cover`
 
 代理并缓存推荐封面，避免前端直接访问受限站点资源。
 
@@ -415,7 +426,18 @@ genre 种子：
 - 保留更小的 `search_rank`
 - 补齐标题、详情页、封面等基础字段
 
-### 4. 候选补量
+### 4. 候选详情补充
+
+在 `detail_enrichment_limit` 范围内，推荐器会优先为 discovery 候选抓取 Jable 详情页，补充：
+
+- `detail_actors`
+- `detail_actor_slugs`
+- `detail_genres`
+- `detail_genre_slugs`
+
+如果详情中的 actor / genre 与本轮本地 seed 名称或 source slug 匹配，会把该 seed 补充进候选 `matched_seeds`，让热榜/最近更新候选也能获得本地偏好加分。详情抓取失败时只跳过补充，不影响候选返回。
+
+### 5. 候选补量
 
 如果过滤后“优先候选”仍不足 `limit`，系统会继续：
 
@@ -435,12 +457,12 @@ genre 种子：
 
 ### 2. 过滤负反馈资源
 
-当前学习机制非常直接：
+当前学习机制保持直接、可解释：
 
-- 仅统计 `dislike`
-- `avid` 级别做永久黑名单
-- actor / genre 级别累积到 `RecommendationSeedProfile.disliked_count`
-- 当前 `accepted_count` 预留但尚未通过 API 写入
+- `like` 累计到 `RecommendationSeedProfile.accepted_count`
+- `dislike` 累计到 `RecommendationSeedProfile.disliked_count`
+- `avid` 级别的 `dislike` 做永久黑名单
+- 重复提交反馈时，会按旧值和新值的差异修正 seed 计数
 
 实现位置：
 
@@ -454,7 +476,7 @@ genre 种子：
 - `seed_scores`
 
 manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_avids`，后续在召回后立即过滤。
-同时会把 `seed_scores` 写入 `RecommendationRequest.feedback_seed_scores`，供排序阶段做 actor / genre 级降权。
+同时会把 `seed_scores` 写入 `RecommendationRequest.feedback_seed_scores`，供排序阶段做 actor / genre 级加权或降权。
 
 ### 3. 同配置近期避让
 
@@ -538,9 +560,8 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 
 注意：
 
-- 代码中存在 `FeedbackSignalFactor`
-- 当前 strategy 已启用它
-- 当前仅使用其中的 seed 级信号
+- `FeedbackSignalFactor` 已在当前 strategy 中启用
+- 当前主要使用 seed 级正负反馈信号
 - `avid_weight` 为 0，`avid` 级不喜欢直接通过永久屏蔽表处理
 
 ## 请求指纹与持久化
@@ -563,6 +584,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - recent_snapshot_limit / recent_item_limit
 - include_hot_board / include_latest_updates
 - discovery_limit
+- detail_enrichment_limit
 - type_preference / actor_preference / genre_preference
 
 注意：
@@ -637,17 +659,19 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 当前系统已经会：
 
 - 在保存推荐结果时累计 `recommended_count`
+- 在用户点 `like` 时累计 `accepted_count`
 - 在用户点 `dislike` 时累计 `disliked_count`
 - 在生成种子时过滤 `is_blocked=true` 的 seed
 - 在手动调用 block 接口时把库中已有 actor / genre 写入 `is_blocked=true`
 
 ### 7. Feedback
 
-负反馈保存在 `RecommendationFeedback`：
+显式反馈保存在 `RecommendationFeedback`：
 
 - 与 `RecommendationItem` 一对一
 - 同时冗余存储 `avid`
-- 当前主要承担“反馈事件”与历史迁移上下文职责
+- `feedback` 当前支持 `like` 与 `dislike`
+- 当前主要承担“反馈事件”与审计上下文职责
 
 ## 返回结构
 
@@ -675,7 +699,7 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - `history_context.filtered_history_count`
   - 表示这次请求关联的近期历史中，有多少 `avid` 没有再次出现在本次最终结果里
 - `learning_context.feedback_count`
-  - 表示当前负反馈样本数
+  - 表示当前反馈样本数
 
 ## 当前限制
 
@@ -684,8 +708,6 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_av
 - 只有一个 recommender：`jable_page_lookup`
 - 只有一个 strategy：`local_preference`
 - API 不支持切换 recommender
-- 反馈 API 只支持 `dislike`
-- `accepted_count` 已有数据结构预留，但尚未通过 API 写入
 - genre 当前不做 lazy mapping
 - actor 的 lazy mapping 不在推荐请求内执行，而是交给离线脚本
 - 没有把 snapshot 当作结果缓存复用，每次请求仍会重新召回和计算

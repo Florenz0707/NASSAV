@@ -204,6 +204,7 @@ class RecommenderManager:
             include_hot_board=bool(payload.get("include_hot_board", True)),
             include_latest_updates=bool(payload.get("include_latest_updates", True)),
             discovery_limit=int(payload.get("discovery_limit", 12)),
+            detail_enrichment_limit=int(payload.get("detail_enrichment_limit", 24)),
             type_preference=str(payload.get("type_preference", "balanced")),
             actor_preference=str(payload.get("actor_preference", "balanced")),
             genre_preference=str(payload.get("genre_preference", "balanced")),

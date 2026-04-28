@@ -209,6 +209,11 @@ def _build_parameter_profile(
                     default_request_overrides["discovery_limit"],
                     "热榜/最近更新最多补充的候选数。",
                 ),
+                _make_item(
+                    "detail_enrichment_limit",
+                    default_request_overrides["detail_enrichment_limit"],
+                    "每轮最多抓取详情页补充元数据的候选数。",
+                ),
             ],
         ),
         _make_section(
@@ -265,6 +270,7 @@ def build_local_preference_strategy() -> RecommendationStrategy:
         "include_hot_board": True,
         "include_latest_updates": True,
         "discovery_limit": 12,
+        "detail_enrichment_limit": 24,
     }
     recommender_kwargs = {
         "diversity_penalty": 0.72,

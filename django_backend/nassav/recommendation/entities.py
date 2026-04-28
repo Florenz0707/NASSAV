@@ -88,6 +88,7 @@ class RecommendationRequest:
     include_hot_board: bool = True
     include_latest_updates: bool = True
     discovery_limit: int = 12
+    detail_enrichment_limit: int = 24
     feedback_avid_scores: dict[str, float] = field(default_factory=dict)
     feedback_seed_scores: dict[str, float] = field(default_factory=dict)
     blocked_feedback_avids: set[str] = field(default_factory=set)
@@ -99,6 +100,7 @@ class RecommendationRequest:
     learned_seed_count: int = 0
     seed_occurrence_tiers: dict[str, str] = field(default_factory=dict)
     recent_seed_counts: dict[str, int] = field(default_factory=dict)
+    active_seeds: list[RecommendationSeed] = field(default_factory=list, repr=False)
     type_preference: str = "balanced"
     actor_preference: str = "balanced"
     genre_preference: str = "balanced"
@@ -156,6 +158,7 @@ class RecommendationExecution:
                 "include_hot_board": self.request.include_hot_board,
                 "include_latest_updates": self.request.include_latest_updates,
                 "discovery_limit": self.request.discovery_limit,
+                "detail_enrichment_limit": self.request.detail_enrichment_limit,
                 "type_preference": self.request.type_preference,
                 "actor_preference": self.request.actor_preference,
                 "genre_preference": self.request.genre_preference,

@@ -274,6 +274,7 @@ DELETE /nassav/api/source/cookie?source=missav
   - `include_hot_board`：是否将 Jable 热榜候选并入召回池，默认 `true`
   - `include_latest_updates`：是否将 Jable 最近更新候选并入召回池，默认 `true`
   - `discovery_limit`：热榜/最近更新总共最多补充多少条候选，默认 `12`
+  - `detail_enrichment_limit`：每轮最多为多少个 discovery 候选抓取详情页补充 actor/genre 元数据，默认 `24`
   - `force_refresh_external`：是否强制外部源跳过搜索缓存并重新抓取，默认 `false`
 
 示例请求：
@@ -360,6 +361,7 @@ GET /nassav/api/recommendations?strategy=local_preference&type_preference=balanc
         "include_hot_board": true,
         "include_latest_updates": true,
         "discovery_limit": 12,
+        "detail_enrichment_limit": 24,
         "type_preference": "balanced",
         "actor_preference": "rare",
         "genre_preference": "balanced",
@@ -388,18 +390,25 @@ GET /nassav/api/recommendations?strategy=local_preference&type_preference=balanc
 - 如果当前高位演员/类别种子召回到的候选不足，或者这些候选大多已在近期推荐中出现，系统会自动继续下探到排名更靠后的演员/类别种子补召回。
 - 演员种子会自动展开常见别名（例如括号内别名），用于提升 Jable 搜索召回率。
 - `include_hot_board=true` 时会把 Jable 热榜 async block 的今日 / 本周 / 本月 / 全部四档榜单作为 discovery 候选源；`include_latest_updates=true` 时会把 `/latest-updates/` 作为 discovery 候选源，两者都会带上来源标签参与轻量加分排序。
-- 当某个作品收到的 `dislike` 票数多于 `like` 时，系统会在后续推荐中直接屏蔽该 `avid`，而不是只做轻微降权。
+- discovery 候选会在 `detail_enrichment_limit` 范围内尝试抓取详情页 actor/genre 元数据；若详情命中本轮种子，会补充 `matched_seeds` 并参与 seed 加分。
+- 当某个作品收到 `dislike` 时，系统会在后续推荐中直接屏蔽该 `avid`，而不是只做轻微降权；`like` 会作为 actor/genre seed 的正反馈进入后续排序。
 - `strategy_detail.parameter_profile` 会返回每个策略参数的实际值和参数含义，前端可直接用于“策略参数说明”展示。
+
+### 获取推荐效果概览
+
+- 方法：GET
+- 路径：`/nassav/api/recommendations/metrics`
+- 功能：返回当前推荐历史、重复率、反馈计数和黑名单数量等概览，用于调参和验证推荐效果。
 
 ### 提交推荐反馈
 
 - 方法：POST
 - 路径：`/nassav/api/recommendations/feedback`
-- 功能：将推荐项加入不喜欢黑名单（AVID 级屏蔽）
+- 功能：记录推荐项反馈
 - 请求体：
   - `snapshot_id`：该推荐项所属快照 ID
   - `avid`：推荐项资源编号
-  - `feedback`：固定为 `dislike`
+  - `feedback`：`like | dislike`
 
 示例请求：
 
@@ -408,9 +417,14 @@ POST /nassav/api/recommendations/feedback
 {
   "snapshot_id": 12,
   "avid": "ABC-123",
-  "feedback": "dislike"
+  "feedback": "like"
 }
 ```
+
+说明：
+
+- `like` 会累计到命中的 actor / genre seed，作为后续排序的正反馈。
+- `dislike` 会累计到命中的 actor / genre seed，并把该 `avid` 写入资源黑名单。
 
 ### 管理推荐黑名单
 
@@ -487,7 +501,9 @@ DELETE /nassav/api/recommendations/avid-blocklist
 
 - 方法：POST
 - 路径：`/nassav/api/recommendations/reset`
-- 功能：清空推荐快照、推荐项和不喜欢黑名单反馈
+- 功能：清空推荐快照、推荐项和反馈记录；默认保留 AVID 黑名单与手动 seed 屏蔽。
+- 请求体：
+  - `preserve_blocklist`：是否保留黑名单，默认 `true`；传 `false` 时同时清空 AVID 黑名单和 seed 屏蔽画像。
 
 返回示例：
 
@@ -496,6 +512,7 @@ DELETE /nassav/api/recommendations/avid-blocklist
   "code": 200,
   "message": "success",
   "data": {
+    "preserve_blocklist": true,
     "snapshot_count": 12,
     "item_count": 144,
     "feedback_count": 8

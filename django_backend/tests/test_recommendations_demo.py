@@ -43,6 +43,18 @@ def test_recommendations_options_endpoint(api_client):
 
 
 @pytest.mark.django_db
+def test_recommendations_metrics_endpoint_returns_state_summary(api_client):
+    response = api_client.get("/nassav/api/recommendations/metrics")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["snapshot_count"] == 0
+    assert body["data"]["feedback_counts"] == {"like": 0, "dislike": 0}
+    assert "repeat_rate" in body["data"]
+
+
+@pytest.mark.django_db
 def test_recommendations_endpoint_runs_with_empty_search(
     api_client, monkeypatch, resource_factory, actor_factory, genre_factory
 ):
@@ -1010,9 +1022,10 @@ def test_recommendations_endpoint_penalizes_cross_strategy_recent_results(
 
 
 @pytest.mark.django_db
-def test_recommendation_feedback_endpoint_accepts_only_dislike(
+def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
+    from nassav.models import RecommendationAvidBlocklist, RecommendationSeedProfile
     from nassav.source import Jable
 
     actor = actor_factory(name="Alice")
@@ -1067,6 +1080,26 @@ def test_recommendation_feedback_endpoint_accepts_only_dislike(
     assert invalid_feedback_response.status_code == 400
     assert invalid_feedback_response.json()["code"] == 400
 
+    like_response = api_client.post(
+        "/nassav/api/recommendations/feedback",
+        {
+            "snapshot_id": first_body["data"]["items"][0]["snapshot_id"],
+            "avid": "REC-701-A",
+            "feedback": "like",
+        },
+        format="json",
+    )
+    assert like_response.status_code == 200
+    assert like_response.json()["data"]["feedback"] == "like"
+    assert not RecommendationAvidBlocklist.objects.filter(avid="REC-701-A").exists()
+    assert (
+        RecommendationSeedProfile.objects.get(
+            seed_type="actor",
+            normalized_value="alice",
+        ).accepted_count
+        >= 1
+    )
+
     dislike_response = api_client.post(
         "/nassav/api/recommendations/feedback",
         {
@@ -1078,6 +1111,7 @@ def test_recommendation_feedback_endpoint_accepts_only_dislike(
     )
     assert dislike_response.status_code == 200
     assert dislike_response.json()["data"]["feedback"] == "dislike"
+    assert RecommendationAvidBlocklist.objects.filter(avid="REC-701-A").exists()
 
 
 @pytest.mark.django_db
@@ -1175,7 +1209,7 @@ def test_recommendation_dislike_feedback_blocks_same_avid_from_future_results(
 
 
 @pytest.mark.django_db
-def test_recommendation_reset_endpoint_clears_snapshots_and_feedback(
+def test_recommendation_reset_endpoint_clears_history_but_preserves_blocklist(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import (
@@ -1233,12 +1267,22 @@ def test_recommendation_reset_endpoint_clears_snapshots_and_feedback(
     assert reset_body["data"]["feedback_count"] == 1
     assert reset_body["data"]["blocklist_count"] == 1
     assert reset_body["data"]["seed_profile_count"] >= 1
+    assert reset_body["data"]["preserve_blocklist"] is True
     assert RecommendationSnapshot.objects.count() == 0
     assert RecommendationItem.objects.count() == 0
     assert RecommendationItemSeed.objects.count() == 0
     assert RecommendationFeedback.objects.count() == 0
-    assert RecommendationAvidBlocklist.objects.count() == 0
+    assert RecommendationAvidBlocklist.objects.count() == 1
     assert RecommendationSeedProfile.objects.count() == 0
+
+    full_reset_response = api_client.post(
+        "/nassav/api/recommendations/reset",
+        {"preserve_blocklist": False},
+        format="json",
+    )
+    assert full_reset_response.status_code == 200
+    assert full_reset_response.json()["data"]["preserve_blocklist"] is False
+    assert RecommendationAvidBlocklist.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -1732,6 +1776,7 @@ def test_recommendations_endpoint_includes_hot_and_latest_discovery_candidates(
             }
         ],
     )
+    monkeypatch.setattr(Jable, "get_video_detail", lambda *args, **kwargs: {})
 
     response = api_client.get(
         "/nassav/api/recommendations/",
@@ -1751,6 +1796,61 @@ def test_recommendations_endpoint_includes_hot_and_latest_discovery_candidates(
         for item in body["data"]["items"]
         for entry in item["score_breakdown"]
     )
+
+
+@pytest.mark.django_db
+def test_recommendations_enriches_discovery_candidates_with_matching_seed_detail(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-904", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "discover_hot_items",
+        lambda self, page=1: [
+            {
+                "avid": "REC-904-HOT",
+                "title": "Hot Candidate",
+                "detail_url": "https://jable.tv/videos/rec-904-hot/",
+                "cover_url": "https://img/rec-904-hot.jpg",
+                "metrics": {
+                    "views": 5000,
+                    "likes": 500,
+                    "discovery_sources": ["hot_board"],
+                },
+            }
+        ],
+    )
+    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "get_video_detail",
+        lambda self, avid, detail_url="", force_refresh=False: {
+            "avid": avid,
+            "actors": ["Alice"],
+            "actor_slugs": [],
+        },
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 1,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 0,
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+    item = body["data"]["items"][0]
+    assert item["avid"] == "REC-904-HOT"
+    assert item["matched_seeds"][0]["value"] == "Alice"
+    assert item["raw_metrics"]["detail_enriched"] is True
 
 
 @pytest.mark.django_db

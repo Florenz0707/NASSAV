@@ -151,8 +151,8 @@
   - 关键字段：
     - `item` (OneToOne FK): 对应的推荐结果明细。
     - `avid` (Char, db_index): 被反馈的资源编号。
-    - `feedback` (Char, db_index): 显式反馈类型，当前实际只使用 `dislike`。
-    - `feedback_value` (SmallInteger): 归一化后的反馈值，当前主要为 `-1`。
+    - `feedback` (Char, db_index): 显式反馈类型，当前支持 `like` 与 `dislike`。
+    - `feedback_value` (SmallInteger): 归一化后的反馈值，`like=1`，`dislike=-1`。
     - `created_at` / `updated_at`: 反馈创建与最后更新时间。
   - 用途：
     - 记录用户对具体推荐结果的显式反馈事件
@@ -203,13 +203,14 @@
     - 写入一条 `RecommendationSnapshot`
     - 为每个返回项写入一条 `RecommendationItem`
   - 执行推荐前还会读取 `RecommendationFeedback`：
-    - 聚合历史 `avid` 反馈，形成直接资源偏好分
-    - 聚合历史 `matched_seeds` 反馈，形成演员 / 类别 seed 偏好分
+    - 读取 AVID 黑名单，形成直接过滤集合
+    - 聚合历史 seed 画像，形成演员 / 类别 seed 偏好分
     - 将这些学习信号注入 `RecommendationRequest`，供 `FeedbackSignalFactor` 参与打分
   - 对演员 seed，如果名称中包含括号别名，会展开多个搜索关键词参与召回
   - 若演员存在 `ActorSourceMapping(source_name="jable")`，则推荐器会优先使用 `models/{source_actor_slug}` 的 async block 召回该演员作品，再回退到普通搜索
   - 搜索页、演员页、热榜和最近更新页在继续翻页时统一使用 `from=NN`，而不是旧的 `page=N`
   - 还会将 Jable 热榜/最近更新候选作为 discovery 补充写入同一批 `RecommendationItem`
+  - 对 discovery 候选，会在配置上限内抓取 Jable 详情页补充 actor/genre 元数据；若详情命中本轮 seed，会写入 `matched_seeds` 和 `RecommendationItemSeed`
   - 若最近推荐过滤后没有剩余候选，会回退到不过滤历史的候选列表，避免返回空结果
 
 - 推荐反馈提交（API `POST /recommendations/feedback`）:
@@ -217,7 +218,9 @@
   - 对该推荐项执行显式反馈 upsert：
     - `like` 写为 `feedback_value=1`
     - `dislike` 写为 `feedback_value=-1`
-    - `clear` 删除已有反馈记录
+  - `like` 会累计命中 seed 的 `accepted_count`，并删除同一 AVID 上由用户反馈产生的黑名单记录
+  - `dislike` 会累计命中 seed 的 `disliked_count`，并把 AVID 写入 `RecommendationAvidBlocklist`
+  - 如果同一推荐项从旧反馈切换为新反馈，系统会按差异修正 seed 的正负反馈计数
 
 ## 一致性与事务控制
 

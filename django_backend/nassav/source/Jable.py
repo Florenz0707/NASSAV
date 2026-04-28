@@ -120,6 +120,50 @@ class Jable(SourceBase):
             logger.error(f"封面URL提取失败: {e}")
             return None
 
+    def get_video_detail(
+        self,
+        avid: str,
+        detail_url: str = "",
+        *,
+        force_refresh: bool = False,
+    ) -> dict:
+        normalized_avid = str(avid or "").strip().upper()
+        normalized_url = str(detail_url or "").strip()
+        if not normalized_avid and not normalized_url:
+            return {}
+
+        cache_key = self._build_cache_key(
+            "video_detail",
+            avid=normalized_avid,
+            url=normalized_url,
+        )
+        if not force_refresh:
+            cached_payload = cache.get(cache_key) if self.cache_enabled else None
+            if isinstance(cached_payload, dict):
+                return deepcopy(cached_payload)
+
+        html = ""
+        if normalized_url:
+            html = self.fetch_html(normalized_url, referer=f"https://{self.domain}/")
+        if not html and normalized_avid:
+            html = self.get_html(normalized_avid) or ""
+        if not html:
+            return {}
+
+        try:
+            payload = self._parse_video_detail(
+                html=html,
+                avid=normalized_avid,
+                detail_url=normalized_url,
+            )
+        except Exception as e:
+            logger.error(f"Jable.get_video_detail 解析失败: {e}")
+            return {}
+
+        if self.cache_enabled:
+            cache.set(cache_key, deepcopy(payload), timeout=self.cache_ttl_default)
+        return payload
+
     def search(
         self, keyword: str, page: int = 1, *, force_refresh: bool = False
     ) -> list[dict]:
@@ -580,6 +624,56 @@ class Jable(SourceBase):
             )
 
         return results
+
+    def _parse_video_detail(self, *, html: str, avid: str, detail_url: str) -> dict:
+        soup = BeautifulSoup(html, "html.parser")
+        info = self.parse_html(html)
+        parsed_avid = str(getattr(info, "avid", "") or avid).strip().upper()
+        title = str(getattr(info, "source_title", "") or "").strip()
+        if not title:
+            title_node = soup.select_one("h4.title, h1.title, title")
+            title = title_node.get_text(" ", strip=True) if title_node else ""
+            title = re.sub(r"\s*-\s*Jable\.TV.*$", "", title).strip()
+
+        actors = self._extract_detail_links(soup, selector="div.models a.model[href]")
+        genres = self._extract_detail_links(
+            soup,
+            selector='a[href*="/tags/"], a[href*="/categories/"]',
+        )
+        cover_url = self.get_cover_url(html) or ""
+
+        payload = {
+            "avid": parsed_avid,
+            "title": title,
+            "detail_url": detail_url,
+            "cover_url": cover_url,
+            "actors": [item["name"] for item in actors],
+            "actor_slugs": [item["slug"] for item in actors if item.get("slug")],
+            "genres": [item["name"] for item in genres],
+            "genre_slugs": [item["slug"] for item in genres if item.get("slug")],
+        }
+        return {key: value for key, value in payload.items() if value not in ("", [])}
+
+    def _extract_detail_links(
+        self, soup: BeautifulSoup, *, selector: str
+    ) -> list[dict]:
+        output: list[dict] = []
+        seen: set[tuple[str, str]] = set()
+        for anchor in soup.select(selector):
+            name = anchor.get_text(" ", strip=True)
+            href = self._get_tag_attr(anchor, "href")
+            if not name:
+                continue
+            slug = ""
+            match = re.search(r"/(?:models|tags|categories)/([^/?#]+)/?", href)
+            if match:
+                slug = match.group(1).strip().lower()
+            key = (name.casefold(), slug)
+            if key in seen:
+                continue
+            seen.add(key)
+            output.append({"name": name, "slug": slug})
+        return output
 
     def _extract_cover_url(self, image) -> str:
         if image is None:

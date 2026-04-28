@@ -524,6 +524,35 @@ class RecommendationSeedProfileRepository:
         profile.save()
 
     def increment_dislike_counts_for_item(self, item: RecommendationItem) -> None:
+        self.adjust_feedback_counts_for_item(
+            item, old_feedback="", new_feedback="dislike"
+        )
+
+    def adjust_feedback_counts_for_item(
+        self,
+        item: RecommendationItem,
+        *,
+        old_feedback: str = "",
+        new_feedback: str = "",
+    ) -> None:
+        old_feedback = str(old_feedback or "").strip().lower()
+        new_feedback = str(new_feedback or "").strip().lower()
+        if old_feedback == new_feedback:
+            return
+
+        accepted_delta = self._feedback_delta(
+            old_feedback=old_feedback,
+            new_feedback=new_feedback,
+            target="like",
+        )
+        disliked_delta = self._feedback_delta(
+            old_feedback=old_feedback,
+            new_feedback=new_feedback,
+            target="dislike",
+        )
+        if accepted_delta == 0 and disliked_delta == 0:
+            return
+
         seen_profiles: set[tuple[str, str, str, str]] = set()
         seed_rows = getattr(item, "item_seeds").all()
         for seed_row in seed_rows:
@@ -547,15 +576,35 @@ class RecommendationSeedProfileRepository:
                     "aliases": list(seed_row.aliases or []),
                 },
             )
-            RecommendationSeedProfile.objects.filter(pk=profile.pk).update(
-                value=profile.value or seed_row.seed_value,
-                aliases=self._merge_aliases(
+            update_payload = {
+                "value": profile.value or seed_row.seed_value,
+                "aliases": self._merge_aliases(
                     list(profile.aliases or []),
                     list(seed_row.aliases or []),
                 ),
-                disliked_count=F("disliked_count") + 1,
-                updated_at=timezone.now(),
+                "updated_at": timezone.now(),
+            }
+            if accepted_delta:
+                update_payload["accepted_count"] = F("accepted_count") + accepted_delta
+            if disliked_delta:
+                update_payload["disliked_count"] = F("disliked_count") + disliked_delta
+            RecommendationSeedProfile.objects.filter(pk=profile.pk).update(
+                **update_payload
             )
+
+    def _feedback_delta(
+        self,
+        *,
+        old_feedback: str,
+        new_feedback: str,
+        target: str,
+    ) -> int:
+        delta = 0
+        if new_feedback == target:
+            delta += 1
+        if old_feedback == target:
+            delta -= 1
+        return delta
 
     def _source_identifier_for_seed(self, seed: RecommendationSeed) -> str:
         payload = dict(seed.lookup_payload or {})

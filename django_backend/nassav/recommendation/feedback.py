@@ -32,7 +32,7 @@ class RecommendationLearningProfile:
 
 
 class RecommendationFeedbackRepository:
-    VALID_FEEDBACKS = {"dislike"}
+    VALID_FEEDBACKS = {"like", "dislike"}
 
     @transaction.atomic
     def record_feedback(
@@ -58,6 +58,11 @@ class RecommendationFeedbackRepository:
         if item is None:
             raise RecommendationFeedbackError("推荐项不存在，无法记录反馈")
 
+        existing_feedback = (
+            RecommendationFeedback.objects.filter(item=item)
+            .values_list("feedback", flat=True)
+            .first()
+        )
         feedback_obj, _ = RecommendationFeedback.objects.update_or_create(
             item=item,
             defaults={
@@ -65,14 +70,24 @@ class RecommendationFeedbackRepository:
                 "feedback": normalized_feedback,
             },
         )
-        RecommendationAvidBlocklist.objects.update_or_create(
-            avid=normalized_avid,
-            defaults={
-                "source": "user_feedback",
-                "reason": "dislike",
-            },
+        if normalized_feedback == "dislike":
+            RecommendationAvidBlocklist.objects.update_or_create(
+                avid=normalized_avid,
+                defaults={
+                    "source": "user_feedback",
+                    "reason": "dislike",
+                },
+            )
+        elif normalized_feedback == "like":
+            RecommendationAvidBlocklist.objects.filter(
+                avid=normalized_avid,
+                source="user_feedback",
+            ).delete()
+        recommendation_seed_profile_repository.adjust_feedback_counts_for_item(
+            item,
+            old_feedback=existing_feedback or "",
+            new_feedback=normalized_feedback,
         )
-        recommendation_seed_profile_repository.increment_dislike_counts_for_item(item)
         return feedback_obj
 
     def build_learning_profile(self) -> RecommendationLearningProfile:
@@ -82,9 +97,7 @@ class RecommendationFeedbackRepository:
         return RecommendationLearningProfile(
             seed_scores=recommendation_seed_profile_repository.build_seed_score_map(),
             blocked_avids=blocked_avids,
-            feedback_count=RecommendationFeedback.objects.filter(
-                feedback="dislike"
-            ).count(),
+            feedback_count=RecommendationFeedback.objects.count(),
         )
 
 

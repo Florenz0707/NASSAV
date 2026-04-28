@@ -4,6 +4,7 @@ from hashlib import sha256
 import re
 
 from django.db import transaction
+from django.db.models import Count, Q
 
 from nassav.models import (
     RecommendationAvidBlocklist,
@@ -44,6 +45,7 @@ class RecommendationSnapshotRepository:
             "include_hot_board": request.include_hot_board,
             "include_latest_updates": request.include_latest_updates,
             "discovery_limit": request.discovery_limit,
+            "detail_enrichment_limit": request.detail_enrichment_limit,
             "type_preference": request.type_preference,
             "actor_preference": request.actor_preference,
             "genre_preference": request.genre_preference,
@@ -201,6 +203,7 @@ class RecommendationSnapshotRepository:
                 "include_hot_board": execution.request.include_hot_board,
                 "include_latest_updates": execution.request.include_latest_updates,
                 "discovery_limit": execution.request.discovery_limit,
+                "detail_enrichment_limit": execution.request.detail_enrichment_limit,
                 "type_preference": execution.request.type_preference,
                 "actor_preference": execution.request.actor_preference,
                 "genre_preference": execution.request.genre_preference,
@@ -274,23 +277,91 @@ class RecommendationSnapshotRepository:
         return snapshot
 
     @transaction.atomic
-    def reset_state(self) -> dict[str, int]:
+    def reset_state(self, *, preserve_blocklist: bool = True) -> dict[str, int | bool]:
         blocklist_count = RecommendationAvidBlocklist.objects.count()
         feedback_count = RecommendationFeedback.objects.count()
         item_seed_count = RecommendationItemSeed.objects.count()
         item_count = RecommendationItem.objects.count()
         seed_profile_count = RecommendationSeedProfile.objects.count()
         snapshot_count = RecommendationSnapshot.objects.count()
-        RecommendationAvidBlocklist.objects.all().delete()
-        RecommendationSeedProfile.objects.all().delete()
+        if preserve_blocklist:
+            RecommendationSeedProfile.objects.filter(is_blocked=False).delete()
+            RecommendationSeedProfile.objects.filter(is_blocked=True).update(
+                recommended_count=0,
+                accepted_count=0,
+                disliked_count=0,
+                last_recommended_at=None,
+            )
+        else:
+            RecommendationAvidBlocklist.objects.all().delete()
+            RecommendationSeedProfile.objects.all().delete()
         RecommendationSnapshot.objects.all().delete()
         return {
+            "preserve_blocklist": preserve_blocklist,
             "blocklist_count": blocklist_count,
             "feedback_count": feedback_count,
             "item_seed_count": item_seed_count,
             "item_count": item_count,
             "seed_profile_count": seed_profile_count,
             "snapshot_count": snapshot_count,
+        }
+
+    def build_metrics(self) -> dict:
+        snapshot_count = RecommendationSnapshot.objects.count()
+        item_count = RecommendationItem.objects.count()
+        distinct_avid_count = (
+            RecommendationItem.objects.values("avid").distinct().count()
+        )
+        repeated_avid_count = max(item_count - distinct_avid_count, 0)
+        feedback_counts = {
+            row["feedback"]: row["count"]
+            for row in RecommendationFeedback.objects.values("feedback").annotate(
+                count=Count("id")
+            )
+        }
+        item_counts = list(
+            RecommendationSnapshot.objects.order_by("-generated_at").values_list(
+                "item_count", flat=True
+            )[:50]
+        )
+        average_item_count = (
+            round(sum(item_counts) / len(item_counts), 2) if item_counts else 0.0
+        )
+        top_seeds = list(
+            RecommendationItemSeed.objects.values("seed_type", "seed_value")
+            .annotate(count=Count("id"))
+            .order_by("-count", "seed_type", "seed_value")[:20]
+        )
+
+        return {
+            "snapshot_count": snapshot_count,
+            "item_count": item_count,
+            "distinct_avid_count": distinct_avid_count,
+            "repeated_avid_count": repeated_avid_count,
+            "repeat_rate": round(repeated_avid_count / item_count, 4)
+            if item_count
+            else 0.0,
+            "average_item_count_recent_50": average_item_count,
+            "feedback_count": sum(feedback_counts.values()),
+            "feedback_counts": {
+                "like": int(feedback_counts.get("like", 0)),
+                "dislike": int(feedback_counts.get("dislike", 0)),
+            },
+            "avid_blocklist_count": RecommendationAvidBlocklist.objects.count(),
+            "blocked_seed_count": RecommendationSeedProfile.objects.filter(
+                is_blocked=True
+            ).count(),
+            "learned_seed_count": RecommendationSeedProfile.objects.filter(
+                Q(accepted_count__gt=0) | Q(disliked_count__gt=0)
+            ).count(),
+            "top_seed_exposures": [
+                {
+                    "seed_type": row["seed_type"],
+                    "seed_value": row["seed_value"],
+                    "count": row["count"],
+                }
+                for row in top_seeds
+            ],
         }
 
 

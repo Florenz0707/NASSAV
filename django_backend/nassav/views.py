@@ -128,6 +128,9 @@ def _parse_recommendation_request_params(query_params) -> dict:
             True,
         ),
         "discovery_limit": _parse_positive_int(query_params.get("discovery_limit"), 12),
+        "detail_enrichment_limit": _parse_positive_int(
+            query_params.get("detail_enrichment_limit"), 24
+        ),
         "type_preference": _parse_choice(
             query_params.get("type_preference"),
             "balanced",
@@ -164,8 +167,8 @@ def _parse_recommendation_feedback_payload(data) -> dict:
         raise ValueError("avid 参数缺失")
 
     feedback = str(data.get("feedback", "")).strip().lower()
-    if feedback != "dislike":
-        raise ValueError("feedback 仅支持 dislike")
+    if feedback not in {"like", "dislike"}:
+        raise ValueError("feedback 仅支持 like 或 dislike")
 
     return {
         "snapshot_id": parsed_snapshot_id,
@@ -876,6 +879,20 @@ class RecommendationOptionsView(SchemaAPIView):
         return build_response(200, "success", recommender_manager.get_options())
 
 
+class RecommendationMetricsView(SchemaAPIView):
+    """GET /api/recommendations/metrics - 返回推荐效果与状态概览"""
+
+    def get(self, request):
+        _ = request
+        from nassav.recommendation.repository import recommendation_snapshot_repository
+
+        return build_response(
+            200,
+            "success",
+            recommendation_snapshot_repository.build_metrics(),
+        )
+
+
 class RecommendationFeedbackView(SchemaAPIView):
     """POST /api/recommendations/feedback - 提交推荐结果反馈"""
 
@@ -1111,13 +1128,20 @@ class RecommendationAvidBlocklistView(SchemaAPIView):
 
 
 class RecommendationResetView(SchemaAPIView):
-    """POST /api/recommendations/reset - 清空推荐历史与反馈黑名单状态"""
+    """POST /api/recommendations/reset - 清空推荐历史，默认保留黑名单状态"""
 
     def post(self, request):
-        _ = request
         from nassav.recommendation.repository import recommendation_snapshot_repository
 
-        result = recommendation_snapshot_repository.reset_state()
+        preserve_blocklist = _parse_bool(
+            (request.data or {}).get("preserve_blocklist")
+            if hasattr(request, "data")
+            else None,
+            True,
+        )
+        result = recommendation_snapshot_repository.reset_state(
+            preserve_blocklist=preserve_blocklist
+        )
         return build_response(200, "success", result)
 
 

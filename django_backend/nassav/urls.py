@@ -29,6 +29,12 @@ urlpatterns = [
         views.RecommendationOptionsView.as_view(),
         name="recommendations-options",
     ),
+    # GET /api/recommendations/metrics - 推荐效果与状态概览
+    path(
+        "api/recommendations/metrics",
+        views.RecommendationMetricsView.as_view(),
+        name="recommendations-metrics",
+    ),
     # POST /api/recommendations/feedback - 记录推荐反馈
     path(
         "api/recommendations/feedback",

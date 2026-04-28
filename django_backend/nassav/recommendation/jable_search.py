@@ -29,6 +29,7 @@ class JableSearchRecommender(AbstractRecommender):
 
     def recommend(self, request: RecommendationRequest):
         seeds = self.build_seeds(request)
+        request.active_seeds = list(seeds)
         self._hydrate_seed_occurrence_tiers(request, seeds)
         candidates = self.recall_candidates(seeds, request)
         candidates = self.exclude_existing_resources(candidates, request)
@@ -39,6 +40,7 @@ class JableSearchRecommender(AbstractRecommender):
             candidates=candidates,
             request=request,
         )
+        request.active_seeds = list(seeds)
         candidates = self.exclude_existing_resources(candidates, request)
         candidates = self.exclude_feedback_blocked_resources(candidates, request)
         candidates = self.exclude_seed_blocked_candidates(candidates, request)
@@ -200,6 +202,29 @@ class JableSearchRecommender(AbstractRecommender):
                 break
         return candidates
 
+    def enrich_candidates(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        if not candidates or request.detail_enrichment_limit <= 0:
+            return candidates
+
+        remaining = max(int(request.detail_enrichment_limit), 0)
+        for candidate in candidates:
+            if remaining <= 0:
+                break
+            if candidate.matched_seeds and not candidate.raw_metrics.get(
+                "discovery_sources"
+            ):
+                continue
+            detail = self._call_video_detail(candidate, request)
+            if not detail:
+                continue
+            remaining -= 1
+            self._apply_video_detail(candidate, detail, request)
+        return candidates
+
     def _recall_keyword_items(
         self,
         keyword: str,
@@ -332,6 +357,111 @@ class JableSearchRecommender(AbstractRecommender):
             return fetch_page(page=page, force_refresh=force_refresh)
         except TypeError:
             return fetch_page(page=page)
+
+    def _call_video_detail(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> dict:
+        fetch_detail = getattr(self.jable, "get_video_detail", None)
+        if fetch_detail is None:
+            return {}
+        try:
+            return fetch_detail(
+                candidate.avid,
+                candidate.detail_url,
+                force_refresh=request.force_refresh_external,
+            )
+        except TypeError:
+            try:
+                return fetch_detail(candidate.avid, candidate.detail_url)
+            except TypeError:
+                return fetch_detail(candidate.avid)
+
+    def _apply_video_detail(
+        self,
+        candidate: RecommendationCandidate,
+        detail: dict,
+        request: RecommendationRequest,
+    ) -> None:
+        raw_metrics = dict(candidate.raw_metrics or {})
+        raw_metrics["detail_enriched"] = True
+        raw_metrics["detail"] = dict(detail)
+        for source_key, target_key in (
+            ("actors", "detail_actors"),
+            ("actor_slugs", "detail_actor_slugs"),
+            ("genres", "detail_genres"),
+            ("genre_slugs", "detail_genre_slugs"),
+        ):
+            values = [
+                str(value).strip()
+                for value in list(detail.get(source_key) or [])
+                if str(value).strip()
+            ]
+            if values:
+                raw_metrics[target_key] = values
+        candidate.raw_metrics = raw_metrics
+
+        if detail.get("title") and not candidate.title:
+            candidate.title = str(detail["title"]).strip()
+        if detail.get("cover_url") and not candidate.cover_url:
+            candidate.cover_url = str(detail["cover_url"]).strip()
+
+        self._attach_detail_matched_seeds(candidate, request)
+
+    def _attach_detail_matched_seeds(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> None:
+        if not request.active_seeds:
+            return
+
+        raw_metrics = dict(candidate.raw_metrics or {})
+        detail_actors = self._normalized_value_set(raw_metrics.get("detail_actors"))
+        detail_genres = self._normalized_value_set(raw_metrics.get("detail_genres"))
+        detail_actor_slugs = self._normalized_slug_set(
+            raw_metrics.get("detail_actor_slugs")
+        )
+        detail_genre_slugs = self._normalized_slug_set(
+            raw_metrics.get("detail_genre_slugs")
+        )
+
+        for seed in request.active_seeds:
+            lookup_payload = dict(seed.lookup_payload or {})
+            if seed.seed_type == "actor":
+                model_slug = str(lookup_payload.get("model_slug", "")).strip().lower()
+                if (
+                    self._normalize_text(seed.value) in detail_actors
+                    or model_slug
+                    and model_slug in detail_actor_slugs
+                ):
+                    candidate.add_seed(seed)
+            elif seed.seed_type == "genre":
+                genre_slug = str(lookup_payload.get("genre_slug", "")).strip().lower()
+                if (
+                    self._normalize_text(seed.value) in detail_genres
+                    or genre_slug
+                    and genre_slug in detail_genre_slugs
+                ):
+                    candidate.add_seed(seed)
+
+    def _normalized_value_set(self, values) -> set[str]:
+        return {
+            self._normalize_text(value)
+            for value in list(values or [])
+            if self._normalize_text(value)
+        }
+
+    def _normalized_slug_set(self, values) -> set[str]:
+        return {
+            str(value or "").strip().lower()
+            for value in list(values or [])
+            if str(value or "").strip()
+        }
+
+    def _normalize_text(self, value: str) -> str:
+        return " ".join(str(value or "").strip().casefold().split())
 
     def rerank_candidates(
         self,
