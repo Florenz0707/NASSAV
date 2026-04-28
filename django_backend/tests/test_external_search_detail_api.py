@@ -135,6 +135,56 @@ def test_external_search_service_uses_genre_tag_mapping(
 
 
 @pytest.mark.django_db
+def test_external_search_service_orders_results_by_likes(
+    actor_factory, monkeypatch, settings
+):
+    actor = actor_factory(name="Actor Likes")
+    fake_source = _FakeJableSource()
+
+    def _fake_search(keyword, page=1, force_refresh=False):
+        fake_source.search_calls.append((keyword, page, force_refresh))
+        if page > 1:
+            return []
+        return [
+            {
+                "avid": "LIKE-LOW",
+                "title": "Low likes",
+                "detail_url": "https://jable.tv/videos/like-low/",
+                "cover_url": "https://img/like-low.jpg",
+                "source": "Jable",
+                "metrics": {"views": 999, "likes": 3},
+            },
+            {
+                "avid": "LIKE-HIGH",
+                "title": "High likes",
+                "detail_url": "https://jable.tv/videos/like-high/",
+                "cover_url": "https://img/like-high.jpg",
+                "source": "Jable",
+                "metrics": {"views": 100, "likes": 30},
+            },
+        ]
+
+    fake_source.search = _fake_search
+    monkeypatch.setattr(
+        "nassav.external_search.source_manager.sources",
+        {"Jable": fake_source},
+    )
+    monkeypatch.setattr(settings, "EXTERNAL_SEARCH_CACHE_ENABLED", False, raising=False)
+    monkeypatch.setattr(settings, "EXTERNAL_SEARCH_FETCH_PAGES", 1, raising=False)
+
+    result = external_search_service.search_actor_detail(
+        actor_id=actor.id,
+        source_name="jable",
+        page=1,
+        page_size=20,
+        ordering="-likes",
+    )
+
+    assert [item["avid"] for item in result.items] == ["LIKE-HIGH", "LIKE-LOW"]
+    assert result.meta["ordering"] == "-likes"
+
+
+@pytest.mark.django_db
 def test_actor_detail_api_propagates_force_refresh_query(
     actor_factory, api_client, monkeypatch
 ):

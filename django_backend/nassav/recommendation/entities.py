@@ -91,6 +91,9 @@ class RecommendationRequest:
     feedback_avid_scores: dict[str, float] = field(default_factory=dict)
     feedback_seed_scores: dict[str, float] = field(default_factory=dict)
     blocked_feedback_avids: set[str] = field(default_factory=set)
+    seed_blacklist_active: bool = False
+    blocked_seed_name_keys: set[tuple[str, str]] = field(default_factory=set)
+    blocked_seed_source_keys: set[tuple[str, str, str]] = field(default_factory=set)
     learned_feedback_count: int = 0
     learned_avid_count: int = 0
     learned_seed_count: int = 0
@@ -157,6 +160,7 @@ class RecommendationExecution:
                 "actor_preference": self.request.actor_preference,
                 "genre_preference": self.request.genre_preference,
                 "force_refresh_external": self.request.force_refresh_external,
+                "seed_blacklist_active": self.request.seed_blacklist_active,
             },
             "history_context": {
                 "recently_recommended_count": len(

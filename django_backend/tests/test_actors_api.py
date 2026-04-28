@@ -88,3 +88,36 @@ def test_actors_list_api(api_client, setup_actors_with_resources):
     # Each actor entry should contain resource_count
     for item in body["data"]:
         assert "resource_count" in item
+
+
+@pytest.mark.django_db
+def test_actors_list_api_returns_source_mapping(
+    api_client, actor_factory, resource_factory
+):
+    from nassav.models import ActorSourceMapping
+
+    actor = actor_factory(name="明里つむぎ")
+    resource = resource_factory(avid="ACT-MAP-1", original_title="Mapped Actor Seed")
+    resource.actors.add(actor)
+    ActorSourceMapping.objects.create(
+        actor=actor,
+        source_name="jable",
+        source_actor_name="明里つむぎ",
+        source_actor_slug="tsumugi-akari",
+        source_actor_url="https://jable.tv/models/tsumugi-akari/",
+        aliases=["Tsumugi Akari"],
+        is_active=True,
+    )
+
+    resp = api_client.get("/nassav/api/actors/", {"id": actor.id})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["code"] == 200
+    assert len(body["data"]) == 1
+
+    mapping = body["data"][0]["source_mapping"]
+    assert mapping["source_name"] == "jable"
+    assert mapping["source_seed_name"] == "明里つむぎ"
+    assert mapping["source_seed_slug"] == "tsumugi-akari"
+    assert mapping["source_seed_url"] == "https://jable.tv/models/tsumugi-akari/"
+    assert mapping["aliases"] == ["Tsumugi Akari"]

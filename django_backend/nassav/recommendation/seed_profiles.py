@@ -4,13 +4,107 @@ from collections.abc import Iterable
 from django.db.models import F
 from django.utils import timezone
 
-from nassav.models import Actor, Genre
+from nassav.models import Actor, ActorSourceMapping, Genre, GenreSourceMapping
 from nassav.models import RecommendationItem, RecommendationSeedProfile
 
 from .entities import RecommendationSeed
 
 
 class RecommendationSeedProfileRepository:
+    def has_blocked_profiles(self) -> bool:
+        return RecommendationSeedProfile.objects.filter(
+            seed_type__in=["actor", "genre"],
+            is_blocked=True,
+        ).exists()
+
+    def build_blocked_seed_keys(
+        self,
+    ) -> tuple[set[tuple[str, str]], set[tuple[str, str, str]]]:
+        blocked_profiles = list(
+            RecommendationSeedProfile.objects.filter(
+                seed_type__in=["actor", "genre"],
+                is_blocked=True,
+            ).only(
+                "seed_type",
+                "value",
+                "normalized_value",
+                "source_name",
+                "source_identifier",
+            )
+        )
+        if not blocked_profiles:
+            return set(), set()
+
+        blocked_name_keys: set[tuple[str, str]] = {
+            (
+                str(profile.seed_type or "").strip().lower(),
+                str(profile.normalized_value or "").strip(),
+            )
+            for profile in blocked_profiles
+            if str(profile.normalized_value or "").strip()
+        }
+        blocked_source_keys: set[tuple[str, str, str]] = {
+            (
+                str(profile.seed_type or "").strip().lower(),
+                str(profile.source_name or "").strip().lower(),
+                str(profile.source_identifier or "").strip().lower(),
+            )
+            for profile in blocked_profiles
+            if str(profile.source_name or "").strip()
+            and str(profile.source_identifier or "").strip()
+        }
+
+        blocked_actor_values = [
+            str(profile.value or "").strip()
+            for profile in blocked_profiles
+            if str(profile.seed_type or "").strip().lower() == "actor"
+            and not str(profile.source_name or "").strip()
+            and not str(profile.source_identifier or "").strip()
+            and str(profile.value or "").strip()
+        ]
+        blocked_genre_values = [
+            str(profile.value or "").strip()
+            for profile in blocked_profiles
+            if str(profile.seed_type or "").strip().lower() == "genre"
+            and not str(profile.source_name or "").strip()
+            and not str(profile.source_identifier or "").strip()
+            and str(profile.value or "").strip()
+        ]
+
+        if blocked_actor_values:
+            actor_mappings = ActorSourceMapping.objects.filter(
+                actor__name__in=blocked_actor_values,
+                is_active=True,
+            ).only("source_name", "source_actor_slug")
+            blocked_source_keys.update(
+                (
+                    "actor",
+                    str(mapping.source_name or "").strip().lower(),
+                    str(mapping.source_actor_slug or "").strip().lower(),
+                )
+                for mapping in actor_mappings
+                if str(mapping.source_name or "").strip()
+                and str(mapping.source_actor_slug or "").strip()
+            )
+
+        if blocked_genre_values:
+            genre_mappings = GenreSourceMapping.objects.filter(
+                genre__name__in=blocked_genre_values,
+                is_active=True,
+            ).only("source_name", "source_genre_slug")
+            blocked_source_keys.update(
+                (
+                    "genre",
+                    str(mapping.source_name or "").strip().lower(),
+                    str(mapping.source_genre_slug or "").strip().lower(),
+                )
+                for mapping in genre_mappings
+                if str(mapping.source_name or "").strip()
+                and str(mapping.source_genre_slug or "").strip()
+            )
+
+        return blocked_name_keys, blocked_source_keys
+
     def get_blocked_normalized_values(
         self,
         *,
@@ -31,6 +125,31 @@ class RecommendationSeedProfileRepository:
                 is_blocked=True,
                 normalized_value__in=normalized_values,
             ).values_list("normalized_value", flat=True)
+        )
+
+    def get_blocked_source_identifiers(
+        self,
+        *,
+        seed_type: str,
+        source_name: str,
+        identifiers: Iterable[str],
+    ) -> set[str]:
+        normalized_source_name = str(source_name or "").strip().lower()
+        normalized_identifiers = {
+            str(identifier or "").strip().lower()
+            for identifier in identifiers
+            if str(identifier or "").strip()
+        }
+        if not normalized_source_name or not normalized_identifiers:
+            return set()
+
+        return set(
+            RecommendationSeedProfile.objects.filter(
+                seed_type=str(seed_type or "").strip().lower(),
+                is_blocked=True,
+                source_name=normalized_source_name,
+                source_identifier__in=normalized_identifiers,
+            ).values_list("source_identifier", flat=True)
         )
 
     def filter_allowed_seeds(
@@ -61,6 +180,52 @@ class RecommendationSeedProfileRepository:
             for profile in blocked_profiles
             if profile.source_name and profile.source_identifier
         }
+        blocked_actor_values = [
+            str(profile.value or "").strip()
+            for profile in blocked_profiles
+            if profile.seed_type == "actor"
+            and not profile.source_name
+            and not profile.source_identifier
+            and str(profile.value or "").strip()
+        ]
+        blocked_genre_values = [
+            str(profile.value or "").strip()
+            for profile in blocked_profiles
+            if profile.seed_type == "genre"
+            and not profile.source_name
+            and not profile.source_identifier
+            and str(profile.value or "").strip()
+        ]
+        if blocked_actor_values:
+            actor_mappings = ActorSourceMapping.objects.filter(
+                actor__name__in=blocked_actor_values,
+                is_active=True,
+            ).only("source_name", "source_actor_slug")
+            blocked_source_keys.update(
+                (
+                    "actor",
+                    str(mapping.source_name or "").strip().lower(),
+                    str(mapping.source_actor_slug or "").strip().lower(),
+                )
+                for mapping in actor_mappings
+                if str(mapping.source_name or "").strip()
+                and str(mapping.source_actor_slug or "").strip()
+            )
+        if blocked_genre_values:
+            genre_mappings = GenreSourceMapping.objects.filter(
+                genre__name__in=blocked_genre_values,
+                is_active=True,
+            ).only("source_name", "source_genre_slug")
+            blocked_source_keys.update(
+                (
+                    "genre",
+                    str(mapping.source_name or "").strip().lower(),
+                    str(mapping.source_genre_slug or "").strip().lower(),
+                )
+                for mapping in genre_mappings
+                if str(mapping.source_name or "").strip()
+                and str(mapping.source_genre_slug or "").strip()
+            )
 
         allowed: list[RecommendationSeed] = []
         for seed in seeds:
@@ -174,17 +339,21 @@ class RecommendationSeedProfileRepository:
         actor: Actor,
         reason: str = "manual",
     ) -> RecommendationSeedProfile:
-        return self._set_manual_block(
+        profile = self._set_manual_block(
             seed_type="actor",
             value=actor.name,
             reason=reason,
         )
+        self._set_actor_source_blocks(actor=actor, value=actor.name, reason=reason)
+        return profile
 
     def unblock_actor(self, *, actor: Actor) -> RecommendationSeedProfile | None:
-        return self._clear_manual_block(
+        profile = self._clear_manual_block(
             seed_type="actor",
             value=actor.name,
         )
+        self._clear_actor_source_blocks(actor=actor, value=actor.name)
+        return profile
 
     def block_genre(
         self,
@@ -192,17 +361,167 @@ class RecommendationSeedProfileRepository:
         genre: Genre,
         reason: str = "manual",
     ) -> RecommendationSeedProfile:
-        return self._set_manual_block(
+        profile = self._set_manual_block(
             seed_type="genre",
             value=genre.name,
             reason=reason,
         )
+        self._set_genre_source_blocks(genre=genre, value=genre.name, reason=reason)
+        return profile
 
     def unblock_genre(self, *, genre: Genre) -> RecommendationSeedProfile | None:
-        return self._clear_manual_block(
+        profile = self._clear_manual_block(
             seed_type="genre",
             value=genre.name,
         )
+        self._clear_genre_source_blocks(genre=genre, value=genre.name)
+        return profile
+
+    def _set_actor_source_blocks(
+        self, *, actor: Actor, value: str, reason: str
+    ) -> None:
+        actor_id = getattr(actor, "pk", None)
+        if actor_id is None:
+            return
+        mappings = ActorSourceMapping.objects.filter(
+            actor_id=actor_id,
+            is_active=True,
+        )
+        for mapping in mappings:
+            source_name = str(getattr(mapping, "source_name", "") or "").strip().lower()
+            source_identifier = (
+                str(getattr(mapping, "source_actor_slug", "") or "").strip().lower()
+            )
+            self._set_manual_source_block(
+                seed_type="actor",
+                value=value,
+                source_name=source_name,
+                source_identifier=source_identifier,
+                reason=reason,
+            )
+
+    def _clear_actor_source_blocks(self, *, actor: Actor, value: str) -> None:
+        actor_id = getattr(actor, "pk", None)
+        if actor_id is None:
+            return
+        mappings = ActorSourceMapping.objects.filter(
+            actor_id=actor_id,
+            is_active=True,
+        )
+        for mapping in mappings:
+            source_name = str(getattr(mapping, "source_name", "") or "").strip().lower()
+            source_identifier = (
+                str(getattr(mapping, "source_actor_slug", "") or "").strip().lower()
+            )
+            self._clear_manual_source_block(
+                seed_type="actor",
+                value=value,
+                source_name=source_name,
+                source_identifier=source_identifier,
+            )
+
+    def _set_genre_source_blocks(
+        self, *, genre: Genre, value: str, reason: str
+    ) -> None:
+        genre_id = getattr(genre, "pk", None)
+        if genre_id is None:
+            return
+        mappings = GenreSourceMapping.objects.filter(
+            genre_id=genre_id,
+            is_active=True,
+        )
+        for mapping in mappings:
+            source_name = str(getattr(mapping, "source_name", "") or "").strip().lower()
+            source_identifier = (
+                str(getattr(mapping, "source_genre_slug", "") or "").strip().lower()
+            )
+            self._set_manual_source_block(
+                seed_type="genre",
+                value=value,
+                source_name=source_name,
+                source_identifier=source_identifier,
+                reason=reason,
+            )
+
+    def _clear_genre_source_blocks(self, *, genre: Genre, value: str) -> None:
+        genre_id = getattr(genre, "pk", None)
+        if genre_id is None:
+            return
+        mappings = GenreSourceMapping.objects.filter(
+            genre_id=genre_id,
+            is_active=True,
+        )
+        for mapping in mappings:
+            source_name = str(getattr(mapping, "source_name", "") or "").strip().lower()
+            source_identifier = (
+                str(getattr(mapping, "source_genre_slug", "") or "").strip().lower()
+            )
+            self._clear_manual_source_block(
+                seed_type="genre",
+                value=value,
+                source_name=source_name,
+                source_identifier=source_identifier,
+            )
+
+    def _set_manual_source_block(
+        self,
+        *,
+        seed_type: str,
+        value: str,
+        source_name: str,
+        source_identifier: str,
+        reason: str,
+    ) -> None:
+        normalized_source_name = str(source_name or "").strip().lower()
+        normalized_source_identifier = str(source_identifier or "").strip().lower()
+        if not normalized_source_name or not normalized_source_identifier:
+            return
+
+        normalized_value = self.normalize_value(value)
+        profile, _ = RecommendationSeedProfile.objects.get_or_create(
+            seed_type=seed_type,
+            normalized_value=normalized_value,
+            source_name=normalized_source_name,
+            source_identifier=normalized_source_identifier,
+            defaults={
+                "value": str(value or "").strip(),
+            },
+        )
+        profile.value = profile.value or str(value or "").strip()
+        profile.is_blocked = True
+        profile.block_reason = str(reason or "").strip() or "manual"
+        profile.save()
+
+    def _clear_manual_source_block(
+        self,
+        *,
+        seed_type: str,
+        value: str,
+        source_name: str,
+        source_identifier: str,
+    ) -> None:
+        normalized_source_name = str(source_name or "").strip().lower()
+        normalized_source_identifier = str(source_identifier or "").strip().lower()
+        if not normalized_source_name or not normalized_source_identifier:
+            return
+
+        normalized_value = self.normalize_value(value)
+        profile = (
+            RecommendationSeedProfile.objects.filter(
+                seed_type=seed_type,
+                normalized_value=normalized_value,
+                source_name=normalized_source_name,
+                source_identifier=normalized_source_identifier,
+            )
+            .order_by("id")
+            .first()
+        )
+        if profile is None:
+            return
+
+        profile.is_blocked = False
+        profile.block_reason = ""
+        profile.save()
 
     def increment_dislike_counts_for_item(self, item: RecommendationItem) -> None:
         seen_profiles: set[tuple[str, str, str, str]] = set()

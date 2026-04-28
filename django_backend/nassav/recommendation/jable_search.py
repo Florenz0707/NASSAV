@@ -33,6 +33,7 @@ class JableSearchRecommender(AbstractRecommender):
         candidates = self.recall_candidates(seeds, request)
         candidates = self.exclude_existing_resources(candidates, request)
         candidates = self.exclude_feedback_blocked_resources(candidates, request)
+        candidates = self.exclude_seed_blocked_candidates(candidates, request)
         seeds, candidates = self._expand_seed_pool_if_needed(
             seeds=seeds,
             candidates=candidates,
@@ -40,6 +41,7 @@ class JableSearchRecommender(AbstractRecommender):
         )
         candidates = self.exclude_existing_resources(candidates, request)
         candidates = self.exclude_feedback_blocked_resources(candidates, request)
+        candidates = self.exclude_seed_blocked_candidates(candidates, request)
         self._hydrate_seed_occurrence_tiers(request, seeds)
         candidates = self.filter_recent_recommendations(candidates, request)
         candidates = self.enrich_candidates(candidates, request)
@@ -63,8 +65,9 @@ class JableSearchRecommender(AbstractRecommender):
             for candidate in candidates:
                 self._merge_candidate(merged, candidate)
 
-        for candidate in self.recall_discovery_candidates(request):
-            self._merge_candidate(merged, candidate)
+        if not request.seed_blacklist_active:
+            for candidate in self.recall_discovery_candidates(request):
+                self._merge_candidate(merged, candidate)
 
         return list(merged.values())
 
@@ -76,7 +79,7 @@ class JableSearchRecommender(AbstractRecommender):
         raw_results: list[dict] = []
         seen_avids: set[str] = set()
         raw_results.extend(self._recall_actor_model_items(seed, request, seen_avids))
-        if not raw_results:
+        if not raw_results and not request.seed_blacklist_active:
             search_terms = self._search_terms_for_seed(seed)
             for keyword in search_terms:
                 for item in self._recall_keyword_items(keyword, request, seen_avids):
@@ -527,6 +530,9 @@ class JableSearchRecommender(AbstractRecommender):
                 extra_candidates, request
             )
             extra_candidates = self.exclude_feedback_blocked_resources(
+                extra_candidates, request
+            )
+            extra_candidates = self.exclude_seed_blocked_candidates(
                 extra_candidates, request
             )
             for candidate in extra_candidates:

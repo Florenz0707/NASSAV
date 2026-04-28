@@ -616,14 +616,24 @@ GET /nassav/api/actors?order_by=name&order=asc
       "name": "桥本有菜",
       "resource_count": 85,
       "avatar_url": "https://www.javbus.com/pics/actress/abc_a.jpg",
-      "avatar_filename": "abc_a.jpg"
+      "avatar_filename": "abc_a.jpg",
+      "is_blocked": false,
+      "source_mapping": {
+        "source_name": "jable",
+        "source_seed_name": "桥本有菜",
+        "source_seed_slug": "arina-hashimoto",
+        "source_seed_url": "https://jable.tv/models/arina-hashimoto/",
+        "aliases": ["Arina Hashimoto"]
+      }
     },
     {
       "id": 2,
       "name": "三上悠亚",
       "resource_count": 72,
       "avatar_url": "https://www.javbus.com/pics/actress/xyz_a.jpg",
-      "avatar_filename": "xyz_a.jpg"
+      "avatar_filename": "xyz_a.jpg",
+      "is_blocked": true,
+      "source_mapping": null
     }
   ],
   "pagination": {
@@ -640,6 +650,8 @@ GET /nassav/api/actors?order_by=name&order=asc
 - `avatar_url`：演员头像原始URL（来自Javbus）
 - `avatar_filename`：头像文件名（仅文件名，不含路径）
 - 头像URL和文件名可能为 `null`（演员无头像或尚未刮削）
+- `is_blocked`：是否已被加入推荐种子黑名单
+- `source_mapping`：演员在外部源（当前为 jable）中的映射信息；没有映射时为 `null`
 
 ---
 
@@ -770,8 +782,26 @@ GET /nassav/api/genres?order_by=name&order=asc
   "code": 200,
   "message": "success",
   "data": [
-    { "id": 1, "name": "中文字幕", "resource_count": 150 },
-    { "id": 2, "name": "人妻", "resource_count": 120 }
+    {
+      "id": 1,
+      "name": "中文字幕",
+      "resource_count": 150,
+      "is_blocked": false,
+      "source_mapping": {
+        "source_name": "jable",
+        "source_seed_name": "中文字幕",
+        "source_seed_slug": "chinese-subtitle",
+        "source_seed_url": "https://jable.tv/tags/chinese-subtitle/",
+        "aliases": ["Chinese Subtitle"]
+      }
+    },
+    {
+      "id": 2,
+      "name": "人妻",
+      "resource_count": 120,
+      "is_blocked": true,
+      "source_mapping": null
+    }
   ],
   "pagination": {
     "total": 50,
@@ -781,6 +811,11 @@ GET /nassav/api/genres?order_by=name&order=asc
   }
 }
 ```
+
+说明：
+
+- `is_blocked`：是否已被加入推荐种子黑名单
+- `source_mapping`：类别在外部源（当前为 jable）中的映射信息；没有映射时为 `null`
 
 ---
 

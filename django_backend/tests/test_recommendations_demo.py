@@ -518,6 +518,119 @@ def test_blocked_seed_profile_excludes_matching_seed_from_recommendation_pool(
 
 
 @pytest.mark.django_db
+def test_blocked_seed_profile_does_not_allow_discovery_bypass(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationSeedProfile
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-BLOCK-002", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    RecommendationSeedProfile.objects.create(
+        seed_type="actor",
+        value="Alice",
+        normalized_value="alice",
+        is_blocked=True,
+        block_reason="manual",
+    )
+
+    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "discover_hot_items",
+        lambda self, page=1: [
+            {
+                "avid": "REC-DISC-001",
+                "title": "Discovery Candidate",
+                "detail_url": "https://jable.tv/videos/rec-disc-001/",
+                "cover_url": "https://img/rec-disc-001.jpg",
+                "metrics": {"views": 9999, "likes": 99},
+            }
+        ],
+    )
+    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 0,
+            "limit": 1,
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["items"] == []
+    assert body["data"]["seeds"] == []
+
+
+@pytest.mark.django_db
+def test_seed_blacklist_disables_keyword_search_recommendation_fallback(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationSeedProfile
+    from nassav.source import Jable
+
+    blocked_actor = actor_factory(name="Alice")
+    blocked_seed_resource = resource_factory(
+        avid="SEED-BLOCK-003", original_title="Seed"
+    )
+    blocked_seed_resource.actors.add(blocked_actor)
+
+    active_actor = actor_factory(name="Bob")
+    active_seed_resource = resource_factory(
+        avid="SEED-ACTIVE-003", original_title="Seed"
+    )
+    active_seed_resource.actors.add(active_actor)
+
+    RecommendationSeedProfile.objects.create(
+        seed_type="actor",
+        value="Alice",
+        normalized_value="alice",
+        is_blocked=True,
+        block_reason="manual",
+    )
+
+    captured_keywords = []
+    monkeypatch.setattr(
+        Jable,
+        "get_model_videos",
+        lambda self, model_slug, page=1, sort_by="video_viewed": [],
+    )
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1: (
+            captured_keywords.append(keyword)
+            or [
+                {
+                    "avid": "REC-SEARCH-001",
+                    "title": "Search Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-search-001/",
+                    "cover_url": "https://img/rec-search-001.jpg",
+                    "metrics": {"views": 5000, "likes": 300},
+                }
+            ]
+        ),
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 0,
+            "limit": 1,
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["items"] == []
+    assert captured_keywords == []
+
+
+@pytest.mark.django_db
 def test_recommendation_seed_block_endpoint_blocks_and_unblocks_actor(
     api_client, actor_factory
 ):
@@ -570,6 +683,162 @@ def test_recommendation_seed_block_endpoint_blocks_genre(api_client, genre_facto
     list_body = list_response.json()
     assert list_body["code"] == 200
     assert list_body["data"][0]["is_blocked"] is True
+
+
+@pytest.mark.django_db
+def test_recommendation_genre_block_applies_to_same_source_slug_aliases(
+    api_client, monkeypatch, genre_factory, resource_factory
+):
+    from nassav.models import GenreSourceMapping
+    from nassav.source import Jable
+
+    blocked_genre = genre_factory(name="多P")
+    alias_genre = genre_factory(name="ハーレム")
+
+    first_resource = resource_factory(avid="SEED-GRP-1", original_title="Seed 1")
+    first_resource.genres.add(blocked_genre)
+    second_resource = resource_factory(avid="SEED-GRP-2", original_title="Seed 2")
+    second_resource.genres.add(alias_genre)
+
+    GenreSourceMapping.objects.create(
+        genre=blocked_genre,
+        source_name="jable",
+        source_genre_name="多P",
+        source_genre_slug="groupsex",
+        source_genre_url="https://jable.tv/tags/groupsex/",
+        is_active=True,
+    )
+    GenreSourceMapping.objects.create(
+        genre=alias_genre,
+        source_name="jable",
+        source_genre_name="多P群交",
+        source_genre_slug="groupsex",
+        source_genre_url="https://jable.tv/tags/groupsex/",
+        is_active=True,
+    )
+
+    block_response = api_client.post(
+        "/nassav/api/recommendations/seed-block",
+        {"seed_type": "genre", "id": blocked_genre.id, "reason": "manual"},
+        format="json",
+    )
+    assert block_response.status_code == 200
+
+    alias_list_response = api_client.get("/nassav/api/genres/", {"id": alias_genre.id})
+    assert alias_list_response.status_code == 200
+    alias_body = alias_list_response.json()
+    assert alias_body["code"] == 200
+    assert alias_body["data"][0]["is_blocked"] is True
+
+    captured_tag_slugs = []
+    monkeypatch.setattr(
+        Jable,
+        "get_tag_videos",
+        lambda self, tag_slug, page=1, force_refresh=False: (
+            captured_tag_slugs.append((tag_slug, page, force_refresh))
+            or [
+                {
+                    "avid": "REC-GRP-1",
+                    "title": "groupsex candidate",
+                    "detail_url": "https://jable.tv/videos/rec-grp-1/",
+                    "cover_url": "https://img/rec-grp-1.jpg",
+                    "metrics": {"views": 1000, "likes": 100},
+                }
+            ]
+        ),
+    )
+
+    recommendation_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 1,
+            "actor_seed_limit": 0,
+            "genre_seed_limit": 2,
+            "seed_types": ["genre"],
+        },
+    )
+    recommendation_body = recommendation_response.json()
+    assert recommendation_body["code"] == 200
+    assert recommendation_body["data"]["seeds"] == []
+    assert recommendation_body["data"]["items"] == []
+    assert captured_tag_slugs == []
+
+
+@pytest.mark.django_db
+def test_recommendation_genre_legacy_name_only_block_filters_source_slug_aliases(
+    api_client, monkeypatch, genre_factory, resource_factory
+):
+    from nassav.models import GenreSourceMapping, RecommendationSeedProfile
+    from nassav.source import Jable
+
+    blocked_genre = genre_factory(name="多P")
+    alias_genre = genre_factory(name="ハーレム")
+
+    first_resource = resource_factory(avid="SEED-GRP-LEG-1", original_title="Seed 1")
+    first_resource.genres.add(blocked_genre)
+    second_resource = resource_factory(avid="SEED-GRP-LEG-2", original_title="Seed 2")
+    second_resource.genres.add(alias_genre)
+
+    GenreSourceMapping.objects.create(
+        genre=blocked_genre,
+        source_name="jable",
+        source_genre_name="多P",
+        source_genre_slug="groupsex",
+        source_genre_url="https://jable.tv/tags/groupsex/",
+        is_active=True,
+    )
+    GenreSourceMapping.objects.create(
+        genre=alias_genre,
+        source_name="jable",
+        source_genre_name="多P群交",
+        source_genre_slug="groupsex",
+        source_genre_url="https://jable.tv/tags/groupsex/",
+        is_active=True,
+    )
+
+    # 模拟历史数据：只有名称维度被拉黑，没有 source slug 维度记录。
+    RecommendationSeedProfile.objects.create(
+        seed_type="genre",
+        value="多P",
+        normalized_value="多p",
+        source_name="",
+        source_identifier="",
+        is_blocked=True,
+        block_reason="manual",
+    )
+
+    captured_tag_slugs = []
+    monkeypatch.setattr(
+        Jable,
+        "get_tag_videos",
+        lambda self, tag_slug, page=1, force_refresh=False: (
+            captured_tag_slugs.append((tag_slug, page, force_refresh))
+            or [
+                {
+                    "avid": "REC-GRP-LEG-1",
+                    "title": "legacy groupsex candidate",
+                    "detail_url": "https://jable.tv/videos/rec-grp-leg-1/",
+                    "cover_url": "https://img/rec-grp-leg-1.jpg",
+                    "metrics": {"views": 1000, "likes": 100},
+                }
+            ]
+        ),
+    )
+
+    recommendation_response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 1,
+            "actor_seed_limit": 0,
+            "genre_seed_limit": 2,
+            "seed_types": ["genre"],
+        },
+    )
+    recommendation_body = recommendation_response.json()
+    assert recommendation_body["code"] == 200
+    assert recommendation_body["data"]["seeds"] == []
+    assert recommendation_body["data"]["items"] == []
+    assert captured_tag_slugs == []
 
 
 @pytest.mark.django_db
@@ -1139,6 +1408,69 @@ def test_recommendations_endpoint_uses_actor_source_mapping_for_model_recall(
     assert body["data"]["items"][0]["avid"] == "REC-902-MAP"
     assert captured_model_slugs == [("tsumugi-akari", 1, "video_viewed")]
     assert captured_keywords == []
+
+
+@pytest.mark.django_db
+def test_recommendations_endpoint_manual_blocked_actor_excludes_mapped_seed(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import ActorSourceMapping, RecommendationSeedProfile
+    from nassav.source import Jable
+
+    actor = actor_factory(name="明里つむぎ")
+    seed_resource = resource_factory(avid="SEED-902-BLOCK", original_title="Seed")
+    seed_resource.actors.add(actor)
+    ActorSourceMapping.objects.create(
+        actor=actor,
+        source_name="jable",
+        source_actor_name="明里つむぎ",
+        source_actor_slug="tsumugi-akari",
+        aliases=["Tsumugi Akari"],
+        is_verified=True,
+    )
+    RecommendationSeedProfile.objects.create(
+        seed_type="actor",
+        value="明里つむぎ",
+        normalized_value="明里つむぎ",
+        source_name="",
+        source_identifier="",
+        is_blocked=True,
+        block_reason="manual",
+    )
+
+    captured_model_slugs = []
+
+    monkeypatch.setattr(
+        Jable,
+        "get_model_videos",
+        lambda self, model_slug, page=1, sort_by="video_viewed": (
+            captured_model_slugs.append((model_slug, page, sort_by))
+            or [
+                {
+                    "avid": "REC-902-BLOCK",
+                    "title": "Blocked Mapping Result",
+                    "detail_url": "https://jable.tv/videos/rec-902-block/",
+                    "cover_url": "https://img/rec-902-block.jpg",
+                    "metrics": {"views": 2600, "likes": 240},
+                }
+            ]
+        ),
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 1,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 0,
+        },
+    )
+
+    body = response.json()
+    assert body["code"] == 200
+    assert body["data"]["items"] == []
+    assert body["data"]["seeds"] == []
+    assert captured_model_slugs == []
 
 
 @pytest.mark.django_db

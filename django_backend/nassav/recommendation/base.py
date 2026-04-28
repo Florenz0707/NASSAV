@@ -35,6 +35,7 @@ class AbstractRecommender(ABC):
     ) -> list[RecommendationCandidate]:
         candidates = self.exclude_existing_resources(candidates, request)
         candidates = self.exclude_feedback_blocked_resources(candidates, request)
+        candidates = self.exclude_seed_blocked_candidates(candidates, request)
         return self.filter_recent_recommendations(candidates, request)
 
     def exclude_existing_resources(
@@ -72,6 +73,91 @@ class AbstractRecommender(ABC):
             for candidate in candidates
             if candidate.avid not in request.blocked_feedback_avids
         ]
+
+    def exclude_seed_blocked_candidates(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        if not candidates or not request.seed_blacklist_active:
+            return candidates
+
+        from .seed_profiles import recommendation_seed_profile_repository
+
+        blocked_name_keys = request.blocked_seed_name_keys
+        blocked_source_keys = request.blocked_seed_source_keys
+
+        output: list[RecommendationCandidate] = []
+        for candidate in candidates:
+            matched = list(candidate.matched_seeds or [])
+            is_blocked = False
+            for seed in matched:
+                seed_type = str(seed.seed_type or "").strip().lower()
+                normalized_value = (
+                    recommendation_seed_profile_repository.normalize_value(seed.value)
+                )
+                if (seed_type, normalized_value) in blocked_name_keys:
+                    is_blocked = True
+                    break
+
+                lookup_payload = dict(seed.lookup_payload or {})
+                source_name = str(lookup_payload.get("source_name", "")).strip().lower()
+                source_identifier = self._seed_source_identifier(
+                    seed_type, lookup_payload
+                )
+                if not source_name or not source_identifier:
+                    continue
+                if (seed_type, source_name, source_identifier) in blocked_source_keys:
+                    is_blocked = True
+                    break
+
+            # Fallback guard: filter candidates by source slugs extracted during recall,
+            # even when blocked tags are not present in matched_seeds.
+            if not is_blocked and self._candidate_hits_blocked_source_metrics(
+                candidate, blocked_source_keys
+            ):
+                is_blocked = True
+
+            if not is_blocked:
+                output.append(candidate)
+        return output
+
+    def _candidate_hits_blocked_source_metrics(
+        self,
+        candidate: RecommendationCandidate,
+        blocked_source_keys: set[tuple[str, str, str]],
+    ) -> bool:
+        if not blocked_source_keys:
+            return False
+
+        source_name = str(candidate.source or "").strip().lower()
+        if not source_name:
+            return False
+
+        raw_metrics = dict(candidate.raw_metrics or {})
+        model_slug = str(raw_metrics.get("model_slug", "")).strip().lower()
+        if model_slug and ("actor", source_name, model_slug) in blocked_source_keys:
+            return True
+
+        tag_slug = str(raw_metrics.get("tag_slug", "")).strip().lower()
+        if tag_slug and ("genre", source_name, tag_slug) in blocked_source_keys:
+            return True
+
+        category_slug = str(raw_metrics.get("category_slug", "")).strip().lower()
+        if (
+            category_slug
+            and ("genre", source_name, category_slug) in blocked_source_keys
+        ):
+            return True
+
+        return False
+
+    def _seed_source_identifier(self, seed_type: str, payload: dict) -> str:
+        if seed_type == "actor":
+            return str(payload.get("model_slug", "")).strip().lower()
+        if seed_type == "genre":
+            return str(payload.get("genre_slug", "")).strip().lower()
+        return ""
 
     def filter_recent_recommendations(
         self,

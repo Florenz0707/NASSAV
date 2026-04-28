@@ -169,8 +169,8 @@ export default {
     const sortBy = ref(route.query.sortBy || 'count')
     const sortOrder = ref(route.query.order || 'desc')
     const sortByOptions = [
-      { value: 'name', label: '按演员名称' },
       { value: 'count', label: '按作品数' },
+      { value: 'name', label: '按演员名称' },
     ]
     const sortOrderOptions = [
       { value: 'desc', label: '降序' },

@@ -7,7 +7,7 @@ import { useSettingsStore } from '../stores/settings'
 import { actorApi, resourceApi, downloadApi } from '../api'
 import ResourceCard from '../components/ResourceCard.vue'
 
-import RecommendationCard from '../components/RecommendationCard.vue'
+import ExternalSearchCard from '../components/ExternalSearchCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import CustomSelect from '../components/CustomSelect.vue'
@@ -41,6 +41,7 @@ const loadingExternal = ref(false)
 const externalResources = ref([])
 const externalMeta = ref({})
 const externalPage = ref(1)
+const externalPagination = ref(null)
 const EXTERNAL_CACHE_TTL_MS = 1000 * 60 * 60
 
 // queryKey -> pageNumber -> { results, meta }
@@ -50,6 +51,7 @@ const externalSortBy = ref('views')
 const externalSortOrder = ref('desc')
 const externalSortByOptions = [
   { value: 'views', label: '播放量' },
+  { value: 'likes', label: '收藏量' },
   { value: 'latest', label: '发布时间' },
 ]
 const externalSortOrderOptions = [
@@ -84,6 +86,7 @@ function saveExternalCache() {
       results: externalResources.value,
       meta: externalMeta.value,
       page: externalPage.value,
+      pagination: externalPagination.value,
       searched: externalSearched.value,
       sortBy: externalSortBy.value,
       sortOrder: externalSortOrder.value,
@@ -134,6 +137,7 @@ function restoreExternalCache() {
       externalResources.value = cached.results
       externalMeta.value = cached.meta
       externalPage.value = cached.page
+      externalPagination.value = cached.pagination || null
       externalSearched.value = cached.searched
       if (cached.sortBy) externalSortBy.value = cached.sortBy
       if (cached.sortOrder) externalSortOrder.value = cached.sortOrder
@@ -154,6 +158,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
   if (!forceRefresh && cachedPage) {
     externalResources.value = cachedPage.results || []
     externalMeta.value = cachedPage.meta || externalMeta.value
+    externalPagination.value = cachedPage.pagination || externalPagination.value
     await scrollToTopAfterExternalRefresh()
     return
   }
@@ -181,22 +186,61 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
       }))
       externalResources.value = formattedResults
       externalMeta.value = response.data.external_meta || {}
+      externalPagination.value = response.pagination || null
       if (response.data.detail) {
         actor.value = response.data.detail
       }
       setCachedExternalPage(p, {
         results: formattedResults,
         meta: externalMeta.value,
+        pagination: externalPagination.value,
       })
       saveExternalCache()
       await scrollToTopAfterExternalRefresh()
     }
   } catch (err) {
     toastStore.error(err.message || '获取外部搜索失败')
-    if (p === 1) externalResources.value = []
+    if (p === 1) {
+      externalResources.value = []
+      externalPagination.value = null
+    }
   } finally {
     loadingExternal.value = false
   }
+}
+
+function resetExternalSearchState() {
+  externalSearched.value = false
+  externalResources.value = []
+  externalMeta.value = {}
+  externalPage.value = 1
+  externalPagination.value = null
+  externalPageCache.value = {}
+}
+
+function syncExternalResourceStatus(avid, inLibrary) {
+  let updated = false
+  const item = externalResources.value.find((r) => r.avid === avid)
+  if (item) {
+    item.is_in_library = inLibrary
+    item.in_library = inLibrary
+    updated = true
+  }
+  const queryKey = getExternalQueryKey()
+  const pageCache = externalPageCache.value[queryKey]
+  if (pageCache) {
+    Object.values(pageCache).forEach((payload) => {
+      if (payload && payload.results) {
+        const cachedItem = payload.results.find((r) => r.avid === avid)
+        if (cachedItem) {
+          cachedItem.is_in_library = inLibrary
+          cachedItem.in_library = inLibrary
+          updated = true
+        }
+      }
+    })
+  }
+  if (updated) saveExternalCache()
 }
 
 async function handleAddExternal(item) {
@@ -207,6 +251,9 @@ async function handleAddExternal(item) {
     toastStore.success(`${item.avid} 已加入资源库`)
     markExternalItemInLibrary(item)
     saveExternalCache()
+    // 优雅地自动更新有关状态
+    await loadActorInfo(actorId.value)
+    fetchResources(page.value)
   } catch (err) {
     if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
       toastStore.info(`${item.avid} 已经在资源库中`)
@@ -309,6 +356,10 @@ async function confirmBatchDelete(action) {
     toastStore.success(`已${actionText}: ${avids.length} 个资源`)
     selectedAvids.value = new Set()
     await fetchResources()
+    if (action === 'delete' || action === 'delete-all') {
+      avids.forEach((avid) => syncExternalResourceStatus(avid, false))
+      loadActorInfo(actorId.value)
+    }
   } catch (err) {
     toastStore.error(err.message || '批量删除失败')
   } finally {
@@ -394,6 +445,9 @@ async function handleDeleteResource(avid) {
     await resourceApi.delete(avid)
     await handleManualRefresh()
     toastStore.success(`${avid} 已被完全删除`)
+    // 同步到外部搜索列表
+    syncExternalResourceStatus(avid, false)
+    loadActorInfo(actorId.value)
   } catch (err) {
     toastStore.error(err.message || '删除失败')
   }
@@ -428,6 +482,16 @@ onMounted(async () => {
   restoreExternalCache()
 })
 
+watch(
+  currentTab,
+  (newTab) => {
+    if (newTab === 'external' && !externalSearched.value && !loadingExternal.value) {
+      startExternalSearch(1)
+    }
+  },
+  { immediate: true }
+)
+
 // 状态变化时同步到 URL
 watch(
   [currentTab, page, pageSize, searchQuery, sortBy, sortOrder],
@@ -454,6 +518,8 @@ watch(
     await loadActorInfo(actorId.value)
     page.value = 1
     await fetchResources(1)
+    resetExternalSearchState()
+    restoreExternalCache()
   }
 )
 
@@ -641,7 +707,7 @@ function goBack() {
       </EmptyState>
 
       <!-- Resources Grid -->
-      <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+      <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         <ResourceCard
           v-for="resource in displayedResources"
           :key="resource.avid"
@@ -725,7 +791,7 @@ function goBack() {
         />
 
         <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 mb-6">
-          <RecommendationCard
+          <ExternalSearchCard
             v-for="resource in externalResources"
             :key="resource.avid"
             :item="resource"
@@ -748,10 +814,20 @@ function goBack() {
           >
             上一页
           </button>
-          <span class="text-[var(--text-muted)] text-sm">第 {{ externalPage }} 页</span>
+          <span class="text-[var(--text-muted)] text-sm">
+            第 {{ externalPage }} 页
+            <template v-if="externalPagination && externalPagination.pages">
+              / 共 {{ externalPagination.pages }} 页
+            </template>
+          </span>
           <button
             class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="externalResources.length < 20 || loadingExternal"
+            :disabled="
+              loadingExternal ||
+              (externalPagination && externalPagination.pages
+                ? externalPage >= externalPagination.pages
+                : externalResources.length < 20)
+            "
             @click="startExternalSearch(externalPage + 1)"
           >
             下一页
