@@ -1,6 +1,14 @@
 import pytest
+from django.core.cache import cache
 
 from nassav.source import Jable
+
+
+@pytest.fixture(autouse=True)
+def clear_jable_search_cache():
+    cache.clear()
+    yield
+    cache.clear()
 
 
 def test_jable_parse_search_results_extracts_cards():
@@ -73,6 +81,33 @@ def test_jable_parse_search_results_extracts_cards():
     assert second["detail_url"] == "https://jable.tv/videos/jufd-994-c/"
     assert second["metrics"]["views"] == 1877855
     assert second["metrics"]["likes"] == 5321
+
+
+def test_jable_parse_video_detail_separates_tag_and_category_slugs():
+    html = """
+    <html>
+      <head><meta property="og:image" content="https://img/abc.jpg"></head>
+      <body>
+        <h4 class="title">ABC-123 Demo Title</h4>
+        <script>var hlsUrl = "https://example.com/video.m3u8";</script>
+        <div class="models">
+          <a class="model" href="/models/alice/">Alice</a>
+        </div>
+        <a href="/tags/groupsex/">多P</a>
+        <a href="/categories/chinese-subtitle/">中文字幕</a>
+      </body>
+    </html>
+    """
+
+    detail = Jable()._parse_video_detail(
+        html=html,
+        avid="ABC-123",
+        detail_url="https://jable.tv/videos/abc-123/",
+    )
+
+    assert detail["genre_slugs"] == ["groupsex", "chinese-subtitle"]
+    assert detail["tag_slugs"] == ["groupsex"]
+    assert detail["category_slugs"] == ["chinese-subtitle"]
 
 
 def test_jable_search_uses_fetch_html(monkeypatch):

@@ -20,7 +20,7 @@
 1. 从本地 `AVResource` 统计 actor / genre 偏好，生成推荐种子
 2. 优先走 Jable 映射页召回，不足时回退搜索页
 3. 额外引入 Jable 热榜与最近更新作为 discovery 候选
-4. 过滤本地已存在资源与被负反馈屏蔽的 `avid`
+4. 过滤本地已存在资源与 AVID 黑名单中的 `avid`
 5. 如果候选仍不足，则继续向低位种子扩展召回
 6. 对候选做历史避让、打分、去重和多样性重排
 7. 持久化 snapshot / items，供下次历史避让与审计使用
@@ -280,14 +280,16 @@
 2. 计算种子出现档位 `seed_occurrence_tiers`
 3. `recall_candidates()`
 4. 过滤本地已有资源
-5. 过滤被负反馈屏蔽的资源
+5. 过滤 AVID 黑名单资源与命中 seed 黑名单的资源
 6. 若“优先候选”不足，扩展种子池并再次召回
-7. 再次过滤本地已有资源与负反馈屏蔽资源
+7. 再次过滤本地已有资源、AVID 黑名单资源与命中 seed 黑名单的资源
 8. 再次刷新种子档位
 9. 做近期推荐避让
-10. `enrich_candidates()`，当前未做额外 enrich
-11. `score_candidates()`
-12. `rank_and_trim()`
+10. `enrich_candidates()`，对 discovery 候选补充详情页 actor / genre 元数据；开启 seed 黑名单时，也会对已命中 seed 的候选补详情用于详情级兜底过滤
+11. enrichment 后再次过滤 AVID 黑名单资源与命中 seed 黑名单的资源
+12. `score_candidates()`
+13. `rank_and_trim()`
+14. 返回前再做一次黑名单兜底过滤
 
 其中 `rank_and_trim()` 又分为：
 
@@ -430,12 +432,14 @@ genre 种子：
 
 ### 4. 候选详情补充
 
-在 `detail_enrichment_limit` 范围内，推荐器会优先为 discovery 候选抓取 Jable 详情页，补充：
+在 `detail_enrichment_limit` 范围内，推荐器会优先为 discovery 候选抓取 Jable 详情页；开启 seed 黑名单时，已命中 seed 的候选也会补详情，用于过滤详情页中命中黑名单的 actor / genre。补充字段包括：
 
 - `detail_actors`
 - `detail_actor_slugs`
 - `detail_genres`
 - `detail_genre_slugs`
+- `detail_tag_slugs`
+- `detail_category_slugs`
 
 如果详情中的 actor / genre 与本轮本地 seed 名称或 source slug 匹配，会把该 seed 补充进候选 `matched_seeds`，让热榜/最近更新候选也能获得本地偏好加分。详情抓取失败时只跳过补充，不影响候选返回。
 
@@ -457,7 +461,7 @@ genre 种子：
 
 `exclude_existing=true` 时，会查询 `AVResource.avid`，剔除本地已存在条目。
 
-### 2. 过滤负反馈资源
+### 2. 过滤黑名单资源与反馈学习信号
 
 当前学习机制保持直接、可解释：
 
@@ -477,8 +481,15 @@ genre 种子：
 - `feedback_count`
 - `seed_scores`
 
-manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_feedback_avids`，后续在召回后立即过滤。
+manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_avid_blocklist`，后续在召回后立即过滤。
 同时会把 `seed_scores` 写入 `RecommendationRequest.feedback_seed_scores`，供排序阶段做 actor / genre 级加权或降权。
+
+黑名单过滤要求：
+
+- seed 进入召回前会先过滤 actor / genre seed 黑名单，黑名单 seed 不会触发 Jable model/tag/category/search 请求
+- 每次召回完成后都会过滤 AVID 黑名单与命中 actor / genre 黑名单的候选
+- discovery 候选 enrichment 后会再次按详情页 actor / genre 名称与 slug 过滤
+- 返回前会再执行一次黑名单兜底过滤，避免新增召回路径绕过过滤
 
 ### 3. 同配置近期避让
 

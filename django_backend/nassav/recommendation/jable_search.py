@@ -29,12 +29,12 @@ class JableSearchRecommender(AbstractRecommender):
 
     def recommend(self, request: RecommendationRequest):
         seeds = self.build_seeds(request)
+        seeds = self.exclude_seed_blocked_seeds(seeds, request)
         request.active_seeds = list(seeds)
         self._hydrate_seed_occurrence_tiers(request, seeds)
         candidates = self.recall_candidates(seeds, request)
         candidates = self.exclude_existing_resources(candidates, request)
-        candidates = self.exclude_feedback_blocked_resources(candidates, request)
-        candidates = self.exclude_seed_blocked_candidates(candidates, request)
+        candidates = self.filter_blocklisted_candidates(candidates, request)
         seeds, candidates = self._expand_seed_pool_if_needed(
             seeds=seeds,
             candidates=candidates,
@@ -42,13 +42,14 @@ class JableSearchRecommender(AbstractRecommender):
         )
         request.active_seeds = list(seeds)
         candidates = self.exclude_existing_resources(candidates, request)
-        candidates = self.exclude_feedback_blocked_resources(candidates, request)
-        candidates = self.exclude_seed_blocked_candidates(candidates, request)
+        candidates = self.filter_blocklisted_candidates(candidates, request)
         self._hydrate_seed_occurrence_tiers(request, seeds)
         candidates = self.filter_recent_recommendations(candidates, request)
         candidates = self.enrich_candidates(candidates, request)
+        candidates = self.filter_blocklisted_candidates(candidates, request)
         candidates = self.score_candidates(candidates, request)
         items = self.rank_and_trim(candidates, request)
+        items = self.filter_blocklisted_candidates(items, request)
         from .entities import RecommendationRun
 
         return RecommendationRun(seeds=seeds, items=items)
@@ -67,9 +68,8 @@ class JableSearchRecommender(AbstractRecommender):
             for candidate in candidates:
                 self._merge_candidate(merged, candidate)
 
-        if not request.seed_blacklist_active:
-            for candidate in self.recall_discovery_candidates(request):
-                self._merge_candidate(merged, candidate)
+        for candidate in self.recall_discovery_candidates(request):
+            self._merge_candidate(merged, candidate)
 
         return list(merged.values())
 
@@ -81,7 +81,7 @@ class JableSearchRecommender(AbstractRecommender):
         raw_results: list[dict] = []
         seen_avids: set[str] = set()
         raw_results.extend(self._recall_actor_model_items(seed, request, seen_avids))
-        if not raw_results and not request.seed_blacklist_active:
+        if not raw_results:
             search_terms = self._search_terms_for_seed(seed)
             for keyword in search_terms:
                 for item in self._recall_keyword_items(keyword, request, seen_avids):
@@ -214,9 +214,7 @@ class JableSearchRecommender(AbstractRecommender):
         for candidate in candidates:
             if remaining <= 0:
                 break
-            if candidate.matched_seeds and not candidate.raw_metrics.get(
-                "discovery_sources"
-            ):
+            if not self._should_enrich_candidate_detail(candidate, request):
                 continue
             detail = self._call_video_detail(candidate, request)
             if not detail:
@@ -392,6 +390,8 @@ class JableSearchRecommender(AbstractRecommender):
             ("actor_slugs", "detail_actor_slugs"),
             ("genres", "detail_genres"),
             ("genre_slugs", "detail_genre_slugs"),
+            ("tag_slugs", "detail_tag_slugs"),
+            ("category_slugs", "detail_category_slugs"),
         ):
             values = [
                 str(value).strip()
@@ -408,6 +408,22 @@ class JableSearchRecommender(AbstractRecommender):
             candidate.cover_url = str(detail["cover_url"]).strip()
 
         self._attach_detail_matched_seeds(candidate, request)
+
+    def _should_enrich_candidate_detail(
+        self,
+        candidate: RecommendationCandidate,
+        request: RecommendationRequest,
+    ) -> bool:
+        raw_metrics = dict(candidate.raw_metrics or {})
+        if raw_metrics.get("detail_enriched"):
+            return False
+        if raw_metrics.get("discovery_sources"):
+            return True
+        if not request.seed_blacklist_active:
+            return False
+        if not candidate.matched_seeds:
+            return True
+        return bool(request.blocked_seed_name_keys or request.blocked_seed_source_keys)
 
     def _attach_detail_matched_seeds(
         self,
@@ -654,15 +670,16 @@ class JableSearchRecommender(AbstractRecommender):
             if not extra_seeds:
                 break
 
+            extra_seeds = self.exclude_seed_blocked_seeds(extra_seeds, request)
+            if not extra_seeds:
+                break
+
             expanded_seeds.extend(extra_seeds)
             extra_candidates = self.recall_candidates(extra_seeds, request)
             extra_candidates = self.exclude_existing_resources(
                 extra_candidates, request
             )
-            extra_candidates = self.exclude_feedback_blocked_resources(
-                extra_candidates, request
-            )
-            extra_candidates = self.exclude_seed_blocked_candidates(
+            extra_candidates = self.filter_blocklisted_candidates(
                 extra_candidates, request
             )
             for candidate in extra_candidates:

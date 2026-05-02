@@ -303,6 +303,29 @@ uv run python scripts/import_jable_genre_mappings.py --input doc/jable_genre_man
 - 自动清理 `jable_name` 中类似 `1234 部影片` 的尾部计数字样
 - 这类写库脚本默认以 `--dry-run` 预览和日志核对作为主要验证方式，不额外维护脚本测试文件
 
+#### check_recommendation_blacklist_filter.py
+
+直接使用推荐 seed 黑名单召回 Jable 资源，并复用推荐过滤逻辑检测黑名单是否生效
+
+```bash
+# 检测前 20 个黑名单条目
+uv run python scripts/check_recommendation_blacklist_filter.py
+
+# 强制刷新 Jable 缓存，并输出详细日志
+uv run python scripts/check_recommendation_blacklist_filter.py --force-refresh --verbose
+
+# 多翻页并保存完整检测结果
+uv run python scripts/check_recommendation_blacklist_filter.py --max-pages 2 --json-output /tmp/blacklist-check.json
+```
+
+**功能说明**:
+
+- 读取 `RecommendationSeedProfile(is_blocked=true)` 中的 actor / genre 黑名单
+- 对 Jable source slug 直接请求 model / tag / category 页面；genre slug 会同时尝试 `/tags/` 和 `/categories/`，用于验证两类标签差异
+- 对只有名称、没有 source slug 的黑名单，回退到 Jable 搜索
+- 对候选补充 Jable 详情页元数据后，复用推荐过滤逻辑检查是否被过滤
+- 发现漏过滤候选时会输出 `LEAK` 日志，并以退出码 `1` 结束；全部过滤成功时退出码为 `0`
+
 #### fix_actor_avatars.py
 
 检查并修复演员头像文件

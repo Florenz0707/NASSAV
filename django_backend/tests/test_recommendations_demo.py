@@ -548,21 +548,36 @@ def test_blocked_seed_profile_does_not_allow_discovery_bypass(
         block_reason="manual",
     )
 
+    captured_discovery_pages = []
     monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
     monkeypatch.setattr(
         Jable,
         "discover_hot_items",
-        lambda self, page=1: [
-            {
-                "avid": "REC-DISC-001",
-                "title": "Discovery Candidate",
-                "detail_url": "https://jable.tv/videos/rec-disc-001/",
-                "cover_url": "https://img/rec-disc-001.jpg",
-                "metrics": {"views": 9999, "likes": 99},
-            }
-        ],
+        lambda self, page=1, force_refresh=False: (
+            captured_discovery_pages.append(page)
+            or [
+                {
+                    "avid": "REC-DISC-001",
+                    "title": "Discovery Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-disc-001/",
+                    "cover_url": "https://img/rec-disc-001.jpg",
+                    "metrics": {"views": 9999, "likes": 99},
+                }
+            ]
+        ),
     )
     monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "get_video_detail",
+        lambda self, avid, detail_url=None, force_refresh=False: {
+            "avid": avid,
+            "actors": ["Alice"],
+            "actor_slugs": ["alice"],
+            "genres": [],
+            "genre_slugs": [],
+        },
+    )
 
     response = api_client.get(
         "/nassav/api/recommendations/",
@@ -576,10 +591,11 @@ def test_blocked_seed_profile_does_not_allow_discovery_bypass(
     assert body["code"] == 200
     assert body["data"]["items"] == []
     assert body["data"]["seeds"] == []
+    assert captured_discovery_pages == [1]
 
 
 @pytest.mark.django_db
-def test_seed_blacklist_disables_keyword_search_recommendation_fallback(
+def test_seed_blacklist_excludes_blocked_keyword_but_allows_active_seed_fallback(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationSeedProfile
@@ -638,8 +654,9 @@ def test_seed_blacklist_disables_keyword_search_recommendation_fallback(
     )
     body = response.json()
     assert body["code"] == 200
-    assert body["data"]["items"] == []
-    assert captured_keywords == []
+    assert body["data"]["items"][0]["avid"] == "REC-SEARCH-001"
+    assert body["data"]["seeds"][0]["value"] == "Bob"
+    assert captured_keywords == ["Bob"]
 
 
 @pytest.mark.django_db
@@ -894,6 +911,59 @@ def test_recommendation_avid_blocklist_endpoint_lists_adds_and_removes(
     delete_body = delete_response.json()
     assert delete_body["data"]["avid"] == "ABC-123"
     assert delete_body["data"]["is_blocked"] is False
+
+
+@pytest.mark.django_db
+def test_recommendation_avid_blocklist_filters_recalled_candidates(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationAvidBlocklist
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Alice")
+    seed_resource = resource_factory(avid="SEED-AVID-BLOCK", original_title="Seed")
+    seed_resource.actors.add(actor)
+    RecommendationAvidBlocklist.objects.create(
+        avid="REC-AVID-BLOCK",
+        source="manual",
+        reason="manual",
+    )
+
+    monkeypatch.setattr(
+        Jable,
+        "search",
+        lambda self, keyword, page=1, force_refresh=False: [
+            {
+                "avid": "REC-AVID-BLOCK",
+                "title": "Blocked Candidate",
+                "detail_url": "https://jable.tv/videos/rec-avid-block/",
+                "cover_url": "https://img/rec-avid-block.jpg",
+                "metrics": {"views": 1000, "likes": 100},
+            },
+            {
+                "avid": "REC-AVID-ALLOW",
+                "title": "Allowed Candidate",
+                "detail_url": "https://jable.tv/videos/rec-avid-allow/",
+                "cover_url": "https://img/rec-avid-allow.jpg",
+                "metrics": {"views": 900, "likes": 90},
+            },
+        ],
+    )
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 1,
+            "genre_seed_limit": 0,
+            "avoid_recent_recommendations": "false",
+        },
+    )
+    body = response.json()
+    assert body["code"] == 200
+    av_ids = [item["avid"] for item in body["data"]["items"]]
+    assert "REC-AVID-BLOCK" not in av_ids
+    assert av_ids == ["REC-AVID-ALLOW"]
 
 
 @pytest.mark.django_db
@@ -1185,16 +1255,15 @@ def test_recommendation_dislike_feedback_does_not_block_same_avid_from_future_re
         },
     )
     first_body = first_response.json()
-    assert [item["avid"] for item in first_body["data"]["items"]] == [
-        "REC-702-A",
-        "REC-702-B",
-        "REC-702-C",
-    ]
+    first_items = first_body["data"]["items"]
+    first_avids = [item["avid"] for item in first_items]
+    assert set(first_avids) == {"REC-702-A", "REC-702-B", "REC-702-C"}
+    disliked_item = next(item for item in first_items if item["avid"] == "REC-702-A")
 
     feedback_response = api_client.post(
         "/nassav/api/recommendations/feedback",
         {
-            "snapshot_id": first_body["data"]["items"][0]["snapshot_id"],
+            "snapshot_id": disliked_item["snapshot_id"],
             "avid": "REC-702-A",
             "feedback": "dislike",
         },

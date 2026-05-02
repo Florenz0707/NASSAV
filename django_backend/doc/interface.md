@@ -274,7 +274,7 @@ DELETE /nassav/api/source/cookie?source=missav
   - `include_hot_board`：是否将 Jable 热榜候选并入召回池，默认 `true`
   - `include_latest_updates`：是否将 Jable 最近更新候选并入召回池，默认 `true`
   - `discovery_limit`：热榜/最近更新总共最多补充多少条候选，默认 `12`
-  - `detail_enrichment_limit`：每轮最多为多少个 discovery 候选抓取详情页补充 actor/genre 元数据，默认 `24`
+  - `detail_enrichment_limit`：每轮最多为多少个候选抓取详情页补充 actor/genre 元数据，默认 `24`；默认用于 discovery 候选，开启 seed 黑名单时也用于已命中 seed 的候选做详情级黑名单兜底
   - `force_refresh_external`：是否强制外部源跳过搜索缓存并重新抓取，默认 `false`
 
 示例请求：
@@ -390,7 +390,7 @@ GET /nassav/api/recommendations?strategy=local_preference&type_preference=balanc
 - 如果当前高位演员/类别种子召回到的候选不足，或者这些候选大多已在近期推荐中出现，系统会自动继续下探到排名更靠后的演员/类别种子补召回。
 - 演员种子会自动展开常见别名（例如括号内别名），用于提升 Jable 搜索召回率。
 - `include_hot_board=true` 时会把 Jable 热榜 async block 的今日 / 本周 / 本月 / 全部四档榜单作为 discovery 候选源；`include_latest_updates=true` 时会把 `/latest-updates/` 作为 discovery 候选源，两者都会带上来源标签参与轻量加分排序。
-- discovery 候选会在 `detail_enrichment_limit` 范围内尝试抓取详情页 actor/genre 元数据；若详情命中本轮种子，会补充 `matched_seeds` 并参与 seed 加分。
+- discovery 候选会在 `detail_enrichment_limit` 范围内尝试抓取详情页 actor/genre 元数据；若详情命中本轮种子，会补充 `matched_seeds` 并参与 seed 加分。开启 seed 黑名单时，已命中 seed 的候选也会在该限制内补详情，用于按 Jable 详情页中的 tag/category slug 做兜底过滤。
 - `like` / `dislike` 是偏好反馈，只影响 actor/genre seed 的后续排序；AVID 级过滤由资源黑名单接口负责。
 - `strategy_detail.parameter_profile` 会返回每个策略参数的实际值和参数含义，前端可直接用于“策略参数说明”展示。
 

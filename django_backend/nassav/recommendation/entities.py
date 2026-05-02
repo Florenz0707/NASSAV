@@ -91,7 +91,7 @@ class RecommendationRequest:
     detail_enrichment_limit: int = 24
     feedback_avid_scores: dict[str, float] = field(default_factory=dict)
     feedback_seed_scores: dict[str, float] = field(default_factory=dict)
-    blocked_feedback_avids: set[str] = field(default_factory=set)
+    blocked_avid_blocklist: set[str] = field(default_factory=set)
     seed_blacklist_active: bool = False
     blocked_seed_name_keys: set[tuple[str, str]] = field(default_factory=set)
     blocked_seed_source_keys: set[tuple[str, str, str]] = field(default_factory=set)

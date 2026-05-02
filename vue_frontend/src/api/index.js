@@ -11,6 +11,8 @@ const api = axios.create({
   },
 })
 
+const RECOMMENDATION_REQUEST_TIMEOUT = 120000
+
 // 响应拦截器：兼容后端统一的 envelope 格式 {code, message, data}
 api.interceptors.response.use(
   (response) => {
@@ -78,7 +80,11 @@ export const settingsApi = {
 // 推荐系统
 export const recommendationApi = {
   // 获取推荐结果
-  getList: (params = {}) => api.get('/recommendations', { params }),
+  getList: (params = {}) =>
+    api.get('/recommendations', {
+      params,
+      timeout: RECOMMENDATION_REQUEST_TIMEOUT,
+    }),
   // 获取可用推荐器和策略
   getOptions: () => api.get('/recommendations/options'),
   // 获取推荐效果概览

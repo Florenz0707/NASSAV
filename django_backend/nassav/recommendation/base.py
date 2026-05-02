@@ -13,11 +13,14 @@ class AbstractRecommender(ABC):
 
     def recommend(self, request: RecommendationRequest) -> RecommendationRun:
         seeds = self.build_seeds(request)
+        seeds = self.exclude_seed_blocked_seeds(seeds, request)
         candidates = self.recall_candidates(seeds, request)
         candidates = self.filter_existing_resources(candidates, request)
         candidates = self.enrich_candidates(candidates, request)
+        candidates = self.filter_blocklisted_candidates(candidates, request)
         candidates = self.score_candidates(candidates, request)
         items = self.rank_and_trim(candidates, request)
+        items = self.filter_blocklisted_candidates(items, request)
         return RecommendationRun(seeds=seeds, items=items)
 
     @abstractmethod
@@ -34,9 +37,56 @@ class AbstractRecommender(ABC):
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
         candidates = self.exclude_existing_resources(candidates, request)
-        candidates = self.exclude_feedback_blocked_resources(candidates, request)
+        candidates = self.exclude_avid_blocklisted_resources(candidates, request)
         candidates = self.exclude_seed_blocked_candidates(candidates, request)
         return self.filter_recent_recommendations(candidates, request)
+
+    def filter_blocklisted_candidates(
+        self,
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> list[RecommendationCandidate]:
+        candidates = self.exclude_avid_blocklisted_resources(candidates, request)
+        return self.exclude_seed_blocked_candidates(candidates, request)
+
+    def exclude_seed_blocked_seeds(
+        self,
+        seeds,
+        request: RecommendationRequest,
+    ):
+        if not seeds or not request.seed_blacklist_active:
+            return seeds
+
+        output = []
+        for seed in seeds:
+            if self._seed_hits_blocklist(seed, request):
+                continue
+            output.append(seed)
+        return output
+
+    def _seed_hits_blocklist(
+        self,
+        seed,
+        request: RecommendationRequest,
+    ) -> bool:
+        from .seed_profiles import recommendation_seed_profile_repository
+
+        seed_type = str(seed.seed_type or "").strip().lower()
+        normalized_value = recommendation_seed_profile_repository.normalize_value(
+            seed.value
+        )
+        if (seed_type, normalized_value) in request.blocked_seed_name_keys:
+            return True
+
+        lookup_payload = dict(seed.lookup_payload or {})
+        source_name = str(lookup_payload.get("source_name", "")).strip().lower()
+        source_identifier = self._seed_source_identifier(seed_type, lookup_payload)
+        return bool(
+            source_name
+            and source_identifier
+            and (seed_type, source_name, source_identifier)
+            in request.blocked_seed_source_keys
+        )
 
     def exclude_existing_resources(
         self,
@@ -60,18 +110,18 @@ class AbstractRecommender(ABC):
 
         return candidates
 
-    def exclude_feedback_blocked_resources(
+    def exclude_avid_blocklisted_resources(
         self,
         candidates: list[RecommendationCandidate],
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
-        if not candidates or not request.blocked_feedback_avids:
+        if not candidates or not request.blocked_avid_blocklist:
             return candidates
 
         return [
             candidate
             for candidate in candidates
-            if candidate.avid not in request.blocked_feedback_avids
+            if candidate.avid not in request.blocked_avid_blocklist
         ]
 
     def exclude_seed_blocked_candidates(
@@ -118,6 +168,13 @@ class AbstractRecommender(ABC):
             ):
                 is_blocked = True
 
+            if not is_blocked and self._candidate_hits_blocked_detail_values(
+                candidate,
+                blocked_name_keys,
+                blocked_source_keys,
+            ):
+                is_blocked = True
+
             if not is_blocked:
                 output.append(candidate)
         return output
@@ -151,6 +208,59 @@ class AbstractRecommender(ABC):
             return True
 
         return False
+
+    def _candidate_hits_blocked_detail_values(
+        self,
+        candidate: RecommendationCandidate,
+        blocked_name_keys: set[tuple[str, str]],
+        blocked_source_keys: set[tuple[str, str, str]],
+    ) -> bool:
+        raw_metrics = dict(candidate.raw_metrics or {})
+
+        for value in self._normalized_metric_values(raw_metrics.get("detail_actors")):
+            if ("actor", value) in blocked_name_keys:
+                return True
+        for value in self._normalized_metric_values(raw_metrics.get("detail_genres")):
+            if ("genre", value) in blocked_name_keys:
+                return True
+
+        source_name = str(candidate.source or "").strip().lower()
+        if source_name:
+            detail_actor_slugs = self._normalized_metric_slugs(
+                raw_metrics.get("detail_actor_slugs")
+            )
+            for slug in detail_actor_slugs:
+                if ("actor", source_name, slug) in blocked_source_keys:
+                    return True
+
+            detail_genre_slugs = set()
+            for metric_key in (
+                "detail_genre_slugs",
+                "detail_tag_slugs",
+                "detail_category_slugs",
+            ):
+                detail_genre_slugs.update(
+                    self._normalized_metric_slugs(raw_metrics.get(metric_key))
+                )
+            for slug in detail_genre_slugs:
+                if ("genre", source_name, slug) in blocked_source_keys:
+                    return True
+
+        return False
+
+    def _normalized_metric_values(self, values) -> set[str]:
+        return {
+            " ".join(str(value or "").strip().casefold().split())
+            for value in list(values or [])
+            if str(value or "").strip()
+        }
+
+    def _normalized_metric_slugs(self, values) -> set[str]:
+        return {
+            str(value or "").strip().lower()
+            for value in list(values or [])
+            if str(value or "").strip()
+        }
 
     def _seed_source_identifier(self, seed_type: str, payload: dict) -> str:
         if seed_type == "actor":

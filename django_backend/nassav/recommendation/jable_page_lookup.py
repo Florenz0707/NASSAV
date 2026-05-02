@@ -14,7 +14,7 @@ class JablePageLookupRecommender(JableSearchRecommender):
         raw_results.extend(self._recall_actor_model_items(seed, request, seen_avids))
         raw_results.extend(self._recall_genre_page_items(seed, request, seen_avids))
 
-        if not raw_results and not request.seed_blacklist_active:
+        if not raw_results:
             search_terms = self._search_terms_for_seed(seed)
             for keyword in search_terms:
                 for item in self._recall_keyword_items(keyword, request, seen_avids):

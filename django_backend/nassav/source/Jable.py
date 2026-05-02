@@ -651,6 +651,16 @@ class Jable(SourceBase):
             "actor_slugs": [item["slug"] for item in actors if item.get("slug")],
             "genres": [item["name"] for item in genres],
             "genre_slugs": [item["slug"] for item in genres if item.get("slug")],
+            "tag_slugs": [
+                item["slug"]
+                for item in genres
+                if item.get("slug") and item.get("taxonomy") == "tag"
+            ],
+            "category_slugs": [
+                item["slug"]
+                for item in genres
+                if item.get("slug") and item.get("taxonomy") == "category"
+            ],
         }
         return {key: value for key, value in payload.items() if value not in ("", [])}
 
@@ -665,14 +675,20 @@ class Jable(SourceBase):
             if not name:
                 continue
             slug = ""
+            taxonomy = ""
             match = re.search(r"/(?:models|tags|categories)/([^/?#]+)/?", href)
             if match:
                 slug = match.group(1).strip().lower()
+            taxonomy_match = re.search(r"/(tags|categories)/[^/?#]+/?", href)
+            if taxonomy_match:
+                taxonomy = (
+                    "category" if taxonomy_match.group(1) == "categories" else "tag"
+                )
             key = (name.casefold(), slug)
             if key in seen:
                 continue
             seen.add(key)
-            output.append({"name": name, "slug": slug})
+            output.append({"name": name, "slug": slug, "taxonomy": taxonomy})
         return output
 
     def _extract_cover_url(self, image) -> str:

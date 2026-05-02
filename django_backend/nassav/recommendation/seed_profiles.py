@@ -159,73 +159,9 @@ class RecommendationSeedProfileRepository:
         if not seeds:
             return []
 
-        blocked_profiles = list(
-            RecommendationSeedProfile.objects.filter(is_blocked=True).only(
-                "seed_type",
-                "normalized_value",
-                "source_name",
-                "source_identifier",
-            )
-        )
-        if not blocked_profiles:
+        blocked_name_keys, blocked_source_keys = self.build_blocked_seed_keys()
+        if not blocked_name_keys and not blocked_source_keys:
             return seeds
-
-        blocked_name_keys = {
-            (profile.seed_type, profile.normalized_value)
-            for profile in blocked_profiles
-            if profile.normalized_value
-        }
-        blocked_source_keys = {
-            (profile.seed_type, profile.source_name, profile.source_identifier)
-            for profile in blocked_profiles
-            if profile.source_name and profile.source_identifier
-        }
-        blocked_actor_values = [
-            str(profile.value or "").strip()
-            for profile in blocked_profiles
-            if profile.seed_type == "actor"
-            and not profile.source_name
-            and not profile.source_identifier
-            and str(profile.value or "").strip()
-        ]
-        blocked_genre_values = [
-            str(profile.value or "").strip()
-            for profile in blocked_profiles
-            if profile.seed_type == "genre"
-            and not profile.source_name
-            and not profile.source_identifier
-            and str(profile.value or "").strip()
-        ]
-        if blocked_actor_values:
-            actor_mappings = ActorSourceMapping.objects.filter(
-                actor__name__in=blocked_actor_values,
-                is_active=True,
-            ).only("source_name", "source_actor_slug")
-            blocked_source_keys.update(
-                (
-                    "actor",
-                    str(mapping.source_name or "").strip().lower(),
-                    str(mapping.source_actor_slug or "").strip().lower(),
-                )
-                for mapping in actor_mappings
-                if str(mapping.source_name or "").strip()
-                and str(mapping.source_actor_slug or "").strip()
-            )
-        if blocked_genre_values:
-            genre_mappings = GenreSourceMapping.objects.filter(
-                genre__name__in=blocked_genre_values,
-                is_active=True,
-            ).only("source_name", "source_genre_slug")
-            blocked_source_keys.update(
-                (
-                    "genre",
-                    str(mapping.source_name or "").strip().lower(),
-                    str(mapping.source_genre_slug or "").strip().lower(),
-                )
-                for mapping in genre_mappings
-                if str(mapping.source_name or "").strip()
-                and str(mapping.source_genre_slug or "").strip()
-            )
 
         allowed: list[RecommendationSeed] = []
         for seed in seeds:

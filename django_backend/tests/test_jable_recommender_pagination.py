@@ -142,18 +142,22 @@ def test_jable_recommender_recommend_filters_seed_blocked_candidates(
     seed_resource.actors.add(actor)
 
     jable = Jable()
+    captured_keywords = []
     monkeypatch.setattr(
         jable,
         "search",
-        lambda keyword, page=1: [
-            {
-                "avid": "REC-BLK-001",
-                "title": "Blocked Candidate",
-                "detail_url": "https://jable.tv/videos/rec-blk-001/",
-                "cover_url": "https://img/rec-blk-001.jpg",
-                "metrics": {"views": 100, "likes": 10},
-            }
-        ],
+        lambda keyword, page=1: (
+            captured_keywords.append(keyword)
+            or [
+                {
+                    "avid": "REC-BLK-001",
+                    "title": "Blocked Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-blk-001/",
+                    "cover_url": "https://img/rec-blk-001.jpg",
+                    "metrics": {"views": 100, "likes": 10},
+                }
+            ]
+        ),
     )
     monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
     monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
@@ -177,8 +181,9 @@ def test_jable_recommender_recommend_filters_seed_blocked_candidates(
 
     run = recommender.recommend(request)
 
-    assert run.seeds != []
+    assert run.seeds == []
     assert run.items == []
+    assert captured_keywords == []
 
 
 @pytest.mark.django_db
@@ -232,6 +237,71 @@ def test_jable_recommender_filters_candidate_by_blocked_genre_slug_metrics(
         include_latest_updates=False,
         seed_blacklist_active=True,
         blocked_seed_source_keys={("genre", "jable", "groupsex")},
+    )
+
+    run = recommender.recommend(request)
+
+    assert run.items == []
+
+
+@pytest.mark.django_db
+def test_jable_recommender_filters_matched_candidate_by_detail_category_slug(
+    actor_factory,
+    monkeypatch,
+    resource_factory,
+):
+    from nassav.recommendation.entities import RecommendationRequest
+    from nassav.recommendation.jable_search import JableSearchRecommender
+    from nassav.recommendation.seeds import LocalPreferenceSeedProvider
+    from nassav.source import Jable
+
+    actor = actor_factory(name="Carol")
+    seed_resource = resource_factory(avid="SEED-BLK-003", original_title="Seed")
+    seed_resource.actors.add(actor)
+
+    jable = Jable()
+    monkeypatch.setattr(
+        jable,
+        "search",
+        lambda keyword, page=1: [
+            {
+                "avid": "REC-BLK-003",
+                "title": "Has Blocked Category In Detail",
+                "detail_url": "https://jable.tv/videos/rec-blk-003/",
+                "cover_url": "https://img/rec-blk-003.jpg",
+                "metrics": {"views": 100, "likes": 10},
+            }
+        ],
+    )
+    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
+    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+    monkeypatch.setattr(
+        jable,
+        "get_video_detail",
+        lambda avid, detail_url="", force_refresh=False: {
+            "avid": avid,
+            "genres": ["中文字幕"],
+            "genre_slugs": ["chinese-subtitle"],
+            "category_slugs": ["chinese-subtitle"],
+        },
+    )
+
+    recommender = JableSearchRecommender(
+        jable=jable,
+        seed_provider=LocalPreferenceSeedProvider(),
+        max_pages_per_query=1,
+    )
+    request = RecommendationRequest(
+        limit=2,
+        per_seed_limit=2,
+        actor_seed_limit=1,
+        genre_seed_limit=0,
+        seed_types=["actor"],
+        include_hot_board=False,
+        include_latest_updates=False,
+        detail_enrichment_limit=2,
+        seed_blacklist_active=True,
+        blocked_seed_source_keys={("genre", "jable", "chinese-subtitle")},
     )
 
     run = recommender.recommend(request)
