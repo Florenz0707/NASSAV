@@ -47,6 +47,11 @@ class JableSearchRecommender(AbstractRecommender):
         candidates = self.filter_recent_recommendations(candidates, request)
         candidates = self.enrich_candidates(candidates, request)
         candidates = self.filter_blocklisted_candidates(candidates, request)
+        seeds, candidates = self._top_up_after_detail_filter_if_needed(
+            seeds=seeds,
+            candidates=candidates,
+            request=request,
+        )
         candidates = self.score_candidates(candidates, request)
         items = self.rank_and_trim(candidates, request)
         items = self.filter_blocklisted_candidates(items, request)
@@ -646,6 +651,7 @@ class JableSearchRecommender(AbstractRecommender):
         seeds: list[RecommendationSeed],
         candidates: list[RecommendationCandidate],
         request: RecommendationRequest,
+        max_rounds: int = 3,
     ) -> tuple[list[RecommendationSeed], list[RecommendationCandidate]]:
         if self.count_preferred_candidates(candidates, request) >= request.limit:
             return seeds, candidates
@@ -657,11 +663,9 @@ class JableSearchRecommender(AbstractRecommender):
         batch_size = max(request.actor_seed_limit + request.genre_seed_limit, 4)
         expansion_rounds = 0
 
-        while (
-            self.count_preferred_candidates(list(merged_candidates.values()), request)
-            < request.limit
-            and expansion_rounds < 3
-        ):
+        while self.count_preferred_candidates(
+            list(merged_candidates.values()), request
+        ) < request.limit and expansion_rounds < max(int(max_rounds), 1):
             extra_seeds = self.seed_provider.get_additional_seeds(
                 request,
                 used_seeds=expanded_seeds,
@@ -687,3 +691,49 @@ class JableSearchRecommender(AbstractRecommender):
             expansion_rounds += 1
 
         return expanded_seeds, list(merged_candidates.values())
+
+    def _top_up_after_detail_filter_if_needed(
+        self,
+        *,
+        seeds: list[RecommendationSeed],
+        candidates: list[RecommendationCandidate],
+        request: RecommendationRequest,
+    ) -> tuple[list[RecommendationSeed], list[RecommendationCandidate]]:
+        expanded_seeds = list(seeds)
+        output_candidates = list(candidates)
+        top_up_rounds = 0
+
+        while (
+            self.count_preferred_candidates(output_candidates, request) < request.limit
+            and top_up_rounds < 3
+        ):
+            previous_seed_count = len(expanded_seeds)
+            previous_avids = {candidate.avid for candidate in output_candidates}
+
+            expanded_seeds, output_candidates = self._expand_seed_pool_if_needed(
+                seeds=expanded_seeds,
+                candidates=output_candidates,
+                request=request,
+                max_rounds=1,
+            )
+            current_avids = {candidate.avid for candidate in output_candidates}
+            if (
+                len(expanded_seeds) == previous_seed_count
+                and current_avids == previous_avids
+            ):
+                break
+
+            request.active_seeds = list(expanded_seeds)
+            self._hydrate_seed_occurrence_tiers(request, expanded_seeds)
+            output_candidates = self.filter_recent_recommendations(
+                output_candidates,
+                request,
+            )
+            output_candidates = self.enrich_candidates(output_candidates, request)
+            output_candidates = self.filter_blocklisted_candidates(
+                output_candidates,
+                request,
+            )
+            top_up_rounds += 1
+
+        return expanded_seeds, output_candidates

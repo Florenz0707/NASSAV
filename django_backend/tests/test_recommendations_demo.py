@@ -1731,6 +1731,118 @@ def test_recommendations_endpoint_expands_to_lower_ranked_seeds_when_exhausted(
 
 
 @pytest.mark.django_db
+def test_recommendations_endpoint_tops_up_after_detail_blacklist_filter(
+    api_client, monkeypatch, resource_factory, actor_factory
+):
+    from nassav.models import RecommendationSeedProfile
+    from nassav.source import Jable
+
+    alice = actor_factory(name="Alice")
+    bob = actor_factory(name="Bob")
+    carol = actor_factory(name="Carol")
+
+    for index in range(3):
+        resource_factory(
+            avid=f"DETAIL-BLOCK-ALICE-SEED-{index}",
+            original_title="Seed",
+        ).actors.add(alice)
+    for index in range(2):
+        resource_factory(
+            avid=f"DETAIL-BLOCK-BOB-SEED-{index}",
+            original_title="Seed",
+        ).actors.add(bob)
+    resource_factory(
+        avid="DETAIL-BLOCK-CAROL-SEED-0",
+        original_title="Seed",
+    ).actors.add(carol)
+
+    RecommendationSeedProfile.objects.create(
+        seed_type="genre",
+        value="Blocked Genre",
+        normalized_value="blocked genre",
+        source_name="jable",
+        source_identifier="blocked-cat",
+        is_blocked=True,
+        block_reason="manual",
+    )
+
+    search_calls = []
+
+    def fake_search(self, keyword, page=1, force_refresh=False):
+        _ = self
+        _ = page
+        _ = force_refresh
+        search_calls.append(keyword)
+        mapping = {
+            "Alice": [
+                {
+                    "avid": "REC-DETAIL-BLOCK-A",
+                    "title": "Detail Blocked Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-detail-block-a/",
+                    "cover_url": "https://img/rec-detail-block-a.jpg",
+                    "metrics": {"views": 2600, "likes": 260},
+                }
+            ],
+            "Bob": [
+                {
+                    "avid": "REC-DETAIL-BLOCK-B",
+                    "title": "Bob Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-detail-block-b/",
+                    "cover_url": "https://img/rec-detail-block-b.jpg",
+                    "metrics": {"views": 2400, "likes": 240},
+                }
+            ],
+            "Carol": [
+                {
+                    "avid": "REC-DETAIL-BLOCK-C",
+                    "title": "Carol Top Up Candidate",
+                    "detail_url": "https://jable.tv/videos/rec-detail-block-c/",
+                    "cover_url": "https://img/rec-detail-block-c.jpg",
+                    "metrics": {"views": 2300, "likes": 230},
+                }
+            ],
+        }
+        return mapping.get(keyword, [])
+
+    def fake_get_video_detail(self, avid, detail_url="", force_refresh=False):
+        _ = self
+        _ = detail_url
+        _ = force_refresh
+        if avid == "REC-DETAIL-BLOCK-A":
+            return {
+                "avid": avid,
+                "genres": ["Blocked Genre"],
+                "genre_slugs": ["blocked-cat"],
+                "category_slugs": ["blocked-cat"],
+            }
+        return {"avid": avid, "genres": [], "genre_slugs": []}
+
+    monkeypatch.setattr(Jable, "search", fake_search)
+    monkeypatch.setattr(Jable, "get_video_detail", fake_get_video_detail)
+    monkeypatch.setattr(Jable, "discover_hot_items", lambda self, page=1: [])
+    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+
+    response = api_client.get(
+        "/nassav/api/recommendations/",
+        {
+            "limit": 2,
+            "actor_seed_limit": 2,
+            "genre_seed_limit": 0,
+            "include_hot_board": "false",
+            "include_latest_updates": "false",
+        },
+    )
+
+    body = response.json()
+    assert body["code"] == 200
+    av_ids = [item["avid"] for item in body["data"]["items"]]
+    assert av_ids == ["REC-DETAIL-BLOCK-B", "REC-DETAIL-BLOCK-C"]
+    assert "REC-DETAIL-BLOCK-A" not in av_ids
+    assert "Carol" in search_calls
+    assert any(seed["value"] == "Carol" for seed in body["data"]["seeds"])
+
+
+@pytest.mark.django_db
 def test_recommendations_endpoint_expands_when_primary_pool_is_only_recent(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
