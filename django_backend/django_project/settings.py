@@ -275,8 +275,16 @@ FLARESOLVERR_ENABLED = FLARESOLVERR_CONFIG.get("Enable", False)
 FLARESOLVERR_URL = FLARESOLVERR_CONFIG.get("url", "http://localhost:8191")
 FLARESOLVERR_TIMEOUT = FLARESOLVERR_CONFIG.get("timeout", 60000)
 
+# Browser page fetching: new configuration wins as a whole; the old block is a fallback.
+from nassav.page_fetching.factory import normalize_config, validate_strategy
+
+BROWSER_FETCH_CONFIG = normalize_config(CONFIG)
+
 # Source configurations
 SOURCE_CONFIG = CONFIG.get("Source", {})
+for _source_name, _source_data in SOURCE_CONFIG.items():
+    if isinstance(_source_data, dict) and "browser_fetch_strategy" in _source_data:
+        validate_strategy(_source_data["browser_fetch_strategy"])
 
 # Scraper configurations (e.g., JavBus, Busdmm, Dmmsee)
 SCRAPER_CONFIG = CONFIG.get("Scraper", {})
