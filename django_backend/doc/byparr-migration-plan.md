@@ -1,6 +1,6 @@
 # Byparr 迁移与抓取层重构执行计划
 
-日期：2026-09-26。状态：待执行。本文为执行计划；尚未部署 Byparr、修改抓取实现或完成目标站点实测。调研依据见 [替代方案调研](cloudflare-alternatives.md)。
+日期：2026-09-26。状态：P0–P3 已实施，P4 部分完成，P5 生产观察待执行。本文保留迁移前的基线和设计决策；当前部署、检查结果与剩余验收项以 [Byparr 验收记录](byparr-rollout-validation.md) 为准。调研依据见 [替代方案调研](cloudflare-alternatives.md)。
 
 ## 1. 目标与执行原则
 

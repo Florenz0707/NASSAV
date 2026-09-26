@@ -210,7 +210,7 @@ brew services start redis
 
 #### 启动 Byparr（可选，固定版本）
 
-Django 在同机宿主机运行时，使用 [`django_backend/scripts/byparr/compose.yaml`](django_backend/scripts/byparr/compose.yaml) 在 `127.0.0.1:8192` 启动固定 digest 的 Byparr。先查看 [试验记录](django_backend/doc/byparr-trial-results.md) 和 [迁移计划](django_backend/doc/byparr-migration-plan.md)；当前配置模板默认关闭浏览器抓取，生产切换仍需完成在线验收。
+Django 在同机宿主机运行时，使用 [`django_backend/scripts/byparr/compose.yaml`](django_backend/scripts/byparr/compose.yaml) 在 `127.0.0.1:8192` 启动固定 digest 的 Byparr。部署步骤与验收范围见 [Byparr 验收记录](django_backend/doc/byparr-rollout-validation.md)。配置模板默认关闭浏览器抓取；本地开发可启用，生产启用前应完成该记录中剩余的验收。
 
 ```bash
 cd django_backend/scripts/byparr
@@ -233,7 +233,7 @@ Source:
     browser_fetch_strategy: direct_first
 ```
 
-保留旧 `FlareSolverr` 配置可回滚：仅当 `BrowserFetch` 块不存在时才读取旧配置。策略可选 `browser_first`、`direct_first`、`direct_only`。页面通过业务结构校验后才进入解析；MissAV 默认浏览器优先，Jable 默认直连优先。Byparr 的浏览器出口独立于 Django 的 `Proxy.url`，需要代理时在 Compose 的本地 `.env` 中设置容器可达的 `BYPARR_PROXY_SERVER`。修改配置后重启 Web 和任务进程。
+`BrowserFetch` 是当前浏览器抓取配置。策略可选 `browser_first`、`direct_first`、`direct_only`。页面通过业务结构校验后才进入解析；MissAV 默认浏览器优先，Jable 默认直连优先。Byparr 的浏览器出口独立于 Django 的 `Proxy.url`，需要代理时在 Compose 的本地 `.env` 中设置容器可达的 `BYPARR_PROXY_SERVER`。修改配置后重启 Web 和任务进程。
 
 #### 启动服务
 
@@ -514,7 +514,7 @@ A: 确保后端使用 ASGI 服务器，前端 WebSocket 连接成功。可以在
 
 **Q: 哪些源比较好用？**
 
-A: 就目前来说，**missav** 品类最全但是需要手动获取设置 cookie，**jable** 其次并且直连优先、在被 Cloudflare 拦截时回退 FlareSolverr，**memo** 不需要设置 cookie 但是没有中文字幕，其余的源缺乏良好支持。
+A: **missav** 浏览器抓取优先；直连路径可使用手动 Cookie，自动获取 Cookie 也可在设置页触发。**jable** 直连优先，页面无效时回退到 Byparr。**memo** 不需要 Cookie，但没有中文字幕。
 
 ## 开发指南
 
@@ -600,6 +600,13 @@ setInterval(async () => {
 全局下载锁确保同一时间只有一个下载任务在执行，避免 N_m3u8DL-RE 多实例并发导致的资源竞争。
 
 ## 版本更新
+
+### 开发分支更新：Byparr 页面抓取迁移（2026-09-26）
+
+- 使用固定 digest 的 Byparr 3.0.4 Compose 服务，宿主机控制地址为 `http://127.0.0.1:8192`；新增 `BrowserFetch` 配置及逐源请求顺序。
+- 新增统一的浏览器页面获取层。MissAV 默认浏览器优先，Jable 默认直连优先；两条路径共用业务页面校验，拒绝挑战页、异常重定向和无效详情页。
+- MissAV 自动获取的 Cookie 经现有 Repository 保存并更新运行时缓存；Cookie API 的请求和响应结构、数据库表结构均未改变。
+- 将在线抓取测试改为显式启用，补充协议、配置、回退、搜索缓存及 Cookie 回归测试。本地开发已验证两个详情样本；生产验收范围与剩余项见 [验收记录](django_backend/doc/byparr-rollout-validation.md)。
 
 ### v2.1.0（2026-04-17）
 
@@ -694,18 +701,6 @@ setInterval(async () => {
 
 - **颜色系统统一**：将所有 Views 层残留的硬编码 hex 颜色（`#ef4444`、`#4ecdc4` 等）全部替换为 CSS 变量
 - **图标规范化**：将 Unicode 字符图标（◉ ◷ ✓ ✕ ⚠ ℹ）全部替换为 SVG 图标
-
----
-
-### v1.3.9（2026-02-25）
-
-#### 🆕 新增
-
-- **FlareSolverr 集成**：支持通过 FlareSolverr 自动绕过 MissAV 的 Cloudflare 验证，无需手动获取 cookie
-  - `MissAV.get_html()` 在 curl_cffi 被 Cloudflare 拦截（403/503）时自动回退到 FlareSolverr
-  - `MissAV.set_cookie_auto()` 优先通过 FlareSolverr 获取 `cf_clearance` cookie 并持久化到数据库
-  - 新增 `nassav/flaresolverr_client.py`，封装 FlareSolverr REST API
-- **配置项**：`config.yaml` 新增 `FlareSolverr` 配置块（`Enable` / `url` / `timeout`）
 
 ---
 
