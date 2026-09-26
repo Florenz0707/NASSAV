@@ -4,6 +4,10 @@
 
 ---
 
+## 浏览器抓取验证
+
+固定版本 Byparr 的 Docker 启动与日志命令见 [`scripts/README.md`](../scripts/README.md)。离线契约和 Source 回归由普通 pytest 执行；在线探测需要 `BROWSER_FETCH_EXTERNAL=1`，并设置当前有效的 `BROWSER_FETCH_MISSAV_URL`、`BROWSER_FETCH_MISSAV_AVID`、`BROWSER_FETCH_JABLE_URL`、`BROWSER_FETCH_JABLE_AVID`。具体命令见 [`tests/README.md`](../tests/README.md)。在线探测只读取目标页面，不写生产数据库。`/health` 依赖外部 Google 访问，不能单独作为本地服务可用性判断。
+
 ## 模拟下载接口
 
 ### 概述

@@ -7,7 +7,11 @@ from bs4 import BeautifulSoup
 from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
-from nassav.flaresolverr_client import FlareSolverrClient
+from nassav.page_fetching import (
+    PageFetchService,
+    create_page_fetch_service,
+    validate_strategy,
+)
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -22,18 +26,22 @@ class Jable(SourceBase):
         "video_viewed",
     ]
 
-    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+    def __init__(
+        self,
+        proxy: Optional[str] = None,
+        timeout: int = 15,
+        *,
+        page_fetcher: PageFetchService | None = None,
+    ):
         super().__init__(proxy, timeout)
         source_config = settings.SOURCE_CONFIG.get("jable", {})
         self.domain = source_config.get("domain", "jable.tv")
-        if settings.FLARESOLVERR_ENABLED:
-            self._flaresolverr = FlareSolverrClient(
-                base_url=settings.FLARESOLVERR_URL,
-                timeout_ms=settings.FLARESOLVERR_TIMEOUT,
-                proxy=proxy,
-            )
-        else:
-            self._flaresolverr = None
+        self.browser_fetch_strategy = validate_strategy(
+            source_config.get("browser_fetch_strategy", "direct_first")
+        )
+        self.page_fetcher = page_fetcher or create_page_fetch_service(
+            settings.BROWSER_FETCH_CONFIG
+        )
         self.cache_enabled = bool(
             getattr(settings, "EXTERNAL_SOURCE_SEARCH_CACHE_ENABLED", True)
         )
@@ -57,11 +65,13 @@ class Jable(SourceBase):
             f"https://{self.domain}/videos/{avid.lower()}bf/",
             f"https://{self.domain}/videos/{avid.lower()}ntum/",
         ]
+        self.page_fetcher.reset_lookup()
         for url in urls:
             result = self._request_html(
                 url,
                 referer=f"https://{self.domain}/search/{avid.lower()}",
                 validator=self._is_detail_page_html,
+                preserve_lookup=True,
             )
             if result:
                 return result
@@ -582,43 +592,17 @@ class Jable(SourceBase):
         *,
         referer: str,
         validator: Callable[[str], bool] | None = None,
+        preserve_lookup: bool = False,
     ) -> Optional[str]:
-        html = self.fetch_html(url, referer=referer)
-        if self._is_valid_page_html(html, validator=validator):
-            return html
-
-        if html:
-            logger.info(f"Jable: 直连页面无效，尝试 FlareSolverr: {url}")
-
-        flare_html = self._fetch_html_via_flaresolverr(url)
-        if self._is_valid_page_html(flare_html, validator=validator):
-            return flare_html
-
-        if flare_html:
-            logger.info(f"Jable: FlareSolverr 返回页面无效，跳过: {url}")
-        return None
-
-    def _fetch_html_via_flaresolverr(self, url: str) -> Optional[str]:
-        if not self._flaresolverr:
-            return None
-
-        logger.info(f"Jable: 通过 FlareSolverr 请求: {url}")
-        solution = self._flaresolverr.get(url)
-        if not solution:
-            logger.info(f"Jable: FlareSolverr 未返回 solution，跳过: {url}")
-            return None
-
-        status = solution.get("status")
-        if status != 200:
-            logger.info(f"Jable: FlareSolverr 返回非 200 状态 {status}，跳过: {url}")
-            return None
-
-        html = str(solution.get("response") or "").strip()
-        if not html:
-            logger.info(f"Jable: FlareSolverr 返回空页面，跳过: {url}")
-            return None
-
-        return html
+        if not preserve_lookup:
+            self.page_fetcher.reset_lookup()
+        result = self.page_fetcher.fetch(
+            url,
+            direct_fetch=lambda: self.fetch_html(url, referer=referer),
+            validator=validator or (lambda html: bool(html)),
+            strategy=self.browser_fetch_strategy,
+        )
+        return result.html if result.ok else None
 
     def _is_valid_page_html(
         self,
@@ -636,7 +620,13 @@ class Jable(SourceBase):
         return bool(re.search(r'var hlsUrl = ["\']([^"\']+)["\']', html))
 
     def _is_listing_page_html(self, html: str) -> bool:
-        return "video-img-box" in html
+        if "video-img-box" in html:
+            return True
+        lowered = html.lower()
+        return "<form" in lowered and any(
+            marker in lowered
+            for marker in ("no results", "no videos", "沒有結果", "没有结果")
+        )
 
     def _build_listing_url(self, path: str, *, page: int = 1) -> str:
         normalized_path = str(path or "/").strip() or "/"

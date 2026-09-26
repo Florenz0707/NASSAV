@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
 from nassav.scraper import AVDownloadInfo
+from nassav.page_fetching import create_page_fetch_service
 from nassav.source.CookieRepository import source_cookie_repository
 from nassav.source.CookieRuntimeCache import source_cookie_runtime_cache
 from nassav.source import Jable, Memo, MissAV, SourceBase
@@ -51,7 +52,25 @@ class SourceManager:
             weight = config.get("weight")
             # 只有配置了有效权重的源才会被注册
             if weight:
-                source = source_class(proxy)
+                if source_name == "missav":
+                    source = MissAV(
+                        proxy,
+                        page_fetcher=create_page_fetch_service(
+                            settings.BROWSER_FETCH_CONFIG
+                        ),
+                        cookie_saver=lambda cookie: self.set_source_cookie(
+                            "MissAV", cookie
+                        ),
+                    )
+                elif source_name == "jable":
+                    source = Jable(
+                        proxy,
+                        page_fetcher=create_page_fetch_service(
+                            settings.BROWSER_FETCH_CONFIG
+                        ),
+                    )
+                else:
+                    source = source_class(proxy)
                 self.sources[source.get_source_name()] = source
 
     def refresh_source_cookie(self, source_name: str, *, force: bool = False) -> str:

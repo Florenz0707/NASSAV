@@ -2,6 +2,23 @@
 
 本文档提供 NASSAV 后端测试套件的完整概览和使用指南。
 
+## Byparr 页面抓取测试
+
+旧的 `test_resource_samples.py`、`test_real_resource_kir062.py` 和 `test_debug_requests.py` 会访问真实目标站，默认跳过；仅设置 `NASSAV_EXTERNAL_TESTS=1` 才运行，其中资源测试可能写入测试数据库和资源文件。
+
+`test_browser_page_client.py`、`test_page_fetching.py`、`test_browser_fetch_config.py`、`test_source_page_fetching.py` 与 `test_flaresolverr.py` 均为离线测试。`test_browser_fetch_integration.py` 使用 `external` 标记，默认在发起网络请求前跳过；显式启用后服务不可用会失败。运行时使用当前确认存在的详情页，避免旧固定编号已失效。
+
+```bash
+uv run pytest tests/test_browser_page_client.py tests/test_page_fetching.py tests/test_browser_fetch_config.py tests/test_source_page_fetching.py -v
+BROWSER_FETCH_EXTERNAL=1 \
+BROWSER_FETCH_URL=http://127.0.0.1:8192 \
+BROWSER_FETCH_MISSAV_URL=https://missav.ai/cn/ipzz-912 \
+BROWSER_FETCH_MISSAV_AVID=IPZZ-912 \
+BROWSER_FETCH_JABLE_URL=https://jable.tv/videos/jur-466/ \
+BROWSER_FETCH_JABLE_AVID=JUR-466 \
+uv run pytest tests/test_browser_fetch_integration.py -v
+```
+
 ## 测试架构说明
 
 本项目测试已迁移至 **pytest** 框架，使用 fixtures 进行测试数据管理。所有新测试和重构的测试都应遵循 pytest 规范。

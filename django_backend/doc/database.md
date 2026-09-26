@@ -10,6 +10,8 @@
     - `cookie` (Text): Cookie 字符串。
     - `updated_at` (DateTime, auto_now): 更新时间，自动更新。
 
+本次 Byparr 页面获取迁移没有数据库 schema 变更。MissAV 浏览器自动 Cookie 经 `SourceCookieRepository` 保存，并通过 `SourceManager` 更新运行时缓存；失败时不覆盖既有 Cookie。浏览器返回的临时 Cookie 不新增持久化字段。
+
 - **`AVResource` (`nassav_avresource`)**: 主表，保存 AV 元数据（除封面与视频文件外的所有字段）。
   - 关键字段：
     - `avid` (Char, unique, db_index): AV 编号，主查找键。

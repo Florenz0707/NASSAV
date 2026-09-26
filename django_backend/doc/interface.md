@@ -216,6 +216,8 @@ POST /nassav/api/source/cookie
 
 ---
 
+自动获取 MissAV Cookie 时，已启用的浏览器提供方先获取并校验首页，再保存适用于目标域名的 Cookie；无可用 Cookie 或页面无效时返回失败，已有值保持不变。手动 Cookie CRUD 的请求和响应结构不变，直连请求仍可使用手动 Cookie。Cookie 保存成功不代表浏览器服务持续可用，也不代表播放清单或媒体下载成功。
+
 ## 清除源 Cookie
 
 - 方法：DELETE

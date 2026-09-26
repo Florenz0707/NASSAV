@@ -22,7 +22,7 @@ class TestJableSearchCache:
         def fake_fetch_html(url, referer=None):
             _ = (url, referer)
             calls["fetch"] += 1
-            return "<html>stub</html>"
+            return '<html><div class="video-img-box">stub</div></html>'
 
         def fake_parse_search_results(html):
             _ = html
@@ -57,7 +57,7 @@ class TestJableSearchCache:
         def fake_fetch_html(url, referer=None):
             _ = (url, referer)
             calls["fetch"] += 1
-            return "<html>stub</html>"
+            return '<html><div class="video-img-box">stub</div></html>'
 
         def fake_parse_search_results(html):
             _ = html
@@ -90,7 +90,7 @@ class TestJableSearchCache:
         def fake_fetch_html(url, referer=None):
             _ = (url, referer)
             calls["fetch"] += 1
-            return "<html>stub</html>"
+            return '<html><div class="video-img-box">stub</div></html>'
 
         def fake_parse_search_results(html):
             _ = html

@@ -17,7 +17,19 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
 
+import pytest
 from loguru import logger
+
+
+pytestmark = pytest.mark.external
+
+
+@pytest.fixture(autouse=True)
+def require_external_opt_in():
+    if os.environ.get("NASSAV_EXTERNAL_TESTS") != "1":
+        pytest.skip("Set NASSAV_EXTERNAL_TESTS=1 for live resource/debug tests")
+
+
 from nassav.source.SourceManager import source_manager
 
 

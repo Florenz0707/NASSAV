@@ -208,36 +208,32 @@ brew services start redis
 # 使用 WSL 或下载 Windows 版 Redis
 ```
 
-#### 启动 FlareSolverr（可选，用于绕过 Cloudflare）
+#### 启动 Byparr（可选，固定版本）
 
-MissAV、Jable 等站点受 Cloudflare 保护，启用 FlareSolverr 后系统可在被拦截时自动回退到 FlareSolverr 代理页面请求，无需手动干预。
+Django 在同机宿主机运行时，使用 [`django_backend/scripts/byparr/compose.yaml`](django_backend/scripts/byparr/compose.yaml) 在 `127.0.0.1:8192` 启动固定 digest 的 Byparr。先查看 [试验记录](django_backend/doc/byparr-trial-results.md) 和 [迁移计划](django_backend/doc/byparr-migration-plan.md)；当前配置模板默认关闭浏览器抓取，生产切换仍需完成在线验收。
 
 ```bash
-# 使用 Docker 启动（推荐）
-docker run -d \
-  --name flaresolverr \
-  -p 8191:8191 \
-  -e LOG_LEVEL=info \
-  --restart unless-stopped \
-  ghcr.io/flaresolverr/flaresolverr:latest
-
-# 验证服务是否正常
-curl http://localhost:8191/health
-# 期望返回: {"status":"ok","version":"..."}
+cd django_backend/scripts/byparr
+docker compose up -d
+docker compose logs --tail=100 byparr
 ```
 
-然后在 `config/config.yaml` 中启用：
+在 `django_backend/config/config.yaml` 中配置：
 
 ```yaml
-FlareSolverr:
-  Enable: true
-  url: http://localhost:8191
-  timeout: 60000 # 等待 Cloudflare 验证的最长时间（毫秒）
+BrowserFetch:
+  Enable: false # 完成验收后改为 true
+  provider: byparr
+  url: http://127.0.0.1:8192
+  timeout_ms: 60000
+Source:
+  missav:
+    browser_fetch_strategy: browser_first
+  jable:
+    browser_fetch_strategy: direct_first
 ```
 
-> **注意**：`cf_clearance` cookie 与 FlareSolverr 浏览器的 TLS 指纹绑定，系统会自动通过 FlareSolverr 代理页面请求，无需额外配置。
->
-> 目前 FlareSolverr 的控制请求不透传源代理，避免代理链路不稳定影响回退流程。
+保留旧 `FlareSolverr` 配置可回滚：仅当 `BrowserFetch` 块不存在时才读取旧配置。策略可选 `browser_first`、`direct_first`、`direct_only`。页面通过业务结构校验后才进入解析；MissAV 默认浏览器优先，Jable 默认直连优先。Byparr 的浏览器出口独立于 Django 的 `Proxy.url`，需要代理时在 Compose 的本地 `.env` 中设置容器可达的 `BYPARR_PROXY_SERVER`。修改配置后重启 Web 和任务进程。
 
 #### 启动服务
 
@@ -488,13 +484,13 @@ A: 确保使用 ASGI 服务器（Uvicorn 或 Daphne），而不是传统的 WSGI
 
 A: 部分源需要 Cookie 才能访问。各源情况如下：
 
-- **missav**：品类最全，启用 FlareSolverr 后可自动获取 cookie（推荐）；未启用时需在设置页手动填写
-- **jable**：品类较全，直连优先；遇到 Cloudflare 时会回退 FlareSolverr
+- **missav**：浏览器优先、直连兜底；手动 Cookie 仍供直连使用。自动获取成功只代表 Cookie 已保存，不保证媒体下载成功。
+- **jable**：直连优先、浏览器兜底；失败页面不会进入搜索缓存。
 - **memo**：无需 cookie，但没有中文字幕
 
-**Q: FlareSolverr 启动后 MissAV 仍然返回 403？**
+**Q: 启用浏览器服务后 MissAV 仍然无法解析？**
 
-A: `cf_clearance` cookie 与 FlareSolverr 浏览器的 TLS 指纹绑定，不能直接用 curl_cffi 携带该 cookie 请求。系统已自动处理此问题——被拦截时会通过 FlareSolverr 代理整个页面请求，无需手动干预。如果仍有问题，检查 FlareSolverr 服务是否正常运行（`curl http://localhost:8191/health`）。
+A: 先检查浏览器服务日志、控制地址和容器出口，再用当前存在的详情页验证 UUID 标记。Byparr 的 `solution.status=200` 不能证明目标页面有效；首页、挑战页或不存在页面都会被业务校验拒绝。HTML 成功也不保证播放清单或媒体下载成功。
 
 ### 前端相关
 

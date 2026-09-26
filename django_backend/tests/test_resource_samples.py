@@ -12,8 +12,19 @@
     uv run pytest tests/test_resource_samples.py::test_real_resources -v
 """
 
+import os
+
 import pytest
 from loguru import logger
+
+
+pytestmark = pytest.mark.external
+
+
+@pytest.fixture(autouse=True)
+def require_external_opt_in():
+    if os.environ.get("NASSAV_EXTERNAL_TESTS") != "1":
+        pytest.skip("Set NASSAV_EXTERNAL_TESTS=1 for live resource/debug tests")
 
 
 def validate_resource_fields(resource, avid, should_exist=True):

@@ -5,7 +5,12 @@ from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
 from nassav.constants import IMPERSONATE
-from nassav.flaresolverr_client import FlareSolverrClient
+from nassav.page_fetching import (
+    PageFetchService,
+    create_page_fetch_service,
+    validate_strategy,
+)
+from nassav.source.CookieRepository import source_cookie_repository
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -13,30 +18,30 @@ from nassav.source.SourceBase import SourceBase
 class MissAV(SourceBase):
     """MissAV下载器"""
 
-    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+    def __init__(
+        self,
+        proxy: Optional[str] = None,
+        timeout: int = 15,
+        *,
+        page_fetcher: PageFetchService | None = None,
+        cookie_saver=None,
+    ):
         super().__init__(proxy, timeout)
         source_config = settings.SOURCE_CONFIG.get("missav", {})
         self.domain = source_config.get("domain", "missav.ai")
-
-        # FlareSolverr：当 curl_cffi 被 Cloudflare 拦截时使用
-        if settings.FLARESOLVERR_ENABLED:
-            self._flaresolverr = FlareSolverrClient(
-                base_url=settings.FLARESOLVERR_URL,
-                timeout_ms=settings.FLARESOLVERR_TIMEOUT,
-                proxy=proxy,
-            )
-        else:
-            self._flaresolverr = None
+        self.browser_fetch_strategy = validate_strategy(
+            source_config.get("browser_fetch_strategy", "browser_first")
+        )
+        self.page_fetcher = page_fetcher or create_page_fetch_service(
+            settings.BROWSER_FETCH_CONFIG
+        )
+        self._cookie_saver = cookie_saver
 
     def get_source_name(self) -> str:
         return "MissAV"
 
     def get_html(self, avid: str) -> Optional[str]:
-        """根据avid获取HTML
-
-        若 FlareSolverr 已启用，优先通过 FlareSolverr 请求（绕过 Cloudflare）；
-        FlareSolverr 失败时回退到 curl_cffi。未启用则直接使用 curl_cffi。
-        """
+        """Fetch candidates in their original order and validate both paths alike."""
         import time
 
         avid_lower = avid.lower()
@@ -45,69 +50,68 @@ class MissAV(SourceBase):
             f"https://{self.domain}/{avid_lower}-chinese-subtitle",
             f"https://{self.domain}/cn/{avid_lower}",
         ]
-
+        self.page_fetcher.reset_lookup()
         for url in urls:
-            # 1. FlareSolverr 优先（已启用时）
-            if self._flaresolverr:
-                logger.info(f"MissAV: 通过 FlareSolverr 请求: {url}")
-                solution = self._flaresolverr.get(url)
-                if solution and solution.get("status") == 200:
-                    content = solution.get("response", "")
-                    # 有效视频页面必含 surrit（CDN 域名），404 页面不含
-                    if content and "surrit" in content:
-                        return content
-                    logger.info(
-                        f"MissAV: FlareSolverr 返回页面无视频内容（可能是404），跳过: {url}"
-                    )
-                logger.info(
-                    f"MissAV: FlareSolverr 失败或页面无效，回退到 curl_cffi: {url}"
-                )
-
-            # 2. curl_cffi 兜底
-            content = self.fetch_html(
-                url, referer=f"https://{self.domain}/search/{avid_lower}"
+            result = self.page_fetcher.fetch(
+                url,
+                direct_fetch=lambda url=url: self.fetch_html(
+                    url, referer=f"https://{self.domain}/search/{avid_lower}"
+                ),
+                validator=lambda html: self._is_detail_page_html(html, avid),
+                strategy=self.browser_fetch_strategy,
             )
+            if result.ok:
+                return result.html
             time.sleep(1)
-            if content:
-                return content
-
         return None
 
+    def _is_detail_page_html(self, html: str, avid: str) -> bool:
+        if not self._extract_uuid(html):
+            return False
+        title = re.search(r'<meta property="og:title" content="(.*?)"', html)
+        return bool(title and avid.lower() in title.group(1).lower())
+
     def set_cookie_auto(self, force_refresh: bool = False) -> bool:
-        """自动获取 cookie
-
-        若 FlareSolverr 已启用，优先通过 FlareSolverr 获取 cf_clearance；
-        否则回退到基类的 curl_cffi 实现。
-        """
-        if not self._flaresolverr:
+        """Save browser cookies only after validating the home page."""
+        if not self.page_fetcher.browser:
             return super().set_cookie_auto(force_refresh)
-
-        from nassav.models import SourceCookie
-
         source_name = self.get_source_name()
-
         if not force_refresh:
-            try:
-                cookie_obj = SourceCookie.objects.get(source_name=source_name)
-                self.cookie = cookie_obj.cookie
-                logger.info(f"{source_name}: 从数据库加载 cookie")
+            existing = source_cookie_repository.get_cookie(source_name)
+            if existing:
+                self.cookie = existing
                 return True
-            except SourceCookie.DoesNotExist:
-                logger.info(f"{source_name}: 数据库中无 cookie，通过 FlareSolverr 获取")
+        from urllib.parse import urlparse
 
         home_url = f"https://{self.domain}/"
-        cookie_str = self._flaresolverr.get_cookies_str(home_url)
-        if not cookie_str:
-            logger.warning(
-                f"{source_name}: FlareSolverr 获取 cookie 失败，回退到 curl_cffi"
-            )
-            return super().set_cookie_auto(force_refresh=True)
-
-        SourceCookie.objects.update_or_create(
-            source_name=source_name, defaults={"cookie": cookie_str}
+        result = self.page_fetcher.browser.fetch(
+            home_url, timeout_ms=self.page_fetcher.timeout_ms
         )
+        if not result.ok or not self.page_fetcher.same_site(home_url, result.final_url):
+            return False
+        if (
+            self.page_fetcher.is_challenge(result.html)
+            or "missav" not in result.html.lower()
+        ):
+            return False
+        cookies = []
+        target_host = urlparse(home_url).hostname or ""
+        for item in result.cookies:
+            name, value = item.get("name"), item.get("value")
+            domain = str(item.get("domain") or target_host).lstrip(".").lower()
+            if (
+                name
+                and value
+                and (target_host == domain or target_host.endswith("." + domain))
+            ):
+                cookies.append(f"{name}={value}")
+        if not cookies:
+            return False
+        cookie_str = "; ".join(cookies)
+        if self._cookie_saver:
+            return bool(self._cookie_saver(cookie_str))
+        source_cookie_repository.set_cookie(source_name, cookie_str)
         self.cookie = cookie_str
-        logger.info(f"{source_name}: FlareSolverr cookie 已保存到数据库")
         return True
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
