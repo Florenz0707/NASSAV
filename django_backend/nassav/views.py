@@ -1406,8 +1406,12 @@ class DownloadAbspathView(SchemaAPIView):
         except Exception:
             url_prefix = ""
 
+        host_video_dir = getattr(settings, "VIDEO_HOST_DIR", None)
+        if host_video_dir:
+            abs_path = str(Path(host_video_dir) / mp4_path.name)
+
         # 拼接前缀和绝对路径
-        prefixed = f"{url_prefix}{abs_path}"
+        prefixed = f"{url_prefix or ''}{abs_path}"
 
         return build_response(200, "success", {"abspath": prefixed})
 

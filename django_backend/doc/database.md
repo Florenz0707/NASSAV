@@ -1,3 +1,5 @@
+Compose 部署中 SQLite 的路径由 `DATABASE_PATH` 指定，默认仍为后端目录的 `db.sqlite3`。Compose 将数据库文件及 WAL/SHM 共享在 `deploy-data/db/`；资源、配置与备份路径见 [部署说明](compose-deployment.md)。本阶段无 schema 变更。
+
 ## Database Overview
 
 - **Scope:** 介绍与 `AVResource` 相关的数据库表、它们之间的关系、字段语义、索引、以及元数据/封面/视频的持久化和更新流程。

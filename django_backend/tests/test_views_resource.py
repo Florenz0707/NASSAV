@@ -41,6 +41,8 @@ def test_downloads_abspath_missing(api_client, tmp_path, settings):
 def test_downloads_abspath_present(api_client, tmp_path, settings):
     """测试存在的文件路径查询"""
     settings.VIDEO_DIR = str(tmp_path)
+    settings.VIDEO_HOST_DIR = None
+    settings.CONFIG = {**settings.CONFIG, "FilePathPrefix": None}
     fname = tmp_path / "TST-VID.mp4"
 
     try:
@@ -53,7 +55,13 @@ def test_downloads_abspath_present(api_client, tmp_path, settings):
 
         body = resp.json()
         assert body["code"] == 200
-        assert "abspath" in body["data"]
+        assert body["data"]["abspath"] == str(fname)
+
+        settings.VIDEO_HOST_DIR = "/host/videos"
+        settings.CONFIG = {**settings.CONFIG, "FilePathPrefix": None}
+        mapped = api_client.get("/nassav/api/downloads/abspath", {"avid": "TST-VID"})
+        assert mapped.status_code == 200
+        assert mapped.json()["data"]["abspath"] == "/host/videos/TST-VID.mp4"
     finally:
         if fname.exists():
             fname.unlink()

@@ -1,0 +1,192 @@
+name: nassav
+
+x-backend: &backend
+  build:
+    context: ./django_backend
+  image: nassav-backend:${NASSAV_IMAGE_TAG:-local}
+  init: true
+  environment: &backend-environment
+    SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+    DEBUG: 'false'
+    ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,api}
+    CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+    REDIS_URL: redis://redis:6379/0
+    DATABASE_PATH: /app/data/db/db.sqlite3
+    DOWNLOAD_PROXY_URL: ${DOWNLOAD_PROXY_URL-}
+    VIDEO_HOST_DIR: ${NASSAV_VIDEO_HOST_DIR:?Set the absolute host path to the video directory}
+    NO_PROXY: redis,byparr,api,localhost,127.0.0.1
+    no_proxy: redis,byparr,api,localhost,127.0.0.1
+  volumes: &backend-volumes
+    - ${NASSAV_DATA_DIR:-./deploy-data}/config:/app/config
+    - ${NASSAV_DATA_DIR:-./deploy-data}/db:/app/data/db
+    - ${NASSAV_DATA_DIR:-./deploy-data}/resource:/app/resource
+    - ${NASSAV_DATA_DIR:-./deploy-data}/resource_backup:/app/resource_backup
+    - ${NASSAV_DATA_DIR:-./deploy-data}/backup:/app/backup
+    - ${NASSAV_DATA_DIR:-./deploy-data}/backup_sync:/app/backup_sync
+    - ${NASSAV_DATA_DIR:-./deploy-data}/celery_beat:/app/celery_beat
+    - ${NASSAV_DATA_DIR:-./deploy-data}/log:/app/log
+  networks:
+    - internal
+  extra_hosts:
+    - 'host.docker.internal:host-gateway'
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    restart: unless-stopped
+    volumes:
+      - ${NASSAV_DATA_DIR:-./deploy-data}/redis:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    mem_limit: 512m
+
+  byparr:
+    image: ghcr.io/thephaseless/byparr@sha256:874f719518f617d03a60e03411fc5d090647e1a877041e81f8dc965927c7deb6
+    restart: unless-stopped
+    shm_size: 512m
+    environment:
+      PROXY_SERVER: ${BYPARR_PROXY_SERVER-}
+      NO_PROXY: redis,byparr,api,localhost,127.0.0.1
+    networks:
+      - internal
+    mem_limit: 2g
+
+  migrate:
+    <<: *backend
+    command: ['python', 'manage.py', 'migrate', '--noinput']
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    <<: *backend
+    command: ['uvicorn', 'django_project.asgi:application', '--host', '0.0.0.0', '--port', '9790']
+    depends_on: &backend-dependencies
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      byparr:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9790/healthz', timeout=4)",
+        ]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 30s
+    mem_limit: 1g
+
+  scrape-worker:
+    <<: *backend
+    command:
+      [
+        'celery',
+        '-A',
+        'django_project',
+        'worker',
+        '-l',
+        'INFO',
+        '-Q',
+        'scrape',
+        '-c',
+        '1',
+        '--prefetch-multiplier=1',
+      ]
+    depends_on: *backend-dependencies
+    restart: unless-stopped
+    mem_limit: 1g
+
+  download-worker:
+    <<: *backend
+    command:
+      [
+        'celery',
+        '-A',
+        'django_project',
+        'worker',
+        '-l',
+        'INFO',
+        '-Q',
+        'download',
+        '-c',
+        '1',
+        '--prefetch-multiplier=1',
+      ]
+    depends_on: *backend-dependencies
+    restart: unless-stopped
+    mem_limit: 1g
+
+  default-worker:
+    <<: *backend
+    command:
+      [
+        'celery',
+        '-A',
+        'django_project',
+        'worker',
+        '-l',
+        'INFO',
+        '-Q',
+        'default',
+        '-c',
+        '1',
+        '--prefetch-multiplier=1',
+      ]
+    depends_on: *backend-dependencies
+    restart: unless-stopped
+    mem_limit: 1g
+
+  beat:
+    <<: *backend
+    profiles: ['scheduler']
+    command:
+      ['celery', '-A', 'django_project', 'beat', '-l', 'INFO', '-s', '/app/celery_beat/schedule']
+    volumes:
+      - ${NASSAV_DATA_DIR:-./deploy-data}/config:/app/config
+      - ${NASSAV_DATA_DIR:-./deploy-data}/db:/app/data/db
+      - ${NASSAV_DATA_DIR:-./deploy-data}/resource:/app/resource
+      - ${NASSAV_DATA_DIR:-./deploy-data}/resource_backup:/app/resource_backup
+      - ${NASSAV_DATA_DIR:-./deploy-data}/backup:/app/backup
+      - ${NASSAV_DATA_DIR:-./deploy-data}/backup_sync:/app/backup_sync
+      - ${NASSAV_DATA_DIR:-./deploy-data}/log:/app/log
+      - ${NASSAV_DATA_DIR:-./deploy-data}/celery_beat:/app/celery_beat
+    depends_on: *backend-dependencies
+    restart: unless-stopped
+    mem_limit: 512m
+
+  frontend:
+    build:
+      context: ./vue_frontend
+    image: nassav-frontend:${NASSAV_IMAGE_TAG:-local}
+    restart: unless-stopped
+    ports:
+      - ${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-9780}:80
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1/']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+
+networks:
+  internal:
+    internal: false

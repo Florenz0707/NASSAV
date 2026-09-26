@@ -2,6 +2,8 @@
 
 基于 Django + Celery 构建的视频资源管理后端服务。
 
+全栈容器部署见 [Compose 部署说明](doc/compose-deployment.md)。
+
 ## 功能特性
 
 ### 核心功能

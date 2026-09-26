@@ -12,6 +12,10 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ---
 
+## 内部健康检查
+
+`GET /healthz` 检查 SQLite 与 Redis，返回 `{"status":"ok"}` 或 HTTP 503 的 `{"status":"unavailable"}`。此端点仅用于 Compose 内部就绪检查；网关不转发它，也不代表外部抓取源可用。
+
 ## OpenAPI 文档
 
 项目已启用基于 drf-spectacular 的 OpenAPI 支持，可通过以下端点访问：
@@ -946,7 +950,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 
 - 方法：GET
 - 路径：`/nassav/api/downloads/abspath?avid=<AVID>`
-- 功能：返回视频文件的绝对路径，前面拼接 config.UrlPrefix 作为前缀
+- 功能：返回视频文件的绝对路径。Compose 部署中通过 `VIDEO_HOST_DIR` 映射到宿主机目录，然后拼接 `config.FilePathPrefix`；浏览器需能访问此路径。
 - 返回示例：
 
 ```json

@@ -59,8 +59,17 @@ if allowed_hosts_env:
 else:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+DOWNLOAD_PROXY_URL = os.getenv("DOWNLOAD_PROXY_URL")
+VIDEO_HOST_DIR = os.getenv("VIDEO_HOST_DIR")
+
 # Redis Configuration
-REDIS_URL = "redis://localhost:6379/0"
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # Application definition
 INSTALLED_APPS = [
@@ -138,7 +147,7 @@ EXTERNAL_SOURCE_SEARCH_CACHE_TTL_LATEST = 300  # latest updates
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "db.sqlite3"))),
         # 启用 WAL 模式以提高并发性能和数据安全性
         "OPTIONS": {
             "init_command": "PRAGMA journal_mode=WAL;",

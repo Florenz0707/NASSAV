@@ -146,7 +146,11 @@ class VideoDownloadService:
 video_download_service = VideoDownloadService(
     resource_manager=source_manager,
     m3u8_downloader=N_m3u8DL_RE(
-        proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None
+        proxy=(
+            settings.DOWNLOAD_PROXY_URL
+            if settings.DOWNLOAD_PROXY_URL is not None
+            else (settings.PROXY_URL if settings.PROXY_ENABLED else None)
+        )
     ),
 )
 

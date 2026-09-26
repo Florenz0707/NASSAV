@@ -1,0 +1,82 @@
+# 代理配置
+Proxy:
+  Enable: false
+  url: http://127.0.0.1:443
+
+# Compose 内部 Byparr；宿主机开发仍使用 template-config.yaml 的地址
+BrowserFetch:
+  Enable: true
+  provider: byparr
+  url: http://byparr:8191
+  timeout_ms: 60000
+
+# 文件路径前缀配置
+# 用于在返回视频文件绝对路径时添加前缀（如 WSL 路径转换）
+FilePathPrefix: null
+
+# 备份数据路径
+# 用于 sync_backups 命令的目标同步目录
+# 注意：backup_database 和 backup_avid_list 命令仍使用项目根目录下的 backup/ 目录
+BackupPath: /app/backup_sync
+
+# 元数据抓取器配置
+Scraper:
+  javbus:
+    domain: www.javbus.com
+  busdmm:
+    domain: www.busdmm.ink
+  dmmsee:
+    domain: www.dmmsee.bond
+
+# 视频下载源配置
+Source:
+  missav:
+    domain: missav.ai
+    weight: 1000
+    browser_fetch_strategy: browser_first
+  jable:
+    domain: jable.tv
+    weight: 800
+    browser_fetch_strategy: direct_first
+  memo:
+    domain: memojav.com
+    weight: 600
+
+# 翻译器配置
+# 用于将日语标题翻译为中文
+Translator:
+  # 使用哪个翻译服务
+  active: qwen2.5:7b
+
+  # 翻译服务配置
+  qwen2.5:7b:
+    # 翻译服务类型
+    type: ollama
+    # 宿主机 Ollama；须确认容器能访问 11434 端口
+    url: http://host.docker.internal:11434
+
+    # 使用的模型
+    # 推荐模型：
+    #   - qwen2.5:7b (中文翻译质量最好，推荐)
+    #   - llama3.2:3b (速度快，资源占用小)
+    #   - gemma2:9b (平衡性能和质量)
+    model: qwen2.5:7b
+
+    # 请求超时时间（秒）
+    timeout: 30
+
+    # 最大重试次数
+    max_retries: 3
+
+    # 翻译提示模板
+    # {text} 会被替换为待翻译的文本
+    # 简洁版本，避免 Ollama 解析错误
+    prompt_template: >-
+      你是专业的日语-中文翻译专家。请将以下日语标题翻译成简体中文。
+
+      翻译规则：1)保留人名不翻译 2)保留番号和系列名 3)使用自然流畅的中文
+      4)保持原文情境 5)只返回翻译结果
+
+      日语标题：{text}
+
+      中文翻译：

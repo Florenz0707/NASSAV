@@ -4,7 +4,7 @@ Proxy:
   url: http://127.0.0.1:443
 
 # 浏览器页面获取；试运行验收后再启用
-# Django 在同机宿主机、Byparr 在 Docker 时使用此地址
+# Django 在同机宿主机、Byparr 在 Docker 时使用此地址；Compose 使用 compose-config.example.yaml
 BrowserFetch:
   Enable: false
   provider: byparr

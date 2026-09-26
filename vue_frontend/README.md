@@ -3,6 +3,8 @@
 一个用于管理视频资源的前端应用，包含资源检索、信息刮削、下载管理等功能。基于 Vue 3、Vite、Pinia 与 Vue Router 构建，默认通过
 `/nassav` 代理与后端交互。
 
+全栈容器部署通过仓库根目录 `compose.yaml` 提供 nginx 网关，详见 [Compose 部署说明](../django_backend/doc/compose-deployment.md)。
+
 ## 功能概览（含页面与预览图）
 
 - 首页（概览与最近添加）
