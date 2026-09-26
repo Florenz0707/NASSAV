@@ -210,3 +210,14 @@ class ResourceCreateSerializer(serializers.Serializer):
 
     def validate_avid(self, value):
         return value.strip().upper()
+
+
+class ResourceJobSerializer(serializers.Serializer):
+    """Validate one asynchronous add or refresh request."""
+
+    action = serializers.ChoiceField(choices=["add", "refresh"])
+    avid = serializers.CharField(max_length=50, trim_whitespace=True)
+    source = serializers.CharField(max_length=50, default="any", required=False)  # type: ignore
+    refresh_m3u8 = serializers.BooleanField(default=True, required=False)
+    refresh_metadata = serializers.BooleanField(default=True, required=False)
+    retranslate = serializers.BooleanField(default=False, required=False)

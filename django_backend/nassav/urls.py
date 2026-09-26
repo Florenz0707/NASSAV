@@ -125,6 +125,18 @@ urlpatterns = [
         views.ResourceMetadataView.as_view(),
         name="resource-metadata",
     ),
+    # Async resource jobs leave the legacy synchronous endpoints unchanged.
+    path("api/resource/jobs", views.ResourceJobView.as_view(), name="resource-jobs"),
+    path(
+        "api/resource/jobs/batch",
+        views.ResourceJobBatchView.as_view(),
+        name="resource-jobs-batch",
+    ),
+    path(
+        "api/resource/jobs/<uuid:task_id>",
+        views.ResourceJobStatusView.as_view(),
+        name="resource-job-status",
+    ),
     # POST /api/resource/new - 通过avid获取资源信息（可指定source）
     path("api/resource", views.ResourceView.as_view(), name="resource-new"),
     # POST /api/resource/refresh/{avid} - 刷新已有资源的元数据和m3u8链接

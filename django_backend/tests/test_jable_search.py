@@ -1,11 +1,18 @@
 import pytest
+from django.conf import settings
 from django.core.cache import cache
 
+from nassav.page_fetching.factory import BrowserFetchConfig
 from nassav.source import Jable
 
 
 @pytest.fixture(autouse=True)
-def clear_jable_search_cache():
+def clear_jable_search_cache(monkeypatch):
+    monkeypatch.setattr(
+        settings,
+        "BROWSER_FETCH_CONFIG",
+        BrowserFetchConfig(False, "byparr", "http://127.0.0.1:8192", 60000),
+    )
     cache.clear()
     yield
     cache.clear()

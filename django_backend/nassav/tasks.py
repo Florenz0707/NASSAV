@@ -1289,3 +1289,7 @@ def check_resources_consistency(
         call_command("check_resources_consistency", *args)
     except Exception as e:
         logger.error(f"运行资源一致性检查任务失败: {e}")
+
+
+# Celery autodiscovers tasks.py; import the dedicated scrape task for registration.
+from nassav.scrape_jobs import run_resource_job  # noqa: E402, F401

@@ -1251,3 +1251,15 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 - 图片直接使用 `thumbnail_url` 作为 `img.src`，依赖浏览器自动带条件头，或手动在 axios 中传 `If-None-Match`。
 
 ---
+
+## 异步资源抓取任务（P1）
+
+旧 `POST /nassav/api/resource`、`POST /nassav/api/resource/refresh/{avid}`、`POST /nassav/api/resources/batch` 保持同步响应结构。新接口不会在 HTTP 请求中等待 Byparr。
+
+- `POST /nassav/api/resource/jobs`：提交一条 `add` 或 `refresh` 任务。请求示例：`{"action":"add","avid":"ABC-123","source":"any"}`。刷新可传 `refresh_m3u8`、`refresh_metadata`、`retranslate` 布尔值；重新翻译在刷新后提交。提交成功或重复提交均返回 HTTP 202，`data` 含 `task_id`、`status_url`、`status_token`、`job` 和 `duplicate`。添加已存在资源为 409；刷新不存在资源为 404；参数错误为 400；队列不可用为 503。
+- `POST /nassav/api/resource/jobs/batch`：请求 `{"actions":[{"action":"add","avid":"ABC-123"},...]}`，一次 1–100 项，仅接受添加/刷新。HTTP 202 的 `data.results` 按输入顺序逐项给出 202、400、404、409 或 503；某项失败不阻止其他项入队。每个成功项有独立的 `task_id`、`status_url`、`status_token` 和 `duplicate`。
+- `GET /nassav/api/resource/jobs/{task_id}`：请求头 `X-Resource-Job-Token: <status_token>` 必填。返回最新快照；令牌无效为 403，未知或过期任务为 404，Redis 不可用为 503。令牌有效期覆盖最长排队、运行和终态快照保留时间，不要写入公开日志或分享链接。
+
+快照字段为 `task_id`、`job_type=scrape`、`action`、`avid`、`state`、`stage`、`version`、`updated_at`、`resource_avid`、`error_code`、`message`。状态顺序为 `queued → running → succeeded|failed`；运行阶段按实际执行进入 `source_lookup`、`metadata`、`cover`、`saving`、`translation_queued`。无总工作量时不提供百分比。前端应在入队后先查快照，按 `version` 忽略旧事件；成功后再重新查询资源。`scrape_job_update` WebSocket 事件仅含任务 ID、类型、状态、阶段、版本和更新时间；完整快照需凭令牌查询。
+
+资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前入口供受限的单用户部署使用；公开部署前仍需落实网关访问控制和 WebSocket 订阅隔离。

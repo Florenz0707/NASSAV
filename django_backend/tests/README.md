@@ -510,3 +510,11 @@ def test_with_api_client(api_client):
 ---
 
 **最后更新**: 2026-01-07
+
+## 异步资源任务测试
+
+`test_scrape_jobs.py` 使用内存任务存储和 mock 的业务执行，验证去重、入队失败清理、阶段与终态、批量部分失败及状态查询令牌，不访问外部站点：
+
+```bash
+uv run pytest tests/test_scrape_jobs.py -v
+```

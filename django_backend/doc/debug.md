@@ -297,3 +297,7 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 ---
 
 **文档更新日期：** 2026-01-02
+
+## 异步资源任务本地验证
+
+使用 `POST /nassav/api/resource/jobs` 提交后，先记录返回的 `task_id` 和 `status_token`，再以 `X-Resource-Job-Token` 请求 `GET /nassav/api/resource/jobs/{task_id}`。`queued` 表示已入队，只有 `succeeded` 才代表数据库资源已写入。当前后端尚未切换前端入口；旧资源接口继续同步执行。运行任务需要独立的 `scrape` worker，启动命令见 [后端 README](../README.md)。离线测试命令见 [测试说明](../tests/README.md)。

@@ -819,3 +819,15 @@ redis-cli keys "nassav:task_lock:*" | xargs redis-cli del
 ## License
 
 MIT License
+
+### 异步资源任务（P1 后端接口）
+
+新增 `POST /nassav/api/resource/jobs`、`POST /nassav/api/resource/jobs/batch` 和 `GET /nassav/api/resource/jobs/{task_id}`；接口字段和签名查询令牌见 [接口说明](doc/interface.md)。当前前端尚未切换，旧资源接口仍是同步调用。启动 Redis 后，开发环境分别启动以下 worker；只启动不带 `-Q` 的默认 worker 无法消费 `scrape` 与 `download` 队列：
+
+```bash
+uv run celery -A django_project worker -l INFO -Q scrape -c 1 --prefetch-multiplier=1
+uv run celery -A django_project worker -l INFO -Q download -c 1 --prefetch-multiplier=1
+uv run celery -A django_project worker -l INFO -Q default -c 1 --prefetch-multiplier=1
+```
+
+三个命令需在独立终端运行。下载及模拟下载进入 `download`；资源添加/刷新进入 `scrape`；翻译和定时任务由 `default` 消费。若使用 Beat，另启单实例 Beat。任务状态保存在 Redis，终态保留 24 小时；同一资源编号的添加/刷新共用任务锁。

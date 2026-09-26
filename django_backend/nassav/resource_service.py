@@ -12,7 +12,7 @@ ResourceService - 资源服务层
 import traceback as tb
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from django.conf import settings
 from django.utils import timezone
@@ -168,6 +168,7 @@ class ResourceService:
         scrape: bool = True,
         download_cover: bool = True,
         submit_translate: bool = True,
+        progress: Callable[[str], None] | None = None,
     ) -> dict:
         """
         添加新资源（完整流程）
@@ -210,6 +211,8 @@ class ResourceService:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 2: 从源获取资源信息
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if progress:
+            progress("source_lookup")
         info, source_inst, html, errors = self._get_source_info(avid, source)
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -223,6 +226,7 @@ class ResourceService:
             scrape=scrape,
             download_cover=download_cover,
             submit_translate=submit_translate,
+            progress=progress,
         )
 
         logger.info(f"[ResourceService] 资源 {avid} 添加成功")
@@ -238,7 +242,12 @@ class ResourceService:
         return result
 
     def refresh_resource(
-        self, avid: str, *, scrape: bool = True, download_cover: bool = True
+        self,
+        avid: str,
+        *,
+        scrape: bool = True,
+        download_cover: bool = True,
+        progress: Callable[[str], None] | None = None,
     ) -> dict:
         """
         刷新已有资源的元数据和m3u8链接
@@ -271,6 +280,8 @@ class ResourceService:
 
         # 从源获取最新信息
         source_name = resource.source
+        if progress:
+            progress("source_lookup")
         info, source_inst, html, errors = self._get_source_info(avid, source_name)
 
         # 更新资源
@@ -282,6 +293,7 @@ class ResourceService:
             scrape=scrape,
             download_cover=download_cover,
             submit_translate=False,  # 刷新时不提交翻译任务
+            progress=progress,
         )
 
         result["m3u8_updated"] = True
@@ -435,6 +447,7 @@ class ResourceService:
         scrape: bool = True,
         download_cover: bool = True,
         submit_translate: bool = True,
+        progress: Callable[[str], None] | None = None,
     ) -> dict:
         """
         保存所有资源（从 SourceManager.save_all_resources 迁移）
@@ -464,6 +477,8 @@ class ResourceService:
         scraped_data = None
         scraped_by = None
         if scrape:
+            if progress:
+                progress("metadata")
             scraped_data, scraped_by = self._scrape_metadata(avid)
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -471,6 +486,8 @@ class ResourceService:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         cover_saved = False
         if download_cover:
+            if progress:
+                progress("cover")
             cover_saved = self._download_cover(
                 avid,
                 scraped_data,
@@ -482,6 +499,8 @@ class ResourceService:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 4: 保存到数据库
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if progress:
+            progress("saving")
         resource = self._save_to_database(
             avid,
             info,
@@ -501,6 +520,8 @@ class ResourceService:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         translate_task_id = None
         if submit_translate and scraped_data:
+            if progress:
+                progress("translation_queued")
             translate_task_id = self._submit_translate_task(avid)
 
         # 构造返回结果

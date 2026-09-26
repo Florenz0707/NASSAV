@@ -2539,3 +2539,167 @@ class MockDownloadView(SchemaAPIView):
         except Exception as e:
             logger.error(f"提交模拟下载任务失败: {e}")
             return build_response(500, f"提交失败: {str(e)}", None)
+
+
+class ResourceJobView(SchemaAPIView):
+    """Submit one scrape job without waiting for browser or metadata requests."""
+
+    def post(self, request):
+        from nassav.scrape_jobs import job_token, submit_resource_job
+        from nassav.resource_service import (
+            ResourceAlreadyExistsError,
+            ResourceNotFoundError,
+        )
+        from nassav.serializers import ResourceJobSerializer
+
+        serializer = ResourceJobSerializer(data=request.data)
+        if not serializer.is_valid():
+            return build_response(400, "参数错误", serializer.errors)
+        item = serializer.validated_data
+        action = item["action"]
+        source = item.get("source", "any").lower()
+        if action == "add" and source != "any":
+            if source not in {name.lower() for name in source_manager.sources}:
+                return build_response(400, "源不存在", {"source": source})
+        options = {
+            name: item[name]
+            for name in ("refresh_m3u8", "refresh_metadata", "retranslate")
+        }
+        try:
+            snapshot, duplicate = submit_resource_job(
+                action, item["avid"], source, options
+            )
+        except ResourceAlreadyExistsError:
+            return build_response(409, "资源已存在", None)
+        except ResourceNotFoundError:
+            return build_response(404, "资源不存在", None)
+        except ValueError as exc:
+            return build_response(400, str(exc), None)
+        except Exception:
+            logger.exception("提交资源任务失败")
+            return build_response(503, "任务队列暂不可用", None)
+        data = {
+            "task_id": snapshot["task_id"],
+            "status_url": f"/nassav/api/resource/jobs/{snapshot['task_id']}",
+            "status_token": job_token(snapshot["task_id"]),
+            "job": snapshot,
+            "duplicate": duplicate,
+        }
+        return build_response(202, "任务已受理", data)
+
+
+class ResourceJobStatusView(SchemaAPIView):
+    """Return the latest Redis snapshot, including a terminal result when present."""
+
+    def get(self, request, task_id):
+        from nassav.scrape_jobs import get_resource_job, valid_job_token
+
+        if not valid_job_token(
+            str(task_id), request.headers.get("X-Resource-Job-Token", "")
+        ):
+            return build_response(403, "无权查询此任务", None)
+        try:
+            snapshot = get_resource_job(str(task_id))
+        except Exception:
+            logger.exception("查询资源任务失败")
+            return build_response(503, "任务状态暂不可用", None)
+        if snapshot is None:
+            return build_response(404, "任务不存在或已过期", None)
+        return build_response(200, "success", snapshot)
+
+
+class ResourceJobBatchView(SchemaAPIView):
+    """Submit independent add/refresh jobs and report each outcome."""
+
+    def post(self, request):
+        from nassav.resource_service import (
+            ResourceAlreadyExistsError,
+            ResourceNotFoundError,
+        )
+        from nassav.scrape_jobs import job_token, submit_resource_job
+        from nassav.serializers import ResourceJobSerializer
+
+        actions = (
+            request.data.get("actions") if isinstance(request.data, dict) else None
+        )
+        if not isinstance(actions, list) or not 1 <= len(actions) <= 100:
+            return build_response(400, "actions 必须包含 1 至 100 项", None)
+        results = []
+        for raw_item in actions:
+            serializer = ResourceJobSerializer(data=raw_item)
+            if not serializer.is_valid():
+                results.append(
+                    {
+                        "avid": raw_item.get("avid")
+                        if isinstance(raw_item, dict)
+                        else None,
+                        "action": raw_item.get("action")
+                        if isinstance(raw_item, dict)
+                        else None,
+                        "code": 400,
+                        "message": "参数错误",
+                        "errors": serializer.errors,
+                    }
+                )
+                continue
+            item = serializer.validated_data
+            action = item["action"]
+            avid = item["avid"].upper()
+            source = item.get("source", "any").lower()
+            if action == "add" and source != "any":
+                if source not in {name.lower() for name in source_manager.sources}:
+                    results.append(
+                        {
+                            "avid": avid,
+                            "action": action,
+                            "code": 400,
+                            "message": "源不存在",
+                        }
+                    )
+                    continue
+            options = {
+                name: item[name]
+                for name in ("refresh_m3u8", "refresh_metadata", "retranslate")
+            }
+            try:
+                snapshot, duplicate = submit_resource_job(action, avid, source, options)
+                results.append(
+                    {
+                        "avid": avid,
+                        "action": action,
+                        "code": 202,
+                        "task_id": snapshot["task_id"],
+                        "status_url": f"/nassav/api/resource/jobs/{snapshot['task_id']}",
+                        "status_token": job_token(snapshot["task_id"]),
+                        "duplicate": duplicate,
+                    }
+                )
+            except ResourceAlreadyExistsError:
+                results.append(
+                    {
+                        "avid": avid,
+                        "action": action,
+                        "code": 409,
+                        "message": "资源已存在",
+                    }
+                )
+            except ResourceNotFoundError:
+                results.append(
+                    {
+                        "avid": avid,
+                        "action": action,
+                        "code": 404,
+                        "message": "资源不存在",
+                    }
+                )
+            except Exception:
+                logger.exception("批量提交资源任务失败: {}", avid)
+                results.append(
+                    {
+                        "avid": avid,
+                        "action": action,
+                        "code": 503,
+                        "message": "任务队列暂不可用",
+                    }
+                )
+        return build_response(202, "批量提交完成", {"results": results})

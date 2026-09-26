@@ -203,6 +203,13 @@ CELERY_TIMEZONE = "Asia/Shanghai"
 # 限制并发数为1，确保同一时间只有一个下载任务在执行
 CELERY_WORKER_CONCURRENCY = 1
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# Start separate workers with -Q scrape -c 1, -Q download -c 1, and -Q default.
+CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_ROUTES = {
+    "nassav.tasks.download_video_task": {"queue": "download"},
+    "nassav.tasks.mock_download_video_task": {"queue": "download"},
+    "nassav.scrape_jobs.run_resource_job": {"queue": "scrape"},
+}
 # 禁用 Worker 的任务成功/失败日志
 CELERY_WORKER_SEND_TASK_EVENTS = False
 CELERY_TASK_SEND_SENT_EVENT = False
