@@ -831,3 +831,5 @@ uv run celery -A django_project worker -l INFO -Q default -c 1 --prefetch-multip
 ```
 
 三个命令需在独立终端运行。下载及模拟下载进入 `download`；资源添加/刷新进入 `scrape`；翻译和定时任务由 `default` 消费。若使用 Beat，另启单实例 Beat。任务状态保存在 Redis，终态保留 24 小时；同一资源编号的添加/刷新共用任务锁。
+
+WebSocket 初始下载队列状态在握手后异步获取，避免 Celery 队列检查阻塞连接；P3 本地测量与 SSE 决策见 [进度通道评估](doc/async-scraping-p3-channel-evaluation.md)。

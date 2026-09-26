@@ -2,11 +2,13 @@
 WebSocket consumers for real-time task notifications
 """
 
+import asyncio
 import json
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
+from loguru import logger
 
 
 class TaskConsumer(AsyncWebsocketConsumer):
@@ -24,17 +26,15 @@ class TaskConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-        # Send initial queue status
-        from .tasks import get_task_queue_status
-
-        queue_status = get_task_queue_status()
-        await self.send(
-            text_data=json.dumps({"type": "queue_status", "data": queue_status})
-        )
+        # Celery inspect is synchronous and can take seconds. Let the handshake
+        # finish before fetching the initial snapshot in a worker thread.
+        self._initial_status_task = asyncio.create_task(self._send_queue_status())
 
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection"""
         # Leave task status group
+        if self._initial_status_task and not self._initial_status_task.done():
+            self._initial_status_task.cancel()
         await self.channel_layer.group_discard("task_updates", self.channel_name)
 
     async def receive(self, text_data):
@@ -45,16 +45,24 @@ class TaskConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
             if data.get("action") == "get_queue_status":
-                from .tasks import get_task_queue_status
-
-                queue_status = get_task_queue_status()
-                await self.send(
-                    text_data=json.dumps({"type": "queue_status", "data": queue_status})
-                )
+                await self._send_queue_status()
         except json.JSONDecodeError:
             await self.send(
                 text_data=json.dumps({"type": "error", "message": "Invalid JSON"})
             )
+
+    async def _send_queue_status(self):
+        from .tasks import get_task_queue_status
+
+        try:
+            queue_status = await asyncio.to_thread(get_task_queue_status)
+            await self.send(
+                text_data=json.dumps({"type": "queue_status", "data": queue_status})
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("获取 WebSocket 任务队列状态失败")
 
     async def task_update(self, event):
         """

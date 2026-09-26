@@ -518,3 +518,11 @@ def test_with_api_client(api_client):
 ```bash
 uv run pytest tests/test_scrape_jobs.py -v
 ```
+
+## 进度通道测试
+
+`test_ws.py` 覆盖并发 WebSocket 握手不受慢速 Celery 队列检查阻塞，以及下载进度事件与刮削阶段事件保持独立。运行：
+
+```bash
+uv run pytest tests/test_ws.py -v
+```

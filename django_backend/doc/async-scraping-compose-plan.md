@@ -1,6 +1,6 @@
 # 异步刮削、进度反馈与 Compose 部署执行计划
 
-日期：2026-09-26。状态：P1 与 P2 已分别在独立功能分支实施，P0 输入部分记录；P3–P5 待执行。P1 检查见 [验证记录](async-scraping-p1-validation.md)。本计划基于当前仓库及[现有 Byparr 验收记录](byparr-rollout-validation.md)；用户确认 Byparr 已在本机正常运行。本文不将本机可用推定为容器内全部链路可用。此前的[Byparr 迁移计划](byparr-migration-plan.md)主要处理浏览器获取模块，本计划处理耗时任务、前端反馈及整套服务部署。
+日期：2026-09-26。状态：P1、P2 与 P3 已分别在独立功能分支实施，P0 输入部分记录；P3 本地评估与 SSE 决策见 [通道评估](async-scraping-p3-channel-evaluation.md)，目标 Compose 代理测量留待 P4；P4–P5 待执行。P1 检查见 [验证记录](async-scraping-p1-validation.md)。本计划基于当前仓库及[现有 Byparr 验收记录](byparr-rollout-validation.md)；用户确认 Byparr 已在本机正常运行。本文不将本机可用推定为容器内全部链路可用。此前的[Byparr 迁移计划](byparr-migration-plan.md)主要处理浏览器获取模块，本计划处理耗时任务、前端反馈及整套服务部署。
 
 ## 结论与边界
 
