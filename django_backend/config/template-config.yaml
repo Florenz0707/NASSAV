@@ -53,7 +53,7 @@ Translator:
   qwen2.5:7b:
     # 翻译服务类型
     type: ollama
-    # Ollama 服务地址
+    # Ollama 服务地址；Compose 的 OLLAMA_URL 环境变量可覆盖该地址
     url: http://localhost:11434
 
     # 使用的模型

@@ -1,0 +1,10 @@
+# Add with -f compose.yaml -f compose.gpu.yaml when the Docker host supports NVIDIA GPUs.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

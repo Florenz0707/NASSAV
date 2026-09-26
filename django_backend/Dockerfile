@@ -35,7 +35,7 @@ PY
 
 COPY django_project ./django_project
 COPY nassav ./nassav
-COPY manage.py log_config.py ./
+COPY manage.py log_config.py docker-entrypoint.sh ./
 RUN N_m3u8DL_RE_VERSION=$(/app/tools/N_m3u8DL-RE --version) && test -n "$N_m3u8DL_RE_VERSION"
 
 EXPOSE 9790

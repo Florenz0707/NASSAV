@@ -14,8 +14,9 @@ x-backend: &backend
     DATABASE_PATH: /app/data/db/db.sqlite3
     DOWNLOAD_PROXY_URL: ${DOWNLOAD_PROXY_URL-}
     VIDEO_HOST_DIR: ${NASSAV_VIDEO_HOST_DIR:?Set the absolute host path to the video directory}
-    NO_PROXY: redis,byparr,api,localhost,127.0.0.1
-    no_proxy: redis,byparr,api,localhost,127.0.0.1
+    OLLAMA_URL: ${OLLAMA_URL-}
+    NO_PROXY: redis,byparr,api,ollama,localhost,127.0.0.1
+    no_proxy: redis,byparr,api,ollama,localhost,127.0.0.1
   volumes: &backend-volumes
     - ${NASSAV_DATA_DIR:-./deploy-data}/config:/app/config
     - ${NASSAV_DATA_DIR:-./deploy-data}/db:/app/data/db
@@ -57,6 +58,38 @@ services:
       - internal
     mem_limit: 2g
 
+  ollama:
+    image: ollama/ollama@sha256:2c9595c555fd70a28363489ac03bd5bf9e7c5bdf2890373c3a830ffd7252ce6d
+    profiles: ['translator']
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 5m
+      OLLAMA_NUM_PARALLEL: '1'
+      OLLAMA_MAX_LOADED_MODELS: '1'
+    volumes:
+      - ${NASSAV_DATA_DIR:-./deploy-data}/ollama:/root/.ollama
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 8g
+
+  ollama-model:
+    <<: *backend
+    profiles: ['translator']
+    command: ['python', 'manage.py', 'ensure_ollama_model']
+    environment:
+      <<: *backend-environment
+      OLLAMA_URL: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: 'no'
+
   migrate:
     <<: *backend
     command: ['python', 'manage.py', 'migrate', '--noinput']
@@ -67,6 +100,7 @@ services:
 
   api:
     <<: *backend
+    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command: ['uvicorn', 'django_project.asgi:application', '--host', '0.0.0.0', '--port', '9790']
     depends_on: &backend-dependencies
       migrate:
@@ -75,6 +109,9 @@ services:
         condition: service_healthy
       byparr:
         condition: service_started
+      ollama-model:
+        condition: service_completed_successfully
+        required: false
     restart: unless-stopped
     healthcheck:
       test:
@@ -92,6 +129,7 @@ services:
 
   scrape-worker:
     <<: *backend
+    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command:
       [
         'celery',
@@ -112,6 +150,7 @@ services:
 
   download-worker:
     <<: *backend
+    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command:
       [
         'celery',
@@ -132,6 +171,7 @@ services:
 
   default-worker:
     <<: *backend
+    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command:
       [
         'celery',
@@ -152,6 +192,7 @@ services:
 
   beat:
     <<: *backend
+    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     profiles: ['scheduler']
     command:
       ['celery', '-A', 'django_project', 'beat', '-l', 'INFO', '-s', '/app/celery_beat/schedule']

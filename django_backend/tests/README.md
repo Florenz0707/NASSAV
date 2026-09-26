@@ -526,3 +526,7 @@ uv run pytest tests/test_scrape_jobs.py -v
 ```bash
 uv run pytest tests/test_ws.py -v
 ```
+
+### Compose Ollama 模型就绪检查
+
+`uv run pytest tests/test_ensure_ollama_model.py -q` 验证可选 Ollama profile 在翻译 worker 启动前拉取并确认当前配置的模型，以及 `OLLAMA_URL` 容器地址覆盖。

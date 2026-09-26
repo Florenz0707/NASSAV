@@ -52,7 +52,7 @@ Translator:
   qwen2.5:7b:
     # 翻译服务类型
     type: ollama
-    # 宿主机 Ollama；须确认容器能访问 11434 端口
+    # 默认连接宿主机；--profile translator 时由 OLLAMA_URL 覆盖为 http://ollama:11434
     url: http://host.docker.internal:11434
 
     # 使用的模型

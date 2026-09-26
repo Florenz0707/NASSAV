@@ -2,6 +2,7 @@
 Ollama Translator - 使用本地 Ollama 服务进行翻译
 """
 
+import os
 import time
 from typing import Optional
 
@@ -36,7 +37,9 @@ class OllamaTranslator(TranslatorBase):
             ollama_config = translator_config.get("ollama", {})
             self.config_name = "ollama"
 
-        self.url = ollama_config.get("url", "http://localhost:11434")
+        self.url = os.getenv("OLLAMA_URL") or ollama_config.get(
+            "url", "http://localhost:11434"
+        )
         self.model = ollama_config.get("model", "qwen2.5:7b")
         self.max_retries = ollama_config.get("max_retries", 3)
         self.prompt_template = ollama_config.get(
