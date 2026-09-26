@@ -2,6 +2,24 @@
 
 本目录包含各种维护和管理脚本。
 
+## Byparr 固定版本部署
+
+`byparr/compose.yaml` 将已验证的 `3.0.4` 镜像固定到 digest，监听宿主机
+`127.0.0.1:8192`。Django 在同机宿主机运行时使用这个地址。当前试验记录见
+[`doc/byparr-trial-results.md`](../doc/byparr-trial-results.md)。
+
+```bash
+cd django_backend/scripts/byparr
+# 如需容器出口代理，复制 .env.example 为 .env，并填写容器可访问的代理地址
+docker compose config
+docker compose up -d
+docker compose logs --tail=100 byparr
+docker compose down
+```
+
+`.env` 不进入 Git。宿主机代理的 `127.0.0.1` 不能直接作为容器内地址；
+需先确认容器可达。试验容器 `nassav-byparr-trial` 若仍占用 8192，先停止该试验容器再启动 Compose；不要删除旧 FlareSolverr 容器。
+
 ## ⚠️ 重要字段变更说明
 
 **AVResource 标题字段已重命名**（2024）:
