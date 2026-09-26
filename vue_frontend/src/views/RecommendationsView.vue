@@ -534,6 +534,25 @@ function refreshExternalRecommendations() {
   loadRecommendations({ forceRefreshExternal: true })
 }
 
+const pendingRecommendationAdds = new Map()
+watch(
+  () => resourceStore.visibleScrapeJobs,
+  (jobs) => {
+    for (const job of jobs) {
+      const item = pendingRecommendationAdds.get(job.avid)
+      if (!item || job.action !== 'add' || (job.state !== 'succeeded' && job.state !== 'failed'))
+        continue
+      pendingRecommendationAdds.delete(job.avid)
+      if (job.state === 'succeeded') {
+        const added = new Set(addedAvids.value)
+        added.add(job.avid)
+        addedAvids.value = added
+        persistRecommendationFeedback(item, 'like').catch(() => {})
+      }
+    }
+  }
+)
+
 async function handleAdd(item) {
   if (!item?.avid || addingAvids.value.has(item.avid)) return
 
@@ -543,12 +562,9 @@ async function handleAdd(item) {
 
   try {
     await resourceStore.addResource(item.avid, 'any')
-    toastStore.success(`${item.avid} 已加入资源库`)
+    toastStore.info(`${item.avid} 已排队`)
 
-    const added = new Set(addedAvids.value)
-    added.add(item.avid)
-    addedAvids.value = added
-    persistRecommendationFeedback(item, 'like').catch(() => {})
+    pendingRecommendationAdds.set(item.avid, item)
   } catch (err) {
     if (err.code === 409) {
       toastStore.info(`${item.avid} 已存在于资源库`)

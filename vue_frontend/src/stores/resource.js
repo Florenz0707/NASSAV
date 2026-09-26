@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { downloadApi, resourceApi, sourceApi } from '../api'
+import { downloadApi, resourceApi, sourceApi } from '../api/index.js'
+import { useToastStore } from './toast.js'
+import { mergeScrapeJob, TERMINAL_JOB_STATES } from './scrapeJobState.js'
 
 export const useResourceStore = defineStore('resource', () => {
   const resources = ref([])
@@ -9,6 +11,155 @@ export const useResourceStore = defineStore('resource', () => {
   const downloadStates = ref(new Map())
   const loading = ref(false)
   const error = ref(null)
+  const scrapeJobs = ref(new Map())
+  const visibleScrapeJobs = computed(() =>
+    [...scrapeJobs.value.values()].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+  )
+  const pendingJobRequests = new Set()
+  let scrapePollTimer = null
+  let lastResourceQuery = null
+  const SCRAPE_STORAGE_KEY = 'nassav:scrape-jobs:v1'
+
+  function persistScrapeJobs() {
+    if (typeof localStorage === 'undefined') return
+    const current = [...scrapeJobs.value.values()].filter(
+      (job) => !TERMINAL_JOB_STATES.has(job.state) || Date.now() / 1000 - job.updated_at < 86400
+    )
+    localStorage.setItem(SCRAPE_STORAGE_KEY, JSON.stringify(current.slice(0, 100)))
+  }
+
+  function setScrapeJob(job, { notifyTerminal = true } = {}) {
+    const previous = scrapeJobs.value.get(job.task_id)
+    const merged = mergeScrapeJob(previous, job)
+    if (merged === previous) return previous
+    scrapeJobs.value = new Map(scrapeJobs.value).set(job.task_id, merged)
+    persistScrapeJobs()
+    syncScrapePolling()
+    if (
+      notifyTerminal &&
+      !TERMINAL_JOB_STATES.has(previous?.state) &&
+      TERMINAL_JOB_STATES.has(merged.state)
+    ) {
+      const toast = useToastStore()
+      if (merged.state === 'succeeded') {
+        toast.success(`${merged.avid} ${merged.action === 'add' ? '添加' : '刷新'}成功`)
+        if (lastResourceQuery) fetchResources(lastResourceQuery).catch(() => {})
+      } else {
+        toast.error(`${merged.avid} ${merged.message || '任务失败'}`)
+      }
+    }
+    return merged
+  }
+
+  function syncScrapePolling() {
+    const pending = [...scrapeJobs.value.values()].some(
+      (job) => !TERMINAL_JOB_STATES.has(job.state)
+    )
+    if (pending && !scrapePollTimer) {
+      scrapePollTimer = setInterval(() => refreshPendingScrapeJobs(), 5000)
+    } else if (!pending && scrapePollTimer) {
+      clearInterval(scrapePollTimer)
+      scrapePollTimer = null
+    }
+  }
+
+  function restoreScrapeJobs() {
+    if (typeof localStorage === 'undefined') return
+    try {
+      const saved = JSON.parse(localStorage.getItem(SCRAPE_STORAGE_KEY) || '[]')
+      if (Array.isArray(saved)) {
+        for (const job of saved) {
+          if (job?.task_id && job?.status_token) setScrapeJob(job, { notifyTerminal: false })
+        }
+      }
+    } catch {
+      localStorage.removeItem(SCRAPE_STORAGE_KEY)
+    }
+    refreshPendingScrapeJobs()
+  }
+
+  async function refreshScrapeJob(taskId) {
+    const current = scrapeJobs.value.get(taskId)
+    if (!current?.status_token || pendingJobRequests.has(taskId)) return current
+    pendingJobRequests.add(taskId)
+    try {
+      const response = await resourceApi.getScrapeJob(taskId, current.status_token)
+      return setScrapeJob({ ...response.data, status_token: current.status_token })
+    } catch (err) {
+      if (err.code === 404 || err.code === 403) {
+        return setScrapeJob({
+          ...current,
+          state: 'failed',
+          stage: null,
+          message: '任务状态已过期，请重新提交',
+          version: (current.version || 0) + 1,
+          updated_at: Date.now() / 1000,
+        })
+      }
+      return current
+    } finally {
+      pendingJobRequests.delete(taskId)
+    }
+  }
+
+  async function refreshPendingScrapeJobs() {
+    const pending = [...scrapeJobs.value.values()].filter(
+      (job) => !TERMINAL_JOB_STATES.has(job.state)
+    )
+    await Promise.allSettled(pending.map((job) => refreshScrapeJob(job.task_id)))
+  }
+
+  function handleScrapeJobEvent(event) {
+    if (event?.job_type !== 'scrape' || !scrapeJobs.value.has(event.task_id)) return
+    const current = scrapeJobs.value.get(event.task_id)
+    if ((event.version || 0) > (current.version || 0)) refreshScrapeJob(event.task_id)
+  }
+
+  function registerScrapeSubmission(data) {
+    const job = setScrapeJob(
+      { ...data.job, status_token: data.status_token },
+      { notifyTerminal: false }
+    )
+    refreshScrapeJob(job.task_id)
+    return job
+  }
+
+  function registerScrapeBatch(results) {
+    for (const item of results) {
+      if (item.code === 202 && item.task_id) {
+        registerScrapeSubmission({
+          job: {
+            task_id: item.task_id,
+            job_type: 'scrape',
+            action: item.action,
+            avid: item.avid,
+            state: 'queued',
+            stage: null,
+            version: 0,
+            updated_at: Date.now() / 1000,
+          },
+          status_token: item.status_token,
+        })
+      }
+    }
+  }
+
+  function getScrapeJobForAvid(avid) {
+    return visibleScrapeJobs.value.find((job) => job.avid === String(avid || '').toUpperCase())
+  }
+
+  function dismissScrapeJob(taskId) {
+    const next = new Map(scrapeJobs.value)
+    next.delete(taskId)
+    scrapeJobs.value = next
+    persistScrapeJobs()
+    syncScrapePolling()
+  }
+
+  function stopScrapeTracking() {
+    if (scrapePollTimer) clearInterval(scrapePollTimer)
+    scrapePollTimer = null
+  }
 
   // 获取资源列表
   // 支持分页和排序
@@ -40,6 +191,18 @@ export const useResourceStore = defineStore('resource', () => {
         is_favorite,
       })
       const params = { sort_by, order, page, page_size }
+      lastResourceQuery = {
+        sort_by,
+        order,
+        page,
+        page_size,
+        search,
+        status,
+        actor,
+        genre,
+        watched,
+        is_favorite,
+      }
       if (search) params.search = search
       if (status && status !== 'all') params.status = status
       if (typeof actor !== 'undefined' && actor !== null && actor !== '') params.actor = actor
@@ -128,12 +291,7 @@ export const useResourceStore = defineStore('resource', () => {
     error.value = null
     try {
       const response = await resourceApi.addNew(avid, source)
-      // backend returns { data: { resource: {...} } }
-      const resObj =
-        response && response.data && response.data.resource ? response.data.resource : null
-      if (resObj) {
-        _mergeOrUpsertResource(resObj)
-      }
+      registerScrapeSubmission(response.data)
       return response
     } catch (err) {
       error.value = err.message || '添加资源失败'
@@ -146,9 +304,7 @@ export const useResourceStore = defineStore('resource', () => {
   // 刷新资源
   async function refreshResource(avid, params = null) {
     const response = await resourceApi.refresh(avid, params)
-    const resObj =
-      response && response.data && response.data.resource ? response.data.resource : null
-    if (resObj) _mergeOrUpsertResource(resObj)
+    registerScrapeSubmission(response.data)
     return response
   }
 
@@ -158,21 +314,8 @@ export const useResourceStore = defineStore('resource', () => {
     const payload = {
       actions: avids.map((avid) => ({ action: 'refresh', avid })),
     }
-    const resp = await resourceApi.batch(payload)
-    // 合并返回的资源对象（如果有的话），避免整页刷新
-    const results =
-      resp && resp.data && (resp.data.results || resp.data)
-        ? resp.data.results || resp.data
-        : resp && resp.results
-          ? resp.results
-          : []
-    if (Array.isArray(results)) {
-      for (const r of results) {
-        if (r && r.resource) _mergeOrUpsertResource(r.resource)
-      }
-    } else if (resp && resp.data && resp.data.resource) {
-      _mergeOrUpsertResource(resp.data.resource)
-    }
+    const resp = await resourceApi.submitScrapeBatch(payload.actions)
+    registerScrapeBatch(resp.data?.results || [])
     return resp
   }
 
@@ -382,6 +525,16 @@ export const useResourceStore = defineStore('resource', () => {
     fetchSources,
     addResource,
     refreshResource,
+    scrapeJobs,
+    visibleScrapeJobs,
+    restoreScrapeJobs,
+    refreshScrapeJob,
+    refreshPendingScrapeJobs,
+    handleScrapeJobEvent,
+    registerScrapeBatch,
+    getScrapeJobForAvid,
+    dismissScrapeJob,
+    stopScrapeTracking,
     submitDownload,
     batchRefresh,
     batchDelete,

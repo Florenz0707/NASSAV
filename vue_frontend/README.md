@@ -162,3 +162,13 @@ server {
   - 确认生产反向代理 `/nassav` 指向正确后端；或开启后端 CORS 并调整前端 API 地址。
 - 端口冲突（开发）
   - 修改 [vite.config.js](vite.config.js) 中的 `server.port`，或释放 8080 端口。
+
+## 异步资源任务反馈
+
+资源添加、刷新和批量添加/刷新现在提交到后端 `/nassav/api/resource/jobs`，HTTP 202 仅表示入队。页面顶部的“资源任务”区显示每项任务的实际阶段与终态；只有状态查询确认 `succeeded` 后才提示成功并刷新资源数据。任务 ID 与查询令牌保存在浏览器本地存储，页面刷新或 WebSocket 重连后会重新查询未结束任务。批量删除和视频删除继续使用原接口。后端需另启监听 `scrape` 队列的 Celery worker；只启动默认 worker 无法处理资源任务。
+
+前端任务状态测试：
+
+```bash
+node --test tests/scrapeJobs.test.js
+```

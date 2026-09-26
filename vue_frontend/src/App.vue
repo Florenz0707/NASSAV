@@ -1,18 +1,32 @@
 <script setup>
-import { onMounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Toast from './components/Toast.vue'
+import ScrapeJobPanel from './components/ScrapeJobPanel.vue'
 import { useWebSocketStore } from './stores/websocket'
 import { useSettingsStore } from './stores/settings'
+import { useResourceStore } from './stores/resource'
 
 const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
+const resourceStore = useResourceStore()
+
+function refreshVisibleJobs() {
+  if (document.visibilityState === 'visible') resourceStore.refreshPendingScrapeJobs()
+}
 
 // 应用启动时立即连接 WebSocket 并加载用户设置
 onMounted(() => {
   wsStore.connect()
   settingsStore.loadSettings()
+  resourceStore.restoreScrapeJobs()
+  document.addEventListener('visibilitychange', refreshVisibleJobs)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', refreshVisibleJobs)
+  resourceStore.stopScrapeTracking()
 })
 
 // 监听字体设置变化，应用到 body（仅在保存后触发）
@@ -47,6 +61,7 @@ watch(
     <div class="background-pattern" />
     <Navbar />
     <main class="main-content">
+      <ScrapeJobPanel />
       <RouterView v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />

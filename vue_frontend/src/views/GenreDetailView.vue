@@ -74,6 +74,22 @@ function refreshExternalSearch() {
 }
 
 const addingExternalAvids = ref(new Set())
+const handledScrapeJobs = new Set()
+watch(
+  () => resourceStore.visibleScrapeJobs,
+  (jobs) => {
+    for (const job of jobs) {
+      if (job.state !== 'succeeded' || handledScrapeJobs.has(job.task_id)) continue
+      handledScrapeJobs.add(job.task_id)
+      if (job.action === 'add') {
+        const item = externalResources.value.find((candidate) => candidate.avid === job.avid)
+        if (item) markExternalItemInLibrary(item)
+      }
+      fetchResources(page.value)
+      loadGenreInfo(genreId.value)
+    }
+  }
+)
 
 function saveExternalCache() {
   const key = `external_genre_${genreId.value}`
@@ -245,12 +261,7 @@ async function handleAddExternal(item) {
   addingExternalAvids.value.add(item.avid)
   try {
     await resourceStore.addResource(item.avid, 'any')
-    toastStore.success(`${item.avid} 已加入资源库`)
-    markExternalItemInLibrary(item)
-    saveExternalCache()
-    // 优雅地自动更新有关状态
-    await loadGenreInfo(genreId.value)
-    fetchResources(page.value)
+    toastStore.info(`${item.avid} 已排队`)
   } catch (err) {
     if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
       toastStore.info(`${item.avid} 已经在资源库中`)
@@ -323,10 +334,10 @@ async function handleBatchRefresh() {
   batchLoading.value = true
   try {
     const avids = Array.from(selectedAvids.value)
-    await resourceStore.batchRefresh(avids)
+    const response = await resourceStore.batchRefresh(avids)
     selectedAvids.value = new Set()
-    await fetchResources()
-    toastStore.success(`已刷新 ${avids.length} 个资源`)
+    const accepted = response.data?.results?.filter((item) => item.code === 202).length || 0
+    toastStore.info(`${accepted} 个刷新任务已排队`)
   } catch (err) {
     toastStore.error(err.message || '批量刷新失败')
   } finally {
@@ -431,7 +442,7 @@ async function handleDownload(avid) {
 async function handleRefresh(avid) {
   try {
     await resourceStore.refreshResource(avid)
-    toastStore.success(`${avid} 已刷新`)
+    toastStore.info(`${avid} 已排队刷新`)
   } catch (err) {
     toastStore.error(err.message || '刷新失败')
   }

@@ -216,12 +216,15 @@ export const resourceApi = {
     }
   },
 
-  // 添加新资源
-  addNew: (avid, source = 'any') => api.post('/resource', { avid, source }),
-
-  // 刷新资源
+  // 添加/刷新资源时只提交任务；终态由状态接口确认
+  addNew: (avid, source = 'any') => api.post('/resource/jobs', { action: 'add', avid, source }),
   refresh: (avid, params = null) =>
-    api.post(`/resource/refresh/${encodeURIComponent(avid)}`, params || {}),
+    api.post('/resource/jobs', { action: 'refresh', avid, ...(params || {}) }),
+  submitScrapeBatch: (actions) => api.post('/resource/jobs/batch', { actions }),
+  getScrapeJob: (taskId, token) =>
+    api.get(`/resource/jobs/${encodeURIComponent(taskId)}`, {
+      headers: { 'X-Resource-Job-Token': token },
+    }),
 
   // 删除资源
   delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`),

@@ -71,6 +71,13 @@ const isSubmittingDownload = computed(() => downloadState.value === 'submitting'
 const isDownloading = computed(() => downloadState.value === 'downloading')
 const isDownloadBusy = computed(() => isSubmittingDownload.value || isDownloading.value)
 
+watch(
+  () => resourceStore.getScrapeJobForAvid(avid.value)?.state,
+  (state, previous) => {
+    if (state === 'succeeded' && previous !== 'succeeded') fetchMetadata(true)
+  }
+)
+
 // 根据设置选择显示的标题
 const displayedTitle = computed(() => {
   if (!metadata.value) return ''
@@ -192,8 +199,7 @@ async function handleRefresh(params = null) {
   refreshing.value = true
   try {
     await resourceStore.refreshResource(avid.value, params)
-    await fetchMetadata()
-    toastStore.success('刷新成功')
+    toastStore.info('刷新任务已排队')
   } catch (err) {
     toastStore.error(err.message || '刷新失败')
   } finally {

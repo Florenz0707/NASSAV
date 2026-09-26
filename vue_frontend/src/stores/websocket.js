@@ -71,6 +71,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
       ws.value.onopen = () => {
         console.log('[WebSocket] 连接成功')
         connected.value = true
+        useResourceStore().refreshPendingScrapeJobs()
         // 清除连接超时定时器
         if (connectionTimer.value) {
           clearTimeout(connectionTimer.value)
@@ -170,6 +171,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
     const resourceStore = useResourceStore()
 
     switch (message.type) {
+      case 'scrape_job_update':
+        resourceStore.handleScrapeJobEvent(message.data)
+        break
       case 'queue_status':
         // 队列状态更新
         if (message.data) {

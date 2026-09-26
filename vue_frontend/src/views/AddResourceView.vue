@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
@@ -17,6 +17,24 @@ const avid = ref('')
 const source = ref('any')
 const submitting = ref(false)
 const result = ref(null)
+watch(
+  () => resourceStore.visibleScrapeJobs,
+  (jobs) => {
+    if (!result.value?.jobs) return
+    const byId = new Map(jobs.map((job) => [job.task_id, job]))
+    const queued = []
+    const success = []
+    const failed = [...result.value.submissionFailed]
+    for (const accepted of result.value.jobs) {
+      const job = byId.get(accepted.task_id)
+      if (job?.state === 'succeeded') success.push(accepted.avid)
+      else if (job?.state === 'failed')
+        failed.push({ avid: accepted.avid, code: job.error_code || 500, message: job.message })
+      else queued.push(accepted.avid)
+    }
+    result.value = { ...result.value, queued, success, failed }
+  }
+)
 const sourceOptions = computed(() => [
   { value: 'any', label: '自动' },
   ...resourceStore.sources.map((item) => ({
@@ -74,119 +92,58 @@ async function handleSubmit() {
 
   submitting.value = true
   result.value = null
-
   try {
     if (avids.length === 1) {
-      // 单个添加
-      const response = await resourceStore.addResource(avids[0], source.value)
-      let data = response && response.data ? response.data : null
-
-      // 合并 resource 字段和状态字段
-      if (data && data.resource) {
-        data = {
-          ...data.resource,
-          cover_downloaded: data.cover_downloaded,
-          metadata_saved: data.metadata_saved,
-          scraped: data.scraped,
-        }
-      }
-
-      result.value = {
-        success: [avids[0]],
-        exists: [],
-        failed: [],
-        total: 1,
-        data,
-      }
-      toastStore.success(`${avids[0]} 添加成功`)
-    } else {
-      // 批量添加 - 根据接口文档构建actions数组
-      const actions = avids.map((avid) => ({
-        action: 'add',
-        avid: avid,
-        source: source.value,
-      }))
-
-      const response = await resourceApi.batch({
-        actions: actions,
-      })
-
-      const data = response?.data || {}
-      const results = data.results || []
-
-      // 解析批量结果
-      const success = []
-      const exists = []
-      const failed = []
-
-      results.forEach((result) => {
-        // 根据后端接口规范判断结果
-        if (result.code === 200 && result.message === 'already exists') {
-          // add 操作：资源已存在
-          exists.push(result.avid)
-        } else if (
-          result.code === 201 ||
-          (result.code === 200 && (result.message === 'refreshed' || result.message === 'deleted'))
-        ) {
-          // 201: 创建成功
-          // 200 + refreshed/deleted: 刷新/删除成功
-          success.push(result.avid)
-        } else if (result.code === 404 || result.code >= 400) {
-          // 404 或其他错误码：操作失败 - 保存完整信息
-          failed.push({
-            avid: result.avid,
-            code: result.code,
-            message: result.message,
-          })
-        } else {
-          // 其他 2xx 状态码视为成功
-          success.push(result.avid)
-        }
-      })
-
-      result.value = {
-        success,
-        exists,
-        failed,
-        total: avids.length,
-      }
-
-      const successCount = success.length
-      const existsCount = exists.length
-      const failedCount = failed.length
-
-      if (successCount > 0) {
-        toastStore.success(`成功添加 ${successCount} 个资源`)
-      }
-      if (existsCount > 0) {
-        toastStore.info(`${existsCount} 个资源已存在`)
-      }
-      if (failedCount > 0) {
-        toastStore.warning(`${failedCount} 个资源添加失败`)
-      }
+      await resourceStore.addResource(avids[0], source.value)
+      toastStore.info(`${avids[0]} 已排队，请查看资源任务进度`)
+      return
     }
+
+    const actions = avids.map((item) => ({ action: 'add', avid: item, source: source.value }))
+    const response = await resourceApi.submitScrapeBatch(actions)
+    const results = response.data?.results || []
+    resourceStore.registerScrapeBatch(results)
+    const queued = results.filter((item) => item.code === 202).map((item) => item.avid)
+    const exists = results.filter((item) => item.code === 409).map((item) => item.avid)
+    const failed = results.filter((item) => item.code >= 400 && item.code !== 409)
+    result.value = {
+      queued,
+      exists,
+      failed,
+      success: [],
+      total: avids.length,
+      jobs: results
+        .filter((item) => item.code === 202)
+        .map((item) => ({ avid: item.avid, task_id: item.task_id })),
+      submissionFailed: failed,
+    }
+    if (queued.length) toastStore.info(`${queued.length} 个资源任务已排队`)
+    if (exists.length) toastStore.info(`${exists.length} 个资源已存在`)
+    if (failed.length) toastStore.warning(`${failed.length} 个资源提交失败`)
   } catch (err) {
-    if (err.code === 409) {
+    if (err.code === 409 && avids.length === 1) {
       result.value = {
         success: [],
-        exists: [avids[0]],
+        queued: [],
+        exists: avids,
         failed: [],
         total: 1,
-        data: err && err.data && err.data.resource ? err.data.resource : err.data,
+        data: { avid: avids[0] },
       }
       toastStore.info('资源已存在')
     } else {
       result.value = {
         success: [],
+        queued: [],
         exists: [],
-        failed: avids.map((avid) => ({
-          avid,
+        failed: avids.map((item) => ({
+          avid: item,
           code: err.code || 500,
-          message: err.message || '添加失败',
+          message: err.message || '提交失败',
         })),
         total: avids.length,
       }
-      toastStore.error(err.message || '添加失败')
+      toastStore.error(err.message || '提交失败')
     }
   } finally {
     submitting.value = false
@@ -449,7 +406,7 @@ function viewResource() {
       <div v-if="result && (result.total > 1 || !result.data)" class="batch-result-card">
         <div class="batch-result-header">
           <h3 class="batch-result-title">
-            {{ result.total > 1 ? '批量添加完成' : '添加完成' }}
+            {{ result.total > 1 ? '批量提交结果' : '提交结果' }}
           </h3>
           <div class="batch-result-stats">
             <div class="stat-item success">
@@ -467,7 +424,11 @@ function viewResource() {
                     d="M5 13l4 4L19 7"
                   ></path></svg
               ></span>
-              <span class="stat-label">成功</span>
+              <span class="stat-label">已排队</span>
+              <span class="stat-value">{{ result.queued?.length || 0 }}</span>
+            </div>
+            <div class="stat-item success">
+              <span class="stat-label">已完成</span>
               <span class="stat-value">{{ result.success.length }}</span>
             </div>
             <div class="stat-item exists">
@@ -511,8 +472,20 @@ function viewResource() {
         </div>
 
         <div class="batch-result-details">
+          <div v-if="result.queued?.length > 0" class="result-group">
+            <h4 class="result-group-title success">已排队 ({{ result.queued.length }})</h4>
+            <div class="result-group-list">
+              <span
+                v-for="successAvid in result.queued"
+                :key="successAvid"
+                class="result-tag success"
+                >{{ successAvid }}</span
+              >
+            </div>
+          </div>
+
           <div v-if="result.success.length > 0" class="result-group">
-            <h4 class="result-group-title success">✓ 成功添加 ({{ result.success.length }})</h4>
+            <h4 class="result-group-title success">已完成 ({{ result.success.length }})</h4>
             <div class="result-group-list">
               <span
                 v-for="successAvid in result.success"
