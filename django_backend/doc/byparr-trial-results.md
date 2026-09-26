@@ -1,7 +1,7 @@
 # Byparr P0–P1 trial record
 
 Date: 2026-09-26. Branch: `enhancement/byparr-migration`. Baseline commit: `3ebd92d`.
-The migration plan was an existing untracked file and was not changed by this trial.
+The migration plan was initially untracked; the incorrect image tag in it was corrected from `v3.0.4` to `3.0.4` before the trial commit.
 
 ## Environment and image
 
