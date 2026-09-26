@@ -1,12 +1,13 @@
 import re
 from copy import deepcopy
-from typing import Optional
+from typing import Callable, Optional
 from urllib.parse import quote, urlencode, urljoin
 
 from bs4 import BeautifulSoup
 from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
+from nassav.flaresolverr_client import FlareSolverrClient
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -25,6 +26,14 @@ class Jable(SourceBase):
         super().__init__(proxy, timeout)
         source_config = settings.SOURCE_CONFIG.get("jable", {})
         self.domain = source_config.get("domain", "jable.tv")
+        if settings.FLARESOLVERR_ENABLED:
+            self._flaresolverr = FlareSolverrClient(
+                base_url=settings.FLARESOLVERR_URL,
+                timeout_ms=settings.FLARESOLVERR_TIMEOUT,
+                proxy=proxy,
+            )
+        else:
+            self._flaresolverr = None
         self.cache_enabled = bool(
             getattr(settings, "EXTERNAL_SOURCE_SEARCH_CACHE_ENABLED", True)
         )
@@ -49,8 +58,10 @@ class Jable(SourceBase):
             f"https://{self.domain}/videos/{avid.lower()}ntum/",
         ]
         for url in urls:
-            result = self.fetch_html(
-                url, referer=f"https://{self.domain}/search/{avid.lower()}"
+            result = self._request_html(
+                url,
+                referer=f"https://{self.domain}/search/{avid.lower()}",
+                validator=self._is_detail_page_html,
             )
             if result:
                 return result
@@ -144,7 +155,12 @@ class Jable(SourceBase):
 
         html = ""
         if normalized_url:
-            html = self.fetch_html(normalized_url, referer=f"https://{self.domain}/")
+            html = self._request_html(
+                normalized_url,
+                referer=f"https://{self.domain}/",
+                validator=self._is_detail_page_html,
+            )
+            html = html or ""
         if not html and normalized_avid:
             html = self.get_html(normalized_avid) or ""
         if not html:
@@ -201,7 +217,11 @@ class Jable(SourceBase):
 
         url = self._build_search_url(normalized_keyword, page)
         referer = f"https://{self.domain}/"
-        html = self.fetch_html(url, referer=referer)
+        html = self._request_html(
+            url,
+            referer=referer,
+            validator=self._is_listing_page_html,
+        )
         if not html:
             logger.warning(
                 f"Jable.search 获取 HTML 失败，当前返回空结果。keyword={keyword}, page={page}"
@@ -247,7 +267,11 @@ class Jable(SourceBase):
             sort_by=sort_by,
         )
         referer = f"https://{self.domain}/models/{quote(normalized_slug)}/"
-        html = self.fetch_html(url, referer=referer)
+        html = self._request_html(
+            url,
+            referer=referer,
+            validator=self._is_listing_page_html,
+        )
         if not html:
             logger.warning(
                 "Jable.get_model_videos 获取 HTML 失败，当前返回空结果。"
@@ -349,7 +373,11 @@ class Jable(SourceBase):
         path = f"/tags/{quote(normalized_slug)}/"
         url = self._build_listing_url(path, page=page)
         referer = f"https://{self.domain}{path}"
-        html = self.fetch_html(url, referer=referer)
+        html = self._request_html(
+            url,
+            referer=referer,
+            validator=self._is_listing_page_html,
+        )
         if not html:
             logger.warning(
                 "Jable.get_tag_videos 获取 HTML 失败，当前返回空结果。"
@@ -396,7 +424,11 @@ class Jable(SourceBase):
         path = f"/categories/{quote(normalized_slug)}/"
         url = self._build_listing_url(path, page=page)
         referer = f"https://{self.domain}{path}"
-        html = self.fetch_html(url, referer=referer)
+        html = self._request_html(
+            url,
+            referer=referer,
+            validator=self._is_listing_page_html,
+        )
         if not html:
             logger.warning(
                 "Jable.get_category_videos 获取 HTML 失败，当前返回空结果。"
@@ -477,7 +509,11 @@ class Jable(SourceBase):
         referer = f"https://{self.domain}/"
         for path in path_candidates:
             url = self._build_listing_url(path, page=page)
-            html = self.fetch_html(url, referer=referer)
+            html = self._request_html(
+                url,
+                referer=referer,
+                validator=self._is_listing_page_html,
+            )
             if not html:
                 continue
 
@@ -510,7 +546,11 @@ class Jable(SourceBase):
         source_label: str,
         extra_metrics: dict | None = None,
     ) -> list[dict]:
-        html = self.fetch_html(url, referer=referer)
+        html = self._request_html(
+            url,
+            referer=referer,
+            validator=self._is_listing_page_html,
+        )
         if not html:
             return []
 
@@ -535,6 +575,68 @@ class Jable(SourceBase):
             metrics["discovery_sources"] = discovery_sources
             item["metrics"] = metrics
         return items
+
+    def _request_html(
+        self,
+        url: str,
+        *,
+        referer: str,
+        validator: Callable[[str], bool] | None = None,
+    ) -> Optional[str]:
+        html = self.fetch_html(url, referer=referer)
+        if self._is_valid_page_html(html, validator=validator):
+            return html
+
+        if html:
+            logger.info(f"Jable: 直连页面无效，尝试 FlareSolverr: {url}")
+
+        flare_html = self._fetch_html_via_flaresolverr(url)
+        if self._is_valid_page_html(flare_html, validator=validator):
+            return flare_html
+
+        if flare_html:
+            logger.info(f"Jable: FlareSolverr 返回页面无效，跳过: {url}")
+        return None
+
+    def _fetch_html_via_flaresolverr(self, url: str) -> Optional[str]:
+        if not self._flaresolverr:
+            return None
+
+        logger.info(f"Jable: 通过 FlareSolverr 请求: {url}")
+        solution = self._flaresolverr.get(url)
+        if not solution:
+            logger.info(f"Jable: FlareSolverr 未返回 solution，跳过: {url}")
+            return None
+
+        status = solution.get("status")
+        if status != 200:
+            logger.info(f"Jable: FlareSolverr 返回非 200 状态 {status}，跳过: {url}")
+            return None
+
+        html = str(solution.get("response") or "").strip()
+        if not html:
+            logger.info(f"Jable: FlareSolverr 返回空页面，跳过: {url}")
+            return None
+
+        return html
+
+    def _is_valid_page_html(
+        self,
+        html: Optional[str],
+        *,
+        validator: Callable[[str], bool] | None = None,
+    ) -> bool:
+        if not html:
+            return False
+        if validator is None:
+            return True
+        return validator(html)
+
+    def _is_detail_page_html(self, html: str) -> bool:
+        return bool(re.search(r'var hlsUrl = ["\']([^"\']+)["\']', html))
+
+    def _is_listing_page_html(self, html: str) -> bool:
+        return "video-img-box" in html
 
     def _build_listing_url(self, path: str, *, page: int = 1) -> str:
         normalized_path = str(path or "/").strip() or "/"

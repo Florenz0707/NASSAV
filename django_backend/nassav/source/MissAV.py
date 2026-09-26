@@ -23,6 +23,7 @@ class MissAV(SourceBase):
             self._flaresolverr = FlareSolverrClient(
                 base_url=settings.FLARESOLVERR_URL,
                 timeout_ms=settings.FLARESOLVERR_TIMEOUT,
+                proxy=proxy,
             )
         else:
             self._flaresolverr = None

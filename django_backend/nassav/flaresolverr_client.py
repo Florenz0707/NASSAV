@@ -15,9 +15,15 @@ from loguru import logger
 class FlareSolverrClient:
     """FlareSolverr API 客户端"""
 
-    def __init__(self, base_url: str, timeout_ms: int = 60000):
+    def __init__(
+        self,
+        base_url: str,
+        timeout_ms: int = 60000,
+        proxy: Optional[str] = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.timeout_ms = timeout_ms
+        self.proxy = str(proxy or "").strip() or None
         # HTTP 请求超时（秒）= FlareSolverr 超时 + 10s 缓冲
         self._http_timeout = timeout_ms / 1000 + 10
 
@@ -36,7 +42,14 @@ class FlareSolverrClient:
             solution 字典，包含 status、response（HTML）、cookies、userAgent，
             或 None（请求失败）
         """
-        payload = {"cmd": "request.get", "url": url, "maxTimeout": self.timeout_ms}
+        solution = self._request_solution(url)
+        if solution is not None:
+            return solution
+
+        return None
+
+    def _request_solution(self, url: str) -> Optional[dict]:
+        payload = self._build_request_payload(url)
         try:
             resp = requests.post(
                 f"{self.base_url}/v1",
@@ -52,6 +65,14 @@ class FlareSolverrClient:
         except Exception as e:
             logger.error(f"FlareSolverr 请求失败 [{url}]: {e}")
             return None
+
+    def _build_request_payload(self, url: str) -> dict:
+        payload: dict = {
+            "cmd": "request.get",
+            "url": url,
+            "maxTimeout": self.timeout_ms,
+        }
+        return payload
 
     def get_html(self, url: str) -> Optional[str]:
         """获取页面 HTML，失败返回 None"""

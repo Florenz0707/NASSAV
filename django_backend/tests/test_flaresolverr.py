@@ -331,6 +331,146 @@ def test_missav_all_fail_returns_none(mock_sleep):
     assert result is None
 
 
+def test_flaresolverr_client_sends_direct_payload_without_proxy():
+    from nassav.flaresolverr_client import FlareSolverrClient
+
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "status": "ok",
+        "solution": {"status": 200, "response": "<html>ok</html>"},
+    }
+
+    with patch(
+        "nassav.flaresolverr_client.requests.post",
+        return_value=response,
+    ) as post:
+        client = FlareSolverrClient(
+            base_url="http://localhost:8191",
+            timeout_ms=60000,
+            proxy="http://127.0.0.1:7077",
+        )
+
+        result = client.get("https://example.com/")
+
+    assert result == {"status": 200, "response": "<html>ok</html>"}
+    assert post.call_count == 1
+    assert "proxy" not in post.call_args.kwargs["json"]
+
+
+def test_jable_passes_proxy_to_flaresolverr_client():
+    from nassav.source.Jable import Jable
+
+    proxy = "http://127.0.0.1:7077"
+
+    with patch("nassav.source.Jable.FlareSolverrClient") as flaresolverr_cls:
+        with patch("nassav.source.Jable.settings") as s:
+            s.FLARESOLVERR_ENABLED = True
+            s.FLARESOLVERR_URL = "http://localhost:8191"
+            s.FLARESOLVERR_TIMEOUT = 60000
+            s.SOURCE_CONFIG = {"jable": {"domain": _JABLE_DOMAIN}}
+
+            Jable(proxy=proxy)
+
+    flaresolverr_cls.assert_called_once_with(
+        base_url="http://localhost:8191",
+        timeout_ms=60000,
+        proxy=proxy,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 单元测试：Jable.get_html() / search() FlareSolverr 逻辑（无需真实服务）
+# ---------------------------------------------------------------------------
+
+_JABLE_DOMAIN = "jable.tv"
+_JABLE_AVID = "JUR-466"
+_JABLE_DETAIL_HTML = (
+    "<html><head><title>JUR-466 Sample - Jable.TV</title></head>"
+    '<body><script>var hlsUrl = "https://example.com/master.m3u8";</script></body></html>'
+)
+_JABLE_SEARCH_HTML = (
+    '<html><body><div class="video-img-box">'
+    '<div class="img-box"><a href="/videos/jur-466/">'
+    '<img src="https://assets-cdn.jable.tv/jur-466.jpg"></a></div>'
+    '<h6 class="title"><a href="/videos/jur-466/">JUR-466 Sample Title</a></h6>'
+    '<p class="sub-title">1,234 56</p>'
+    '<div class="absolute-bottom-right"><span class="label">2:34:56</span></div>'
+    "</div></body></html>"
+)
+
+
+def _make_jable():
+    """创建 Jable 实例，注入 mock FlareSolverr，不依赖真实服务"""
+    from nassav.source.Jable import Jable
+
+    with patch("nassav.source.Jable.settings") as s:
+        s.FLARESOLVERR_ENABLED = True
+        s.FLARESOLVERR_URL = "http://localhost:8191"
+        s.FLARESOLVERR_TIMEOUT = 60000
+        s.SOURCE_CONFIG = {"jable": {"domain": _JABLE_DOMAIN}}
+        jable = Jable()
+
+    jable._flaresolverr = MagicMock()  # type: ignore
+    return jable
+
+
+def _ok_jable_solution(html: str) -> dict:
+    """FlareSolverr 返回有效页面"""
+    return {
+        "status": 200,
+        "url": f"https://{_JABLE_DOMAIN}/videos/{_JABLE_AVID.lower()}/",
+        "response": html,
+    }
+
+
+@patch("time.sleep")
+def test_jable_get_html_uses_flaresolverr_when_direct_fetch_fails(mock_sleep):
+    """Jable 直连失败时应回退 FlareSolverr 并返回有效详情页"""
+    jable = _make_jable()
+
+    jable.fetch_html = MagicMock(return_value=None)
+    jable._flaresolverr.get.return_value = _ok_jable_solution(_JABLE_DETAIL_HTML)
+
+    result = jable.get_html(_JABLE_AVID)
+
+    assert result == _JABLE_DETAIL_HTML
+    assert jable.fetch_html.call_count == 1
+    assert jable._flaresolverr.get.call_count == 1
+
+
+@patch("time.sleep")
+def test_jable_get_html_prefers_direct_valid_html(mock_sleep):
+    """Jable 直连已成功时，不应额外调用 FlareSolverr"""
+    jable = _make_jable()
+
+    jable.fetch_html = MagicMock(return_value=_JABLE_DETAIL_HTML)
+
+    result = jable.get_html(_JABLE_AVID)
+
+    assert result == _JABLE_DETAIL_HTML
+    jable.fetch_html.assert_called_once()
+    jable._flaresolverr.get.assert_not_called()
+
+
+@patch("time.sleep")
+def test_jable_search_uses_flaresolverr_when_direct_fetch_fails(mock_sleep):
+    """Jable 搜索页直连失败时应回退 FlareSolverr 并继续解析列表"""
+    jable = _make_jable()
+
+    jable.fetch_html = MagicMock(return_value=None)
+    jable._flaresolverr.get.return_value = _ok_jable_solution(_JABLE_SEARCH_HTML)
+
+    results = jable.search("cloudflare-test", force_refresh=True)
+
+    assert len(results) == 1
+    assert results[0]["avid"] == _JABLE_AVID
+    assert results[0]["metrics"]["views"] == 1234
+    assert results[0]["metrics"]["likes"] == 56
+    assert jable.fetch_html.call_count == 1
+    assert jable._flaresolverr.get.call_count == 1
+
+
 # ---------------------------------------------------------------------------
 # 集成测试：使用真实 FlareSolverr 服务验证 surrit 检测逻辑
 # ---------------------------------------------------------------------------

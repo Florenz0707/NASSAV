@@ -210,7 +210,7 @@ brew services start redis
 
 #### 启动 FlareSolverr（可选，用于绕过 Cloudflare）
 
-MissAV 等站点受 Cloudflare 保护，启用 FlareSolverr 后系统可自动获取 cookie 并在被拦截时自动回退，无需手动操作。
+MissAV、Jable 等站点受 Cloudflare 保护，启用 FlareSolverr 后系统可在被拦截时自动回退到 FlareSolverr 代理页面请求，无需手动干预。
 
 ```bash
 # 使用 Docker 启动（推荐）
@@ -236,6 +236,8 @@ FlareSolverr:
 ```
 
 > **注意**：`cf_clearance` cookie 与 FlareSolverr 浏览器的 TLS 指纹绑定，系统会自动通过 FlareSolverr 代理页面请求，无需额外配置。
+>
+> 目前 FlareSolverr 的控制请求不透传源代理，避免代理链路不稳定影响回退流程。
 
 #### 启动服务
 
@@ -487,7 +489,7 @@ A: 确保使用 ASGI 服务器（Uvicorn 或 Daphne），而不是传统的 WSGI
 A: 部分源需要 Cookie 才能访问。各源情况如下：
 
 - **missav**：品类最全，启用 FlareSolverr 后可自动获取 cookie（推荐）；未启用时需在设置页手动填写
-- **jable**：品类较全，可自动获取 cookie，无需额外配置
+- **jable**：品类较全，直连优先；遇到 Cloudflare 时会回退 FlareSolverr
 - **memo**：无需 cookie，但没有中文字幕
 
 **Q: FlareSolverr 启动后 MissAV 仍然返回 403？**
@@ -516,7 +518,7 @@ A: 确保后端使用 ASGI 服务器，前端 WebSocket 连接成功。可以在
 
 **Q: 哪些源比较好用？**
 
-A: 就目前来说，**missav** 品类最全但是需要手动获取设置 cookie，**jable** 其次并且可以自动获取 cookie，**memo** 不需要设置 cookie 但是没有中文字幕，其余的源缺乏良好支持。
+A: 就目前来说，**missav** 品类最全但是需要手动获取设置 cookie，**jable** 其次并且直连优先、在被 Cloudflare 拦截时回退 FlareSolverr，**memo** 不需要设置 cookie 但是没有中文字幕，其余的源缺乏良好支持。
 
 ## 开发指南
 
