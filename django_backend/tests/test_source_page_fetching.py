@@ -107,3 +107,15 @@ def test_manager_injects_configured_browser(settings):
     manager = SourceManager()
     assert manager.sources["MissAV"].page_fetcher.browser.provider == "byparr"
     assert manager.sources["Jable"].page_fetcher.browser.provider == "byparr"
+
+
+def test_source_direct_redirect_is_rejected():
+    source = MissAV(page_fetcher=PageFetchService(None))
+
+    def redirected(_url, referer=""):
+        source.last_final_url = "https://other.test/"
+        return MISSAV_HTML
+
+    source.fetch_html = redirected
+    with patch("time.sleep"):
+        assert source.get_html("IPZZ-912") is None

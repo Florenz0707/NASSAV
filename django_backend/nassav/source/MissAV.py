@@ -43,22 +43,27 @@ class MissAV(SourceBase):
     def get_html(self, avid: str) -> Optional[str]:
         """Fetch candidates in their original order and validate both paths alike."""
         import time
+        from uuid import uuid4
 
+        request_id = uuid4().hex[:12]
         avid_lower = avid.lower()
         urls = [
             f"https://{self.domain}/cn/{avid_lower}-chinese-subtitle",
             f"https://{self.domain}/{avid_lower}-chinese-subtitle",
             f"https://{self.domain}/cn/{avid_lower}",
         ]
-        self.page_fetcher.reset_lookup()
-        for url in urls:
-            result = self.page_fetcher.fetch(
+        fetcher = self.page_fetcher.for_lookup()
+        for candidate_index, url in enumerate(urls, start=1):
+            result = fetcher.fetch(
                 url,
-                direct_fetch=lambda url=url: self.fetch_html(
+                direct_fetch=lambda url=url: self.fetch_page(
                     url, referer=f"https://{self.domain}/search/{avid_lower}"
                 ),
                 validator=lambda html: self._is_detail_page_html(html, avid),
                 strategy=self.browser_fetch_strategy,
+                source=self.get_source_name(),
+                candidate_index=candidate_index,
+                request_id=request_id,
             )
             if result.ok:
                 return result.html

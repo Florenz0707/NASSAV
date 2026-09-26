@@ -1,10 +1,13 @@
 import os
+from threading import local
+from time import monotonic
 from typing import Optional, Protocol
 
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import HTTPError
 from loguru import logger
 from nassav.constants import HEADERS, IMPERSONATE
+from nassav.page_fetching import FetchFailure, PageResult
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import source_cookie_repository
 
@@ -62,6 +65,16 @@ class SourceBase:
         self.domain = ""
         # 最近一次 fetch_html 请求的响应状态码（成功时为 None）
         self.last_error_code = None
+        self._request_state = local()
+        self.last_final_url = None
+
+    @property
+    def last_final_url(self) -> str | None:
+        return getattr(self._request_state, "final_url", None)
+
+    @last_final_url.setter
+    def last_final_url(self, value: str | None) -> None:
+        self._request_state.final_url = value
 
     def set_domain(self, domain: str):
         self.domain = domain
@@ -172,6 +185,19 @@ class SourceBase:
     def get_cover_url(self, html: str) -> str:
         raise NotImplementedError
 
+    def fetch_page(self, url: str, referer: str = "") -> PageResult:
+        """Return direct HTML together with the actual redirected URL."""
+        self.last_final_url = None
+        started = monotonic()
+        html = self.fetch_html(url, referer=referer)
+        return PageResult(
+            html=html or "",
+            elapsed_ms=round((monotonic() - started) * 1000),
+            final_url=self.last_final_url or url,
+            provider="direct",
+            failure=None if html else FetchFailure.EMPTY,
+        )
+
     def fetch_html(self, url: str, referer: str = "") -> Optional[str]:
         try:
             headers = HEADERS.copy()
@@ -188,6 +214,7 @@ class SourceBase:
                 impersonate=IMPERSONATE,
             )
             response.raise_for_status()
+            self.last_final_url = str(response.url)
 
             # 成功时清除上次的错误码
             self.last_error_code = None

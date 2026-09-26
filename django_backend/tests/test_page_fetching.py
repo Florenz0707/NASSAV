@@ -94,3 +94,38 @@ def test_connection_failure_skips_browser_for_remaining_candidates():
         strategy="browser_first",
     )
     assert browser.calls == 2
+
+
+def test_direct_redirect_to_other_host_is_rejected():
+    service = PageFetchService(None)
+    result = service.fetch(
+        "https://site.test/a",
+        direct_fetch=lambda: PageResult(
+            html="business", final_url="https://other.test/a", provider="direct"
+        ),
+        validator=lambda _html: True,
+        strategy="direct_only",
+    )
+    assert result.failure == FetchFailure.PAGE_MISMATCH
+
+
+def test_browser_connection_failure_is_scoped_to_one_lookup():
+    browser = FakeBrowser(
+        PageResult(failure=FetchFailure.CONNECTION, provider="byparr")
+    )
+    shared = PageFetchService(browser)
+    first = shared.for_lookup()
+    second = shared.for_lookup()
+    first.fetch(
+        "https://site.test/a",
+        direct_fetch=lambda: None,
+        validator=lambda _html: True,
+        strategy="browser_first",
+    )
+    second.fetch(
+        "https://site.test/b",
+        direct_fetch=lambda: None,
+        validator=lambda _html: True,
+        strategy="browser_first",
+    )
+    assert browser.calls == 2

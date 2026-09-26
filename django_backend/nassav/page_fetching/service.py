@@ -1,7 +1,9 @@
 """Validate direct and browser pages with the same site supplied predicate."""
 
 from collections.abc import Callable
+from dataclasses import replace
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from loguru import logger
 
@@ -17,14 +19,22 @@ class PageFetchService:
     def reset_lookup(self) -> None:
         self.browser_unavailable = False
 
+    def for_lookup(self) -> "PageFetchService":
+        """Give each lookup its own transient browser failure state."""
+        return PageFetchService(self.browser, self.timeout_ms)
+
     def fetch(
         self,
         url: str,
         *,
-        direct_fetch: Callable[[], str | None],
+        direct_fetch: Callable[[], str | PageResult | None],
         validator: Callable[[str], bool],
         strategy: str,
+        source: str = "",
+        candidate_index: int = 1,
+        request_id: str = "",
     ) -> PageResult:
+        request_id = request_id or uuid4().hex[:12]
         if strategy not in {"browser_first", "direct_first", "direct_only"}:
             raise ValueError(f"Unknown page fetch strategy: {strategy}")
         paths = (
@@ -45,40 +55,42 @@ class PageFetchService:
                 if result.failure == FetchFailure.CONNECTION:
                     self.browser_unavailable = True
             else:
-                html = direct_fetch()
-                result = PageResult(
-                    html=html or "",
-                    final_url=url,
-                    provider="direct",
-                    failure=None if html else FetchFailure.EMPTY,
-                )
+                direct_result = direct_fetch()
+                if isinstance(direct_result, PageResult):
+                    result = direct_result
+                else:
+                    result = PageResult(
+                        html=direct_result or "",
+                        final_url=url,
+                        provider="direct",
+                        failure=None if direct_result else FetchFailure.EMPTY,
+                    )
             if result.failure is None:
                 if not self.same_site(url, result.final_url):
-                    result = PageResult(
-                        final_url=result.final_url,
-                        provider=result.provider,
-                        failure=FetchFailure.PAGE_MISMATCH,
-                    )
+                    result = replace(result, failure=FetchFailure.PAGE_MISMATCH)
                 elif self.is_challenge(result.html):
-                    result = PageResult(
-                        final_url=result.final_url,
-                        provider=result.provider,
-                        failure=FetchFailure.CHALLENGE,
-                    )
+                    result = replace(result, failure=FetchFailure.CHALLENGE)
                 elif not validator(result.html):
-                    result = PageResult(
-                        final_url=result.final_url,
-                        provider=result.provider,
-                        failure=FetchFailure.PAGE_MISMATCH,
-                    )
+                    result = replace(result, failure=FetchFailure.PAGE_MISMATCH)
             if result.ok:
+                logger.info(
+                    "Page fetch success: source={} provider={} request_id={} candidate={} elapsed_ms={}",
+                    source,
+                    result.provider,
+                    request_id,
+                    candidate_index,
+                    result.elapsed_ms,
+                )
                 return result
             last = result
             logger.info(
-                "Page fetch failed: provider={} failure={} url={}",
+                "Page fetch failed: source={} provider={} request_id={} candidate={} elapsed_ms={} failure={}",
+                source,
                 result.provider,
+                request_id,
+                candidate_index,
+                result.elapsed_ms,
                 result.failure,
-                url,
             )
         return last
 

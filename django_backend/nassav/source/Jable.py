@@ -2,6 +2,7 @@ import re
 from copy import deepcopy
 from typing import Callable, Optional
 from urllib.parse import quote, urlencode, urljoin
+from uuid import uuid4
 
 from bs4 import BeautifulSoup
 from django.conf import settings
@@ -65,13 +66,16 @@ class Jable(SourceBase):
             f"https://{self.domain}/videos/{avid.lower()}bf/",
             f"https://{self.domain}/videos/{avid.lower()}ntum/",
         ]
-        self.page_fetcher.reset_lookup()
-        for url in urls:
+        fetcher = self.page_fetcher.for_lookup()
+        request_id = uuid4().hex[:12]
+        for candidate_index, url in enumerate(urls, start=1):
             result = self._request_html(
                 url,
                 referer=f"https://{self.domain}/search/{avid.lower()}",
                 validator=self._is_detail_page_html,
-                preserve_lookup=True,
+                fetcher=fetcher,
+                candidate_index=candidate_index,
+                request_id=request_id,
             )
             if result:
                 return result
@@ -592,15 +596,19 @@ class Jable(SourceBase):
         *,
         referer: str,
         validator: Callable[[str], bool] | None = None,
-        preserve_lookup: bool = False,
+        fetcher: PageFetchService | None = None,
+        candidate_index: int = 1,
+        request_id: str = "",
     ) -> Optional[str]:
-        if not preserve_lookup:
-            self.page_fetcher.reset_lookup()
-        result = self.page_fetcher.fetch(
+        active_fetcher = fetcher or self.page_fetcher.for_lookup()
+        result = active_fetcher.fetch(
             url,
-            direct_fetch=lambda: self.fetch_html(url, referer=referer),
+            direct_fetch=lambda: self.fetch_page(url, referer=referer),
             validator=validator or (lambda html: bool(html)),
             strategy=self.browser_fetch_strategy,
+            source=self.get_source_name(),
+            candidate_index=candidate_index,
+            request_id=request_id,
         )
         return result.html if result.ok else None
 
