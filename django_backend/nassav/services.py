@@ -145,13 +145,7 @@ class VideoDownloadService:
 # 全局服务实例（使用依赖注入）
 video_download_service = VideoDownloadService(
     resource_manager=source_manager,
-    m3u8_downloader=N_m3u8DL_RE(
-        proxy=(
-            settings.DOWNLOAD_PROXY_URL
-            if settings.DOWNLOAD_PROXY_URL is not None
-            else (settings.PROXY_URL if settings.PROXY_ENABLED else None)
-        )
-    ),
+    m3u8_downloader=N_m3u8DL_RE(proxy=settings.DOWNLOAD_PROXY_URL or None),
 )
 
 

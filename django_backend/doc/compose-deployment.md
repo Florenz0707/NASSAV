@@ -52,7 +52,7 @@ GPU 资源预留按 [Docker Compose 官方说明](https://docs.docker.com/compos
 
 网关只发布前端端口，转发 `/nassav/api/` 与 `/nassav/ws/` 至 Django ASGI。WebSocket 设置 Upgrade、HTTP/1.1 和 3600 秒空闲超时。Redis、Byparr、API 和 worker 均仅位于 Compose 内部网络。`/healthz` 为内部 API 就绪检查，验证 SQLite 与 Redis；它不代表外部资源页面可抓取。容器有重启策略和内存上限。
 
-`scrape-worker` 只监听 `scrape`，`download-worker` 只监听 `download`，`default-worker` 接收翻译与其他默认任务；三者并发与预取都为 1。Byparr 默认不设代理。Django 抓取使用 `config.yaml` 的 `Proxy.url`；Byparr 浏览器使用 `.env` 的 `BYPARR_PROXY_SERVER`；下载器使用 `DOWNLOAD_PROXY_URL`，空值表示不使用代理。容器内 `localhost` 指向各自容器，宿主机代理必须填容器可访问的网关地址；内网服务名已列入 `NO_PROXY`。不要将代理凭证写进提交文件或日志。
+`scrape-worker` 只监听 `scrape`，`download-worker` 只监听 `download`，`default-worker` 接收翻译与其他默认任务；三者并发与预取都为 1。Byparr 默认不设代理。Django 抓取使用 `config.yaml` 的 `Proxy.url`；Byparr 浏览器使用 `.env` 的 `BYPARR_PROXY_SERVER`；下载器只使用显式设置的 `DOWNLOAD_PROXY_URL`；未设置或空值均为直连，不回退到 `Proxy.url`，也不继承 worker 的系统代理环境变量。本地开发和代理优先级见[代理路由说明](proxy-routing.md)。容器内 `localhost` 指向各自容器，宿主机代理必须填容器可访问的网关地址；内网服务名已列入 `NO_PROXY`。不要将代理凭证写进提交文件或日志。
 
 默认仅绑定 `127.0.0.1`。现有 API 允许匿名访问，WebSocket 广播任务事件，因此不要直接将 `FRONTEND_BIND_ADDRESS` 改为公网地址。若经可信反向代理提供 HTTPS，应设置真实域名 `ALLOWED_HOSTS` 和 `CSRF_TRUSTED_ORIGINS`，并在外层限制访问。
 

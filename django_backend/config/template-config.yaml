@@ -1,4 +1,4 @@
-# 代理配置
+# 抓取请求代理；下载器仅使用可选的 DOWNLOAD_PROXY_URL，默认直连
 Proxy:
   Enable: false
   url: http://127.0.0.1:443

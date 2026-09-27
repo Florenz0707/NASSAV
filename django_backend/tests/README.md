@@ -530,3 +530,7 @@ uv run pytest tests/test_ws.py -v
 ### Compose Ollama 模型就绪检查
 
 `uv run pytest tests/test_ensure_ollama_model.py -q` 验证可选 Ollama profile 在翻译 worker 启动前拉取并确认当前配置的模型，以及 `OLLAMA_URL` 容器地址覆盖。
+
+## 下载代理隔离测试
+
+`uv run pytest tests/test_download_proxy_isolation.py -q` 验证下载器只使用显式设置的 `DOWNLOAD_PROXY_URL`，且其子进程不会继承 worker 的系统代理变量。

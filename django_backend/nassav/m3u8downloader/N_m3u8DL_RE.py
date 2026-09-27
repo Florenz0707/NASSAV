@@ -76,8 +76,17 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 f"User-Agent: {user_agent}",
             ]
 
-            # 设置环境变量（代理）
+            # Only the dedicated download proxy may affect the downloader.
             env = os.environ.copy()
+            for key in (
+                "http_proxy",
+                "https_proxy",
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "all_proxy",
+            ):
+                env.pop(key, None)
             if self.proxy:
                 env["http_proxy"] = self.proxy
                 env["https_proxy"] = self.proxy
