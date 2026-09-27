@@ -7,6 +7,7 @@ services:
       DB_ENGINE: postgres
       DB_HOST: ${DB_HOST:?Set DB_HOST to the existing PostgreSQL server}
       DB_PORT: ${DB_PORT:-5432}
+      DB_SCHEMA: ${DB_SCHEMA-}
       DB_NAME: ${DB_NAME:-nassav}
       DB_USER: ${DB_USER:-nassav}
       DB_PASSWORD_FILE: /run/secrets/postgres_password

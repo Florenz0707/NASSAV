@@ -4,6 +4,7 @@ Database:
   Path: null
   Host: 127.0.0.1
   Port: 5432
+  Schema: public
   Name: nassav_dev
   User: nassav
   # 本地开发可填写 Password，或使用 PasswordFile 指向独立密码文件。

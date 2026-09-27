@@ -3,6 +3,7 @@ Django settings for django_project project.
 """
 
 import os
+import re
 import warnings
 from pathlib import Path
 
@@ -209,6 +210,15 @@ elif DB_ENGINE in {"postgres", "postgresql"}:
             + ", ".join(missing_database_settings)
         )
 
+    database_schema = str(
+        os.getenv("DB_SCHEMA") or DATABASE_CONFIG.get("Schema") or "public"
+    ).strip()
+    if not re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", database_schema):
+        raise RuntimeError(
+            "Database.Schema must be a lowercase PostgreSQL identifier "
+            "(1-63 characters, letters/digits/underscores)"
+        )
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -223,6 +233,7 @@ elif DB_ENGINE in {"postgres", "postgresql"}:
                     str(DATABASE_CONFIG.get("ConnectionMaxAge", 60)),
                 )
             ),
+            "OPTIONS": {"options": f"-c search_path={database_schema}"},
         }
     }
 else:

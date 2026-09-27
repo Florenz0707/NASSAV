@@ -76,7 +76,9 @@ class Command(BaseCommand):
         dump_path = backup_dir / "database.dump"
         try:
             connection.ensure_connection()
-            server_version = connection.pg_version
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW server_version_num")
+                server_version = int(cursor.fetchone()[0])
             dump_version = subprocess.run(
                 ["pg_dump", "--version"],
                 check=True,

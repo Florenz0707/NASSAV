@@ -71,7 +71,7 @@ curl -i http://127.0.0.1:9780/nassav/api/source/list
 
 ## 外部 PostgreSQL（可选）
 
-Compose 不创建或管理 PostgreSQL 服务；它只连接你单独部署和维护的 PostgreSQL 17 服务。SQLite 仍是默认配置。本机开发可直接在忽略的 `django_backend/config/config.yaml` 中设置 `Database.Engine: postgres` 及连接参数。Compose 使用覆盖文件，并在 `.env` 设置容器可访问的 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`，再创建密码文件：
+Compose 不创建或管理 PostgreSQL 服务；它只连接你单独部署和维护的 PostgreSQL 17 服务。SQLite 仍是默认配置。本机开发可直接在忽略的 `django_backend/config/config.yaml` 中设置 `Database.Engine: postgres` 及连接参数，包括 `Database.Schema`。Compose 使用覆盖文件，并在 `.env` 设置容器可访问的 `DB_HOST`、`DB_PORT`、可选的 `DB_SCHEMA`、`DB_NAME`、`DB_USER`，再创建密码文件。未设置 `DB_SCHEMA` 时使用应用配置中的 schema，默认为 `public`：
 
 ```sh
 mkdir -p secrets
@@ -82,7 +82,7 @@ printf '%s' '由管理员提供的数据库密码' > secrets/postgres_password
 docker compose -f compose.yaml -f compose.postgres.yaml config --quiet
 ```
 
-密码文件由 Compose secret 挂载到后端容器。不要把实际密码放进仓库或命令历史。容器访问宿主机上的 PostgreSQL 时可将 `DB_HOST` 设为 `host.docker.internal`；PostgreSQL 还须监听对应网卡并在 `pg_hba.conf` 允许来自 Docker 网络的应用账号连接。远端服务则填写其内网地址。数据库和应用账号须由管理员预先创建，应用账号只需 NASSAV 数据库所需权限；确认服务端备份策略和磁盘空间。
+密码文件由 Compose secret 挂载到后端容器。不要把实际密码放进仓库或命令历史。容器访问宿主机上的 PostgreSQL 时可将 `DB_HOST` 设为 `host.docker.internal`；PostgreSQL 还须监听对应网卡并在 `pg_hba.conf` 允许来自 Docker 网络的应用账号连接。远端服务则填写其内网地址。数据库、目标 schema 和应用账号须由管理员预先创建；应用账号需在该 schema 上有使用和建表权限。启用前确认服务端备份策略和磁盘空间。
 
 只有在已准备外部服务器、密码文件和空目标库后，才使用覆盖文件启动：
 

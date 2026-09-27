@@ -63,6 +63,7 @@ def test_postgresql_settings_load_from_yaml(tmp_path):
             "Engine": "postgres",
             "Host": "127.0.0.1",
             "Port": 5433,
+            "Schema": "dev_schema",
             "Name": "dev_database",
             "User": "dev_user",
             "Password": "local-development-password",
@@ -89,7 +90,8 @@ def test_postgresql_settings_load_from_yaml(tmp_path):
             sys.executable,
             "-c",
             "from django.conf import settings; db = settings.DATABASES['default']; "
-            "print('|'.join((db['ENGINE'], db['HOST'], db['PORT'], db['NAME'], db['USER'])))",
+            "print('|'.join((db['ENGINE'], db['HOST'], db['PORT'], db['NAME'], "
+            "db['USER'], db['OPTIONS']['options'])))",
         ],
         cwd=backend_root,
         env=environment,
@@ -99,5 +101,6 @@ def test_postgresql_settings_load_from_yaml(tmp_path):
     )
 
     assert result.stdout.strip() == (
-        "django.db.backends.postgresql|127.0.0.1|5433|dev_database|dev_user"
+        "django.db.backends.postgresql|127.0.0.1|5433|dev_database|dev_user|"
+        "-c search_path=dev_schema"
     )

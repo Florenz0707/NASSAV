@@ -1,16 +1,17 @@
-SQLite 是本地和默认 Compose 数据库，由 `Database.Path` 或 `DATABASE_PATH` 指定，Compose 中的文件及 WAL/SHM 位于 `deploy-data/db/`。本地开发可在忽略的 `config/config.yaml` 中将 `Database.Engine` 设为 `postgres`，并配置 `Host`、`Port`、`Name`、`User` 及 `Password` 或 `PasswordFile`；环境变量可覆盖对应值。例如：
+SQLite 是本地和默认 Compose 数据库，由 `Database.Path` 或 `DATABASE_PATH` 指定，Compose 中的文件及 WAL/SHM 位于 `deploy-data/db/`。本地开发可在忽略的 `config/config.yaml` 中将 `Database.Engine` 设为 `postgres`，并配置 `Host`、`Port`、`Name`、`User`、`Schema` 及 `Password` 或 `PasswordFile`；环境变量可覆盖对应值。`Schema` 默认 `public`，需预先存在且应用账号需有权限；应用不会自动创建 schema。例如：
 
 ```yaml
 Database:
   Engine: postgres
   Host: 127.0.0.1
   Port: 5432
+  Schema: nassav_dev
   Name: nassav_dev
   User: nassav_dev
   Password: your-local-development-password
 ```
 
-模板中的密码为空。缺少凭证或 engine 值错误时 Django 启动失败，不回退到 SQLite。Compose 仍通过 `compose.postgres.yaml` 连接外部服务并挂载 secret。数据库连接切换不修改模型或 schema。部署说明见[这里](compose-deployment.md)。
+模板中的密码为空。缺少凭证或 engine 值错误时 Django 启动失败，不回退到 SQLite。Compose 仍通过 `compose.postgres.yaml` 连接外部服务并挂载 secret。数据库连接切换不修改模型；schema 由 `search_path` 选定。部署说明见[这里](compose-deployment.md)。
 
 `backup_database` 按当前引擎选择 SQLite 文件快照或 PostgreSQL custom-format `database.dump`。PostgreSQL 文件位于 `backup/database_postgresql_{timestamp}/`，带引擎和服务端主版本元数据。PostgreSQL 恢复命令 `restore_postgres_backup` 只接受空数据库；先创建新的空库，再在配置指向该库时执行恢复。备份目录会由 `sync_backups` 一并同步。使用 PostgreSQL 时自动清理只处理 PostgreSQL 备份，保留 SQLite 快照供回滚。
 
