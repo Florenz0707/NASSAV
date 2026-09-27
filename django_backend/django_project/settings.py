@@ -65,7 +65,10 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-DOWNLOAD_PROXY_URL = os.getenv("DOWNLOAD_PROXY_URL")
+DOWNLOAD_PROXY_URL = (
+    os.getenv("DOWNLOAD_PROXY_URL", (CONFIG.get("Proxy") or {}).get("download_url"))
+    or None
+)
 VIDEO_HOST_DIR = os.getenv("VIDEO_HOST_DIR")
 
 # Redis Configuration

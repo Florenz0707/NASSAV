@@ -533,4 +533,4 @@ uv run pytest tests/test_ws.py -v
 
 ## 下载代理隔离测试
 
-`uv run pytest tests/test_download_proxy_isolation.py -q` 验证下载器只使用显式设置的 `DOWNLOAD_PROXY_URL`，且其子进程不会继承 worker 的系统代理变量。
+`uv run pytest tests/test_download_proxy_isolation.py -q` 验证 `Proxy.download_url` 的默认值、可选环境覆盖，以及下载器子进程不继承 worker 的系统代理变量。

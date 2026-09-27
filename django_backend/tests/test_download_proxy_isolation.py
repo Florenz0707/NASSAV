@@ -78,3 +78,54 @@ def test_downloader_does_not_inherit_system_proxy(monkeypatch, tmp_path, proxy):
         assert captured["env"].get(key) == expected
     assert "ALL_PROXY" not in captured["env"]
     assert "all_proxy" not in captured["env"]
+
+
+@pytest.mark.parametrize(
+    ("override", "expected"),
+    [
+        (None, "http://config-download-proxy:8080"),
+        ("", None),
+        ("http://env-download-proxy:8080", "http://env-download-proxy:8080"),
+    ],
+)
+def test_settings_reads_download_proxy_from_config_with_optional_override(
+    tmp_path, override, expected
+):
+    import os
+    import shutil
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    backend_dir = Path(__file__).resolve().parents[1]
+    project_dir = tmp_path / "django_project"
+    project_dir.mkdir()
+    shutil.copy2(
+        backend_dir / "django_project" / "settings.py", project_dir / "settings.py"
+    )
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config = (backend_dir / "config" / "template-config.yaml").read_text()
+    config = config.replace(
+        "  download_url: null",
+        "  download_url: http://config-download-proxy:8080",
+        1,
+    )
+    (config_dir / "config.yaml").write_text(config)
+    env = os.environ.copy()
+    env.pop("DOWNLOAD_PROXY_URL", None)
+    if override is not None:
+        env["DOWNLOAD_PROXY_URL"] = override
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import runpy,sys; print(repr(runpy.run_path(sys.argv[1])['DOWNLOAD_PROXY_URL']))",
+            str(project_dir / "settings.py"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == repr(expected)

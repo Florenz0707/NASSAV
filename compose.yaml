@@ -12,7 +12,6 @@ x-backend: &backend
     CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
     REDIS_URL: redis://redis:6379/0
     DATABASE_PATH: /app/data/db/db.sqlite3
-    DOWNLOAD_PROXY_URL: ${DOWNLOAD_PROXY_URL-}
     VIDEO_HOST_DIR: ${NASSAV_VIDEO_HOST_DIR:?Set the absolute host path to the video directory}
     OLLAMA_URL: ${OLLAMA_URL-}
     NO_PROXY: redis,byparr,api,ollama,localhost,127.0.0.1
