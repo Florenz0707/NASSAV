@@ -199,7 +199,6 @@ async function handleRefresh(params = null) {
   refreshing.value = true
   try {
     await resourceStore.refreshResource(avid.value, params)
-    toastStore.info('刷新任务已排队')
   } catch (err) {
     toastStore.error(err.message || '刷新失败')
   } finally {

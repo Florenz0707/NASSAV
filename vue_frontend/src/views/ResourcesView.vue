@@ -62,9 +62,7 @@ async function handleBatchRefresh() {
   batchLoading.value = true
   try {
     const avids = Array.from(selectedAvids.value)
-    const response = await resourceStore.batchRefresh(avids)
-    const accepted = response.data?.results?.filter((item) => item.code === 202).length || 0
-    toastStore.info(`${accepted} 个刷新任务已排队`)
+    await resourceStore.batchRefresh(avids)
     selectedAvids.value = new Set()
   } catch (err) {
     toastStore.error(err.message || '批量刷新失败')
@@ -263,7 +261,6 @@ watch(
 async function handleRefresh(avid, params = null) {
   try {
     await resourceStore.refreshResource(avid, params)
-    toastStore.info(`${avid} 已排队刷新`)
   } catch (err) {
     toastStore.error(err.message || '刷新失败')
   }

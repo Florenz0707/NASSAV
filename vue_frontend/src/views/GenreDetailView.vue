@@ -261,7 +261,6 @@ async function handleAddExternal(item) {
   addingExternalAvids.value.add(item.avid)
   try {
     await resourceStore.addResource(item.avid, 'any')
-    toastStore.info(`${item.avid} 已排队`)
   } catch (err) {
     if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
       toastStore.info(`${item.avid} 已经在资源库中`)
@@ -334,10 +333,8 @@ async function handleBatchRefresh() {
   batchLoading.value = true
   try {
     const avids = Array.from(selectedAvids.value)
-    const response = await resourceStore.batchRefresh(avids)
+    await resourceStore.batchRefresh(avids)
     selectedAvids.value = new Set()
-    const accepted = response.data?.results?.filter((item) => item.code === 202).length || 0
-    toastStore.info(`${accepted} 个刷新任务已排队`)
   } catch (err) {
     toastStore.error(err.message || '批量刷新失败')
   } finally {
@@ -442,7 +439,6 @@ async function handleDownload(avid) {
 async function handleRefresh(avid) {
   try {
     await resourceStore.refreshResource(avid)
-    toastStore.info(`${avid} 已排队刷新`)
   } catch (err) {
     toastStore.error(err.message || '刷新失败')
   }

@@ -3,7 +3,6 @@ import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Toast from './components/Toast.vue'
-import ScrapeJobPanel from './components/ScrapeJobPanel.vue'
 import { useWebSocketStore } from './stores/websocket'
 import { useSettingsStore } from './stores/settings'
 import { useResourceStore } from './stores/resource'
@@ -61,7 +60,6 @@ watch(
     <div class="background-pattern" />
     <Navbar />
     <main class="main-content">
-      <ScrapeJobPanel />
       <RouterView v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />

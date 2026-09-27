@@ -7,6 +7,10 @@ import { mergeScrapeJob } from '../src/stores/scrapeJobState.js'
 const calls = []
 let remoteState = 'queued'
 let remoteVersion = 1
+let remoteStage = null
+let submitTaskId = 'job-1'
+let holdNextSnapshot = false
+let releaseSnapshot = null
 axios.defaults.adapter = async (config) => {
   calls.push({
     url: config.url,
@@ -15,10 +19,10 @@ axios.defaults.adapter = async (config) => {
   })
   if (config.url === '/resource/jobs' && config.method === 'post') {
     return response(config, 202, {
-      task_id: 'job-1',
+      task_id: submitTaskId,
       status_token: 'signed-token',
       job: {
-        task_id: 'job-1',
+        task_id: submitTaskId,
         avid: 'ABC-1',
         action: 'add',
         job_type: 'scrape',
@@ -29,17 +33,25 @@ axios.defaults.adapter = async (config) => {
       },
     })
   }
-  if (config.url === '/resource/jobs/job-1' && config.method === 'get') {
-    return response(config, 200, {
-      task_id: 'job-1',
+  if (config.url === `/resource/jobs/${submitTaskId}` && config.method === 'get') {
+    const snapshot = {
+      task_id: submitTaskId,
       avid: 'ABC-1',
       action: 'add',
       job_type: 'scrape',
       state: remoteState,
-      stage: remoteState === 'running' ? 'source_lookup' : null,
+      stage: remoteState === 'running' ? remoteStage || 'source_lookup' : null,
+      message: remoteState === 'failed' ? '访问被拒绝' : null,
       version: remoteVersion,
       updated_at: remoteVersion,
-    })
+    }
+    if (holdNextSnapshot) {
+      holdNextSnapshot = false
+      await new Promise((resolve) => {
+        releaseSnapshot = resolve
+      })
+    }
+    return response(config, 200, snapshot)
   }
   throw new Error(`Unexpected API call: ${config.method} ${config.url}`)
 }
@@ -138,4 +150,116 @@ test('monotonic snapshot merge keeps terminal and rejects older versions', () =>
   assert.equal(mergeScrapeJob(terminal, { task_id: 'x', state: 'running', version: 5 }), terminal)
   const current = { task_id: 'y', state: 'running', version: 3, updated_at: 3 }
   assert.equal(mergeScrapeJob(current, { task_id: 'y', state: 'queued', version: 2 }), current)
+})
+
+test('WebSocket state changes toast once; stage updates stay quiet and retry is a new job', async () => {
+  globalThis.localStorage = storage()
+  setActivePinia(createPinia())
+  calls.length = 0
+  submitTaskId = 'job-1'
+  remoteState = 'queued'
+  remoteVersion = 1
+  remoteStage = null
+  const store = useResourceStore()
+  const messages = []
+  const toast = useToastStore()
+  toast.info = (message) => messages.push(['info', message])
+  toast.success = (message) => messages.push(['success', message])
+  toast.error = (message) => messages.push(['error', message])
+  try {
+    await store.addResource('ABC-1')
+    await new Promise(setImmediate)
+    assert.deepEqual(messages, [['info', 'ABC-1 添加任务已排队']])
+
+    remoteState = 'running'
+    remoteVersion = 2
+    await store.handleScrapeJobEvent({
+      job_type: 'scrape',
+      task_id: 'job-1',
+      state: 'running',
+      version: 2,
+    })
+    assert.deepEqual(messages.at(-1), ['info', 'ABC-1 正在添加'])
+    const requestsAfterRunning = calls.length
+
+    remoteVersion = 3
+    remoteStage = 'metadata'
+    await store.handleScrapeJobEvent({
+      job_type: 'scrape',
+      task_id: 'job-1',
+      state: 'running',
+      version: 3,
+    })
+    assert.equal(calls.length, requestsAfterRunning)
+    await store.refreshScrapeJob('job-1')
+    assert.equal(store.getScrapeJobForAvid('ABC-1').stage, 'metadata')
+    assert.equal(messages.length, 2)
+
+    remoteState = 'failed'
+    remoteVersion = 4
+    await store.handleScrapeJobEvent({
+      job_type: 'scrape',
+      task_id: 'job-1',
+      state: 'failed',
+      version: 4,
+    })
+    assert.deepEqual(messages.at(-1), ['error', 'ABC-1 访问被拒绝'])
+    const requestsAfterFailure = calls.length
+    await store.handleScrapeJobEvent({
+      job_type: 'scrape',
+      task_id: 'job-1',
+      state: 'failed',
+      version: 4,
+    })
+    assert.equal(calls.length, requestsAfterFailure)
+    assert.equal(messages.length, 3)
+
+    submitTaskId = 'job-2'
+    remoteState = 'queued'
+    remoteVersion = 1
+    await store.addResource('ABC-1')
+    await new Promise(setImmediate)
+    assert.deepEqual(messages.at(-1), ['info', 'ABC-1 重试任务已排队'])
+    assert.equal(messages.length, 4)
+  } finally {
+    store.dismissScrapeJob('job-2')
+    store.stopScrapeTracking()
+  }
+})
+
+test('WebSocket terminal event during an in-flight snapshot is followed up', async () => {
+  globalThis.localStorage = storage()
+  setActivePinia(createPinia())
+  calls.length = 0
+  submitTaskId = 'job-1'
+  remoteState = 'queued'
+  remoteVersion = 1
+  holdNextSnapshot = true
+  const store = useResourceStore()
+  const success = []
+  useToastStore().success = (message) => success.push(message)
+  try {
+    await store.addResource('ABC-1')
+    await new Promise(setImmediate)
+    assert.equal(typeof releaseSnapshot, 'function')
+    remoteState = 'succeeded'
+    remoteVersion = 2
+    store.handleScrapeJobEvent({
+      job_type: 'scrape',
+      task_id: 'job-1',
+      state: 'succeeded',
+      version: 2,
+    })
+    releaseSnapshot()
+    await new Promise(setImmediate)
+    await new Promise(setImmediate)
+    assert.equal(store.getScrapeJobForAvid('ABC-1').state, 'succeeded')
+    assert.deepEqual(success, ['ABC-1 添加成功'])
+    assert.equal(calls.filter((call) => call.url === '/resource/jobs/job-1').length, 2)
+  } finally {
+    if (releaseSnapshot) releaseSnapshot()
+    releaseSnapshot = null
+    holdNextSnapshot = false
+    store.stopScrapeTracking()
+  }
 })

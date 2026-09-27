@@ -562,7 +562,6 @@ async function handleAdd(item) {
 
   try {
     await resourceStore.addResource(item.avid, 'any')
-    toastStore.info(`${item.avid} 已排队`)
 
     pendingRecommendationAdds.set(item.avid, item)
   } catch (err) {

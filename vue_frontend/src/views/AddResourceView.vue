@@ -95,7 +95,6 @@ async function handleSubmit() {
   try {
     if (avids.length === 1) {
       await resourceStore.addResource(avids[0], source.value)
-      toastStore.info(`${avids[0]} 已排队，请查看资源任务进度`)
       return
     }
 
@@ -117,9 +116,7 @@ async function handleSubmit() {
         .map((item) => ({ avid: item.avid, task_id: item.task_id })),
       submissionFailed: failed,
     }
-    if (queued.length) toastStore.info(`${queued.length} 个资源任务已排队`)
     if (exists.length) toastStore.info(`${exists.length} 个资源已存在`)
-    if (failed.length) toastStore.warning(`${failed.length} 个资源提交失败`)
   } catch (err) {
     if (err.code === 409 && avids.length === 1) {
       result.value = {

@@ -16,6 +16,7 @@ export const useResourceStore = defineStore('resource', () => {
     [...scrapeJobs.value.values()].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
   )
   const pendingJobRequests = new Set()
+  const pendingJobEventVersions = new Map()
   let scrapePollTimer = null
   let lastResourceQuery = null
   const SCRAPE_STORAGE_KEY = 'nassav:scrape-jobs:v1'
@@ -28,24 +29,28 @@ export const useResourceStore = defineStore('resource', () => {
     localStorage.setItem(SCRAPE_STORAGE_KEY, JSON.stringify(current.slice(0, 100)))
   }
 
-  function setScrapeJob(job, { notifyTerminal = true } = {}) {
+  function setScrapeJob(job, { notify = true } = {}) {
     const previous = scrapeJobs.value.get(job.task_id)
+    const latestForResource = visibleScrapeJobs.value.find(
+      (existing) => existing.avid === job.avid && existing.action === job.action
+    )
+    const isRetry = !previous && job.state === 'queued' && latestForResource?.state === 'failed'
     const merged = mergeScrapeJob(previous, job)
     if (merged === previous) return previous
     scrapeJobs.value = new Map(scrapeJobs.value).set(job.task_id, merged)
     persistScrapeJobs()
     syncScrapePolling()
-    if (
-      notifyTerminal &&
-      !TERMINAL_JOB_STATES.has(previous?.state) &&
-      TERMINAL_JOB_STATES.has(merged.state)
-    ) {
+    if (notify && previous?.state !== merged.state) {
       const toast = useToastStore()
-      if (merged.state === 'succeeded') {
-        toast.success(`${merged.avid} ${merged.action === 'add' ? '添加' : '刷新'}成功`)
+      const action = merged.action === 'add' ? '添加' : '刷新'
+      if (merged.state === 'queued')
+        toast.info(`${merged.avid} ${isRetry ? '重试任务' : `${action}任务`}已排队`)
+      else if (merged.state === 'running') toast.info(`${merged.avid} 正在${action}`)
+      else if (merged.state === 'succeeded') {
+        toast.success(`${merged.avid} ${action}成功`)
         if (lastResourceQuery) fetchResources(lastResourceQuery).catch(() => {})
-      } else {
-        toast.error(`${merged.avid} ${merged.message || '任务失败'}`)
+      } else if (merged.state === 'failed') {
+        toast.error(`${merged.avid} ${merged.message || `${action}失败`}`)
       }
     }
     return merged
@@ -69,7 +74,7 @@ export const useResourceStore = defineStore('resource', () => {
       const saved = JSON.parse(localStorage.getItem(SCRAPE_STORAGE_KEY) || '[]')
       if (Array.isArray(saved)) {
         for (const job of saved) {
-          if (job?.task_id && job?.status_token) setScrapeJob(job, { notifyTerminal: false })
+          if (job?.task_id && job?.status_token) setScrapeJob(job, { notify: false })
         }
       }
     } catch {
@@ -99,6 +104,16 @@ export const useResourceStore = defineStore('resource', () => {
       return current
     } finally {
       pendingJobRequests.delete(taskId)
+      const pendingVersion = pendingJobEventVersions.get(taskId)
+      pendingJobEventVersions.delete(taskId)
+      const latest = scrapeJobs.value.get(taskId)
+      if (
+        pendingVersion > (latest?.version || 0) &&
+        latest &&
+        !TERMINAL_JOB_STATES.has(latest.state)
+      ) {
+        refreshScrapeJob(taskId)
+      }
     }
   }
 
@@ -112,36 +127,52 @@ export const useResourceStore = defineStore('resource', () => {
   function handleScrapeJobEvent(event) {
     if (event?.job_type !== 'scrape' || !scrapeJobs.value.has(event.task_id)) return
     const current = scrapeJobs.value.get(event.task_id)
-    if ((event.version || 0) > (current.version || 0)) refreshScrapeJob(event.task_id)
+    if ((event.version || 0) <= (current.version || 0) || event.state === current.state) return
+    if (pendingJobRequests.has(event.task_id)) {
+      pendingJobEventVersions.set(
+        event.task_id,
+        Math.max(pendingJobEventVersions.get(event.task_id) || 0, event.version)
+      )
+      return
+    }
+    return refreshScrapeJob(event.task_id)
   }
 
-  function registerScrapeSubmission(data) {
-    const job = setScrapeJob(
-      { ...data.job, status_token: data.status_token },
-      { notifyTerminal: false }
-    )
+  function registerScrapeSubmission(data, { notify = true } = {}) {
+    const job = setScrapeJob({ ...data.job, status_token: data.status_token }, { notify })
     refreshScrapeJob(job.task_id)
     return job
   }
 
   function registerScrapeBatch(results) {
+    let queued = 0
+    let failed = 0
     for (const item of results) {
       if (item.code === 202 && item.task_id) {
-        registerScrapeSubmission({
-          job: {
-            task_id: item.task_id,
-            job_type: 'scrape',
-            action: item.action,
-            avid: item.avid,
-            state: 'queued',
-            stage: null,
-            version: 0,
-            updated_at: Date.now() / 1000,
+        queued += 1
+        registerScrapeSubmission(
+          {
+            job: {
+              task_id: item.task_id,
+              job_type: 'scrape',
+              action: item.action,
+              avid: item.avid,
+              state: 'queued',
+              stage: null,
+              version: 0,
+              updated_at: Date.now() / 1000,
+            },
+            status_token: item.status_token,
           },
-          status_token: item.status_token,
-        })
+          { notify: false }
+        )
+      } else if (item.code >= 400 && item.code !== 409) {
+        failed += 1
       }
     }
+    const toast = useToastStore()
+    if (queued) toast.info(`${queued} 个资源任务已排队`)
+    if (failed) toast.warning(`${failed} 个资源提交失败`)
   }
 
   function getScrapeJobForAvid(avid) {
