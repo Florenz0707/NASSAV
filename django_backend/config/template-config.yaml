@@ -40,7 +40,7 @@ Source:
   jable:
     domain: jable.tv
     weight: 800
-    browser_fetch_strategy: direct_first
+    browser_fetch_strategy: browser_first
   memo:
     domain: memojav.com
     weight: 600
@@ -49,13 +49,13 @@ Source:
 # 用于将日语标题翻译为中文
 Translator:
   # 使用哪个翻译服务
-  active: qwen2.5:7b
+  active: hunyuan-mt
 
   # 翻译服务配置
-  qwen2.5:7b:
+  hunyuan-mt:
     # 翻译服务类型
     type: ollama
-    # Ollama 服务地址；Compose 的 OLLAMA_URL 环境变量可覆盖该地址
+    # Ollama 服务地址
     url: http://localhost:11434
 
     # 使用的模型
@@ -63,7 +63,7 @@ Translator:
     #   - qwen2.5:7b (中文翻译质量最好，推荐)
     #   - llama3.2:3b (速度快，资源占用小)
     #   - gemma2:9b (平衡性能和质量)
-    model: qwen2.5:7b
+    model: huihui_ai/hunyuan-mt-abliterated:latest
 
     # 请求超时时间（秒）
     timeout: 30
@@ -76,10 +76,6 @@ Translator:
     # 简洁版本，避免 Ollama 解析错误
     prompt_template: >-
       你是专业的日语-中文翻译专家。请将以下日语标题翻译成简体中文。
-
-      翻译规则：1)保留人名不翻译 2)保留番号和系列名 3)使用自然流畅的中文
-      4)保持原文情境 5)只返回翻译结果
-
-      日语标题：{text}
-
+      翻译规则：1)保留人名不翻译 2)保留番号和系列名 3)使用自然流畅的中文 4)保持原文情境 5)只返回翻译结果\n
+      日语标题：{text}\n
       中文翻译：
