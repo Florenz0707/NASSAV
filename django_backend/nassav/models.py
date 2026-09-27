@@ -222,7 +222,7 @@ class AVResource(models.Model):
         help_text="Source 获取的标题（备用，来自 MissAV/Jable 等）",
     )
     translated_title = models.CharField(
-        max_length=512,
+        max_length=1024,
         blank=True,
         null=True,
         help_text="翻译后的标题（中文，由 Ollama 翻译）",

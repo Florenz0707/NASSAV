@@ -34,7 +34,7 @@ Database:
     - `avid` (Char, unique, db_index): AV 编号，主查找键。
     - `original_title` (Char, db_index): Scraper 获取的原始标题（通常为日语，来自 Javbus）。
     - `source_title` (Char, nullable): Source 获取的标题（备用，来自 MissAV/Jable 等）。
-    - `translated_title` (Char, nullable): 翻译后的标题（中文，由 Ollama 翻译）。
+    - `translated_title` (Char, nullable, max length 1024): 翻译后的标题（中文，由 Ollama 翻译）。
     - `translation_status` (Char, db_index): 翻译状态，可选值：pending（待翻译）、translating（翻译中）、completed（已完成）、failed（翻译失败）、skipped（跳过）。
     - `source` (Char, db_index): 抓取来源/Downloader 名称。
     - `release_date` (Char, db_index): 原始发布日期字符串。
