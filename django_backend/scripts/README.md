@@ -10,15 +10,14 @@
 
 ```bash
 cd django_backend/scripts/byparr
-# 如需容器出口代理，复制 .env.example 为 .env，并填写容器可访问的代理地址
+# 浏览器代理使用 django_backend/config/config.yaml 的 Proxy.Enable/url
 docker compose config
 docker compose up -d
 docker compose logs --tail=100 byparr
 docker compose down
 ```
 
-`.env` 不进入 Git。宿主机代理的 `127.0.0.1` 不能直接作为容器内地址；
-需先确认容器可达。启动前检查 8192 端口是否已被占用；如有旧试验容器，先停止该试验容器再启动 Compose。
+`Proxy.url` 写宿主机可用的代理地址即可；Django 向 Byparr 发送请求时会把本机回环地址换为容器可用的 `host.docker.internal`，并单独传递代理认证。需确认代理允许来自容器的连接。只有独立调用 Byparr、且没有 Django 请求头时，才需要在未纳入 Git 的 `.env` 中设置 `BYPARR_PROXY_SERVER` 作为默认值。修改项目代理配置后重启 Django API 和 scrape worker。启动前检查 8192 端口是否已被占用；如有旧试验容器，先停止该试验容器再启动 Compose。
 
 ## ⚠️ 重要字段变更说明
 

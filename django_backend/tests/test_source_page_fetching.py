@@ -104,9 +104,22 @@ def test_manager_injects_configured_browser(settings):
         url="http://127.0.0.1:8192",
         timeout_ms=60000,
     )
+    settings.PROXY_ENABLED = True
+    settings.PROXY_URL = "http://127.0.0.1:7890"
     manager = SourceManager()
-    assert manager.sources["MissAV"].page_fetcher.browser.provider == "byparr"
-    assert manager.sources["Jable"].page_fetcher.browser.provider == "byparr"
+    for name in ("MissAV", "Jable"):
+        browser = manager.sources[name].page_fetcher.browser
+        assert browser.provider == "byparr"
+        assert browser._request_headers() == {
+            "X-Proxy-Server": "http://host.docker.internal:7890"
+        }
+
+    settings.PROXY_ENABLED = False
+    direct_manager = SourceManager()
+    for name in ("MissAV", "Jable"):
+        assert (
+            direct_manager.sources[name].page_fetcher.browser._request_headers() == {}
+        )
 
 
 def test_source_direct_redirect_is_rejected():

@@ -78,11 +78,13 @@ def validate_strategy(value: str) -> str:
     return value
 
 
-def create_page_fetch_service(config: BrowserFetchConfig) -> PageFetchService:
+def create_page_fetch_service(
+    config: BrowserFetchConfig, *, proxy_url: str | None = None
+) -> PageFetchService:
     browser = None
     if config.enabled:
-        client_class = (
-            ByparrPageClient if config.provider == "byparr" else FlareSolverrPageClient
-        )
-        browser = client_class(config.url)
+        if config.provider == "byparr":
+            browser = ByparrPageClient(config.url, proxy_url=proxy_url)
+        else:
+            browser = FlareSolverrPageClient(config.url)
     return PageFetchService(browser, config.timeout_ms)

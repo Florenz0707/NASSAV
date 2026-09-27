@@ -56,7 +56,7 @@ class SourceManager:
                     source = MissAV(
                         proxy,
                         page_fetcher=create_page_fetch_service(
-                            settings.BROWSER_FETCH_CONFIG
+                            settings.BROWSER_FETCH_CONFIG, proxy_url=proxy
                         ),
                         cookie_saver=lambda cookie: self.set_source_cookie(
                             "MissAV", cookie
@@ -66,7 +66,7 @@ class SourceManager:
                     source = Jable(
                         proxy,
                         page_fetcher=create_page_fetch_service(
-                            settings.BROWSER_FETCH_CONFIG
+                            settings.BROWSER_FETCH_CONFIG, proxy_url=proxy
                         ),
                     )
                 else:

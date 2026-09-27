@@ -109,3 +109,67 @@ def test_browser_error_classification(monkeypatch):
         client.fetch("https://site.test/", timeout_ms=60000).failure
         == FetchFailure.CONNECTION
     )
+
+
+def test_byparr_uses_project_proxy_for_browser_only(monkeypatch):
+    client = ByparrPageClient(
+        "http://127.0.0.1:8192",
+        proxy_url="http://user%40example:p%3Ass@127.0.0.1:7890",
+    )
+    seen = {}
+
+    def post(url, **kwargs):
+        seen.update(url=url, **kwargs)
+        return FakeResponse(
+            {
+                "status": "ok",
+                "solution": {
+                    "url": "https://site.test/",
+                    "status": 200,
+                    "response": "<html>valid</html>",
+                },
+            }
+        )
+
+    monkeypatch.setattr(client._session, "post", post)
+    assert client.fetch("https://site.test/", timeout_ms=60000).ok
+    assert seen["url"] == "http://127.0.0.1:8192/v1"
+    assert seen["headers"] == {
+        "X-Proxy-Server": "http://host.docker.internal:7890",
+        "X-Proxy-Username": "user@example",
+        "X-Proxy-Password": "p:ss",
+    }
+    assert client._session.trust_env is False
+
+
+def test_byparr_preserves_remote_proxy_host_and_omits_headers_when_disabled(
+    monkeypatch,
+):
+    seen = {}
+    direct = ByparrPageClient("http://localhost:8192")
+    monkeypatch.setattr(
+        direct._session,
+        "post",
+        lambda _url, **kwargs: seen.update(kwargs) or FakeResponse(status_code=502),
+    )
+    direct.fetch("https://site.test/", timeout_ms=60000)
+    assert "headers" not in seen
+
+    proxied = ByparrPageClient(
+        "http://localhost:8192", proxy_url="socks5://proxy.example:1080"
+    )
+    assert proxied._request_headers() == {
+        "X-Proxy-Server": "socks5://proxy.example:1080"
+    }
+
+
+def test_flaresolverr_does_not_receive_byparr_proxy_headers(monkeypatch):
+    client = FlareSolverrPageClient("http://localhost:8191")
+    seen = {}
+    monkeypatch.setattr(
+        client._session,
+        "post",
+        lambda _url, **kwargs: seen.update(kwargs) or FakeResponse(status_code=502),
+    )
+    client.fetch("https://site.test/", timeout_ms=60000)
+    assert "headers" not in seen

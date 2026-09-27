@@ -1,6 +1,7 @@
 """Adapters for the GET subset shared by Byparr and FlareSolverr."""
 
 from time import monotonic
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import requests
 
@@ -16,6 +17,9 @@ class _V1BrowserClient(BrowserPageClient):
         # The control request must not inherit the target-site proxy from the host.
         self._session.trust_env = False
 
+    def _request_headers(self) -> dict[str, str]:
+        return {}
+
     def fetch(self, url: str, *, timeout_ms: int) -> PageResult:
         started = monotonic()
 
@@ -28,6 +32,10 @@ class _V1BrowserClient(BrowserPageClient):
                 failure=reason,
             )
 
+        request_options = {}
+        headers = self._request_headers()
+        if headers:
+            request_options["headers"] = headers
         try:
             response = self._session.post(
                 f"{self.base_url}/v1",
@@ -38,6 +46,7 @@ class _V1BrowserClient(BrowserPageClient):
                     "returnOnlyCookies": False,
                 },
                 timeout=(5, timeout_ms / 1000 + 10),
+                **request_options,
             )
         except requests.exceptions.ConnectTimeout:
             return failed(FetchFailure.CONNECTION)
@@ -93,6 +102,43 @@ class _V1BrowserClient(BrowserPageClient):
 
 class ByparrPageClient(_V1BrowserClient):
     provider = "byparr"
+
+    def __init__(self, base_url: str, *, proxy_url: str | None = None):
+        super().__init__(base_url)
+        self._proxy_headers = _byparr_proxy_headers(proxy_url) if proxy_url else {}
+
+    def _request_headers(self) -> dict[str, str]:
+        return self._proxy_headers
+
+
+def _byparr_proxy_headers(proxy_url: str) -> dict[str, str]:
+    """Translate a host proxy URL into Byparr's per-request browser headers."""
+    parsed = urlsplit(proxy_url)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("Proxy.url has an invalid port") from error
+    if (
+        parsed.scheme not in {"http", "https", "socks5"}
+        or not parsed.hostname
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("Proxy.url must be an absolute proxy URL without a path")
+
+    host = parsed.hostname
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        host = "host.docker.internal"
+    elif ":" in host:
+        host = f"[{host}]"
+    server = urlunsplit((parsed.scheme, f"{host}:{port}" if port else host, "", "", ""))
+    headers = {"X-Proxy-Server": server}
+    if parsed.username is not None:
+        headers["X-Proxy-Username"] = unquote(parsed.username)
+    if parsed.password is not None:
+        headers["X-Proxy-Password"] = unquote(parsed.password)
+    return headers
 
 
 class FlareSolverrPageClient(_V1BrowserClient):

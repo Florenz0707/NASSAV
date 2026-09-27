@@ -70,7 +70,7 @@ docker run -d \
 
 首次先检查日志与 `/docs` 能否访问，再向 `POST /v1` 请求一个可控测试页面，最后请求样本中的目标页面。请求使用 `cmd=request.get`、`maxTimeout=60000`、`returnOnlyCookies=false`，控制请求超时初始为 70 秒。初次不额外开启媒体屏蔽，避免同时改变多个变量。
 
-需要代理时，通过未纳入 Git 的环境文件配置 `PROXY_SERVER` 及必要认证；地址必须能从容器内访问。不要把宿主机的 `127.0.0.1` 直接当作容器内代理地址，也不要仅修改 Django 的 `Proxy.url` 就认为浏览器出口已变化。
+当前实现已改为通过 Django 的 `Proxy.Enable/url` 在每次 Byparr `/v1` 请求中传递浏览器代理；宿主机回环地址会映射为容器可达的 `host.docker.internal`。容器的 `PROXY_SERVER` 仅用于没有请求头的调用。代理必须允许来自容器的连接，详见[代理路由](proxy-routing.md)。
 
 ### 4.3 拓扑差异
 

@@ -33,7 +33,7 @@ class MissAV(SourceBase):
             source_config.get("browser_fetch_strategy", "browser_first")
         )
         self.page_fetcher = page_fetcher or create_page_fetch_service(
-            settings.BROWSER_FETCH_CONFIG
+            settings.BROWSER_FETCH_CONFIG, proxy_url=proxy
         )
         self._cookie_saver = cookie_saver
 

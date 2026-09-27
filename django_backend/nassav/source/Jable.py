@@ -41,7 +41,7 @@ class Jable(SourceBase):
             source_config.get("browser_fetch_strategy", "direct_first")
         )
         self.page_fetcher = page_fetcher or create_page_fetch_service(
-            settings.BROWSER_FETCH_CONFIG
+            settings.BROWSER_FETCH_CONFIG, proxy_url=proxy
         )
         self.cache_enabled = bool(
             getattr(settings, "EXTERNAL_SOURCE_SEARCH_CACHE_ENABLED", True)
