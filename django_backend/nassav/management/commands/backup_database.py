@@ -1,166 +1,159 @@
-"""
-Django management command: 备份 SQLite 数据库（包含 WAL 文件）
+"""Create a database backup for the configured Django database engine."""
 
-用法：
-    python manage.py backup_database [--days DAYS]
-
-参数：
-    --days: 备份文件保留天数（默认：30 天）
-
-备份内容：
-    - db.sqlite3（主数据库文件）
-    - db.sqlite3-wal（Write-Ahead Log）
-    - db.sqlite3-shm（Shared Memory）
-"""
-
+import os
 import shutil
+import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
 
 class Command(BaseCommand):
-    help = "备份 SQLite 数据库文件（包含 WAL 和 SHM 文件）"
+    help = "Back up the configured SQLite or PostgreSQL database"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--days",
-            type=int,
-            default=30,
-            help="备份文件保留天数（默认：30）",
+            "--days", type=int, default=30, help="Backup retention in days"
         )
 
     def handle(self, *args, **options):
-        days = options.get("days", 30)
+        days = options["days"]
+        engine = settings.DATABASES["default"]["ENGINE"]
+        backup_base_dir = Path(settings.BASE_DIR) / "backup"
+        backup_base_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        try:
-            # 创建备份目录
-            backup_base_dir = Path(settings.BASE_DIR) / "backup"
-            backup_base_dir.mkdir(parents=True, exist_ok=True)
-
-            self.stdout.write(self.style.SUCCESS("开始备份数据库..."))
-
-            # 生成时间戳
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if engine == "django.db.backends.sqlite3":
             backup_dir = backup_base_dir / f"database_{timestamp}"
-            backup_dir.mkdir(parents=True, exist_ok=True)
+            self._backup_sqlite(backup_dir)
+        elif engine == "django.db.backends.postgresql":
+            backup_dir = backup_base_dir / f"database_postgresql_{timestamp}"
+            self._backup_postgresql(backup_dir)
+        else:
+            raise CommandError(f"Unsupported database engine: {engine}")
 
-            # 获取数据库文件路径
-            db_path = Path(settings.DATABASES["default"]["NAME"])
+        deleted_count = self.cleanup_old_backups(backup_base_dir, days, engine)
+        self.stdout.write(f"Database backup complete: {backup_dir}")
+        if deleted_count:
+            self.stdout.write(f"Removed {deleted_count} expired backup(s).")
 
-            if not db_path.exists():
-                self.stdout.write(self.style.ERROR(f"数据库文件不存在: {db_path}"))
-                return
+    def _backup_sqlite(self, backup_dir: Path) -> None:
+        db_path = Path(settings.DATABASES["default"]["NAME"])
+        if not db_path.is_file():
+            raise CommandError(f"SQLite database file does not exist: {db_path}")
 
-            # 步骤 1: 触发 WAL 检查点，确保数据同步
-            self.stdout.write("  触发 WAL 检查点...")
-            try:
-                cursor = connection.cursor()
+        backup_dir.mkdir(parents=True)
+        try:
+            self.stdout.write("Checkpointing SQLite WAL...")
+            with connection.cursor() as cursor:
                 cursor.execute("PRAGMA wal_checkpoint(FULL)")
-                result = cursor.fetchall()
-                self.stdout.write(self.style.SUCCESS(f"  检查点完成: {result}"))
-            except Exception as e:
-                self.stdout.write(
-                    self.style.WARNING(f"  触发检查点失败（可能未启用 WAL）: {e}")
-                )
+                checkpoint_result = cursor.fetchall()
 
-            # 步骤 2: 复制主数据库文件
-            self.stdout.write("  复制主数据库文件...")
-            db_backup = backup_dir / "db.sqlite3"
-            shutil.copy2(db_path, db_backup)
-            db_size = db_backup.stat().st_size / (1024 * 1024)  # MB
-            self.stdout.write(
-                self.style.SUCCESS(f"  已复制: db.sqlite3 ({db_size:.2f} MB)")
+            shutil.copy2(db_path, backup_dir / "db.sqlite3")
+            copied_files = []
+            for suffix in ("-wal", "-shm"):
+                source = Path(f"{db_path}{suffix}")
+                if source.exists():
+                    shutil.copy2(source, backup_dir / f"db.sqlite3{suffix}")
+                    copied_files.append(source.name)
+            self._write_metadata(
+                backup_dir,
+                "sqlite",
+                f"Database path: {db_path}\nWAL checkpoint: {checkpoint_result}\n"
+                f"WAL/SHM files copied: {', '.join(copied_files) or 'none'}\n",
             )
-
-            # 步骤 3: 复制 WAL 和 SHM 文件（如果存在）
-            wal_copied = False
-            shm_copied = False
-
-            for suffix in ["-wal", "-shm"]:
-                src_file = Path(str(db_path) + suffix)
-                if src_file.exists():
-                    dst_file = backup_dir / f"db.sqlite3{suffix}"
-                    shutil.copy2(src_file, dst_file)
-                    file_size = dst_file.stat().st_size / 1024  # KB
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"  已复制: db.sqlite3{suffix} ({file_size:.2f} KB)"
-                        )
-                    )
-                    if suffix == "-wal":
-                        wal_copied = True
-                    elif suffix == "-shm":
-                        shm_copied = True
-                else:
-                    self.stdout.write(
-                        self.style.WARNING(f"  跳过: db.sqlite3{suffix} (文件不存在)")
-                    )
-
-            # 步骤 4: 创建备份元信息
-            meta_file = backup_dir / "backup_info.txt"
-            with open(meta_file, "w", encoding="utf-8") as f:
-                f.write(f"备份时间: {datetime.now().isoformat()}\n")
-                f.write(f"数据库路径: {db_path}\n")
-                f.write(f"主数据库大小: {db_size:.2f} MB\n")
-                f.write(f"WAL 文件: {'存在' if wal_copied else '不存在'}\n")
-                f.write(f"SHM 文件: {'存在' if shm_copied else '不存在'}\n")
-
-            # 步骤 5: 清理旧备份
-            deleted_count = self.cleanup_old_backups(backup_base_dir, days)
-
-            # 输出统计
-            self.stdout.write(self.style.SUCCESS("\n" + "=" * 60))
-            self.stdout.write(self.style.SUCCESS("数据库备份完成！"))
-            self.stdout.write(f"备份目录: {backup_dir}")
-            self.stdout.write(f"主数据库: {db_size:.2f} MB")
-            self.stdout.write(f"WAL 模式: {'已启用' if wal_copied else '未启用'}")
-            if deleted_count > 0:
-                self.stdout.write(
-                    self.style.WARNING(f"已清理 {deleted_count} 个旧备份")
-                )
-            self.stdout.write(f"备份保留策略: 保留最近 {days} 天")
-            self.stdout.write(self.style.SUCCESS("=" * 60))
-
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"备份失败: {e}"))
+        except Exception:
+            shutil.rmtree(backup_dir, ignore_errors=True)
             raise
 
-    def cleanup_old_backups(self, backup_dir: Path, days: int = 30) -> int:
-        """
-        清理旧的数据库备份
-
-        Args:
-            backup_dir: 备份根目录
-            days: 保留天数
-
-        Returns:
-            删除的备份目录数量
-        """
+    def _backup_postgresql(self, backup_dir: Path) -> None:
+        database = settings.DATABASES["default"]
+        backup_dir.mkdir(parents=True)
+        dump_path = backup_dir / "database.dump"
         try:
-            cutoff_time = time.time() - (days * 86400)
-            deleted_count = 0
+            connection.ensure_connection()
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW server_version_num")
+                server_version = int(cursor.fetchone()[0])
+            dump_version = subprocess.run(
+                ["pg_dump", "--version"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            client_major = int(dump_version.split()[2].split(".")[0])
+            server_major = server_version // 10000
+            if client_major != server_major:
+                raise CommandError(
+                    f"pg_dump major version {client_major} does not match server major version {server_major}"
+                )
 
-            # 查找所有备份目录
-            for item in backup_dir.glob("database_*"):
-                if item.is_dir() and item.stat().st_mtime < cutoff_time:
-                    try:
-                        shutil.rmtree(item)
-                        deleted_count += 1
-                        self.stdout.write(
-                            self.style.WARNING(f"  已删除旧备份: {item.name}")
-                        )
-                    except Exception as e:
-                        self.stdout.write(
-                            self.style.WARNING(f"  删除备份失败 {item.name}: {e}")
-                        )
+            command = [
+                "pg_dump",
+                "--format=custom",
+                "--no-owner",
+                "--no-acl",
+                "--file",
+                str(dump_path),
+                "--host",
+                database["HOST"],
+                "--port",
+                str(database["PORT"]),
+                "--username",
+                database["USER"],
+                database["NAME"],
+            ]
+            environment = os.environ.copy()
+            environment["PGPASSWORD"] = database["PASSWORD"]
+            subprocess.run(
+                command, check=True, env=environment, capture_output=True, text=True
+            )
+            if not dump_path.is_file() or dump_path.stat().st_size == 0:
+                raise CommandError("pg_dump did not produce a non-empty backup")
+            subprocess.run(
+                ["pg_restore", "--list", str(dump_path)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self._write_metadata(
+                backup_dir,
+                "postgresql",
+                f"Server major version: {server_major}\nDump client: {dump_version}\n",
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            shutil.rmtree(backup_dir, ignore_errors=True)
+            detail = getattr(exc, "stderr", None)
+            raise CommandError(f"PostgreSQL backup failed: {detail or exc}") from exc
+        except Exception:
+            shutil.rmtree(backup_dir, ignore_errors=True)
+            raise
 
-            return deleted_count
+    @staticmethod
+    def _write_metadata(backup_dir: Path, engine: str, details: str) -> None:
+        (backup_dir / "backup_info.txt").write_text(
+            f"Database engine: {engine}\nBackup time: {datetime.now().isoformat()}\n{details}",
+            encoding="utf-8",
+        )
 
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f"清理旧备份时出错: {e}"))
-            return 0
+    def cleanup_old_backups(self, backup_dir: Path, days: int, engine: str) -> int:
+        cutoff_time = time.time() - days * 86400
+        deleted_count = 0
+        for item in backup_dir.iterdir():
+            if not item.is_dir() or item.stat().st_mtime >= cutoff_time:
+                continue
+            if engine == "django.db.backends.postgresql":
+                # Keep every SQLite snapshot available throughout the rollback window.
+                if not item.name.startswith("database_postgresql_"):
+                    continue
+            elif not item.name.startswith("database_") or item.name.startswith(
+                "database_postgresql_"
+            ):
+                continue
+            shutil.rmtree(item)
+            deleted_count += 1
+        return deleted_count

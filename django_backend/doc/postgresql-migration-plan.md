@@ -1,6 +1,6 @@
 # SQLite 迁移到 PostgreSQL 执行计划
 
-日期：2026-09-27。状态：待实施。本计划只定义实施、演练、切换和回滚步骤；尚未更改运行数据库或迁移任何数据。当前应用已通过根目录 `compose.yaml` 编排，SQLite 与 Redis、API、三个 Celery worker 及可选 Beat 一起运行。[现有部署说明](compose-deployment.md)
+日期：2026-09-27。状态：实施中（P1 代码配置已实现；P0 活动数据库源确认及真实数据演练/切换待操作方确认）。本计划只定义实施、演练、切换和回滚步骤；尚未更改运行数据库或迁移任何数据。当前应用已通过根目录 `compose.yaml` 编排，SQLite 与 Redis、API、三个 Celery worker 及可选 Beat 一起运行。[现有部署说明](compose-deployment.md)
 
 ## 目标与已确认基线
 
@@ -76,3 +76,10 @@
 - 自动化：两种引擎的设置分支、缺失凭证失败、所有历史 migration 在空 PostgreSQL 的执行、fixture 导入与序列、自定义备份/同步/恢复、核心资源/推荐/Cookie 行为。SQLite 单元测试继续可用，但不能代表 PostgreSQL 兼容已通过。
 - 必跑：相关测试、PostgreSQL 目标下 `cd django_backend && uv run pytest tests/ -v`、`python manage.py check`、`python manage.py makemigrations --check --dry-run`、根目录 `pre-commit run -a`。在线抓取、Ollama 与外部依赖测试如未启用，应列出未覆盖项，不能把跳过写成通过。
 - 建议提交：`[Enhancement] Add PostgreSQL database configuration and Compose service`；`[Fix] Support PostgreSQL database backup and restore workflow`；`[Doc] Document SQLite to PostgreSQL cutover and validation`。切换本身单独记录操作时间、使用的镜像 digest、备份位置与验收结果，不包含凭证或 fixture 数据。
+
+## 实施进度记录（2026-09-27）
+
+- P1 代码配置：已加入显式 SQLite/PostgreSQL 设置分支、`psycopg`、外部 PostgreSQL Compose 覆盖文件和数据库凭证 secret 文件读取；开发环境也可在本地忽略的 `config/config.yaml` 中配置 `Database` 节，包括用 `Schema` 选择已有 schema。PostgreSQL 服务由部署方在 Compose 外部管理；默认 Compose 仍使用 SQLite。Compose 覆盖不自动导入数据，但其一次性 `migrate` 服务会在后端启动前运行。
+- 备份：已按引擎选择 SQLite 文件备份或 PostgreSQL custom-format `pg_dump`，校验归档可列出；新增仅针对空 PostgreSQL 数据库的 `restore_postgres_backup`。PG 模式的自动清理和同步保留 SQLite 回滚快照。
+- 文档与自动化：已更新数据库、Compose、后端和根 README、备份说明及配置/保留策略测试。后端打包 PostgreSQL 17 客户端；PostgreSQL 服务由部署方在 Compose 外部管理。
+- 尚未访问或修改任何真实数据库，未执行 `migrate`、数据导出/导入、Compose 启动或 P0 活动数据盘点。启动 PostgreSQL 覆盖配置前，操作方须提供可从容器访问的现有服务地址、数据库账号/密码文件，并确认源数据库与隔离目标库及测试权限。真实生产切换继续按 P0–P4 步骤另行放行。

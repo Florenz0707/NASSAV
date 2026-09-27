@@ -24,6 +24,7 @@ dependencies = [
     "django-cors-headers>=4.9.0",
     "drf-spectacular>=0.28.1",
     "daphne>=4.2.1",
+    "psycopg[binary]>=3.2.3",
 ]
 
 [dependency-groups]

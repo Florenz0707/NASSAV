@@ -13,8 +13,7 @@ mkdir -p deploy-data/{config,db,resource,resource_backup,backup,backup_sync,log,
 cp django_backend/config/compose-config.example.yaml deploy-data/config/config.yaml
 # 将 realpath deploy-data/resource/video 的结果填入 .env 的 NASSAV_VIDEO_HOST_DIR
 # 在 deploy-data/config/config.yaml 中设置实际的站点、翻译及代理配置
-# 先用 docker compose config 检查环境变量
-
+# 先用 docker compose config 检查环境变量（默认 SQLite）
 docker compose config --quiet
 docker compose build
 docker compose up -d
@@ -50,7 +49,7 @@ GPU 资源预留按 [Docker Compose 官方说明](https://docs.docker.com/compos
 
 ## 服务和代理
 
-网关只发布前端端口，转发 `/nassav/api/` 与 `/nassav/ws/` 至 Django ASGI。WebSocket 设置 Upgrade、HTTP/1.1 和 3600 秒空闲超时。Redis、Byparr、API 和 worker 均仅位于 Compose 内部网络。`/healthz` 为内部 API 就绪检查，验证 SQLite 与 Redis；它不代表外部资源页面可抓取。容器有重启策略和内存上限。
+网关只发布前端端口，转发 `/nassav/api/` 与 `/nassav/ws/` 至 Django ASGI。WebSocket 设置 Upgrade、HTTP/1.1 和 3600 秒空闲超时。Redis、Byparr、API 和 worker 均仅位于 Compose 内部网络。`/healthz` 为内部 API 就绪检查，验证当前配置的数据库与 Redis；它不代表外部资源页面可抓取。容器有重启策略和内存上限。
 
 `scrape-worker` 只监听 `scrape`，`download-worker` 只监听 `download`，`default-worker` 接收翻译与其他默认任务；三者并发与预取都为 1。Byparr 默认不设代理。Django 直接抓取与 Byparr 浏览器均读取 `config.yaml` 的 `Proxy.Enable/url`；Django 将浏览器代理按请求发送给 Byparr。`.env` 的 `BYPARR_PROXY_SERVER` 仅作为没有请求头时的 Byparr 默认值。下载器读取 `config.yaml` 的 `Proxy.download_url`；留空则直连，不回退到 `Proxy.url`，也不继承 worker 的系统代理环境变量。本地开发和代理优先级见[代理路由说明](proxy-routing.md)。容器内 `localhost` 指向各自容器，宿主机代理必须填容器可访问的网关地址；内网服务名已列入 `NO_PROXY`。不要将代理凭证写进提交文件或日志。
 
@@ -70,8 +69,39 @@ curl -i http://127.0.0.1:9780/nassav/api/source/list
 
 隔离验证可设置独立项目名与数据目录，例如 `SECRET_KEY=... NASSAV_DATA_DIR=/tmp/nassav-p4-check FRONTEND_PORT=9781 docker compose -p nassav-p4-check up -d`。不要让两个栈同时写同一 SQLite、Redis 或资源目录。
 
+## 外部 PostgreSQL（可选）
+
+Compose 不创建或管理 PostgreSQL 服务；它只连接你单独部署和维护的 PostgreSQL 17 服务。SQLite 仍是默认配置。本机开发可直接在忽略的 `django_backend/config/config.yaml` 中设置 `Database.Engine: postgres` 及连接参数，包括 `Database.Schema`。Compose 使用覆盖文件，并在 `.env` 设置容器可访问的 `DB_HOST`、`DB_PORT`、可选的 `DB_SCHEMA`、`DB_NAME`、`DB_USER`，再创建密码文件。未设置 `DB_SCHEMA` 时使用应用配置中的 schema，默认为 `public`：
+
+```sh
+mkdir -p secrets
+umask 077
+printf '%s' '由管理员提供的数据库密码' > secrets/postgres_password
+# 在 .env 中设置 POSTGRES_PASSWORD_FILE=./secrets/postgres_password
+
+docker compose -f compose.yaml -f compose.postgres.yaml config --quiet
+```
+
+密码文件由 Compose secret 挂载到后端容器。不要把实际密码放进仓库或命令历史。容器访问宿主机上的 PostgreSQL 时可将 `DB_HOST` 设为 `host.docker.internal`；PostgreSQL 还须监听对应网卡并在 `pg_hba.conf` 允许来自 Docker 网络的应用账号连接。远端服务则填写其内网地址。数据库、目标 schema 和应用账号须由管理员预先创建；应用账号需在该 schema 上有使用和建表权限。启用前确认服务端备份策略和磁盘空间。
+
+只有在已准备外部服务器、密码文件和空目标库后，才使用覆盖文件启动：
+
+```sh
+docker compose -f compose.yaml -f compose.postgres.yaml config --quiet
+docker compose -f compose.yaml -f compose.postgres.yaml up -d --build
+```
+
+`migrate` 是 Compose 中的一次性服务，会在 API/worker 前运行。不要在生产实例上首次启用覆盖配置，直到活动 SQLite 源库、P0 基线、隔离演练和维护窗口都已确认。首次真实数据导入/迁移是单独的停写操作，不由本配置自动执行。PG 模式下后端镜像包含 PostgreSQL 17 客户端以供备份和恢复使用。
+
 ## 备份、恢复和回滚
 
-切换前停止新任务并等待在途任务完成。停止 Compose 栈后，将整个 `deploy-data/`（包括 `db.sqlite3`、可能存在的 `-wal`/`-shm`、`resource/`、`config/`、`backup/`、`backup_sync/`、`celery_beat/`、`redis/`、`ollama/`）复制到外部备份位置；`.env` 单独妥善保管。恢复时保持所有写入者停止，用备份目录整体替换数据目录后启动同一镜像版本。现有 `backup_database` 命令按文件复制 SQLite/WAL/SHM；在写入过程中不能把单个数据库文件的拷贝视为一致性快照。
+切换前停止新任务并等待在途任务完成。停止 Compose 栈后，将整个 `deploy-data/`（包括 `db.sqlite3`、可能存在的 `-wal`/`-shm`、`resource/`、`config/`、`backup/`、`backup_sync/`、`celery_beat/`、`redis/`、`ollama/`）复制到外部备份位置；`.env` 单独妥善保管。恢复时保持所有写入者停止，用备份目录整体替换数据目录后启动同一镜像版本。SQLite 模式的 `backup_database` 执行 WAL checkpoint 并复制 SQLite/WAL/SHM；写入过程中不能把单个数据库文件的拷贝视为一致性快照。PostgreSQL 模式创建 `pg_dump -Fc` 备份，并用 `pg_restore --list` 检查归档。恢复必须指定新建的空数据库，例如：
+
+```sh
+docker compose -f compose.yaml -f compose.postgres.yaml exec api \
+  python manage.py restore_postgres_backup /app/backup/database_postgresql_TIMESTAMP/database.dump
+```
+
+PostgreSQL 数据库恢复不搬移视频和资源目录。执行前先停止所有应用写入者，并确保目标数据库为空；恢复失败时丢弃并重建隔离目标库，不在部分恢复的数据库继续导入。
 
 正式切换宿主机部署时，只让一套 API、Celery worker 与 Beat 写入这份数据。若 Compose 回退，停用新栈并从备份恢复完整数据目录，再启动原部署。不要直接把容器版与宿主机版同时指向同一个 SQLite 文件。

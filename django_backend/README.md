@@ -628,7 +628,7 @@ uv run python manage.py backup_avid_list --days 60
 
 ### backup_database
 
-备份 SQLite 数据库文件（包含 WAL 和 SHM 文件），用于灾难恢复。
+按当前数据库引擎创建备份。SQLite 备份包含数据库、WAL 和 SHM；PostgreSQL 备份为 custom-format `database.dump`，要求后端镜像提供匹配 PostgreSQL 主版本的客户端。
 
 **用法：**
 
@@ -649,18 +649,22 @@ uv run python manage.py backup_database --days 60
 
 **备份位置：**
 
-- 目录：`backup/database_{timestamp}/`
-- 示例：`backup/database_20250101_143000/`
+- SQLite：`backup/database_{timestamp}/`
+- PostgreSQL：`backup/database_postgresql_{timestamp}/database.dump`
+- 两种格式均包含标记数据库引擎的 `backup_info.txt`
 
 **自动清理：**
 
-- 自动删除超过指定天数的旧备份目录
-- 默认保留最近 30 天的备份
+- 默认保留最近 30 天的当前引擎备份
+- PostgreSQL 模式清理只删除 PostgreSQL 目录，SQLite 快照会保留供回滚
 
 **注意事项：**
 
-- 备份前会执行 `PRAGMA wal_checkpoint(FULL)` 将 WAL 日志合并到主文件
-- 确保备份时数据库可访问且没有长时间运行的事务
+- SQLite 模式执行 `PRAGMA wal_checkpoint(FULL)` 后复制数据库及 WAL/SHM
+- PostgreSQL 模式执行 `pg_dump -Fc`，并验证归档可由 `pg_restore --list` 读取
+- PostgreSQL 恢复：先设置外部 PG 连接配置并新建空库，再执行 `uv run python manage.py restore_postgres_backup /path/to/database.dump`
+- 恢复命令拒绝非空数据库，并使用 `pg_restore --exit-on-error`
+- 外部 PostgreSQL 配置见 [Compose 部署说明](doc/compose-deployment.md#外部-postgresql可选)；本地开发也可在 `config/config.yaml` 的 `Database` 节配置连接
 
 ### sync_backups
 
