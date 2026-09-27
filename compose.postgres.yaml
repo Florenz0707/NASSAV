@@ -1,0 +1,41 @@
+# Overlay for a PostgreSQL server managed outside this Compose project.
+# Set DB_HOST to an address reachable from containers and POSTGRES_PASSWORD_FILE
+# to a host-side file containing the database user's password.
+services:
+  ollama-model:
+    environment: &postgres-environment
+      DB_ENGINE: postgres
+      DB_HOST: ${DB_HOST:?Set DB_HOST to the existing PostgreSQL server}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-nassav}
+      DB_USER: ${DB_USER:-nassav}
+      DB_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+
+  migrate:
+    environment: *postgres-environment
+    secrets: [postgres_password]
+
+  api:
+    environment: *postgres-environment
+    secrets: [postgres_password]
+
+  scrape-worker:
+    environment: *postgres-environment
+    secrets: [postgres_password]
+
+  download-worker:
+    environment: *postgres-environment
+    secrets: [postgres_password]
+
+  default-worker:
+    environment: *postgres-environment
+    secrets: [postgres_password]
+
+  beat:
+    environment: *postgres-environment
+    secrets: [postgres_password]
+
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:?Set POSTGRES_PASSWORD_FILE to a host-side secret file}

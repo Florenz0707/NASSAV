@@ -311,14 +311,14 @@ pnpm dev  # 默认端口 8080
 
 系统内置 6 个定时任务，由 Celery Beat 按计划自动触发，报告文件保存在 `django_backend/celery_beat/` 目录。
 
-| 任务名                              | 触发时间   | 说明                                                                    |
-| ----------------------------------- | ---------- | ----------------------------------------------------------------------- |
-| `backup-database-daily`             | 每天 01:30 | 备份 SQLite 数据库文件（含 WAL/SHM），保留最近 30 天                    |
-| `backup-avid-list-daily`            | 每天 02:00 | 将所有 AVID 导出为文本文件，用于灾难恢复，保留最近 30 天                |
-| `check-resources-consistency-daily` | 每天 03:00 | 检查封面/视频文件与数据库字段的一致性，自动修复不一致项                 |
-| `sync-backups-daily`                | 每天 04:00 | 将 `backup/`、`celery_beat/`、`log/` 同步到 `BackupPath` 配置的外部目录 |
-| `db-disk-consistency-daily`         | 每天 07:00 | 检查视频文件是否存在于磁盘，更新 `file_exists` 字段                     |
-| `actor-avatars-consistency-daily`   | 每天 07:05 | 检查演员头像文件完整性，报告缺失项                                      |
+| 任务名                              | 触发时间   | 说明                                                                       |
+| ----------------------------------- | ---------- | -------------------------------------------------------------------------- |
+| `backup-database-daily`             | 每天 01:30 | 按当前引擎备份 SQLite 文件或 PostgreSQL custom-format 归档，保留最近 30 天 |
+| `backup-avid-list-daily`            | 每天 02:00 | 将所有 AVID 导出为文本文件，用于灾难恢复，保留最近 30 天                   |
+| `check-resources-consistency-daily` | 每天 03:00 | 检查封面/视频文件与数据库字段的一致性，自动修复不一致项                    |
+| `sync-backups-daily`                | 每天 04:00 | 将 `backup/`、`celery_beat/`、`log/` 同步到 `BackupPath` 配置的外部目录    |
+| `db-disk-consistency-daily`         | 每天 07:00 | 检查视频文件是否存在于磁盘，更新 `file_exists` 字段                        |
+| `actor-avatars-consistency-daily`   | 每天 07:05 | 检查演员头像文件完整性，报告缺失项                                         |
 
 ### 配置说明
 
@@ -357,7 +357,8 @@ uv run python manage.py check_actor_avatars_consistency --report celery_beat/ava
 
 - [django_backend/doc/interface.md](django_backend/doc/interface.md) - API 接口文档
 - [django_backend/doc/recommendation.md](django_backend/doc/recommendation.md) - 推荐系统设计与接口文档
-- [django_backend/doc/database.md](django_backend/doc/database.md) - 数据库模型文档
+- [django_backend/doc/database.md](django_backend/doc/database.md) - 数据库模型、SQLite/PostgreSQL 配置和备份说明
+- [Compose 部署说明](django_backend/doc/compose-deployment.md#外部-postgresql可选) - 连接独立部署 PostgreSQL 的配置
 
 ### REST API 端点
 
@@ -400,6 +401,8 @@ uv run python manage.py check_actor_avatars_consistency --report celery_beat/ava
 - `queue_status` - 队列状态更新
 
 ## 生产部署
+
+Compose 默认使用 SQLite；如需 PostgreSQL，连接由部署方在 Compose 外部维护的 PostgreSQL 17 服务。配置与密码文件要求见[外部 PostgreSQL 部署说明](django_backend/doc/compose-deployment.md#外部-postgresql可选)。切换现有数据前须完成迁移计划中的源库确认和隔离演练。
 
 ### 后端部署
 

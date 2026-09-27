@@ -534,3 +534,11 @@ uv run pytest tests/test_ws.py -v
 ## 下载代理隔离测试
 
 `uv run pytest tests/test_download_proxy_isolation.py -q` 验证 `Proxy.download_url` 的默认值、可选环境覆盖，以及下载器子进程不继承 worker 的系统代理变量。
+
+## 数据库配置和备份
+
+`test_database_configuration.py` 覆盖 SQLite 默认配置、PostgreSQL 缺失密码时的快速失败，以及 PostgreSQL 模式清理时保留 SQLite 回滚快照。
+
+```bash
+uv run pytest tests/test_database_configuration.py -v
+```

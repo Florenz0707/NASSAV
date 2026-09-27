@@ -146,18 +146,53 @@ EXTERNAL_SOURCE_SEARCH_CACHE_TTL_DEFAULT = 1800  # actor/genre/keyword page
 EXTERNAL_SOURCE_SEARCH_CACHE_TTL_HOT = 300  # hot board
 EXTERNAL_SOURCE_SEARCH_CACHE_TTL_LATEST = 300  # latest updates
 
-# Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "db.sqlite3"))),
-        # 启用 WAL 模式以提高并发性能和数据安全性
-        "OPTIONS": {
-            "init_command": "PRAGMA journal_mode=WAL;",
-            "timeout": 20,
-        },
+# Database: SQLite remains the local default; PostgreSQL requires explicit credentials.
+DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").strip().lower()
+
+if DB_ENGINE == "sqlite":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "db.sqlite3"))),
+            # WAL mode and timeout apply only to SQLite.
+            "OPTIONS": {
+                "init_command": "PRAGMA journal_mode=WAL;",
+                "timeout": 20,
+            },
+        }
     }
-}
+elif DB_ENGINE in {"postgres", "postgresql"}:
+    required_database_settings = ("DB_NAME", "DB_USER", "DB_HOST")
+    missing_database_settings = [
+        name for name in required_database_settings if not os.getenv(name)
+    ]
+    database_password_file = os.getenv("DB_PASSWORD_FILE")
+    database_password = os.getenv("DB_PASSWORD")
+    if database_password_file:
+        try:
+            database_password = Path(database_password_file).read_text().rstrip("\r\n")
+        except OSError as exc:
+            raise RuntimeError("DB_PASSWORD_FILE cannot be read") from exc
+    if not database_password:
+        missing_database_settings.append("DB_PASSWORD or DB_PASSWORD_FILE")
+    if missing_database_settings:
+        raise RuntimeError(
+            "PostgreSQL requires explicit settings: "
+            + ", ".join(missing_database_settings)
+        )
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ["DB_NAME"],
+            "USER": os.environ["DB_USER"],
+            "PASSWORD": database_password,
+            "HOST": os.environ["DB_HOST"],
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        }
+    }
+else:
+    raise RuntimeError("DB_ENGINE must be 'sqlite' or 'postgres'")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

@@ -1,4 +1,6 @@
-Compose 部署中 SQLite 的路径由 `DATABASE_PATH` 指定，默认仍为后端目录的 `db.sqlite3`。Compose 将数据库文件及 WAL/SHM 共享在 `deploy-data/db/`；资源、配置与备份路径见 [部署说明](compose-deployment.md)。本阶段无 schema 变更。
+SQLite 是本地和默认 Compose 数据库，由 `DATABASE_PATH` 指定，Compose 中的文件及 WAL/SHM 位于 `deploy-data/db/`。也可显式配置 `DB_ENGINE=postgres` 连接外部 PostgreSQL；核心参数为 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER` 和 `DB_PASSWORD`/`DB_PASSWORD_FILE`。缺少凭证或 engine 值错误时 Django 启动失败，不回退到 SQLite。外部服务配置、密码文件和启动命令见[部署说明](compose-deployment.md)。数据库连接切换不修改模型或 schema。
+
+`backup_database` 按当前引擎选择 SQLite 文件快照或 PostgreSQL custom-format `database.dump`。PostgreSQL 文件位于 `backup/database_postgresql_{timestamp}/`，带引擎和服务端主版本元数据。PostgreSQL 恢复命令 `restore_postgres_backup` 只接受空数据库；先创建新的空库，再在配置指向该库时执行恢复。备份目录会由 `sync_backups` 一并同步。使用 PostgreSQL 时自动清理只处理 PostgreSQL 备份，保留 SQLite 快照供回滚。
 
 ## Database Overview
 

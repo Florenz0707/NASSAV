@@ -50,3 +50,29 @@ def test_cleanup_expired_target_files_keeps_excluded_files(tmp_path):
     assert deleted == 1
     assert excluded.exists()
     assert not report.exists()
+
+
+def test_postgresql_sync_keeps_old_sqlite_rollback_snapshots(tmp_path, settings):
+    settings.DATABASES["default"]["ENGINE"] = "django.db.backends.postgresql"
+    command = Command()
+    cutoff_time = datetime.now() - timedelta(days=30)
+    source_root = tmp_path / "source"
+    target_root = tmp_path / "backup"
+    old_snapshot = source_root / "database_20250101_010000" / "db.sqlite3"
+    old_postgres = source_root / "database_postgresql_20250101_010000" / "database.dump"
+    _touch_with_mtime(old_snapshot, "sqlite", cutoff_time - timedelta(days=10))
+    _touch_with_mtime(old_postgres, "postgres", cutoff_time - timedelta(days=10))
+
+    command._sync_directory(
+        source_root,
+        target_root,
+        cutoff_time,
+        preserve_rollback_snapshots=True,
+    )
+    deleted = command._cleanup_expired_target_files(target_root, cutoff_time)
+
+    assert deleted == 0
+    assert (target_root / "database_20250101_010000" / "db.sqlite3").exists()
+    assert not (
+        target_root / "database_postgresql_20250101_010000" / "database.dump"
+    ).exists()
