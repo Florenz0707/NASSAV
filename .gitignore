@@ -4,5 +4,6 @@
 .claude/
 
 .codex
+.env
 
 deploy-data/

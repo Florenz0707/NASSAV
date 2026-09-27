@@ -16,15 +16,6 @@ x-backend: &backend
     OLLAMA_URL: ${OLLAMA_URL-}
     NO_PROXY: redis,byparr,api,ollama,localhost,127.0.0.1
     no_proxy: redis,byparr,api,ollama,localhost,127.0.0.1
-  volumes: &backend-volumes
-    - ${NASSAV_DATA_DIR:-./deploy-data}/config:/app/config
-    - ${NASSAV_DATA_DIR:-./deploy-data}/db:/app/data/db
-    - ${NASSAV_DATA_DIR:-./deploy-data}/resource:/app/resource
-    - ${NASSAV_DATA_DIR:-./deploy-data}/resource_backup:/app/resource_backup
-    - ${NASSAV_DATA_DIR:-./deploy-data}/backup:/app/backup
-    - ${NASSAV_DATA_DIR:-./deploy-data}/backup_sync:/app/backup_sync
-    - ${NASSAV_DATA_DIR:-./deploy-data}/celery_beat:/app/celery_beat
-    - ${NASSAV_DATA_DIR:-./deploy-data}/log:/app/log
   networks:
     - internal
   extra_hosts:
@@ -101,7 +92,6 @@ services:
 
   api:
     <<: *backend
-    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command: ['uvicorn', 'django_project.asgi:application', '--host', '0.0.0.0', '--port', '9790']
     depends_on: &backend-dependencies
       migrate:
@@ -130,7 +120,6 @@ services:
 
   scrape-worker:
     <<: *backend
-    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command:
       [
         'celery',
@@ -151,7 +140,6 @@ services:
 
   download-worker:
     <<: *backend
-    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command:
       [
         'celery',
@@ -172,7 +160,6 @@ services:
 
   default-worker:
     <<: *backend
-    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     command:
       [
         'celery',
@@ -193,7 +180,6 @@ services:
 
   beat:
     <<: *backend
-    entrypoint: ['/bin/sh', '/app/docker-entrypoint.sh']
     profiles: ['scheduler']
     command:
       ['celery', '-A', 'django_project', 'beat', '-l', 'INFO', '-s', '/app/celery_beat/schedule']

@@ -21,6 +21,7 @@ tools/*
 
 # User settings
 config/config.yaml
+config/compose-config.yaml
 config/user_settings.ini
 
 tmp/
