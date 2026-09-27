@@ -664,7 +664,7 @@ uv run python manage.py backup_database --days 60
 - PostgreSQL 模式执行 `pg_dump -Fc`，并验证归档可由 `pg_restore --list` 读取
 - PostgreSQL 恢复：先设置外部 PG 连接配置并新建空库，再执行 `uv run python manage.py restore_postgres_backup /path/to/database.dump`
 - 恢复命令拒绝非空数据库，并使用 `pg_restore --exit-on-error`
-- 外部 PostgreSQL 配置见 [Compose 部署说明](doc/compose-deployment.md#外部-postgresql可选)
+- 外部 PostgreSQL 配置见 [Compose 部署说明](doc/compose-deployment.md#外部-postgresql可选)；本地开发也可在 `config/config.yaml` 的 `Database` 节配置连接
 
 ### sync_backups
 

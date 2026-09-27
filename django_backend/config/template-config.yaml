@@ -1,3 +1,17 @@
+# 本地数据库配置；Compose 的 compose.postgres.yaml 可通过环境变量覆盖这些值。
+Database:
+  Engine: sqlite
+  Path: null
+  Host: 127.0.0.1
+  Port: 5432
+  Name: nassav_dev
+  User: nassav
+  # 本地开发可填写 Password，或使用 PasswordFile 指向独立密码文件。
+  # 真实 config.yaml 已被 Git 忽略；不要将实际凭证写入模板或提交文件。
+  Password: null
+  PasswordFile: null
+  ConnectionMaxAge: 60
+
 # Proxy.Enable/url 同时用于 Django 直接抓取和 Byparr 浏览器；download_url 为空时下载器直连
 # Byparr 在容器中运行时，url 的 localhost/127.0.0.1 会映射为 host.docker.internal
 Proxy:

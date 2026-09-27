@@ -20,7 +20,9 @@ warnings.filterwarnings(
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load config from config.yaml
-CONFIG_PATH = BASE_DIR / "config" / "config.yaml"
+CONFIG_PATH = Path(
+    os.getenv("NASSAV_CONFIG_PATH", str(BASE_DIR / "config" / "config.yaml"))
+)
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = yaml.safe_load(f)
 
@@ -146,14 +148,22 @@ EXTERNAL_SOURCE_SEARCH_CACHE_TTL_DEFAULT = 1800  # actor/genre/keyword page
 EXTERNAL_SOURCE_SEARCH_CACHE_TTL_HOT = 300  # hot board
 EXTERNAL_SOURCE_SEARCH_CACHE_TTL_LATEST = 300  # latest updates
 
-# Database: SQLite remains the local default; PostgreSQL requires explicit credentials.
-DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").strip().lower()
+# Database settings come from config.yaml; environment variables override them for Compose.
+DATABASE_CONFIG = CONFIG.get("Database") or {}
+DB_ENGINE = (
+    os.getenv("DB_ENGINE", str(DATABASE_CONFIG.get("Engine", "sqlite"))).strip().lower()
+)
 
 if DB_ENGINE == "sqlite":
+    sqlite_database_path = (
+        os.getenv("DATABASE_PATH")
+        or DATABASE_CONFIG.get("Path")
+        or BASE_DIR / "db.sqlite3"
+    )
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "db.sqlite3"))),
+            "NAME": Path(sqlite_database_path),
             # WAL mode and timeout apply only to SQLite.
             "OPTIONS": {
                 "init_command": "PRAGMA journal_mode=WAL;",
@@ -162,33 +172,57 @@ if DB_ENGINE == "sqlite":
         }
     }
 elif DB_ENGINE in {"postgres", "postgresql"}:
-    required_database_settings = ("DB_NAME", "DB_USER", "DB_HOST")
+    database_name = os.getenv("DB_NAME", DATABASE_CONFIG.get("Name"))
+    database_user = os.getenv("DB_USER", DATABASE_CONFIG.get("User"))
+    database_host = os.getenv("DB_HOST", DATABASE_CONFIG.get("Host"))
     missing_database_settings = [
-        name for name in required_database_settings if not os.getenv(name)
+        name
+        for name, value in (
+            ("DB_NAME/Database.Name", database_name),
+            ("DB_USER/Database.User", database_user),
+            ("DB_HOST/Database.Host", database_host),
+        )
+        if not value
     ]
-    database_password_file = os.getenv("DB_PASSWORD_FILE")
+
+    database_password_file = os.getenv(
+        "DB_PASSWORD_FILE", DATABASE_CONFIG.get("PasswordFile")
+    )
     database_password = os.getenv("DB_PASSWORD")
     if database_password_file:
+        password_path = Path(database_password_file).expanduser()
+        if not password_path.is_absolute():
+            password_path = BASE_DIR / password_path
         try:
-            database_password = Path(database_password_file).read_text().rstrip("\r\n")
+            database_password = password_path.read_text().rstrip("\r\n")
         except OSError as exc:
-            raise RuntimeError("DB_PASSWORD_FILE cannot be read") from exc
+            raise RuntimeError("Database.PasswordFile cannot be read") from exc
+    elif not database_password:
+        database_password = DATABASE_CONFIG.get("Password")
     if not database_password:
-        missing_database_settings.append("DB_PASSWORD or DB_PASSWORD_FILE")
+        missing_database_settings.append(
+            "DB_PASSWORD, DB_PASSWORD_FILE, or Database.Password"
+        )
     if missing_database_settings:
         raise RuntimeError(
             "PostgreSQL requires explicit settings: "
             + ", ".join(missing_database_settings)
         )
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ["DB_NAME"],
-            "USER": os.environ["DB_USER"],
+            "NAME": database_name,
+            "USER": database_user,
             "PASSWORD": database_password,
-            "HOST": os.environ["DB_HOST"],
-            "PORT": os.getenv("DB_PORT", "5432"),
-            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+            "HOST": database_host,
+            "PORT": os.getenv("DB_PORT", str(DATABASE_CONFIG.get("Port", "5432"))),
+            "CONN_MAX_AGE": int(
+                os.getenv(
+                    "DB_CONN_MAX_AGE",
+                    str(DATABASE_CONFIG.get("ConnectionMaxAge", 60)),
+                )
+            ),
         }
     }
 else:

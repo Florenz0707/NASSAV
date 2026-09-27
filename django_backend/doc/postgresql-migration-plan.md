@@ -79,7 +79,7 @@
 
 ## 实施进度记录（2026-09-27）
 
-- P1 代码配置：已加入显式 SQLite/PostgreSQL 设置分支、`psycopg`、外部 PostgreSQL Compose 覆盖文件和数据库凭证 secret 文件读取。PostgreSQL 服务由部署方在 Compose 外部管理；默认 Compose 仍使用 SQLite。Compose 覆盖不自动导入数据，但其一次性 `migrate` 服务会在后端启动前运行。
+- P1 代码配置：已加入显式 SQLite/PostgreSQL 设置分支、`psycopg`、外部 PostgreSQL Compose 覆盖文件和数据库凭证 secret 文件读取；开发环境也可在本地忽略的 `config/config.yaml` 中配置 `Database` 节。PostgreSQL 服务由部署方在 Compose 外部管理；默认 Compose 仍使用 SQLite。Compose 覆盖不自动导入数据，但其一次性 `migrate` 服务会在后端启动前运行。
 - 备份：已按引擎选择 SQLite 文件备份或 PostgreSQL custom-format `pg_dump`，校验归档可列出；新增仅针对空 PostgreSQL 数据库的 `restore_postgres_backup`。PG 模式的自动清理和同步保留 SQLite 回滚快照。
 - 文档与自动化：已更新数据库、Compose、后端和根 README、备份说明及配置/保留策略测试。后端打包 PostgreSQL 17 客户端；PostgreSQL 服务由部署方在 Compose 外部管理。
 - 尚未访问或修改任何真实数据库，未执行 `migrate`、数据导出/导入、Compose 启动或 P0 活动数据盘点。启动 PostgreSQL 覆盖配置前，操作方须提供可从容器访问的现有服务地址、数据库账号/密码文件，并确认源数据库与隔离目标库及测试权限。真实生产切换继续按 P0–P4 步骤另行放行。

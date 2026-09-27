@@ -71,7 +71,7 @@ curl -i http://127.0.0.1:9780/nassav/api/source/list
 
 ## 外部 PostgreSQL（可选）
 
-Compose 不创建或管理 PostgreSQL 服务；它只连接你单独部署和维护的 PostgreSQL 17 服务。SQLite 仍是默认配置。使用 PostgreSQL 前，在 `.env` 设置 `DB_ENGINE=postgres`、容器可访问的 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`，并创建密码文件：
+Compose 不创建或管理 PostgreSQL 服务；它只连接你单独部署和维护的 PostgreSQL 17 服务。SQLite 仍是默认配置。本机开发可直接在忽略的 `django_backend/config/config.yaml` 中设置 `Database.Engine: postgres` 及连接参数。Compose 使用覆盖文件，并在 `.env` 设置容器可访问的 `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`，再创建密码文件：
 
 ```sh
 mkdir -p secrets
