@@ -1,0 +1,9 @@
+# 启动配置契约
+
+Django 管理命令、ASGI 和 Celery worker 使用同一个设置加载入口。启动顺序为：读取 `NASSAV_CONFIG_PATH` 指向的 YAML（默认 `config/config.yaml`），校验顶层及必要配置块；读取开发 `.env`（默认 `django_backend/.env`，隔离测试可用 `NASSAV_ENV_PATH` 指定）；再合成进程环境和 YAML 的值。进程环境优先于开发 `.env`，`.env` 只补未设置的变量。数据库 `DB_*` 环境值覆盖 YAML 的 `Database.*`；PostgreSQL 的 `DB_PASSWORD_FILE`/`Database.PasswordFile` 内容覆盖 YAML 明文密码。`DB_PASSWORD` 与密码文件同时有效会报冲突，避免不确定的凭证来源。Compose 的 secret 以 `/run/secrets/...` 文件路径进入 `DB_PASSWORD_FILE`。SQLite 与 PostgreSQL 的 Compose 模式仍由基础文件和覆盖文件选择；仅设置 `DB_ENGINE` 不能切换模式。
+
+`.env` 只接受 `KEY=value`、空行和整行 `#` 注释；值可以用一对单引号或双引号包裹。格式错误、无法读取的 `.env`、空 YAML、非映射顶层、缺少 `Proxy`/`Proxy.Enable`、非法类型和无效数据库引擎都会在启动时失败。错误只包含键名、文件路径或行号，不包含配置值。`DEBUG`、`NASSAV_SECURE_COOKIES` 接受 `true/false`、`yes/no`、`1/0`（不区分大小写）；YAML 中的 `Proxy.Enable`、`FlareSolverr.Enable` 必须是布尔值。端口范围为 1–65535，连接最大存活时间不能为负数。代理 URL 必须有协议和主机；未启用代理时可以保留有效的 URL。`BrowserFetch` 继续使用原有 HTTP(S) URL 与整秒超时规则。
+
+本地模板和 Compose 样例保留各自适用的默认值：本地 `BrowserFetch.Enable: false`、Jable `browser_first`、翻译器地址为 `localhost`；Compose 启用内部 Byparr、Jable `direct_first`、翻译器地址为宿主机网关。这些是部署策略差异。`Proxy` 的关闭状态及下载代理默认直连在两种模板中一致；代理地址的主机名因进程所在网络而异。容器里的宿主机代理应使用 `host.docker.internal` 且服务必须监听容器可达的地址；`127.0.0.1` 在容器内只指向容器自身。下载代理的独立优先级见[代理路由](proxy-routing.md)。
+
+资源目录默认是后端根目录的 `resource/`；隔离测试可以设置 `NASSAV_RESOURCE_DIR`。启动时会创建资源和日志目录，文件系统错误直接使进程失败。用户界面的 `user_settings.ini` 在首次使用时创建和补齐，`manage.py check` 不再为其写文件。信号接收器在 `AppConfig.ready()` 注册；日志文件 sink 每进程只添加一次。配置修改后须重启持有配置的 API/worker；修改 Compose 环境变量则须重建容器。

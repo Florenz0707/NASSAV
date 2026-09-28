@@ -160,6 +160,8 @@ Source:
 
 浏览器页面抓取配置见 [`config/template-config.yaml`](config/template-config.yaml)。使用 `BrowserFetch` 配置，模板默认关闭。MissAV 默认浏览器优先，Jable 默认直连优先，两个源均校验页面结构后才解析。Docker Byparr 部署、固定 digest 和试验结果见 [`scripts/README.md`](scripts/README.md) 与 [`doc/byparr-trial-results.md`](doc/byparr-trial-results.md)。修改浏览器配置后需重启持有 Source 实例的进程。
 
+启动配置的来源、校验和覆盖顺序见 [`doc/configuration-contract.md`](doc/configuration-contract.md)。
+
 **配置说明：**
 
 - **FilePathPrefix**：用于在返回视频文件绝对路径时添加前缀，主要用于 WSL 环境路径转换（如 `/wsl.localhost/Ubuntu-24.04`）

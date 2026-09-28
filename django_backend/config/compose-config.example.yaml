@@ -1,8 +1,8 @@
 # Proxy.Enable/url 同时用于 Django 直接抓取和 Byparr 浏览器；download_url 为空时下载器直连
-# Byparr 在容器中运行时，url 的 localhost/127.0.0.1 会映射为 host.docker.internal
+# Compose 中的 Django 直接请求代理；宿主机代理应使用 host.docker.internal。
 Proxy:
   Enable: false
-  url: http://127.0.0.1:443
+  url: http://host.docker.internal:443
   download_url: null
 
 # Compose 内部 Byparr；宿主机开发仍使用 template-config.yaml 的地址

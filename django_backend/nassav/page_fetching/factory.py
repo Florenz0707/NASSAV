@@ -39,8 +39,8 @@ def normalize_config(config: dict) -> BrowserFetchConfig:
     enabled = raw.get("Enable", False)
     if not isinstance(enabled, bool):
         raise ValueError("Browser fetch Enable must be a boolean")
-    if provider not in {"byparr", "flaresolverr"}:
-        raise ValueError(f"Unknown browser fetch provider: {provider}")
+    if not isinstance(provider, str) or provider not in {"byparr", "flaresolverr"}:
+        raise ValueError("BrowserFetch.provider must be byparr or flaresolverr")
     parsed = urlparse(url) if isinstance(url, str) else None
     if not parsed or parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ValueError("Browser fetch url must be an absolute HTTP(S) URL")
@@ -73,8 +73,14 @@ def normalize_config(config: dict) -> BrowserFetchConfig:
 
 
 def validate_strategy(value: str) -> str:
-    if value not in {"browser_first", "direct_first", "direct_only"}:
-        raise ValueError(f"Unknown page fetch strategy: {value}")
+    if not isinstance(value, str) or value not in {
+        "browser_first",
+        "direct_first",
+        "direct_only",
+    }:
+        raise ValueError(
+            "browser_fetch_strategy must be browser_first, direct_first, or direct_only"
+        )
     return value
 
 

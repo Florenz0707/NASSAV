@@ -26,3 +26,5 @@ Django 向 Byparr 的 `/v1` 发送页面请求时，把启用的 `Proxy.url` 拆
 本地 Django 在宿主机、Byparr 在容器中时，`Proxy.url` 可以写宿主机的 `http://127.0.0.1:<端口>`；发送给 Byparr 的地址会换成 `http://host.docker.internal:<端口>`。两个 Compose 文件都声明了 `host-gateway`，但代理还必须允许来自容器的连接。远程代理主机名保持不变。代理认证可以写在 `Proxy.url` 中，Django 会拆入单独的请求头；不要将凭证写进提交文件或日志。
 
 修改 `Proxy.Enable` 或 `Proxy.url` 后重启 Django API 与 scrape worker，使已创建的抓取客户端读取新配置；无需重启 Byparr。若启用了容器默认代理，即使 `Proxy.Enable: false`，没有请求头的 Byparr 请求仍按其默认代理出口工作。
+
+代理 URL 的启动校验与配置优先级见[启动配置契约](configuration-contract.md)。Compose 内的 Django 也需将宿主机代理地址设为 `host.docker.internal`；只有本地 Django 才能直接使用宿主机的 `127.0.0.1`。

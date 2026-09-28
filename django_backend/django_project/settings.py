@@ -7,8 +7,16 @@ import re
 import warnings
 from pathlib import Path
 
-import yaml
 from celery.schedules import crontab
+
+from django_project.config_contract import (
+    boolean,
+    integer,
+    load_env,
+    load_yaml,
+    url,
+    validate_yaml,
+)
 
 # 过滤 StreamingHttpResponse 的 ASGI 警告
 warnings.filterwarnings(
@@ -24,26 +32,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(
     os.getenv("NASSAV_CONFIG_PATH", str(BASE_DIR / "config" / "config.yaml"))
 )
-with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-    CONFIG = yaml.safe_load(f)
+CONFIG = load_yaml(CONFIG_PATH)
+validate_yaml(CONFIG, CONFIG_PATH)
 
-# Load environment variables from .env if present (simple parser, no extra dependency)
-ENV_PATH = BASE_DIR / ".env"
-if ENV_PATH.exists():
-    try:
-        with open(ENV_PATH, "r", encoding="utf-8") as ef:
-            for line in ef:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if "=" in line:
-                    k, v = line.split("=", 1)
-                    k = k.strip()
-                    v = v.strip().strip('"').strip("'")
-                    # don't override existing environment variables
-                    os.environ.setdefault(k, v)
-    except Exception:
-        pass
+# Process environment wins over development .env; YAML supplies remaining defaults.
+ENV_PATH = Path(os.getenv("NASSAV_ENV_PATH", str(BASE_DIR / ".env")))
+load_env(ENV_PATH)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # Load from environment first, fallback to insecure default for development only
@@ -53,7 +47,7 @@ SECRET_KEY = os.getenv(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Accept common truthy values from env vars
-DEBUG = str(os.getenv("DEBUG", "False")).lower() in ("1", "true", "yes")
+DEBUG = boolean(os.getenv("DEBUG", "false"), "DEBUG")
 
 # ALLOWED_HOSTS can be provided via env var, comma-separated. Default to localhost only.
 allowed_hosts_env = os.getenv("ALLOWED_HOSTS")
@@ -67,10 +61,8 @@ if not NASSAV_OPERATOR_USERNAME:
     raise RuntimeError("NASSAV_OPERATOR_USERNAME must not be empty")
 
 # Set true behind an HTTPS reverse proxy; local HTTP development keeps it false.
-SECURE_SESSION_COOKIES = str(os.getenv("NASSAV_SECURE_COOKIES", "false")).lower() in (
-    "1",
-    "true",
-    "yes",
+SECURE_SESSION_COOKIES = boolean(
+    os.getenv("NASSAV_SECURE_COOKIES", "false"), "NASSAV_SECURE_COOKIES"
 )
 SESSION_COOKIE_SECURE = SECURE_SESSION_COOKIES
 CSRF_COOKIE_SECURE = SECURE_SESSION_COOKIES
@@ -88,6 +80,12 @@ DOWNLOAD_PROXY_URL = (
     os.getenv("DOWNLOAD_PROXY_URL", (CONFIG.get("Proxy") or {}).get("download_url"))
     or None
 )
+if DOWNLOAD_PROXY_URL:
+    url(
+        DOWNLOAD_PROXY_URL,
+        "DOWNLOAD_PROXY_URL/Proxy.download_url",
+        schemes=("http", "https", "socks5", "socks5h"),
+    )
 VIDEO_HOST_DIR = os.getenv("VIDEO_HOST_DIR")
 
 # Redis Configuration
@@ -168,7 +166,7 @@ EXTERNAL_SOURCE_SEARCH_CACHE_TTL_LATEST = 300  # latest updates
 # Database settings come from config.yaml; environment variables override them for Compose.
 DATABASE_CONFIG = CONFIG.get("Database") or {}
 DB_ENGINE = (
-    os.getenv("DB_ENGINE", str(DATABASE_CONFIG.get("Engine", "sqlite"))).strip().lower()
+    str(os.getenv("DB_ENGINE", DATABASE_CONFIG.get("Engine", "sqlite"))).strip().lower()
 )
 COMPOSE_DB_MODE = os.getenv("NASSAV_COMPOSE_DB_MODE")
 if COMPOSE_DB_MODE and DB_ENGINE != COMPOSE_DB_MODE:
@@ -212,6 +210,10 @@ elif DB_ENGINE in {"postgres", "postgresql"}:
         "DB_PASSWORD_FILE", DATABASE_CONFIG.get("PasswordFile")
     )
     database_password = os.getenv("DB_PASSWORD")
+    if database_password and database_password_file:
+        raise RuntimeError(
+            "DB_PASSWORD conflicts with DB_PASSWORD_FILE/Database.PasswordFile"
+        )
     if database_password_file:
         password_path = Path(database_password_file).expanduser()
         if not password_path.is_absolute():
@@ -241,6 +243,17 @@ elif DB_ENGINE in {"postgres", "postgresql"}:
             "(1-63 characters, letters/digits/underscores)"
         )
 
+    database_port = integer(
+        os.getenv("DB_PORT", DATABASE_CONFIG.get("Port", 5432)),
+        "DB_PORT/Database.Port",
+        1,
+        65535,
+    )
+    connection_max_age = integer(
+        os.getenv("DB_CONN_MAX_AGE", DATABASE_CONFIG.get("ConnectionMaxAge", 60)),
+        "DB_CONN_MAX_AGE/Database.ConnectionMaxAge",
+        0,
+    )
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -248,13 +261,8 @@ elif DB_ENGINE in {"postgres", "postgresql"}:
             "USER": database_user,
             "PASSWORD": database_password,
             "HOST": database_host,
-            "PORT": os.getenv("DB_PORT", str(DATABASE_CONFIG.get("Port", "5432"))),
-            "CONN_MAX_AGE": int(
-                os.getenv(
-                    "DB_CONN_MAX_AGE",
-                    str(DATABASE_CONFIG.get("ConnectionMaxAge", 60)),
-                )
-            ),
+            "PORT": str(database_port),
+            "CONN_MAX_AGE": connection_max_age,
             "OPTIONS": {"options": f"-c search_path={database_schema}"},
         }
     }
@@ -332,7 +340,7 @@ CELERY_TASK_SEND_SENT_EVENT = False
 # - 封面: resource/cover/{AVID}.jpg
 # - 视频:  resource/video/{AVID}.mp4
 # - 头像: resource/avatar/{filename}.jpg
-RESOURCE_DIR = BASE_DIR / "resource"
+RESOURCE_DIR = Path(os.getenv("NASSAV_RESOURCE_DIR", str(BASE_DIR / "resource")))
 RESOURCE_DIR.mkdir(parents=True, exist_ok=True)
 
 # 新的子目录
@@ -384,28 +392,36 @@ LOGGING = {
 }
 
 # Proxy settings from config
-PROXY_CONFIG = CONFIG.get(
-    "Proxy",
-)
-PROXY_ENABLED = PROXY_CONFIG.get("Enable", False)
+PROXY_CONFIG = CONFIG["Proxy"]
+PROXY_ENABLED = boolean(PROXY_CONFIG["Enable"], "Proxy.Enable")
 PROXY_URL = PROXY_CONFIG.get("url", None)
 
 # FlareSolverr settings from config
 FLARESOLVERR_CONFIG = CONFIG.get("FlareSolverr", {})
-FLARESOLVERR_ENABLED = FLARESOLVERR_CONFIG.get("Enable", False)
+FLARESOLVERR_ENABLED = boolean(
+    FLARESOLVERR_CONFIG.get("Enable", False), "FlareSolverr.Enable"
+)
 FLARESOLVERR_URL = FLARESOLVERR_CONFIG.get("url", "http://localhost:8191")
 FLARESOLVERR_TIMEOUT = FLARESOLVERR_CONFIG.get("timeout", 60000)
 
 # Browser page fetching: new configuration wins as a whole; the old block is a fallback.
 from nassav.page_fetching.factory import normalize_config, validate_strategy
 
-BROWSER_FETCH_CONFIG = normalize_config(CONFIG)
+try:
+    BROWSER_FETCH_CONFIG = normalize_config(CONFIG)
+except (TypeError, ValueError) as exc:
+    raise RuntimeError(f"BrowserFetch configuration in {CONFIG_PATH}: {exc}") from None
 
 # Source configurations
 SOURCE_CONFIG = CONFIG.get("Source", {})
 for _source_name, _source_data in SOURCE_CONFIG.items():
     if isinstance(_source_data, dict) and "browser_fetch_strategy" in _source_data:
-        validate_strategy(_source_data["browser_fetch_strategy"])
+        try:
+            validate_strategy(_source_data["browser_fetch_strategy"])
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(
+                f"Source.{_source_name} in {CONFIG_PATH}: {exc}"
+            ) from None
 
 # Scraper configurations (e.g., JavBus, Busdmm, Dmmsee)
 SCRAPER_CONFIG = CONFIG.get("Scraper", {})
