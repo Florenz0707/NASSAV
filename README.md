@@ -29,6 +29,7 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 - [接口与权限](django_backend/doc/interface.md)、[推荐系统](django_backend/doc/recommendation.md)、[数据库与备份](django_backend/doc/database.md)
 - [项目质量与运行边界](docs/project-quality.md)、[业务模块边界](django_backend/doc/p5-domain-boundaries.md)
+- [质量改进补充开发与验收计划](docs/project-quality-follow-up-plan.md)
 - [前端页面预览](vue_frontend/README.md)、[前端检查命令](vue_frontend/README.md#异步资源任务反馈)
 
 ## 版本更新
@@ -55,7 +56,7 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 #### 📚 文档
 
-- 将已结束的项目质量执行计划与阶段记录收敛为[现状说明](docs/project-quality.md)；仍未完成的 PostgreSQL、Byparr 和异步刮削目标环境验收计划继续保留。
+- 将此前的项目质量阶段实施过程归档为[现状说明](docs/project-quality.md)；未完成的职责收口与目标环境验收见[补充计划](docs/project-quality-follow-up-plan.md)。PostgreSQL、Byparr 和异步刮削的独立验收计划继续保留。
 
 ### v2.3.0（2026-09-28）
 

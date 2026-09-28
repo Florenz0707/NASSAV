@@ -1,6 +1,7 @@
 # 项目质量与运行边界
 
 本文说明当前应用的访问、配置、任务和模块边界。阶段实施过程已由 Git 历史保留；部署操作以[全栈 Compose 部署说明](../django_backend/doc/compose-deployment.md)为准。
+后续未完成的职责收口、部署防误操作与目标环境验收见[补充计划](project-quality-follow-up-plan.md)。
 
 ## 访问与会话
 
