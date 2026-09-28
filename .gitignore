@@ -7,3 +7,6 @@
 .env
 
 deploy-data/
+
+# Legacy Go backend build output; keep source under origin_project/.
+origin_project/go_backend/main

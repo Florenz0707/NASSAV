@@ -58,7 +58,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--text-primary);
   font-weight: 500;
   font-size: 24px;
 }
@@ -70,14 +70,14 @@ export default {
 }
 
 .genre-count {
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }
 
 .genre-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.45);
-  background-color: rgba(255, 255, 255, 0.02);
+  box-shadow: var(--shadow-xl);
+  background-color: var(--bg-white-5);
 }
 </style>
