@@ -99,13 +99,13 @@ const metrics = computed(() => {
 
 <style scoped>
 .external-search-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(180deg, var(--bg-white-8), var(--bg-white-5));
   border: 1px solid;
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: var(--border-color);
   border-radius: 1.25rem;
   overflow: hidden;
   backdrop-filter: blur(16px);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -117,8 +117,8 @@ const metrics = computed(() => {
 
 .external-search-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 107, 107, 0.24);
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-2xl);
 }
 
 .cover-shell {
@@ -126,8 +126,12 @@ const metrics = computed(() => {
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background:
-    radial-gradient(circle at top left, rgba(255, 107, 107, 0.28), transparent 55%),
-    linear-gradient(145deg, rgba(18, 18, 24, 0.92), rgba(28, 28, 38, 0.86));
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--accent-primary) 28%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(145deg, var(--bg-secondary), var(--bg-primary));
 }
 
 .cover-image {
@@ -144,7 +148,7 @@ const metrics = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--text-primary);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1rem;
@@ -176,13 +180,13 @@ const metrics = computed(() => {
 }
 
 .avid-chip {
-  background: rgba(255, 107, 107, 0.12);
-  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary-text);
 }
 
 .source-chip {
-  background: rgba(78, 205, 196, 0.12);
-  color: var(--accent-tertiary);
+  background: color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
+  color: var(--accent-tertiary-text);
 }
 
 .card-title {
@@ -205,7 +209,7 @@ const metrics = computed(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.82rem;
   min-height: 1.2rem;
 }
@@ -241,18 +245,18 @@ const metrics = computed(() => {
 
 .action-btn.primary {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: white;
-  box-shadow: 0 10px 20px rgba(255, 107, 107, 0.22);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-accent-lg);
 }
 
 .action-btn.secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-white-5);
   color: var(--text-primary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
 }
 
 .action-btn.success {
-  background: linear-gradient(135deg, rgba(46, 204, 113, 0.9), rgba(26, 188, 156, 0.9));
-  color: white;
+  background: linear-gradient(135deg, var(--accent-success), var(--accent-tertiary));
+  color: var(--on-accent);
 }
 </style>
