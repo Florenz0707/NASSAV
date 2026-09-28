@@ -1,12 +1,18 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import CustomSelect from '../components/CustomSelect.vue'
 import RecommendationCard from '../components/RecommendationCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import SettingsModal from '../components/settings/SettingsModal.vue'
-import { actorApi, genreApi, recommendationApi } from '../api'
+import { useRecommendationsStore } from '../stores/recommendations'
+import {
+  saveRecommendationViewState,
+  restoreRecommendationViewState,
+  clearRecommendationViewState,
+} from '../stores/recommendationViewState'
 import { useResourceStore } from '../stores/resource'
 import { useSettingsStore } from '../stores/settings'
 import { useToastStore } from '../stores/toast'
@@ -14,15 +20,14 @@ import { useToastStore } from '../stores/toast'
 const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
+const recommendationStore = useRecommendationsStore()
+const { items, seeds, meta, metrics, blockedAvids, feedbackByAvid } =
+  storeToRefs(recommendationStore)
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 
 const loading = ref(false)
 const error = ref('')
-const items = ref([])
-const seeds = ref([])
-const meta = ref(null)
-const metrics = ref(null)
 const metricsLoading = ref(false)
 const typePreference = ref(route.query.type_preference || 'balanced')
 const actorPreference = ref(route.query.actor_preference || 'balanced')
@@ -30,9 +35,7 @@ const genrePreference = ref(route.query.genre_preference || 'balanced')
 const limit = ref(Number.parseInt(route.query.limit, 10) || 12)
 const addingAvids = ref(new Set())
 const addedAvids = ref(new Set())
-const blockedAvids = ref(new Set())
 const feedbackSubmittingAvids = ref(new Set())
-const feedbackByAvid = ref({})
 const initialized = ref(false)
 const hasRequested = ref(false)
 const showScrollTop = ref(false)
@@ -46,7 +49,6 @@ const blacklistLoading = ref(false)
 const blacklistItems = ref([])
 const blacklistPagination = ref(null)
 const blacklistSubmittingKey = ref('')
-const RECOMMENDATIONS_STATE_KEY = 'nassav:recommendations:view-state'
 const blacklistCache = new Map()
 const blacklistTabs = [
   { value: 'actor', label: '演员黑名单' },
@@ -198,45 +200,28 @@ function saveViewState() {
     feedbackByAvid: feedbackByAvid.value || {},
     scrollY: window.scrollY || 0,
   }
-  window.sessionStorage.setItem(RECOMMENDATIONS_STATE_KEY, JSON.stringify(state))
+  saveRecommendationViewState(state)
 }
 
 function restoreViewState() {
-  const raw = window.sessionStorage.getItem(RECOMMENDATIONS_STATE_KEY)
-  if (!raw) return null
+  const state = restoreRecommendationViewState()
+  if (!state) return null
 
-  try {
-    const state = JSON.parse(raw)
-    typePreference.value = state.typePreference || typePreference.value
-    actorPreference.value = state.actorPreference || actorPreference.value
-    genrePreference.value = state.genrePreference || genrePreference.value
-    limit.value = Number.parseInt(state.limit, 10) || 24
-    items.value = Array.isArray(state.items) ? state.items : []
-    seeds.value = Array.isArray(state.seeds) ? state.seeds : []
-    meta.value = state.meta || null
-    metrics.value = state.metrics || null
-    hasRequested.value = Boolean(state.hasRequested)
-    lastLoadedConfigKey.value = state.lastLoadedConfigKey || ''
-    addedAvids.value = new Set(Array.isArray(state.addedAvids) ? state.addedAvids : [])
-    blockedAvids.value = new Set(Array.isArray(state.blockedAvids) ? state.blockedAvids : [])
-    feedbackByAvid.value =
-      state.feedbackByAvid && typeof state.feedbackByAvid === 'object' ? state.feedbackByAvid : {}
-    return state
-  } catch (_error) {
-    window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
-    return null
-  }
-}
-
-function mergeRecommendationItems(existingItems, nextItems) {
-  const merged = []
-  const seen = new Set()
-  for (const item of [...(existingItems || []), ...(nextItems || [])]) {
-    if (!item?.avid || seen.has(item.avid)) continue
-    seen.add(item.avid)
-    merged.push(item)
-  }
-  return merged
+  typePreference.value = state.typePreference || typePreference.value
+  actorPreference.value = state.actorPreference || actorPreference.value
+  genrePreference.value = state.genrePreference || genrePreference.value
+  limit.value = Number.parseInt(state.limit, 10) || 24
+  items.value = Array.isArray(state.items) ? state.items : []
+  seeds.value = Array.isArray(state.seeds) ? state.seeds : []
+  meta.value = state.meta || null
+  metrics.value = state.metrics || null
+  hasRequested.value = Boolean(state.hasRequested)
+  lastLoadedConfigKey.value = state.lastLoadedConfigKey || ''
+  addedAvids.value = new Set(Array.isArray(state.addedAvids) ? state.addedAvids : [])
+  blockedAvids.value = new Set(Array.isArray(state.blockedAvids) ? state.blockedAvids : [])
+  feedbackByAvid.value =
+    state.feedbackByAvid && typeof state.feedbackByAvid === 'object' ? state.feedbackByAvid : {}
+  return state
 }
 
 function updateScrollState() {
@@ -256,22 +241,17 @@ function scrollToTop() {
 }
 
 function clearPageRecommendations() {
-  items.value = []
-  seeds.value = []
-  meta.value = null
+  recommendationStore.clearResults()
   error.value = ''
   hasRequested.value = false
   lastLoadedConfigKey.value = ''
-  feedbackByAvid.value = {}
-  blockedAvids.value = new Set()
   closeReasonPanel()
 }
 
 async function loadRecommendationMetrics() {
   metricsLoading.value = true
   try {
-    const response = await recommendationApi.getMetrics()
-    metrics.value = response.data || null
+    await recommendationStore.loadMetrics()
   } catch (err) {
     toastStore.error(err.message || '加载推荐指标失败')
   } finally {
@@ -315,37 +295,21 @@ async function loadBlacklistItems() {
 
   blacklistLoading.value = true
   try {
-    let response = null
-    let list = []
-    let pagination = null
-
-    if (blacklistSeedType.value === 'actor' || blacklistSeedType.value === 'genre') {
-      const params = {
-        page: 1,
-        page_size: 200,
-        order_by: blacklistBlockedOnly.value ? 'name' : 'count',
-        order: blacklistBlockedOnly.value ? 'asc' : 'desc',
-      }
-      if (normalizedBlacklistSearch.value) {
-        params.search = normalizedBlacklistSearch.value
-      }
-
-      response =
-        blacklistSeedType.value === 'actor'
-          ? await actorApi.getList(params)
-          : await genreApi.getList(params)
-      list = Array.isArray(response.data) ? response.data : []
-      list = blacklistBlockedOnly.value ? list.filter((item) => item.is_blocked) : list
-      pagination = response.pagination || null
-    } else {
-      const params = { page: 1, page_size: 200 }
-      if (normalizedBlacklistSearch.value) {
-        params.search = normalizedBlacklistSearch.value
-      }
-      response = await recommendationApi.getAvidBlocklist(params)
-      list = Array.isArray(response.data) ? response.data : []
-      pagination = response.pagination || null
-    }
+    const params =
+      blacklistSeedType.value === 'resource'
+        ? { page: 1, page_size: 200 }
+        : {
+            page: 1,
+            page_size: 200,
+            order_by: blacklistBlockedOnly.value ? 'name' : 'count',
+            order: blacklistBlockedOnly.value ? 'asc' : 'desc',
+          }
+    if (normalizedBlacklistSearch.value) params.search = normalizedBlacklistSearch.value
+    const { items: list, pagination } = await recommendationStore.loadBlacklist(
+      blacklistSeedType.value,
+      params,
+      blacklistBlockedOnly.value
+    )
 
     blacklistItems.value = list
     blacklistPagination.value = pagination
@@ -374,34 +338,17 @@ async function toggleSeedBlocked(item) {
   blacklistSubmittingKey.value = submitKey
   try {
     if (blacklistSeedType.value === 'resource') {
-      if (item.is_blocked) {
-        await recommendationApi.unblockAvid({ avid: item.avid })
-        const nextBlocked = new Set(blockedAvids.value)
-        nextBlocked.delete(item.avid)
-        blockedAvids.value = nextBlocked
-        toastStore.success(`已移除资源 ${item.avid} 的屏蔽`)
-      } else {
-        await recommendationApi.blockAvid({ avid: item.avid, reason: 'manual' })
-        const nextBlocked = new Set(blockedAvids.value)
-        nextBlocked.add(item.avid)
-        blockedAvids.value = nextBlocked
-        toastStore.success(`已将资源 ${item.avid} 加入黑名单`)
-      }
+      await recommendationStore.setAvidBlocked(item.avid, !item.is_blocked)
+      toastStore.success(
+        item.is_blocked ? `已移除资源 ${item.avid} 的屏蔽` : `已将资源 ${item.avid} 加入黑名单`
+      )
     } else {
-      if (item.is_blocked) {
-        await recommendationApi.unblockSeed({
-          seed_type: blacklistSeedType.value,
-          id: item.id,
-        })
-        toastStore.success(`已移除${blacklistSeedType.value === 'actor' ? '演员' : '类别'}屏蔽`)
-      } else {
-        await recommendationApi.blockSeed({
-          seed_type: blacklistSeedType.value,
-          id: item.id,
-          reason: 'manual',
-        })
-        toastStore.success(`已加入${blacklistSeedType.value === 'actor' ? '演员' : '类别'}屏蔽`)
-      }
+      await recommendationStore.setSeedBlocked(blacklistSeedType.value, item.id, !item.is_blocked)
+      toastStore.success(
+        item.is_blocked
+          ? `已移除${blacklistSeedType.value === 'actor' ? '演员' : '类别'}屏蔽`
+          : `已加入${blacklistSeedType.value === 'actor' ? '演员' : '类别'}屏蔽`
+      )
     }
 
     invalidateBlacklistCache(blacklistSeedType.value)
@@ -437,10 +384,7 @@ async function addResourceBlacklist() {
 
   blacklistSubmittingKey.value = submitKey
   try {
-    await recommendationApi.blockAvid({ avid, reason: 'manual' })
-    const nextBlocked = new Set(blockedAvids.value)
-    nextBlocked.add(avid)
-    blockedAvids.value = nextBlocked
+    await recommendationStore.setAvidBlocked(avid, true)
     toastStore.success(`已将资源 ${avid} 加入黑名单`)
     invalidateBlacklistCache('resource')
     await loadBlacklistItems()
@@ -490,21 +434,17 @@ async function loadRecommendations(options = {}) {
   const shouldMerge = append && !forceRefreshExternal && items.value.length > 0
 
   try {
-    const response = await recommendationApi.getList({
-      type_preference: typePreference.value,
-      actor_preference: actorPreference.value,
-      genre_preference: genrePreference.value,
-      limit: limit.value,
-      exclude_existing: true,
-      force_refresh_external: forceRefreshExternal,
-    })
-
-    const payload = response.data || {}
-    items.value = shouldMerge
-      ? mergeRecommendationItems(items.value, payload.items || [])
-      : payload.items || []
-    seeds.value = [...(payload.seeds || [])]
-    meta.value = payload.meta || null
+    await recommendationStore.fetchRecommendations(
+      {
+        type_preference: typePreference.value,
+        actor_preference: actorPreference.value,
+        genre_preference: genrePreference.value,
+        limit: limit.value,
+        exclude_existing: true,
+        force_refresh_external: forceRefreshExternal,
+      },
+      { append: shouldMerge }
+    )
     lastLoadedConfigKey.value = requestConfigKey
     loadRecommendationMetrics()
     syncActiveReasonItem()
@@ -586,22 +526,7 @@ async function persistRecommendationFeedback(item, feedbackType) {
     return ''
   }
 
-  const response = await recommendationApi.submitFeedback({
-    snapshot_id: item.snapshot_id,
-    avid: item.avid,
-    feedback: feedbackType,
-  })
-  const savedFeedback = response.data?.feedback || ''
-  if (feedbackType === 'clear') {
-    const nextFeedback = { ...feedbackByAvid.value }
-    delete nextFeedback[item.avid]
-    feedbackByAvid.value = nextFeedback
-  } else if (savedFeedback) {
-    feedbackByAvid.value = {
-      ...feedbackByAvid.value,
-      [item.avid]: savedFeedback,
-    }
-  }
+  const savedFeedback = await recommendationStore.submitFeedback(item, feedbackType)
   loadRecommendationMetrics()
   return savedFeedback
 }
@@ -643,10 +568,7 @@ async function handleBlockRecommendation(item) {
 
   try {
     if (blockedAvids.value.has(item.avid)) {
-      await recommendationApi.unblockAvid({ avid: item.avid })
-      const nextBlocked = new Set(blockedAvids.value)
-      nextBlocked.delete(item.avid)
-      blockedAvids.value = nextBlocked
+      await recommendationStore.setAvidBlocked(item.avid, false)
       invalidateBlacklistCache('resource')
       loadRecommendationMetrics()
       toastStore.success(`${item.avid} 已移出黑名单`)
@@ -658,10 +580,7 @@ async function handleBlockRecommendation(item) {
     } catch (_feedbackError) {
       // 黑名单是更强的显式操作，反馈失败时仍继续屏蔽 AVID。
     }
-    await recommendationApi.blockAvid({ avid: item.avid, reason: 'manual' })
-    const nextBlocked = new Set(blockedAvids.value)
-    nextBlocked.add(item.avid)
-    blockedAvids.value = nextBlocked
+    await recommendationStore.setAvidBlocked(item.avid, true)
     feedbackByAvid.value = {
       ...feedbackByAvid.value,
       [item.avid]: 'dislike',
@@ -682,17 +601,17 @@ function handleResetRecommendations() {
   error.value = ''
   clearPageRecommendations()
   invalidateBlacklistCache()
-  window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
+  clearRecommendationViewState()
   toastStore.success('当前推荐列表已清空')
 }
 
 async function handleResetRecommendationHistory() {
   if (loading.value || metricsLoading.value) return
   try {
-    await recommendationApi.resetState({ preserve_blocklist: true })
+    await recommendationStore.resetHistory()
     clearPageRecommendations()
     invalidateBlacklistCache()
-    window.sessionStorage.removeItem(RECOMMENDATIONS_STATE_KEY)
+    clearRecommendationViewState()
     await loadRecommendationMetrics()
     toastStore.success('推荐历史已重置，黑名单已保留')
   } catch (err) {
