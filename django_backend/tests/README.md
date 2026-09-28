@@ -19,9 +19,9 @@ BROWSER_FETCH_JABLE_AVID=JUR-466 \
 uv run pytest tests/test_browser_fetch_integration.py -v
 ```
 
-## P0 隔离回归入口
+## 访问与业务隔离回归
 
-[配置矩阵与样本边界](../../docs/p0-baseline.md)列出 Cookie、设置、资源删除、推荐重置、资源添加/刷新、下载进度、WebSocket 重连和数据库备份的样本。以下命令在 `django_backend/` 下运行；使用无凭证模板与 SQLite 测试库，不连接开发 PostgreSQL。删除及备份样本另用 pytest 临时目录。
+[项目质量与运行边界](../../docs/project-quality.md)概述访问和部署要求。本节覆盖 Cookie、设置、资源删除、推荐重置、资源添加/刷新、下载进度、WebSocket 重连和数据库备份的隔离样本。以下命令在 `django_backend/` 下运行；使用无凭证模板与 SQLite 测试库，不连接开发 PostgreSQL。删除及备份样本另用 pytest 临时目录。
 
 ```bash
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p0-pytest.sqlite3 \
@@ -36,9 +36,9 @@ uv run pytest tests/test_source_cookie_api.py tests/test_user_settings.py \
 
 前端任务快照恢复样本：`cd ../vue_frontend && node --test tests/scrapeJobs.test.js`。外站、真实 Worker 与 PostgreSQL 恢复不由上述离线测试覆盖。
 
-## P2 数据库模式回归
+## 数据库模式回归
 
-`test_database_configuration.py` 使用隔离子进程验证 Compose 引擎冲突会在连接前失败，以及 PostgreSQL 连接失败不会创建 SQLite 文件。Compose 的两种模式和三个真实队列消费者另见 [P2 隔离验证记录](../../docs/p2-deployment-validation.md)。
+`test_database_configuration.py` 使用隔离子进程验证 Compose 引擎冲突会在连接前失败，以及 PostgreSQL 连接失败不会创建 SQLite 文件。Compose 的两种模式与三个队列的现行配置见[部署说明](../doc/compose-deployment.md)。
 
 ```bash
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-pytest.sqlite3 \
@@ -532,11 +532,9 @@ def test_with_api_client(api_client):
 - ⚡ 提升测试速度
 - 📖 提升代码可读性
 
-详细重构方案见 [REFACTOR_PLAN.md](REFACTOR_PLAN.md)
-
 ---
 
-**最后更新**: 2026-01-07
+**最后更新**: 2026-09-28
 
 ## 异步资源任务测试
 

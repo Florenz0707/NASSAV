@@ -12,7 +12,7 @@
 ## 项目结构
 
 - `django_backend/`
-  - Django 5 后端
+  - Django 后端
   - 核心代码位于 `django_backend/nassav/`
   - 项目配置位于 `django_backend/django_project/`
   - 后端文档位于 `django_backend/doc/`
@@ -23,10 +23,6 @@
   - 组件位于 `vue_frontend/src/components/`
   - store 位于 `vue_frontend/src/stores/`
   - API 封装位于 `vue_frontend/src/api/`
-
-- `origin_project/`
-  - 历史参考实现
-  - 除非任务明确要求，否则不要在此目录中进行功能开发
 
 ## 开发前
 
@@ -45,7 +41,6 @@
   - 抽象边界是否清晰
   - 后续是否容易替换或扩展
 - 不要在未确认上下文的情况下重构无关代码
-- 除非任务明确要求，否则不要修改 `origin_project/`
 
 ## 前端页面设计规范
 

@@ -461,4 +461,3 @@ uv sync
 - [数据库架构](../doc/database.md)
 - [API 接口文档](../doc/interface.md)
 - [调试指南](../doc/debug.md)
-- [B2 任务实现](../doc/b2_implementation.md)
