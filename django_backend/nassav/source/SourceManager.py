@@ -350,19 +350,6 @@ class SourceManager:
         video_dir.mkdir(parents=True, exist_ok=True)
         return Path(settings.RESOURCE_DIR)
 
-    def load_cached_html(self, avid: str) -> Optional[str]:
-        """从缓存加载 HTML"""
-        avid = avid.upper()
-        # HTML 缓存如果存在于旧的 per-avid 目录（resource_backup/{avid}/{avid}.html），优先从备份目录读取
-        html_path = Path(settings.RESOURCE_BACKUP_DIR) / avid / f"{avid}.html"
-        if html_path.exists():
-            try:
-                with open(html_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            except Exception as e:
-                logger.error(f"读取缓存 HTML 失败: {e}")
-        return None
-
     def _get_source(self, source_name: str) -> Optional[SourceBase]:
         for name, source in self.sources.items():
             if name.lower() == source_name.lower():
