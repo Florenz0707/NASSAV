@@ -344,22 +344,6 @@ class ResourceService:
 
         return True
 
-    def get_resource(self, avid: str) -> Optional[dict]:
-        """
-        获取资源信息
-
-        Args:
-            avid: 视频编号
-
-        Returns:
-            资源字典,如果不存在则返回None
-        """
-        avid = avid.upper()
-        resource = AVResource.objects.filter(avid=avid).first()
-        if not resource:
-            return None
-        return self._serialize_resource(resource, include_relations=True)
-
     def load_cached_metadata(self, avid: str) -> Optional[AVDownloadInfo]:
         """
         从数据库加载缓存的元数据
