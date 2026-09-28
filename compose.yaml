@@ -15,6 +15,7 @@ x-backend: &backend
     REDIS_URL: redis://redis:6379/0
     DB_ENGINE: ${DB_ENGINE:-sqlite}
     NASSAV_COMPOSE_DB_MODE: sqlite
+    NASSAV_DB_MODE_FILE: /app/data/db/.nassav-db-mode
     DATABASE_PATH: /app/data/db/db.sqlite3
     VIDEO_HOST_DIR: ${NASSAV_VIDEO_HOST_DIR:?Set the absolute host path to the video directory}
     OLLAMA_URL: ${OLLAMA_URL-}

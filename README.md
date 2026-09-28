@@ -14,16 +14,21 @@
 默认 Compose 使用 SQLite，包含前端网关、API、Redis、Byparr 和三个 worker。首次部署按[全栈 Compose 部署说明](django_backend/doc/compose-deployment.md)准备 `.env`、配置文件和数据目录，然后从仓库根目录运行：
 
 ```bash
-docker compose config --quiet
-docker compose up -d --build
-docker compose exec api python manage.py createsuperuser --username nassav
+python3 scripts/compose_stack.py --mode sqlite init
+python3 scripts/compose_stack.py --mode sqlite config --quiet
+python3 scripts/compose_stack.py --mode sqlite up -d --build
+python3 scripts/compose_stack.py --mode sqlite exec api python manage.py createsuperuser --username nassav
 ```
 
 账号密码由 `createsuperuser` 的交互提示设置。若修改 `NASSAV_OPERATOR_USERNAME`，用户名须与其一致。默认页面仅监听 `127.0.0.1:9780`；远程访问需同源 HTTPS 反向代理，并按部署说明配置 Host、CSRF 和安全 Cookie。Beat 在 `scheduler` profile 中启用且全系统只运行一个实例。
 
-PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.yaml` 覆盖文件；具体命令与回滚步骤见[部署说明](django_backend/doc/compose-deployment.md#外部-postgresql可选)。**开发库的数据已导入，业务回归、备份恢复验收及正式切换尚未完成**。默认 Compose 仍使用 SQLite；不要仅修改 `.env` 的 `DB_ENGINE` 来切换。迁移进度见[独立迁移计划](django_backend/doc/postgresql-migration-plan.md)，其中早期基线描述应按记录日期理解。
+PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.yaml` 覆盖文件；具体命令与回滚步骤见[部署说明](django_backend/doc/compose-deployment.md#外部-postgresql可选)。**开发库的数据已导入，业务回归、备份恢复验收及正式切换尚未完成**。默认 Compose 仍使用 SQLite；首次启动需声明数据目录的数据库模式，后续 `up`、`ps`、`logs`、`exec`、`down` 使用相同模式的部署入口。直接误用基础 Compose 时，应用会在连接数据库前拒绝模式冲突；不要仅修改 `.env` 的 `DB_ENGINE` 来切换。迁移进度见[独立迁移计划](django_backend/doc/postgresql-migration-plan.md)，其中早期基线描述应按记录日期理解。
 
 本机开发分别参照[后端说明](django_backend/README.md#快速开始)和[前端说明](vue_frontend/README.md#本地开发)；Vite 开发页的 API 和 WebSocket 使用同源代理。启动检查、代理路由和数据目录的细节统一记录在[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)和[Compose 部署说明](django_backend/doc/compose-deployment.md)。
+
+## 当前验证状态
+
+资源删除边界和数据库模式护栏已实现；隔离 SQLite 后端测试、前端检查及双模式 Compose 配置渲染已通过。独立 PostgreSQL 容器启动、另一设备 HTTPS/WSS、真实抓取/下载和备份恢复尚未在目标环境验收。具体证据与缺项见[补充计划](docs/project-quality-follow-up-plan.md)；开发库导入不代表正式数据库切换。
 
 ## 文档导航
 

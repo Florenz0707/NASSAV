@@ -26,7 +26,7 @@ def test_postgresql_retention_preserves_sqlite_rollback_snapshots(tmp_path):
     assert not postgres_backup.exists()
 
 
-def test_postgresql_configuration_requires_password():
+def test_postgresql_configuration_requires_password(tmp_path):
     backend_root = Path(__file__).resolve().parents[1]
     environment = os.environ.copy()
     environment.update(
@@ -39,6 +39,9 @@ def test_postgresql_configuration_requires_password():
             "DB_HOST": "localhost",
         }
     )
+    marker = tmp_path / ".nassav-db-mode"
+    marker.write_text("postgres\n")
+    environment["NASSAV_DB_MODE_FILE"] = str(marker)
     environment.pop("DB_PASSWORD", None)
     environment.pop("DB_PASSWORD_FILE", None)
 
@@ -152,6 +155,9 @@ def test_postgres_connection_failure_never_opens_sqlite(tmp_path):
             "DATABASE_PATH": str(database),
         }
     )
+    marker = tmp_path / ".nassav-db-mode"
+    marker.write_text("postgres\n")
+    environment["NASSAV_DB_MODE_FILE"] = str(marker)
     environment.pop("DB_PASSWORD_FILE", None)
     result = subprocess.run(
         [
@@ -170,4 +176,66 @@ def test_postgres_connection_failure_never_opens_sqlite(tmp_path):
         "connection timeout expired" in result.stderr
         or "Connection refused" in result.stderr
     )
+    assert not database.exists()
+
+
+def test_compose_mode_marker_blocks_base_files_before_sqlite_connection(tmp_path):
+    backend_root = Path(__file__).resolve().parents[1]
+    database = tmp_path / "unexpected.sqlite3"
+    marker = tmp_path / ".nassav-db-mode"
+    marker.write_text("postgres\n")
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "DJANGO_SETTINGS_MODULE": "django_project.settings",
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_COMPOSE_DB_MODE": "sqlite",
+            "NASSAV_DB_MODE_FILE": str(marker),
+            "DB_ENGINE": "sqlite",
+            "DATABASE_PATH": str(database),
+        }
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from django.db import connections; connections['default'].ensure_connection()",
+        ],
+        cwd=backend_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "Data directory database mode conflicts with Compose mode" in result.stderr
+    assert not database.exists()
+
+
+def test_compose_mode_requires_declaration_before_sqlite_connection(tmp_path):
+    backend_root = Path(__file__).resolve().parents[1]
+    database = tmp_path / "unexpected.sqlite3"
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "DJANGO_SETTINGS_MODULE": "django_project.settings",
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_COMPOSE_DB_MODE": "sqlite",
+            "NASSAV_DB_MODE_FILE": str(tmp_path / "missing"),
+            "DB_ENGINE": "sqlite",
+            "DATABASE_PATH": str(database),
+        }
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from django.db import connections; connections['default'].ensure_connection()",
+        ],
+        cwd=backend_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "Database mode declaration is missing or unreadable" in result.stderr
     assert not database.exists()

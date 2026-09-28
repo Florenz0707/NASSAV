@@ -49,12 +49,12 @@ cd ../vue_frontend && node --test tests/resourceDeletion.test.js
 
 ## 数据库模式回归
 
-`test_database_configuration.py` 使用隔离子进程验证 Compose 引擎冲突会在连接前失败，以及 PostgreSQL 连接失败不会创建 SQLite 文件。Compose 的两种模式与三个队列的现行配置见[部署说明](../doc/compose-deployment.md)。
+`test_database_configuration.py` 使用隔离子进程验证 Compose 引擎与数据目录声明冲突会在连接前失败，以及 PostgreSQL 连接失败不会创建 SQLite 文件。`test_compose_stack.py` 验证声明初始化、已有目录采用和运行模式不符时的预检拒绝。Compose 的两种模式与三个队列的现行配置见[部署说明](../doc/compose-deployment.md)。
 
 ```bash
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-pytest.sqlite3 \
 NASSAV_CONFIG_PATH=config/template-config.yaml \
-uv run pytest tests/test_database_configuration.py -q
+uv run pytest tests/test_database_configuration.py tests/test_compose_stack.py -q
 ```
 
 ## 测试架构说明
