@@ -10,7 +10,7 @@
 
 ## 下载
 
-待本域提交时补充实际边界与验证结果。
+下载 API 验证编号并通过 `submit_download_task` 去重入队；`nassav.tasks.download_video_task` 持有全局锁、更新 Redis 队列和进度、发送原有 WebSocket 事件并处理重试；`video_download_service` 执行网络下载并写入 MP4；`DjangoDownloadPersistence` 按 MP4 是否存在更新 AVResource 的文件大小、存在状态和保存时间。任务输入为编号，输出仍为原有成功/失败字典。下载或持久化异常仍按任务已有重试/告警路径处理，锁和进度在 finally 中清理。文件路径仍是 `VIDEO_DIR/<AVID>.mp4`；失败标记只清除 `file_exists`，保留之前的文件大小字段。针对性测试覆盖文件存在、文件缺失和失败状态。
 
 ## 推荐
 

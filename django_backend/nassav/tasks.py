@@ -493,6 +493,7 @@ def download_video_task(self, avid: str):
     Returns:
         dict: 下载结果
     """
+    from .download_persistence import download_persistence
     from .services import video_download_service
 
     avid = avid.upper()
@@ -581,28 +582,9 @@ def download_video_task(self, avid: str):
             )
             notify_task_update("queue_status", get_full_task_queue())
 
-            # 更新数据库：标记文件存在并写入文件大小/时间戳
+            # 文件元数据由持久化适配器更新，任务仅编排队列与通知。
             try:
-                from pathlib import Path
-
-                from django.conf import settings
-                from django.db import transaction
-                from django.utils import timezone
-                from nassav.models import AVResource
-
-                mp4_file = Path(settings.VIDEO_DIR) / f"{avid.upper()}.mp4"
-                with transaction.atomic():
-                    if mp4_file.exists():
-                        file_size = mp4_file.stat().st_size
-                        AVResource.objects.filter(avid=avid).update(
-                            file_exists=True,
-                            file_size=file_size,
-                            video_saved_at=timezone.now(),
-                        )
-                    else:
-                        AVResource.objects.filter(avid=avid).update(
-                            file_exists=False, file_size=None, video_saved_at=None
-                        )
+                download_persistence.mark_completed(avid)
             except Exception as e:
                 logger.warning(f"下载完成后更新 AVResource 失败: {e}")
 
@@ -625,13 +607,8 @@ def download_video_task(self, avid: str):
             )
             notify_task_update("queue_status", get_full_task_queue())
 
-            # 标记数据库为未完成
             try:
-                from django.db import transaction
-                from nassav.models import AVResource
-
-                with transaction.atomic():
-                    AVResource.objects.filter(avid=avid).update(file_exists=False)
+                download_persistence.mark_failed(avid)
             except Exception as e:
                 logger.warning(f"下载失败后更新 AVResource 失败: {e}")
 
@@ -660,11 +637,7 @@ def download_video_task(self, avid: str):
             raise self.retry(exc=e)
         except self.MaxRetriesExceededError:
             try:
-                from django.db import transaction
-                from nassav.models import AVResource
-
-                with transaction.atomic():
-                    AVResource.objects.filter(avid=avid).update(file_exists=False)
+                download_persistence.mark_failed(avid)
             except Exception as e:
                 logger.warning(f"重试出现异常：{str(e)}")
             return {
