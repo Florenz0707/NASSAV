@@ -19,7 +19,7 @@ docker compose build
 docker compose up -d
 ```
 
-首次 `up` 按 Redis 健康检查 → `migrate` 成功 → API/worker → 前端健康检查启动。检查 `docker compose ps -a` 和 `docker compose logs migrate api scrape-worker download-worker default-worker`。浏览器访问 `.env` 中的 `FRONTEND_BIND_ADDRESS:FRONTEND_PORT`（默认 `127.0.0.1:9780`）。`docker compose --profile scheduler up -d` 才启动唯一 Beat 实例；先确认旧宿主机 Beat 已停。修改配置后运行 `docker compose restart api scrape-worker download-worker default-worker beat`（未启用 Beat 时省略它）。
+首次 `up` 按 Redis 健康检查 → `migrate` 成功 → API/worker → 前端健康检查启动。首次使用还须在目标数据库创建 operator 账号：`docker compose exec api python manage.py createsuperuser --username nassav`（若修改 `NASSAV_OPERATOR_USERNAME`，命令中使用同一用户名）。密码由交互提示输入，不写入 `.env`。检查 `docker compose ps -a` 和 `docker compose logs migrate api scrape-worker download-worker default-worker`。浏览器访问 `.env` 中的 `FRONTEND_BIND_ADDRESS:FRONTEND_PORT`（默认 `127.0.0.1:9780`）。`docker compose --profile scheduler up -d` 才启动唯一 Beat 实例；先确认旧宿主机 Beat 已停。修改配置后运行 `docker compose restart api scrape-worker download-worker default-worker beat`（未启用 Beat 时省略它）。
 
 示例翻译器指向 `host.docker.internal:11434`。如果 Ollama 在另一台机器或未对容器开放监听，请在 `config.yaml` 中改为容器可达地址；未运行 Ollama 时翻译任务会失败，资源添加任务仍可完成。
 
@@ -53,7 +53,9 @@ GPU 资源预留按 [Docker Compose 官方说明](https://docs.docker.com/compos
 
 `scrape-worker` 只监听 `scrape`，`download-worker` 只监听 `download`，`default-worker` 接收翻译与其他默认任务；三者并发与预取都为 1。Byparr 默认不设代理。Django 直接抓取与 Byparr 浏览器均读取 `config.yaml` 的 `Proxy.Enable/url`；Django 将浏览器代理按请求发送给 Byparr。`.env` 的 `BYPARR_PROXY_SERVER` 仅作为没有请求头时的 Byparr 默认值。下载器读取 `config.yaml` 的 `Proxy.download_url`；留空则直连，不回退到 `Proxy.url`，也不继承 worker 的系统代理环境变量。本地开发和代理优先级见[代理路由说明](proxy-routing.md)。容器内 `localhost` 指向各自容器，宿主机代理必须填容器可访问的网关地址；内网服务名已列入 `NO_PROXY`。不要将代理凭证写进提交文件或日志。
 
-默认仅绑定 `127.0.0.1`。现有 API 允许匿名访问，WebSocket 广播任务事件，因此不要直接将 `FRONTEND_BIND_ADDRESS` 改为公网地址。若经可信反向代理提供 HTTPS，应设置真实域名 `ALLOWED_HOSTS` 和 `CSRF_TRUSTED_ORIGINS`，并在外层限制访问。
+默认仅绑定 `127.0.0.1`，对外访问由同机 HTTPS 反向代理转发到该地址。所有业务 API 和任务 WebSocket 要求 `NASSAV_OPERATOR_USERNAME` 指定账号的登录会话；默认账号名为 `nassav`，仅创建账号后才可登录。`/healthz` 保持内部使用。
+
+远程部署时在 `.env` 中设置 `ALLOWED_HOSTS=你的域名,localhost,127.0.0.1,api`、`CSRF_TRUSTED_ORIGINS=https://你的域名`、`NASSAV_SECURE_COOKIES=true`。HTTPS 代理必须转发 `/nassav/api/` 与 `/nassav/ws/`，保留原始 `Host`（含端口），覆盖传入的 `X-Forwarded-Proto` 为实际外部协议，支持 WebSocket Upgrade。不要让客户端自行伪造该头；Django 信任它判断 HTTPS 与 CSRF。前端页面、API 和 WebSocket 必须同源；浏览器用 session cookie 与 CSRF header，WebSocket 用同源 Origin。公网入口应限制登录请求速率。`ALLOWED_HOSTS` 是 Host 校验，不是登录机制。
 
 ## 验证
 
@@ -62,6 +64,8 @@ docker compose ps -a
 docker compose exec api python manage.py check
 docker compose exec download-worker /app/tools/N_m3u8DL-RE --version
 docker compose exec api python -c "import socket; socket.create_connection(('byparr', 8191), 5).close()"
+curl -i http://127.0.0.1:9780/nassav/api/auth/session
+# 匿名业务请求应返回 401
 curl -i http://127.0.0.1:9780/nassav/api/source/list
 ```
 

@@ -2,30 +2,47 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import Navbar from './components/Navbar.vue'
+import LoginView from './views/LoginView.vue'
 import Toast from './components/Toast.vue'
 import { useWebSocketStore } from './stores/websocket'
 import { useSettingsStore } from './stores/settings'
 import { useResourceStore } from './stores/resource'
+import { useSessionStore } from './stores/session'
 
 const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
 const resourceStore = useResourceStore()
+const sessionStore = useSessionStore()
 
 function refreshVisibleJobs() {
-  if (document.visibilityState === 'visible') resourceStore.refreshPendingScrapeJobs()
+  if (sessionStore.status === 'authenticated' && document.visibilityState === 'visible') {
+    resourceStore.refreshPendingScrapeJobs()
+  }
 }
 
-// 应用启动时立即连接 WebSocket 并加载用户设置
 onMounted(() => {
-  wsStore.connect()
-  settingsStore.loadSettings()
-  resourceStore.restoreScrapeJobs()
   document.addEventListener('visibilitychange', refreshVisibleJobs)
+  sessionStore.initialize()
 })
+
+watch(
+  () => sessionStore.status,
+  (status) => {
+    if (status === 'authenticated') {
+      wsStore.connect()
+      settingsStore.loadSettings()
+      resourceStore.restoreScrapeJobs()
+    } else {
+      wsStore.disconnect()
+      resourceStore.stopScrapeTracking()
+    }
+  }
+)
 
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', refreshVisibleJobs)
   resourceStore.stopScrapeTracking()
+  wsStore.disconnect()
 })
 
 // 监听字体设置变化，应用到 body（仅在保存后触发）
@@ -58,15 +75,25 @@ watch(
 <template>
   <div class="app">
     <div class="background-pattern" />
-    <Navbar />
-    <main class="main-content">
-      <RouterView v-slot="{ Component }">
-        <transition name="page" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </RouterView>
-    </main>
-    <Toast />
+    <div
+      v-if="sessionStore.status === 'checking'"
+      class="flex min-h-screen items-center justify-center text-[var(--text-secondary)]"
+      role="status"
+    >
+      正在检查登录状态…
+    </div>
+    <LoginView v-else-if="sessionStore.status !== 'authenticated'" />
+    <template v-else>
+      <Navbar />
+      <main class="main-content">
+        <RouterView v-slot="{ Component }">
+          <transition name="page" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </RouterView>
+      </main>
+      <Toast />
+    </template>
   </div>
 </template>
 

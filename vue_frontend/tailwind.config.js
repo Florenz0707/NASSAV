@@ -5,14 +5,15 @@ export default {
     extend: {
       colors: {
         // 自定义颜色，与现有 CSS 变量保持一致
-        'bg-primary': '#0d0d14',
-        'bg-secondary': '#12121a',
-        'text-primary': '#f4f4f5',
-        'text-secondary': '#a1a1aa',
-        'text-muted': '#71717a',
-        'accent-primary': '#ff6b6b',
-        'accent-secondary': '#ff9f43',
-        'accent-tertiary': '#4ecdc4',
+        'bg-primary': 'var(--bg-primary)',
+        'bg-secondary': 'var(--bg-secondary)',
+        'text-primary': 'var(--text-primary)',
+        'text-secondary': 'var(--text-secondary)',
+        'text-muted': 'var(--text-muted)',
+        'accent-primary': 'var(--accent-primary)',
+        'accent-secondary': 'var(--accent-secondary)',
+        'accent-tertiary': 'var(--accent-tertiary)',
+        'accent-danger': 'var(--accent-danger)',
       },
       borderColor: {
         DEFAULT: 'rgba(255, 255, 255, 0.08)',

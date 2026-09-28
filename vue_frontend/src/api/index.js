@@ -3,6 +3,10 @@ import axios from 'axios'
 const api = axios.create({
   baseURL: '/nassav/api',
   timeout: 30000,
+  withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: 'csrftoken',
+  xsrfHeaderName: 'X-CSRFToken',
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -12,6 +16,17 @@ const api = axios.create({
 })
 
 const RECOMMENDATION_REQUEST_TIMEOUT = 120000
+const unauthorizedListeners = new Set()
+
+export function onUnauthorized(listener) {
+  unauthorizedListeners.add(listener)
+  return () => unauthorizedListeners.delete(listener)
+}
+
+function reportUnauthorized(error) {
+  if (error.response?.status !== 401 || error.config?.url === '/auth/login') return
+  for (const listener of unauthorizedListeners) listener()
+}
 
 // 响应拦截器：兼容后端统一的 envelope 格式 {code, message, data}
 api.interceptors.response.use(
@@ -41,6 +56,7 @@ api.interceptors.response.use(
     return Promise.reject({ httpStatus: response.status, data: envelope })
   },
   (error) => {
+    reportUnauthorized(error)
     if (error.response) {
       const env = error.response.data
       if (env && typeof env.code !== 'undefined') {
@@ -56,6 +72,12 @@ api.interceptors.response.use(
     return Promise.reject({ code: 500, message: '网络错误', data: null })
   }
 )
+
+export const authApi = {
+  getSession: () => api.get('/auth/session'),
+  login: (username, password) => api.post('/auth/login', { username, password }),
+  logout: () => api.post('/auth/logout'),
+}
 
 // 下载源管理（包含设置 Cookie）
 export const sourceApi = {

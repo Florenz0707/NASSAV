@@ -8,7 +8,12 @@ export default defineConfig({
     proxy: {
       '/nassav/api': {
         target: 'http://localhost:9790',
-        changeOrigin: true,
+        changeOrigin: false,
+      },
+      '/nassav/ws': {
+        target: 'ws://localhost:9790',
+        ws: true,
+        changeOrigin: false,
       },
     },
   },

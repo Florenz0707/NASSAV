@@ -298,14 +298,25 @@ pnpm install  # 或 npm install
 #### 启动开发服务器
 
 ```bash
-pnpm dev  # 默认端口 8080
+pnpm dev  # 默认端口 9780
 ```
 
-开发代理已配置：`/nassav` → `http://localhost:8000`
+开发代理已配置：`/nassav/api` 与 `/nassav/ws` → `localhost:9790`
+
+### 创建登录账号
+
+业务 API 与任务 WebSocket 需要单用户 Django 会话。首次迁移后，在 `django_backend/` 执行：
+
+```bash
+uv run python manage.py migrate
+uv run python manage.py createsuperuser --username nassav
+```
+
+`NASSAV_OPERATOR_USERNAME` 可覆盖默认用户名，创建账号时须一致；密码在交互提示中设置。浏览器先登录，再加载资源和连接实时任务。Compose 部署及 HTTPS 代理设置见 [部署说明](django_backend/doc/compose-deployment.md)。
 
 ### 3. 访问应用
 
-打开浏览器访问：<http://localhost:8080>
+打开浏览器访问：<http://localhost:9780>，使用上一步创建的账号登录。
 
 ## 定时任务（Celery Beat）
 

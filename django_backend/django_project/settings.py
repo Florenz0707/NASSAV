@@ -62,6 +62,22 @@ if allowed_hosts_env:
 else:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
+NASSAV_OPERATOR_USERNAME = os.getenv("NASSAV_OPERATOR_USERNAME", "nassav").strip()
+if not NASSAV_OPERATOR_USERNAME:
+    raise RuntimeError("NASSAV_OPERATOR_USERNAME must not be empty")
+
+# Set true behind an HTTPS reverse proxy; local HTTP development keeps it false.
+SECURE_SESSION_COOKIES = str(os.getenv("NASSAV_SECURE_COOKIES", "false")).lower() in (
+    "1",
+    "true",
+    "yes",
+)
+SESSION_COOKIE_SECURE = SECURE_SESSION_COOKIES
+CSRF_COOKIE_SECURE = SECURE_SESSION_COOKIES
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
@@ -269,10 +285,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "nassav.access.OperatorSessionAuthentication",
     ],
+    "DEFAULT_PERMISSION_CLASSES": ["nassav.access.IsOperator"],
     # Use drf-spectacular's AutoSchema for OpenAPI generation
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "UNAUTHENTICATED_USER": None,

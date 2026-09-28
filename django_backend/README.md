@@ -215,6 +215,8 @@ NASSAV_API_HOST=0.0.0.0 NASSAV_API_PORT=8000 uv run nassav-api
 
 #### 启动 Django 服务
 
+业务 API 与任务 WebSocket 均要求 operator 会话。首次 `migrate` 后执行 `uv run python manage.py createsuperuser --username nassav`，交互设置密码；若设置 `NASSAV_OPERATOR_USERNAME`，创建同名账号。浏览器通过 `GET /nassav/api/auth/session` 获取 CSRF cookie 后登录。远程访问的 HTTPS/代理参数见[部署说明](doc/compose-deployment.md)，端点权限见[接口说明](doc/interface.md)。
+
 ### 方式一：使用 ASGI 服务器（推荐，支持 WebSocket）
 
 ```bash
