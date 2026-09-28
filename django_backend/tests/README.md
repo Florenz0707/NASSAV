@@ -19,6 +19,23 @@ BROWSER_FETCH_JABLE_AVID=JUR-466 \
 uv run pytest tests/test_browser_fetch_integration.py -v
 ```
 
+## P0 隔离回归入口
+
+[配置矩阵与样本边界](../../docs/p0-baseline.md)列出 Cookie、设置、资源删除、推荐重置、资源添加/刷新、下载进度、WebSocket 重连和数据库备份的样本。以下命令在 `django_backend/` 下运行；使用无凭证模板与 SQLite 测试库，不连接开发 PostgreSQL。删除及备份样本另用 pytest 临时目录。
+
+```bash
+DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p0-pytest.sqlite3 \
+NASSAV_CONFIG_PATH=config/template-config.yaml \
+uv run pytest tests/test_source_cookie_api.py tests/test_user_settings.py \
+  tests/test_recommendations_demo.py::test_recommendation_reset_endpoint_clears_history_but_preserves_blocklist \
+  tests/test_scrape_jobs.py::test_single_api_returns_202_with_status_capability \
+  tests/test_scrape_jobs.py::test_status_endpoint_returns_snapshot \
+  tests/test_metadata_format.py::test_refresh_resource_preserves_existing_actor_relations_when_scrape_fails \
+  tests/test_p0_regression.py -q
+```
+
+前端任务快照恢复样本：`cd ../vue_frontend && node --test tests/scrapeJobs.test.js`。外站、真实 Worker 与 PostgreSQL 恢复不由上述离线测试覆盖。
+
 ## 测试架构说明
 
 本项目测试已迁移至 **pytest** 框架，使用 fixtures 进行测试数据管理。所有新测试和重构的测试都应遵循 pytest 规范。

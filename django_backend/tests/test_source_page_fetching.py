@@ -55,7 +55,11 @@ def test_jable_detail_and_search_fallback():
     assert result and result[0]["avid"] == "JUR-466"
 
 
-def test_jable_valid_direct_skips_browser():
+def test_jable_valid_direct_skips_browser(settings):
+    settings.SOURCE_CONFIG = {
+        **settings.SOURCE_CONFIG,
+        "jable": {"browser_fetch_strategy": "direct_first"},
+    }
     browser = FakeBrowser("bad")
     source = Jable(page_fetcher=PageFetchService(browser))
     source.fetch_html = Mock(return_value=JABLE_DETAIL)

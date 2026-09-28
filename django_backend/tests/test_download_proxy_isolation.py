@@ -113,6 +113,7 @@ def test_settings_reads_download_proxy_from_config_with_optional_override(
     )
     (config_dir / "config.yaml").write_text(config)
     env = os.environ.copy()
+    env["NASSAV_CONFIG_PATH"] = str(config_dir / "config.yaml")
     env.pop("DOWNLOAD_PROXY_URL", None)
     if override is not None:
         env["DOWNLOAD_PROXY_URL"] = override
