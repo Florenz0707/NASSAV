@@ -455,17 +455,16 @@ WebSocket 支持以下消息类型：
 
 uv run pytest tests/
 
-## 批量翻译脚本
+## 批量翻译与缩略图工具
 
-uv run ./scripts/batch_translate.py --sync --dry-run # 预览
-uv run ./scripts/batch_translate.py --sync --execute # 执行
-uv run ./scripts/batch_translate.py --sync --force # 强制重译
+```bash
+uv run python scripts/batch_translate.py --sync --dry-run  # 预览
+uv run python scripts/batch_translate.py --sync             # 同步执行
+uv run python scripts/batch_translate.py --sync --force     # 强制重译
+uv run python scripts/generate_thumbnails.py               # 生成缩略图
+```
 
-## 修复工具脚本
-
-uv run ./scripts/fix_source_titles.py --stats # 查看统计
-uv run ./scripts/fix_source_titles.py --execute # 修复 source_title 格式
-uv run ./scripts/generate_thumbnails.py # 生成缩略图 4. **串行执行**：确保同一时间只有一个下载任务在执行
+脚本适用范围与已移除的历史迁移入口见[脚本清单](doc/script-inventory.md)。
 
 ### Celery 配置
 

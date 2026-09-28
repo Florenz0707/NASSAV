@@ -1,6 +1,6 @@
 # Scripts 目录说明
 
-本目录包含各种维护和管理脚本。
+本目录包含维护、数据重建和文档生成脚本。各入口的保留理由与历史脚本处置见[脚本清单](../doc/script-inventory.md)。
 
 ## Byparr 固定版本部署
 
@@ -301,19 +301,17 @@ uv run python scripts/match_local_genres_to_jable_tags.py --min-score 0.72 --can
 读取人工整理的 Jable 类别映射 YAML，并将 `high` / `medium` 置信度项写入 `GenreSourceMapping`
 
 ```bash
-# 使用默认映射文件导入
-uv run python scripts/import_jable_genre_mappings.py
+# 仓库未附带人工映射文件，需明确指定实际文件
+uv run python scripts/import_jable_genre_mappings.py --input /path/to/jable_genre_manual_matches.yaml
 
 # 仅预览
-uv run python scripts/import_jable_genre_mappings.py --dry-run
+uv run python scripts/import_jable_genre_mappings.py --input /path/to/jable_genre_manual_matches.yaml --dry-run
 
-# 指定输入文件
-uv run python scripts/import_jable_genre_mappings.py --input doc/jable_genre_manual_matches.yaml
 ```
 
 **功能说明**:
 
-- 读取 `doc/jable_genre_manual_matches.yaml`
+- 读取用户通过 `--input` 提供的人工审核映射文件；仓库不附带默认 YAML
 - 仅导入 `confidence in {"high", "medium"}` 的条目
 - 通过 `update_or_create` 写入 `GenreSourceMapping(source_name="jable")`
 - 自动跳过 `low` 置信度项和数据库中不存在的本地类别
