@@ -101,12 +101,12 @@ pnpm preview
 
 ## 部署说明
 
-本项目为纯前端单页应用（SPA），可作为静态资源部署到任意静态托管环境（Nginx、Apache、OSS/CDN、Vercel、Netlify、GitHub Pages 等）。
+本项目为纯前端单页应用（SPA），部署时需同源代理后端 API 与 WebSocket，以便浏览器会话、CSRF 和 Origin 校验正常工作。
 
 关键点：
 
 - 需开启 HTML5 History 路由回退（所有未命中路径回退到 `index.html`）。
-- 需将前端的 API 前缀 `/nassav` 反向代理到后端服务（默认 `http://localhost:8000`，生产按需替换）。
+- 需将 `/nassav/api/` 与 `/nassav/ws/` 原样反向代理到后端 ASGI；登录前创建与 `NASSAV_OPERATOR_USERNAME` 一致的 Django 账号。HTTPS 页面使用 WSS，代理需保留原始 Host 并覆盖 `X-Forwarded-Proto`。
 
 ### Nginx 示例
 
@@ -125,11 +125,11 @@ server {
 
   # API 反向代理（与开发时保持一致的前缀）
   location /nassav/ {
-    proxy_pass http://127.0.0.1:8000/;  # 替换为你的后端地址
+    proxy_pass http://127.0.0.1:9790;  # 保留 /nassav 前缀
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -141,13 +141,13 @@ server {
 
 - 将 `dist/` 作为发布目录。
 - 设置单页应用重写规则（将所有路径重写到 `/index.html`）。
-- 若平台支持反向代理/重写，将 `/nassav` 指向后端服务；若不支持，可改为由后端允许跨域（CORS），并在前端将 API 基址改为后端直连地址。
+- 平台需支持 `/nassav/api/` 与 `/nassav/ws/` 的同源代理及 WebSocket Upgrade；纯静态托管且不能代理时，应另设同源网关。
 
 ## 配置与约定
 
 - 开发代理与别名：见 [vite.config.js](vite.config.js)
-  - `server.port = 8080`
-  - `server.proxy['/nassav'] -> http://localhost:8000`
+  - `server.port = 9780`
+  - `server.proxy['/nassav/api']` 和 `server.proxy['/nassav/ws']` → `localhost:9790`
   - `resolve.alias['@'] = '/src'`
 - 主要代码结构：
   - 视图：`src/views/`（首页、资源库、演员库、类别库、详情、添加、下载）
@@ -161,9 +161,9 @@ server {
 - 生产环境 404（刷新页面丢失）
   - 需配置 SPA 回退到 `index.html`（见上方 Nginx 配置）。
 - 接口 404 或跨域
-  - 确认生产反向代理 `/nassav` 指向正确后端；或开启后端 CORS 并调整前端 API 地址。
+  - 确认生产反向代理 `/nassav` 指向正确后端；并检查 Host、CSRF_TRUSTED_ORIGINS 和 WebSocket Upgrade。
 - 端口冲突（开发）
-  - 修改 [vite.config.js](vite.config.js) 中的 `server.port`，或释放 8080 端口。
+  - 修改 [vite.config.js](vite.config.js) 中的 `server.port`，或释放 9780 端口。
 
 ## 异步资源任务反馈
 
@@ -172,5 +172,5 @@ server {
 前端任务状态测试：
 
 ```bash
-node --test tests/scrapeJobs.test.js
+pnpm run test
 ```

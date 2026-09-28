@@ -12,6 +12,24 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ---
 
+## 访问与会话（P1）
+
+目标为经同源 HTTPS 反向代理访问的单用户会话。`NASSAV_OPERATOR_USERNAME` 指定唯一可访问业务数据的 Django 账号（默认 `nassav`）；账号必须处于启用状态。浏览器先调用公开的会话接口取得 CSRF cookie，再以该账号登录。所有 `/nassav/api/` 业务端点统一要求此账号的有效 session；匿名请求返回 HTTP 401，其他账号返回 HTTP 403。跨站请求不开放 CORS。
+
+| 访问级别 | 端点                                                                                             | 规则                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| 公开     | `GET /nassav/api/auth/session`                                                                   | 返回 `data.authenticated`、`data.username`（匿名时为 `null`），并签发 CSRF cookie；无敏感数据 |
+| 公开写入 | `POST /nassav/api/auth/login`                                                                    | JSON `{"username":"…","password":"…"}`；需要 CSRF；仅配置的账号可登录业务应用                 |
+| 登录写入 | `POST /nassav/api/auth/logout`                                                                   | 需要 operator session 与 CSRF；注销后旧 session 不能再读写或接收任务事件                      |
+| 登录可读 | `/nassav/api/` 下所有业务 GET，包括 Cookie、设置、资源、推荐、下载及任务状态                     | 只允许 operator；抓取任务 `GET /resource/jobs/{task_id}` 仍额外要求 `X-Resource-Job-Token`    |
+| 登录可写 | `/nassav/api/` 下所有业务 POST/PUT/PATCH/DELETE，包括 Cookie、设置、资源删除、推荐重置与任务提交 | 只允许 operator，并通过 Django SessionAuthentication 验证 CSRF                                |
+| 登录实时 | `WS /nassav/ws/tasks/`                                                                           | 握手前验证合法 Host、同源 Origin 和 operator session；注销或过期后不再发送事件                |
+| 仅内部   | `GET /healthz`                                                                                   | 仅 Compose 内部探针；网关不转发                                                               |
+
+会话接口响应使用本页统一 envelope。登录错误为 401，CSRF 或 Origin 校验失败为 403。浏览器请求需带 session cookie，写请求需带 `X-CSRFToken`；前端 Axios 自动处理。WebSocket 使用页面的 `ws://` 或 `wss://` 同源地址，不能使用跨站 Origin。代理必须保留原始 Host（含非标准端口）并传入可信的 `X-Forwarded-Proto`；Django `ALLOWED_HOSTS` 只校验 Host，不替代身份验证。
+
+---
+
 ## 内部健康检查
 
 `GET /healthz` 检查 SQLite 与 Redis，返回 `{"status":"ok"}` 或 HTTP 503 的 `{"status":"unavailable"}`。此端点仅用于 Compose 内部就绪检查；网关不转发它，也不代表外部抓取源可用。
@@ -1266,4 +1284,4 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 
 快照字段为 `task_id`、`job_type=scrape`、`action`、`avid`、`state`、`stage`、`version`、`updated_at`、`resource_avid`、`error_code`、`message`。状态顺序为 `queued → running → succeeded|failed`；运行阶段按实际执行进入 `source_lookup`、`metadata`、`cover`、`saving`、`translation_queued`。无总工作量时不提供百分比。前端应在入队后先查快照，按 `version` 忽略旧事件；成功后再重新查询资源。`scrape_job_update` WebSocket 事件仅含任务 ID、类型、状态、阶段、版本和更新时间；完整快照需凭令牌查询。
 
-资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前入口供受限的单用户部署使用；公开部署前仍需落实网关访问控制和 WebSocket 订阅隔离。
+资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前业务接口和任务 WebSocket 均要求 operator session；任务快照还要求独立签名令牌。远程部署必须使用同源 HTTPS 代理。

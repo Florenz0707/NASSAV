@@ -85,19 +85,51 @@ def genre_factory(db):
 
 
 @pytest.fixture
-def api_client():
-    """返回 DRF 的 APIClient 实例"""
-    from rest_framework.test import APIClient
-
-    return APIClient()
+def operator_user(db, django_user_model, settings):
+    """An isolated account matching the configured single operator."""
+    return django_user_model.objects.create_user(
+        username=settings.NASSAV_OPERATOR_USERNAME,
+        password="p0-p1-test-only-password",
+    )
 
 
 @pytest.fixture
-def client(db):
-    """返回 Django test client（用于渐进式迁移）"""
+def api_client(operator_user):
+    """Authenticated DRF client for existing business behavior tests."""
+    from rest_framework.test import APIClient
+
+    test_client = APIClient()
+    test_client.force_login(operator_user)
+    return test_client
+
+
+@pytest.fixture
+def client(operator_user):
+    """Authenticated Django client for existing business behavior tests."""
     from django.test import Client
 
-    return Client()
+    test_client = Client()
+    test_client.force_login(operator_user)
+    return test_client
+
+
+@pytest.fixture
+def ws_headers(client, settings):
+    """Same-origin WebSocket headers carrying the test operator session."""
+    from django.conf import settings
+
+    settings.CHANNEL_LAYERS = {
+        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+    }
+    session_cookie = settings.SESSION_COOKIE_NAME
+    return [
+        (b"host", b"localhost"),
+        (b"origin", b"http://localhost"),
+        (
+            b"cookie",
+            f"{session_cookie}={client.cookies[session_cookie].value}".encode(),
+        ),
+    ]
 
 
 @pytest.fixture

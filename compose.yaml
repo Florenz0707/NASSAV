@@ -10,6 +10,8 @@ x-backend: &backend
     DEBUG: 'false'
     ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,api}
     CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+    NASSAV_OPERATOR_USERNAME: ${NASSAV_OPERATOR_USERNAME:-nassav}
+    NASSAV_SECURE_COOKIES: ${NASSAV_SECURE_COOKIES:-false}
     REDIS_URL: redis://redis:6379/0
     DATABASE_PATH: /app/data/db/db.sqlite3
     VIDEO_HOST_DIR: ${NASSAV_VIDEO_HOST_DIR:?Set the absolute host path to the video directory}

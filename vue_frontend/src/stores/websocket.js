@@ -4,6 +4,7 @@ import { resourceApi } from '../api'
 import { useSettingsStore } from './settings'
 import { useToastStore } from './toast'
 import { useResourceStore } from './resource'
+import { useSessionStore } from './session'
 
 export const useWebSocketStore = defineStore('websocket', () => {
   const ws = ref(null)
@@ -11,6 +12,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
   const connectionFailed = ref(false) // 标记是否发生过连接失败或超时
   const reconnectTimer = ref(null)
   const connectionTimer = ref(null)
+  const shouldReconnect = ref(false)
 
   const WS_RECONNECT_INTERVAL = 3000 // WebSocket 重连间隔
   const WS_CONNECTION_TIMEOUT = 5000 // WebSocket 连接超时时间
@@ -28,6 +30,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   // 连接 WebSocket
   function connect() {
+    if (useSessionStore().status !== 'authenticated') return
+    shouldReconnect.value = true
     // 如果已连接，不重复连接
     if (ws.value && connected.value) {
       return
@@ -39,28 +43,21 @@ export const useWebSocketStore = defineStore('websocket', () => {
       ws.value = null
     }
 
-    // 构建 WebSocket URL
-    // 开发环境直接连接后端，生产环境使用当前域名
-    let wsUrl
-    if (import.meta.env.DEV) {
-      // 开发环境：直接连接后端服务
-      wsUrl = 'ws://localhost:9790/nassav/ws/tasks/'
-    } else {
-      // 生产环境：使用当前域名
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      wsUrl = `${protocol}//${window.location.host}/nassav/ws/tasks/`
-    }
+    // Use the page origin so the browser sends the same session cookie.
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/nassav/ws/tasks/`
 
     console.log('[WebSocket] 正在连接:', wsUrl)
 
     try {
-      ws.value = new WebSocket(wsUrl)
+      const socket = new WebSocket(wsUrl)
+      ws.value = socket
 
       // 设置连接超时
       connectionTimer.value = setTimeout(() => {
-        if (ws.value && ws.value.readyState === WebSocket.CONNECTING) {
+        if (ws.value === socket && socket.readyState === WebSocket.CONNECTING) {
           console.warn('[WebSocket] 连接超时，关闭连接')
-          ws.value.close()
+          socket.close()
           ws.value = null
           connected.value = false
           connectionFailed.value = true // 标记连接失败
@@ -68,7 +65,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
         }
       }, WS_CONNECTION_TIMEOUT)
 
-      ws.value.onopen = () => {
+      socket.onopen = () => {
+        if (ws.value !== socket) return
         console.log('[WebSocket] 连接成功')
         connected.value = true
         useResourceStore().refreshPendingScrapeJobs()
@@ -84,7 +82,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
         }
       }
 
-      ws.value.onmessage = (event) => {
+      socket.onmessage = (event) => {
+        if (ws.value !== socket) return
         try {
           const message = JSON.parse(event.data)
           handleMessage(message)
@@ -93,7 +92,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
         }
       }
 
-      ws.value.onclose = (event) => {
+      socket.onclose = (event) => {
+        if (ws.value !== socket) return
         console.log('[WebSocket] 连接关闭:', event.code, event.reason)
         connected.value = false
         connectionFailed.value = true // 标记连接失败
@@ -103,11 +103,18 @@ export const useWebSocketStore = defineStore('websocket', () => {
           clearTimeout(connectionTimer.value)
           connectionTimer.value = null
         }
-        // 尝试重连
-        scheduleReconnect()
+        if (event.code === 4401) {
+          shouldReconnect.value = false
+          useSessionStore().expire()
+        } else if (event.code === 4403) {
+          shouldReconnect.value = false
+        } else {
+          scheduleReconnect()
+        }
       }
 
-      ws.value.onerror = (error) => {
+      socket.onerror = (error) => {
+        if (ws.value !== socket) return
         console.error('[WebSocket] 错误:', error)
         connected.value = false
         connectionFailed.value = true // 标记连接失败
@@ -133,6 +140,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   // 断开 WebSocket
   function disconnect() {
+    shouldReconnect.value = false
     if (connectionTimer.value) {
       clearTimeout(connectionTimer.value)
       connectionTimer.value = null
@@ -154,6 +162,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   // 计划 WebSocket 重连
   function scheduleReconnect() {
+    if (!shouldReconnect.value || useSessionStore().status !== 'authenticated') return
     if (reconnectTimer.value) {
       return // 已有重连计划
     }

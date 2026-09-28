@@ -1,9 +1,13 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useSessionStore } from '../stores/session'
+import { useToastStore } from '../stores/toast'
 
 const route = useRoute()
 const router = useRouter()
+const sessionStore = useSessionStore()
+const toastStore = useToastStore()
 const showResourcesMenu = ref(false)
 const showMobileMenu = ref(false)
 const scrolled = ref(false)
@@ -30,6 +34,14 @@ const isResourcesActive = () => {
 
 const goToResources = () => {
   router.push('/resources')
+}
+
+async function handleLogout() {
+  try {
+    await sessionStore.signOut()
+  } catch {
+    toastStore.error('退出失败，请重试')
+  }
 }
 
 function handleKeydown(e) {
@@ -297,6 +309,23 @@ watch(
           </svg>
           <span class="nav-label">设置</span>
         </RouterLink>
+        <button type="button" class="nav-item" aria-label="退出登录" @click="handleLogout">
+          <svg
+            class="nav-icon"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M8 4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3M12 6l4 4-4 4M16 10H7"
+            />
+          </svg>
+          <span class="nav-label">退出</span>
+        </button>
       </div>
 
       <!-- Hamburger button (mobile only) -->
@@ -471,6 +500,23 @@ watch(
         </svg>
         设置
       </RouterLink>
+      <button type="button" class="mobile-nav-item" @click="handleLogout">
+        <svg
+          class="nav-icon"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M8 4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3M12 6l4 4-4 4M16 10H7"
+          />
+        </svg>
+        退出登录
+      </button>
     </div>
   </nav>
 </template>

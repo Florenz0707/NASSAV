@@ -66,7 +66,8 @@ def test_download_progress_round_trip_uses_fake_redis(monkeypatch):
     assert tasks.get_task_progress("P0-1")["eta"] == "00:10"
 
 
-def test_websocket_reconnect_receives_new_events(monkeypatch, settings):
+@pytest.mark.django_db(transaction=True)
+def test_websocket_reconnect_receives_new_events(monkeypatch, settings, ws_headers):
     settings.CHANNEL_LAYERS = {
         "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
     }
@@ -78,7 +79,9 @@ def test_websocket_reconnect_receives_new_events(monkeypatch, settings):
 
     async def run():
         for version in (1, 2):
-            communicator = WebsocketCommunicator(application, "/nassav/ws/tasks/")
+            communicator = WebsocketCommunicator(
+                application, "/nassav/ws/tasks/", headers=ws_headers
+            )
             connected, _ = await communicator.connect()
             assert connected
             await communicator.receive_json_from()

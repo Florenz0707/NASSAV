@@ -1,47 +1,61 @@
-"""
-WebSocket consumers for real-time task notifications
-"""
+"""Authenticated task update WebSocket consumer."""
 
 import asyncio
 import json
 
-from asgiref.sync import async_to_sync
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
+from django.contrib.sessions.models import Session
+from django.utils import timezone
+from asgiref.sync import async_to_sync
 from loguru import logger
+
+from .access import is_operator
 
 
 class TaskConsumer(AsyncWebsocketConsumer):
-    """
-    WebSocket consumer for task status updates
-
-    Frontend can connect to this consumer to receive real-time updates
-    about task queue status and task completion notifications.
-    """
+    """Send task updates only while the operator's session remains active."""
 
     async def connect(self):
-        """Handle WebSocket connection"""
-        # Join task status group
+        self._joined = False
+        self._initial_status_task = None
+        session = self.scope.get("session")
+        self._session_key = session.session_key if session else None
+        if not self._session_key or not await database_sync_to_async(is_operator)(
+            self.scope.get("user")
+        ):
+            await self.close(code=4401)
+            return
+        if not await self._session_active():
+            await self.close(code=4401)
+            return
         await self.channel_layer.group_add("task_updates", self.channel_name)
-
+        self._joined = True
         await self.accept()
-
-        # Celery inspect is synchronous and can take seconds. Let the handshake
-        # finish before fetching the initial snapshot in a worker thread.
         self._initial_status_task = asyncio.create_task(self._send_queue_status())
 
     async def disconnect(self, close_code):
-        """Handle WebSocket disconnection"""
-        # Leave task status group
         if self._initial_status_task and not self._initial_status_task.done():
             self._initial_status_task.cancel()
-        await self.channel_layer.group_discard("task_updates", self.channel_name)
+        if self._joined:
+            await self.channel_layer.group_discard("task_updates", self.channel_name)
+
+    @database_sync_to_async
+    def _session_active(self):
+        return Session.objects.filter(
+            session_key=self._session_key, expire_date__gt=timezone.now()
+        ).exists()
+
+    async def _require_session(self):
+        if await self._session_active():
+            return True
+        await self.close(code=4401)
+        return False
 
     async def receive(self, text_data):
-        """
-        Handle messages from WebSocket (if needed)
-        Currently just returns current queue status
-        """
+        if not await self._require_session():
+            return
         try:
             data = json.loads(text_data)
             if data.get("action") == "get_queue_status":
@@ -55,33 +69,29 @@ class TaskConsumer(AsyncWebsocketConsumer):
         from .tasks import get_task_queue_status
 
         try:
+            if not await self._require_session():
+                return
             queue_status = await asyncio.to_thread(get_task_queue_status)
-            await self.send(
-                text_data=json.dumps({"type": "queue_status", "data": queue_status})
-            )
+            if await self._require_session():
+                await self.send(
+                    text_data=json.dumps({"type": "queue_status", "data": queue_status})
+                )
         except asyncio.CancelledError:
             raise
         except Exception:
             logger.exception("获取 WebSocket 任务队列状态失败")
 
     async def task_update(self, event):
-        """
-        Handle task update messages from channel layer
-        Called when a task status changes
-        """
-        await self.send(
-            text_data=json.dumps({"type": event["update_type"], "data": event["data"]})
-        )
+        if await self._require_session():
+            await self.send(
+                text_data=json.dumps(
+                    {"type": event["update_type"], "data": event["data"]}
+                )
+            )
 
 
 def send_task_update(update_type: str, data: dict):
-    """
-    Send task update to all connected WebSocket clients
-
-    Args:
-        update_type: Type of update ('task_started', 'task_completed', 'task_failed', 'queue_status')
-        data: Task data to send
-    """
+    """Send a task event to connected operator sessions."""
     channel_layer = get_channel_layer()
     if channel_layer:
         async_to_sync(channel_layer.group_send)(
