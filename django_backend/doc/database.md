@@ -210,7 +210,8 @@ Database:
   - 前端通过禁用浏览器缓存的HTTP headers确保获取最新的 `metadata_updated_at` 值。
 
 - 删除资源（API/视图）:
-  - 删除磁盘上的封面/MP4 后，会尝试更新 `AVResource`：将 `file_exists=False`、`file_size=None`、`video_saved_at=None`。元数据（JSON）默认保留，除非明确发起数据库删除操作。
+  - `DELETE /resource/{avid}` 和批量 `delete` / `delete-all` 共用完整删除操作：删除封面、缩略图、MP4、备份目录和 `AVResource` 行。纯数据库行或纯文件仍可删除；文件步骤失败不会删除数据库行，数据库步骤失败可重试。
+  - `DELETE /downloads/{avid}` 和批量 `delete-video` 仅删除 MP4，并将 `file_exists=False`、`file_size=None`、`video_saved_at=None`；元数据保留。文件已删除但数据库更新失败时可重试清除状态。
 
 - 推荐请求完成（RecommenderManager）:
   - 执行推荐前会根据：

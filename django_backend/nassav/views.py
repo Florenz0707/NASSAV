@@ -15,6 +15,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .api_utils import build_response
+from .legacy_batch import legacy_add_operation, legacy_refresh_operation
+from .resource_deletion import (
+    InvalidResourceIdentifier,
+    ResourceDeletionFailure,
+    resource_deletion_service,
+)
 from .external_search import external_search_service
 from .serializers import (
     NewResourceSerializer,
@@ -1615,38 +1621,36 @@ class DownloadView(SchemaAPIView):
         )
 
     def delete(self, request, avid):
-        """
-        DELETE /api/downloads/{avid}
-        删除已下载的视频文件
-        """
-        avid = avid.upper()
-        from pathlib import Path
-
-        mp4_path = Path(settings.VIDEO_DIR) / f"{avid}.mp4"
-
-        if not mp4_path.exists():
-            return build_response(404, f"视频 {avid} 不存在", None)
-
+        """DELETE /api/downloads/{avid}: remove MP4 and clear database state."""
+        _ = request
         try:
-            file_size = mp4_path.stat().st_size
-            mp4_path.unlink()
-            try:
-                from nassav.models import AVResource
-
-                AVResource.objects.filter(avid=avid).update(
-                    file_exists=False, file_size=None, video_saved_at=None
-                )
-            except Exception as e:
-                logger.warning(f"删除 mp4 后更新 DB 失败: {e}")
-            logger.info(f"已删除视频: {avid}")
+            result = resource_deletion_service.delete_video(avid)
+        except InvalidResourceIdentifier:
+            return build_response(400, "avid 无效", None)
+        except ResourceDeletionFailure as exc:
             return build_response(
-                200,
-                "success",
-                {"avid": avid, "deleted_file": f"{avid}.mp4", "file_size": file_size},
+                500,
+                "删除未完成，请重试",
+                {
+                    "avid": avid.upper(),
+                    "failed_stage": exc.stage,
+                    "retryable": True,
+                    "deleted_files": list(exc.deleted_files),
+                },
             )
-        except Exception as e:
-            logger.error(f"删除视频失败: {e}")
-            return build_response(500, f"删除失败: {str(e)}", None)
+        if not result.found:
+            return build_response(404, f"视频 {avid.upper()} 不存在", None)
+        return build_response(
+            200,
+            "success",
+            {
+                "avid": avid.upper(),
+                "deleted_file": result.deleted_files[0]
+                if result.deleted_files
+                else None,
+                "file_size": result.file_size,
+            },
+        )
 
 
 class RefreshResourceView(SchemaAPIView):
@@ -1752,106 +1756,35 @@ class DeleteResourceView(SchemaAPIView):
     """
 
     def delete(self, request, avid):
-        import shutil
-
-        avid = avid.upper()
-        from pathlib import Path
-
-        cover_root = Path(settings.COVER_DIR)
-        video_root = Path(settings.VIDEO_DIR)
-        backup_root = Path(
-            getattr(
-                settings,
-                "RESOURCE_BACKUP_DIR",
-                Path(settings.BASE_DIR) / "resource_backup",
-            )
-        )
-        thumbnail_root = Path(
-            getattr(settings, "THUMBNAIL_DIR", cover_root / "thumbnails")
-        )
-
-        cover_candidates = []
-        for ext in [".jpg", ".jpeg", ".png", ".webp"]:
-            p = cover_root / f"{avid}{ext}"
-            if p.exists():
-                cover_candidates.append(p)
-
-        # 收集所有尺寸的缩略图
-        thumbnail_candidates = []
-        for size in ["small", "medium", "large"]:
-            thumb_path = thumbnail_root / size / f"{avid}.jpg"
-            if thumb_path.exists():
-                thumbnail_candidates.append(thumb_path)
-
-        mp4_path = video_root / f"{avid}.mp4"
-        backup_dir = backup_root / avid
-
-        if (
-            not cover_candidates
-            and not thumbnail_candidates
-            and not mp4_path.exists()
-            and not backup_dir.exists()
-        ):
-            return build_response(404, f"资源 {avid} 不存在", None)
-
+        _ = request
         try:
-            deleted_files = []
-            for p in cover_candidates:
-                deleted_files.append(p.name)
-                try:
-                    p.unlink()
-                except Exception:
-                    pass
-
-            # 删除所有尺寸的缩略图
-            for p in thumbnail_candidates:
-                deleted_files.append(f"thumbnail/{p.parent.name}/{p.name}")
-                try:
-                    p.unlink()
-                except Exception:
-                    pass
-
-            if mp4_path.exists():
-                deleted_files.append(mp4_path.name)
-                try:
-                    mp4_path.unlink()
-                except Exception:
-                    pass
-
-            # 删除备份旧目录（若存在）
-            if backup_dir.exists():
-                try:
-                    for f in backup_dir.iterdir():
-                        deleted_files.append(f.name)
-                    shutil.rmtree(backup_dir)
-                except Exception:
-                    pass
-
-            # 同步删除数据库中的记录（若存在）；在删除前尝试序列化对象以便返回
-            resource_data = None
-            try:
-                from nassav.models import AVResource
-
-                resource_obj = AVResource.objects.filter(avid=avid).first()
-                if resource_obj:
-                    resource_data = _serialize_resource_obj(resource_obj)
-                AVResource.objects.filter(avid=avid).delete()
-            except Exception as e:
-                logger.warning(f"删除数据库记录失败: {e}")
-
-            logger.info(f"已删除资源: {avid}")
+            result = resource_deletion_service.delete_resource(
+                avid, serialize=_serialize_resource_obj
+            )
+        except InvalidResourceIdentifier:
+            return build_response(400, "avid 无效", None)
+        except ResourceDeletionFailure as exc:
             return build_response(
-                200,
-                "success",
+                500,
+                "删除未完成，请重试",
                 {
-                    "resource": resource_data,
-                    "avid": avid,
-                    "deleted_files": deleted_files,
+                    "avid": avid.upper(),
+                    "deleted_files": list(exc.deleted_files),
+                    "failed_stage": exc.stage,
+                    "retryable": True,
                 },
             )
-        except Exception as e:
-            logger.error(f"删除资源失败: {e}")
-            return build_response(500, f"删除失败: {str(e)}", None)
+        if not result.found:
+            return build_response(404, f"资源 {avid.upper()} 不存在", None)
+        return build_response(
+            200,
+            "success",
+            {
+                "resource": result.resource,
+                "avid": avid.upper(),
+                "deleted_files": list(result.deleted_files),
+            },
+        )
 
 
 class TaskQueueStatusView(SchemaAPIView):
@@ -1901,15 +1834,26 @@ class ResourcesBatchView(SchemaAPIView):
     """
 
     def post(self, request):
-        import time
-
         data = request.data or {}
         actions = data.get("actions") or []
         results = []
 
         for act in actions:
-            action = (act.get("action") or "").lower()
-            avid = (act.get("avid") or "").upper()
+            if not isinstance(act, dict):
+                results.append(
+                    {
+                        "action": None,
+                        "avid": None,
+                        "code": 400,
+                        "message": "操作无效",
+                        "resource": None,
+                    }
+                )
+                continue
+            raw_action = act.get("action")
+            raw_avid = act.get("avid")
+            action = raw_action.lower() if isinstance(raw_action, str) else ""
+            avid = raw_avid.upper() if isinstance(raw_avid, str) else ""
             if not avid:
                 results.append(
                     {
@@ -1924,119 +1868,42 @@ class ResourcesBatchView(SchemaAPIView):
 
             try:
                 if action == "add":
-                    # 先检查资源是否已存在
-                    from nassav.models import AVResource
+                    results.append(
+                        legacy_add_operation.execute(avid, act, _serialize_resource_obj)
+                    )
 
-                    existing_resource = AVResource.objects.filter(avid=avid).first()
-
-                    if existing_resource:
-                        # 资源已存在，返回现有数据
-                        resource_data = _serialize_resource_obj(existing_resource)
+                elif action == "delete-video":
+                    try:
+                        deletion = resource_deletion_service.delete_video(avid)
+                    except InvalidResourceIdentifier:
                         results.append(
                             {
-                                "action": "add",
+                                "action": action,
                                 "avid": avid,
-                                "code": 200,
-                                "message": "already exists",
-                                "resource": resource_data,
+                                "code": 400,
+                                "message": "avid 无效",
+                                "resource": None,
                             }
                         )
                         continue
-
-                    # 资源不存在，执行添加操作
-                    source = (act.get("source") or "any").lower()
-                    time.sleep(2)
-
-                    # 使用ResourceService添加资源
-                    try:
-                        from nassav.resource_service import (
-                            ResourceAccessDeniedError,
-                            ResourceAlreadyExistsError,
-                            ResourceFetchError,
-                            ResourceNotFoundError,
-                            resource_service,
-                        )
-
-                        result = resource_service.add_resource(avid, source)
+                    except ResourceDeletionFailure as exc:
                         results.append(
                             {
-                                "action": "add",
-                                "avid": avid,
-                                "code": 201,
-                                "message": "created",
-                                "resource": result["resource"],
-                            }
-                        )
-
-                    except ResourceAlreadyExistsError as e:
-                        # 资源已存在(理论上不应该到这里,因为前面已经检查过)
-                        results.append(
-                            {
-                                "action": "add",
-                                "avid": avid,
-                                "code": 200,
-                                "message": "already exists",
-                                "resource": e.resource_data,
-                            }
-                        )
-
-                    except ResourceNotFoundError as e:
-                        results.append(
-                            {
-                                "action": "add",
-                                "avid": avid,
-                                "code": 404,
-                                "message": str(e),
-                                "resource": None,
-                            }
-                        )
-
-                    except ResourceAccessDeniedError as e:
-                        results.append(
-                            {
-                                "action": "add",
-                                "avid": avid,
-                                "code": 403,
-                                "message": str(e),
-                                "resource": None,
-                            }
-                        )
-
-                    except ResourceFetchError as e:
-                        results.append(
-                            {
-                                "action": "add",
-                                "avid": avid,
-                                "code": 502,
-                                "message": str(e),
-                                "resource": None,
-                            }
-                        )
-
-                    except Exception as e:
-                        logger.error(
-                            f"批量添加资源失败: {avid}, 错误: {e}", exc_info=True
-                        )
-                        results.append(
-                            {
-                                "action": "add",
+                                "action": action,
                                 "avid": avid,
                                 "code": 500,
-                                "message": f"服务器内部错误: {str(e)}",
+                                "message": "删除未完成，请重试",
                                 "resource": None,
+                                "failed_stage": exc.stage,
+                                "retryable": True,
+                                "deleted_files": list(exc.deleted_files),
                             }
                         )
-
-                elif action == "delete-video":
-                    # 只删除视频文件，保留元数据
-                    from pathlib import Path
-
-                    mp4_path = Path(settings.VIDEO_DIR) / f"{avid}.mp4"
-
-                    if not mp4_path.exists():
+                        continue
+                    if not deletion.found:
                         results.append(
                             {
-                                "action": "delete-video",
+                                "action": action,
                                 "avid": avid,
                                 "code": 404,
                                 "message": "视频不存在",
@@ -2044,69 +1911,50 @@ class ResourcesBatchView(SchemaAPIView):
                             }
                         )
                         continue
+                    results.append(
+                        {
+                            "action": action,
+                            "avid": avid,
+                            "code": 200,
+                            "message": "视频已删除",
+                            "deleted_file": deletion.deleted_files[0]
+                            if deletion.deleted_files
+                            else None,
+                            "file_size": deletion.file_size,
+                        }
+                    )
 
+                elif action in ["delete", "delete-all"]:
                     try:
-                        file_size = mp4_path.stat().st_size
-                        mp4_path.unlink()
-                        logger.info(f"已删除视频: {avid}")
-                        # 更新数据库记录，标记视频不存在
-                        from nassav.models import AVResource
-
-                        AVResource.objects.filter(avid=avid).update(
-                            file_exists=False, file_size=None, video_saved_at=None
+                        deletion = resource_deletion_service.delete_resource(
+                            avid, serialize=_serialize_resource_obj
                         )
-                        logger.info(f"已删除视频: {avid}")
+                    except InvalidResourceIdentifier:
                         results.append(
                             {
-                                "action": "delete-video",
+                                "action": action,
                                 "avid": avid,
-                                "code": 200,
-                                "message": "视频已删除",
-                                "deleted_file": f"{avid}.mp4",
-                                "file_size": file_size,
-                            }
-                        )
-                    except Exception as e:
-                        logger.error(f"删除视频失败: {e}")
-                        results.append(
-                            {
-                                "action": "delete-video",
-                                "avid": avid,
-                                "code": 500,
-                                "message": f"删除失败: {str(e)}",
+                                "code": 400,
+                                "message": "avid 无效",
                                 "resource": None,
                             }
                         )
-
-                elif action in ["delete", "delete-all"]:
-                    # 删除全部数据（视频+元数据+封面+备份）
-                    import shutil
-                    from pathlib import Path
-
-                    cover_root = Path(settings.COVER_DIR)
-                    video_root = Path(settings.VIDEO_DIR)
-                    backup_root = Path(
-                        getattr(
-                            settings,
-                            "RESOURCE_BACKUP_DIR",
-                            Path(settings.BASE_DIR) / "resource_backup",
+                        continue
+                    except ResourceDeletionFailure as exc:
+                        results.append(
+                            {
+                                "action": action,
+                                "avid": avid,
+                                "code": 500,
+                                "message": "删除未完成，请重试",
+                                "resource": None,
+                                "failed_stage": exc.stage,
+                                "retryable": True,
+                                "deleted_files": list(exc.deleted_files),
+                            }
                         )
-                    )
-
-                    cover_candidates = []
-                    for ext in [".jpg", ".jpeg", ".png", ".webp"]:
-                        p = cover_root / f"{avid}{ext}"
-                        if p.exists():
-                            cover_candidates.append(p)
-
-                    mp4_path = video_root / f"{avid}.mp4"
-                    backup_dir = backup_root / avid
-
-                    if (
-                        not cover_candidates
-                        and not mp4_path.exists()
-                        and not backup_dir.exists()
-                    ):
+                        continue
+                    if not deletion.found:
                         results.append(
                             {
                                 "action": action,
@@ -2117,172 +1965,23 @@ class ResourcesBatchView(SchemaAPIView):
                             }
                         )
                         continue
-
-                    deleted_files = []
-                    for p in cover_candidates:
-                        deleted_files.append(p.name)
-                        try:
-                            p.unlink()
-                            logger.info(f"已删除封面: {p.name}")
-                        except Exception:
-                            pass
-
-                    if mp4_path.exists():
-                        deleted_files.append(mp4_path.name)
-                        logger.info(f"已删除视频: {mp4_path.name}")
-                        try:
-                            mp4_path.unlink()
-                        except Exception:
-                            pass
-
-                    if backup_dir.exists():
-                        try:
-                            for f in backup_dir.iterdir():
-                                deleted_files.append(f.name)
-                            shutil.rmtree(backup_dir)
-                        except Exception:
-                            pass
-
-                    # serialize and delete DB record
-                    from nassav.models import AVResource
-
-                    resource_data = None
-                    try:
-                        resource_obj = AVResource.objects.filter(avid=avid).first()
-                        if resource_obj:
-                            resource_data = _serialize_resource_obj(resource_obj)
-                        AVResource.objects.filter(avid=avid).delete()
-                    except Exception:
-                        pass
-
                     results.append(
                         {
                             "action": action,
                             "avid": avid,
                             "code": 200,
                             "message": "已删除全部数据",
-                            "resource": resource_data,
-                            "deleted_files": deleted_files,
+                            "resource": deletion.resource,
+                            "deleted_files": list(deletion.deleted_files),
                         }
                     )
 
                 elif action == "refresh":
-                    # 支持细粒度刷新参数
-                    from nassav.models import AVResource
-
-                    resource = AVResource.objects.filter(avid=avid).first()
-                    if not resource:
-                        results.append(
-                            {
-                                "action": "refresh",
-                                "avid": avid,
-                                "code": 404,
-                                "message": "资源不存在",
-                                "resource": None,
-                            }
+                    results.append(
+                        legacy_refresh_operation.execute(
+                            avid, act, _serialize_resource_obj
                         )
-                        continue
-                    source = resource.source or ""
-                    if not source:
-                        results.append(
-                            {
-                                "action": "refresh",
-                                "avid": avid,
-                                "code": 400,
-                                "message": "没有 source 信息",
-                                "resource": None,
-                            }
-                        )
-                        continue
-
-                    # 解析细粒度参数
-                    refresh_m3u8 = act.get("refresh_m3u8", True)
-                    refresh_metadata = act.get("refresh_metadata", True)
-                    retranslate = act.get("retranslate", False)
-
-                    refresh_info = {}
-
-                    # 刷新元数据和/或 m3u8
-                    if refresh_metadata or refresh_m3u8:
-                        try:
-                            from nassav.resource_service import (
-                                ResourceNotFoundError,
-                                resource_service,
-                            )
-
-                            refresh_result = resource_service.refresh_resource(
-                                avid,
-                                scrape=refresh_metadata,
-                                download_cover=refresh_metadata,
-                            )
-
-                            refresh_info["metadata_refreshed"] = refresh_metadata
-                            refresh_info["m3u8_refreshed"] = refresh_m3u8
-                            refresh_info["cover_saved"] = refresh_result["cover_saved"]
-                            refresh_info["metadata_saved"] = refresh_result[
-                                "metadata_saved"
-                            ]
-                            refresh_info["scraped"] = refresh_result.get(
-                                "scraped", False
-                            )
-
-                        except ResourceNotFoundError as e:
-                            results.append(
-                                {
-                                    "action": "refresh",
-                                    "avid": avid,
-                                    "code": 404,
-                                    "message": str(e),
-                                    "resource": None,
-                                }
-                            )
-                            continue
-
-                        except Exception as e:
-                            logger.error(
-                                f"批量刷新资源失败: {avid}, 错误: {e}", exc_info=True
-                            )
-                            results.append(
-                                {
-                                    "action": "refresh",
-                                    "avid": avid,
-                                    "code": 500,
-                                    "message": f"刷新失败: {str(e)}",
-                                    "resource": None,
-                                }
-                            )
-                            continue
-
-                    # 重新翻译（在元数据刷新之后）
-                    if retranslate:
-                        try:
-                            resource.refresh_from_db()
-                            from nassav.tasks import translate_title_task
-
-                            resource.translation_status = "pending"
-                            resource.translated_title = None
-                            resource.save(
-                                update_fields=["translation_status", "translated_title"]
-                            )
-                            translate_title_task.delay(avid)
-                            refresh_info["translation_queued"] = True
-                        except Exception as e:
-                            logger.error(f"提交翻译任务失败: {e}")
-                            refresh_info["translation_error"] = str(e)
-
-                    resource.refresh_from_db()
-                    resource_data = (
-                        _serialize_resource_obj(resource) if resource else None
                     )
-                    result_item = {
-                        "action": "refresh",
-                        "avid": avid,
-                        "code": 200,
-                        "message": "refreshed",
-                        "resource": resource_data,
-                    }
-                    result_item.update(refresh_info)
-                    results.append(result_item)
 
                 else:
                     results.append(

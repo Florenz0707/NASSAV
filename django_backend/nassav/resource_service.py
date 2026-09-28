@@ -20,7 +20,7 @@ from nassav.models import AVResource
 from nassav.scraper import AVDownloadInfo
 from nassav.resource_persistence import DjangoResourcePersistence, ResourcePersistence
 from nassav.scraper.ScraperManager import ScraperManager
-from nassav.signals import metadata_refreshed, resource_added, resource_deleted
+from nassav.signals import metadata_refreshed, resource_added
 from nassav.source.SourceBase import SourceBase
 from nassav.source.SourceManager import SourceManager
 from nassav.translator.TranslatorManager import TranslatorManager
@@ -307,42 +307,12 @@ class ResourceService:
         return result
 
     def delete_resource(self, avid: str, *, delete_files: bool = False) -> bool:
-        """
-        删除资源
+        """Compatibility entry point for callers that expect a boolean result."""
+        from nassav.resource_deletion import resource_deletion_service
 
-        Args:
-            avid: 视频编号
-            delete_files: 是否同时删除文件（封面、视频等）
-
-        Returns:
-            是否删除成功
-        """
-        avid = avid.upper()
-        logger.info(
-            f"[ResourceService] 开始删除资源: {avid}, delete_files={delete_files}"
-        )
-
-        resource = AVResource.objects.filter(avid=avid).first()
-        if not resource:
-            logger.warning(f"资源 {avid} 不存在")
-            return False
-
-        # 删除文件
-        if delete_files:
-            self._delete_resource_files(avid)
-
-        # 删除数据库记录
-        resource.delete()
-        logger.info(f"[ResourceService] 资源 {avid} 删除成功")
-
-        # 发布资源删除事件
-        resource_deleted.send(
-            sender=self.__class__,
-            avid=avid,
-            delete_files=delete_files,
-        )
-
-        return True
+        return resource_deletion_service.delete_resource(
+            avid, include_files=delete_files
+        ).found
 
     def load_cached_metadata(self, avid: str) -> Optional[AVDownloadInfo]:
         """
@@ -663,29 +633,6 @@ class ResourceService:
         except Exception as e:
             logger.error(f"[ResourceService] 提交翻译任务失败: {avid}, {e}")
             return None
-
-    def _delete_resource_files(self, avid: str):
-        """
-        删除资源相关的所有文件
-
-        Args:
-            avid: 视频编号
-        """
-        logger.info(f"[ResourceService] 开始删除资源文件: {avid}")
-
-        files_to_delete = [
-            Path(settings.COVER_DIR) / f"{avid}.jpg",  # 封面
-            Path(settings.COVER_DIR) / f"{avid}.html",  # HTML
-            Path(settings.VIDEO_DIR) / f"{avid}.mp4",  # 视频
-        ]
-
-        for file_path in files_to_delete:
-            if file_path.exists():
-                try:
-                    file_path.unlink()
-                    logger.info(f"文件已删除: {file_path}")
-                except Exception as e:
-                    logger.error(f"删除文件失败: {file_path}, {e}")
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # 私有方法 - 辅助函数

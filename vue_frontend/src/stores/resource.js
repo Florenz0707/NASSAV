@@ -339,32 +339,33 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   async function batchDelete(avids = [], action = 'delete-all') {
-    if (!Array.isArray(avids) || avids.length === 0) return
-    const payload = {
-      actions: avids.map((avid) => ({ action, avid })),
-    }
+    if (!Array.isArray(avids) || avids.length === 0) return { succeeded: [], failed: [] }
+    const payload = { actions: avids.map((avid) => ({ action, avid })) }
     const resp = await resourceApi.batch(payload)
-    // 根据返回结果局部删除/合并
-    const results =
-      resp && resp.data && (resp.data.results || resp.data)
-        ? resp.data.results || resp.data
-        : resp && resp.results
-          ? resp.results
-          : []
-    if (Array.isArray(results)) {
-      for (const r of results) {
-        if (r && (r.action === 'delete' || r.action === 'delete-all') && r.avid) {
-          _removeResourceByAvid(r.avid)
-        } else if (r && r.action === 'delete-video' && r.avid) {
-          // 更新资源的 has_video 状态
-          const resource = _resourcesArray().find((res) => res.avid === r.avid)
-          if (resource) resource.has_video = false
-        } else if (r && r.resource) {
-          _mergeOrUpsertResource(r.resource)
-        }
+    const results = Array.isArray(resp?.data?.results) ? resp.data.results : []
+    const succeeded = []
+    const failed = []
+    for (const [index, avid] of avids.entries()) {
+      const item = results[index]
+      if (item?.code === 200 && item.avid === avid && item.action === action) {
+        succeeded.push(item)
+      } else {
+        failed.push(
+          item?.avid === avid && item.action === action
+            ? item
+            : { action, avid, code: 500, message: '删除结果缺失或不匹配' }
+        )
       }
     }
-    return resp
+    for (const item of succeeded) {
+      if ((item.action === 'delete' || item.action === 'delete-all') && item.avid) {
+        _removeResourceByAvid(item.avid)
+      } else if (item.action === 'delete-video' && item.avid) {
+        const resource = _resourcesArray().find((entry) => entry.avid === item.avid)
+        if (resource) resource.has_video = false
+      }
+    }
+    return { succeeded, failed }
   }
 
   // 提交下载

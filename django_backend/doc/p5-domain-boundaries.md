@@ -8,6 +8,12 @@
 
 前端 `resourceApi` 发起请求，`resource` store 维护任务快照和轮询，`scrapeJobState` 按版本合并快照，`scrapeJobNotifications` 负责 UI 提示。收到较旧的 WebSocket 事件时仍忽略；刷新页面后仍用保存的状态令牌查询终态。
 
+## 资源删除与旧批量兼容
+
+`DeleteResourceView`、`DownloadsView.delete` 和 `ResourcesBatchView` 只校验输入并映射响应；`ResourceDeletionService` 在同一 AVID 文件锁下定位封面、缩略图、视频、备份文件，并经 `DjangoResourceDeletionRepository` 删除资源行或清除视频状态。单条与批量全删共用该操作。文件先于数据库删除；任一步失败报告阶段和已确认删除的文件名，调用方可重试，且不会把部分完成报告为成功。空状态返回 404。锁文件位于封面目录的同级 `.nassav-delete-locks`，由 API 实例共享资源挂载。
+
+旧 `/resources/batch` 的 `add`、`refresh` 仍是同步兼容入口，流程由 `legacy_batch` 操作类承载，保留逐项响应；前端正常新增/刷新走异步任务入口。原有固定 2 秒等待缺少来源限流依据，已移除；兼容入口去留待外部调用方核对。
+
 ## 下载
 
 下载 API 验证编号并通过 `submit_download_task` 去重入队；`nassav.tasks.download_video_task` 持有全局锁、更新 Redis 队列和进度、发送原有 WebSocket 事件并处理重试；`video_download_service` 执行网络下载并写入 MP4；`DjangoDownloadPersistence` 按 MP4 是否存在更新 AVResource 的文件大小、存在状态和保存时间。任务输入为编号，输出仍为原有成功/失败字典。下载或持久化异常仍按任务已有重试/告警路径处理，锁和进度在 finally 中清理。文件路径仍是 `VIDEO_DIR/<AVID>.mp4`；失败标记只清除 `file_exists`，保留之前的文件大小字段。针对性测试覆盖文件存在、文件缺失和失败状态。

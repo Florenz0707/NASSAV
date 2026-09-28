@@ -1082,7 +1082,9 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     - `cover_downloaded`, `metadata_saved`, `scraped`: 保存结果
 
 - 删除资源：`DELETE /nassav/api/resource/{avid}`
-  - 返回 `data.resource`（删除前序列化对象）和 `deleted_files`
+  - 返回 `data.resource`（删除前序列化对象，纯文件资源为 `null`）和 `deleted_files`；数据库行或任一文件存在即可删除，无记录无文件返回 404
+  - 与批量 `delete` / `delete-all` 共用删除操作：清理封面、small/medium/large 缩略图、MP4、备份目录和数据库行。`deleted_files` 只列出已确认删除的文件名
+  - 文件或数据库步骤失败返回 HTTP 500、`message: "删除未完成，请重试"`，`data` 包含 `failed_stage`（`files` 或 `database`）、`retryable: true` 和已删除文件名。重试会继续清理剩余状态；错误响应不包含本地路径
 
 - 下载视频：`POST /nassav/api/downloads/{avid}`
   - 功能：提交视频下载任务（异步，使用 Celery）
@@ -1105,7 +1107,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
   - 如果任务已存在，返回 `code: 409, message: "下载任务已存在"`
 
 - 删除视频：`DELETE /nassav/api/downloads/{avid}`
-  - 功能：删除已下载的视频文件
+  - 功能：删除已下载的视频文件并清除数据库视频状态；若文件已删但数据库状态未清，重复请求可完成清理
   - 返回示例：
 
     ```json
@@ -1172,7 +1174,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 - `delete-video`：只删除视频文件（保留元数据）
   - 返回 `code: 200, message: "视频已删除"`，包含 `deleted_file` 和 `file_size`
   - **数据库操作**: 更新记录标记视频不存在（`file_exists=False`）
-  - **保留内容**: 元数据记录、封面图片、备份目录
+  - **保留内容**: 元数据记录、封面图片、缩略图、备份目录
   - 示例返回：
 
     ```json
@@ -1188,7 +1190,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
 
 - `delete-all` 或 `delete`：删除全部数据（视频+元数据+封面+备份）
   - 返回 `code: 200, message: "已删除全部数据"` 和删除前的资源数据
-  - **删除内容**: 视频文件、封面图片、备份目录、数据库记录
+  - **删除内容**: 视频文件、封面图片、small/medium/large 缩略图、备份目录、数据库记录；纯数据库行或纯文件也可删除
   - 示例返回：
 
     ```json
@@ -1201,6 +1203,8 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
       "deleted_files": ["ABC-123.jpg", "ABC-123.mp4"]
     }
     ```
+
+批量删除的 HTTP 响应保持 200；每个 `data.results[]` 独立报告结果。删除步骤失败时该项 `code: 500`、`message: "删除未完成，请重试"`，附 `failed_stage`、`retryable: true` 和已确认删除的 `deleted_files`，其余项继续执行；非法编号为单项 400。前端只对 `code: 200` 的项目更新本地列表，失败项保留以便重试。旧 `add` / `refresh` 仍为同步兼容入口，当前前端新增和刷新走 `/resource/jobs/batch`；旧入口移除了无来源限流依据的固定 2 秒等待，后续退役须单独核对外部调用方。
 
 1. 批量下载提交
 

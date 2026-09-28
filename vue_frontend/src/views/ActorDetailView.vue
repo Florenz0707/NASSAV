@@ -359,13 +359,19 @@ async function confirmBatchDelete(action) {
   batchLoading.value = true
   try {
     const avids = Array.from(selectedAvids.value)
-    await resourceStore.batchDelete(avids, action)
+    const { succeeded, failed } = await resourceStore.batchDelete(avids, action)
     const actionText = action === 'delete-video' ? '删除视频' : '删除全部数据'
-    toastStore.success(`已${actionText}: ${avids.length} 个资源`)
-    selectedAvids.value = new Set()
+    if (failed.length) {
+      toastStore.error(
+        `${actionText}：成功 ${succeeded.length} 个，失败 ${failed.length} 个；可重试失败项`
+      )
+    } else {
+      toastStore.success(`已${actionText}: ${succeeded.length} 个资源`)
+    }
+    selectedAvids.value = new Set(failed.map((item) => item.avid).filter(Boolean))
     await fetchResources()
     if (action === 'delete' || action === 'delete-all') {
-      avids.forEach((avid) => syncExternalResourceStatus(avid, false))
+      succeeded.forEach((item) => syncExternalResourceStatus(item.avid, false))
       loadActorInfo(actorId.value)
     }
   } catch (err) {

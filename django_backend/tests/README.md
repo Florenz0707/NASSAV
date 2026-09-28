@@ -36,6 +36,17 @@ uv run pytest tests/test_source_cookie_api.py tests/test_user_settings.py \
 
 前端任务快照恢复样本：`cd ../vue_frontend && node --test tests/scrapeJobs.test.js`。外站、真实 Worker 与 PostgreSQL 恢复不由上述离线测试覆盖。
 
+## F1 资源删除回归
+
+`test_resource_deletion.py` 使用临时封面、缩略图、视频和备份目录验证单条/批量删除、部分失败与重试、旧同步批量合同、非法编号及同一 AVID 并发。前端 `tests/resourceDeletion.test.js` 验证批量部分失败时本地资源不被误删。
+
+```bash
+DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-f1-pytest.sqlite3 \
+NASSAV_CONFIG_PATH=config/template-config.yaml \
+uv run pytest tests/test_resource_deletion.py -q
+cd ../vue_frontend && node --test tests/resourceDeletion.test.js
+```
+
 ## 数据库模式回归
 
 `test_database_configuration.py` 使用隔离子进程验证 Compose 引擎冲突会在连接前失败，以及 PostgreSQL 连接失败不会创建 SQLite 文件。Compose 的两种模式与三个队列的现行配置见[部署说明](../doc/compose-deployment.md)。
