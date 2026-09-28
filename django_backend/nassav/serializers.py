@@ -30,19 +30,6 @@ class NewResourceSerializer(serializers.Serializer):
     source = serializers.CharField(max_length=50, default="any", required=False)  # type: ignore
 
 
-class DownloadRequestSerializer(serializers.Serializer):
-    """下载请求序列化器"""
-
-    avid = serializers.CharField(max_length=50)
-
-
-class SourceCookieSerializer(serializers.Serializer):
-    """设置源Cookie请求序列化器"""
-
-    source = serializers.CharField(max_length=50)  # type: ignore
-    cookie = serializers.CharField()  # type: ignore
-
-
 class SourceCookieListSerializer(serializers.Serializer):
     """获取源Cookie列表序列化器"""
 
@@ -166,50 +153,6 @@ class ResourceSummarySerializer(serializers.Serializer):
                 return f"/nassav/api/resource/cover?avid={obj.avid}&size=medium"
         except Exception:
             return f"/nassav/api/resource/cover?avid={obj.avid}&size=medium"
-
-
-class ResourceSerializer(serializers.Serializer):
-    """完整资源元数据序列化器（用于 detail/metadata）"""
-
-    avid = serializers.CharField()
-    original_title = serializers.CharField(allow_blank=True, required=False)
-    source_title = serializers.CharField(
-        allow_blank=True, allow_null=True, required=False
-    )
-    translated_title = serializers.CharField(
-        allow_blank=True, allow_null=True, required=False
-    )
-    translation_status = serializers.CharField(
-        allow_blank=True, required=False
-    )  # 翻译状态
-    m3u8 = serializers.CharField(allow_blank=True, allow_null=True, required=False)
-    source = serializers.CharField(allow_blank=True, required=False)  # type: ignore
-    release_date = serializers.CharField(allow_blank=True, required=False)
-    duration = serializers.IntegerField(allow_null=True, required=False)
-    director = serializers.CharField(allow_blank=True, required=False)
-    studio = serializers.CharField(allow_blank=True, required=False)
-    label = serializers.CharField(allow_blank=True, required=False)  # type: ignore
-    series = serializers.CharField(allow_blank=True, required=False)
-    actors = serializers.ListField(
-        child=serializers.CharField(), allow_empty=True, required=False
-    )
-    genres = serializers.ListField(
-        child=serializers.CharField(), allow_empty=True, required=False
-    )
-    file_size = serializers.IntegerField(allow_null=True, required=False)
-    file_exists = serializers.BooleanField(required=False)
-    watched = serializers.BooleanField(required=False)
-    is_favorite = serializers.BooleanField(required=False)
-
-
-class ResourceCreateSerializer(serializers.Serializer):
-    """用于创建资源的输入校验序列化器"""
-
-    avid = serializers.CharField(max_length=50)
-    source = serializers.CharField(max_length=128, default="any", required=False)  # type: ignore
-
-    def validate_avid(self, value):
-        return value.strip().upper()
 
 
 class ResourceJobSerializer(serializers.Serializer):
