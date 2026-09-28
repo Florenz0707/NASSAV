@@ -204,7 +204,14 @@ uv run nassav-worker-download
 uv run nassav-beat
 ```
 
-API 默认监听 `0.0.0.0:8000`。需要覆盖默认参数时，可在命令后附加 Uvicorn/Celery 参数。
+API 默认监听 `127.0.0.1:9790`。可以通过命令参数或环境变量覆盖；命令参数优先：
+
+```bash
+uv run nassav-api --host 0.0.0.0 --port 8000
+NASSAV_API_HOST=0.0.0.0 NASSAV_API_PORT=8000 uv run nassav-api
+```
+
+三个 worker 默认节点名分别为 `default@%h`、`scrape@%h`、`download@%h`。使用 `-n`/`--hostname` 或分别设置 `NASSAV_WORKER_DEFAULT_NAME`、`NASSAV_WORKER_SCRAPE_NAME`、`NASSAV_WORKER_DOWNLOAD_NAME` 覆盖；命令参数优先于环境变量。
 
 #### 启动 Django 服务
 
