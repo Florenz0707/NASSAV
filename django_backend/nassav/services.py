@@ -10,17 +10,6 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from loguru import logger
 
-# 初始化日志
-LOG_DIR = settings.LOG_DIR
-logger.add(
-    str(LOG_DIR / "{time:YYYY-MM-DD}.log"),
-    rotation="00:00",
-    retention="30 days",  # 保留 30 天
-    enqueue=False,
-    level="DEBUG",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
-)
-
 # 导入常量（为了向后兼容，重新导出HEADERS）
 from nassav.constants import HEADERS
 from nassav.m3u8downloader import M3u8DownloaderBase, N_m3u8DL_RE

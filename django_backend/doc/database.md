@@ -13,6 +13,8 @@ Database:
 
 模板中的密码为空。缺少凭证或 engine 值错误时 Django 启动失败，不回退到 SQLite。Compose 基础文件显式选择 SQLite；添加 `compose.postgres.yaml` 后统一选择 PostgreSQL，并挂载密码 secret。仅修改 `.env` 中的 `DB_ENGINE` 会被模式检查拒绝。所有后端服务共享相同配置目录和数据库模式。数据库连接切换不修改模型；schema 由 `search_path` 选定。部署说明见[这里](compose-deployment.md)。
 
+数据库字段、密码文件及环境变量的优先级见[启动配置契约](configuration-contract.md)。密码文件必须是容器可读取的普通文件。
+
 `backup_database` 按当前引擎选择 SQLite 文件快照或 PostgreSQL custom-format `database.dump`。PostgreSQL 文件位于 `backup/database_postgresql_{timestamp}/`，带引擎和服务端主版本元数据。PostgreSQL 恢复命令 `restore_postgres_backup` 只接受空数据库；先创建新的空库，再在配置指向该库时执行恢复。备份目录会由 `sync_backups` 一并同步。使用 PostgreSQL 时自动清理只处理 PostgreSQL 备份，保留 SQLite 快照供回滚。
 
 ## Database Overview
