@@ -396,14 +396,6 @@ PROXY_CONFIG = CONFIG["Proxy"]
 PROXY_ENABLED = boolean(PROXY_CONFIG["Enable"], "Proxy.Enable")
 PROXY_URL = PROXY_CONFIG.get("url", None)
 
-# FlareSolverr settings from config
-FLARESOLVERR_CONFIG = CONFIG.get("FlareSolverr", {})
-FLARESOLVERR_ENABLED = boolean(
-    FLARESOLVERR_CONFIG.get("Enable", False), "FlareSolverr.Enable"
-)
-FLARESOLVERR_URL = FLARESOLVERR_CONFIG.get("url", "http://localhost:8191")
-FLARESOLVERR_TIMEOUT = FLARESOLVERR_CONFIG.get("timeout", 60000)
-
 # Browser page fetching: new configuration wins as a whole; the old block is a fallback.
 from nassav.page_fetching.factory import normalize_config, validate_strategy
 
