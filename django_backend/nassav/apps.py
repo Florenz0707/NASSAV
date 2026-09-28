@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class NassavConfig(AppConfig):
@@ -7,18 +8,8 @@ class NassavConfig(AppConfig):
     verbose_name = "NASSAV Backend"
 
     def ready(self):
-        """Django 应用启动时执行"""
-        # 初始化用户设置（确保配置文件存在）
-        try:
-            from nassav.user_settings import get_settings_manager
+        """Register process-local logging and application signals."""
+        from nassav.logging_setup import configure_file_logging
 
-            get_settings_manager()
-            # 配置文件会在初始化时自动创建
-        except Exception as e:
-            print(f"初始化用户设置失败: {e}")
-
-        # 注册信号接收器
-        try:
-            import nassav.receivers  # noqa: F401
-        except Exception as e:
-            print(f"注册信号接收器失败: {e}")
+        configure_file_logging(settings.LOG_DIR)
+        import nassav.receivers  # noqa: F401

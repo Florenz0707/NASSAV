@@ -2,6 +2,8 @@
 
 从仓库根目录运行。基础 `compose.yaml` 选择 SQLite；PostgreSQL 需显式添加 `compose.postgres.yaml`。不要通过 `.env` 中的 `DB_ENGINE` 切换 Compose 模式；基础文件若收到与 SQLite 冲突的引擎值，应用会在连接数据库前退出。当前镜像针对 **Linux amd64**：下载器固定为 upstream `v0.5.1-beta` 的 glibc x64 包，并在构建时校验归档 SHA-256。镜像还安装下载器运行所需的 ICU 与 ffmpeg。其他架构会在构建时明确失败，需先确定对应发布包与校验值。Byparr 使用已经验证的镜像 digest，容器内地址为 `http://byparr:8191`。独立开发用 Byparr Compose 仍可保留；全栈 Byparr 不暴露宿主机端口。
 
+配置来源、启动校验与开发 `.env` 语法见[启动配置契约](configuration-contract.md)。
+
 ## 空目录准备
 
 在仓库根目录执行：
