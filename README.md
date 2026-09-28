@@ -359,6 +359,7 @@ uv run python manage.py check_actor_avatars_consistency --report celery_beat/ava
 - [django_backend/doc/recommendation.md](django_backend/doc/recommendation.md) - 推荐系统设计与接口文档
 - [django_backend/doc/database.md](django_backend/doc/database.md) - 数据库模型、SQLite/PostgreSQL 配置和备份说明
 - [Compose 部署说明](django_backend/doc/compose-deployment.md#外部-postgresql可选) - 连接独立部署 PostgreSQL 的配置
+- [前后端项目质量改进计划](docs/project-quality-roadmap.md) - 分阶段范围、步骤、验收与进度记录
 
 ### REST API 端点
 
