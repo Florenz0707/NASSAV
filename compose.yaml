@@ -13,6 +13,8 @@ x-backend: &backend
     NASSAV_OPERATOR_USERNAME: ${NASSAV_OPERATOR_USERNAME:-nassav}
     NASSAV_SECURE_COOKIES: ${NASSAV_SECURE_COOKIES:-false}
     REDIS_URL: redis://redis:6379/0
+    DB_ENGINE: ${DB_ENGINE:-sqlite}
+    NASSAV_COMPOSE_DB_MODE: sqlite
     DATABASE_PATH: /app/data/db/db.sqlite3
     VIDEO_HOST_DIR: ${NASSAV_VIDEO_HOST_DIR:?Set the absolute host path to the video directory}
     OLLAMA_URL: ${OLLAMA_URL-}
@@ -22,6 +24,15 @@ x-backend: &backend
     - internal
   extra_hosts:
     - 'host.docker.internal:host-gateway'
+  volumes:
+    - ${NASSAV_DATA_DIR:-./deploy-data}/config:/app/config
+    - ${NASSAV_DATA_DIR:-./deploy-data}/db:/app/data/db
+    - ${NASSAV_DATA_DIR:-./deploy-data}/resource:/app/resource
+    - ${NASSAV_DATA_DIR:-./deploy-data}/resource_backup:/app/resource_backup
+    - ${NASSAV_DATA_DIR:-./deploy-data}/backup:/app/backup
+    - ${NASSAV_DATA_DIR:-./deploy-data}/backup_sync:/app/backup_sync
+    - ${NASSAV_DATA_DIR:-./deploy-data}/log:/app/log
+    - ${NASSAV_DATA_DIR:-./deploy-data}/celery_beat:/app/celery_beat
 
 services:
   redis:
@@ -185,15 +196,6 @@ services:
     profiles: ['scheduler']
     command:
       ['celery', '-A', 'django_project', 'beat', '-l', 'INFO', '-s', '/app/celery_beat/schedule']
-    volumes:
-      - ${NASSAV_DATA_DIR:-./deploy-data}/config:/app/config
-      - ${NASSAV_DATA_DIR:-./deploy-data}/db:/app/data/db
-      - ${NASSAV_DATA_DIR:-./deploy-data}/resource:/app/resource
-      - ${NASSAV_DATA_DIR:-./deploy-data}/resource_backup:/app/resource_backup
-      - ${NASSAV_DATA_DIR:-./deploy-data}/backup:/app/backup
-      - ${NASSAV_DATA_DIR:-./deploy-data}/backup_sync:/app/backup_sync
-      - ${NASSAV_DATA_DIR:-./deploy-data}/log:/app/log
-      - ${NASSAV_DATA_DIR:-./deploy-data}/celery_beat:/app/celery_beat
     depends_on: *backend-dependencies
     restart: unless-stopped
     mem_limit: 512m

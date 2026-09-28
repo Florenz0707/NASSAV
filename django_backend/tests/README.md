@@ -36,6 +36,16 @@ uv run pytest tests/test_source_cookie_api.py tests/test_user_settings.py \
 
 前端任务快照恢复样本：`cd ../vue_frontend && node --test tests/scrapeJobs.test.js`。外站、真实 Worker 与 PostgreSQL 恢复不由上述离线测试覆盖。
 
+## P2 数据库模式回归
+
+`test_database_configuration.py` 使用隔离子进程验证 Compose 引擎冲突会在连接前失败，以及 PostgreSQL 连接失败不会创建 SQLite 文件。Compose 的两种模式和三个真实队列消费者另见 [P2 隔离验证记录](../../docs/p2-deployment-validation.md)。
+
+```bash
+DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-pytest.sqlite3 \
+NASSAV_CONFIG_PATH=config/template-config.yaml \
+uv run pytest tests/test_database_configuration.py -q
+```
+
 ## 测试架构说明
 
 本项目测试已迁移至 **pytest** 框架，使用 fixtures 进行测试数据管理。所有新测试和重构的测试都应遵循 pytest 规范。

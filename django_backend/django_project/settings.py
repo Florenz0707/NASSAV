@@ -170,6 +170,12 @@ DATABASE_CONFIG = CONFIG.get("Database") or {}
 DB_ENGINE = (
     os.getenv("DB_ENGINE", str(DATABASE_CONFIG.get("Engine", "sqlite"))).strip().lower()
 )
+COMPOSE_DB_MODE = os.getenv("NASSAV_COMPOSE_DB_MODE")
+if COMPOSE_DB_MODE and DB_ENGINE != COMPOSE_DB_MODE:
+    raise RuntimeError(
+        "Compose database mode conflicts with DB_ENGINE; "
+        "use compose.yaml for SQLite or add compose.postgres.yaml for PostgreSQL"
+    )
 
 if DB_ENGINE == "sqlite":
     sqlite_database_path = (

@@ -1,6 +1,6 @@
 # 全栈 Compose 部署（P4）
 
-从仓库根目录运行。当前镜像针对 **Linux amd64**：下载器固定为 upstream `v0.5.1-beta` 的 glibc x64 包，并在构建时校验归档 SHA-256。镜像还安装下载器运行所需的 ICU 与 ffmpeg。其他架构会在构建时明确失败，需先确定对应发布包与校验值。Byparr 使用已经验证的镜像 digest，容器内地址为 `http://byparr:8191`。独立开发用 Byparr Compose 仍可保留；全栈 Byparr 不暴露宿主机端口。
+从仓库根目录运行。基础 `compose.yaml` 选择 SQLite；PostgreSQL 需显式添加 `compose.postgres.yaml`。不要通过 `.env` 中的 `DB_ENGINE` 切换 Compose 模式；基础文件若收到与 SQLite 冲突的引擎值，应用会在连接数据库前退出。当前镜像针对 **Linux amd64**：下载器固定为 upstream `v0.5.1-beta` 的 glibc x64 包，并在构建时校验归档 SHA-256。镜像还安装下载器运行所需的 ICU 与 ffmpeg。其他架构会在构建时明确失败，需先确定对应发布包与校验值。Byparr 使用已经验证的镜像 digest，容器内地址为 `http://byparr:8191`。独立开发用 Byparr Compose 仍可保留；全栈 Byparr 不暴露宿主机端口。
 
 ## 空目录准备
 
@@ -13,13 +13,13 @@ mkdir -p deploy-data/{config,db,resource,resource_backup,backup,backup_sync,log,
 cp django_backend/config/compose-config.example.yaml deploy-data/config/config.yaml
 # 将 realpath deploy-data/resource/video 的结果填入 .env 的 NASSAV_VIDEO_HOST_DIR
 # 在 deploy-data/config/config.yaml 中设置实际的站点、翻译及代理配置
-# 先用 docker compose config 检查环境变量（默认 SQLite）
+# 基础文件固定 SQLite；只读渲染，不启动容器
 docker compose config --quiet
 docker compose build
 docker compose up -d
 ```
 
-首次 `up` 按 Redis 健康检查 → `migrate` 成功 → API/worker → 前端健康检查启动。首次使用还须在目标数据库创建 operator 账号：`docker compose exec api python manage.py createsuperuser --username nassav`（若修改 `NASSAV_OPERATOR_USERNAME`，命令中使用同一用户名）。密码由交互提示输入，不写入 `.env`。检查 `docker compose ps -a` 和 `docker compose logs migrate api scrape-worker download-worker default-worker`。浏览器访问 `.env` 中的 `FRONTEND_BIND_ADDRESS:FRONTEND_PORT`（默认 `127.0.0.1:9780`）。`docker compose --profile scheduler up -d` 才启动唯一 Beat 实例；先确认旧宿主机 Beat 已停。修改配置后运行 `docker compose restart api scrape-worker download-worker default-worker beat`（未启用 Beat 时省略它）。
+首次 `up` 按 Redis 健康检查 → `migrate` 成功 → API/worker → 前端健康检查启动。首次使用还须在目标数据库创建 operator 账号：`docker compose exec api python manage.py createsuperuser --username nassav`（若修改 `NASSAV_OPERATOR_USERNAME`，命令中使用同一用户名）。密码由交互提示输入，不写入 `.env`。检查 `docker compose ps -a` 和 `docker compose logs migrate api scrape-worker download-worker default-worker`。浏览器访问 `.env` 中的 `FRONTEND_BIND_ADDRESS:FRONTEND_PORT`（默认 `127.0.0.1:9780`）。SQLite 模式用 `docker compose --profile scheduler up -d` 启动唯一 Beat；PostgreSQL 模式须在每条 Compose 命令中同时传入 `-f compose.yaml -f compose.postgres.yaml`。先确认旧宿主机 Beat 已停。修改配置后运行 `docker compose restart api scrape-worker download-worker default-worker beat`（未启用 Beat 时省略它）。
 
 示例翻译器指向 `host.docker.internal:11434`。如果 Ollama 在另一台机器或未对容器开放监听，请在 `config.yaml` 中改为容器可达地址；未运行 Ollama 时翻译任务会失败，资源添加任务仍可完成。
 
@@ -45,7 +45,7 @@ docker compose -f compose.yaml -f compose.gpu.yaml --profile translator up -d --
 
 GPU 资源预留按 [Docker Compose 官方说明](https://docs.docker.com/compose/how-tos/gpu-support/)配置；其他机器可只用 CPU profile。CPU 推理与模型同时驻留的内存开销应在目标机实测。模型拉取需要出网；如需代理，只为 Ollama 设置 HTTPS 代理，不要把内部 `ollama` 服务名流量送到代理。
 
-配置目录、SQLite 与 WAL/SHM、资源/视频/封面、导入备份、计划备份及同步副本、日志、Beat 状态及 Redis AOF 分别位于 `deploy-data/` 的同名子目录。`deploy-data/` 和 `.env` 已被 Git 忽略。镜像构建上下文排除本机凭证、数据库、资源及开发目录。“复制视频路径”接口使用 `NASSAV_VIDEO_HOST_DIR` 返回宿主机路径；浏览器所在机器必须能访问该目录。若更改 `NASSAV_DATA_DIR`，也要同步更改此值。宿主机的 `django_backend/config/config.yaml` 与 `django_backend/db.sqlite3` 不会进入容器。
+API、`migrate`、三个 worker 和 Beat 共享同一组数据目录挂载；配置目录、SQLite 与 WAL/SHM、资源/视频/封面、导入备份、计划备份及同步副本、日志、Beat 状态及 Redis AOF 分别位于 `deploy-data/` 的同名子目录。`deploy-data/` 和 `.env` 已被 Git 忽略。镜像构建上下文排除本机凭证、数据库、资源及开发目录。“复制视频路径”接口使用 `NASSAV_VIDEO_HOST_DIR` 返回宿主机路径；浏览器所在机器必须能访问该目录。若更改 `NASSAV_DATA_DIR`，也要同步更改此值。宿主机的 `django_backend/config/config.yaml` 与 `django_backend/db.sqlite3` 不会进入容器。
 
 ## 服务和代理
 
@@ -88,14 +88,16 @@ docker compose -f compose.yaml -f compose.postgres.yaml config --quiet
 
 密码文件由 Compose secret 挂载到后端容器。不要把实际密码放进仓库或命令历史。容器访问宿主机上的 PostgreSQL 时可将 `DB_HOST` 设为 `host.docker.internal`；PostgreSQL 还须监听对应网卡并在 `pg_hba.conf` 允许来自 Docker 网络的应用账号连接。远端服务则填写其内网地址。数据库、目标 schema 和应用账号须由管理员预先创建；应用账号需在该 schema 上有使用和建表权限。启用前确认服务端备份策略和磁盘空间。
 
-只有在已准备外部服务器、密码文件和空目标库后，才使用覆盖文件启动：
+只有在已准备外部服务器、密码文件和空目标库后，才使用覆盖文件启动。覆盖文件对 `migrate`、API、三个 worker 和 Beat 统一设定 PostgreSQL 引擎、主机、库名、schema 与密码文件；密码或连接失败时不会使用 SQLite：
 
 ```sh
 docker compose -f compose.yaml -f compose.postgres.yaml config --quiet
 docker compose -f compose.yaml -f compose.postgres.yaml up -d --build
+# 需要定时任务时，沿用同一文件集合启动唯一 Beat
+docker compose -f compose.yaml -f compose.postgres.yaml --profile scheduler up -d
 ```
 
-`migrate` 是 Compose 中的一次性服务，会在 API/worker 前运行。不要在生产实例上首次启用覆盖配置，直到活动 SQLite 源库、P0 基线、隔离演练和维护窗口都已确认。首次真实数据导入/迁移是单独的停写操作，不由本配置自动执行。PG 模式下后端镜像包含 PostgreSQL 17 客户端以供备份和恢复使用。
+之后的 `ps`、`logs`、`exec`、`down` 也应保留相同的 `-f` 文件集合和项目名；不要只用基础文件重新执行 `up`。`migrate` 是 Compose 中的一次性服务，会在 API/worker 前运行。不要在生产实例上首次启用覆盖配置，直到活动 SQLite 源库、P0 基线、隔离演练和维护窗口都已确认。首次真实数据导入/迁移是单独的停写操作，不由本配置自动执行。PG 模式下后端镜像包含 PostgreSQL 17 客户端以供备份和恢复使用。
 
 ## 备份、恢复和回滚
 

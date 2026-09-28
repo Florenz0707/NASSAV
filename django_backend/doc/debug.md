@@ -277,7 +277,7 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 
 ### 问题：进度不更新
 
-- 检查 Celery Worker 是否运行：`uv run celery -A django_project worker -l info`
+- 检查 `uv run nassav-worker-download` 是否运行；资源抓取还需 `uv run nassav-worker-scrape`，翻译和默认任务需 `uv run nassav-worker-default`
 - 检查 Redis 服务是否正常
 - 查看 Celery Worker 日志
 
