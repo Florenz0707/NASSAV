@@ -513,45 +513,6 @@ class Jable(SourceBase):
             query["from"] = self._format_page_token(page)
         return f"https://{self.domain}/models/{quote(model_slug)}/?{urlencode(query)}"
 
-    def _discover_listing(
-        self,
-        path_candidates: list[str],
-        *,
-        page: int,
-        source_label: str,
-    ) -> list[dict]:
-        referer = f"https://{self.domain}/"
-        for path in path_candidates:
-            url = self._build_listing_url(path, page=page)
-            html = self._request_html(
-                url,
-                referer=referer,
-                validator=self._is_listing_page_html,
-            )
-            if not html:
-                continue
-
-            try:
-                items = self._parse_search_results(html)
-            except Exception as e:
-                logger.error(f"Jable.{source_label} 解析失败: {e}. url={url}")
-                continue
-
-            if not items:
-                continue
-
-            for item in items:
-                metrics = dict(item.get("metrics") or {})
-                discovery_sources = list(metrics.get("discovery_sources") or [])
-                if source_label not in discovery_sources:
-                    discovery_sources.append(source_label)
-                metrics["discovery_sources"] = discovery_sources
-                item["metrics"] = metrics
-            return items
-
-        logger.warning(f"Jable.{source_label} 未获取到可用候选")
-        return []
-
     def _discover_results_from_url(
         self,
         *,
@@ -611,18 +572,6 @@ class Jable(SourceBase):
             request_id=request_id,
         )
         return result.html if result.ok else None
-
-    def _is_valid_page_html(
-        self,
-        html: Optional[str],
-        *,
-        validator: Callable[[str], bool] | None = None,
-    ) -> bool:
-        if not html:
-            return False
-        if validator is None:
-            return True
-        return validator(html)
 
     def _is_detail_page_html(self, html: str) -> bool:
         return bool(re.search(r'var hlsUrl = ["\']([^"\']+)["\']', html))
