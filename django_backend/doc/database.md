@@ -269,12 +269,12 @@ Database:
 
 ## 监控与回滚
 
-- 所有写入操作记录日志（`loguru`），出错时生成可审计的异常/报告（导入脚本会输出 `errors` 和 `mismatches` 报表）。
+- 大规模修复前使用现行一致性管理命令生成报告，并保留日志及数据库备份。
 - 在大规模变更前：先执行 `--dry-run`，并备份现有 JSON/资源目录。
 
 ## 建议 / 注意事项
 
-- 保持 `metadata` 的完整性：不要删除原始 JSON 直到导入验证完成并备份完成。
+- 数据库迁移和恢复依照 [PostgreSQL 迁移计划](postgresql-migration-plan.md)验证；当前业务数据以数据库记录为准，不依赖旧布局的逐资源 JSON 导入命令。
 - 若转向生产级数据库（Postgres），为 `actors`/`genres` 添加唯一约束和必要的索引，并考虑使用 `GIN` 索引优化 `metadata` JSON 查询。
 - 定期运行对比/校验任务，确保磁盘文件（cover/mp4）与 `AVResource.file_exists`、`file_size` 一致。
 
