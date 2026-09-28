@@ -71,11 +71,11 @@ const bgColor = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--text-primary);
   font-weight: 500;
   font-size: 24px;
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid var(--border-color);
 }
 
 .avatar-img {
@@ -91,14 +91,14 @@ const bgColor = computed(() => {
 }
 
 .actor-count {
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }
 
 .actor-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.45);
-  background-color: rgba(255, 255, 255, 0.02);
+  box-shadow: var(--shadow-xl);
+  background-color: var(--bg-white-5);
 }
 </style>

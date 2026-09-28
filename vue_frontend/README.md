@@ -101,47 +101,7 @@ pnpm preview
 
 ## 部署说明
 
-本项目为纯前端单页应用（SPA），部署时需同源代理后端 API 与 WebSocket，以便浏览器会话、CSRF 和 Origin 校验正常工作。
-
-关键点：
-
-- 需开启 HTML5 History 路由回退（所有未命中路径回退到 `index.html`）。
-- 需将 `/nassav/api/` 与 `/nassav/ws/` 原样反向代理到后端 ASGI；登录前创建与 `NASSAV_OPERATOR_USERNAME` 一致的 Django 账号。HTTPS 页面使用 WSS，代理需保留原始 Host 并覆盖 `X-Forwarded-Proto`。
-
-### Nginx 示例
-
-```nginx
-server {
-  listen 80;
-  server_name your-domain.com;
-
-  root /var/www/nassav-frontend/dist;
-  index index.html;
-
-  # 前端路由回退
-  location / {
-    try_files $uri $uri/ /index.html;
-  }
-
-  # API 反向代理（与开发时保持一致的前缀）
-  location /nassav/ {
-    proxy_pass http://127.0.0.1:9790;  # 保留 /nassav 前缀
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $http_host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-```
-
-### Vercel / Netlify / GitHub Pages
-
-- 将 `dist/` 作为发布目录。
-- 设置单页应用重写规则（将所有路径重写到 `/index.html`）。
-- 平台需支持 `/nassav/api/` 与 `/nassav/ws/` 的同源代理及 WebSocket Upgrade；纯静态托管且不能代理时，应另设同源网关。
+前端生产部署需要 HTML5 History 路由回退，以及 `/nassav/api/` 和 `/nassav/ws/` 的同源代理。登录、CSRF、HTTPS/WSS、Host 和 WebSocket Upgrade 的完整网关要求见[Compose 部署说明](../django_backend/doc/compose-deployment.md#服务和代理)。纯静态托管若无法代理 WebSocket，需另配同源网关。
 
 ## 配置与约定
 
