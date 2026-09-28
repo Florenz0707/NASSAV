@@ -192,6 +192,20 @@ brew install redis
 brew services start redis
 ```
 
+#### 本地开发快捷启动命令
+
+在 `django_backend/` 目录下，为每个服务分别打开一个终端；先启动 Redis。API 使用 Uvicorn 自动重载，三个 worker 分别消费对应队列，Beat 只运行一个实例：
+
+```bash
+uv run nassav-api
+uv run nassav-worker-default
+uv run nassav-worker-scrape
+uv run nassav-worker-download
+uv run nassav-beat
+```
+
+API 默认监听 `0.0.0.0:8000`。需要覆盖默认参数时，可在命令后附加 Uvicorn/Celery 参数。
+
 #### 启动 Django 服务
 
 ### 方式一：使用 ASGI 服务器（推荐，支持 WebSocket）
