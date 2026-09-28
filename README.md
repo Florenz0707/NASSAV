@@ -605,6 +605,28 @@ setInterval(async () => {
 
 ## 版本更新
 
+### v2.3.0（2026-09-28）
+
+#### 🆕 新增
+
+- **异步资源刮削**：新增资源刮削任务及状态查询接口；添加、刷新资源时可跟踪刮削阶段，前端通过现有任务更新通道展示进度，并在完成或失败时显示通知。
+- **完整 Compose 部署**：新增包含前后端、Redis、Byparr 和独立 scrape、download、default Worker 的部署入口；Ollama 可通过可选 profile 启动，并提供 GPU 覆盖配置。
+- **PostgreSQL 可选配置与备份**：支持本地 `config.yaml` 和 Compose 覆盖文件连接外部 PostgreSQL，按数据库引擎执行备份，并提供 PostgreSQL 空库恢复命令。默认 Compose 仍使用 SQLite；开发库数据已导入，业务回归、备份恢复验收与正式切换尚未完成。
+
+#### 🔧 优化
+
+- **代理路由**：下载代理与页面抓取代理分开配置，Byparr 浏览器请求可使用项目配置的代理。
+- **本地启动**：新增后端服务快捷命令及启动参数，可按需运行 API、各队列 Worker 和 Beat。
+
+#### 🐛 修复
+
+- 修复查询 Celery 队列时阻塞 WebSocket 握手的问题。
+- 扩大 `translated_title` 字段长度，以容纳 PostgreSQL 导入时发现的较长标题。
+
+#### 📚 文档
+
+- 补充异步刮削、Compose 部署、代理路由和 PostgreSQL 迁移说明；新增[项目质量改进路线图](docs/project-quality-roadmap.md)，后续阶段仍待实施。
+
 ### v2.2.0（2026-09-26）
 
 ### Byparr 页面抓取迁移
