@@ -1,6 +1,6 @@
 # NASSAV - AV 资源管理系统
 
-基于 Django、Celery 和 Vue 的资源管理系统，提供多源获取、元数据刮削、异步下载、推荐和实时任务进度。项目基于 [Satoing/NASSAV](https://github.com/Satoing/NASSAV) 重构；历史源码保留在 `origin_project/`。
+基于 Django、Celery 和 Vue 的资源管理系统，提供多源获取、元数据刮削、异步下载、推荐和实时任务进度。项目基于 [Satoing/NASSAV](https://github.com/Satoing/NASSAV) 重构；历史参考代码已从当前仓库移除。
 
 ## 功能与入口
 
@@ -28,10 +28,34 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 ## 文档导航
 
 - [接口与权限](django_backend/doc/interface.md)、[推荐系统](django_backend/doc/recommendation.md)、[数据库与备份](django_backend/doc/database.md)
-- [项目质量改进路线图](docs/project-quality-roadmap.md)、[业务模块边界](django_backend/doc/p5-domain-boundaries.md)
+- [项目质量与运行边界](docs/project-quality.md)、[业务模块边界](django_backend/doc/p5-domain-boundaries.md)
 - [前端页面预览](vue_frontend/README.md)、[前端检查命令](vue_frontend/README.md#异步资源任务反馈)
 
 ## 版本更新
+
+### v2.4.0（2026-09-28）
+
+#### 🆕 新增
+
+- **单用户访问边界**：业务 API 和任务 WebSocket 使用登录会话；浏览器写入请求校验 CSRF，WebSocket 校验 Origin，前端处理会话过期。
+
+#### 🔧 优化
+
+- **部署与启动配置**：明确 SQLite 与外部 PostgreSQL 的 Compose 模式、三队列 Worker 和唯一 Beat；无效配置在启动时给出明确错误。
+- **实时任务与模块边界**：开发环境的 HTTP/WebSocket 使用同源代理，断线后补查任务状态；按资源、下载、推荐职责拆分后端和前端状态逻辑。
+- **主题样式**：相关卡片和搜索框使用统一设计变量，调整深浅主题的文字对比度。
+
+#### 🐛 修复
+
+- 修复 WebSocket 异常关闭后会话核对与重连、首次连接失败时的轮询补偿，以及不一致数据库配置可能造成的启动歧义。
+
+#### 🧹 清理
+
+- 删除未使用的辅助代码和一次性迁移脚本；移除 `origin_project/` 历史参考代码，当前构建与运行入口保持在根目录及前后端项目中。
+
+#### 📚 文档
+
+- 将已结束的项目质量执行计划与阶段记录收敛为[现状说明](docs/project-quality.md)；仍未完成的 PostgreSQL、Byparr 和异步刮削目标环境验收计划继续保留。
 
 ### v2.3.0（2026-09-28）
 
@@ -53,7 +77,7 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 #### 📚 文档
 
-- 补充异步刮削、Compose 部署、代理路由和 PostgreSQL 迁移说明；新增[项目质量改进路线图](docs/project-quality-roadmap.md)，后续阶段仍待实施。
+- 补充异步刮削、Compose 部署、代理路由和 PostgreSQL 迁移说明；当时新增的质量执行计划已在 v2.4.0 归档，当前结论见[项目质量与运行边界](docs/project-quality.md)。
 
 ### v2.2.0（2026-09-26）
 

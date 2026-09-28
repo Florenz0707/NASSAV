@@ -1,4 +1,2 @@
-extend-exclude = ["origin_project"]
-
 [lint]
 ignore = ["E402"]  # Module level import not at top - required for Django setup

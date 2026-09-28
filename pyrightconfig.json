@@ -5,7 +5,6 @@
     "**/__pycache__",
     "**/.venv",
     "**/node_modules",
-    "origin_project/*",
     "vue_frontend/*",
     "django_backend/scripts/*",
     "django_backend/tests/*"
