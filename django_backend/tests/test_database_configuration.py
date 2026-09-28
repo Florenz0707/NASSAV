@@ -33,6 +33,7 @@ def test_postgresql_configuration_requires_password():
         {
             "DJANGO_SETTINGS_MODULE": "django_project.settings",
             "DB_ENGINE": "postgres",
+            "NASSAV_COMPOSE_DB_MODE": "postgres",
             "DB_NAME": "nassav",
             "DB_USER": "nassav",
             "DB_HOST": "localhost",
@@ -73,6 +74,7 @@ def test_postgresql_settings_load_from_yaml(tmp_path):
     environment = os.environ.copy()
     environment["DJANGO_SETTINGS_MODULE"] = "django_project.settings"
     environment["NASSAV_CONFIG_PATH"] = str(config_path)
+    environment.pop("NASSAV_COMPOSE_DB_MODE", None)
     for name in (
         "DB_ENGINE",
         "DB_HOST",
@@ -104,3 +106,68 @@ def test_postgresql_settings_load_from_yaml(tmp_path):
         "django.db.backends.postgresql|127.0.0.1|5433|dev_database|dev_user|"
         "-c search_path=dev_schema"
     )
+
+
+def test_compose_sqlite_mode_rejects_postgres_override(tmp_path):
+    backend_root = Path(__file__).resolve().parents[1]
+    database = tmp_path / "unexpected.sqlite3"
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "DJANGO_SETTINGS_MODULE": "django_project.settings",
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_COMPOSE_DB_MODE": "sqlite",
+            "DB_ENGINE": "postgres",
+            "DATABASE_PATH": str(database),
+        }
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", "from django.conf import settings; settings.DATABASES"],
+        cwd=backend_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "Compose database mode conflicts with DB_ENGINE" in result.stderr
+    assert not database.exists()
+
+
+def test_postgres_connection_failure_never_opens_sqlite(tmp_path):
+    backend_root = Path(__file__).resolve().parents[1]
+    database = tmp_path / "unexpected.sqlite3"
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "DJANGO_SETTINGS_MODULE": "django_project.settings",
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_COMPOSE_DB_MODE": "postgres",
+            "DB_ENGINE": "postgres",
+            "DB_NAME": "nassav_p2_disposable",
+            "DB_USER": "nassav_p2_disposable",
+            "DB_HOST": "127.0.0.1",
+            "DB_PORT": "1",
+            "DB_PASSWORD": "dummy-test-password",
+            "PGCONNECT_TIMEOUT": "2",
+            "DATABASE_PATH": str(database),
+        }
+    )
+    environment.pop("DB_PASSWORD_FILE", None)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from django.db import connections; connections['default'].ensure_connection()",
+        ],
+        cwd=backend_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode != 0
+    assert (
+        "connection timeout expired" in result.stderr
+        or "Connection refused" in result.stderr
+    )
+    assert not database.exists()

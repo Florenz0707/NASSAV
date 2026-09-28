@@ -46,7 +46,7 @@ docker compose down
 
 #### batch_translate.py
 
-批量翻译资源标题
+批量翻译资源标题；异步模式需启动 `uv run nassav-worker-default` 监听默认队列。
 
 ```bash
 # 翻译所有待翻译的资源

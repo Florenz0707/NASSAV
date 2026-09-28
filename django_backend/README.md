@@ -60,7 +60,7 @@
 | curl_cffi             | -     | HTTP 请求（绕过反爬）               |
 | N_m3u8DL-RE           | -     | M3U8 下载工具                       |
 | Ollama                | -     | AI 翻译引擎（支持多模型）           |
-| SQLite                | 3     | 元数据存储（通过 Django ORM）       |
+| SQLite / PostgreSQL   | -     | 默认 SQLite；可选外部 PostgreSQL    |
 
 ## 项目结构
 
@@ -235,40 +235,29 @@ uv run python manage.py runserver 0.0.0.0:8000
 
 **注意**：如果要使用 WebSocket 实时通知功能，必须使用 ASGI 服务器（Uvicorn 或 Daphne）。
 
-#### 启动 Celery Worker（异步下载）
+#### 启动三个 Celery Worker
+
+在不同终端分别运行，三个入口各自固定 `default`、`scrape`、`download` 队列，并发与预取均为 1：
 
 ```bash
-# 标准启动（已配置单并发）
-uv run celery -A django_project worker -l info
-
-# 或手动指定并发数为 1
-uv run celery -A django_project worker -l info --concurrency=1
+uv run nassav-worker-default
+uv run nassav-worker-scrape
+uv run nassav-worker-download
 ```
 
-**重要说明：**
-
-- Worker 已配置为单并发模式（`CELERY_WORKER_CONCURRENCY=1`）
-- 全局下载锁确保同一时间只有一个 N_m3u8DL-RE 实例在运行
-- 任务去重机制防止同一 AVID 重复提交到队列
-
-#### 启动 Celery Beat（定时任务调度器）
-
-```bash
-# 启动定时任务调度器
-uv run celery -A django_project beat -l info
-```
+仅启动不指定队列的普通 worker 不能消费 `scrape` 和 `download` 任务。需要定时任务时再运行**唯一一个** `uv run nassav-beat`；Compose 部署则使用 `docker compose --profile scheduler up -d`，不要同时启用宿主机 Beat。
 
 **定时任务说明：**
 
-| 任务名称                            | 执行时间  | 功能描述                                                    |
-| ----------------------------------- | --------- | ----------------------------------------------------------- |
-| `backup-database-daily`             | 每天 1:30 | 备份 SQLite 数据库和 WAL 文件，保留 30 天                   |
-| `backup-avid-list-daily`            | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天             |
-| `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配        |
-| `cleanup-logs-daily`                | 每天 3:30 | 清理 `log/` 目录中过期的本地日志文件，保留 30 天            |
-| `sync-backups-daily`                | 每天 4:00 | 同步备份文件到外部目录（/mnt/d/\_Files/Ubuntu_Data/nassav） |
-| `db-disk-consistency-daily`         | 每天 7:00 | 检查视频文件与数据库记录的一致性                            |
-| `actor-avatars-consistency-daily`   | 每天 7:05 | 检查演员头像完整性                                          |
+| 任务名称                            | 执行时间  | 功能描述                                                               |
+| ----------------------------------- | --------- | ---------------------------------------------------------------------- |
+| `backup-database-daily`             | 每天 1:30 | 按当前引擎备份 SQLite/WAL 或 PostgreSQL custom-format 归档，保留 30 天 |
+| `backup-avid-list-daily`            | 每天 2:00 | 备份所有 AVID 列表到 `backup/` 目录，保留 30 天                        |
+| `check-resources-consistency-daily` | 每天 3:00 | 检查封面/视频/缩略图与数据库的一致性，自动修复不匹配                   |
+| `cleanup-logs-daily`                | 每天 3:30 | 清理 `log/` 目录中过期的本地日志文件，保留 30 天                       |
+| `sync-backups-daily`                | 每天 4:00 | 同步备份文件到外部目录（/mnt/d/\_Files/Ubuntu_Data/nassav）            |
+| `db-disk-consistency-daily`         | 每天 7:00 | 检查视频文件与数据库记录的一致性                                       |
+| `actor-avatars-consistency-daily`   | 每天 7:05 | 检查演员头像完整性                                                     |
 
 **执行顺序逻辑：**
 
@@ -281,7 +270,7 @@ uv run celery -A django_project beat -l info
 
 **备份文件位置：**
 
-- 数据库备份：`backup/database_{timestamp}/`（包含 db.sqlite3、db.sqlite3-wal、db.sqlite3-shm）
+- 数据库备份：SQLite 位于 `backup/database_{timestamp}/`；PostgreSQL 位于 `backup/database_postgresql_{timestamp}/database.dump`
 - AVID 备份：`backup/avid_backup_{timestamp}.json`（JSON 格式，包含 AVID 列表和元信息）
 - 一致性报告：`celery_beat/resources_consistency_report.json`
 - 外部同步目标：`/mnt/d/_Files/Ubuntu_Data/nassav/`（WSL2 Windows 目录）
@@ -293,81 +282,67 @@ uv run celery -A django_project beat -l info
 - Uvicorn 访问日志：`log/uvicorn_access.log`（按日轮转，保留 30 天）
 - Beat 清理任务：`cleanup-logs-daily` 每天 3:30 扫描 `log/` 目录并删除超过 30 天的日志文件
 
-#### 完整启动（推荐使用进程管理工具）
+#### 使用进程管理工具
 
-**使用 systemd（生产环境）：**
-
-创建服务文件 `/etc/systemd/system/nassav-*.service`：
+使用 systemd 时，API 和 Beat 各一个服务，worker 使用一个模板服务并启动三个实例。以下示例假定代码位于 `/path/to/django_backend`，`uv` 位于 `/path/to/uv`；数据库和 Redis 配置须与这五个进程一致。API 默认监听 `127.0.0.1:9790`，对外访问由同源 HTTPS 网关转发。
 
 ```ini
-# /etc/systemd/system/nassav-django.service
+# /etc/systemd/system/nassav-api.service
 [Unit]
-Description=NASSAV Django ASGI Server
+Description=NASSAV ASGI API
 After=network.target redis.service
-
 [Service]
-Type=simple
 User=your-user
 WorkingDirectory=/path/to/django_backend
-ExecStart=/path/to/uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --log-config log_config.py
+ExecStart=/path/to/uv run uvicorn django_project.asgi:application --host 127.0.0.1 --port 9790
 Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-# /etc/systemd/system/nassav-celery-worker.service
-[Unit]
-Description=NASSAV Celery Worker
-After=network.target redis.service
-
-[Service]
-Type=simple
-User=your-user
-WorkingDirectory=/path/to/django_backend
-ExecStart=/path/to/uv run celery -A django_project worker -l info
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-# /etc/systemd/system/nassav-celery-beat.service
-[Unit]
-Description=NASSAV Celery Beat Scheduler
-After=network.target redis.service
-
-[Service]
-Type=simple
-User=your-user
-WorkingDirectory=/path/to/django_backend
-ExecStart=/path/to/uv run celery -A django_project beat -l info
-Restart=always
-
 [Install]
 WantedBy=multi-user.target
 ```
 
-启动服务：
+```ini
+# /etc/systemd/system/nassav-worker@.service
+[Unit]
+Description=NASSAV Celery %i worker
+After=network.target redis.service
+[Service]
+User=your-user
+WorkingDirectory=/path/to/django_backend
+ExecStart=/path/to/uv run nassav-worker-%i
+Restart=always
+[Install]
+WantedBy=multi-user.target
+```
+
+```ini
+# /etc/systemd/system/nassav-beat.service
+[Unit]
+Description=NASSAV single Celery Beat
+After=network.target redis.service
+[Service]
+User=your-user
+WorkingDirectory=/path/to/django_backend
+ExecStart=/path/to/uv run nassav-beat
+Restart=always
+[Install]
+WantedBy=multi-user.target
+```
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable nassav-django nassav-celery-worker nassav-celery-beat
-sudo systemctl start nassav-django nassav-celery-worker nassav-celery-beat
+sudo systemctl enable --now nassav-api nassav-worker@default nassav-worker@scrape nassav-worker@download
+# 只在没有其他 Beat 实例时启用
+sudo systemctl enable --now nassav-beat
 ```
 
-**使用 tmux/screen（开发环境）：**
+使用 tmux 开发时，在 `django_backend/` 创建独立窗口，并在各窗口分别执行：
 
 ```bash
-# 窗口 1: Django
-tmux new -s nassav -n django
-uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --log-config log_config.py
-
-# 窗口 2: Celery Worker
-tmux new-window -t nassav -n worker
-uv run celery -A django_project worker -l info
-
-# 窗口 3: Celery Beat
-tmux new-window -t nassav -n beat
-uv run celery -A django_project beat -l info
+uv run nassav-api
+uv run nassav-worker-default
+uv run nassav-worker-scrape
+uv run nassav-worker-download
+uv run nassav-beat  # 可选，整个部署只运行一个实例
 ```
 
 ## API 文档
@@ -503,8 +478,10 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # 每次只预取一个任务
 # 运行开发服务器
 uv run python manage.py runserver 0.0.0.0:8000
 
-# 启动 Celery Worker（单并发模式）
-uv run celery -A django_project worker -l info
+# 分别启动三个队列的 worker（各占一个终端）
+uv run nassav-worker-default
+uv run nassav-worker-scrape
+uv run nassav-worker-download
 
 # 进入 Django Shell
 uv run python manage.py shell
@@ -576,7 +553,7 @@ setInterval(async () => {
     });
 }, 数据库架构
 
-项目使用 SQLite 数据库存储所有元数据，主要模型包括：
+项目默认使用 SQLite，也支持独立配置的 PostgreSQL；元数据均通过 Django ORM 存储，主要模型包括：
 
 - **AVResource**：视频资源主表，包含 AVID、标题、源信息、翻译状态等
 - **Actor**：演员信息表
@@ -665,10 +642,9 @@ uv run python manage.py backup_database --days 60
 
 **备份内容：**
 
-- 数据库主文件：`db.sqlite3`
-- WAL 日志文件：`db.sqlite3-wal`
-- 共享内存文件：`db.sqlite3-shm`
-- 元数据文件：`backup_info.txt`（包含备份时间、文件大小等信息）
+- SQLite：数据库主文件及存在时的 WAL、SHM 文件
+- PostgreSQL：custom-format `database.dump`
+- 两种模式：记录引擎和备份信息的 `backup_info.txt`
 
 **备份位置：**
 
@@ -854,9 +830,9 @@ MIT License
 新增 `POST /nassav/api/resource/jobs`、`POST /nassav/api/resource/jobs/batch` 和 `GET /nassav/api/resource/jobs/{task_id}`；接口字段和签名查询令牌见 [接口说明](doc/interface.md)。当前前端尚未切换，旧资源接口仍是同步调用。启动 Redis 后，开发环境分别启动以下 worker；只启动不带 `-Q` 的默认 worker 无法消费 `scrape` 与 `download` 队列：
 
 ```bash
-uv run celery -A django_project worker -l INFO -Q scrape -c 1 --prefetch-multiplier=1
-uv run celery -A django_project worker -l INFO -Q download -c 1 --prefetch-multiplier=1
-uv run celery -A django_project worker -l INFO -Q default -c 1 --prefetch-multiplier=1
+uv run nassav-worker-scrape
+uv run nassav-worker-download
+uv run nassav-worker-default
 ```
 
 三个命令需在独立终端运行。下载及模拟下载进入 `download`；资源添加/刷新进入 `scrape`；翻译和定时任务由 `default` 消费。若使用 Beat，另启单实例 Beat。任务状态保存在 Redis，终态保留 24 小时；同一资源编号的添加/刷新共用任务锁。

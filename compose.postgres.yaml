@@ -5,6 +5,7 @@ services:
   ollama-model:
     environment: &postgres-environment
       DB_ENGINE: postgres
+      NASSAV_COMPOSE_DB_MODE: postgres
       DB_HOST: ${DB_HOST:?Set DB_HOST to the existing PostgreSQL server}
       DB_PORT: ${DB_PORT:-5432}
       DB_SCHEMA: ${DB_SCHEMA-}

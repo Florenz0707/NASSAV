@@ -26,7 +26,7 @@
     uv run python scripts/batch_translate.py --sync --dry-run --limit 5
 
 注意: 使用 Celery 异步模式前需要启动 worker:
-    uv run celery -A django_project worker -l info
+    uv run nassav-worker-default
 """
 
 import argparse
@@ -273,7 +273,7 @@ def run_async_translation(resources=None, avids=None, skip_existing=True):
     except Exception as e:
         print(f"\n❌ 提交 Celery 任务失败: {e}")
         print("   请确保 Celery worker 已启动:")
-        print("   uv run celery -A django_project worker -l info")
+        print("   uv run nassav-worker-default")
         return None
 
 

@@ -255,36 +255,19 @@ uv run python manage.py runserver 0.0.0.0:8000
 
 **注意**：如果要使用 WebSocket 实时通知功能，必须使用 ASGI 服务器（Uvicorn 或 Daphne）。
 
-#### 启动 Celery Worker（异步下载）
+#### 启动三个 Celery Worker 与 Beat
+
+分别在独立终端运行三个队列消费者；单个默认 worker 不会消费 `scrape` 或 `download` 队列：
 
 ```bash
-# 标准启动（已配置单并发）
-uv run celery -A django_project worker -l info
-
-# 或手动指定并发数为 1
-uv run celery -A django_project worker -l info --concurrency=1
+uv run nassav-worker-default
+uv run nassav-worker-scrape
+uv run nassav-worker-download
+# 仅启动一个调度器；需要定时任务时运行
+uv run nassav-beat
 ```
 
-**重要说明**：
-
-- Worker 已配置为单并发模式（`CELERY_WORKER_CONCURRENCY=1`）
-- 全局下载锁确保同一时间只有一个 N_m3u8DL-RE 实例在运行
-- 任务去重机制防止同一 AVID 重复提交到队列
-
-#### 启动 Celery Beat（定时任务）
-
-Celery Beat 负责按计划触发定时任务（数据备份、一致性检查等），需要与 Worker 同时运行。
-
-```bash
-# 启动 Beat 调度器（需与 Worker 同时运行）
-uv run celery -A django_project beat -l info \
-  --scheduler django_celery_beat.schedulers:DatabaseScheduler
-
-# 或使用默认调度器（无需数据库）
-uv run celery -A django_project beat -l info
-```
-
-> Beat 进程只负责触发任务，实际执行仍由 Worker 完成，两者必须同时运行。
+每个 worker 并发和预取均为 1。Compose 中 Beat 位于 `scheduler` profile，须显式启用；不要与宿主机 Beat 同时运行。
 
 ### 2. 前端设置
 
@@ -418,28 +401,9 @@ Compose 默认使用 SQLite；如需 PostgreSQL，连接由部署方在 Compose 
 
 ### 后端部署
 
-**使用 ASGI 服务器（支持 WebSocket）：**
+推荐按[全栈 Compose 部署说明](django_backend/doc/compose-deployment.md)启动。默认 `compose.yaml` 固定 SQLite；外部 PostgreSQL 必须同时加载 `compose.postgres.yaml` 并提供密码 secret。两种模式均先运行一次 `migrate`，再启动 API 和三个 worker；Beat 仅在 `scheduler` profile 中启动一次。不要只修改 `.env` 的 `DB_ENGINE` 来切换 Compose 数据库。
 
-```bash
-# 使用 Uvicorn（推荐）
-uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --workers 4
-
-# 或使用 Daphne
-daphne -b 0.0.0.0 -p 8000 django_project.asgi:application
-
-# Celery Worker（后台运行）
-celery -A django_project worker -l info --detach --concurrency=1
-```
-
-**使用传统 WSGI 服务器（不支持 WebSocket）：**
-
-```bash
-# 使用 Gunicorn
-gunicorn django_project.wsgi:application --bind 0.0.0.0:8000 --workers 4
-
-# Celery Worker（后台运行）
-celery -A django_project worker -l info --detach --concurrency=1
-```
+本机直接运行时，在 `django_backend/` 中分别执行 `uv run nassav-api`、`uv run nassav-worker-default`、`uv run nassav-worker-scrape`、`uv run nassav-worker-download`；需要定时任务时再运行一个 `uv run nassav-beat`。API 使用 ASGI 以支持 WebSocket。本机 PostgreSQL 配置见[数据库说明](django_backend/doc/database.md)。
 
 ### 前端部署
 
