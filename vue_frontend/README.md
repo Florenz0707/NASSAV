@@ -81,14 +81,14 @@
 pnpm install
 ```
 
-1. 启动开发服务器（默认端口 8080）
+1. 启动开发服务器（默认仅监听 `127.0.0.1:9780`）
 
 ```bash
 pnpm dev
 ```
 
-- 开发代理：参见 [vite.config.js](vite.config.js)，`/nassav` 将被代理到 `http://localhost:8000`。请确保后端在本地 8000
-  端口可用，或按需修改配置。
+- 开发代理：`/nassav/api/` 与 `/nassav/ws/` 默认转发到 `http://127.0.0.1:9790`。后端不在该地址时，在启动 Vite 前设置 `NASSAV_VITE_BACKEND_URL=http://后端主机:端口`。这是 Vite 服务端连接地址；浏览器仍使用页面的 Host、Cookie 和 Origin。
+- 仅在可信局域网跨设备调试时使用 `NASSAV_VITE_HOST=0.0.0.0 pnpm dev`，然后从另一设备打开 `http://开发机局域网地址:9780`。后端 `ALLOWED_HOSTS` 须包含浏览器访问的主机名或 IP；若要在该入口登录，还须将 `http://开发机局域网地址:9780` 加入 `CSRF_TRUSTED_ORIGINS`。不要将开发服务器直接暴露到公网。
 
 1. 生产构建与本地预览
 
@@ -146,8 +146,8 @@ server {
 ## 配置与约定
 
 - 开发代理与别名：见 [vite.config.js](vite.config.js)
-  - `server.port = 9780`
-  - `server.proxy['/nassav/api']` 和 `server.proxy['/nassav/ws']` → `localhost:9790`
+  - `server.host = 127.0.0.1`、`server.port = 9780`；`NASSAV_VITE_HOST` 可调整监听地址
+  - `server.proxy['/nassav/api']` 和 `server.proxy['/nassav/ws']` → `NASSAV_VITE_BACKEND_URL`（默认 `127.0.0.1:9790`）；WebSocket 随目标协议选择 ws/wss
   - `resolve.alias['@'] = '/src'`
 - 主要代码结构：
   - 视图：`src/views/`（首页、资源库、演员库、类别库、详情、添加、下载）
@@ -169,8 +169,10 @@ server {
 
 资源添加、刷新和批量添加/刷新现在提交到后端 `/nassav/api/resource/jobs`，HTTP 202 仅表示入队。资源任务通过全局 toast 提示入队、开始、成功和失败；同一状态的阶段更新和重复 WebSocket 事件不会重复通知。WebSocket 状态事件触发带令牌的快照查询，只有快照确认 `succeeded` 后才提示成功并刷新资源数据。任务 ID 与查询令牌保存在浏览器本地存储，页面刷新或 WebSocket 重连后会重新查询未结束任务；定时查询作为断线时的补偿。重新提交失败任务会以新的任务 ID 提示“重试任务已排队”。批量删除和视频删除继续使用原接口。后端需另启监听 `scrape` 队列的 Celery worker；只启动默认 worker 无法处理资源任务。
 
-前端任务状态测试：
+前端无交互检查入口：
 
 ```bash
-pnpm run test
+pnpm run check
 ```
+
+该命令依次运行 lint、`pnpm run test` 和构建。测试覆盖资源任务从入队到终态的快照补齐、WebSocket URL、重连与会话失效，以及 Vite 的 HTTP/WebSocket 同源代理。WebSocket 连接失败时，下载页改用 API 轮询；资源任务继续通过带令牌的状态查询补齐终态。浏览器握手失败若只返回异常关闭码，前端会查询 HTTP 会话：登录已过期则停止重连，网络故障则继续重试。
