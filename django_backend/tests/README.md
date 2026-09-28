@@ -99,7 +99,7 @@ uv run pytest tests/test_database_configuration.py -q
 #### 5. test_serializers.py
 
 - **功能**: 测试序列化器的数据转换和验证
-- **覆盖**: ResourceSummarySerializer, ResourceSerializer
+- **覆盖**: ResourceSummarySerializer
 - **运行**: `uv run pytest tests/test_serializers.py -v`
 - **fixtures**: `resource_with_relations`
 
