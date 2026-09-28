@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { downloadApi, resourceApi, sourceApi } from '../api/index.js'
-import { useToastStore } from './toast.js'
+import { notifyScrapeBatch, notifyScrapeJobTransition } from './scrapeJobNotifications.js'
 import { mergeScrapeJob, TERMINAL_JOB_STATES } from './scrapeJobState.js'
 
 export const useResourceStore = defineStore('resource', () => {
@@ -40,18 +40,8 @@ export const useResourceStore = defineStore('resource', () => {
     scrapeJobs.value = new Map(scrapeJobs.value).set(job.task_id, merged)
     persistScrapeJobs()
     syncScrapePolling()
-    if (notify && previous?.state !== merged.state) {
-      const toast = useToastStore()
-      const action = merged.action === 'add' ? '添加' : '刷新'
-      if (merged.state === 'queued')
-        toast.info(`${merged.avid} ${isRetry ? '重试任务' : `${action}任务`}已排队`)
-      else if (merged.state === 'running') toast.info(`${merged.avid} 正在${action}`)
-      else if (merged.state === 'succeeded') {
-        toast.success(`${merged.avid} ${action}成功`)
-        if (lastResourceQuery) fetchResources(lastResourceQuery).catch(() => {})
-      } else if (merged.state === 'failed') {
-        toast.error(`${merged.avid} ${merged.message || `${action}失败`}`)
-      }
+    if (notify && notifyScrapeJobTransition(previous, merged, isRetry) && lastResourceQuery) {
+      fetchResources(lastResourceQuery).catch(() => {})
     }
     return merged
   }
@@ -170,9 +160,7 @@ export const useResourceStore = defineStore('resource', () => {
         failed += 1
       }
     }
-    const toast = useToastStore()
-    if (queued) toast.info(`${queued} 个资源任务已排队`)
-    if (failed) toast.warning(`${failed} 个资源提交失败`)
+    notifyScrapeBatch(queued, failed)
   }
 
   function getScrapeJobForAvid(avid) {
