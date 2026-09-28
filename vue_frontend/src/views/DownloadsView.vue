@@ -130,18 +130,19 @@ onUnmounted(() => {
 
 // 监听 WebSocket 连接状态变化
 watch(
-  () => wsStore.connected,
-  (isConnected) => {
+  [() => wsStore.connected, () => wsStore.connectionFailed],
+  ([isConnected, hasFailed]) => {
     if (isConnected) {
       // WebSocket 连接成功，停止轮询
       console.log('[DownloadsView] WebSocket 已连接，停止轮询')
       stopPolling()
-    } else if (wsStore.connectionFailed) {
+    } else if (hasFailed) {
       // WebSocket 断开且已发生连接失败，启动轮询
       console.log('[DownloadsView] WebSocket 连接失败，启动轮询')
       startPolling()
     }
-  }
+  },
+  { immediate: true }
 )
 
 // 获取任务队列状态（API 轮询）

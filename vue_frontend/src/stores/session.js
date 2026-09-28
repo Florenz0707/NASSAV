@@ -31,6 +31,25 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  async function recheck() {
+    attachUnauthorizedHandler()
+    try {
+      const response = await authApi.getSession()
+      if (!response.data.authenticated) {
+        expire()
+        return false
+      }
+      username.value = response.data.username
+      status.value = 'authenticated'
+      return true
+    } catch (error) {
+      // A rejected WebSocket handshake has no readable HTTP status in browsers.
+      // Keep the session during network outages; the API reports real 401s.
+      if (error?.httpStatus === 401) expire()
+      return status.value === 'authenticated'
+    }
+  }
+
   async function signIn(name, password) {
     const response = await authApi.login(name, password)
     username.value = response.data.username
@@ -42,5 +61,5 @@ export const useSessionStore = defineStore('session', () => {
     expire()
   }
 
-  return { status, username, initialize, signIn, signOut, expire }
+  return { status, username, initialize, recheck, signIn, signOut, expire }
 })

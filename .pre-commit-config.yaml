@@ -59,6 +59,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^vue_frontend/
+      - id: vue-frontend-tests
+        name: vue_frontend tests
+        entry: bash -c 'cd vue_frontend && pnpm run test'
+        language: system
+        pass_filenames: false
+        files: ^vue_frontend/
       - id: vue-frontend-eslint
         name: vue_frontend eslint
         entry: >-
