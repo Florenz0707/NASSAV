@@ -241,16 +241,16 @@ Source:
 
 ```bash
 # 使用 Uvicorn（推荐）
-uv run uvicorn django_project.asgi:application --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn django_project.asgi:application --host 127.0.0.1 --port 8000 --reload
 
 # 或使用 Daphne
-uv run daphne -b 0.0.0.0 -p 8000 django_project.asgi:application
+uv run daphne -b 127.0.0.1 -p 8000 django_project.asgi:application
 ```
 
 ### 方式二：使用 Django 开发服务器（不支持 WebSocket）
 
 ```bash
-uv run python manage.py runserver 0.0.0.0:8000
+uv run python manage.py runserver 127.0.0.1:8000
 ```
 
 **注意**：如果要使用 WebSocket 实时通知功能，必须使用 ASGI 服务器（Uvicorn 或 Daphne）。
@@ -281,10 +281,10 @@ pnpm install  # 或 npm install
 #### 启动开发服务器
 
 ```bash
-pnpm dev  # 默认端口 9780
+NASSAV_VITE_BACKEND_URL=http://127.0.0.1:8000 pnpm dev  # 对应上方本机后端
 ```
 
-开发代理已配置：`/nassav/api` 与 `/nassav/ws` → `localhost:9790`
+Vite 默认监听 `127.0.0.1:9780`，未设置 `NASSAV_VITE_BACKEND_URL` 时代理目标为 `127.0.0.1:9790`。开发页面的 API 与 WebSocket 均走同源 Vite 代理；跨设备调试和前端检查命令见[前端说明](vue_frontend/README.md)。
 
 ### 创建登录账号
 

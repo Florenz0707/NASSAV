@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { settingsApi } from '../api'
+import { settingsApi } from '../api/index.js'
 
 export const useSettingsStore = defineStore('settings', () => {
   // 是否显示女优头像

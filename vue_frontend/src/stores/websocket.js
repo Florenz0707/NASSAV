@@ -1,13 +1,18 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { resourceApi } from '../api'
-import { useSettingsStore } from './settings'
-import { useToastStore } from './toast'
-import { useResourceStore } from './resource'
-import { useSessionStore } from './session'
+import { ref, shallowRef } from 'vue'
+import { resourceApi } from '../api/index.js'
+import { useSettingsStore } from './settings.js'
+import { useToastStore } from './toast.js'
+import { useResourceStore } from './resource.js'
+import { useSessionStore } from './session.js'
+
+export function taskWebSocketUrl(location) {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${location.host}/nassav/ws/tasks/`
+}
 
 export const useWebSocketStore = defineStore('websocket', () => {
-  const ws = ref(null)
+  const ws = shallowRef(null)
   const connected = ref(false)
   const connectionFailed = ref(false) // 标记是否发生过连接失败或超时
   const reconnectTimer = ref(null)
@@ -31,9 +36,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
   // 连接 WebSocket
   function connect() {
     if (useSessionStore().status !== 'authenticated') return
+    if (!cleanupTimer) cleanupTimer = setInterval(cleanupCache, 10 * 60 * 1000)
     shouldReconnect.value = true
     // 如果已连接，不重复连接
-    if (ws.value && connected.value) {
+    if (ws.value && (connected.value || ws.value.readyState === WebSocket.CONNECTING)) {
       return
     }
 
@@ -43,9 +49,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
       ws.value = null
     }
 
-    // Use the page origin so the browser sends the same session cookie.
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/nassav/ws/tasks/`
+    // The page host is also the WebSocket origin in development and production.
+    const wsUrl = taskWebSocketUrl(window.location)
 
     console.log('[WebSocket] 正在连接:', wsUrl)
 
@@ -69,6 +74,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
         if (ws.value !== socket) return
         console.log('[WebSocket] 连接成功')
         connected.value = true
+        connectionFailed.value = false
         useResourceStore().refreshPendingScrapeJobs()
         // 清除连接超时定时器
         if (connectionTimer.value) {
@@ -92,7 +98,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
         }
       }
 
-      socket.onclose = (event) => {
+      socket.onclose = async (event) => {
         if (ws.value !== socket) return
         console.log('[WebSocket] 连接关闭:', event.code, event.reason)
         connected.value = false
@@ -108,8 +114,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
           useSessionStore().expire()
         } else if (event.code === 4403) {
           shouldReconnect.value = false
-        } else {
-          scheduleReconnect()
+        } else if (await useSessionStore().recheck()) {
+          // Failed handshakes often appear as 1006, so verify the HTTP session.
+          if (!ws.value) scheduleReconnect()
         }
       }
 
@@ -118,11 +125,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
         console.error('[WebSocket] 错误:', error)
         connected.value = false
         connectionFailed.value = true // 标记连接失败
-        // 清除连接超时定时器
-        if (connectionTimer.value) {
-          clearTimeout(connectionTimer.value)
-          connectionTimer.value = null
-        }
+        // Keep the connection timeout: some browsers do not deliver onclose promptly.
       }
     } catch (error) {
       console.error('[WebSocket] 创建连接失败:', error)
@@ -156,8 +159,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
     if (ws.value) {
       ws.value.close()
       ws.value = null
-      connected.value = false
     }
+    connected.value = false
+    connectionFailed.value = false
   }
 
   // 计划 WebSocket 重连
@@ -399,8 +403,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
     }
   }
 
-  // 每 10 分钟清理一次过期缓存
-  let cleanupTimer = setInterval(cleanupCache, 10 * 60 * 1000)
+  // 仅在连接生命周期内清理缓存；退出登录后停止定时器。
+  let cleanupTimer = null
 
   return {
     // 连接状态
