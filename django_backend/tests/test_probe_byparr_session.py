@@ -39,7 +39,7 @@ def test_probe_validation_rejects_challenge_and_wrong_site():
     )
 
 
-def test_missav_embedded_challenge_script_is_reported_separately():
+def test_missav_embedded_challenge_script_is_accepted_after_p2_fix():
     from nassav.source.MissAV import MissAV
 
     source = MissAV(page_fetcher=PageFetchService(None))
@@ -50,8 +50,5 @@ def test_missav_embedded_challenge_script_is_reported_separately():
         "<script>const path = 'challenge-platform';</script>"
     )
 
-    assert PageFetchService.is_challenge(html)
-    assert (
-        valid_page(source, "detail", "FTHTD-228", url, url, html)
-        == "valid_embedded_marker"
-    )
+    assert not PageFetchService.is_challenge(html)
+    assert valid_page(source, "detail", "FTHTD-228", url, url, html) == "valid"

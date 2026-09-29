@@ -10,6 +10,10 @@
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p1-test.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_source_cookie_session.py -v
 ```
 
+## P2 页面会话复用测试
+
+`test_browser_session_reuse.py` 离线覆盖直连状态、三种抓取策略、浏览器候选筛选、3 秒验证、人工写入竞争及失败不污染数据库。运行：`DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-tests.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_browser_session_reuse.py -v`。
+
 ## Byparr 页面抓取测试
 
 `test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选、挑战页、错域校验及 MissAV 嵌入脚本误判分类；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[基线记录](../doc/byparr-session-reuse-p0-record.md)。

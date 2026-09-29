@@ -64,6 +64,9 @@ class MissAV(SourceBase):
                 source=self.get_source_name(),
                 candidate_index=candidate_index,
                 request_id=request_id,
+                session_handler=self
+                if self.proxy and getattr(fetcher.browser, "provider", None) == "byparr"
+                else None,
             )
             if result.ok:
                 return result.html

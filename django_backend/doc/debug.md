@@ -12,6 +12,10 @@
 
 P1 不新增调试端点。可在隔离数据库上运行 `uv run pytest tests/test_source_cookie_session.py -v`，覆盖旧行迁移、人工覆盖/清除、晚到刷新、跨进程缓存、直连请求头快照及并发版本检查。旧 Cookie API 的请求与返回格式保持不变；详细命令见 [`tests/README.md`](../tests/README.md)。
 
+## P2 页面回退与会话验证
+
+`uv run pytest tests/test_browser_session_reuse.py -v` 在隔离测试库验证直连 HTTP 状态和挑战分类、三种页面策略、浏览器 Cookie 域名/路径/过期筛选、一次 3 秒直连探测、晚到人工更新、失败探测不写库及 Jable/MissAV 业务校验。该测试不访问外站；线上真实站点与代理出口的灰度验收仍按执行计划 P5 单独进行。
+
 ## 模拟下载接口
 
 ### 概述

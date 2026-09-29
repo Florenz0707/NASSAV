@@ -570,6 +570,10 @@ class Jable(SourceBase):
             source=self.get_source_name(),
             candidate_index=candidate_index,
             request_id=request_id,
+            session_handler=self
+            if self.proxy
+            and getattr(active_fetcher.browser, "provider", None) == "byparr"
+            else None,
         )
         return result.html if result.ok else None
 
