@@ -598,3 +598,5 @@ uv run pytest tests/test_database_configuration.py -v
 ```
 
 P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开关默认关闭和显式恢复页面策略；运行 `uv run pytest tests/test_source_cookie_api.py tests/test_browser_fetch_config.py tests/test_page_fetching.py -v`。
+
+`test_resource_deletion.py` 包含缺省缩略图目录的删除回归；运行 `uv run pytest tests/test_resource_deletion.py -v`。测试只使用 pytest 隔离数据库和临时目录，不触碰实际资源文件。

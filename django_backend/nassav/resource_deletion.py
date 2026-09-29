@@ -94,7 +94,7 @@ class ResourceDeletionService:
     @staticmethod
     def _file_candidates(avid: str) -> list[tuple[Path, str]]:
         cover_dir = Path(settings.COVER_DIR)
-        thumb_dir = Path(settings.THUMBNAIL_DIR)
+        thumb_dir = Path(getattr(settings, "THUMBNAIL_DIR", cover_dir / "thumbnails"))
         video_dir = Path(settings.VIDEO_DIR)
         candidates = [
             (cover_dir / f"{avid}{ext}", f"{avid}{ext}")

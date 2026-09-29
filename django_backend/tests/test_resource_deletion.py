@@ -333,3 +333,24 @@ def test_batch_rejects_malformed_items_without_stopping_following_item(
         200,
     ]
     assert not path.exists()
+
+
+@pytest.mark.django_db
+def test_delete_uses_default_thumbnail_directory_when_setting_absent(
+    api_client, resource_factory, settings, tmp_path, monkeypatch
+):
+    avid = "F1-NO-THUMBNAIL-SETTING"
+    settings.COVER_DIR = tmp_path / "cover"
+    settings.VIDEO_DIR = tmp_path / "video"
+    settings.RESOURCE_BACKUP_DIR = tmp_path / "backup"
+    monkeypatch.delattr(settings, "THUMBNAIL_DIR", raising=False)
+    thumbnail = settings.COVER_DIR / "thumbnails" / "medium" / f"{avid}.jpg"
+    thumbnail.parent.mkdir(parents=True)
+    thumbnail.write_bytes(b"isolated-test")
+    resource_factory(avid=avid)
+
+    response = api_client.delete(f"/nassav/api/resource/{avid}")
+
+    assert response.status_code == 200
+    assert not thumbnail.exists()
+    assert not AVResource.objects.filter(avid=avid).exists()
