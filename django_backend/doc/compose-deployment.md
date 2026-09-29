@@ -54,6 +54,15 @@ API、`migrate`、三个 worker 和 Beat 共享同一组数据目录挂载；配
 
 `NASSAV_DATA_DIR/db/.nassav-db-mode` 保存 `sqlite` 或 `postgres`，随整个数据目录备份和恢复。首次空目录运行 `python3 scripts/compose_stack.py --mode sqlite init`；外部 PostgreSQL 模式使用 `--mode postgres init`，并先准备存在的 `POSTGRES_PASSWORD_FILE`。已有数据目录须先核对当前运行容器的 Compose 文件标签、数据库备份和活动数据库模式，然后执行 `python3 scripts/compose_stack.py --mode postgres --adopt-existing init`（SQLite 则改为 `--mode sqlite`）。脚本不会覆盖相反模式的声明；正式数据库迁移与回退需按独立迁移计划处理数据，不能只改声明文件。
 
+如果 `init` 报 `Permission denied: .../deploy-data/db`，先核对 `.env` 的 `NASSAV_DATA_DIR` 与 `/app/data/db` 的预期 bind 目录一致。Docker 可能先把 `deploy-data` 建成 `root:root 755`，此时普通用户无法新建 `db`。只创建并授权这个子目录，再重试 `init`：
+
+```sh
+sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" deploy-data/db
+python3 scripts/compose_stack.py --mode postgres init
+```
+
+上例路径须替换为本机实际的 `NASSAV_DATA_DIR/db`；不要递归修改整个数据目录的属主。已有 `db` 目录时，先核对里面的数据库文件和备份，再调整该目录权限。`init` 只写入模式声明，不会启动或迁移数据库。
+
 日常 `up`、`ps`、`logs`、`exec`、`down`、`build`、`restart` 都用同一个 `--mode`、`--project` 与 `--gpu`/`--profile` 组合，例如 `python3 scripts/compose_stack.py --mode postgres --gpu --profile scheduler ps -a`。脚本在执行 Compose 命令前校验数据目录声明、密码文件（PG 模式）、各后端服务渲染模式及当前运行后端容器的文件标签；模式冲突会在替换容器前拒绝。输出只展示项目、模式、数据库名/schema 和文件名，不展示环境变量或密码。需要查看配置时可使用 `config --quiet`，不要把未经脱敏的 `config` 输出写入日志。
 
 直接执行原生 `docker compose up` 会绕过部署预检，可能先替换或停止正在运行的容器；但 `migrate`、API、三个 worker、启用时的 Beat 及模型准备任务都读取持久声明，在连库前拒绝缺失或冲突的模式，也不会创建意外 SQLite 业务库。若误用后服务中断，停止错误文件集合，确认声明和活动 PostgreSQL 未改动，再用原来的完整文件集合、项目名与镜像版本重新 `up -d`；检查 `migrate`、API、三个队列与 Beat 状态。不要在活动数据库上试验此过程。

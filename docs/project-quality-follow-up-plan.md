@@ -89,6 +89,10 @@ F3 的目标 HTTPS 入口、另一台设备、真实抓取/短媒体样本、Oll
 
 定向 `uv run pytest tests/test_database_configuration.py tests/test_compose_stack.py -q` 为 11 通过；全量隔离 SQLite 后端为 340 通过、13 跳过，前端 20 通过，lint、构建与 `pre-commit run -a` 通过。当前机器没有可供本阶段使用的独立 PostgreSQL 实例或目标设备，故正常 PostgreSQL 完整容器启动、真实运行栈误重建后的恢复尚未在目标环境演练；这些作为 F2/F3 验收缺项，不能用现有活动库进行破坏性测试。回滚代码时应恢复原镜像和原 Compose 文件集合，数据目录声明及业务数据按备份核对，不能仅更改声明文本。
 
+### F2 部署权限复核（2026-09-29）
+
+实际部署目录 `/home/florenz/NASSAV/deploy-data` 为 `root:root 755`，其 `db` 子目录不存在；`init` 因当前用户无法创建该子目录而报 `PermissionError(13)`。只读渲染确认 `/app/data/db` 的 bind source 正是该路径，挂载为可写 ext4；当前没有运行中的 `nassav` 后端容器。隔离复现与回归测试覆盖该错误，部署入口现在提示仅创建/授权 `db` 子目录的命令。实际环境已用本地后端镜像的隔离容器只挂载 `deploy-data` 创建 `db` 并赋予当前用户所有权，然后重试 `python3 scripts/compose_stack.py --mode postgres init` 成功；`.nassav-db-mode` 内容为 `postgres`。未启动服务、未迁移数据库、未递归改动资源或备份目录。定向数据库/部署测试 12 通过；隔离 SQLite 全量后端 341 通过、13 跳过，`pre-commit run -a` 通过。F2 的独立 PostgreSQL 完整容器启动和 F3 目标验收仍未覆盖。
+
 ## F3：目标环境验收
 
 验收对象是计划部署的具体版本、域名/入口和服务集合；隔离测试成绩不代替本阶段。先检查目标环境的数据库、资源目录和回滚点，破坏性样本只能在隔离账号、测试记录或独立恢复库进行。

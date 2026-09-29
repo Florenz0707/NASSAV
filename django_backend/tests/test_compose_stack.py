@@ -112,3 +112,29 @@ def test_rendered_postgres_requires_secret_file(stack_module, tmp_path, monkeypa
         "isolated",
         "",
     )
+
+
+def test_init_unwritable_parent_explains_one_directory_repair(
+    stack_module, tmp_path, monkeypatch
+):
+    parent = tmp_path / "deploy-data"
+    parent.mkdir()
+    directory = parent / "db"
+    original_mkdir = Path.mkdir
+
+    def deny_db_creation(path, *args, **kwargs):
+        if path == directory:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_mkdir(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", deny_db_creation)
+    monkeypatch.setattr(
+        stack_module,
+        "rendered_backend",
+        lambda _command, _mode: (directory, "nassav", ""),
+    )
+    monkeypatch.setattr(stack_module, "running_modes", lambda _project: {"postgres"})
+    monkeypatch.setattr(sys, "argv", ["compose_stack.py", "--mode", "postgres", "init"])
+    with pytest.raises(RuntimeError, match="sudo install -d.*deploy-data/db"):
+        stack_module.main()
+    assert not directory.exists()

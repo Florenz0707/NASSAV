@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -159,9 +160,20 @@ def main() -> int:
                 raise RuntimeError(
                     "Existing database directory requires --adopt-existing after backup and mode check"
                 )
-            db_dir.mkdir(parents=True, exist_ok=True)
-            with marker.open("x", encoding="utf-8") as handle:
-                handle.write(args.mode + "\n")
+            try:
+                db_dir.mkdir(parents=True, exist_ok=True)
+                with marker.open("x", encoding="utf-8") as handle:
+                    handle.write(args.mode + "\n")
+            except PermissionError as exc:
+                repair = (
+                    f"sudo install -d -m 0755 -o {os.getuid()} -g {os.getgid()} "
+                    f"{shlex.quote(str(db_dir))}"
+                )
+                raise RuntimeError(
+                    f"Cannot initialize database mode in {db_dir}: permission denied. "
+                    f"After checking the data directory, run: {repair}; then retry init. "
+                    "Do not change ownership of the whole data directory recursively."
+                ) from exc
         print(f"project={args.project} mode={args.mode} data={db_dir} declared")
         return 0
     if existing != args.mode:
