@@ -195,7 +195,9 @@ class SourceManager:
         source_cookie_runtime_cache.invalidate(source_name)
         source_cookie_repository.invalidate_cookie(source_name)
 
-    def set_source_cookie(self, source_name: str, cookie: str) -> bool:
+    def set_source_cookie(
+        self, source_name: str, cookie: str, *, user_agent: str | None = None
+    ) -> bool:
         """
         设置指定源的 cookie，同时更新内存和数据库
         返回是否设置成功
@@ -218,7 +220,9 @@ class SourceManager:
 
         # 更新内存中的 cookie
         try:
-            record = source_cookie_repository.set_cookie(actual_name, cookie)
+            record = source_cookie_repository.set_cookie(
+                actual_name, cookie, user_agent=user_agent
+            )
             target_source.set_session(record)
             source_cookie_runtime_cache.set_state(
                 actual_name, record, ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL

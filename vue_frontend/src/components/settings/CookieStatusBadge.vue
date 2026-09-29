@@ -4,13 +4,20 @@ defineProps({
     type: Boolean,
     required: true,
   },
+  verifiedDirectReuse: { type: Boolean, default: false },
+  sessionExpired: { type: Boolean, default: false },
 })
 </script>
 
 <template>
   <span
     v-if="hasCookie"
-    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-success/10 text-accent-success text-[0.85rem] font-medium"
+    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.85rem] font-medium"
+    :class="
+      sessionExpired
+        ? 'bg-accent-danger/10 text-accent-danger'
+        : 'bg-accent-success/10 text-accent-success'
+    "
   >
     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
@@ -20,7 +27,9 @@ defineProps({
         d="M5 13l4 4L19 7"
       ></path>
     </svg>
-    <span>已设置</span>
+    <span>{{
+      verifiedDirectReuse ? '已验证可直连' : sessionExpired ? '已保存 · 会话已过期' : '已保存'
+    }}</span>
   </span>
   <span
     v-else

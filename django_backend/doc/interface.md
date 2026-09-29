@@ -204,6 +204,7 @@ PUT /nassav/api/setting
   - `source`: 源名称（必填）
   - `cookie`: 手动设置的 cookie 字符串（可选）
   - `auto`: 是否自动获取 cookie（boolean，可选）
+  - `user_agent`: 人工 Cookie 配套的 UA（字符串，可选；省略则清除旧 UA）
 
 示例请求：
 
@@ -219,7 +220,7 @@ POST /nassav/api/source/cookie
 POST /nassav/api/source/cookie
 {
   "source": "missav",
-  "cookie": "auto"
+  "auto": true
 }
 ```
 
@@ -238,9 +239,9 @@ POST /nassav/api/source/cookie
 
 ---
 
-自动获取 MissAV Cookie 时，已启用的浏览器提供方先获取并校验首页，再保存适用于目标域名的 Cookie；无可用 Cookie 或页面无效时返回失败，已有值保持不变。P1 的会话字段是内部兼容扩展，现有 GET/POST/DELETE 请求和响应格式不变；手动设置未传 UA 时会清除历史配套 UA、到期时间和代理路线标识，DELETE 也会一并清空这些元数据。旧 Cookie 仍按默认 UA 尝试直连。Cookie 保存成功不代表已验证可直连，也不代表播放清单或媒体下载成功。
+自动获取 MissAV Cookie 时，已启用的浏览器提供方先获取并校验首页，再保存适用于目标域名的 Cookie；无可用 Cookie 或页面无效时返回失败，已有值保持不变。P1 的会话字段是内部兼容扩展，旧 GET/POST/DELETE 请求及响应包络、旧字段保持兼容；手动设置未传 UA 时会清除历史配套 UA、到期时间和代理路线标识，DELETE 也会一并清空这些元数据。旧 Cookie 仍按默认 UA 尝试直连。Cookie 保存成功不代表已验证可直连，也不代表播放清单或媒体下载成功。
 
-P2 的 MissAV/Jable 详情及 Jable 列表、搜索页面在 Byparr 页面通过同站点、非挑战和业务结构校验后，可筛选适用于该 URL 的 Cookie 与浏览器 UA，并在 3 秒内对同一目标页做独立直连验证。只有直连 HTTP 200 且再次通过页面校验时，才按数据库版本写入可复用会话；失败时仍可使用本次有效的浏览器页面。此内部行为不改变 Cookie API 的请求和响应字段，也不代表 `POST /api/source/cookie` 自动获取入口已接入 P3 的并发协调。
+P2 的 MissAV/Jable 详情及 Jable 列表、搜索页面在 Byparr 页面通过同站点、非挑战和业务结构校验后，可筛选适用于该 URL 的 Cookie 与浏览器 UA，并在 3 秒内对同一目标页做独立直连验证。只有直连 HTTP 200 且再次通过页面校验时，才按数据库版本写入可复用会话；失败时仍可使用本次有效的浏览器页面。此内部行为保留 Cookie API 的旧字段，也不代表 `POST /api/source/cookie` 自动获取入口已接入 P3 的并发协调。
 
 P3 将 `POST /api/source/cookie` 的 `auto=true` 与页面 403/挑战后的自动会话刷新接入相同的站点租约。已有更新正在进行时，该入口有限等待并复用新 Cookie；Redis 不可用、租约超时或自动结果晚于人工设置时不写回，并保留原有失败响应格式。人工 POST 与 DELETE 无需等待租约，立即更新数据库。
 
@@ -1293,3 +1294,7 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 快照字段为 `task_id`、`job_type=scrape`、`action`、`avid`、`state`、`stage`、`version`、`updated_at`、`resource_avid`、`error_code`、`message`。状态顺序为 `queued → running → succeeded|failed`；运行阶段按实际执行进入 `source_lookup`、`metadata`、`cover`、`saving`、`translation_queued`。无总工作量时不提供百分比。前端应在入队后先查快照，按 `version` 忽略旧事件；成功后再重新查询资源。`scrape_job_update` WebSocket 事件仅含任务 ID、类型、状态、阶段、版本和更新时间；完整快照需凭令牌查询。
 
 资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前业务接口和任务 WebSocket 均要求 operator session；任务快照还要求独立签名令牌。远程部署必须使用同源 HTTPS 代理。
+
+## P4 Cookie 管理兼容扩展
+
+人工 `POST /nassav/api/source/cookie` 可加可选字符串 `user_agent`（最多 4096 字符）；省略或传空值会清除旧的配套 UA 和自动会话元数据。`auto=true` 的旧请求方式不变。GET 保留 `source/cookie/mtime`，增加 `session_source`（`manual`/`verified_browser`）、`user_agent_paired`、`session_expired` 和 `verified_direct_reuse` 布尔状态；完整 UA 不返回。`verified_direct_reuse` 还要求当前源的代理路线与保存时一致，仍不保证站点此刻放行。设置页“已保存”与“已验证可直连”按此状态区分。

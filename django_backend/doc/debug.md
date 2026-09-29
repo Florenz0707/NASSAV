@@ -313,3 +313,7 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 ## 异步资源任务本地验证
 
 使用 `POST /nassav/api/resource/jobs` 提交后，先记录返回的 `task_id` 和 `status_token`，再以 `X-Resource-Job-Token` 请求 `GET /nassav/api/resource/jobs/{task_id}`。`queued` 表示已入队，只有 `succeeded` 才代表数据库资源已写入。当前后端尚未切换前端入口；旧资源接口继续同步执行。运行任务需要独立的 `scrape` worker，启动命令见 [后端 README](../README.md)。离线测试命令见 [测试说明](../tests/README.md)。
+
+## P4 观测与回归
+
+`page_fetch` 日志提供源、`detail/search/listing` 路径类型、请求 ID、候选序号、提供方、目标状态、失败分类、浏览器次数、会话版本、锁等待、直连、Byparr 及页面总耗时。`scrape_job` 日志另记录队列等待与 worker 总刮削耗时；不要用 API 202 耗时替代任务耗时。日志不含 Cookie、完整 UA、代理 URL、页面 URL 或 HTML。用同一请求 ID 的候选行可追踪 403 后的等待或浏览器回退；会话租约的实际 Redis 行为仍需在独立测试环境验证。离线回归：`uv run pytest tests/test_source_cookie_api.py tests/test_browser_fetch_config.py tests/test_page_fetching.py tests/test_session_coordination.py -v`，前端运行 `pnpm run build` 与 `pnpm run lint:fix`。

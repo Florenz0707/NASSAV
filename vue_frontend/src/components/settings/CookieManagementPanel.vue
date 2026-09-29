@@ -57,7 +57,11 @@ const emit = defineEmits(['view', 'edit', 'delete'])
               {{ source.name }}
             </td>
             <td class="py-4 px-4">
-              <CookieStatusBadge :has-cookie="source.hasCookie" />
+              <CookieStatusBadge
+                :has-cookie="source.hasCookie"
+                :verified-direct-reuse="source.verifiedDirectReuse"
+                :session-expired="source.sessionExpired"
+              />
             </td>
             <td class="py-4 px-4 text-sm text-[var(--text-muted)]">
               {{ source.lastUpdate || '-' }}

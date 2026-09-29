@@ -570,8 +570,16 @@ class Jable(SourceBase):
             source=self.get_source_name(),
             candidate_index=candidate_index,
             request_id=request_id,
+            path_kind=(
+                "detail"
+                if "/videos/" in url
+                else "search"
+                if "/search/" in url
+                else "listing"
+            ),
             session_handler=self
-            if self.proxy
+            if active_fetcher.session_reuse_enabled
+            and self.proxy
             and getattr(active_fetcher.browser, "provider", None) == "byparr"
             else None,
         )

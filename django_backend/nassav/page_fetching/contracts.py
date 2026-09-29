@@ -31,6 +31,7 @@ class PageResult:
     target_status: int | None = None
     failure: FetchFailure | None = None
     session_version: str | None = None
+    lock_wait_ms: int = 0
 
     @property
     def ok(self) -> bool:

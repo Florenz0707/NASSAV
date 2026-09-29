@@ -241,6 +241,7 @@ class SourceCookieView(SchemaAPIView):
     Request JSON (POST):
       - source: 源名称 (required)
       - cookie: 手动设置的 cookie (optional)
+      - user_agent: 手动 Cookie 配套 User-Agent (optional)
       - auto: 是否自动获取 cookie (boolean, optional)
     """
 
@@ -297,7 +298,17 @@ class SourceCookieView(SchemaAPIView):
 
         # 否则如果提供了 cookie 则手动设置并保存到 DB
         if cookie:
-            success = source_manager.set_source_cookie(source_name, cookie)
+            user_agent = data.get("user_agent")
+            if user_agent is not None and (
+                not isinstance(user_agent, str) or len(user_agent) > 4096
+            ):
+                return Response(
+                    {"code": 400, "message": "user_agent 参数无效", "data": None},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            success = source_manager.set_source_cookie(
+                source_name, cookie, user_agent=user_agent or None
+            )
             if success:
                 return Response(
                     {

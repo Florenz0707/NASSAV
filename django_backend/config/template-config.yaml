@@ -27,6 +27,7 @@ BrowserFetch:
   provider: byparr
   url: http://127.0.0.1:8192
   timeout_ms: 60000
+  session_reuse_enabled: false
 
 # 文件路径前缀配置
 # 用于在返回视频文件绝对路径时添加前缀（如 WSL 路径转换）

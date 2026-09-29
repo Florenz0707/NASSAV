@@ -113,3 +113,74 @@ def test_delete_source_cookie_missing_param(client):
     response = client.delete("/nassav/api/source/cookie")
     assert response.status_code == 400
     assert "source 参数缺失" in response.json()["message"]
+
+
+@pytest.mark.django_db
+def test_manual_cookie_user_agent_and_legacy_request_clears_it(client):
+    url = "/nassav/api/source/cookie"
+    response = client.post(
+        url,
+        data={"source": "Jable", "cookie": "session=new", "user_agent": "Browser/1"},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    record = SourceCookie.objects.get(source_name="jable")
+    assert record.user_agent == "Browser/1"
+    listing = client.get(url).json()["data"]
+    assert listing[0]["user_agent_paired"] is True
+    assert listing[0]["verified_direct_reuse"] is False
+    assert "user_agent" not in listing[0]
+
+    response = client.post(
+        url,
+        data={"source": "Jable", "cookie": "session=legacy"},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    record.refresh_from_db()
+    assert record.user_agent is None
+    assert record.egress_profile is None
+    assert record.expires_at is None
+
+
+@pytest.mark.django_db
+def test_manual_cookie_rejects_invalid_user_agent(client):
+    response = client.post(
+        "/nassav/api/source/cookie",
+        data={"source": "Jable", "cookie": "session=new", "user_agent": ["bad"]},
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert not SourceCookie.objects.filter(source_name="jable").exists()
+
+
+@pytest.mark.django_db
+def test_verified_direct_status_requires_current_route_and_fresh_expiry(
+    client, monkeypatch
+):
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from nassav.source.CookieRepository import proxy_route_profile
+    from nassav.source.SourceManager import source_manager
+
+    source = source_manager._get_source("Jable")
+    assert source is not None
+    monkeypatch.setattr(source, "proxy", "http://proxy.test:8080")
+    record = SourceCookie.objects.create(
+        source_name="jable",
+        cookie="session=verified",
+        user_agent="Browser/1",
+        egress_profile=proxy_route_profile(source.proxy),
+        expires_at=timezone.now() + timedelta(minutes=5),
+    )
+    url = "/nassav/api/source/cookie"
+    assert client.get(url).json()["data"][0]["verified_direct_reuse"] is True
+    monkeypatch.setattr(source, "proxy", "http://other-proxy.test:8080")
+    assert client.get(url).json()["data"][0]["verified_direct_reuse"] is False
+    monkeypatch.setattr(source, "proxy", "http://proxy.test:8080")
+    record.expires_at = timezone.now() - timedelta(seconds=1)
+    record.save()
+    status = client.get(url).json()["data"][0]
+    assert status["session_expired"] is True
+    assert status["verified_direct_reuse"] is False

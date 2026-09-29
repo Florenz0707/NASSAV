@@ -36,6 +36,35 @@ class SourceCookieListSerializer(serializers.Serializer):
     source = serializers.CharField(source="source_name")  # type: ignore
     cookie = serializers.CharField()  # type: ignore
     mtime = serializers.DateTimeField(source="updated_at")
+    session_source = LocalSerializerMethodField()
+    user_agent_paired = LocalSerializerMethodField()
+    session_expired = LocalSerializerMethodField()
+    verified_direct_reuse = LocalSerializerMethodField()
+
+    def get_session_source(self, obj):
+        return "verified_browser" if obj.egress_profile and obj.user_agent else "manual"
+
+    def get_user_agent_paired(self, obj):
+        return bool(obj.user_agent)
+
+    def get_session_expired(self, obj):
+        from django.utils import timezone
+
+        return bool(obj.expires_at and obj.expires_at <= timezone.now())
+
+    def get_verified_direct_reuse(self, obj):
+        from nassav.source.CookieRepository import proxy_route_profile
+        from nassav.source.SourceManager import source_manager
+
+        source = source_manager._get_source(obj.source_name)
+        route = proxy_route_profile(source.proxy) if source else None
+        return bool(
+            obj.cookie
+            and obj.user_agent
+            and obj.egress_profile
+            and obj.egress_profile == route
+            and not self.get_session_expired(obj)
+        )
 
 
 class UserSettingSerializer(serializers.Serializer):

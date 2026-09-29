@@ -1,4 +1,5 @@
 import os
+from dataclasses import replace
 from threading import local
 from time import monotonic
 from collections.abc import Callable
@@ -240,6 +241,14 @@ class SourceBase:
             session is None or session.cookie != current_cookie
         ):
             session = SourceCookieRecord(self.get_source_name().lower(), current_cookie)
+        if (
+            session_override is None
+            and not getattr(
+                getattr(self, "page_fetcher", None), "session_reuse_enabled", True
+            )
+            and session is not None
+        ):
+            session = SourceCookieRecord(self.get_source_name().lower(), session.cookie)
         if session is None or not session.usable_on_route(
             proxy_route_profile(self.proxy)
         ):
@@ -412,15 +421,21 @@ class SourceBase:
         timeout_ms: int,
     ) -> PageResult:
         """Single-flight a reusable session, not the page fetched by Byparr."""
+        wait_started = monotonic()
+
+        def finished(result: PageResult) -> PageResult:
+            return replace(result, lock_wait_ms=lock_wait_ms)
+
+        lock_wait_ms = 0
 
         def browser_page() -> PageResult:
             return PageFetchService.validate_result(url, browser_fetch(), validator)
 
         if not self.proxy:
-            return browser_page()
+            return finished(browser_page())
         profile = proxy_route_profile(self.proxy)
         if profile is None:
-            return browser_page()
+            return finished(browser_page())
         key = refresh_key(self.get_source_name(), url, profile)
         baseline = failed_direct.session_version
         coordinator = session_refresh_coordinator
@@ -449,6 +464,7 @@ class SourceBase:
                 )
             return PageFetchService.validate_result(url, result, validator)
 
+        lock_wait_ms = round((monotonic() - wait_started) * 1000)
         if lease is None:
             if busy_owner:
                 record = coordinator.wait_for_session(
@@ -461,12 +477,13 @@ class SourceBase:
                     ),
                     timeout_ms,
                 )
+                lock_wait_ms = round((monotonic() - wait_started) * 1000)
                 retry = retry_with(record)
                 if retry is not None and retry.ok:
-                    return retry
+                    return finished(retry)
             # Redis outage, expired owner, or unsuccessful refresh: this page
             # may still use Byparr, but it may not write a shared session.
-            return browser_page()
+            return finished(browser_page())
 
         outcome = "unusable"
         try:
@@ -474,7 +491,7 @@ class SourceBase:
             retry = retry_with(current)
             if retry is not None and retry.ok:
                 outcome = "reused"
-                return retry
+                return finished(retry)
             expected = current.updated_at if current is not None else None
             result = browser_page()
             if result.ok and lease.owned():
@@ -487,7 +504,7 @@ class SourceBase:
                     refresh_key_value=key,
                 ):
                     outcome = "reused"
-            return result
+            return finished(result)
         finally:
             lease.close(outcome)
 

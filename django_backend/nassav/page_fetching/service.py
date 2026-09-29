@@ -3,6 +3,7 @@
 from collections.abc import Callable
 import re
 from dataclasses import replace
+from time import monotonic
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -17,9 +18,16 @@ from .contracts import (
 
 
 class PageFetchService:
-    def __init__(self, browser: BrowserPageClient | None, timeout_ms: int = 60000):
+    def __init__(
+        self,
+        browser: BrowserPageClient | None,
+        timeout_ms: int = 60000,
+        *,
+        session_reuse_enabled: bool = True,
+    ):
         self.browser = browser
         self.timeout_ms = timeout_ms
+        self.session_reuse_enabled = session_reuse_enabled
         self.browser_unavailable = False
 
     def reset_lookup(self) -> None:
@@ -27,7 +35,11 @@ class PageFetchService:
 
     def for_lookup(self) -> "PageFetchService":
         """Give each lookup its own transient browser failure state."""
-        return PageFetchService(self.browser, self.timeout_ms)
+        return PageFetchService(
+            self.browser,
+            self.timeout_ms,
+            session_reuse_enabled=self.session_reuse_enabled,
+        )
 
     def fetch(
         self,
@@ -40,8 +52,39 @@ class PageFetchService:
         candidate_index: int = 1,
         request_id: str = "",
         session_handler: BrowserSessionHandler | None = None,
+        path_kind: str = "page",
     ) -> PageResult:
         request_id = request_id or uuid4().hex[:12]
+        if not self.session_reuse_enabled:
+            session_handler = None
+            if strategy == "direct_first":
+                strategy = "browser_first"
+        started = monotonic()
+        direct_ms = 0
+        browser_ms = 0
+        browser_calls = 0
+
+        def report(result: PageResult) -> PageResult:
+            logger.info(
+                "page_fetch source={} path={} request_id={} candidate={} provider={} "
+                "status={} failure={} browser_calls={} version={} lock_wait_ms={} "
+                "direct_ms={} byparr_ms={} total_ms={}",
+                source,
+                path_kind,
+                request_id,
+                candidate_index,
+                result.provider,
+                result.target_status,
+                result.failure.value if result.failure else "none",
+                browser_calls,
+                result.session_version or "none",
+                result.lock_wait_ms,
+                direct_ms,
+                browser_ms,
+                round((monotonic() - started) * 1000),
+            )
+            return result
+
         if strategy not in {"browser_first", "direct_first", "direct_only"}:
             raise ValueError(f"Unknown page fetch strategy: {strategy}")
         paths = (
@@ -71,11 +114,16 @@ class PageFetchService:
                             source,
                             type(error).__name__,
                         )
+                browser_started = monotonic()
                 result = self.browser.fetch(url, timeout_ms=self.timeout_ms)
+                browser_ms += round((monotonic() - browser_started) * 1000)
+                browser_calls += 1
                 if result.failure == FetchFailure.CONNECTION:
                     self.browser_unavailable = True
             else:
+                direct_started = monotonic()
                 direct_result = direct_fetch()
+                direct_ms += round((monotonic() - direct_started) * 1000)
                 if isinstance(direct_result, PageResult):
                     result = direct_result
                 else:
@@ -93,6 +141,19 @@ class PageFetchService:
             ):
                 result = replace(result, failure=FetchFailure.TARGET_HTTP)
             result = self.validate_result(url, result, validator)
+            if not result.ok:
+                logger.info(
+                    "page_fetch_attempt source={} path={} request_id={} candidate={} "
+                    "provider={} status={} failure={} elapsed_ms={}",
+                    source,
+                    path_kind,
+                    request_id,
+                    candidate_index,
+                    result.provider,
+                    result.target_status,
+                    result.failure.value if result.failure else "none",
+                    result.elapsed_ms,
+                )
             if (
                 path == "direct"
                 and strategy == "direct_first"
@@ -118,7 +179,17 @@ class PageFetchService:
                     and coordinated.provider != "direct"
                 ):
                     self.browser_unavailable = True
-                return coordinated
+                if coordinated.provider != "direct":
+                    browser_calls += 1
+                    browser_ms += coordinated.elapsed_ms
+                else:
+                    direct_ms += coordinated.elapsed_ms
+                try:
+                    version = session_handler.browser_session_version()
+                    coordinated = replace(coordinated, session_version=version)
+                except Exception:
+                    pass
+                return report(coordinated)
             if result.ok:
                 if (
                     path == "browser"
@@ -130,34 +201,21 @@ class PageFetchService:
                         session_handler.accept_browser_session(
                             url, result, validator, expected_version
                         )
+                        result = replace(
+                            result,
+                            session_version=session_handler.browser_session_version(),
+                        )
                     except Exception as error:
                         logger.warning(
                             "Browser session not saved: source={} error={}",
                             source,
                             type(error).__name__,
                         )
-                logger.info(
-                    "Page fetch success: source={} provider={} request_id={} candidate={} elapsed_ms={}",
-                    source,
-                    result.provider,
-                    request_id,
-                    candidate_index,
-                    result.elapsed_ms,
-                )
-                return result
+                return report(result)
             if path == "direct" and result.target_status == 404:
                 allow_session_save = False
             last = result
-            logger.info(
-                "Page fetch failed: source={} provider={} request_id={} candidate={} elapsed_ms={} failure={}",
-                source,
-                result.provider,
-                request_id,
-                candidate_index,
-                result.elapsed_ms,
-                result.failure,
-            )
-        return last
+        return report(last)
 
     @classmethod
     def validate_result(

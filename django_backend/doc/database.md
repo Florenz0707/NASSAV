@@ -283,3 +283,7 @@ Database:
 - 定期运行对比/校验任务，确保磁盘文件（cover/mp4）与 `AVResource.file_exists`、`file_size` 一致。
 
 文件: `nassav/models.py`, 修复脚本: `scripts/fix_durations.py`。
+
+## P4 管理状态
+
+`GET /api/source/cookie` 继续返回旧的 `source/cookie/mtime`，另计算 `session_source`、`user_agent_paired`、`session_expired`、`verified_direct_reuse`。后者仅在 Cookie、UA、路线摘要俱全、未到期且与当前源代理路线相同时为真；人工 Cookie 即使附带 UA 也只是“已保存”。接口不返回完整 UA。人工 POST 不带 `user_agent` 会原子清空旧 UA、到期时间和路线标识，不需清库即可关闭或恢复会话复用。

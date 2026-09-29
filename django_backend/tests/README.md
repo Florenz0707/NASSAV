@@ -596,3 +596,5 @@ uv run pytest tests/test_ws.py -v
 ```bash
 uv run pytest tests/test_database_configuration.py -v
 ```
+
+P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开关默认关闭和显式恢复页面策略；运行 `uv run pytest tests/test_source_cookie_api.py tests/test_browser_fetch_config.py tests/test_page_fetching.py -v`。
