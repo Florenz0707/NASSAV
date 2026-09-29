@@ -4,10 +4,12 @@ from time import monotonic
 from typing import Optional, Protocol
 
 from curl_cffi import requests
-from curl_cffi.requests.exceptions import HTTPError
+from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
+from curl_cffi.requests.exceptions import HTTPError, Timeout
 from loguru import logger
 from nassav.constants import HEADERS, IMPERSONATE
-from nassav.page_fetching import FetchFailure, PageResult
+from nassav.page_fetching import FetchFailure, PageFetchService, PageResult
+from nassav.page_fetching.session import candidate_for_page
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import (
     SourceCookieRecord,
@@ -200,30 +202,50 @@ class SourceBase:
     def get_cover_url(self, html: str) -> str:
         raise NotImplementedError
 
-    def fetch_page(self, url: str, referer: str = "") -> PageResult:
-        """Return direct HTML together with the actual redirected URL."""
+    def fetch_page(
+        self,
+        url: str,
+        referer: str = "",
+        *,
+        session_override: SourceCookieRecord | None = None,
+        timeout_seconds: float | None = None,
+    ) -> PageResult:
+        """Make one direct request using one immutable Cookie and UA snapshot."""
         self.last_final_url = None
+        self._request_state.direct_status = None
+        self._request_state.direct_failure = None
         started = monotonic()
-        session = self._session_snapshot
+        session = session_override or self._session_snapshot
         current_cookie = str(self.cookie or "")
-        if session is None or session.cookie != current_cookie:
+        if session_override is None and (
+            session is None or session.cookie != current_cookie
+        ):
             session = SourceCookieRecord(self.get_source_name().lower(), current_cookie)
-        if not session.usable_on_route(proxy_route_profile(self.proxy)):
+        if session is None or not session.usable_on_route(
+            proxy_route_profile(self.proxy)
+        ):
             session = SourceCookieRecord(self.get_source_name().lower(), "")
         self._request_state.page_session = session
+        self._request_state.timeout_override = timeout_seconds
         try:
             html = self.fetch_html(url, referer=referer)
         finally:
             self._request_state.page_session = None
+            self._request_state.timeout_override = None
         return PageResult(
             html=html or "",
             elapsed_ms=round((monotonic() - started) * 1000),
             final_url=self.last_final_url or url,
             provider="direct",
-            failure=None if html else FetchFailure.EMPTY,
+            target_status=self._request_state.direct_status,
+            failure=self._request_state.direct_failure
+            or (None if html else FetchFailure.EMPTY),
         )
 
     def fetch_html(self, url: str, referer: str = "") -> Optional[str]:
+        self._request_state.direct_status = None
+        self._request_state.direct_failure = None
+        response = None
         try:
             headers = HEADERS.copy()
             if referer:
@@ -241,38 +263,100 @@ class SourceBase:
                 url,
                 proxies=self.proxies,  # type: ignore
                 headers=headers,
-                timeout=self.timeout,
+                timeout=getattr(self._request_state, "timeout_override", None)
+                or self.timeout,
                 impersonate=IMPERSONATE,
             )
-            response.raise_for_status()
+            self._request_state.direct_status = getattr(response, "status_code", 200)
             self.last_final_url = str(response.url)
-
-            # 成功时清除上次的错误码
+            response.raise_for_status()
             self.last_error_code = None
             return response.text
-        except Exception as e:
-            # 尝试从异常或 response 对象获取状态码
-            code = None
-            try:
-                # curl_cffi 的 HTTPError 可能包含 response 属性
-                if isinstance(e, HTTPError) and e.response is not None:
-                    code = getattr(e.response, "status_code", None)
-            except Exception:
-                code = None
-
-            try:
-                # 如果 response 在本地作用域可用，优先使用
-                if "response" in locals() and response is not None:
-                    code = getattr(response, "status_code", code)
-            except Exception:
-                pass
-
-            # 异常文本可能包含请求头或代理凭据，只记录类型及状态。
-            self.last_error_code = code if code is not None else type(e).__name__
+        except Exception as error:
+            code = getattr(response, "status_code", None)
+            if code is None and isinstance(error, HTTPError):
+                code = getattr(error.response, "status_code", None)
+            self._request_state.direct_status = code
+            if isinstance(error, Timeout):
+                failure = FetchFailure.TIMEOUT
+            elif isinstance(error, CurlConnectionError):
+                failure = FetchFailure.CONNECTION
+            elif code is not None:
+                failure = FetchFailure.TARGET_HTTP
+            else:
+                failure = FetchFailure.CONNECTION
+            self._request_state.direct_failure = failure
+            # Exception text may contain Cookie headers or proxy credentials.
+            self.last_error_code = code if code is not None else type(error).__name__
             logger.error(
-                f"请求失败: {type(e).__name__} (status={self.last_error_code})"
+                f"请求失败: {type(error).__name__} (status={self.last_error_code})"
             )
             return None
+
+    def browser_session_version(self) -> str | None:
+        """Capture the DB version immediately before a browser fetch."""
+        record = source_cookie_repository.get_cookie_record(self.get_source_name())
+        return record.updated_at if record is not None else None
+
+    def accept_browser_session(
+        self,
+        url: str,
+        result: PageResult,
+        validator,
+        expected_version: str | None,
+    ) -> None:
+        """Probe an already validated Byparr page before persisting its session."""
+        if result.provider != "byparr" or not self.proxy:
+            return
+        profile = proxy_route_profile(self.proxy)
+        if profile is None:
+            return
+        candidate = candidate_for_page(url, result)
+        if candidate is None:
+            return
+        previous = source_cookie_repository.get_cookie_record(self.get_source_name())
+        if previous is not None and previous.updated_at != expected_version:
+            return
+        if previous is None and expected_version is not None:
+            return
+        if (
+            previous is not None
+            and previous.cookie == candidate.cookie
+            and previous.user_agent == candidate.user_agent
+            and previous.expires_at == candidate.expires_at
+            and previous.egress_profile == profile
+            and previous.usable_on_route(profile)
+        ):
+            return
+        proposed = SourceCookieRecord(
+            self.get_source_name().lower(),
+            candidate.cookie,
+            user_agent=candidate.user_agent,
+            expires_at=candidate.expires_at,
+            egress_profile=profile,
+        )
+        probe = self.fetch_page(url, session_override=proposed, timeout_seconds=3)
+        if (
+            probe.target_status != 200
+            or probe.elapsed_ms > 3000
+            or not probe.ok
+            or not PageFetchService.same_site(url, probe.final_url)
+            or PageFetchService.is_challenge(probe.html)
+            or not validator(probe.html)
+        ):
+            return
+        saved = source_cookie_repository.set_session_if_version(
+            self.get_source_name(),
+            expected_updated_at=expected_version,
+            cookie=candidate.cookie,
+            user_agent=candidate.user_agent,
+            expires_at=candidate.expires_at,
+            egress_profile=profile,
+        )
+        if saved is not None:
+            latest = source_cookie_repository.get_cookie_record(self.get_source_name())
+            if latest == saved:
+                self.set_session(saved)
 
     def download_file(self, url: str, save_path: str, referer: str = "") -> bool:
         """下载文件到指定路径"""

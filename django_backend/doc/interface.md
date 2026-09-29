@@ -240,6 +240,8 @@ POST /nassav/api/source/cookie
 
 自动获取 MissAV Cookie 时，已启用的浏览器提供方先获取并校验首页，再保存适用于目标域名的 Cookie；无可用 Cookie 或页面无效时返回失败，已有值保持不变。P1 的会话字段是内部兼容扩展，现有 GET/POST/DELETE 请求和响应格式不变；手动设置未传 UA 时会清除历史配套 UA、到期时间和代理路线标识，DELETE 也会一并清空这些元数据。旧 Cookie 仍按默认 UA 尝试直连。Cookie 保存成功不代表已验证可直连，也不代表播放清单或媒体下载成功。
 
+P2 的 MissAV/Jable 详情及 Jable 列表、搜索页面在 Byparr 页面通过同站点、非挑战和业务结构校验后，可筛选适用于该 URL 的 Cookie 与浏览器 UA，并在 3 秒内对同一目标页做独立直连验证。只有直连 HTTP 200 且再次通过页面校验时，才按数据库版本写入可复用会话；失败时仍可使用本次有效的浏览器页面。此内部行为不改变 Cookie API 的请求和响应字段，也不代表 `POST /api/source/cookie` 自动获取入口已接入 P3 的并发协调。
+
 ## 清除源 Cookie
 
 - 方法：DELETE

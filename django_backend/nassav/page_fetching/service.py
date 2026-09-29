@@ -1,13 +1,19 @@
 """Validate direct and browser pages with the same site supplied predicate."""
 
 from collections.abc import Callable
+import re
 from dataclasses import replace
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from loguru import logger
 
-from .contracts import BrowserPageClient, FetchFailure, PageResult
+from .contracts import (
+    BrowserPageClient,
+    BrowserSessionHandler,
+    FetchFailure,
+    PageResult,
+)
 
 
 class PageFetchService:
@@ -33,6 +39,7 @@ class PageFetchService:
         source: str = "",
         candidate_index: int = 1,
         request_id: str = "",
+        session_handler: BrowserSessionHandler | None = None,
     ) -> PageResult:
         request_id = request_id or uuid4().hex[:12]
         if strategy not in {"browser_first", "direct_first", "direct_only"}:
@@ -47,10 +54,23 @@ class PageFetchService:
             )
         )
         last = PageResult(final_url=url, failure=FetchFailure.EMPTY)
+        allow_session_save = True
         for path in paths:
             if path == "browser":
                 if self.browser is None or self.browser_unavailable:
                     continue
+                can_save_session = False
+                expected_version = None
+                if session_handler is not None:
+                    try:
+                        expected_version = session_handler.browser_session_version()
+                        can_save_session = True
+                    except Exception as error:
+                        logger.warning(
+                            "Browser session version unavailable: source={} error={}",
+                            source,
+                            type(error).__name__,
+                        )
                 result = self.browser.fetch(url, timeout_ms=self.timeout_ms)
                 if result.failure == FetchFailure.CONNECTION:
                     self.browser_unavailable = True
@@ -65,6 +85,13 @@ class PageFetchService:
                         provider="direct",
                         failure=None if direct_result else FetchFailure.EMPTY,
                     )
+            if (
+                path == "direct"
+                and result.failure is None
+                and result.target_status is not None
+                and result.target_status != 200
+            ):
+                result = replace(result, failure=FetchFailure.TARGET_HTTP)
             if result.failure is None:
                 if not self.same_site(url, result.final_url):
                     result = replace(result, failure=FetchFailure.PAGE_MISMATCH)
@@ -73,6 +100,22 @@ class PageFetchService:
                 elif not validator(result.html):
                     result = replace(result, failure=FetchFailure.PAGE_MISMATCH)
             if result.ok:
+                if (
+                    path == "browser"
+                    and can_save_session
+                    and allow_session_save
+                    and session_handler is not None
+                ):
+                    try:
+                        session_handler.accept_browser_session(
+                            url, result, validator, expected_version
+                        )
+                    except Exception as error:
+                        logger.warning(
+                            "Browser session not saved: source={} error={}",
+                            source,
+                            type(error).__name__,
+                        )
                 logger.info(
                     "Page fetch success: source={} provider={} request_id={} candidate={} elapsed_ms={}",
                     source,
@@ -82,6 +125,8 @@ class PageFetchService:
                     result.elapsed_ms,
                 )
                 return result
+            if path == "direct" and result.target_status == 404:
+                allow_session_save = False
             last = result
             logger.info(
                 "Page fetch failed: source={} provider={} request_id={} candidate={} elapsed_ms={} failure={}",
@@ -102,7 +147,11 @@ class PageFetchService:
 
     @staticmethod
     def is_challenge(html: str) -> bool:
-        lowered = html.lower()
+        # Valid MissAV pages can embed a challenge-platform script. The
+        # marker only indicates a challenge when it appears in visible HTML.
+        lowered = re.sub(
+            r"<script\b[^>]*>.*?</script>", "", html, flags=re.I | re.S
+        ).lower()
         return any(
             marker in lowered
             for marker in (

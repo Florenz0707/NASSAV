@@ -1,6 +1,8 @@
 """Public contracts for fetching a page through a browser provider."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Protocol
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -40,3 +42,17 @@ class BrowserPageClient(ABC):
     @abstractmethod
     def fetch(self, url: str, *, timeout_ms: int) -> PageResult:
         raise NotImplementedError
+
+
+class BrowserSessionHandler(Protocol):
+    """Source-owned hooks for committing a validated browser session."""
+
+    def browser_session_version(self) -> str | None: ...
+
+    def accept_browser_session(
+        self,
+        url: str,
+        result: PageResult,
+        validator: Callable[[str], bool],
+        expected_version: str | None,
+    ) -> None: ...

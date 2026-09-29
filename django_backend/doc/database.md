@@ -32,7 +32,7 @@ Database:
     - `egress_profile` (Char(64), nullable): 用服务端密钥对规范化代理路线（含代理身份要素）计算的 HMAC-SHA256；不是公网出口 IP 证明。未知路线为 `NULL`。
     - `updated_at` (DateTime, auto_now): 整组会话的写入版本。
 
-迁移 `0021_sourcecookie_session_metadata` 只增加三个可空列，旧行数量及 Cookie 内容不变；可回退到上一迁移。`SourceCookieRepository` 把 Cookie、UA、到期时间、路线标识和版本作为同一快照传入 Django 共享缓存与进程缓存。读取共享缓存前核对数据库版本，避免迟到的旧缓存遮蔽新值。浏览器会话写入使用短事务锁行并比较 `updated_at`；人工设置、清除或较新的刷新发生后，较早启动的浏览器结果不写回。人工设置不带 UA 时清空历史 UA、到期时间和路线标识；清除 Cookie 时同样清空元数据。未知路线的自动会话不写入，已过期或路线不匹配的快照不会用于页面直连。旧行继续携带原 Cookie 和默认 UA 进行有限直连；自动获取并验证浏览器会话属于后续 P2/P3。
+迁移 `0021_sourcecookie_session_metadata` 只增加三个可空列，旧行数量及 Cookie 内容不变；可回退到上一迁移。`SourceCookieRepository` 把 Cookie、UA、到期时间、路线标识和版本作为同一快照传入 Django 共享缓存与进程缓存。读取共享缓存前核对数据库版本，避免迟到的旧缓存遮蔽新值。浏览器会话写入使用短事务锁行并比较 `updated_at`；人工设置、清除或较新的刷新发生后，较早启动的浏览器结果不写回。人工设置不带 UA 时清空历史 UA、到期时间和路线标识；清除 Cookie 时同样清空元数据。未知路线的自动会话不写入，已过期或路线不匹配的快照不会用于页面直连。旧行继续携带原 Cookie 和默认 UA 进行有限直连；P2 已接入详情、列表和搜索页面的浏览器会话提取与短直连验证；跨 API/worker 的站点级协调属于后续 P3。
 
 - **`AVResource` (`nassav_avresource`)**: 主表，保存 AV 元数据（除封面与视频文件外的所有字段）。
   - 关键字段：
