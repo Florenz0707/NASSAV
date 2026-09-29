@@ -317,3 +317,5 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 ## P4 观测与回归
 
 `page_fetch` 日志提供源、`detail/search/listing` 路径类型、请求 ID、候选序号、提供方、目标状态、失败分类、浏览器次数、会话版本、锁等待、直连、Byparr 及页面总耗时。`scrape_job` 日志另记录队列等待与 worker 总刮削耗时；不要用 API 202 耗时替代任务耗时。日志不含 Cookie、完整 UA、代理 URL、页面 URL 或 HTML。用同一请求 ID 的候选行可追踪 403 后的等待或浏览器回退；会话租约的实际 Redis 行为仍需在独立测试环境验证。离线回归：`uv run pytest tests/test_source_cookie_api.py tests/test_browser_fetch_config.py tests/test_page_fetching.py tests/test_session_coordination.py -v`，前端运行 `pnpm run build` 与 `pnpm run lint:fix`。
+
+资源删除回归：`uv run pytest tests/test_resource_deletion.py -v` 覆盖单项/批量删除、部分文件与数据库状态，以及未配置 `THUMBNAIL_DIR` 时按封面接口相同的 `COVER_DIR/thumbnails/{size}/{avid}.jpg` 目录清理缩略图。缺省配置不应使 `DELETE /api/resource/{avid}` 返回 500。
