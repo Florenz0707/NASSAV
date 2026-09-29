@@ -242,6 +242,8 @@ POST /nassav/api/source/cookie
 
 P2 的 MissAV/Jable 详情及 Jable 列表、搜索页面在 Byparr 页面通过同站点、非挑战和业务结构校验后，可筛选适用于该 URL 的 Cookie 与浏览器 UA，并在 3 秒内对同一目标页做独立直连验证。只有直连 HTTP 200 且再次通过页面校验时，才按数据库版本写入可复用会话；失败时仍可使用本次有效的浏览器页面。此内部行为不改变 Cookie API 的请求和响应字段，也不代表 `POST /api/source/cookie` 自动获取入口已接入 P3 的并发协调。
 
+P3 将 `POST /api/source/cookie` 的 `auto=true` 与页面 403/挑战后的自动会话刷新接入相同的站点租约。已有更新正在进行时，该入口有限等待并复用新 Cookie；Redis 不可用、租约超时或自动结果晚于人工设置时不写回，并保留原有失败响应格式。人工 POST 与 DELETE 无需等待租约，立即更新数据库。
+
 ## 清除源 Cookie
 
 - 方法：DELETE

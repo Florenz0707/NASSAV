@@ -190,3 +190,66 @@ def bulk_resources(resource_factory):
         return resources
 
     return _create
+
+
+class FakeSessionRefreshStore:
+    """Process-shared Redis lease behavior for offline session tests."""
+
+    def __init__(self):
+        import threading
+
+        self.mutex = threading.Lock()
+        self.locks = {}
+        self.results = {}
+        self.unusable = set()
+
+    def acquire(self, key, owner, ttl):
+        with self.mutex:
+            if key in self.locks:
+                return False, self.locks[key]
+            self.locks[key] = owner
+            return True, None
+
+    def owner(self, key):
+        with self.mutex:
+            return self.locks.get(key)
+
+    def renew(self, key, owner, ttl):
+        return self.owner(key) == owner
+
+    def release(self, key, owner, outcome):
+        with self.mutex:
+            if self.locks.get(key) != owner:
+                return False
+            self.results[key] = owner + ":" + outcome
+            del self.locks[key]
+            return True
+
+    def outcome(self, key):
+        with self.mutex:
+            return self.results.get(key)
+
+    def mark_unusable(self, key):
+        with self.mutex:
+            self.unusable.add(key)
+
+    def recently_unusable(self, key):
+        with self.mutex:
+            return key in self.unusable
+
+    def clear_unusable(self, key):
+        with self.mutex:
+            self.unusable.discard(key)
+
+    def expire(self, key):
+        with self.mutex:
+            self.locks.pop(key, None)
+
+
+@pytest.fixture
+def fake_session_store(monkeypatch):
+    from nassav.page_fetching.coordination import session_refresh_coordinator
+
+    store = FakeSessionRefreshStore()
+    monkeypatch.setattr(session_refresh_coordinator, "store", store)
+    return store

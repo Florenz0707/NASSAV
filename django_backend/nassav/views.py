@@ -264,17 +264,10 @@ class SourceCookieView(SchemaAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 如果请求自动获取 cookie
+        # 所有同步 API 与 worker 使用同一站点会话刷新协调器。
         if auto:
             try:
-                # 找到对应的 source 实例并尝试自动获取 cookie
-                source_instance = None
-                for name, inst in source_manager.sources.items():
-                    if name.lower() == source_name.lower():
-                        source_instance = inst
-                        break
-
-                if not source_instance:
+                if not source_manager._get_source(source_name):
                     return Response(
                         {
                             "code": 404,
@@ -283,22 +276,7 @@ class SourceCookieView(SchemaAPIView):
                         },
                         status=status.HTTP_404_NOT_FOUND,
                     )
-
-                success = False
-                try:
-                    success = source_instance.set_cookie_auto(force_refresh=True)
-                except Exception as e:
-                    logger.error(f"自动获取 Cookie 失败: {e}")
-
-                if success:
-                    from nassav.source.CookieRepository import source_cookie_repository
-
-                    record = source_cookie_repository.get_cookie_record(source_name)
-                    source_manager.set_runtime_source_cookie(
-                        source_name,
-                        str(source_instance.cookie or ""),
-                        updated_at=record.updated_at if record is not None else None,
-                    )
+                if source_manager.auto_source_cookie(source_name):
                     return Response(
                         {
                             "code": 200,
@@ -306,19 +284,14 @@ class SourceCookieView(SchemaAPIView):
                             "data": {"source": source_name, "cookie_set": True},
                         }
                     )
-                else:
-                    return Response(
-                        {"code": 500, "message": "Cookie 自动获取失败", "data": None},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    )
-            except Exception as e:
-                logger.error(f"自动获取 Cookie 异常: {e}")
                 return Response(
-                    {
-                        "code": 500,
-                        "message": f"自动获取 Cookie 异常: {str(e)}",
-                        "data": None,
-                    },
+                    {"code": 500, "message": "Cookie 自动获取失败", "data": None},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            except Exception as error:
+                logger.error(f"自动获取 Cookie 异常: {type(error).__name__}")
+                return Response(
+                    {"code": 500, "message": "Cookie 自动获取失败", "data": None},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 

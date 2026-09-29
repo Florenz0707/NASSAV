@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from urllib.parse import unquote, urlsplit
@@ -138,6 +139,7 @@ class SourceCookieRepository:
         user_agent: str,
         expires_at: datetime | None,
         egress_profile: str | None,
+        write_guard: Callable[[], bool] | None = None,
     ) -> SourceCookieRecord | None:
         """Commit a verified browser session only if no newer write exists."""
         from nassav.models import SourceCookie
@@ -163,7 +165,9 @@ class SourceCookieRepository:
                         .first()
                     )
                     actual = obj.updated_at.isoformat() if obj is not None else None
-                    if actual != expected_updated_at:
+                    if actual != expected_updated_at or (
+                        write_guard is not None and not write_guard()
+                    ):
                         return None
                     if obj is not None and all(
                         getattr(obj, name) == value for name, value in values.items()
@@ -180,6 +184,52 @@ class SourceCookieRepository:
             except OperationalError as error:
                 self._retry_sqlite_lock(error, attempt)
         raise RuntimeError("Could not save source session")
+
+    def set_automatic_cookie_if_version(
+        self,
+        source_name: str,
+        *,
+        expected_updated_at: str | None,
+        cookie: str,
+        write_guard: Callable[[], bool] | None = None,
+    ) -> SourceCookieRecord | None:
+        """Legacy auto-cookie entrypoint, still fenced against manual writes."""
+        from nassav.models import SourceCookie
+
+        if not cookie:
+            return None
+        normalized = self.normalize_source_name(source_name)
+        values = {
+            "cookie": cookie,
+            "user_agent": None,
+            "expires_at": None,
+            "egress_profile": None,
+        }
+        for attempt in range(5):
+            try:
+                with transaction.atomic():
+                    obj = (
+                        SourceCookie.objects.select_for_update()
+                        .filter(source_name__iexact=normalized)
+                        .first()
+                    )
+                    actual = obj.updated_at.isoformat() if obj is not None else None
+                    if actual != expected_updated_at or (
+                        write_guard is not None and not write_guard()
+                    ):
+                        return None
+                    if obj is not None and all(
+                        getattr(obj, name) == value for name, value in values.items()
+                    ):
+                        return self._from_model(normalized, obj)
+                    record = self._write_locked(normalized, obj, values)
+                cache.delete(self._cache_key(normalized))
+                return record
+            except IntegrityError:
+                return None
+            except OperationalError as error:
+                self._retry_sqlite_lock(error, attempt)
+        raise RuntimeError("Could not save automatic source Cookie")
 
     @staticmethod
     def _retry_sqlite_lock(error: OperationalError, attempt: int) -> None:

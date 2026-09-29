@@ -22,6 +22,8 @@ JABLE_HTML = '<title>JUR-466 Sample - Jable.TV</title><script>var hlsUrl = "http
 MISSAV_HTML = '<meta property="og:title" content="IPZZ-912 Sample">m3u8|abc123|com|surrit|https|video'
 PROXY = "http://user:secret@localhost:8080"
 
+pytestmark = pytest.mark.usefixtures("fake_session_store")
+
 
 class FakeBrowser(BrowserPageClient):
     provider = "byparr"
