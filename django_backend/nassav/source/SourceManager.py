@@ -7,7 +7,10 @@ from django.core.cache import cache
 from loguru import logger
 from nassav.scraper import AVDownloadInfo
 from nassav.page_fetching import create_page_fetch_service
-from nassav.source.CookieRepository import source_cookie_repository
+from nassav.source.CookieRepository import (
+    SourceCookieRecord,
+    source_cookie_repository,
+)
 from nassav.source.CookieRuntimeCache import source_cookie_runtime_cache
 from nassav.source import Jable, Memo, MissAV, SourceBase
 
@@ -73,45 +76,31 @@ class SourceManager:
                     source = source_class(proxy)
                 self.sources[source.get_source_name()] = source
 
-    def refresh_source_cookie(self, source_name: str, *, force: bool = False) -> str:
+    def refresh_source_session(
+        self, source_name: str, *, force: bool = False
+    ) -> SourceCookieRecord | None:
         target = self._get_source(source_name)
         if target is None:
-            return ""
+            return None
 
-        runtime_state = source_cookie_runtime_cache.get_state(source_name)
-        now = time.monotonic()
-        shared_record = source_cookie_repository.get_cookie_record(source_name)
-        shared_cookie = shared_record.cookie if shared_record is not None else ""
-        shared_updated_at = (
-            shared_record.updated_at if shared_record is not None else None
-        )
-
+        shared = source_cookie_repository.get_cookie_record(source_name)
+        local = source_cookie_runtime_cache.get_state(source_name)
         if (
-            not force
-            and runtime_state is not None
-            and runtime_state.expires_at > now
-            and runtime_state.updated_at == shared_updated_at
+            force
+            or local is None
+            or local.expires_at <= time.monotonic()
+            or local.session != shared
         ):
-            current_cookie = str(target.cookie or "")
-            if current_cookie and current_cookie != runtime_state.cookie:
-                source_cookie_runtime_cache.set_state(
-                    source_name,
-                    current_cookie,
-                    updated_at=runtime_state.updated_at,
-                    ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL,
-                )
-                return current_cookie
-            target.set_cookie(runtime_state.cookie)
-            return runtime_state.cookie
+            source_cookie_runtime_cache.set_state(
+                source_name, shared, ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL
+            )
+        target.set_session(shared)
+        return shared
 
-        target.set_cookie(shared_cookie)
-        source_cookie_runtime_cache.set_state(
-            source_name,
-            shared_cookie,
-            updated_at=shared_updated_at,
-            ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL,
-        )
-        return shared_cookie
+    def refresh_source_cookie(self, source_name: str, *, force: bool = False) -> str:
+        """Legacy Cookie-only API backed by a complete session snapshot."""
+        record = self.refresh_source_session(source_name, force=force)
+        return record.cookie if record is not None else ""
 
     def set_runtime_source_cookie(
         self,
@@ -123,13 +112,19 @@ class SourceManager:
         target = self._get_source(source_name)
         if target is None:
             return
-
-        target.set_cookie(cookie)
+        shared = source_cookie_repository.get_cookie_record(source_name)
+        if (
+            shared is not None
+            and shared.cookie == cookie
+            and (updated_at is None or shared.updated_at == updated_at)
+        ):
+            session = shared
+        else:
+            # A process-local legacy value cannot inherit a different row's UA.
+            session = SourceCookieRecord(source_name.lower(), cookie)
+        target.set_session(session)
         source_cookie_runtime_cache.set_state(
-            source_name,
-            cookie,
-            updated_at=updated_at,
-            ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL,
+            source_name, session, ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL
         )
 
     def invalidate_source_cookie_cache(self, source_name: str) -> None:
@@ -160,10 +155,9 @@ class SourceManager:
         # 更新内存中的 cookie
         try:
             record = source_cookie_repository.set_cookie(actual_name, cookie)
-            self.set_runtime_source_cookie(
-                actual_name,
-                cookie,
-                updated_at=record.updated_at,
+            target_source.set_session(record)
+            source_cookie_runtime_cache.set_state(
+                actual_name, record, ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL
             )
             logger.info(f"已设置 {actual_name} 的 Cookie")
             return True
