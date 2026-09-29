@@ -2,6 +2,18 @@
 
 本目录包含维护、数据重建和文档生成脚本。各入口的保留理由与历史脚本处置见[脚本清单](../doc/script-inventory.md)。
 
+## Byparr 会话复用 P0 探测
+
+`probe_byparr_session.py` 在运行中的 Django 容器内使用有效配置，对单个已知页面执行只读对照；不写 Cookie 表。先阅读[基线与放行记录](../doc/byparr-session-reuse-p0-record.md)。参数为 `source`（`jable`/`missav`）、`kind`（`detail`/`listing`）、HTTPS 页面 URL；详情页还需 `--avid`。URL 必须属于已配置源域名且不带查询串或凭据。默认不把存储或浏览器 Cookie 发送到目标站；完整会话对照必须在获准的试验窗口显式加 `--allow-session-replay`。只保存脚本输出的脱敏 JSON，不保存原始 Byparr 响应。
+
+```bash
+# 在与正式 Django 相同的容器、配置和代理路线内运行；先将脚本复制到容器临时目录
+# docker cp django_backend/scripts/probe_byparr_session.py nassav-api-1:/tmp/probe_byparr_session.py
+# docker exec -w /app nassav-api-1 python /tmp/probe_byparr_session.py jable detail https://jable.tv/videos/<verified-avid>/ --avid <VERIFIED-AVID>
+```
+
+一次调用只测一个目标页，分别按两个时间窗口记录；跨页复用仍需另行验证。生产 Cookie 不应写入命令行或日志。试验结束清除容器中的临时脚本。
+
 ## Byparr 固定版本部署
 
 `byparr/compose.yaml` 将已验证的 `3.0.4` 镜像固定到 digest，监听宿主机

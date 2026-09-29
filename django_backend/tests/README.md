@@ -4,6 +4,8 @@
 
 ## Byparr 页面抓取测试
 
+`test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选与挑战页、错域校验；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[基线记录](../doc/byparr-session-reuse-p0-record.md)。
+
 旧的 `test_resource_samples.py`、`test_real_resource_kir062.py` 和 `test_debug_requests.py` 会访问真实目标站，默认跳过；仅设置 `NASSAV_EXTERNAL_TESTS=1` 才运行，其中资源测试可能写入测试数据库和资源文件。
 
 `test_browser_page_client.py`、`test_page_fetching.py`、`test_browser_fetch_config.py` 与 `test_source_page_fetching.py` 均为离线测试。`test_browser_fetch_integration.py` 使用 `external` 标记，默认在发起网络请求前跳过；显式启用后服务不可用会失败。运行时使用当前确认存在的详情页，避免旧固定编号已失效。
