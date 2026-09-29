@@ -28,3 +28,7 @@ Django 向 Byparr 的 `/v1` 发送页面请求时，把启用的 `Proxy.url` 拆
 修改 `Proxy.Enable` 或 `Proxy.url` 后重启 Django API 与 scrape worker，使已创建的抓取客户端读取新配置；无需重启 Byparr。若启用了容器默认代理，即使 `Proxy.Enable: false`，没有请求头的 Byparr 请求仍按其默认代理出口工作。
 
 代理 URL 的启动校验与配置优先级见[启动配置契约](configuration-contract.md)。Compose 内的 Django 也需将宿主机代理地址设为 `host.docker.internal`；只有本地 Django 才能直接使用宿主机的 `127.0.0.1`。
+
+## 页面会话路线标识（P1）
+
+`SourceCookie.egress_profile` 使用服务端 `SECRET_KEY` 对有效代理 URL 的协议、规范化主机、端口及认证身份计算 HMAC-SHA256，只保存摘要，不保存代理 URL、密码或公网 IP。宿主机回环代理的 `localhost`、`127.0.0.1` 与 `::1` 被视为同一路线；身份或端口变化会产生不同标识。无可确认路线时不写入自动浏览器会话。页面直连读取会话快照后会检查声明到期时间与当前路线，不匹配则用普通直连请求。摘要只能识别配置变化，不能证明两次请求的实际出口相同；上线前仍需从同一 Django 容器实测出口。修改代理配置或服务端密钥后应重启 API 和 worker，旧路线的会话不会被误用。

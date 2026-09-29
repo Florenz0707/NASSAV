@@ -18,6 +18,13 @@ class SourceCookie(models.Model):
         max_length=50, unique=True, primary_key=True, verbose_name="源名称"
     )
     cookie = models.TextField(verbose_name="Cookie")
+    user_agent = models.TextField(null=True, blank=True, verbose_name="配套 User-Agent")
+    expires_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="会话到期时间"
+    )
+    egress_profile = models.CharField(
+        max_length=64, null=True, blank=True, verbose_name="代理路由标识"
+    )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     class Meta:

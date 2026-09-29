@@ -1,19 +1,39 @@
+"""Short-lived process cache for complete, immutable session snapshots."""
+
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+
+from nassav.source.CookieRepository import SourceCookieRecord
 
 
-@dataclass
+@dataclass(frozen=True)
 class CookieRuntimeState:
-    cookie: str
-    updated_at: str | None
+    session: SourceCookieRecord | None
     expires_at: float
+
+    @property
+    def cookie(self) -> str:
+        return self.session.cookie if self.session else ""
+
+    @property
+    def updated_at(self) -> str | None:
+        return self.session.updated_at if self.session else None
+
+    @property
+    def user_agent(self) -> str | None:
+        return self.session.user_agent if self.session else None
+
+    @property
+    def session_expires_at(self):
+        return self.session.expires_at if self.session else None
+
+    @property
+    def egress_profile(self) -> str | None:
+        return self.session.egress_profile if self.session else None
 
 
 class SourceCookieRuntimeCache:
-    """进程内 Cookie 运行时缓存。
-
-    该对象只负责短期缓存，不是 Cookie 真值；真值始终在 `SourceCookie` 表。
-    """
+    """Local cache only; the SourceCookie row remains authoritative."""
 
     def __init__(self, default_ttl_seconds: float = 30.0):
         self.default_ttl_seconds = default_ttl_seconds
@@ -25,15 +45,13 @@ class SourceCookieRuntimeCache:
     def set_state(
         self,
         source_name: str,
-        cookie: str,
+        session: SourceCookieRecord | None,
         *,
-        updated_at: str | None = None,
         ttl_seconds: float | None = None,
     ) -> CookieRuntimeState:
         ttl = self.default_ttl_seconds if ttl_seconds is None else ttl_seconds
         state = CookieRuntimeState(
-            cookie=cookie,
-            updated_at=updated_at,
+            session=session,
             expires_at=time.monotonic() + ttl,
         )
         self._states[self._normalize(source_name)] = state
@@ -44,9 +62,8 @@ class SourceCookieRuntimeCache:
 
     def expire_now(self, source_name: str) -> None:
         state = self.get_state(source_name)
-        if state is None:
-            return
-        state.expires_at = 0.0
+        if state is not None:
+            self._states[self._normalize(source_name)] = replace(state, expires_at=0.0)
 
     def clear(self) -> None:
         self._states.clear()

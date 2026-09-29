@@ -8,6 +8,10 @@
 
 固定版本 Byparr 的 Docker 启动与日志命令见 [`scripts/README.md`](../scripts/README.md)。离线契约和 Source 回归由普通 pytest 执行；在线探测需要 `BROWSER_FETCH_EXTERNAL=1`，并设置当前有效的 `BROWSER_FETCH_MISSAV_URL`、`BROWSER_FETCH_MISSAV_AVID`、`BROWSER_FETCH_JABLE_URL`、`BROWSER_FETCH_JABLE_AVID`。具体命令见 [`tests/README.md`](../tests/README.md)。在线探测只读取目标页面，不写生产数据库。`/health` 依赖外部 Google 访问，不能单独作为本地服务可用性判断。
 
+## P1 会话迁移与并发验证
+
+P1 不新增调试端点。可在隔离数据库上运行 `uv run pytest tests/test_source_cookie_session.py -v`，覆盖旧行迁移、人工覆盖/清除、晚到刷新、跨进程缓存、直连请求头快照及并发版本检查。旧 Cookie API 的请求与返回格式保持不变；详细命令见 [`tests/README.md`](../tests/README.md)。
+
 ## 模拟下载接口
 
 ### 概述
