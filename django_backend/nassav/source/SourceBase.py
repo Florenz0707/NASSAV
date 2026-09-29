@@ -1,6 +1,7 @@
 import os
 from threading import local
 from time import monotonic
+from collections.abc import Callable
 from typing import Optional, Protocol
 
 from curl_cffi import requests
@@ -9,6 +10,10 @@ from curl_cffi.requests.exceptions import HTTPError, Timeout
 from loguru import logger
 from nassav.constants import HEADERS, IMPERSONATE
 from nassav.page_fetching import FetchFailure, PageFetchService, PageResult
+from nassav.page_fetching.coordination import (
+    refresh_key,
+    session_refresh_coordinator,
+)
 from nassav.page_fetching.session import candidate_for_page
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import (
@@ -106,7 +111,12 @@ class SourceBase:
             raise ValueError(f"{self.get_source_name()} 未设置domain")
         return f"https://{self.domain}/"
 
-    def set_cookie_auto(self, force_refresh: bool = False) -> bool:
+    def set_cookie_auto(
+        self,
+        force_refresh: bool = False,
+        *,
+        write_guard: Callable[[], bool] | None = None,
+    ) -> bool:
         """
         自动获取cookie并存储到数据库
 
@@ -121,9 +131,11 @@ class SourceBase:
 
             source_name = self.get_source_name()
 
-            # 如果不强制刷新，先尝试从数据库加载
+            # Capture the version before network work so a late result cannot
+            # replace a manual update or another automatic refresh.
+            record = source_cookie_repository.get_cookie_record(source_name)
+            expected_version = record.updated_at if record is not None else None
             if not force_refresh:
-                record = source_cookie_repository.get_cookie_record(source_name)
                 if record is not None and record.cookie:
                     self.set_session(record)
                     logger.info(f"{source_name}: 从数据库加载cookie")
@@ -162,14 +174,21 @@ class SourceBase:
                         f"{source_name}: 成功获取cookie: {list(cookies.keys())}"
                     )
 
-                    record = source_cookie_repository.set_cookie(
-                        source_name, cookie_str
+                    saved = source_cookie_repository.set_automatic_cookie_if_version(
+                        source_name,
+                        expected_updated_at=expected_version,
+                        cookie=cookie_str,
+                        write_guard=write_guard,
                     )
+                    if saved is None:
+                        return False
                     logger.info(f"{source_name}: Cookie已保存到数据库")
-                    self.set_session(record)
+                    self.set_session(saved)
                     return True
         except Exception as e:
-            logger.warning(f"{self.get_source_name()}: 自动获取cookie失败: {str(e)}")
+            logger.warning(
+                f"{self.get_source_name()}: 自动获取cookie失败: {type(e).__name__}"
+            )
             return False
         logger.warning(f"{source_name}：达到最大重试次数，cookie获取失败。")
         return False
@@ -238,6 +257,7 @@ class SourceBase:
             final_url=self.last_final_url or url,
             provider="direct",
             target_status=self._request_state.direct_status,
+            session_version=session.updated_at,
             failure=self._request_state.direct_failure
             or (None if html else FetchFailure.EMPTY),
         )
@@ -302,23 +322,26 @@ class SourceBase:
         self,
         url: str,
         result: PageResult,
-        validator,
+        validator: Callable[[str], bool],
         expected_version: str | None,
-    ) -> None:
+        *,
+        write_guard: Callable[[], bool] | None = None,
+        refresh_key_value: str | None = None,
+    ) -> bool:
         """Probe an already validated Byparr page before persisting its session."""
         if result.provider != "byparr" or not self.proxy:
-            return
+            return False
         profile = proxy_route_profile(self.proxy)
         if profile is None:
-            return
+            return False
         candidate = candidate_for_page(url, result)
         if candidate is None:
-            return
+            return False
         previous = source_cookie_repository.get_cookie_record(self.get_source_name())
         if previous is not None and previous.updated_at != expected_version:
-            return
+            return False
         if previous is None and expected_version is not None:
-            return
+            return False
         if (
             previous is not None
             and previous.cookie == candidate.cookie
@@ -327,7 +350,15 @@ class SourceBase:
             and previous.egress_profile == profile
             and previous.usable_on_route(profile)
         ):
-            return
+            return True
+        key = refresh_key_value or refresh_key(self.get_source_name(), url, profile)
+        try:
+            if session_refresh_coordinator.store.recently_unusable(key):
+                return False
+        except Exception:
+            # Redis is optional for browser_first; CAS still protects the row.
+            if write_guard is not None:
+                return False
         proposed = SourceCookieRecord(
             self.get_source_name().lower(),
             candidate.cookie,
@@ -344,7 +375,13 @@ class SourceBase:
             or PageFetchService.is_challenge(probe.html)
             or not validator(probe.html)
         ):
-            return
+            try:
+                session_refresh_coordinator.store.mark_unusable(key)
+            except Exception:
+                pass
+            return False
+        if write_guard is not None and not write_guard():
+            return False
         saved = source_cookie_repository.set_session_if_version(
             self.get_source_name(),
             expected_updated_at=expected_version,
@@ -352,11 +389,107 @@ class SourceBase:
             user_agent=candidate.user_agent,
             expires_at=candidate.expires_at,
             egress_profile=profile,
+            write_guard=write_guard,
         )
-        if saved is not None:
-            latest = source_cookie_repository.get_cookie_record(self.get_source_name())
-            if latest == saved:
-                self.set_session(saved)
+        if saved is None:
+            return False
+        try:
+            session_refresh_coordinator.store.clear_unusable(key)
+        except Exception:
+            pass
+        latest = source_cookie_repository.get_cookie_record(self.get_source_name())
+        if latest == saved:
+            self.set_session(saved)
+        return True
+
+    def coordinate_browser_fallback(
+        self,
+        url: str,
+        failed_direct: PageResult,
+        direct_fetch: Callable[[], str | PageResult | None],
+        browser_fetch: Callable[[], PageResult],
+        validator: Callable[[str], bool],
+        timeout_ms: int,
+    ) -> PageResult:
+        """Single-flight a reusable session, not the page fetched by Byparr."""
+
+        def browser_page() -> PageResult:
+            return PageFetchService.validate_result(url, browser_fetch(), validator)
+
+        if not self.proxy:
+            return browser_page()
+        profile = proxy_route_profile(self.proxy)
+        if profile is None:
+            return browser_page()
+        key = refresh_key(self.get_source_name(), url, profile)
+        baseline = failed_direct.session_version
+        coordinator = session_refresh_coordinator
+        lease, busy_owner = coordinator.acquire(key, timeout_ms)
+
+        def retry_with(record: SourceCookieRecord | None) -> PageResult | None:
+            if (
+                record is None
+                or record.updated_at == baseline
+                or not record.cookie
+                or not record.user_agent
+                or record.egress_profile != profile
+                or not record.usable_on_route(profile)
+            ):
+                return None
+            self.set_session(record)
+            direct_result = direct_fetch()
+            if isinstance(direct_result, PageResult):
+                result = direct_result
+            else:
+                result = PageResult(
+                    html=direct_result or "",
+                    final_url=url,
+                    provider="direct",
+                    failure=None if direct_result else FetchFailure.EMPTY,
+                )
+            return PageFetchService.validate_result(url, result, validator)
+
+        if lease is None:
+            if busy_owner:
+                record = coordinator.wait_for_session(
+                    key,
+                    busy_owner,
+                    baseline,
+                    profile,
+                    lambda: source_cookie_repository.get_cookie_record(
+                        self.get_source_name()
+                    ),
+                    timeout_ms,
+                )
+                retry = retry_with(record)
+                if retry is not None and retry.ok:
+                    return retry
+            # Redis outage, expired owner, or unsuccessful refresh: this page
+            # may still use Byparr, but it may not write a shared session.
+            return browser_page()
+
+        outcome = "unusable"
+        try:
+            current = source_cookie_repository.get_cookie_record(self.get_source_name())
+            retry = retry_with(current)
+            if retry is not None and retry.ok:
+                outcome = "reused"
+                return retry
+            expected = current.updated_at if current is not None else None
+            result = browser_page()
+            if result.ok and lease.owned():
+                if self.accept_browser_session(
+                    url,
+                    result,
+                    validator,
+                    expected,
+                    write_guard=lease.owned,
+                    refresh_key_value=key,
+                ):
+                    outcome = "reused"
+            return result
+        finally:
+            lease.close(outcome)
 
     def download_file(self, url: str, save_path: str, referer: str = "") -> bool:
         """下载文件到指定路径"""

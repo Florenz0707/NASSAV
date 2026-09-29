@@ -16,6 +16,10 @@ P1 不新增调试端点。可在隔离数据库上运行 `uv run pytest tests/t
 
 `uv run pytest tests/test_browser_session_reuse.py -v` 在隔离测试库验证直连 HTTP 状态和挑战分类、三种页面策略、浏览器 Cookie 域名/路径/过期筛选、一次 3 秒直连探测、晚到人工更新、失败探测不写库及 Jable/MissAV 业务校验。该测试不访问外站；线上真实站点与代理出口的灰度验收仍按执行计划 P5 单独进行。
 
+## P3 站点会话刷新协调
+
+`uv run pytest tests/test_session_coordination.py -v` 在离线环境验证同站 10 个并发 403 请求至多一次可复用会话刷新、不同站点互不阻塞、锁持有者崩溃/租约过期、Redis 断连、人工写入竞争、旧 Cookie 自动获取 API 与短期不可复用抑制。测试使用隔离的进程内 Redis 行为模拟；真实 Redis 的 Lua 续租、释放和结果通知需在独立容器验证，勿连接生产 Redis。
+
 ## 模拟下载接口
 
 ### 概述

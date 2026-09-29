@@ -30,6 +30,7 @@ class PageResult:
     provider_status: int | None = None
     target_status: int | None = None
     failure: FetchFailure | None = None
+    session_version: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -45,7 +46,7 @@ class BrowserPageClient(ABC):
 
 
 class BrowserSessionHandler(Protocol):
-    """Source-owned hooks for committing a validated browser session."""
+    """Source-owned hooks for committing and coordinating browser sessions."""
 
     def browser_session_version(self) -> str | None: ...
 
@@ -55,4 +56,14 @@ class BrowserSessionHandler(Protocol):
         result: PageResult,
         validator: Callable[[str], bool],
         expected_version: str | None,
-    ) -> None: ...
+    ) -> bool: ...
+
+    def coordinate_browser_fallback(
+        self,
+        url: str,
+        failed_direct: PageResult,
+        direct_fetch: Callable[[], str | PageResult | None],
+        browser_fetch: Callable[[], PageResult],
+        validator: Callable[[str], bool],
+        timeout_ms: int,
+    ) -> PageResult: ...

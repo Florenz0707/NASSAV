@@ -92,13 +92,33 @@ class PageFetchService:
                 and result.target_status != 200
             ):
                 result = replace(result, failure=FetchFailure.TARGET_HTTP)
-            if result.failure is None:
-                if not self.same_site(url, result.final_url):
-                    result = replace(result, failure=FetchFailure.PAGE_MISMATCH)
-                elif self.is_challenge(result.html):
-                    result = replace(result, failure=FetchFailure.CHALLENGE)
-                elif not validator(result.html):
-                    result = replace(result, failure=FetchFailure.PAGE_MISMATCH)
+            result = self.validate_result(url, result, validator)
+            if (
+                path == "direct"
+                and strategy == "direct_first"
+                and session_handler is not None
+                and self.browser is not None
+                and (
+                    result.target_status == 403
+                    or result.failure == FetchFailure.CHALLENGE
+                )
+            ):
+                browser = self.browser
+                assert browser is not None
+                coordinated = session_handler.coordinate_browser_fallback(
+                    url,
+                    result,
+                    direct_fetch,
+                    lambda: browser.fetch(url, timeout_ms=self.timeout_ms),
+                    validator,
+                    self.timeout_ms,
+                )
+                if (
+                    coordinated.failure == FetchFailure.CONNECTION
+                    and coordinated.provider != "direct"
+                ):
+                    self.browser_unavailable = True
+                return coordinated
             if result.ok:
                 if (
                     path == "browser"
@@ -138,6 +158,20 @@ class PageFetchService:
                 result.failure,
             )
         return last
+
+    @classmethod
+    def validate_result(
+        cls, url: str, result: PageResult, validator: Callable[[str], bool]
+    ) -> PageResult:
+        if result.failure is not None:
+            return result
+        if not cls.same_site(url, result.final_url):
+            return replace(result, failure=FetchFailure.PAGE_MISMATCH)
+        if cls.is_challenge(result.html):
+            return replace(result, failure=FetchFailure.CHALLENGE)
+        if not validator(result.html):
+            return replace(result, failure=FetchFailure.PAGE_MISMATCH)
+        return result
 
     @staticmethod
     def same_site(requested: str, final: str) -> bool:

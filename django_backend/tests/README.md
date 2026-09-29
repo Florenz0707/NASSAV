@@ -14,6 +14,10 @@ DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p1-test.sqlite3 NASSAV_CONFIG_PATH=co
 
 `test_browser_session_reuse.py` 离线覆盖直连状态、三种抓取策略、浏览器候选筛选、3 秒验证、人工写入竞争及失败不污染数据库。运行：`DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-tests.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_browser_session_reuse.py -v`。
 
+## P3 会话刷新协调测试
+
+`test_session_coordination.py` 离线覆盖 10 个同站并发请求、不同站点锁隔离、有限等待、租约失效、Redis 断连、人工更新、旧 `auto=true` Cookie API 与不可复用短期抑制。运行：`DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p3-tests.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_session_coordination.py -v`。测试使用进程内模拟锁，不连接生产 Redis。
+
 ## Byparr 页面抓取测试
 
 `test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选、挑战页、错域校验及 MissAV 嵌入脚本误判分类；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[基线记录](../doc/byparr-session-reuse-p0-record.md)。

@@ -1,4 +1,5 @@
 import re
+from collections.abc import Callable
 from typing import Optional, Tuple
 
 from curl_cffi import requests
@@ -79,13 +80,19 @@ class MissAV(SourceBase):
         title = re.search(r'<meta property="og:title" content="(.*?)"', html)
         return bool(title and avid.lower() in title.group(1).lower())
 
-    def set_cookie_auto(self, force_refresh: bool = False) -> bool:
+    def set_cookie_auto(
+        self,
+        force_refresh: bool = False,
+        *,
+        write_guard: Callable[[], bool] | None = None,
+    ) -> bool:
         """Save browser cookies only after validating the home page."""
         if not self.page_fetcher.browser:
-            return super().set_cookie_auto(force_refresh)
+            return super().set_cookie_auto(force_refresh, write_guard=write_guard)
         source_name = self.get_source_name()
+        existing = source_cookie_repository.get_cookie_record(source_name)
+        expected_version = existing.updated_at if existing is not None else None
         if not force_refresh:
-            existing = source_cookie_repository.get_cookie_record(source_name)
             if existing is not None and existing.cookie:
                 self.set_session(existing)
                 return True
@@ -116,10 +123,15 @@ class MissAV(SourceBase):
         if not cookies:
             return False
         cookie_str = "; ".join(cookies)
-        if self._cookie_saver:
-            return bool(self._cookie_saver(cookie_str))
-        record = source_cookie_repository.set_cookie(source_name, cookie_str)
-        self.set_session(record)
+        saved = source_cookie_repository.set_automatic_cookie_if_version(
+            source_name,
+            expected_updated_at=expected_version,
+            cookie=cookie_str,
+            write_guard=write_guard,
+        )
+        if saved is None:
+            return False
+        self.set_session(saved)
         return True
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:

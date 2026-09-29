@@ -12,6 +12,11 @@ from nassav.source.CookieRepository import (
     source_cookie_repository,
 )
 from nassav.source.CookieRuntimeCache import source_cookie_runtime_cache
+from nassav.page_fetching.coordination import (
+    refresh_key,
+    session_refresh_coordinator,
+)
+from nassav.source.CookieRepository import proxy_route_profile
 from nassav.source import Jable, Memo, MissAV, SourceBase
 
 
@@ -126,6 +131,65 @@ class SourceManager:
         source_cookie_runtime_cache.set_state(
             source_name, session, ttl_seconds=self.LOCAL_COOKIE_CACHE_TTL
         )
+
+    def auto_source_cookie(self, source_name: str) -> bool:
+        """Coordinate the old Cookie API with page refreshes across processes."""
+        source = self._get_source(source_name)
+        if source is None:
+            return False
+        route = proxy_route_profile(source.proxy) or "unknown"
+        key = refresh_key(source.get_source_name(), source._get_home_url(), route)
+        previous = source_cookie_repository.get_cookie_record(source_name)
+        baseline = previous.updated_at if previous is not None else None
+        timeout_ms = getattr(getattr(source, "page_fetcher", None), "timeout_ms", 60000)
+        coordinator = session_refresh_coordinator
+        lease, busy_owner = coordinator.acquire(key, timeout_ms)
+        if lease is None:
+            if not busy_owner:
+                return False
+            record = coordinator.wait_for_session(
+                key,
+                busy_owner,
+                baseline,
+                route,
+                lambda: source_cookie_repository.get_cookie_record(source_name),
+                timeout_ms,
+                require_reusable=False,
+            )
+            if record is None:
+                return False
+            self.set_runtime_source_cookie(
+                source_name, record.cookie, updated_at=record.updated_at
+            )
+            return True
+        outcome = "unusable"
+        try:
+            current = source_cookie_repository.get_cookie_record(source_name)
+            if (
+                current is not None
+                and current.updated_at != baseline
+                and current.cookie
+            ):
+                self.set_runtime_source_cookie(
+                    source_name, current.cookie, updated_at=current.updated_at
+                )
+                outcome = "reused"
+                return True
+            success = source.set_cookie_auto(
+                force_refresh=True, write_guard=lease.owned
+            )
+            if not success:
+                return False
+            saved = source_cookie_repository.get_cookie_record(source_name)
+            if saved is None or not saved.cookie:
+                return False
+            self.set_runtime_source_cookie(
+                source_name, saved.cookie, updated_at=saved.updated_at
+            )
+            outcome = "reused"
+            return True
+        finally:
+            lease.close(outcome)
 
     def invalidate_source_cookie_cache(self, source_name: str) -> None:
         source_cookie_runtime_cache.invalidate(source_name)
