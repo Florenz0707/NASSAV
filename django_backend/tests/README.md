@@ -2,6 +2,14 @@
 
 本文档提供 NASSAV 后端测试套件的完整概览和使用指南。
 
+## P1 会话数据与迁移测试
+
+`test_source_cookie_session.py` 在隔离 SQLite 测试库上验证增量迁移、会话快照、代理摘要、人工 Cookie 覆盖/清除、旧结果晚到、缓存版本与两个并发写入者。该测试不请求外站或写生产库；同一文件也应在隔离 PostgreSQL 测试库运行。
+
+```bash
+DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p1-test.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_source_cookie_session.py -v
+```
+
 ## Byparr 页面抓取测试
 
 `test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选、挑战页、错域校验及 MissAV 嵌入脚本误判分类；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[基线记录](../doc/byparr-session-reuse-p0-record.md)。

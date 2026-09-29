@@ -27,9 +27,12 @@ Database:
   - 关键字段：
     - `source_name` (Char, unique, primary_key): 源名称，主键。
     - `cookie` (Text): Cookie 字符串。
-    - `updated_at` (DateTime, auto_now): 更新时间，自动更新。
+    - `user_agent` (Text, nullable): 与 Cookie 配套的 User-Agent；旧记录为 `NULL`。
+    - `expires_at` (DateTime, nullable): 会话声明的到期时间；未知不表示永不过期。
+    - `egress_profile` (Char(64), nullable): 用服务端密钥对规范化代理路线（含代理身份要素）计算的 HMAC-SHA256；不是公网出口 IP 证明。未知路线为 `NULL`。
+    - `updated_at` (DateTime, auto_now): 整组会话的写入版本。
 
-本次 Byparr 页面获取迁移没有数据库 schema 变更。MissAV 浏览器自动 Cookie 经 `SourceCookieRepository` 保存，并通过 `SourceManager` 更新运行时缓存；失败时不覆盖既有 Cookie。浏览器返回的临时 Cookie 不新增持久化字段。
+迁移 `0021_sourcecookie_session_metadata` 只增加三个可空列，旧行数量及 Cookie 内容不变；可回退到上一迁移。`SourceCookieRepository` 把 Cookie、UA、到期时间、路线标识和版本作为同一快照传入 Django 共享缓存与进程缓存。读取共享缓存前核对数据库版本，避免迟到的旧缓存遮蔽新值。浏览器会话写入使用短事务锁行并比较 `updated_at`；人工设置、清除或较新的刷新发生后，较早启动的浏览器结果不写回。人工设置不带 UA 时清空历史 UA、到期时间和路线标识；清除 Cookie 时同样清空元数据。未知路线的自动会话不写入，已过期或路线不匹配的快照不会用于页面直连。旧行继续携带原 Cookie 和默认 UA 进行有限直连；自动获取并验证浏览器会话属于后续 P2/P3。
 
 - **`AVResource` (`nassav_avresource`)**: 主表，保存 AV 元数据（除封面与视频文件外的所有字段）。
   - 关键字段：

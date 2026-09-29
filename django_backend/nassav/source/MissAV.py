@@ -82,9 +82,9 @@ class MissAV(SourceBase):
             return super().set_cookie_auto(force_refresh)
         source_name = self.get_source_name()
         if not force_refresh:
-            existing = source_cookie_repository.get_cookie(source_name)
-            if existing:
-                self.cookie = existing
+            existing = source_cookie_repository.get_cookie_record(source_name)
+            if existing is not None and existing.cookie:
+                self.set_session(existing)
                 return True
         from urllib.parse import urlparse
 
@@ -115,8 +115,8 @@ class MissAV(SourceBase):
         cookie_str = "; ".join(cookies)
         if self._cookie_saver:
             return bool(self._cookie_saver(cookie_str))
-        source_cookie_repository.set_cookie(source_name, cookie_str)
-        self.cookie = cookie_str
+        record = source_cookie_repository.set_cookie(source_name, cookie_str)
+        self.set_session(record)
         return True
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
