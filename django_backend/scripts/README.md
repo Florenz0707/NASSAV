@@ -4,7 +4,7 @@
 
 ## Byparr 会话复用 P0 探测
 
-`probe_byparr_session.py` 在运行中的 Django 容器内使用有效配置，对单个已知页面执行只读对照；不写 Cookie 表。先阅读[基线与放行记录](../doc/byparr-session-reuse-p0-record.md)。参数为 `source`（`jable`/`missav`）、`kind`（`detail`/`listing`）、HTTPS 页面 URL；详情页还需 `--avid`。URL 必须属于已配置源域名且不带查询串或凭据。默认不把存储或浏览器 Cookie 发送到目标站；完整会话对照必须在获准的试验窗口显式加 `--allow-session-replay`。只保存脚本输出的脱敏 JSON，不保存原始 Byparr 响应。
+`probe_byparr_session.py` 在运行中的 Django 容器内使用有效配置，对单个已知页面执行只读对照；不写 Cookie 表。先阅读[基线与放行记录](../doc/byparr-session-reuse-p0-record.md)。参数为 `source`（`jable`/`missav`）、`kind`（`detail`/`listing`）、HTTPS 页面 URL；详情页还需 `--avid`。URL 必须属于已配置源域名且不带凭据；只允许 Jable 分页查询 `from=02`。可用 `--reuse-url` 指定同站另一详情页，MissAV 同时传 `--reuse-avid`，在同一次浏览器会话中测试跨页复用。默认不把存储或浏览器 Cookie 发送到目标站；完整会话对照必须在获准的试验窗口显式加 `--allow-session-replay`。只保存脚本输出的脱敏 JSON，不保存原始 Byparr 响应。
 
 ```bash
 # 在与正式 Django 相同的容器、配置和代理路线内运行；先将脚本复制到容器临时目录
@@ -12,7 +12,7 @@
 # docker exec -w /app nassav-api-1 python /tmp/probe_byparr_session.py jable detail https://jable.tv/videos/<verified-avid>/ --avid <VERIFIED-AVID>
 ```
 
-一次调用只测一个目标页，分别按两个时间窗口记录；跨页复用仍需另行验证。生产 Cookie 不应写入命令行或日志。试验结束清除容器中的临时脚本。
+一次调用只启动一次目标页浏览器获取，跨页参数仅增加直连验证；分别按两个时间窗口记录。MissAV 页面即使包含业务结构，若嵌入 `challenge-platform` 脚本，探测将分别报告 `validation=valid_embedded_marker` 和 `production_validation=challenge`，不能把前者当成当前生产路径成功。生产 Cookie 不应写入命令行或日志。试验结束清除容器中的临时脚本。
 
 ## Byparr 固定版本部署
 

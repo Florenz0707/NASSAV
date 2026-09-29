@@ -3,9 +3,10 @@
 import argparse
 import json
 import os
+import re
 from datetime import datetime, timezone
 from time import monotonic
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import django
 from curl_cffi import requests
@@ -24,8 +25,6 @@ from nassav.models import SourceCookie  # noqa: E402
 def valid_page(source, kind, avid, requested, final, html):
     if not PageFetchService.same_site(requested, final):
         return "wrong_site"
-    if PageFetchService.is_challenge(html):
-        return "challenge"
     if kind == "detail":
         valid = (
             source._is_detail_page_html(html, avid)
@@ -36,6 +35,28 @@ def valid_page(source, kind, avid, requested, final, html):
         valid = source._is_listing_page_html(html)
     else:
         valid = False
+    if PageFetchService.is_challenge(html):
+        # MissAV embeds a Cloudflare challenge-platform script in genuine
+        # detail pages. Preserve the production detector's mismatch explicitly.
+        without_scripts = re.sub(
+            r"<script\b[^>]*>.*?</script>", "", html, flags=re.I | re.S
+        )
+        if (
+            isinstance(source, MissAV)
+            and valid
+            and "challenge-platform" in html.lower()
+            and not PageFetchService.is_challenge(without_scripts)
+            and not any(
+                marker in html.lower()
+                for marker in (
+                    "cf-challenge",
+                    "checking your browser",
+                    "just a moment...",
+                )
+            )
+        ):
+            return "valid_embedded_marker"
+        return "challenge"
     return "valid" if valid else "invalid_structure"
 
 
@@ -77,12 +98,16 @@ def direct_probe(source, kind, avid, url, label, cookie, user_agent):
             timeout=source.timeout,
             impersonate=IMPERSONATE,
         )
+        validation = valid_page(
+            source, kind, avid, url, str(response.url), response.text
+        )
         return {
             "arm": label,
             "status": response.status_code,
-            "validation": valid_page(
-                source, kind, avid, url, str(response.url), response.text
-            ),
+            "validation": validation,
+            "production_validation": "challenge"
+            if validation == "valid_embedded_marker"
+            else validation,
             "elapsed_ms": round((monotonic() - started) * 1000),
         }
     except Exception as error:
@@ -101,6 +126,14 @@ def main():
     parser.add_argument("url")
     parser.add_argument("--avid", default="", help="Required for detail validation")
     parser.add_argument(
+        "--reuse-url",
+        default="",
+        help="A second verified detail URL to test with this browser session",
+    )
+    parser.add_argument(
+        "--reuse-avid", default="", help="AVID of --reuse-url for MissAV validation"
+    )
+    parser.add_argument(
         "--allow-session-replay",
         action="store_true",
         help="Explicitly allow sending stored and browser session cookies to the target",
@@ -114,15 +147,35 @@ def main():
         or host != expected_host
         or parsed.username
         or parsed.password
-        or parsed.query
         or parsed.fragment
+        or (
+            parsed.query
+            and (args.source != "jable" or parse_qs(parsed.query) != {"from": ["02"]})
+        )
     ):
-        parser.error("URL must use HTTPS and the configured source host")
+        parser.error(
+            "URL must use HTTPS, the configured source host, and only the supported pagination query"
+        )
     if args.source == "missav" and (args.kind != "detail" or not args.avid):
         parser.error("MissAV requires a detail URL and --avid")
     if args.source == "jable" and args.kind == "detail" and not args.avid:
         parser.error("Detail probes require --avid")
 
+    if args.reuse_url:
+        reuse = urlsplit(args.reuse_url)
+        if (
+            reuse.scheme != "https"
+            or reuse.hostname != expected_host
+            or reuse.username
+            or reuse.password
+            or reuse.query
+            or reuse.fragment
+            or not reuse.path.startswith("/videos/")
+            and args.source == "jable"
+        ):
+            parser.error("--reuse-url must be a same-source detail URL without a query")
+        if args.source == "missav" and not args.reuse_avid:
+            parser.error("MissAV --reuse-url requires --reuse-avid")
     proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
     source = Jable(proxy) if args.source == "jable" else MissAV(proxy)
     browser = create_page_fetch_service(
@@ -161,6 +214,9 @@ def main():
             "provider_status": browser_result.provider_status,
             "target_status": browser_result.target_status,
             "validation": browser_validation,
+            "production_validation": "challenge"
+            if browser_validation == "valid_embedded_marker"
+            else browser_validation,
             "elapsed_ms": browser_result.elapsed_ms,
             "cookie_present": bool(browser_cookie),
             "ua_present": bool(browser_ua),
@@ -182,7 +238,10 @@ def main():
             output["direct"].append(
                 {"arm": label, "validation": "not_run_session_replay_disabled"}
             )
-        elif label.startswith("browser_") and browser_validation != "valid":
+        elif label.startswith("browser_") and browser_validation not in {
+            "valid",
+            "valid_embedded_marker",
+        }:
             output["direct"].append(
                 {"arm": label, "validation": "not_run_invalid_browser"}
             )
@@ -205,6 +264,29 @@ def main():
         else:
             output["direct"].append(
                 direct_probe(source, args.kind, args.avid, args.url, label, cookie, ua)
+            )
+    if args.reuse_url:
+        if (
+            not args.allow_session_replay
+            or browser_validation not in {"valid", "valid_embedded_marker"}
+            or not browser_cookie
+            or not browser_ua
+        ):
+            output["cross_page"] = {
+                "validation": "not_run_incomplete_or_unapproved_session"
+            }
+        else:
+            reuse_cookie = cookie_header(
+                browser_result.cookies, host, urlsplit(args.reuse_url).path or "/"
+            )
+            output["cross_page"] = direct_probe(
+                source,
+                "detail",
+                args.reuse_avid or args.avid,
+                args.reuse_url,
+                "browser_cookie_and_ua_cross_page",
+                reuse_cookie,
+                browser_ua,
             )
     print(json.dumps(output, ensure_ascii=False, sort_keys=True))
 

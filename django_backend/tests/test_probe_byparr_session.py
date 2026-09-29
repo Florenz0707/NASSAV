@@ -37,3 +37,21 @@ def test_probe_validation_rejects_challenge_and_wrong_site():
         valid_page(source, "detail", "EXAMPLE", url, url, "Just a moment...")
         == "challenge"
     )
+
+
+def test_missav_embedded_challenge_script_is_reported_separately():
+    from nassav.source.MissAV import MissAV
+
+    source = MissAV(page_fetcher=PageFetchService(None))
+    url = "https://missav.ai/en/fthtd-228"
+    html = (
+        '<meta property="og:title" content="FTHTD-228 title">'
+        "m3u8|abcd|com|surrit|https|video"
+        "<script>const path = 'challenge-platform';</script>"
+    )
+
+    assert PageFetchService.is_challenge(html)
+    assert (
+        valid_page(source, "detail", "FTHTD-228", url, url, html)
+        == "valid_embedded_marker"
+    )

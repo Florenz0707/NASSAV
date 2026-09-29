@@ -1,19 +1,19 @@
 # Byparr 会话复用 P0 基线与放行记录
 
-日期：2026-09-29。代码基线：`04ca7200bd532cbbb46a2895e0f099cc0384c164`。本记录对应[执行计划](byparr-session-reuse-execution-plan.md)的 P0。**状态：未放行；两时段现场对照和出口核验待完成。** P0 不修改页面策略或生产 Cookie。
+日期：2026-09-29。代码基线：`04ca7200bd532cbbb46a2895e0f099cc0384c164`。本记录对应[执行计划](byparr-session-reuse-execution-plan.md)的 P0。**状态：Jable P0 最低证据门槛通过；两站策略切换均未放行。** [现场结果](byparr-session-reuse-p0-field-results.md)记录了两时段对照和出口核验。P0 不修改页面策略或生产 Cookie。
 
 ## 固定环境
 
-| 项目       | 本次已核对值                                                                                                                                              | 尚需核对                                          |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Django     | Compose `nassav-api-1`、默认 worker、下载 worker、scrape worker 各 1 个容器                                                                               | 容器镜像与此 Git commit 的构建对应关系            |
-| 数据库     | Django 有效引擎 `django.db.backends.postgresql`                                                                                                           | PostgreSQL 服务版本                               |
-| Byparr     | `nassav-byparr-1`，镜像 digest `sha256:874f719518f617d03a60e03411fc5d090647e1a877041e81f8dc965927c7deb6`；另有独立试验容器，须明确只使用正式 Compose 地址 | 正式容器请求日志中的实际代理路线                  |
-| 页面策略   | MissAV、Jable 均为 `browser_first`；Byparr 已启用，超时 60 秒                                                                                             | 不切换策略，直到本站点放行                        |
-| 直连代理   | `Proxy.Enable=true`；Django 直连从 API 容器发起，路线记为 `route-A`                                                                                       | 代理供应商是否轮换出口 IP                         |
-| 浏览器代理 | `ByparrPageClient` 使用同一 `Proxy.url` 配置，转为 `X-Proxy-Server` 及单独认证头；容器回环主机名会映射为 `host.docker.internal`                           | 实测出口 IP 是否相同；相同代理 URL 不能证明同出口 |
-| 域名       | Jable `jable.tv`，MissAV `missav.ai`                                                                                                                      | 两时段期间域名是否变化                            |
-| 并发       | scrape worker `-c 1`，API 与其他 worker 仍可并发触发获取                                                                                                  | 试验时总并发数及代理出口记录                      |
+| 项目       | 本次已核对值                                                                                                                                              | 现场补充                                                     |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Django     | Compose `nassav-api-1`、默认 worker、下载 worker、scrape worker 各 1 个容器                                                                               | 四个页面获取关键源码哈希与基线一致；完整镜像提交元数据不可得 |
+| 数据库     | Django 有效引擎 `django.db.backends.postgresql`                                                                                                           | PostgreSQL 16.15                                             |
+| Byparr     | `nassav-byparr-1`，镜像 digest `sha256:874f719518f617d03a60e03411fc5d090647e1a877041e81f8dc965927c7deb6`；另有独立试验容器，须明确只使用正式 Compose 地址 | 只连接正式 Compose 容器；出口配对结果见现场记录              |
+| 页面策略   | MissAV、Jable 均为 `browser_first`；Byparr 已启用，超时 60 秒                                                                                             | 不切换策略，直到本站点放行                                   |
+| 直连代理   | `Proxy.Enable=true`；Django 直连从 API 容器发起，路线记为 `route-A`                                                                                       | 两轮出口配对 6/6 一致；长期是否轮换仍未知                    |
+| 浏览器代理 | `ByparrPageClient` 使用同一 `Proxy.url` 配置，转为 `X-Proxy-Server` 及单独认证头；容器回环主机名会映射为 `host.docker.internal`                           | 对同一出口探测目标实测 6/6 相同；不外推所有目标域名          |
+| 域名       | Jable `jable.tv`，MissAV `missav.ai`                                                                                                                      | 两时段均使用同一配置域名                                     |
+| 并发       | scrape worker `-c 1`，API 与其他 worker 仍可并发触发获取                                                                                                  | 主样本顺序探测；常驻 API/worker 仍可能并发                   |
 
 以上仅记录脱敏的路线标识；不保存代理 URL、凭据、Cookie 值或完整 UA。数据库、策略和容器数量由运行中的 Django/Compose 只读查询；镜像 digest 由 Docker inspect 取得。
 
@@ -25,7 +25,7 @@
 
 已有方向性证据：9 月 29 日 Jable `Cookie+UA` 同页/跨页约 0.71/0.72 秒通过校验，旧 Cookie、仅 Cookie、仅 UA 为 403；详情见[执行计划](byparr-session-reuse-execution-plan.md)。该探测未完成本节的样本数、两时段和出口核验，不能当成 P0 放行。MissAV 的旧无效详情不计入样本；[此前试验](byparr-trial-results.md)的当前详情只证明浏览器页面结构可用。
 
-[scripts/probe_byparr_session.py](../scripts/probe_byparr_session.py) 提供单页只读探测，默认不发送存储 Cookie 或浏览器 Cookie。完整会话重放需要显式 `--allow-session-replay`，只在获准的试验窗口运行；脚本不写数据库，标准输出只含状态、校验、耗时、Cookie 数量和 UA 是否存在。对照结果应存到不含凭据的 JSONL 记录，按两个时间窗口汇总。脚本每次启动浏览器一次；跨页面复用需要在同一批准的试验中把已获会话用于另一已验证详情页，目前尚未自动化。
+[scripts/probe_byparr_session.py](../scripts/probe_byparr_session.py) 提供单页只读探测，默认不发送存储 Cookie 或浏览器 Cookie。完整会话重放需要显式 `--allow-session-replay`，只在获准的试验窗口运行；脚本不写数据库，标准输出只含状态、校验、耗时、Cookie 数量和 UA 是否存在。对照结果应存到不含凭据的 JSONL 记录，按两个时间窗口汇总。脚本每次启动浏览器一次；跨页面复用需要在同一批准的试验中把已获会话用于另一已验证详情页，现已由 `--reuse-url` 和 MissAV 的 `--reuse-avid` 参数在同一次浏览器会话中执行。
 
 ## 页面获取与 Cookie 写入入口
 
@@ -44,4 +44,4 @@
 
 ## 当前判定与剩余证据
 
-Jable 与 MissAV 均保持 `browser_first`。Jable 需补齐三个有效详情、三个列表/搜索/分页、反向样本、两个时段的全部对照和同/跨页复现，并证明浏览器与直连实际出口一致。MissAV 还需先取得三个现时有效详情，再独立完成相同核验。此前的单页结果不推断会话寿命。未完成这些项目时，不启动 P1 的站点切换或宣称提速已成立。
+两站均保持 `browser_first`。Jable 达到 P0 最低复现门槛，但配套直连只在 6/12 主样本中有效，尚未达到后续灰度要求；MissAV 的普通直连已能取得六个业务有效页面，配套会话没有显示独立收益，且生产挑战检测误拒正常页面。具体分母、耗时、反向样本和限制见[现场结果](byparr-session-reuse-p0-field-results.md)。P1 可以按 Jable 的受控证据进入开发；策略切换仍须通过 P2–P5 测试和灰度。
