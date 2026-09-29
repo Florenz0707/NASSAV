@@ -1,6 +1,6 @@
 # Byparr 会话复用与直连优先执行计划
 
-日期：2026-09-29。状态：P0 进行中，现场放行未完成；[P0 记录](byparr-session-reuse-p0-record.md)。本文接续 [Byparr 迁移计划](byparr-migration-plan.md) 和 [异步刮削计划](async-scraping-compose-plan.md)，只规划页面获取提速；不在本次计划中实现代码。既有数据库迁移和 Compose 部署以当前仓库为准，不沿用旧计划中关于 SQLite 或宿主机服务的历史假设。
+日期：2026-09-29。状态：Jable P0 最低证据门槛通过，策略切换未放行；[P0 记录](byparr-session-reuse-p0-record.md)与[现场结果](byparr-session-reuse-p0-field-results.md)。本文接续 [Byparr 迁移计划](byparr-migration-plan.md) 和 [异步刮削计划](async-scraping-compose-plan.md)，只规划页面获取提速；不在本次计划中实现代码。既有数据库迁移和 Compose 部署以当前仓库为准，不沿用旧计划中关于 SQLite 或宿主机服务的历史假设。
 
 ## 目标、范围与决策
 

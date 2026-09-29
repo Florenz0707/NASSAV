@@ -4,7 +4,7 @@
 
 ## Byparr 页面抓取测试
 
-`test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选与挑战页、错域校验；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[基线记录](../doc/byparr-session-reuse-p0-record.md)。
+`test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选、挑战页、错域校验及 MissAV 嵌入脚本误判分类；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[基线记录](../doc/byparr-session-reuse-p0-record.md)。
 
 旧的 `test_resource_samples.py`、`test_real_resource_kir062.py` 和 `test_debug_requests.py` 会访问真实目标站，默认跳过；仅设置 `NASSAV_EXTERNAL_TESTS=1` 才运行，其中资源测试可能写入测试数据库和资源文件。
 
