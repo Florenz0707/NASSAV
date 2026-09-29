@@ -15,6 +15,7 @@ class BrowserFetchConfig:
     provider: str
     url: str
     timeout_ms: int
+    session_reuse_enabled: bool = False
 
 
 def normalize_config(config: dict) -> BrowserFetchConfig:
@@ -69,7 +70,12 @@ def normalize_config(config: dict) -> BrowserFetchConfig:
         raise ValueError(
             "Browser fetch timeout_ms must be whole seconds of at least 1000 ms"
         )
-    return BrowserFetchConfig(enabled, provider, url.rstrip("/"), timeout_ms)
+    session_reuse_enabled = raw.get("session_reuse_enabled", False)
+    if not isinstance(session_reuse_enabled, bool):
+        raise ValueError("BrowserFetch.session_reuse_enabled must be a boolean")
+    return BrowserFetchConfig(
+        enabled, provider, url.rstrip("/"), timeout_ms, session_reuse_enabled
+    )
 
 
 def validate_strategy(value: str) -> str:
@@ -93,4 +99,6 @@ def create_page_fetch_service(
             browser = ByparrPageClient(config.url, proxy_url=proxy_url)
         else:
             browser = FlareSolverrPageClient(config.url)
-    return PageFetchService(browser, config.timeout_ms)
+    return PageFetchService(
+        browser, config.timeout_ms, session_reuse_enabled=config.session_reuse_enabled
+    )

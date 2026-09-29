@@ -157,6 +157,7 @@ def test_stale_shared_cache_is_rejected_using_database_version():
 
 def test_page_fetch_uses_one_snapshot_even_when_source_changes(monkeypatch):
     source = Jable()
+    source.page_fetcher.session_reuse_enabled = True
     source.set_session(SourceCookieRecord("jable", "session=old", "v1", "old-UA"))
     entered = Event()
     continue_request = Event()
@@ -201,6 +202,7 @@ def test_page_fetch_uses_one_snapshot_even_when_source_changes(monkeypatch):
 
 def test_expired_or_other_route_session_is_not_sent(monkeypatch):
     source = Jable()
+    source.page_fetcher.session_reuse_enabled = True
     captured = []
 
     class Response:

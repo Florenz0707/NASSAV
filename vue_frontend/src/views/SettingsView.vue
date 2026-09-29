@@ -44,6 +44,7 @@ const showEditModal = ref(false)
 const showDeleteConfirm = ref(false)
 const currentSource = ref(null)
 const editCookieValue = ref('')
+const editUserAgentValue = ref('')
 const viewCookieValue = ref('')
 
 // 选择菜单项
@@ -91,6 +92,8 @@ const loadData = async () => {
       cookieMap[item.source.toLowerCase()] = {
         cookie: item.cookie,
         mtime: item.mtime,
+        verifiedDirectReuse: item.verified_direct_reuse,
+        sessionExpired: item.session_expired,
       }
     })
 
@@ -102,6 +105,8 @@ const loadData = async () => {
         hasCookie: !!cookieInfo,
         lastUpdate: cookieInfo ? formatTime(cookieInfo.mtime) : null,
         cookie: cookieInfo ? cookieInfo.cookie : null,
+        verifiedDirectReuse: cookieInfo ? cookieInfo.verifiedDirectReuse : false,
+        sessionExpired: cookieInfo ? cookieInfo.sessionExpired : false,
       }
     })
   } catch (err) {
@@ -123,6 +128,7 @@ const viewCookie = (source) => {
 const openEditModal = (source) => {
   currentSource.value = source
   editCookieValue.value = source.cookie || ''
+  editUserAgentValue.value = ''
   showEditModal.value = true
 }
 
@@ -133,6 +139,7 @@ const saveCookie = async () => {
     await sourceApi.setCookie({
       source: currentSource.value.name,
       cookie: editCookieValue.value,
+      user_agent: editUserAgentValue.value || null,
     })
     toastStore.success('Cookie 设置成功')
     showEditModal.value = false
@@ -323,13 +330,28 @@ const copyCookie = async () => {
         placeholder="粘贴 Cookie 字符串到这里..."
       />
 
+      <label for="cookie-user-agent" class="block text-sm text-[var(--text-secondary)] mt-4 mb-2">
+        User-Agent（可选）
+      </label>
+      <input
+        id="cookie-user-agent"
+        v-model="editUserAgentValue"
+        type="text"
+        class="w-full rounded-lg p-3 text-sm focus:outline-none transition-colors"
+        :style="cookieTextareaStyle"
+        placeholder="粘贴与 Cookie 配套的浏览器 User-Agent"
+      />
+      <p class="text-xs text-[var(--text-muted)] mt-2">
+        留空保存会清除以前的配套 UA；手动输入不代表已验证可直连。
+      </p>
+
       <template #footer>
         <div class="flex justify-between items-center">
           <button
             class="px-4 py-2 rounded-xl bg-[var(--bg-white-5)] text-[var(--text-muted)] text-sm border border-white/[0.08] hover:bg-[var(--bg-white-10)] hover:text-[var(--text-primary)] transition-all"
             @click="autoFetchCookie()"
           >
-            ✨ 自动获取
+            自动获取
           </button>
           <button class="settings-modal-primary-btn" @click="saveCookie">保存</button>
         </div>

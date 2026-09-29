@@ -129,3 +129,80 @@ def test_browser_connection_failure_is_scoped_to_one_lookup():
         strategy="browser_first",
     )
     assert browser.calls == 2
+
+
+def test_disabled_session_reuse_uses_original_browser_first_path():
+    from unittest.mock import Mock
+
+    browser = Mock()
+    browser.fetch.return_value = PageResult(
+        html="valid", final_url="https://example.test/page", provider="byparr"
+    )
+    direct = Mock(return_value="valid")
+    handler = Mock()
+    service = PageFetchService(browser, session_reuse_enabled=False)
+    result = service.fetch(
+        "https://example.test/page",
+        direct_fetch=direct,
+        validator=lambda html: html == "valid",
+        strategy="direct_first",
+        session_handler=handler,
+        source="Jable",
+        path_kind="detail",
+    )
+    assert result.ok and result.provider == "byparr"
+    direct.assert_not_called()
+    handler.accept_browser_session.assert_not_called()
+    handler.coordinate_browser_fallback.assert_not_called()
+    service.session_reuse_enabled = True
+    result = service.fetch(
+        "https://example.test/page",
+        direct_fetch=direct,
+        validator=lambda html: html == "valid",
+        strategy="direct_first",
+        source="Jable",
+        path_kind="detail",
+    )
+    assert result.ok and result.provider == "direct"
+    assert direct.call_count == 1
+
+
+def test_page_logs_show_direct_403_and_browser_completion_without_secrets(monkeypatch):
+    from unittest.mock import Mock
+    from nassav.page_fetching import service as service_module
+
+    messages = []
+    monkeypatch.setattr(
+        service_module.logger,
+        "info",
+        lambda template, *values: messages.append(template.format(*values)),
+    )
+    browser = Mock()
+    browser.fetch.return_value = PageResult(
+        html="valid",
+        final_url="https://example.test/page",
+        provider="byparr",
+        target_status=200,
+        elapsed_ms=12,
+    )
+    service = PageFetchService(browser)
+    result = service.fetch(
+        "https://example.test/page",
+        direct_fetch=lambda: PageResult(
+            final_url="https://example.test/page",
+            provider="direct",
+            target_status=403,
+            elapsed_ms=4,
+        ),
+        validator=lambda html: html == "valid",
+        strategy="direct_first",
+        source="Jable",
+        path_kind="detail",
+        request_id="sample",
+    )
+    assert result.ok
+    assert any(
+        "page_fetch_attempt" in line and "status=403" in line for line in messages
+    )
+    assert any("page_fetch " in line and "browser_calls=1" in line for line in messages)
+    assert all("https://" not in line and "Cookie" not in line for line in messages)

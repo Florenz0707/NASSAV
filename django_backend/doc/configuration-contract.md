@@ -7,3 +7,7 @@ Django 管理命令、ASGI 和 Celery worker 使用同一个设置加载入口�
 本地模板和 Compose 样例保留各自适用的默认值：本地 `BrowserFetch.Enable: false`、Jable `browser_first`、翻译器地址为 `localhost`；Compose 启用内部 Byparr、Jable `direct_first`、翻译器地址为宿主机网关。这些是部署策略差异。`Proxy` 的关闭状态及下载代理默认直连在两种模板中一致；代理地址的主机名因进程所在网络而异。容器里的宿主机代理应使用 `host.docker.internal` 且服务必须监听容器可达的地址；`127.0.0.1` 在容器内只指向容器自身。下载代理的独立优先级见[代理路由](proxy-routing.md)。
 
 资源目录默认是后端根目录的 `resource/`；隔离测试可以设置 `NASSAV_RESOURCE_DIR`。启动时会创建资源和日志目录，文件系统错误直接使进程失败。用户界面的 `user_settings.ini` 在首次使用时创建和补齐，`manage.py check` 不再为其写文件。信号接收器在 `AppConfig.ready()` 注册；日志文件 sink 每进程只添加一次。配置修改后须重启持有配置的 API/worker；修改 Compose 环境变量则须重建容器。
+
+## P4 会话复用开关
+
+`BrowserFetch.session_reuse_enabled` 只接受 YAML 布尔值，省略时为 `false`。关闭时保留原有 `browser_first` 页面次序与人工 Cookie 直连能力；配置为 `direct_first` 的源暂按 `browser_first` 执行，且不提取、验证或写入自动可复用会话。开启后才按各源 `browser_fetch_strategy` 执行；先只将 Jable 设为 `direct_first`，MissAV 维持 `browser_first` 直至独立验收。切换开关、策略或代理配置后，重启 API 与持有 Source 实例的 worker。回滚时关闭开关并把受影响源恢复 `browser_first`，不清理 Cookie 表。

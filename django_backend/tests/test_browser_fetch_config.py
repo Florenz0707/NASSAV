@@ -57,3 +57,13 @@ def test_invalid_new_config_raises(block):
 def test_invalid_strategy_raises():
     with pytest.raises(ValueError):
         validate_strategy("retry_forever")
+
+
+def test_session_reuse_defaults_off_and_requires_boolean():
+    raw = {"BrowserFetch": {"Enable": True, "url": "http://localhost:8192"}}
+    config = normalize_config(raw)
+    assert config.session_reuse_enabled is False
+    assert create_page_fetch_service(config).session_reuse_enabled is False
+    raw["BrowserFetch"]["session_reuse_enabled"] = "true"
+    with pytest.raises(ValueError, match="session_reuse_enabled"):
+        normalize_config(raw)

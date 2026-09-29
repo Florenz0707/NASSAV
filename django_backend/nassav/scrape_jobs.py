@@ -249,6 +249,10 @@ def run_resource_job(self, action: str, avid: str, source: str, options: dict):
     if not store.renew(avid, task_id):
         return
     snapshot: dict = active_snapshot
+    queue_wait_ms = round(
+        max(0, time.time() - active_snapshot.get("updated_at", time.time())) * 1000
+    )
+    scrape_started = time.monotonic()
 
     def progress(stage: str) -> None:
         nonlocal snapshot
@@ -326,4 +330,15 @@ def run_resource_job(self, action: str, avid: str, source: str, options: dict):
             message="抓取任务失败",
         )
     finally:
-        store.release(avid, task_id)
+        try:
+            final_snapshot = store.get(task_id)
+            logger.info(
+                "scrape_job source={} task_id={} state={} queue_wait_ms={} scrape_total_ms={}",
+                source if source in {"jable", "missav", "any"} else "other",
+                task_id,
+                final_snapshot.get("state", "unknown") if final_snapshot else "unknown",
+                queue_wait_ms,
+                round((time.monotonic() - scrape_started) * 1000),
+            )
+        finally:
+            store.release(avid, task_id)
