@@ -14,6 +14,10 @@
 
 一次调用只启动一次目标页浏览器获取，跨页参数仅增加直连验证；分别按两个时间窗口记录。MissAV 页面即使包含业务结构，若嵌入 `challenge-platform` 脚本，探测将分别报告 `validation=valid_embedded_marker` 和 `production_validation=challenge`，不能把前者当成当前生产路径成功。生产 Cookie 不应写入命令行或日志。试验结束清除容器中的临时脚本。
 
+## MissAV P5 只读对照
+
+`probe_p5_missav.py` 在正式 API 容器内用同一代理，从主页发现当前详情页；每个时段取至少 20 个有效详情页，比较无 Cookie 直连、已验证 Cookie+UA 直连，并用至少 5 个 Byparr 有效详情页作为耗时对照。参数：`--window W1|W2`、`--count 20..100`（默认 20）及必需的 `--allow-session-replay`。脚本输出脱敏 JSONL，不读取或写入 Cookie 表、Redis、任务队列；运行方式和结果见 [MissAV P5 记录](../doc/byparr-session-reuse-p5-missav-record.md)。
+
 ## Byparr 固定版本部署
 
 `byparr/compose.yaml` 将已验证的 `3.0.4` 镜像固定到 digest，监听宿主机
