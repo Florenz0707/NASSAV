@@ -488,3 +488,18 @@ uv sync
 #   python - --window W1 --allow-session-replay \
 #   < django_backend/scripts/probe_p5_jable.py > /tmp/nassav-p5-w1.jsonl
 ```
+
+## MissAV 详情路径只读对照
+
+`probe_missav_paths.py` 使用运行中 API 容器的 Byparr 和代理配置，对首页发现的不同番号交错比较 `/cn/{avid}`、发现路径及字幕候选。只有通过同站点、非挑战、标题番号和视频 UUID 校验才算有效。使用 `--resource-targets` 时仅从现有 `AVResource.source=MissAV` 行读取目标番号，并对比 `/en/{avid}`；不会修改资源、Cookie、Redis 或任务。输出 JSONL 仅含番号、路径类型、耗时和失败类型，不保存页面、Cookie、UA、代理或完整 URL。参数：`--count`（1..100，默认 20）、`--offset`（仅首页发现模式，默认 0）、`--subtitle-count`（默认 8）、`--root-count`（默认 0）、`--resource-targets`。正式站点实测应在 API 容器执行并将 stdout 单独保存；不要从宿主机改用另一条网络路线。结果见[MissAV 路径验证记录](../doc/missav-path-selection-record.md)。
+
+```bash
+# 从仓库根目录执行；容器镜像通常不包含 scripts/，故仅复制到容器临时目录
+docker exec nassav-api-1 mkdir -p /tmp/nassav-path-probe/scripts
+docker cp django_backend/scripts/probe_p5_missav.py nassav-api-1:/tmp/nassav-path-probe/scripts/
+docker cp django_backend/scripts/probe_missav_paths.py nassav-api-1:/tmp/nassav-path-probe/scripts/
+docker exec -e PYTHONPATH=/tmp/nassav-path-probe:/app nassav-api-1 \
+  python /tmp/nassav-path-probe/scripts/probe_missav_paths.py \
+  --count 20 --subtitle-count 8 > /tmp/nassav-path-probe.jsonl
+# 生产库已有目标：将参数换为 --resource-targets --count 20 --root-count 3
+```

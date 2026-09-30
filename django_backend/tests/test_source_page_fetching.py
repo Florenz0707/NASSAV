@@ -32,8 +32,11 @@ def test_missav_candidates_and_shared_validation():
     with patch("time.sleep"):
         assert source.get_html("IPZZ-912") == MISSAV_HTML
     assert len(browser.urls) == 3
-    assert browser.urls[0].endswith("/cn/ipzz-912-chinese-subtitle")
-    assert browser.urls[-1].endswith("/cn/ipzz-912")
+    assert browser.urls == [
+        "https://missav.ai/cn/ipzz-912",
+        "https://missav.ai/cn/ipzz-912-chinese-subtitle",
+        "https://missav.ai/ipzz-912-chinese-subtitle",
+    ]
     assert source.fetch_html.call_count == 3
 
 
@@ -42,7 +45,29 @@ def test_missav_valid_browser_skips_direct():
     source = MissAV(page_fetcher=PageFetchService(browser))
     source.fetch_html = Mock(side_effect=AssertionError("unexpected direct fetch"))
     assert source.get_html("IPZZ-912") == MISSAV_HTML
-    assert len(browser.urls) == 1
+    assert browser.urls == ["https://missav.ai/cn/ipzz-912"]
+
+
+def test_missav_subtitle_fallback_after_invalid_plain_page():
+    browser = FakeBrowser("")
+    plain = "https://missav.ai/cn/ipzz-912"
+    subtitle = plain + "-chinese-subtitle"
+    browser.fetch = Mock(
+        side_effect=[
+            PageResult(
+                html="<html>wrong page</html>", final_url=plain, provider="byparr"
+            ),
+            PageResult(html=MISSAV_HTML, final_url=subtitle, provider="byparr"),
+        ]
+    )
+    source = MissAV(page_fetcher=PageFetchService(browser))
+    source.fetch_html = Mock(return_value=None)
+    with patch("time.sleep"):
+        assert source.get_html("IPZZ-912") == MISSAV_HTML
+    assert [call.args[0] for call in browser.fetch.call_args_list] == [
+        plain,
+        subtitle,
+    ]
 
 
 def test_jable_detail_and_search_fallback():
