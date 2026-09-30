@@ -9,7 +9,7 @@ import pytest
 import yaml
 
 BACKEND = Path(__file__).resolve().parents[1]
-TEMPLATE = BACKEND / "config" / "template-config.yaml"
+TEMPLATE = BACKEND / "config" / "config.example.yaml"
 
 
 def startup(

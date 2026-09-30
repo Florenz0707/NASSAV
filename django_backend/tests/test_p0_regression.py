@@ -106,7 +106,7 @@ def test_websocket_reconnect_receives_new_events(monkeypatch, settings, ws_heade
 def test_sqlite_backup_uses_disposable_database_and_directory(tmp_path):
     backend_root = Path(__file__).resolve().parents[1]
     database = tmp_path / "p0.sqlite3"
-    config = backend_root / "config" / "template-config.yaml"
+    config = backend_root / "config" / "config.example.yaml"
     environment = os.environ.copy()
     environment.update(
         DJANGO_SETTINGS_MODULE="django_project.settings",

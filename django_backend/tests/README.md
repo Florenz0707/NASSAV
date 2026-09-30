@@ -7,16 +7,16 @@
 `test_source_cookie_session.py` 在隔离 SQLite 测试库上验证增量迁移、会话快照、代理摘要、人工 Cookie 覆盖/清除、旧结果晚到、缓存版本与两个并发写入者。该测试不请求外站或写生产库；同一文件也应在隔离 PostgreSQL 测试库运行。
 
 ```bash
-DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p1-test.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_source_cookie_session.py -v
+DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p1-test.sqlite3 NASSAV_CONFIG_PATH=config/config.example.yaml uv run pytest tests/test_source_cookie_session.py -v
 ```
 
 ## P2 页面会话复用测试
 
-`test_browser_session_reuse.py` 离线覆盖直连状态、三种抓取策略、浏览器候选筛选、3 秒验证、人工写入竞争及失败不污染数据库。运行：`DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-tests.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_browser_session_reuse.py -v`。
+`test_browser_session_reuse.py` 离线覆盖直连状态、三种抓取策略、浏览器候选筛选、3 秒验证、人工写入竞争及失败不污染数据库。运行：`DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-tests.sqlite3 NASSAV_CONFIG_PATH=config/config.example.yaml uv run pytest tests/test_browser_session_reuse.py -v`。
 
 ## P3 会话刷新协调测试
 
-`test_session_coordination.py` 离线覆盖 10 个同站并发请求、不同站点锁隔离、有限等待、租约失效、Redis 断连、人工更新、旧 `auto=true` Cookie API 与不可复用短期抑制。运行：`DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p3-tests.sqlite3 NASSAV_CONFIG_PATH=config/template-config.yaml uv run pytest tests/test_session_coordination.py -v`。测试使用进程内模拟锁，不连接生产 Redis。
+`test_session_coordination.py` 离线覆盖 10 个同站并发请求、不同站点锁隔离、有限等待、租约失效、Redis 断连、人工更新、旧 `auto=true` Cookie API 与不可复用短期抑制。运行：`DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p3-tests.sqlite3 NASSAV_CONFIG_PATH=config/config.example.yaml uv run pytest tests/test_session_coordination.py -v`。测试使用进程内模拟锁，不连接生产 Redis。
 
 ## Byparr 页面抓取测试
 
@@ -43,7 +43,7 @@ uv run pytest tests/test_browser_fetch_integration.py -v
 
 ```bash
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p0-pytest.sqlite3 \
-NASSAV_CONFIG_PATH=config/template-config.yaml \
+NASSAV_CONFIG_PATH=config/config.example.yaml \
 uv run pytest tests/test_source_cookie_api.py tests/test_user_settings.py \
   tests/test_recommendations_demo.py::test_recommendation_reset_endpoint_clears_history_but_preserves_blocklist \
   tests/test_scrape_jobs.py::test_single_api_returns_202_with_status_capability \
@@ -60,7 +60,7 @@ uv run pytest tests/test_source_cookie_api.py tests/test_user_settings.py \
 
 ```bash
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-f1-pytest.sqlite3 \
-NASSAV_CONFIG_PATH=config/template-config.yaml \
+NASSAV_CONFIG_PATH=config/config.example.yaml \
 uv run pytest tests/test_resource_deletion.py -q
 cd ../vue_frontend && node --test tests/resourceDeletion.test.js
 ```
@@ -71,7 +71,7 @@ cd ../vue_frontend && node --test tests/resourceDeletion.test.js
 
 ```bash
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p2-pytest.sqlite3 \
-NASSAV_CONFIG_PATH=config/template-config.yaml \
+NASSAV_CONFIG_PATH=config/config.example.yaml \
 uv run pytest tests/test_database_configuration.py tests/test_compose_stack.py -q
 ```
 
@@ -600,3 +600,7 @@ uv run pytest tests/test_database_configuration.py -v
 P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开关默认关闭和显式恢复页面策略；运行 `uv run pytest tests/test_source_cookie_api.py tests/test_browser_fetch_config.py tests/test_page_fetching.py -v`。
 
 `test_resource_deletion.py` 包含缺省缩略图目录的删除回归；运行 `uv run pytest tests/test_resource_deletion.py -v`。测试只使用 pytest 隔离数据库和临时目录，不触碰实际资源文件。
+
+## Byparr 会话复用 P5
+
+隔离全套命令使用当前本地样例 `config/config.example.yaml`，并显式设置测试专用 `NASSAV_ENV_PATH`、`DATABASE_PATH` 与 `NASSAV_RESOURCE_DIR`。PostgreSQL 迁移与会话测试应使用单独测试实例和库；正式站点测试需要 `BROWSER_FETCH_EXTERNAL=1`，服务不可用即失败，不计入离线通过。现场样本数、门槛、24 小时观察及回滚见[P5 记录](../doc/byparr-session-reuse-p5-record.md)。
