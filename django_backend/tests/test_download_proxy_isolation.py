@@ -105,7 +105,7 @@ def test_settings_reads_download_proxy_from_config_with_optional_override(
     )
     config_dir = tmp_path / "config"
     config_dir.mkdir()
-    config = (backend_dir / "config" / "template-config.yaml").read_text()
+    config = (backend_dir / "config" / "config.example.yaml").read_text()
     config = config.replace(
         "  download_url: null",
         "  download_url: http://config-download-proxy:8080",

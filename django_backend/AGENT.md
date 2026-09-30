@@ -4,7 +4,7 @@
 
 - 阅读项目代码，理解项目结构和功能
 - 本项目使用`uv`管理虚拟环境，若需要运行python脚本，请运行`uv run script.py`
-- `config/`是项目配置目录目录，若需要新增/删除配置，请同步修改`template-config.yaml`
+- `config/`是项目配置目录目录，若需要新增/删除配置，请同步修改`config.example.yaml`
 - `doc`是项目文档目录，其中包含[接口说明](doc/interface.md)，[数据库说明](doc/database.md)和[测试端点说明](doc/debug.md)。若项目有改动，请同步更新它们
 - `scripts/`是项目脚本目录，用于批量修改数据或其他用途。脚本应该把支持的参数写在文件开头，并将用法更新到[文档](scripts/README.md)
 - `tests/`是项目测试目录，用于测试项目的可用性和正确性。脚本应该把支持的参数写在文件开头，并将用法更新到[文档](tests/README.md)。使用`uv run pytest tests/ -q`进行集成测试

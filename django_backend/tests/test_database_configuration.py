@@ -60,7 +60,7 @@ def test_postgresql_configuration_requires_password(tmp_path):
 def test_postgresql_settings_load_from_yaml(tmp_path):
     backend_root = Path(__file__).resolve().parents[1]
     config_path = tmp_path / "config.yaml"
-    template_path = backend_root / "config" / "template-config.yaml"
+    template_path = backend_root / "config" / "config.example.yaml"
     config = yaml.safe_load(template_path.read_text(encoding="utf-8"))
     config["Database"].update(
         {
@@ -118,7 +118,7 @@ def test_compose_sqlite_mode_rejects_postgres_override(tmp_path):
     environment.update(
         {
             "DJANGO_SETTINGS_MODULE": "django_project.settings",
-            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "config.example.yaml"),
             "NASSAV_COMPOSE_DB_MODE": "sqlite",
             "DB_ENGINE": "postgres",
             "DATABASE_PATH": str(database),
@@ -143,7 +143,7 @@ def test_postgres_connection_failure_never_opens_sqlite(tmp_path):
     environment.update(
         {
             "DJANGO_SETTINGS_MODULE": "django_project.settings",
-            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "config.example.yaml"),
             "NASSAV_COMPOSE_DB_MODE": "postgres",
             "DB_ENGINE": "postgres",
             "DB_NAME": "nassav_p2_disposable",
@@ -188,7 +188,7 @@ def test_compose_mode_marker_blocks_base_files_before_sqlite_connection(tmp_path
     environment.update(
         {
             "DJANGO_SETTINGS_MODULE": "django_project.settings",
-            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "config.example.yaml"),
             "NASSAV_COMPOSE_DB_MODE": "sqlite",
             "NASSAV_DB_MODE_FILE": str(marker),
             "DB_ENGINE": "sqlite",
@@ -218,7 +218,7 @@ def test_compose_mode_requires_declaration_before_sqlite_connection(tmp_path):
     environment.update(
         {
             "DJANGO_SETTINGS_MODULE": "django_project.settings",
-            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "template-config.yaml"),
+            "NASSAV_CONFIG_PATH": str(backend_root / "config" / "config.example.yaml"),
             "NASSAV_COMPOSE_DB_MODE": "sqlite",
             "NASSAV_DB_MODE_FILE": str(tmp_path / "missing"),
             "DB_ENGINE": "sqlite",

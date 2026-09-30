@@ -473,3 +473,14 @@ uv sync
 - [数据库架构](../doc/database.md)
 - [API 接口文档](../doc/interface.md)
 - [调试指南](../doc/debug.md)
+
+## Byparr 会话复用 P5 只读预筛
+
+`probe_p5_jable.py` 在运行中的 API 容器内发现 Jable 当前详情页，只把浏览器 Cookie+UA 留在探针进程内存；种子必须经 3 秒同页直连验证。每窗口对 20 个不同详情页执行直连优先、必要时浏览器回退，并输出不含 Cookie、UA、代理和完整 URL 的 JSONL。执行前需确认脚本对应容器内代码版本与代理路线；显式 `--allow-session-replay` 才会发送浏览器会话。参数：`--window W1|W2`、`--count 20..100`（默认 20）、`--allow-session-replay`。脚本不写数据库或共享 Redis，不能代替 API/worker 并发和 24 小时灰度。现场结果与 NO-GO 判定见[P5 记录](../doc/byparr-session-reuse-p5-record.md)。
+
+```bash
+# 从仓库根目录执行；将 stdout 保存为脱敏证据，stderr 单独检查
+# docker exec -i -e DJANGO_SETTINGS_MODULE=django_project.settings -w /app nassav-api-1 \
+#   python - --window W1 --allow-session-replay \
+#   < django_backend/scripts/probe_p5_jable.py > /tmp/nassav-p5-w1.jsonl
+```

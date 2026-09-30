@@ -20,6 +20,10 @@ P1 不新增调试端点。可在隔离数据库上运行 `uv run pytest tests/t
 
 `uv run pytest tests/test_session_coordination.py -v` 在离线环境验证同站 10 个并发 403 请求至多一次可复用会话刷新、不同站点互不阻塞、锁持有者崩溃/租约过期、Redis 断连、人工写入竞争、旧 Cookie 自动获取 API 与短期不可复用抑制。测试使用隔离的进程内 Redis 行为模拟；真实 Redis 的 Lua 续租、释放和结果通知需在独立容器验证，勿连接生产 Redis。
 
+## P5 正式验收
+
+隔离 SQLite、PostgreSQL 与 Redis 结果及现场 NO-GO 判定见 [P5 验证记录](byparr-session-reuse-p5-record.md)。真实站点测试须显式 opt-in；已有 API 容器内只读预筛，但没有 API/worker 共享会话联调和 24 小时灰度证据。
+
 ## 模拟下载接口
 
 ### 概述
