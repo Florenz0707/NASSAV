@@ -6,7 +6,7 @@
 
 - [Jable P5](byparr-session-reuse-p5-record.md) 两窗口各 20 个有效详情页，Cookie+UA 暖直连有效率 50%/60%，P95 33.394/62.709 秒；[MissAV P5](byparr-session-reuse-p5-missav-record.md) 为 40%/50%，无 Cookie 直连 0/40，P95 24.228/61.264 秒。失败页通过 Byparr 回退得到有效内容。两站都未达到当前 95%、5 秒等放行门槛，全局会话复用仍关闭。这是 NASSAV 自己的实测，不能推广到其他站点、时段或出口。
 - 两次现场检查中，直连与 Byparr 到出口查询服务的配对结果各为 3/3 相同 IP；这只能排除该时间和该查询目标上的简单出口不一致。它不证明目标站也看到完全相同的连接行为。[Cloudflare 的 clearance 文档](https://developers.cloudflare.com/cloudflare-challenges/concepts/clearance/)说明 `cf_clearance` 绑定访客和设备，[JA4 文档](https://developers.cloudflare.com/bots/additional-configurations/ja3-ja4-fingerprint/)说明不同客户端会有可区分的连接特征；[Bot Score 文档](https://developers.cloudflare.com/bots/concepts/bot-score/)列出请求头、会话和浏览器信号。这些支持“同 IP、Cookie、UA 仍可能 403”的**机制假设**，尚不能证明 Jable/MissAV 的具体拦截规则。
-- 本地 [MissAV.get_html()](../nassav/source/MissAV.py) 固定依序尝试 `/cn/{avid}-chinese-subtitle`、`/{avid}-chinese-subtitle`、`/cn/{avid}`；P5 探针从当时首页发现 46 个有效详情候选，包括 `/en/…` 和动态 `/dmN/en/…`。因此先核对真实目标 URL 的候选覆盖率。P5 的 20 页有效样本是从首页发现的，并不能证明上述三个生产候选也能取得同等成功率。这是本地观察，与 Byparr 上游能力无关。
+- 调研时本地 [MissAV.get_html()](../nassav/source/MissAV.py) 固定依序尝试 `/cn/{avid}-chinese-subtitle`、`/{avid}-chinese-subtitle`、`/cn/{avid}`；P5 探针从当时首页发现 46 个有效详情候选，包括 `/en/…` 和动态 `/dmN/en/…`。因此先核对真实目标 URL 的候选覆盖率。P5 的 20 页有效样本是从首页发现的，并不能证明上述三个生产候选也能取得同等成功率。这是本地观察，与 Byparr 上游能力无关；后续候选顺序修正及在线数据见 [MissAV 路径验证记录](missav-path-selection-record.md)。
 - 2026-09-30 只读同容器、同一 Byparr 出口的两个单页对照：`FNS-258` 的前两条字幕候选分别花 30.329/28.491 秒且 `page_mismatch`，第三条 `/cn/fns-258` 花 19.854 秒并业务有效；首页 `/en/fns-258` 亦业务有效、23.337 秒。`MGOLD-064` 的前两条分别花 23.119/28.933 秒且 `page_mismatch`，第三条 `/cn/mgold-064` 花 32.915 秒并有效；首页 `/en/mgold-064` 有效、26.659 秒。前两个候选分别额外耗费约 **58.820/52.052 秒**。这只是两个番号与该时段的样本，无法推出全站候选命中率，必须扩大样本并检验是否真有字幕版本需求。
 
 ## Byparr v3.0.4 实际提供什么

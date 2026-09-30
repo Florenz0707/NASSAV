@@ -238,7 +238,7 @@ def test_invalid_browser_page_and_direct_only_never_persist(monkeypatch):
 
 @pytest.mark.django_db
 def test_missav_browser_page_uses_same_probe_and_business_validator(monkeypatch):
-    url = "https://missav.ai/cn/ipzz-912-chinese-subtitle"
+    url = "https://missav.ai/cn/ipzz-912"
     browser = FakeBrowser(
         html=MISSAV_HTML,
         url=url,

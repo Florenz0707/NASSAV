@@ -49,9 +49,9 @@ class MissAV(SourceBase):
         request_id = uuid4().hex[:12]
         avid_lower = avid.lower()
         urls = [
+            f"https://{self.domain}/cn/{avid_lower}",
             f"https://{self.domain}/cn/{avid_lower}-chinese-subtitle",
             f"https://{self.domain}/{avid_lower}-chinese-subtitle",
-            f"https://{self.domain}/cn/{avid_lower}",
         ]
         fetcher = self.page_fetcher.for_lookup()
         for candidate_index, url in enumerate(urls, start=1):
@@ -74,7 +74,8 @@ class MissAV(SourceBase):
             )
             if result.ok:
                 return result.html
-            time.sleep(1)
+            if candidate_index < len(urls):
+                time.sleep(1)
         return None
 
     def _is_detail_page_html(self, html: str, avid: str) -> bool:

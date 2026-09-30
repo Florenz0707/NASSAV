@@ -22,7 +22,7 @@ P1 不新增调试端点。可在隔离数据库上运行 `uv run pytest tests/t
 
 ## P5 正式验收
 
-隔离 SQLite、PostgreSQL 与 Redis 结果及现场 NO-GO 判定见 [P5 验证记录](byparr-session-reuse-p5-record.md)。 MissAV 的两时段只读现场结果与 NO-GO 判定见 [MissAV P5 记录](byparr-session-reuse-p5-missav-record.md)。真实站点测试须显式 opt-in；已有 API 容器内只读预筛，但没有 API/worker 共享会话联调和 24 小时灰度证据。
+隔离 SQLite、PostgreSQL 与 Redis 结果及现场 NO-GO 判定见 [P5 验证记录](byparr-session-reuse-p5-record.md)。 MissAV 的两时段只读现场结果与 NO-GO 判定见 [MissAV P5 记录](byparr-session-reuse-p5-missav-record.md)。 后续详情候选路径的单时段在线对照见 [MissAV 路径验证记录](missav-path-selection-record.md)，该结果不放行会话复用。真实站点测试须显式 opt-in；已有 API 容器内只读预筛，但没有 API/worker 共享会话联调和 24 小时灰度证据。
 
 ## 模拟下载接口
 
