@@ -1,13 +1,31 @@
 # MissAV 会话复用 P5 单独验证
 
-日期：2026-09-30。状态：现场采样待完成；Docker Desktop Linux Engine 当前不可连接。本文对应 [P5 执行计划](byparr-session-reuse-execution-plan.md) 与 [Jable P5 记录](byparr-session-reuse-p5-record.md)。MissAV 必须单独判定，不能继承 Jable 的结论。
+日期：2026-09-30。状态：**MissAV NO-GO；未切换正式策略，未启动 24 小时灰度。** 对应 [P5 执行计划](byparr-session-reuse-execution-plan.md) 与 [Jable P5 记录](byparr-session-reuse-p5-record.md)。63 条逐项脱敏结果见 [现场证据 JSONL](byparr-session-reuse-p5-missav-field-evidence.jsonl)，不含 Cookie、完整 UA、代理 URL、出口 IP、完整页面或完整请求 URL。
 
-## 验证方法
+## 环境与方法
 
-在正式 API 容器及其有效代理配置下，以只读探针 `scripts/probe_p5_missav.py` 从 MissAV 首页发现当前详情页。每个时段先用 Byparr 验证至少 5 个不同详情页，并从有效页面中取得 Cookie+UA；候选会话只保留在探针进程内，须通过同页 3 秒直连验证。然后对至少 20 个不同、业务结构有效的详情页分别测无 Cookie 直连、Cookie+UA 直连及必要的 Byparr 回退。两个时段分别记录有效页分母、HTTP 状态、业务校验、P95、Byparr 中位数、浏览器调用率和缓存命中。逐请求 JSONL 只保留番号、状态、失败分类及耗时，不记录 Cookie、UA、完整 URL、代理地址、出口 IP 或 HTML。
+- 正式 `nassav-api-1`、`nassav-byparr-1`、worker 和 Redis 容器均运行。API 的 MissAV、SourceBase、页面服务、会话提取源码 SHA-256 与本工作树一致；有效数据库为 PostgreSQL，Byparr 与代理启用。
+- API 有效配置的 `BrowserFetch.session_reuse_enabled=false`；MissAV 配置值为 `direct_first`，但开关关闭时实际按 `browser_first` 运行。探针仅在本进程开启复用，未修改正式配置、Cookie 表、Redis 锁或任务。**未来如打开全局开关，应先将 MissAV 配置值改为 `browser_first`**，避免未经放行就切换。
+- 探针从当前 MissAV 首页发现 46 个不同番号候选，包含 `/en/…` 与动态 `dm` 前缀链接。每窗口先以 Byparr 验证 5 个不同详情页，再从有效浏览器页取 Cookie+UA，并要求同页 3 秒内 HTTP 200 且通过业务校验。此后对 20 个不同、业务有效的详情页分别发无 Cookie 直连和配套会话直连；暖直连失败才为该页回退 Byparr。无缓存命中，不读写正式 Cookie 表。此探针只验证页面路径，不能替代 API/worker 的共享会话协调灰度。
+- 同一 API 容器内，用同一代理路线对出口查询服务做 3 组直连/Byparr 配对，解析为有效 IP 后 **3/3 相同**；IP 值未保存。这只证明所测时间及目标的出口一致，不推断长期固定出口。
 
-历史 P0 的六个 MissAV 详情样本中，无 Cookie/默认 UA 直连的业务内容为 6/6 有效，与 Cookie+UA 的 6/6 相同，尚不能证明会话复用有额外收益。当时生产挑战检测误判内嵌脚本；该逻辑已修正并有离线回归，但仍需在现场复测。验证前不切换正式配置；未来若启用全局复用开关，须先确保 MissAV 的策略为 `browser_first`。
+## 两时段现场结果
 
-## 现场结果与判定
+| 时段（北京时间） | 有效详情 | 无 Cookie 直连 |   暖会话直连 | 暖失败→Byparr 有效 | 浏览器请求总数 | 暖路径 P95 | Byparr 控制页中位数 |
+| ---------------- | -------: | -------------: | -----------: | -----------------: | -------------: | ---------: | ------------------: |
+| W1，14:31–14:37  |    20/20 |           0/20 |  8/20（40%） |              12/12 |             18 |  24.228 秒 |           22.408 秒 |
+| W2，14:43–14:48  |    20/20 |           0/20 | 10/20（50%） |              10/10 |             16 |  61.264 秒 |           20.682 秒 |
 
-隔离配置下 `uv run pytest tests/ -v`：396 passed、13 skipped；`pre-commit run -a` 全部通过。Windows `docker.exe ps` 无法连接 `dockerDesktopLinuxEngine` 命名管道；`docker desktop restart` 因 WSL 进程仍运行而超时，未恢复引擎。因此没有启动 W1/W2 在线请求，也没有现场有效率或耗时数据。等待 API 与 Byparr 容器恢复后填写。未取得两时段有效样本前，MissAV 保持 `browser_first`，不放行策略切换，也不宣称请求链路已由会话复用提速。
+每窗口的浏览器总数包括首页发现 1 次、有效详情控制页 5 次和暖会话失败后的回退；40 个无 Cookie 直连均为 HTTP 403，暖会话直连失败也均为 403。W1 的前 3 组、W2 的前 2 组浏览器 Cookie+UA 虽来自有效详情页，同页验证仍返回 403，未被标记为可复用；两窗口各有一组通过验证。成功暖直连的单页中位数分别约 0.223/0.209 秒，但这些成功页不能代表整条请求链路的 P95。
+
+W1 探针原始汇总行漏计 5 次控制页浏览器请求，错误写为 13。证据 JSONL 保留 `original_browser_calls=13`，并由发现行、5 条控制行及 12 条回退行重算为 **18**，附有更正说明；W2 的 16 次计数由修正后的探针直接输出。每窗口详情编号均去重，两个窗口各 20 条有效页。W1 首 10 页回退 6 次，W2 首 10 页回退 5 次。
+
+不存在详情页的在线反向样本：Byparr 提供方返回 200 且有 HTML，但页面未通过 MissAV 业务结构校验，判为 `page_mismatch`；不能把提供方 200 当成目标 HTTP 200。200 挑战、错域、结构变化等分类有既有离线契约测试；本次没有对所有反向类型做在线重放。
+
+## 判定与未执行项
+
+**NO-GO。** 首批门槛要求暖会话有效页率至少 95%、错误页误判成功为零、暖路径 P95 小于 5 秒且低于同环境 Byparr 单页中位数的 25%，并且会话更新后连续 10 个不同页面至多一次 Byparr 刷新。两窗口的暖直连有效率、P95 和刷新次数均未达到门槛。尽管回退后 40/40 页面有效，MissAV 目前没有稳定的会话复用提速证据。
+
+历史 P0 的六个 MissAV 详情样本中，无 Cookie 直连业务内容曾 6/6 有效；本次 40/40 无 Cookie 直连为 403，说明访问条件已经变化，不能沿用旧样本放行。历史内嵌 `challenge-platform` 脚本误判已在代码中修正，本次 10 个 Byparr 控制页均通过现行校验。
+
+由于首批门槛失败，没有启用正式 `direct_first`、API/worker 并发灰度、过期会话在线回退或 24 小时观察，也没有对正式数据库做写入/迁移。后端完整离线测试 **396 passed、13 skipped**；MissAV 探针筛选测试及 `pre-commit run -a` 通过。今后若代理或站点条件变化，应重做两时段预筛；只有先达到独立放行门槛，才进入正式配置备份、API/worker 并发回归、任务/下载/WebSocket 回归及至少 24 小时观察。

@@ -45,7 +45,9 @@ def detail_candidates(html: str, host: str) -> list[tuple[str, str]]:
         if parsed.query or parsed.fragment:
             continue
         parts = parsed.path.strip("/").split("/")
-        if len(parts) == 2 and parts[0] == "cn":
+        if len(parts) == 3 and re.fullmatch(r"dm[0-9]+", parts[0]):
+            parts = parts[1:]
+        if len(parts) == 2 and parts[0] in {"cn", "en"}:
             slug = parts[1]
         elif len(parts) == 1:
             slug = parts[0]
@@ -57,7 +59,7 @@ def detail_candidates(html: str, host: str) -> list[tuple[str, str]]:
         if match:
             avid = match.group("avid").upper()
             found.setdefault(avid, parsed.path)
-    return sorted((path, avid) for avid, path in found.items())
+    return [(path, avid) for avid, path in found.items()]
 
 
 def checked(url, result, validator):
@@ -108,6 +110,7 @@ def main():
         failure=str(listing.failure or "none"),
         candidates=len(candidates),
         byparr_ms=listing.elapsed_ms,
+        provider_status=listing.provider_status,
     )
     if not listing.ok or len(candidates) < args.count + 5:
         return 2
@@ -119,6 +122,8 @@ def main():
         if len(controls) >= 5:
             break
         url = base + path
+        control_calls += 1
+        sleep(1)
         page = valid_detail(
             source, url, avid, browser.fetch(url, timeout_ms=fetcher.timeout_ms)
         )
@@ -129,6 +134,7 @@ def main():
             valid=page.ok,
             failure=str(page.failure or "none"),
             byparr_ms=page.elapsed_ms,
+            provider_status=page.provider_status,
         )
         if not page.ok:
             continue
@@ -202,7 +208,7 @@ def main():
                 else None
             )
         browser_page = None
-        if (not plain.ok or (warm and not warm.ok)) and browser_page is None:
+        if (warm is not None and not warm.ok) or (warm is None and not plain.ok):
             browser_page = valid_detail(
                 source, url, avid, browser.fetch(url, timeout_ms=fetcher.timeout_ms)
             )
@@ -226,8 +232,6 @@ def main():
             "plain_status": plain.target_status,
             "plain_failure": str(plain.failure or "none"),
             "plain_ms": plain.elapsed_ms,
-            "plain_total_ms": plain.elapsed_ms
-            + (browser_page.elapsed_ms if not plain.ok and browser_page else 0),
             "warm_valid": warm.ok and warm.target_status == 200 if warm else None,
             "warm_request_valid": (warm.ok or bool(browser_page and browser_page.ok))
             if warm
@@ -263,7 +267,7 @@ def main():
         session_verified=session is not None,
         plain_valid=sum(row["plain_valid"] for row in records),
         warm_valid=sum(bool(row["warm_valid"]) for row in records),
-        plain_p95_ms=p95("plain_total_ms"),
+        plain_direct_p95_ms=p95("plain_ms"),
         warm_p95_ms=p95("warm_total_ms") if session else None,
         warm_request_valid=sum(bool(row["warm_request_valid"]) for row in records)
         if session
