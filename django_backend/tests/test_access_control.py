@@ -197,3 +197,42 @@ def test_revoked_session_cannot_receive_task_events(monkeypatch, ws_headers, cli
         await communicator.wait()
 
     asyncio.run(run())
+
+
+@pytest.mark.django_db(transaction=True)
+def test_external_search_notification_uses_authenticated_task_socket(
+    monkeypatch, ws_headers
+):
+    from nassav.search_jobs import _publish
+
+    monkeypatch.setattr(tasks, "get_task_queue_status", lambda: {"active_tasks": []})
+
+    async def run():
+        communicator = WebsocketCommunicator(
+            application, "/nassav/ws/tasks/", headers=ws_headers
+        )
+        connected, _ = await communicator.connect()
+        assert connected
+        await communicator.receive_json_from()
+        snapshot = {
+            "task_id": "search-id",
+            "state": "running",
+            "version": 3,
+            "updated_at": 10,
+            "result": {"private": "cards"},
+            "token": "private",
+        }
+        await asyncio.to_thread(_publish, snapshot)
+        event = await communicator.receive_json_from()
+        assert event == {
+            "type": "external_search_update",
+            "data": {
+                "task_id": "search-id",
+                "state": "running",
+                "version": 3,
+                "updated_at": 10,
+            },
+        }
+        await communicator.disconnect()
+
+    asyncio.run(run())

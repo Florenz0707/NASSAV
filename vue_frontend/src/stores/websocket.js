@@ -5,6 +5,7 @@ import { useSettingsStore } from './settings.js'
 import { useToastStore } from './toast.js'
 import { useResourceStore } from './resource.js'
 import { useSessionStore } from './session.js'
+import { notifySearchJobUpdate } from '../composables/searchJobEvents.js'
 
 export function taskWebSocketUrl(location) {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -184,6 +185,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
     const resourceStore = useResourceStore()
 
     switch (message.type) {
+      case 'external_search_update':
+        notifySearchJobUpdate(message.data)
+        break
       case 'scrape_job_update':
         resourceStore.handleScrapeJobEvent(message.data)
         break

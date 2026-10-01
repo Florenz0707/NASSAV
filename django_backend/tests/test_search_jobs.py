@@ -50,6 +50,7 @@ class MemoryStore(JobStore):
 @pytest.fixture
 def runtime(monkeypatch):
     store = MemoryStore()
+    monkeypatch.setattr(search_jobs, "_publish", Mock())
     monkeypatch.setattr(search_jobs, "RedisSearchJobStore", lambda: store)
     enqueue = Mock()
     monkeypatch.setattr(search_jobs.run_search_job, "apply_async", enqueue)
@@ -189,3 +190,145 @@ def test_validation_and_persisted_default(
         ).status_code
         == 503
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("entity", ["actor", "genre"])
+@pytest.mark.parametrize("source", ["missav", "jable"])
+@pytest.mark.parametrize("fail_last", [False, True])
+def test_page_progress_is_visible_before_completion_and_failure_keeps_results(
+    entity,
+    source,
+    fail_last,
+    actor_factory,
+    genre_factory,
+    runtime,
+    settings,
+    monkeypatch,
+):
+    from django.core.cache import cache
+
+    cache.clear()
+    settings.EXTERNAL_SEARCH_FETCH_PAGES = 3
+    settings.EXTERNAL_SEARCH_CACHE_ENABLED = True
+    obj = actor_factory() if entity == "actor" else genre_factory()
+    query = {"entity_type": entity, "entity_id": obj.pk, "source": source}
+    job, _ = search_jobs.submit_search_job(query)
+    store = runtime[0]
+    seen = []
+
+    def fetch(**kwargs):
+        page = kwargs["page"]
+        if page > 1:
+            snapshot = store.get(job["task_id"])
+            assert snapshot["state"] == "running"
+            assert snapshot["pages_completed"] == page - 1
+            assert snapshot["result"]["data"]["external_meta"]["partial"]
+            expected = [f"TEST-{number:03}" for number in range(1, page)]
+            if source == "jable":
+                expected.reverse()
+            assert [
+                item["avid"] for item in snapshot["result"]["data"]["external_results"]
+            ] == expected
+            assert snapshot["result"]["pagination"]["total"] == page - 1
+            seen.append(snapshot["version"])
+        if page == 3 and fail_last:
+            raise SourceSearchError("timeout")
+        # Page two repeats an item: cumulative snapshots must deduplicate it.
+        items = [{"avid": f"TEST-{page:03}", "metrics": {"views": page}}]
+        if page == 2:
+            items.append({"avid": "TEST-001", "metrics": {"views": 1}})
+        return items
+
+    method = Mock(side_effect=fetch)
+    monkeypatch.setattr(
+        search_jobs.external_search_service.adapters[source],
+        f"search_{entity}_items",
+        method,
+    )
+    final = search_jobs.execute_search_job(job["task_id"])
+    assert seen == sorted(set(seen)) and len(seen) == 2
+    assert final["version"] > seen[-1]
+    assert final["state"] == ("failed" if fail_last else "succeeded")
+    meta = final["result"]["data"]["external_meta"]
+    assert meta["partial"] == fail_last
+    assert len(final["result"]["data"]["external_results"]) == (2 if fail_last else 3)
+    if fail_last:
+        assert final["pages_completed"] == 2
+        retry, _ = search_jobs.submit_search_job(query)
+        assert retry["task_id"] != job["task_id"]
+        # No successful search cache was populated by the first two pages.
+        job = retry
+        assert search_jobs.execute_search_job(retry["task_id"])["state"] == "failed"
+        assert method.call_count == 6
+    else:
+        cached = getattr(
+            search_jobs.external_search_service, f"search_{entity}_detail"
+        )(
+            **{f"{entity}_id": obj.pk},
+            source_name=source,
+            page=1,
+            page_size=20,
+            ordering="-views",
+        )
+        assert cached.meta["cache"]["hit"]
+        assert method.call_count == 3
+    cache.clear()
+
+
+def test_search_notification_exposes_only_routing_version_and_survives_socket_failure(
+    monkeypatch,
+):
+    publish = Mock()
+    monkeypatch.setattr("nassav.consumers.send_task_update", publish)
+    snapshot = {
+        "task_id": "id",
+        "state": "running",
+        "version": 3,
+        "updated_at": 10,
+        "result": {"private": "cards"},
+        "query": {"entity_id": 42},
+        "token": "secret",
+    }
+    search_jobs._publish(snapshot)
+    publish.assert_called_once_with(
+        "external_search_update",
+        {
+            "task_id": "id",
+            "state": "running",
+            "version": 3,
+            "updated_at": 10,
+        },
+    )
+    publish.side_effect = RuntimeError("channel unavailable")
+    assert search_jobs._publish(snapshot) is None
+
+
+@pytest.mark.django_db
+def test_late_page_cannot_revive_a_terminal_search(actor_factory, runtime, monkeypatch):
+    query = {
+        "entity_type": "actor",
+        "entity_id": actor_factory().pk,
+        "source": "missav",
+    }
+    job, _ = search_jobs.submit_search_job(query)
+    store = runtime[0]
+
+    def search(**kwargs):
+        store.save(
+            {**store.get(job["task_id"]), "state": "failed", "error_code": "TIMEOUT"}
+        )
+        kwargs["on_progress"](
+            ExternalSearchResult(
+                items=[{"avid": "LATE-001"}],
+                pagination={},
+                meta={"pages_completed": 1},
+            )
+        )
+
+    monkeypatch.setattr(
+        search_jobs.external_search_service, "search_actor_detail", search
+    )
+    final = search_jobs.execute_search_job(job["task_id"])
+    assert final["state"] == "failed" and final["error_code"] == "TIMEOUT"
+    assert final["result"] is None

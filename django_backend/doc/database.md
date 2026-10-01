@@ -301,3 +301,7 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 本次不新增数据库表，无需迁移。`default_external_search_source` 保存在实例共享 `config/user_settings.ini`，默认模板与旧文件自动补齐规则已同步。
 
 搜索任务使用 Redis `nassav:search:job:{task_id}` 快照和 `nassav:search:lock:{query_hash}` 查询锁。复用既有 JobStore 持久化与终态保护；快照 TTL 24 小时，成功结果复用窗口 300 秒，提交后 1800 秒未完成则读取时标记超时并释放锁。终态不允许迟到结果覆盖。查询摘要包含实体、源、分页、排序、强制刷新、中文版本、域名、代理线路和抓取页数。
+
+### 搜索逐页快照
+
+每个非空源页面完成后更新同一个 Redis 快照的 `result`、`pages_completed` 和单调递增的 `version`；`result.data.external_meta.partial` 在采集中为 true，成功终态为 false。失败终态保留最后的阶段结果，仍不允许迟到页覆盖终态。阶段结果不写入 Django 成功结果缓存或前端会话缓存。WebSocket 仅广播任务 ID、状态、版本和更新时间，卡片数据依旧通过已登录且验证签名的查询接口读取。不新增模型或字段，无数据库迁移。

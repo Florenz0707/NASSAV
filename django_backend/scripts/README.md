@@ -554,6 +554,12 @@ docker exec -e PYTHONPATH=/tmp/nassav-media-probe:/app nassav-api-1 \
 
 ## probe_async_search_runtime.py
 
-用法：`PYTHONPATH=/app python scripts/probe_async_search_runtime.py`，无命令行参数。
+用法：`PYTHONPATH=/app python scripts/probe_async_search_runtime.py`。
 
-仅允许 `DATABASE_PATH=/tmp/nassav-external-search-acceptance.sqlite3` 和 Redis 主机 `nassav-external-search-test-redis`。准备隔离配置，使用真实 Byparr 和源代理；运行目录必须可写入独立配置、日志与资源缓存。会创建临时用户、演员、类别及映射，并启动/关闭并发 1 的真实 Celery worker。使用单页抓取窗口，依次验证 MissAV 类别、演员、关键词和 Jable 类别、演员，输出计数、提交耗时、总耗时及图片字节数。验收完成后删除临时容器和存储。
+- `--fetch-pages`：1–5，默认 1；大于 1 时要求在终态之前观察到 running 阶段结果。
+- `--cases`：选取 `missav-genre`、`missav-actor`、`missav-keyword`、`jable-genre`、`jable-actor`，默认全部。
+- 逐页链路验收：`PYTHONPATH=/app python scripts/probe_async_search_runtime.py --fetch-pages 2 --cases missav-genre jable-genre`。
+
+另外输出首批结果耗时、观察到的阶段版本及 Redis 通知版本；通知必须覆盖已观察阶段和终态，且不含卡片和签名 token。脚本自身订阅 Channels Redis 群组，登录 WebSocket 的权限与透传由 `test_access_control.py` 验证。
+
+仅允许 `DATABASE_PATH=/tmp/nassav-external-search-acceptance.sqlite3` 和 Redis 主机 `nassav-external-search-test-redis`。准备隔离配置，使用真实 Byparr 和源代理；运行目录必须可写入独立配置、日志与资源缓存。会创建临时用户、演员、类别及映射，并启动/关闭并发 1 的真实 Celery worker。默认使用单页抓取窗口，可通过参数调整；依次验证 MissAV 类别、演员、关键词和 Jable 类别、演员，输出计数、提交耗时、总耗时及图片字节数。验收完成后删除临时容器和存储。

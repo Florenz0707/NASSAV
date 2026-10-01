@@ -338,6 +338,12 @@ Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验
 
 ## 中文及异步外部搜索验收
 
-隔离运行 `scripts/probe_async_search_runtime.py`，要求专用 SQLite 和 Redis，禁止连接正式存储。脚本使用单页窗口，启动真实 Celery worker，验证持久化默认源、快速提交、运行任务去重、中文结果路径及封面代理，遇到首个失败立即退出。具体参数和限制见脚本头部及 scripts/README.md。
+隔离运行 `scripts/probe_async_search_runtime.py`，要求专用 SQLite 和 Redis，禁止连接正式存储。脚本默认使用单页窗口，可用 `--fetch-pages 2 --cases missav-genre jable-genre` 验证逐页快照与 Redis 通知；启动真实 Celery worker，验证持久化默认源、快速提交、运行任务去重、中文结果路径及封面代理，遇到首个失败立即退出。具体参数和限制见脚本头部及 scripts/README.md。
 
 搜索任务在现有 `scrape` 队列执行；API 与 scrape worker 都需要更新代码并重启。前端更新后使用任务接口。worker 软限 900 秒、硬限 930 秒；队列等待和失联 worker 在提交后 1800 秒通过状态查询显式失败。正常停止页面轮询不撤销后台抓取，返回页面重发相同查询可复用任务。
+
+### 逐页搜索回归
+
+`uv run pytest tests/test_search_jobs.py tests/test_access_control.py -v` 覆盖每页完成前后快照、四种源/实体组合、后续页失败保留结果、不缓存残缺列表、终态保护和已登录 WebSocket 通知。前端 `pnpm run test` 覆盖通知即时唤醒、HTTP 查询期间的通知竞态、旧版本响应、失败阶段卡片和订阅清理。`External search page ... failed` 日志补充白名单原因代码，未知异常仅记 `unclassified`，不输出 URL/Cookie/HTML。
+
+实现与五组两页现场证据见 [逐页搜索执行记录](progressive-external-search-execution.md)。

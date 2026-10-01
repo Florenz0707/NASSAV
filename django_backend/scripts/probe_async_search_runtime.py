@@ -1,16 +1,21 @@
 """Isolated live acceptance for Chinese listings, images, settings and Celery.
 
 Usage: PYTHONPATH=/app python scripts/probe_async_search_runtime.py
+Optional: --fetch-pages 1..5 (default 1), --cases missav-genre jable-genre ...
+With multiple pages, requires a running partial snapshot before completion.
 Requires DB=/tmp/nassav-external-search-acceptance.sqlite3 and isolated Redis
 host nassav-external-search-test-redis. Creates disposable rows and a worker.
 Stops on the first failure. Outputs only counts, states and timings.
 """
 
+import argparse
+import asyncio
 import json
 import os
 import subprocess
 import sys
 import time
+import threading
 from urllib.parse import urlsplit
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
@@ -27,6 +32,7 @@ import django  # noqa: E402
 
 django.setup()
 from django.core.management import call_command  # noqa: E402
+from channels.layers import get_channel_layer  # noqa: E402
 from django.contrib.auth import get_user_model  # noqa: E402
 from django.test import Client  # noqa: E402
 from nassav.models import Actor, Genre, ActorSourceMapping, GenreSourceMapping  # noqa: E402
@@ -38,8 +44,81 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+class SearchNotifications:
+    """Observe Redis events continuously so fast page transitions are not missed."""
+
+    def __init__(self):
+        self.condition = threading.Condition()
+        self.events = []
+        self.ready = threading.Event()
+        self.stopped = threading.Event()
+        self.thread = threading.Thread(
+            target=lambda: asyncio.run(self.receive()), daemon=True
+        )
+        self.thread.start()
+        require(self.ready.wait(10), "Redis notification listener did not start")
+
+    async def receive(self):
+        layer = get_channel_layer()
+        channel = await layer.new_channel("search_probe.")
+        await layer.group_add("task_updates", channel)
+        self.ready.set()
+        try:
+            while not self.stopped.is_set():
+                try:
+                    event = await asyncio.wait_for(layer.receive(channel), timeout=0.5)
+                except TimeoutError:
+                    continue
+                if event.get("update_type") == "external_search_update":
+                    with self.condition:
+                        self.events.append(event["data"])
+                        self.condition.notify_all()
+        finally:
+            await layer.group_discard("task_updates", channel)
+
+    def wait(self, task_id, version):
+        with self.condition:
+            self.condition.wait_for(
+                lambda: any(
+                    event["task_id"] == task_id and event["version"] > version
+                    for event in self.events
+                ),
+                timeout=1,
+            )
+
+    def versions(self, task_id):
+        with self.condition:
+            events = [event for event in self.events if event["task_id"] == task_id]
+            require(
+                all(
+                    set(event) == {"task_id", "state", "version", "updated_at"}
+                    for event in events
+                ),
+                "Unexpected socket payload",
+            )
+            return [event["version"] for event in events]
+
+    def close(self):
+        self.stopped.set()
+        self.thread.join(timeout=2)
+
+
 def main():
-    settings.EXTERNAL_SEARCH_FETCH_PAGES = 1
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--fetch-pages", type=int, choices=range(1, 6), default=1)
+    parser.add_argument(
+        "--cases",
+        nargs="+",
+        choices=[
+            "missav-genre",
+            "missav-actor",
+            "missav-keyword",
+            "jable-genre",
+            "jable-actor",
+        ],
+    )
+    args = parser.parse_args()
+    settings.EXTERNAL_SEARCH_FETCH_PAGES = args.fetch_pages
     settings.EXTERNAL_SEARCH_CACHE_ENABLED = True
     call_command("migrate", verbosity=0)
     user, _ = get_user_model().objects.get_or_create(
@@ -69,8 +148,9 @@ def main():
         == "missav",
         "Setting did not persist",
     )
+    notifications = SearchNotifications()
     worker_log = open("/tmp/search-worker.log", "w")
-    worker_code = "from django.conf import settings; settings.EXTERNAL_SEARCH_FETCH_PAGES=1; settings.EXTERNAL_SEARCH_CACHE_ENABLED=True; from django_project.celery import app; app.worker_main(['worker','-Q','scrape','--concurrency=1','--pool=solo','--loglevel=WARNING','--without-gossip','--without-mingle','--without-heartbeat'])"
+    worker_code = f"from django.conf import settings; settings.EXTERNAL_SEARCH_FETCH_PAGES={args.fetch_pages}; settings.EXTERNAL_SEARCH_CACHE_ENABLED=True; from django_project.celery import app; app.worker_main(['worker','-Q','scrape','--concurrency=1','--pool=solo','--loglevel=WARNING','--without-gossip','--without-mingle','--without-heartbeat'])"
     worker = subprocess.Popen(
         [sys.executable, "-c", worker_code], stdout=worker_log, stderr=worker_log
     )
@@ -82,6 +162,9 @@ def main():
             ("jable", "genre", genre, False),
             ("jable", "actor", actor, False),
         ]:
+            case = f"{source}-{'keyword' if keyword else entity}"
+            if args.cases and case not in args.cases:
+                continue
             if keyword:
                 ActorSourceMapping.objects.filter(
                     actor=actor, source_name="missav"
@@ -110,6 +193,8 @@ def main():
                 repeated.json()["data"]["task_id"] == job["task_id"],
                 "Running search was not deduplicated",
             )
+            first_result_seconds = None
+            progress_versions = []
             deadline = time.monotonic() + 400
             while time.monotonic() < deadline:
                 require(worker.poll() is None, "Worker stopped")
@@ -118,12 +203,37 @@ def main():
                 )
                 require(polled.status_code == 200, "Polling failed")
                 snapshot = polled.json()["data"]
+                if snapshot["state"] == "running" and snapshot.get("result"):
+                    require(
+                        snapshot["result"]["data"]["external_meta"]["partial"],
+                        "Running result must be partial",
+                    )
+                    if first_result_seconds is None:
+                        first_result_seconds = time.monotonic() - started
+                    if snapshot["version"] not in progress_versions:
+                        progress_versions.append(snapshot["version"])
                 if snapshot["state"] in {"failed", "succeeded"}:
                     break
-                time.sleep(1)
+                notifications.wait(job["task_id"], snapshot["version"])
             require(
                 snapshot["state"] == "succeeded",
                 f"{source}/{entity} search failed: {snapshot.get('error_code')}",
+            )
+            require(
+                not snapshot["result"]["data"]["external_meta"]["partial"],
+                "Final result is still partial",
+            )
+            if args.fetch_pages > 1:
+                require(bool(progress_versions), "No running page result was observed")
+            notifications.wait(job["task_id"], snapshot["version"] - 1)
+            event_versions = notifications.versions(job["task_id"])
+            require(
+                snapshot["version"] in event_versions,
+                "Terminal Redis notification missing",
+            )
+            require(
+                set(progress_versions).issubset(event_versions),
+                "Page Redis notification missing",
             )
             items = snapshot["result"]["data"]["external_results"]
             require(bool(items), "Search returned no cards")
@@ -151,6 +261,12 @@ def main():
                         "keyword": keyword,
                         "state": snapshot["state"],
                         "count": len(items),
+                        "fetch_pages": args.fetch_pages,
+                        "first_result_seconds": round(first_result_seconds, 2)
+                        if first_result_seconds is not None
+                        else None,
+                        "progress_versions": progress_versions,
+                        "event_versions": event_versions,
                         "submit_seconds": round(submit_seconds, 3),
                         "total_seconds": round(time.monotonic() - started, 2),
                         "image_status": 200,
@@ -160,6 +276,7 @@ def main():
                 flush=True,
             )
     finally:
+        notifications.close()
         worker.terminate()
         try:
             worker.wait(timeout=10)
