@@ -7,8 +7,10 @@ import {
 } from '../src/composables/useExternalSearchSources.js'
 
 function storageWith(value) {
-  const values = new Map(value ? [['external_search_source', value]] : [])
-  return { getItem: (key) => values.get(key), setItem: (key, item) => values.set(key, item) }
+  return {
+    defaultExternalSearchSource: value || 'jable',
+    loadSettings: async () => ({ success: true }),
+  }
 }
 
 test('source options reflect enabled capabilities and restore a supported preference', async () => {
@@ -31,8 +33,8 @@ test('source options reflect enabled capabilities and restore a supported prefer
         ['jable', 'missav']
       )
       state.externalSource.value = 'jable'
-      state.rememberSource()
-      assert.equal(useExternalSearchSources(entity, storage).externalSource.value, 'jable')
+      assert.equal(storage.defaultExternalSearchSource, 'missav')
+      assert.equal(useExternalSearchSources(entity, storage).externalSource.value, 'missav')
     }
   } finally {
     sourceApi.getSearchCapabilities = original

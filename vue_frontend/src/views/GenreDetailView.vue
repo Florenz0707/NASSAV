@@ -50,7 +50,6 @@ const {
   sourcesReady,
   sourcesError,
   loadSearchSources,
-  rememberSource,
 } = useExternalSearchSources('genre')
 const requestGuard = createSearchRequestGuard()
 const externalError = ref('')
@@ -60,7 +59,6 @@ function externalCacheKey() {
 function onExternalSourceChange(value) {
   requestGuard.invalidate()
   externalSource.value = value
-  rememberSource()
   externalSortOrder.value = 'desc'
   resetExternalSearchState()
   restoreExternalCache()

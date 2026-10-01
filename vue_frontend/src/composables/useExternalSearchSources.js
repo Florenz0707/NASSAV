@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue'
 import { sourceApi } from '../api/index.js'
+import { useSettingsStore } from '../stores/settings.js'
 
-export function useExternalSearchSources(entityType, storage = globalThis.sessionStorage) {
-  const preferenceKey = 'external_search_source'
-  const externalSource = ref(storage?.getItem(preferenceKey) || 'jable')
+export function useExternalSearchSources(entityType, settings = useSettingsStore()) {
+  const externalSource = ref(settings.defaultExternalSearchSource || 'jable')
   const capabilities = ref([])
   const sourcesReady = ref(false)
   const sourcesError = ref('')
@@ -18,19 +18,20 @@ export function useExternalSearchSources(entityType, storage = globalThis.sessio
   async function loadSearchSources() {
     sourcesError.value = ''
     try {
+      const loaded = await settings.loadSettings()
+      if (loaded?.success === false) throw new Error('加载默认搜索源失败，请重试')
+      externalSource.value = settings.defaultExternalSearchSource || 'jable'
       const response = await sourceApi.getSearchCapabilities()
       capabilities.value = response.data || []
       if (!sourceOptions.value.some((item) => item.value === externalSource.value)) {
         externalSource.value = sourceOptions.value[0]?.value || ''
+        if (externalSource.value) sourcesError.value = '默认搜索源不可用，已切换到可用源'
       }
       sourcesReady.value = true
       if (!sourceOptions.value.length) sourcesError.value = '没有启用支持此搜索的外部源'
     } catch (error) {
       sourcesError.value = error.message || '加载搜索源失败'
     }
-  }
-  function rememberSource() {
-    storage?.setItem(preferenceKey, externalSource.value)
   }
   return {
     externalSource,
@@ -39,7 +40,6 @@ export function useExternalSearchSources(entityType, storage = globalThis.sessio
     sourcesReady,
     sourcesError,
     loadSearchSources,
-    rememberSource,
   }
 }
 

@@ -36,6 +36,10 @@ const menuItems = [
 
 // 下载源列表数据
 const sources = ref([])
+const searchSourceOptions = ref([
+  { value: 'jable', label: 'Jable' },
+  { value: 'missav', label: 'MissAV' },
+])
 const loading = ref(true)
 
 // 弹窗状态
@@ -199,6 +203,16 @@ const handleSaveSettings = async () => {
 
 // 组件挂载时加载数据
 onMounted(async () => {
+  try {
+    const response = await sourceApi.getSearchCapabilities()
+    const enabled = new Set((response.data || []).map((item) => item.source))
+    searchSourceOptions.value = searchSourceOptions.value.map((item) => ({
+      ...item,
+      label: enabled.has(item.value) ? item.label : `${item.label}（未启用）`,
+    }))
+  } catch {
+    toastStore.error('获取搜索源状态失败')
+  }
   loadData()
   await settingsStore.loadSettings()
   // 初始化预览字体为当前设置
@@ -286,6 +300,7 @@ const copyCookie = async () => {
               :display-title-options="displayTitleOptions"
               :search-result-display-options="searchResultDisplayOptions"
               :available-fonts="AVAILABLE_FONTS"
+              :search-source-options="searchSourceOptions"
               @update:preview-font="previewFont = $event"
               @save="handleSaveSettings"
             />

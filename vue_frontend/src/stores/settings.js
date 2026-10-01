@@ -17,6 +17,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // 推荐搜索结果展示样式：grid | masonry
   const searchResultDisplayStyle = ref('grid')
+  const defaultExternalSearchSource = ref('jable')
   const loaded = ref(false)
   let loadPromise = null
 
@@ -50,6 +51,9 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.search_result_display_style !== undefined) {
           searchResultDisplayStyle.value = data.search_result_display_style
         }
+        if (data.default_external_search_source !== undefined) {
+          defaultExternalSearchSource.value = data.default_external_search_source
+        }
         loaded.value = true
         return { success: true }
       } catch (err) {
@@ -76,6 +80,7 @@ export const useSettingsStore = defineStore('settings', () => {
         font_family: fontFamily.value,
         color_mode: colorMode.value,
         search_result_display_style: searchResultDisplayStyle.value,
+        default_external_search_source: defaultExternalSearchSource.value,
       })
       return { success: true }
     } catch (err) {
@@ -90,6 +95,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fontFamily,
     colorMode,
     searchResultDisplayStyle,
+    defaultExternalSearchSource,
     loaded,
     loadSettings,
     saveSettings,
