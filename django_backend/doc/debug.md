@@ -325,3 +325,5 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 资源删除回归：`uv run pytest tests/test_resource_deletion.py -v` 覆盖单项/批量删除、部分文件与数据库状态，以及未配置 `THUMBNAIL_DIR` 时按封面接口相同的 `COVER_DIR/thumbnails/{size}/{avid}.jpg` 目录清理缩略图。缺省配置不应使 `DELETE /api/resource/{avid}` 返回 500。
 
 Byparr 第三步固定版本隔离对照和等待 PoC 见[实验记录](byparr-media-experiment-record.md)。运行方式见 scripts/README.md；仅在临时实验容器运行，初始业务等待在不存在详情上会耗尽预算，不能直接部署到正式服务。离线契约：`uv run pytest tests/test_probe_byparr_media.py -v`。
+
+Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验收记录](byparr-candidate-acceptance-record.md)。预筛通过不代表可灰度；本次自动 Cookie 管理入口复现 500，因此整体 NO-GO。`probe_byparr_runtime.py` 强制使用专用 PostgreSQL、Redis 和资源目录；不可对正式服务执行。

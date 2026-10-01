@@ -533,3 +533,15 @@ docker exec -e PYTHONPATH=/tmp/nassav-media-probe:/app nassav-api-1 \
 ```
 
 等待 PoC 的候选容器使用相同镜像和包装器，额外设置 `BYPARR_EXPERIMENT_WAIT=business`，并把 `byparr/business_ready.py` 复制到 `/tmp/business_ready.py`。用 `--source Jable --count 10 --ready-base-url http://nassav-byparr-ready-experiment:8191` 做对照；此时两臂均为 `blockMedia=false`。候选保持原挑战求解，业务就绪时才读取新 HTML 快照，且由探针实际解析播放地址、番号、标题和封面。默认容器须报告 `waitMode=networkidle`，候选须报告 `waitMode=business`。只有阶段测量先确认等待瓶颈时才执行该 PoC；不能直接修改正式 Byparr。
+
+## Byparr 第四步候选验收
+
+`BYPARR_EXPERIMENT_WAIT=business_bounded` 是第三步等待 PoC 的隔离候选。与原 networkidle 同时启动最多 2 秒的业务内容检查；完整详情出现时提前返回，否则继续原等待，不重新计时或导航。候选容器需额外复制 `byparr/bounded_wait.py` 到 `/tmp/`。正式服务没有接入此模式。
+
+冷请求：每窗口使用 `probe_byparr_media.py --source Jable --count 20 --ready-base-url <隔离候选地址>`，默认实例报告 networkidle，候选报告 business_bounded；W2 加 `--samples-file` 重用番号且反转配对顺序。两个窗口各检查不存在详情。暖请求：在同一 API 网络与配置代理路线中，用 `probe_p5_jable.py --window W1 --count 20 --allow-session-replay --browser-base-url <隔离候选地址>`；W2 重做同页种子验证并重新发现至少 20 个不同详情。Cookie+UA 只在探针进程内使用，不写数据库或共享缓存。完整解析须匹配请求番号、播放地址、标题和封面。所有请求含失败均计入暖 P95，输出包含 UTC 记录时间及前 10 页浏览器调用数。
+
+`assess_byparr_acceptance.py --cold W1冷.jsonl W2冷.jsonl --warm W1暖.jsonl W2暖.jsonl` 离线核对两个窗口的 20 个不同有效详情、直连有效率至少 95%、零错误页误接纳、暖 P95 小于 5 秒且小于原 Byparr 中位数的 25%、前 10 页至多一次浏览器调用。退出 2 表示 NO-GO；通过预筛也仍需后续 API/worker、任务/下载/WebSocket 与 24 小时观察才能放行。数据和结论见[第四步验收记录](../doc/byparr-candidate-acceptance-record.md)。
+
+`probe_byparr_runtime.py --phase serial|mixed --avids AVID ...` 只能在专用 `nassav-wait-postgres`、`nassav-wait-redis` 与 `/tmp/acceptance-resource` 环境中运行。创建样本资源，调用真实 Cookie/资源 API、Celery 刮削队列及 ASGI WebSocket；worker 分别设置 `-c 1`/`-c 2`，混合阶段另执行同步刷新。候选包装器的 `/experiment-stats` 只返回请求/错误/在途计数，不用于正式 API。Cookie 失败保留为失败，但独立任务检查继续执行。
+
+评估器可加 `--runtime SERIAL.jsonl MIXED.jsonl`，将预筛、API/worker、媒体下载和回滚门槛分开报告；仅预筛通过时输出 PRE_SCREEN_PASS，运行阶段任何失败或缺项输出 NO_GO，全部通过才能 READY_FOR_OBSERVATION。这也不代表已完成 24 小时观察。本轮 Jable 自动 Cookie API 500 已阻止灰度，详细证据见第四步记录。

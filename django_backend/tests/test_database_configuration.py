@@ -163,7 +163,8 @@ def test_postgres_connection_failure_never_opens_sqlite(tmp_path):
         [
             sys.executable,
             "-c",
-            "from django.db import connections; connections['default'].ensure_connection()",
+            "from django.db import connections; print(connections['default'].vendor); "
+            "connections['default'].ensure_connection()",
         ],
         cwd=backend_root,
         env=environment,
@@ -172,10 +173,10 @@ def test_postgres_connection_failure_never_opens_sqlite(tmp_path):
         timeout=20,
     )
     assert result.returncode != 0
-    assert (
-        "connection timeout expired" in result.stderr
-        or "Connection refused" in result.stderr
-    )
+    # Network environments may refuse, time out, or accept then close the port.
+    # The contract is PostgreSQL failure without creating a SQLite fallback.
+    assert "django.db.utils.OperationalError:" in result.stderr
+    assert result.stdout.strip() == "postgresql"
     assert not database.exists()
 
 

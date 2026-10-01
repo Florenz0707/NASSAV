@@ -3,7 +3,8 @@
 Usage inside Byparr: /app/.venv/bin/python /tmp/instrument_media_experiment.py
 POST /v1 in default mode preserves upstream behavior and adds experimentTimings.
 Optional BYPARR_EXPERIMENT_WAIT=business is an initial PoC: missing business
-markers consume the request budget, so this mode is not production ready.
+markers consume the request budget. business_bounded races a two-second check
+against the original idle wait; both modes are isolated experiments only.
 GET /ready checks the wrapper without launching a browser. No URLs, cookies,
 headers, proxy credentials, or HTML are included in the timing fields.
 """
@@ -143,13 +144,26 @@ original_networkidle = endpoints._wait_for_networkidle
 
 async def wait_for_page(dep, timer):
     url = target_url.get()
-    if WAIT_MODE != "business":
+    if WAIT_MODE not in {"business", "business_bounded"}:
         return await original_networkidle(dep, timer)
     from business_ready import detail_identity, has_business_content
 
-    if detail_identity(url) is None:
+    identity = detail_identity(url)
+    if identity is None or (WAIT_MODE == "business_bounded" and identity[0] != "jable"):
         return await original_networkidle(dep, timer)
     started = perf_counter()
+    if WAIT_MODE == "business_bounded":
+        from bounded_wait import wait_bounded
+
+        try:
+            complete = await wait_bounded(
+                dep.page, url, timer, lambda: original_networkidle(dep, timer)
+            )
+            state.get()["business_ready"] = complete
+            state.get()["business_fallback"] = not complete
+            return
+        finally:
+            add_time("business_wait_ms", started)
     try:
         while timer.remaining() > 0:
             html = await dep.page.content()
@@ -176,6 +190,7 @@ async def abort(self, *args, **kwargs):
 
 
 Route.abort = abort
+counters = {"requests": 0, "errors": 0, "inflight": 0}
 app = FastAPI()
 
 
@@ -188,6 +203,11 @@ async def ready():
     }
 
 
+@app.get("/experiment-stats")
+async def experiment_stats():
+    return dict(counters)
+
+
 @app.post("/v1")
 async def fetch(
     request: LinkRequest,
@@ -195,6 +215,8 @@ async def fetch(
     x_proxy_username: str | None = Header(default=None, alias="X-Proxy-Username"),
     x_proxy_password: str | None = Header(default=None, alias="X-Proxy-Password"),
 ):
+    counters["requests"] += 1
+    counters["inflight"] += 1
     timings = {"challenge_detected": False, "aborted_resources": 0}
     token = state.set(timings)
     target_token = target_url.set(request.url)
@@ -211,12 +233,14 @@ async def fetch(
         payload["experimentTimings"] = timings
         return payload
     except HTTPException as error:
+        counters["errors"] += 1
         timings["server_total_ms"] = round((perf_counter() - started) * 1000, 3)
         return JSONResponse(
             status_code=error.status_code,
             content={"status": "error", "experimentTimings": timings},
         )
     finally:
+        counters["inflight"] -= 1
         target_url.reset(target_token)
         state.reset(token)
 
