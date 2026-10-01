@@ -1369,3 +1369,9 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded` 或 `failed`。�
 `GET/PUT /api/setting` 增加 `default_external_search_source`，允许 `jable`（默认）和 `missav`。保存到现有实例共享 `user_settings.ini`；页面临时切换不修改默认值。旧文件启动时自动补齐此项，无数据库迁移。
 
 `GET /api/recommendations/cover?url=...&source=missav` 支持 MissAV 搜索封面。省略 source 保持 Jable 行为。MissAV 当前只允许实测的 `fourhoi.com`，使用源配置代理与中文页面 Referer；下载限 20 秒、5 MiB，不跟随重定向，不转发站点 Cookie，成功后原子写入现有封面缓存。
+
+## 页面抓取顺序与会话开关
+
+`Source.<source>.browser_fetch_strategy` 独立决定顺序：`direct_first` 先直连、失败后浏览器；`browser_first` 先浏览器、失败后直连；`direct_only` 仅直连。即使 `BrowserFetch.session_reuse_enabled=false`，也不会改写 `direct_first`。
+
+关闭完整会话复用时，直连仍采用已有 Cookie 的传统请求方式，不进行完整 Cookie + UA 会话复用、自动验证保存或刷新协调；开启后采用配套 UA、出口与过期检查及已验证会话刷新。此改动不修改正式配置或自动启用复用。

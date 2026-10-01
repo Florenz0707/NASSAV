@@ -11,6 +11,7 @@ BrowserFetch:
   provider: byparr
   url: http://byparr:8191
   timeout_ms: 60000
+  # 仅控制完整会话复用；不改变各源的 browser_fetch_strategy 抓取顺序。
   session_reuse_enabled: false
 
 # 文件路径前缀配置
