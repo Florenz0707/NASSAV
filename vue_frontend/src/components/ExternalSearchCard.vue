@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { recommendationApi } from '../api'
 
 const props = defineProps({
@@ -20,9 +20,15 @@ const props = defineProps({
 const emit = defineEmits(['add', 'open', 'view'])
 
 const displayTitle = computed(() => props.item?.title || props.item?.avid || '')
+const imageFailed = ref(false)
 const proxiedCoverUrl = computed(() =>
-  props.item?.cover_url ? recommendationApi.getCoverUrl(props.item.cover_url) : ''
+  props.item?.cover_url
+    ? recommendationApi.getCoverUrl(props.item.cover_url, props.item.source || 'jable')
+    : ''
 )
+watch(proxiedCoverUrl, () => {
+  imageFailed.value = false
+})
 
 function formatCompactMetric(value) {
   const parsed = Number(value || 0)
@@ -46,11 +52,12 @@ const metrics = computed(() => {
   <article class="external-search-card">
     <div class="cover-shell">
       <img
-        v-if="item.cover_url"
+        v-if="item.cover_url && !imageFailed"
         :src="proxiedCoverUrl"
         :alt="displayTitle"
         class="cover-image"
         loading="lazy"
+        @error="imageFailed = true"
       />
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
