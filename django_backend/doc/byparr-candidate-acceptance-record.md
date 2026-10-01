@@ -52,3 +52,7 @@
 ## 离线验证与收尾
 
 完整后端回归为 418 passed、13 skipped；最终等待、门槛、探针及数据库相关测试另运行，30 passed。环境中 PostgreSQL 失败端口会返回“server closed the connection unexpectedly”，旧测试只认拒绝/超时字样导致一次失败；现断言实际选用 PostgreSQL、抛出 OperationalError 且无 SQLite 回退文件，契约保持，完整回归重跑通过。六个临时实验容器（含独立数据库/队列）、API 容器的临时探针目录、宿主私有配置/凭据及结果临时文件均已清理；保留脱敏证据和可复现实验工具。`pre-commit run -a` 全部检查通过。
+
+## 后续：自动 Cookie 阻塞修复
+
+2026-10-01 Jable 自动入口已在隔离环境验证返回 200，并保存 Cookie、UA、出口信息。详见 [修复验证记录](jable-auto-cookie-fix-record.md)。以上第四步历史结论保留，剩余验收项尚未执行。

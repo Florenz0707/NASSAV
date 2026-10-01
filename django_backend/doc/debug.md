@@ -327,3 +327,7 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 Byparr 第三步固定版本隔离对照和等待 PoC 见[实验记录](byparr-media-experiment-record.md)。运行方式见 scripts/README.md；仅在临时实验容器运行，初始业务等待在不存在详情上会耗尽预算，不能直接部署到正式服务。离线契约：`uv run pytest tests/test_probe_byparr_media.py -v`。
 
 Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验收记录](byparr-candidate-acceptance-record.md)。预筛通过不代表可灰度；本次自动 Cookie 管理入口复现 500，因此整体 NO-GO。`probe_byparr_runtime.py` 强制使用专用 PostgreSQL、Redis 和资源目录；不可对正式服务执行。
+
+### Jable 自动 Cookie 500 回归
+
+回归文件：`tests/test_jable_auto_cookie.py`。在后端目录运行 `uv run pytest tests/test_jable_auto_cookie.py -v`，覆盖 HTTP 403 旧入口、浏览器与直连校验失败、手动更新/清空及租约保护。现场结果见 [修复验证记录](jable-auto-cookie-fix-record.md)。
