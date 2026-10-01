@@ -632,7 +632,10 @@ class ActorDetailView(SchemaAPIView):
     def get(self, request, actor_id):
         from nassav.models import Actor
 
-        source_name = str(request.query_params.get("source", "jable")).strip()
+        source_name = str(
+            request.query_params.get("source")
+            or external_search_service.default_source("actor")
+        ).strip()
         page = _parse_positive_int(request.query_params.get("page"), 1)
         page_size = _parse_positive_int(request.query_params.get("page_size"), 20)
         ordering = str(request.query_params.get("ordering", "-views")).strip()
@@ -800,7 +803,10 @@ class GenreDetailView(SchemaAPIView):
     def get(self, request, genre_id):
         from nassav.models import Genre
 
-        source_name = str(request.query_params.get("source", "jable")).strip()
+        source_name = str(
+            request.query_params.get("source")
+            or external_search_service.default_source("genre")
+        ).strip()
         page = _parse_positive_int(request.query_params.get("page"), 1)
         page_size = _parse_positive_int(request.query_params.get("page_size"), 20)
         ordering = str(request.query_params.get("ordering", "-views")).strip()

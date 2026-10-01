@@ -1266,3 +1266,4 @@ def check_resources_consistency(
 
 # Celery autodiscovers tasks.py; import the dedicated scrape task for registration.
 from nassav.scrape_jobs import run_resource_job  # noqa: E402, F401
+from nassav.search_jobs import run_search_job  # noqa: E402, F401

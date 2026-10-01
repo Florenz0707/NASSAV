@@ -295,3 +295,9 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 ## MissAV 演员、类别搜索映射
 
 复用 `ActorSourceMapping`、`GenreSourceMapping`，源名为 `missav`。可填写原站的 `source_actor_slug` / `source_genre_slug`，或填写 `/en/actresses/{名称}` / `/en/genres/{名称}` URL；保存时提取并解码 slug，MissAV 保留大小写（例如 `VR`）。不保存动态 `dmN` 前缀作为 slug。旧记录没有自动回填；此前已被转小写的 MissAV slug 可通过原站 URL 重新保存修正。缺少映射时按实体名称关键词搜索，不擅自生成映射或写入生产数据。字段没有变化，无需迁移。
+
+## 外部搜索任务与默认源（2026-10-01）
+
+本次不新增数据库表，无需迁移。`default_external_search_source` 保存在实例共享 `config/user_settings.ini`，默认模板与旧文件自动补齐规则已同步。
+
+搜索任务使用 Redis `nassav:search:job:{task_id}` 快照和 `nassav:search:lock:{query_hash}` 查询锁。复用既有 JobStore 持久化与终态保护；快照 TTL 24 小时，成功结果复用窗口 300 秒，提交后 1800 秒未完成则读取时标记超时并释放锁。终态不允许迟到结果覆盖。查询摘要包含实体、源、分页、排序、强制刷新、中文版本、域名、代理线路和抓取页数。

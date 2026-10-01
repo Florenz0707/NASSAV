@@ -335,3 +335,9 @@ Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验
 ## 可选搜索源验证
 
 离线运行 `uv run pytest tests/test_missav_search.py tests/test_external_search_detail_api.py -v`；前端运行 `pnpm run test`。覆盖源能力、映射与关键词回退、错误状态、分页缓存、变体去重及慢响应保护。隔离现场用法见 [探针说明](../scripts/README.md) 与 [执行记录](selectable-external-search-execution.md)。
+
+## 中文及异步外部搜索验收
+
+隔离运行 `scripts/probe_async_search_runtime.py`，要求专用 SQLite 和 Redis，禁止连接正式存储。脚本使用单页窗口，启动真实 Celery worker，验证持久化默认源、快速提交、运行任务去重、中文结果路径及封面代理，遇到首个失败立即退出。具体参数和限制见脚本头部及 scripts/README.md。
+
+搜索任务在现有 `scrape` 队列执行；API 与 scrape worker 都需要更新代码并重启。前端更新后使用任务接口。worker 软限 900 秒、硬限 930 秒；队列等待和失联 worker 在提交后 1800 秒通过状态查询显式失败。正常停止页面轮询不撤销后台抓取，返回页面重发相同查询可复用任务。

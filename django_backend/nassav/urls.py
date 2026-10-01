@@ -1,10 +1,17 @@
 from django.urls import path
 
 from . import auth_views, views
+from .search_job_views import SearchJobSubmitView, SearchJobStatusView
 
 app_name = "nassav"
 
 urlpatterns = [
+    path("api/search/jobs", SearchJobSubmitView.as_view(), name="search-job-submit"),
+    path(
+        "api/search/jobs/<uuid:task_id>",
+        SearchJobStatusView.as_view(),
+        name="search-job-status",
+    ),
     path("api/auth/session", auth_views.session_view, name="auth-session"),
     path("api/auth/login", auth_views.login_view, name="auth-login"),
     path("api/auth/logout", auth_views.logout_view, name="auth-logout"),

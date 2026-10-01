@@ -616,3 +616,9 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 ## MissAV 与 Jable 搜索源选择
 
 `test_missav_search.py`：列表 URL/排序、现有抓取策略、同站业务结构、源映射、关键词回退、禁用/未知源、失败不缓存、视频变体去重。无额外参数，运行 `uv run pytest tests/test_missav_search.py tests/test_external_search_detail_api.py -v`。
+
+## 中文外部搜索、图片与后台任务
+
+`test_missav_search.py` 增加中文路径、空结果和动态前缀回归。`test_search_covers.py` 覆盖源隔离、图片域名限制、原子缓存、下载大小及 Cookie 不外传。`test_search_jobs.py` 覆盖任务 API、真实业务调用边界、去重、终态复用、失败重试、超时、队列故障及持久化默认源。
+
+运行：`DEBUG=false NASSAV_CONFIG_PATH=config/config.example.yaml DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-search-tests.sqlite3 uv run pytest tests/test_missav_search.py tests/test_search_covers.py tests/test_search_jobs.py tests/test_user_settings.py -v`。离线测试使用模拟存储，不访问正式数据库或 Redis。现场脚本见 scripts/README.md。
