@@ -63,7 +63,7 @@ class MissAV(SourceBase):
         result = fetcher.fetch(
             url,
             direct_fetch=lambda: self.fetch_page(
-                url, referer=f"https://{self.domain}/en"
+                url, referer=f"https://{self.domain}/cn/"
             ),
             validator=lambda html: valid_listing(html, self.domain),
             strategy=self.browser_fetch_strategy,

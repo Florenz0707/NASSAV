@@ -609,7 +609,7 @@ class ExternalSearchService:
         domain = getattr(selected_source, "domain", "")
         route = proxy_route_profile(getattr(selected_source, "proxy", None)) or "direct"
         cache_key = (
-            "external-search:v3:"
+            "external-search:v4:cn:"
             f"{entity_type}:{entity_id}:{normalized_source}:{domain}:{route}:"
             f"{fetch_pages}:{safe_ordering}"
         )

@@ -16,7 +16,7 @@ def listing_url(domain: str, kind: str, term: str, page: int, ordering: str) -> 
     if ordering not in SORTS:
         raise ValueError("MissAV supports -views, -likes and -latest ordering")
     query = urlencode({"page": max(1, page), "sort": SORTS[ordering]})
-    return f"https://{domain}/en/{kind}/{quote(unquote(term.strip()), safe='')}?{query}"
+    return f"https://{domain}/cn/{kind}/{quote(unquote(term.strip()), safe='')}?{query}"
 
 
 def normalized_path(url: str) -> str:
@@ -69,10 +69,22 @@ def valid_listing(html: str, domain: str) -> bool:
         return False
     return bool(parse_listing(html, domain)) or any(
         marker in soup.get_text(" ", strip=True).lower()
-        for marker in ("no results found", "no videos found", "no results", "no videos")
+        for marker in (
+            "no results found",
+            "no videos found",
+            "no results",
+            "no videos",
+            "没有找到",
+            "未找到",
+            "暂无视频",
+            "沒有找到",
+            "未找到影片",
+        )
     )
 
 
 def verify_listing_url(requested: str, final: str) -> None:
-    if normalized_path(requested) != normalized_path(final):
+    if urlsplit(requested).hostname != urlsplit(final).hostname or normalized_path(
+        requested
+    ) != normalized_path(final):
         raise SourceSearchError("missav_listing_path_mismatch")
