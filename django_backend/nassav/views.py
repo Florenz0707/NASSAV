@@ -1135,7 +1135,25 @@ class RecommendationCoverView(SchemaAPIView):
             return build_response(400, "url 参数缺失", None)
 
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
-        service = RecommendationCoverCacheService(Jable(proxy=proxy))
+        source_name = str(request.query_params.get("source", "jable")).lower()
+        if source_name == "missav":
+            from nassav.source.SourceManager import source_manager
+
+            source = next(
+                (
+                    item
+                    for item in source_manager.sources.values()
+                    if item.get_source_name().lower() == "missav"
+                ),
+                None,
+            )
+            if source is None:
+                return build_response(503, "MissAV 未启用", None)
+        elif source_name == "jable":
+            source = Jable(proxy=proxy)
+        else:
+            return build_response(400, "封面来源不受支持", None)
+        service = RecommendationCoverCacheService(source)
         if not service.is_allowed_url(cover_url):
             return build_response(400, "封面来源不受支持", None)
 

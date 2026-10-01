@@ -129,9 +129,9 @@ export const recommendationApi = {
   // 清空推荐状态，默认由后端保留黑名单
   resetState: (payload = {}) => api.post('/recommendations/reset', payload),
   // 获取推荐封面代理地址
-  getCoverUrl: (coverUrl) => {
+  getCoverUrl: (coverUrl, source = 'jable') => {
     const base = api.defaults.baseURL.replace(/\/$/, '')
-    return `${base}/recommendations/cover?url=${encodeURIComponent(coverUrl || '')}`
+    return `${base}/recommendations/cover?url=${encodeURIComponent(coverUrl || '')}&source=${encodeURIComponent(source.toLowerCase())}`
   },
 }
 
