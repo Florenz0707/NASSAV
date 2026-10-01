@@ -610,3 +610,5 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 ## Byparr 有界等待及验收门槛
 
 `uv run pytest tests/test_byparr_bounded_wait.py tests/test_assess_byparr_acceptance.py -v` 覆盖错误页继续原等待、业务完成取消闲置任务、慢内容读取的两秒上限、总预算耗尽、请求取消和并发完成时保留原异常；门槛评估拒绝缺少第二窗口、重复番号、慢失败被剔除、直连有效率不足、浏览器调用过多和反向误接纳。在线验证只使用隔离候选，方法见[第四步验收记录](../doc/byparr-candidate-acceptance-record.md)。
+
+- `test_jable_auto_cookie.py`：Jable 自动 Cookie API 的浏览器获取、完整会话保存、失败保护及并发手动写入保护；无额外参数，运行 `uv run pytest tests/test_jable_auto_cookie.py -v`。

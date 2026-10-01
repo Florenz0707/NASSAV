@@ -1298,3 +1298,12 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 ## P4 Cookie 管理兼容扩展
 
 人工 `POST /nassav/api/source/cookie` 可加可选字符串 `user_agent`（最多 4096 字符）；省略或传空值会清除旧的配套 UA 和自动会话元数据。`auto=true` 的旧请求方式不变。GET 保留 `source/cookie/mtime`，增加 `session_source`（`manual`/`verified_browser`）、`user_agent_paired`、`session_expired` 和 `verified_direct_reuse` 布尔状态；完整 UA 不返回。`verified_direct_reuse` 还要求当前源的代理路线与保存时一致，仍不保证站点此刻放行。设置页“已保存”与“已验证可直连”按此状态区分。
+
+### Jable 自动 Cookie（2026-10-01 修复）
+
+`POST /nassav/api/source/cookie`，请求 `{"source":"Jable","auto":true}`：
+
+- 启用 Byparr 且配置代理时，通过浏览器获取首页，验证同站点、非挑战页及列表业务结构，再携带返回的 Cookie 和 UA 经相同代理直连同页验证（200，最多 3 秒）。通过后保存完整会话。
+- 显式自动获取不依赖 `BrowserFetch.session_reuse_enabled`；不会开启普通页面请求的会话复用。
+- 浏览器禁用时保留原 HTTP 获取流程。浏览器会话缺少 Cookie/UA、页面校验失败、直连验证失败或写入保护拒绝时，自动获取仍返回 500，旧记录保留。
+- 使用现有刷新租约及版本检查，自动结果不会覆盖获取期间的手动更新或清空。

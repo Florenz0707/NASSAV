@@ -287,3 +287,7 @@ Database:
 ## P4 管理状态
 
 `GET /api/source/cookie` 继续返回旧的 `source/cookie/mtime`，另计算 `session_source`、`user_agent_paired`、`session_expired`、`verified_direct_reuse`。后者仅在 Cookie、UA、路线摘要俱全、未到期且与当前源代理路线相同时为真；人工 Cookie 即使附带 UA 也只是“已保存”。接口不返回完整 UA。人工 POST 不带 `user_agent` 会原子清空旧 UA、到期时间和路线标识，不需清库即可关闭或恢复会话复用。
+
+### Jable 自动 Cookie 写入（2026-10-01）
+
+Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连验证后，通过现有 `set_session_if_version` 原子保存 Cookie、UA、到期时间及出口信息。复用既有字段，无需数据库迁移；版本变化或刷新租约失效时拒绝写入。见 [修复验证记录](jable-auto-cookie-fix-record.md)。

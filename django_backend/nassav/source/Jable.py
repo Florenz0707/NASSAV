@@ -14,6 +14,7 @@ from nassav.page_fetching import (
     validate_strategy,
 )
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
+from nassav.source.CookieRepository import source_cookie_repository
 from nassav.source.SourceBase import SourceBase
 
 
@@ -58,6 +59,38 @@ class Jable(SourceBase):
 
     def get_source_name(self) -> str:
         return "Jable"
+
+    def set_cookie_auto(
+        self,
+        force_refresh: bool = False,
+        *,
+        write_guard: Callable[[], bool] | None = None,
+    ) -> bool:
+        """Acquire and verify a paired browser session for explicit refreshes."""
+        if self.page_fetcher.browser is None:
+            return super().set_cookie_auto(force_refresh, write_guard=write_guard)
+        record = source_cookie_repository.get_cookie_record(self.get_source_name())
+        if not force_refresh and record is not None and record.cookie:
+            self.set_session(record)
+            return True
+        expected_version = record.updated_at if record is not None else None
+        url = self._get_home_url()
+        result = PageFetchService.validate_result(
+            url,
+            self.page_fetcher.browser.fetch(
+                url, timeout_ms=self.page_fetcher.timeout_ms
+            ),
+            self._is_listing_page_html,
+        )
+        if not result.ok:
+            return False
+        return self.accept_browser_session(
+            url,
+            result,
+            self._is_listing_page_html,
+            expected_version,
+            write_guard=write_guard,
+        )
 
     def get_html(self, avid: str) -> Optional[str]:
         urls = [
