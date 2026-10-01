@@ -11,6 +11,7 @@ keeps blockMedia=false in both arms; --source Jable restricts the comparison.
 
 import argparse
 import json
+from datetime import datetime, timezone
 from math import ceil
 import os
 import re
@@ -69,6 +70,7 @@ class MediaSession(requests.Session):
 
 
 def emit(**fields):
+    fields["recorded_at"] = datetime.now(timezone.utc).isoformat()
     print(json.dumps(fields, ensure_ascii=False, sort_keys=True), flush=True)
 
 
@@ -118,18 +120,23 @@ def main():
         if (
             candidate_ready.status_code != 200
             or candidate_ready.json().get("version") != "3.0.4"
-            or candidate_ready.json().get("waitMode") != "business"
+            or candidate_ready.json().get("waitMode")
+            not in {"business", "business_bounded"}
             or ready.json().get("waitMode", "networkidle") != "networkidle"
         ):
             parser.error(
                 "Wait comparison needs separate networkidle/business instances"
             )
 
+    candidate_mode = (
+        candidate_ready.json().get("waitMode") if args.ready_base_url else None
+    )
+
     def select_arm(candidate):
         active_client = candidate_client if candidate else client
         active_session = candidate_session if candidate else session
         active_session.block_media = False if args.ready_base_url else candidate
-        variant = "business_ready" if args.ready_base_url else "block_media"
+        variant = candidate_mode if args.ready_base_url else "block_media"
         return active_client, active_session, variant if candidate else "default"
 
     sources = {"Jable": Jable(proxy), "MissAV": MissAV(proxy)}

@@ -7,6 +7,7 @@ not exercise shared Redis coordination, API tasks, or the 24-hour gray rollout.
 
 import argparse
 import json
+from datetime import datetime, timezone
 import os
 import re
 from statistics import median
@@ -51,6 +52,7 @@ def checked(url, result, validator):
 
 
 def emit(**fields):
+    fields["recorded_at"] = datetime.now(timezone.utc).isoformat()
     print(json.dumps(fields, ensure_ascii=False, sort_keys=True), flush=True)
 
 
@@ -59,6 +61,7 @@ def main():
     parser.add_argument("--window", required=True, choices=("W1", "W2"))
     parser.add_argument("--count", type=int, default=20)
     parser.add_argument("--allow-session-replay", action="store_true")
+    parser.add_argument("--browser-base-url", help="Optional isolated v3.0.4 instance")
     args = parser.parse_args()
     if not args.allow_session_replay:
         parser.error("Explicit --allow-session-replay is required")
@@ -70,6 +73,16 @@ def main():
     if not proxy:
         parser.error("A configured proxy route is required for this prescreen")
     fetcher = create_page_fetch_service(settings.BROWSER_FETCH_CONFIG, proxy_url=proxy)
+    if args.browser_base_url:
+        from nassav.page_fetching.browser import ByparrPageClient
+
+        isolated = ByparrPageClient(args.browser_base_url, proxy_url=proxy)
+        ready = isolated._session.get(
+            args.browser_base_url.rstrip("/") + "/ready", timeout=5
+        )
+        if ready.status_code != 200 or ready.json().get("version") != "3.0.4":
+            parser.error("Use an isolated v3.0.4 instance")
+        fetcher.browser = isolated
     browser = fetcher.browser
     if browser is None or getattr(browser, "provider", None) != "byparr":
         parser.error("The configured browser provider must be Byparr")
@@ -151,19 +164,34 @@ def main():
         return 2
     source.set_session(session)
 
+    def valid_detail(html, avid):
+        parsed = source.parse_html(html)
+        return bool(
+            parsed
+            and parsed.avid.upper() == avid.upper()
+            and parsed.m3u8
+            and parsed.source_title
+            and source.get_cover_url(html)
+        )
+
     records = []
     for index, path in enumerate(
         [path for path in paths if path != seed_path][: args.count], 1
     ):
         url = base + path
         started = monotonic()
-        direct = checked(url, source.fetch_page(url), source._is_detail_page_html)
+        avid = path.removeprefix("/videos/").strip("/")
+
+        def validator(html):
+            return valid_detail(html, avid)
+
+        direct = checked(url, source.fetch_page(url), validator)
         browser_result = None
         if not direct.ok:
             browser_result = checked(
                 url,
                 browser.fetch(url, timeout_ms=fetcher.timeout_ms),
-                source._is_detail_page_html,
+                validator,
             )
         record = {
             "stage": "warm",
@@ -198,11 +226,14 @@ def main():
         valid_pages=len(valid),
         direct_valid=len(direct_valid),
         browser_calls=sum(item["browser_calls"] for item in records),
-        direct_valid_rate=round(len(direct_valid) / len(valid), 4) if valid else None,
-        warm_p95_ms=sorted(item["total_ms"] for item in valid)[
-            max(0, int(len(valid) * 0.95 + 0.999) - 1)
+        first_ten_browser_calls=sum(item["browser_calls"] for item in records[:10]),
+        direct_valid_rate=round(len(direct_valid) / len(records), 4)
+        if records
+        else None,
+        warm_p95_ms=sorted(item["total_ms"] for item in records)[
+            max(0, int(len(records) * 0.95 + 0.999) - 1)
         ]
-        if valid
+        if records
         else None,
         byparr_median_ms=round(median(browser_times))
         if browser_times

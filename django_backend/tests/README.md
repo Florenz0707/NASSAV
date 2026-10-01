@@ -606,3 +606,7 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 隔离全套命令使用当前本地样例 `config/config.example.yaml`，并显式设置测试专用 `NASSAV_ENV_PATH`、`DATABASE_PATH` 与 `NASSAV_RESOURCE_DIR`。PostgreSQL 迁移与会话测试应使用单独测试实例和库；正式站点测试需要 `BROWSER_FETCH_EXTERNAL=1`，服务不可用即失败，不计入离线通过。现场样本数、门槛、24 小时观察及回滚见[P5 记录](../doc/byparr-session-reuse-p5-record.md)。
 
 `test_probe_byparr_media.py` 离线验证第三步隔离 A/B 的顺序平衡、控制请求只改变媒体参数、计时不串请求、失败请求仍纳入时延统计，以及业务就绪等待不会接纳错番号、挑战或缺少播放结构的页面。运行 `uv run pytest tests/test_probe_byparr_media.py -v`；线上方法与结果见[第三步实验记录](../doc/byparr-media-experiment-record.md)。
+
+## Byparr 有界等待及验收门槛
+
+`uv run pytest tests/test_byparr_bounded_wait.py tests/test_assess_byparr_acceptance.py -v` 覆盖错误页继续原等待、业务完成取消闲置任务、慢内容读取的两秒上限、总预算耗尽、请求取消和并发完成时保留原异常；门槛评估拒绝缺少第二窗口、重复番号、慢失败被剔除、直连有效率不足、浏览器调用过多和反向误接纳。在线验证只使用隔离候选，方法见[第四步验收记录](../doc/byparr-candidate-acceptance-record.md)。
