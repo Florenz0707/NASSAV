@@ -503,3 +503,33 @@ docker exec -e PYTHONPATH=/tmp/nassav-path-probe:/app nassav-api-1 \
   --count 20 --subtitle-count 8 > /tmp/nassav-path-probe.jsonl
 # 生产库已有目标：将参数换为 --resource-targets --count 20 --root-count 3
 ```
+
+## Byparr blockMedia 隔离对照
+
+`probe_byparr_media.py` 在 API 容器中对隔离 Byparr 实例做配对测量。参数：`--window W1|W2`、`--count 1..100`（默认 20）、`--base-url`（必须是具有 `/ready` 且报告 v3.0.4 的隔离计时实例）、`--samples-file`（第二窗口重用第一窗口 JSONL 中的番号清单）。奇偶样本交错默认/阻止媒体的顺序，第二窗口反转；默认有效而阻止媒体失败时停止。输出脱敏 JSONL，不读写 Cookie、Redis、任务或配置。`byparr/instrument_media_experiment.py` 仅在固定 Byparr 镜像中运行，调用上游原函数并返回阶段计时。结果与限制见[第三步实验记录](../doc/byparr-media-experiment-record.md)。
+
+```bash
+# 创建仅本次实验使用的容器，与正式 API 使用同一网络；镜像固定
+# 如网络名称不同，先核对实际网络名称再替换 nassav_internal
+image='ghcr.io/thephaseless/byparr@sha256:874f719518f617d03a60e03411fc5d090647e1a877041e81f8dc965927c7deb6'
+docker create --name nassav-byparr-media-experiment --network nassav_internal \
+  --shm-size 512m --add-host host.docker.internal:host-gateway -e PYTHONPATH=/app \
+  --entrypoint /app/.venv/bin/python "$image" /tmp/instrument_media_experiment.py
+docker cp django_backend/scripts/byparr/instrument_media_experiment.py \
+  nassav-byparr-media-experiment:/tmp/instrument_media_experiment.py
+docker start nassav-byparr-media-experiment
+# 在 API 临时目录准备探针和两个既有发现函数
+# 三个文件分别是 probe_byparr_media.py、probe_p5_jable.py、probe_p5_missav.py
+docker exec nassav-api-1 mkdir -p /tmp/nassav-media-probe/scripts
+for script in probe_byparr_media.py probe_p5_jable.py probe_p5_missav.py; do
+  docker cp "django_backend/scripts/$script" "nassav-api-1:/tmp/nassav-media-probe/scripts/$script"
+done
+docker exec -e PYTHONPATH=/tmp/nassav-media-probe:/app nassav-api-1 \
+  python /tmp/nassav-media-probe/scripts/probe_byparr_media.py \
+  --window W1 --count 20 --base-url http://nassav-byparr-media-experiment:8191 \
+  > /tmp/nassav-media-w1.jsonl
+# W2 将第一窗口结果复制到 API 临时目录，改为 --window W2 并加 --samples-file
+# 验证完成后只清理本次临时容器和 /tmp/nassav-media-probe
+```
+
+等待 PoC 的候选容器使用相同镜像和包装器，额外设置 `BYPARR_EXPERIMENT_WAIT=business`，并把 `byparr/business_ready.py` 复制到 `/tmp/business_ready.py`。用 `--source Jable --count 10 --ready-base-url http://nassav-byparr-ready-experiment:8191` 做对照；此时两臂均为 `blockMedia=false`。候选保持原挑战求解，业务就绪时才读取新 HTML 快照，且由探针实际解析播放地址、番号、标题和封面。默认容器须报告 `waitMode=networkidle`，候选须报告 `waitMode=business`。只有阶段测量先确认等待瓶颈时才执行该 PoC；不能直接修改正式 Byparr。
