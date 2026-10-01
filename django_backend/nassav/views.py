@@ -22,6 +22,7 @@ from .resource_deletion import (
     resource_deletion_service,
 )
 from .external_search import external_search_service
+from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 from .serializers import (
     NewResourceSerializer,
     SourceCookieListSerializer,
@@ -225,6 +226,13 @@ class SourceListView(SchemaAPIView):
     def get(self, request):
         sources = list(source_manager.sources.keys())
         return Response({"code": 200, "message": "success", "data": sources})
+
+
+class SourceSearchCapabilitiesView(SchemaAPIView):
+    """Enabled source capabilities for actor and genre external search."""
+
+    def get(self, request):
+        return build_response(200, "success", external_search_service.capabilities())
 
 
 class SourceCookieView(SchemaAPIView):
@@ -641,6 +649,16 @@ class ActorDetailView(SchemaAPIView):
             )
         except Actor.DoesNotExist:
             return build_response(404, "演员不存在", None)
+        except SourceSearchUnavailable as error:
+            return build_response(
+                503, "所选搜索源未启用或尚不支持此搜索", {"reason": str(error)}
+            )
+        except SourceSearchError as error:
+            return build_response(
+                502, "外部源搜索失败，请稍后重试", {"reason": str(error)}
+            )
+        except ValueError as error:
+            return build_response(400, "搜索源或排序参数无效", {"reason": str(error)})
 
         data = {
             "detail": result.meta.get("actor"),
@@ -799,6 +817,16 @@ class GenreDetailView(SchemaAPIView):
             )
         except Genre.DoesNotExist:
             return build_response(404, "类别不存在", None)
+        except SourceSearchUnavailable as error:
+            return build_response(
+                503, "所选搜索源未启用或尚不支持此搜索", {"reason": str(error)}
+            )
+        except SourceSearchError as error:
+            return build_response(
+                502, "外部源搜索失败，请稍后重试", {"reason": str(error)}
+            )
+        except ValueError as error:
+            return build_response(400, "搜索源或排序参数无效", {"reason": str(error)})
 
         data = {
             "detail": result.meta.get("genre"),
@@ -952,6 +980,16 @@ class RecommendationSeedBlockView(SchemaAPIView):
             genre = Genre.objects.get(pk=payload["id"])
         except Genre.DoesNotExist:
             return build_response(404, "类别不存在", None)
+        except SourceSearchUnavailable as error:
+            return build_response(
+                503, "所选搜索源未启用或尚不支持此搜索", {"reason": str(error)}
+            )
+        except SourceSearchError as error:
+            return build_response(
+                502, "外部源搜索失败，请稍后重试", {"reason": str(error)}
+            )
+        except ValueError as error:
+            return build_response(400, "搜索源或排序参数无效", {"reason": str(error)})
         profile = recommendation_seed_profile_repository.block_genre(
             genre=genre,
             reason=payload["reason"],
@@ -997,6 +1035,16 @@ class RecommendationSeedBlockView(SchemaAPIView):
             genre = Genre.objects.get(pk=payload["id"])
         except Genre.DoesNotExist:
             return build_response(404, "类别不存在", None)
+        except SourceSearchUnavailable as error:
+            return build_response(
+                503, "所选搜索源未启用或尚不支持此搜索", {"reason": str(error)}
+            )
+        except SourceSearchError as error:
+            return build_response(
+                502, "外部源搜索失败，请稍后重试", {"reason": str(error)}
+            )
+        except ValueError as error:
+            return build_response(400, "搜索源或排序参数无效", {"reason": str(error)})
         profile = recommendation_seed_profile_repository.unblock_genre(genre=genre)
         if profile is None:
             return build_response(404, "类别屏蔽记录不存在", None)

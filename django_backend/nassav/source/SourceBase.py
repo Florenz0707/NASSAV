@@ -89,6 +89,18 @@ class SourceBase:
     def last_final_url(self, value: str | None) -> None:
         self._request_state.final_url = value
 
+    def search_listing(
+        self,
+        kind: str,
+        term: str,
+        *,
+        page: int = 1,
+        ordering: str = "-views",
+        force_refresh: bool = False,
+    ) -> list[dict]:
+        """Fetch source-native listing items; unsupported sources reject explicitly."""
+        raise NotImplementedError("This source does not support listing search")
+
     def set_domain(self, domain: str):
         self.domain = domain
 

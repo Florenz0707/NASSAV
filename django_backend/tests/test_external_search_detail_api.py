@@ -300,21 +300,14 @@ def test_actor_detail_api_returns_external_results(
 
 
 @pytest.mark.django_db
-def test_actor_detail_api_supports_non_jable_placeholder(actor_factory, api_client):
+def test_actor_detail_api_rejects_unimplemented_source(actor_factory, api_client):
     actor = actor_factory(name="Actor Placeholder")
-
     resp = api_client.get(
         f"/nassav/api/actors/{actor.id}/detail",
-        {"source": "missav", "page": 1, "page_size": 10},
+        {"source": "memo"},
     )
-    assert resp.status_code == 200
-
-    body = resp.json()
-    assert body["code"] == 200
-    assert body["data"]["external_source"] == "missav"
-    assert body["data"]["external_meta"]["implemented"] is False
-    assert body["data"]["external_results"] == []
-    assert body["pagination"]["total"] == 0
+    assert resp.status_code == 503
+    assert resp.json()["data"]["reason"] == "source_adapter_not_implemented"
 
 
 @pytest.mark.django_db

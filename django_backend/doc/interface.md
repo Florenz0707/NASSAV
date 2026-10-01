@@ -734,7 +734,7 @@ GET /nassav/api/actors/1/avatar
 
 - 方法：GET
 - 路径：`/nassav/api/actors/<actor_id>/detail`
-- 功能：返回演员详情与外部源搜索结果（首期仅 Jable 实现，其他源保留占位逻辑）
+- 功能：返回演员详情与外部源搜索结果（Jable/MissAV 已实现，实际可用项由搜索能力接口提供）
 - 路径参数：
   - `actor_id`：演员 ID（整数）
 - 支持 Query 参数：
@@ -871,7 +871,7 @@ GET /nassav/api/genres?order_by=name&order=asc
 
 - 方法：GET
 - 路径：`/nassav/api/genres/<genre_id>/detail`
-- 功能：返回类别详情与外部源搜索结果（首期仅 Jable 实现，其他源保留占位逻辑）
+- 功能：返回类别详情与外部源搜索结果（Jable/MissAV 已实现，实际可用项由搜索能力接口提供）
 - 路径参数：
   - `genre_id`：类别 ID（整数）
 - 支持 Query 参数：
@@ -1307,3 +1307,31 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 - 显式自动获取不依赖 `BrowserFetch.session_reuse_enabled`；不会开启普通页面请求的会话复用。
 - 浏览器禁用时保留原 HTTP 获取流程。浏览器会话缺少 Cookie/UA、页面校验失败、直连验证失败或写入保护拒绝时，自动获取仍返回 500，旧记录保留。
 - 使用现有刷新租约及版本检查，自动结果不会覆盖获取期间的手动更新或清空。
+
+## 演员、类别搜索源选择（2026-10-01）
+
+`GET /nassav/api/source/search-capabilities` 返回当前启用且已实现的搜索源，独立于原 `/source/list` 下载源接口：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "source": "missav",
+      "label": "MissAV",
+      "actor": true,
+      "genre": true,
+      "orderings": ["-views", "-likes", "-latest"]
+    }
+  ]
+}
+```
+
+演员 `/actors/{id}/detail`、类别 `/genres/{id}/detail` 沿用 `source` 参数，省略默认 Jable。支持 Jable/MissAV，实际可用项以能力接口为准。MissAV 优先使用对应源的演员/类别映射，缺少映射时使用实体名称关键词搜索；关键词结果不保证属于该演员或类别。支持按源站播放量、收藏量、发行日期降序，列表不提供数值，因此保留源站顺序，不对缺失指标做本地排序。
+
+错误状态：未知源或 MissAV 不支持的排序为 400；禁用或未实现源为 503；抓取、挑战页或业务结构校验失败为 502。有效空搜索仍为 200。失败不缓存，不返回部分成功页伪装成完整结果。分页仍是 `EXTERNAL_SEARCH_FETCH_PAGES` 页采集结果的本地分页，并非全站总量；强制刷新沿用 `force_refresh=true`。
+
+前端演员、类别页提供搜索源下拉选择，使用会话存储记住选择；缓存按实体、源和排序隔离，切换源重置分页，过期异步响应不会覆盖当前结果。添加资源时提交结果对应的源。
+
+演员/类别外部搜索请求单独使用 450 秒前端超时与 600 秒 Nginx 读取预算，以覆盖默认最多 5 页浏览器采集；普通 API 超时保持原设置。改变采集页数或浏览器等待预算时应同步评估这两个限制。

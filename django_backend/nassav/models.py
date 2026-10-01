@@ -108,7 +108,15 @@ class ActorSourceMapping(models.Model):
             match = re.search(r"/models/([^/?#]+)/?", self.source_actor_url)
             if match:
                 slug = match.group(1).strip()
-        self.source_actor_slug = slug.lower() if slug else None
+        if not slug and self.source_name == "missav" and self.source_actor_url:
+            match = re.search(r"/actresses/([^/?#]+)", self.source_actor_url)
+            if match:
+                from urllib.parse import unquote
+
+                slug = unquote(match.group(1))
+        self.source_actor_slug = (
+            (slug if self.source_name == "missav" else slug.lower()) if slug else None
+        )
 
         if (
             self.source_name == "jable"
@@ -191,7 +199,15 @@ class GenreSourceMapping(models.Model):
             )
             if match:
                 slug = match.group(1).strip()
-        self.source_genre_slug = slug.lower() if slug else None
+        if not slug and self.source_name == "missav" and self.source_genre_url:
+            match = re.search(r"/genres/([^/?#]+)", self.source_genre_url)
+            if match:
+                from urllib.parse import unquote
+
+                slug = unquote(match.group(1))
+        self.source_genre_slug = (
+            (slug if self.source_name == "missav" else slug.lower()) if slug else None
+        )
 
         if self.aliases is None:
             self.aliases = []

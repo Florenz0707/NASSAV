@@ -9,6 +9,10 @@ import ResourceCard from '../components/ResourceCard.vue'
 import ResourcePagination from '../components/ResourcePagination.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import CustomSelect from '../components/CustomSelect.vue'
+import {
+  useExternalSearchSources,
+  createSearchRequestGuard,
+} from '../composables/useExternalSearchSources.js'
 import EmptyState from '../components/EmptyState.vue'
 import BatchControls from '../components/BatchControls.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -39,6 +43,36 @@ const externalResources = ref([])
 const externalMeta = ref({})
 const externalPage = ref(1)
 const externalPagination = ref(null)
+const {
+  externalSource,
+  sourceOptions,
+  selectedCapability,
+  sourcesReady,
+  sourcesError,
+  loadSearchSources,
+  rememberSource,
+} = useExternalSearchSources('genre')
+const requestGuard = createSearchRequestGuard()
+const externalError = ref('')
+function externalCacheKey() {
+  return `external_genre_${genreId.value}_${externalSource.value}`
+}
+function onExternalSourceChange(value) {
+  requestGuard.invalidate()
+  externalSource.value = value
+  rememberSource()
+  externalSortOrder.value = 'desc'
+  resetExternalSearchState()
+  restoreExternalCache()
+  if (!externalSearched.value) startExternalSearch(1)
+}
+const availableSortOrders = computed(() =>
+  externalSortOrderOptions.filter((item) =>
+    selectedCapability.value?.orderings?.includes(
+      `${item.value === 'desc' ? '-' : ''}${externalSortBy.value}`
+    )
+  )
+)
 const EXTERNAL_CACHE_TTL_MS = 1000 * 60 * 60
 
 // queryKey -> pageNumber -> { results, meta }
@@ -92,7 +126,7 @@ watch(
 )
 
 function saveExternalCache() {
-  const key = `external_genre_${genreId.value}`
+  const key = externalCacheKey()
   sessionStorage.setItem(
     key,
     JSON.stringify({
@@ -110,7 +144,7 @@ function saveExternalCache() {
 }
 
 function getExternalQueryKey() {
-  return `${externalSortBy.value}|${externalSortOrder.value}`
+  return `${externalSource.value}|${externalSortBy.value}|${externalSortOrder.value}`
 }
 
 function getCachedExternalPage(pageNumber) {
@@ -143,7 +177,7 @@ async function scrollToTopAfterExternalRefresh() {
 }
 
 function restoreExternalCache() {
-  const key = `external_genre_${genreId.value}`
+  const key = externalCacheKey()
   try {
     const cached = JSON.parse(sessionStorage.getItem(key))
     if (cached && Date.now() - cached.timestamp < EXTERNAL_CACHE_TTL_MS) {
@@ -164,11 +198,19 @@ function restoreExternalCache() {
 }
 
 async function startExternalSearch(p = 1, forceRefresh = false) {
+  if (
+    !sourcesReady.value ||
+    !sourceOptions.value.some((item) => item.value === externalSource.value)
+  )
+    return
+  const request = requestGuard.begin()
+  externalError.value = ''
   externalSearched.value = true
   externalPage.value = p
 
   const cachedPage = getCachedExternalPage(p)
   if (!forceRefresh && cachedPage) {
+    loadingExternal.value = false
     externalResources.value = cachedPage.results || []
     externalMeta.value = cachedPage.meta || externalMeta.value
     externalPagination.value = cachedPage.pagination || externalPagination.value
@@ -179,7 +221,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
   loadingExternal.value = true
   try {
     const params = {
-      source: 'jable',
+      source: externalSource.value,
       page: p,
       page_size: 20,
       ordering:
@@ -189,6 +231,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
       params.force_refresh = true
     }
     const response = await genreApi.getDetail(genreId.value, params)
+    if (!requestGuard.current(request)) return
     if (response && response.data) {
       const formattedResults = (response.data.external_results || []).map((r) => ({
         ...r,
@@ -212,17 +255,22 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
       await scrollToTopAfterExternalRefresh()
     }
   } catch (err) {
-    toastStore.error(err.message || '获取外部搜索失败')
+    if (!requestGuard.current(request)) return
+    externalError.value = err.message || '获取外部搜索失败'
+    toastStore.error(externalError.value)
     if (p === 1) {
       externalResources.value = []
       externalPagination.value = null
     }
   } finally {
-    loadingExternal.value = false
+    if (requestGuard.current(request)) loadingExternal.value = false
   }
 }
 
 function resetExternalSearchState() {
+  requestGuard.invalidate()
+  loadingExternal.value = false
+  externalError.value = ''
   externalSearched.value = false
   externalResources.value = []
   externalMeta.value = {}
@@ -260,7 +308,7 @@ async function handleAddExternal(item) {
   if (addingExternalAvids.value.has(item.avid)) return
   addingExternalAvids.value.add(item.avid)
   try {
-    await resourceStore.addResource(item.avid, 'any')
+    await resourceStore.addResource(item.avid, item.source || externalSource.value)
   } catch (err) {
     if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
       toastStore.info(`${item.avid} 已经在资源库中`)
@@ -486,10 +534,12 @@ async function handleManualRefresh() {
 }
 
 onMounted(async () => {
+  await loadSearchSources()
   genreId.value = route.params.genreId
   await loadGenreInfo(genreId.value)
   await fetchResources(1)
   restoreExternalCache()
+  if (currentTab.value === 'external' && !externalSearched.value) startExternalSearch(1)
 })
 
 watch(
@@ -525,11 +575,12 @@ watch(
   () => route.params.genreId,
   async (v) => {
     genreId.value = v
+    resetExternalSearchState()
     await loadGenreInfo(genreId.value)
     page.value = 1
     await fetchResources(1)
-    resetExternalSearchState()
     restoreExternalCache()
+    if (currentTab.value === 'external' && !externalSearched.value) startExternalSearch(1)
   }
 )
 
@@ -557,6 +608,7 @@ watch(searchQuery, () => {
 })
 
 onBeforeUnmount(() => {
+  requestGuard.invalidate()
   if (_searchTimer) clearTimeout(_searchTimer)
 })
 
@@ -739,17 +791,52 @@ function goBack() {
     </div>
 
     <div v-show="currentTab === 'external'">
+      <div class="flex items-center gap-3 mb-4 text-text-primary">
+        <span>搜索源</span>
+        <CustomSelect
+          :model-value="externalSource"
+          :options="sourceOptions"
+          class="w-36"
+          @update:model-value="onExternalSourceChange"
+        />
+        <button
+          v-if="sourcesError"
+          class="tw-btn tw-btn-primary rounded-lg px-3 py-2"
+          @click="loadSearchSources"
+        >
+          重新加载搜索源
+        </button>
+      </div>
+      <p v-if="sourcesError" class="text-text-muted mb-4" role="alert">{{ sourcesError }}</p>
+      <p v-if="externalSource === 'missav'" class="text-text-muted text-sm mb-4">
+        缺少演员或类别映射时按名称关键词匹配；排序沿用源站，列表不提供播放量和收藏量数值。
+      </p>
+      <p v-if="externalError" class="text-accent-danger mb-4" role="alert">
+        搜索失败：{{ externalError }}
+      </p>
       <div
         v-if="!externalSearched && !loadingExternal"
         class="flex flex-col items-center justify-center py-20 text-center"
       >
-        <div class="text-4xl mb-4 opacity-50">🌐</div>
+        <svg
+          class="w-10 h-10 mb-4 text-text-muted"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18" />
+        </svg>
         <h3 class="text-xl font-medium text-[var(--text-primary)] mb-2">外部搜索</h3>
         <p class="text-[var(--text-muted)] mb-6 max-w-md">
-          点击下方按钮，开始使用外部数据源 (当前仅支持 Jable)
+          点击下方按钮，开始使用外部数据源 (可选择 Jable 或 MissAV)
           搜索与该类别相关的资源。搜索过程可能需要一些时间，请耐心等待。
         </p>
-        <button class="tw-btn tw-btn-primary px-8 py-2 rounded-lg" @click="startExternalSearch(1)">
+        <button
+          class="tw-btn tw-btn-primary px-8 py-2 rounded-lg"
+          :disabled="!sourcesReady || !externalSource"
+          @click="startExternalSearch(1)"
+        >
           开始搜索
         </button>
       </div>
@@ -762,9 +849,7 @@ function goBack() {
         <div
           class="mb-4 text-sm text-[var(--text-muted)] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         >
-          <span
-            >来源: {{ externalMeta.supported_sources?.includes('jable') ? 'jable' : 'jable' }}</span
-          >
+          <span>来源: {{ externalSource }}</span>
           <div class="flex items-center gap-2">
             <span class="text-[var(--text-muted)]">排序</span>
             <CustomSelect
@@ -775,7 +860,7 @@ function goBack() {
             />
             <CustomSelect
               :model-value="externalSortOrder"
-              :options="externalSortOrderOptions"
+              :options="availableSortOrders"
               class="w-24"
               @update:model-value="(v) => ((externalSortOrder = v), onExternalSortChange())"
             />
@@ -790,7 +875,7 @@ function goBack() {
         </div>
 
         <EmptyState
-          v-if="externalResources.length === 0"
+          v-if="externalResources.length === 0 && !externalError"
           icon="◇"
           title="外部搜索暂无结果"
           description="未能从外部源获取到关于该类别的更多资源"

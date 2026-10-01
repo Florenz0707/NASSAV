@@ -545,3 +545,9 @@ docker exec -e PYTHONPATH=/tmp/nassav-media-probe:/app nassav-api-1 \
 `probe_byparr_runtime.py --phase serial|mixed --avids AVID ...` 只能在专用 `nassav-wait-postgres`、`nassav-wait-redis` 与 `/tmp/acceptance-resource` 环境中运行。创建样本资源，调用真实 Cookie/资源 API、Celery 刮削队列及 ASGI WebSocket；worker 分别设置 `-c 1`/`-c 2`，混合阶段另执行同步刷新。候选包装器的 `/experiment-stats` 只返回请求/错误/在途计数，不用于正式 API。Cookie 失败保留为失败，但独立任务检查继续执行。
 
 评估器可加 `--runtime SERIAL.jsonl MIXED.jsonl`，将预筛、API/worker、媒体下载和回滚门槛分开报告；仅预筛通过时输出 PRE_SCREEN_PASS，运行阶段任何失败或缺项输出 NO_GO，全部通过才能 READY_FOR_OBSERVATION。这也不代表已完成 24 小时观察。本轮 Jable 自动 Cookie API 500 已阻止灰度，详细证据见第四步记录。
+
+## 外部搜索隔离现场验收
+
+`probe_external_search_runtime.py --fetch-pages 1` 验证 MissAV/Jable 演员、类别搜索、指定源任务提交及缓存。可用 `--source missav|jable --entity actor|genre` 缩小验证范围，`--keyword` 删除临时 MissAV 映射以验证名称搜索回退；`--fetch-pages` 仅允许 1 或 2。运行 `PYTHONPATH=/app python scripts/probe_external_search_runtime.py --fetch-pages 1`，宿主机使用 `uv run`。
+
+探针强制数据库路径 `/tmp/nassav-external-search-acceptance.sqlite3` 和 Redis 主机 `nassav-external-search-test-redis`；仅在临时运行时迁移、创建测试实体/映射和登录用户，任务只进入临时队列。首个验收失败即退出 2。不得用于正式库。输出仅为状态、来源、条数与耗时，不输出 Cookie、UA、任务状态令牌。需已启用的 Byparr、同出口代理和两个下载源；日志目录写到 `/tmp/search-log`。

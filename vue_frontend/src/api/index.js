@@ -16,6 +16,8 @@ const api = axios.create({
 })
 
 const RECOMMENDATION_REQUEST_TIMEOUT = 120000
+// Five source pages can each spend 60s in the browser plus direct/control work.
+const EXTERNAL_SEARCH_REQUEST_TIMEOUT = 450000
 const unauthorizedListeners = new Set()
 
 export function onUnauthorized(listener) {
@@ -81,6 +83,7 @@ export const authApi = {
 
 // 下载源管理（包含设置 Cookie）
 export const sourceApi = {
+  getSearchCapabilities: () => api.get('/source/search-capabilities'),
   // 获取所有可用下载源列表
   getList: () => api.get('/source/list'),
   // 获取所有已设置的源 Cookie 列表
@@ -137,7 +140,8 @@ export const actorApi = {
   // 获取演员列表（聚合统计）
   getList: (params = {}) => api.get('/actors', { params }),
   // 获取演员详情（包括外部搜索）
-  getDetail: (actorId, params = {}) => api.get(`/actors/${actorId}/detail`, { params }),
+  getDetail: (actorId, params = {}) =>
+    api.get(`/actors/${actorId}/detail`, { params, timeout: EXTERNAL_SEARCH_REQUEST_TIMEOUT }),
   // 获取演员头像图片URL
   getAvatarUrl: (actorId) => {
     const base = api.defaults.baseURL.replace(/\/$/, '')
@@ -150,7 +154,8 @@ export const genreApi = {
   // 获取类别列表（聚合统计）
   getList: (params = {}) => api.get('/genres', { params }),
   // 获取类别详情（包括外部搜索）
-  getDetail: (genreId, params = {}) => api.get(`/genres/${genreId}/detail`, { params }),
+  getDetail: (genreId, params = {}) =>
+    api.get(`/genres/${genreId}/detail`, { params, timeout: EXTERNAL_SEARCH_REQUEST_TIMEOUT }),
 }
 
 // 资源管理

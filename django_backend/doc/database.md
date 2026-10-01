@@ -291,3 +291,7 @@ Database:
 ### Jable 自动 Cookie 写入（2026-10-01）
 
 Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连验证后，通过现有 `set_session_if_version` 原子保存 Cookie、UA、到期时间及出口信息。复用既有字段，无需数据库迁移；版本变化或刷新租约失效时拒绝写入。见 [修复验证记录](jable-auto-cookie-fix-record.md)。
+
+## MissAV 演员、类别搜索映射
+
+复用 `ActorSourceMapping`、`GenreSourceMapping`，源名为 `missav`。可填写原站的 `source_actor_slug` / `source_genre_slug`，或填写 `/en/actresses/{名称}` / `/en/genres/{名称}` URL；保存时提取并解码 slug，MissAV 保留大小写（例如 `VR`）。不保存动态 `dmN` 前缀作为 slug。旧记录没有自动回填；此前已被转小写的 MissAV slug 可通过原站 URL 重新保存修正。缺少映射时按实体名称关键词搜索，不擅自生成映射或写入生产数据。字段没有变化，无需迁移。
