@@ -484,6 +484,7 @@ class ExternalSearchService:
         ordering: str,
         force_refresh: bool = False,
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
+        should_cancel: Callable[[], None] | None = None,
     ) -> ExternalSearchResult:
         actor = (
             Actor.objects.annotate(resource_count=Count("resources"))
@@ -511,6 +512,7 @@ class ExternalSearchService:
             ),
             force_refresh=force_refresh,
             on_progress=on_progress,
+            should_cancel=should_cancel,
         )
         result.meta["actor"] = {
             "id": actor_pk,
@@ -531,6 +533,7 @@ class ExternalSearchService:
         ordering: str,
         force_refresh: bool = False,
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
+        should_cancel: Callable[[], None] | None = None,
     ) -> ExternalSearchResult:
         genre = (
             Genre.objects.annotate(resource_count=Count("resources"))
@@ -558,6 +561,7 @@ class ExternalSearchService:
             ),
             force_refresh=force_refresh,
             on_progress=on_progress,
+            should_cancel=should_cancel,
         )
         result.meta["genre"] = {
             "id": genre_pk,
@@ -587,6 +591,7 @@ class ExternalSearchService:
         fetch_page,
         force_refresh: bool = False,
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
+        should_cancel: Callable[[], None] | None = None,
     ) -> ExternalSearchResult:
         normalized_source = self._normalize_source(source_name)
         adapter = self.adapters.get(normalized_source)
@@ -676,12 +681,17 @@ class ExternalSearchService:
             )
 
         if normalized_items is None:
+            if should_cancel is not None:
+                should_cancel()
             normalized_items = self._collect_items(
                 fetch_page=fetch_page,
                 ordering=safe_ordering,
                 fetch_pages=fetch_pages,
                 on_progress=report_progress if on_progress is not None else None,
+                should_cancel=should_cancel,
             )
+            if should_cancel is not None:
+                should_cancel()
             cache_backend.set(cache_key, normalized_items, cache_ttl)
 
         sorted_items = (
@@ -718,12 +728,15 @@ class ExternalSearchService:
         ordering: str,
         fetch_pages: int,
         on_progress: Callable[[list[dict], int], None] | None = None,
+        should_cancel: Callable[[], None] | None = None,
     ) -> list[dict]:
         _ = ordering
         merged: list[dict] = []
         seen: set[str] = set()
 
         for target_page in range(1, fetch_pages + 1):
+            if should_cancel is not None:
+                should_cancel()
             try:
                 page_items = fetch_page(target_page, ordering)
             except Exception as error:
@@ -739,6 +752,8 @@ class ExternalSearchService:
                 if isinstance(error, (SourceSearchError, ValueError)):
                     raise
                 raise SourceSearchError("source_fetch_failed") from error
+            if should_cancel is not None:
+                should_cancel()
             if not page_items:
                 break
 

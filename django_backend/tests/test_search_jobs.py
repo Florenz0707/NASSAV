@@ -33,7 +33,7 @@ class MemoryStore(JobStore):
 
     def save(self, snapshot):
         existing = self.get(snapshot["task_id"])
-        if existing and existing["state"] in {"succeeded", "failed"}:
+        if existing and existing["state"] in {"succeeded", "failed", "cancelled"}:
             return existing
         value = {
             **snapshot,
@@ -54,7 +54,69 @@ def runtime(monkeypatch):
     monkeypatch.setattr(search_jobs, "RedisSearchJobStore", lambda: store)
     enqueue = Mock()
     monkeypatch.setattr(search_jobs.run_search_job, "apply_async", enqueue)
+    monkeypatch.setattr(search_jobs.run_search_job.app.control, "revoke", Mock())
     return store, enqueue
+
+
+@pytest.mark.django_db
+def test_cancel_requires_token_releases_lock_and_allows_resubmit(
+    actor_factory, api_client, runtime
+):
+    query = {"entity_type": "actor", "entity_id": actor_factory().pk, "source": "jable"}
+    submitted = api_client.post("/nassav/api/search/jobs", query, format="json").json()[
+        "data"
+    ]
+    task_id = submitted["task_id"]
+    url = f"/nassav/api/search/jobs/{task_id}/cancel"
+    assert api_client.post(url, {"token": "bad"}, format="json").status_code == 403
+    response = api_client.post(url, {"token": submitted["token"]}, format="json")
+    assert response.status_code == 200
+    assert response.json()["data"]["state"] == "cancelled"
+    assert "query_key" not in response.json()["data"]
+    assert not runtime[0].locks
+    assert search_jobs.execute_search_job(task_id)["state"] == "cancelled"
+    assert (
+        api_client.post(url, {"token": submitted["token"]}, format="json").status_code
+        == 200
+    )
+    retry = api_client.post("/nassav/api/search/jobs", query, format="json").json()[
+        "data"
+    ]
+    assert retry["task_id"] != task_id
+    search_jobs.run_search_job.app.control.revoke.assert_called_with(task_id)
+
+
+@pytest.mark.django_db
+def test_running_cancel_stops_after_current_page_and_preserves_partial_result(
+    actor_factory, runtime, settings, monkeypatch
+):
+    settings.EXTERNAL_SEARCH_FETCH_PAGES = 3
+    settings.EXTERNAL_SEARCH_CACHE_ENABLED = False
+    actor = actor_factory()
+    job, _ = search_jobs.submit_search_job(
+        {"entity_type": "actor", "entity_id": actor.pk, "source": "jable"}
+    )
+    fetched = []
+
+    def fetch(**kwargs):
+        fetched.append(kwargs["page"])
+        if kwargs["page"] == 2:
+            cancelled = search_jobs.cancel_search_job(job["task_id"])
+            assert cancelled["pages_completed"] == 1
+            assert cancelled["result"]["data"]["external_meta"]["partial"]
+        return [{"avid": f"TEST-{kwargs['page']:03}", "metrics": {"views": 1}}]
+
+    monkeypatch.setattr(
+        search_jobs.external_search_service.adapters["jable"],
+        "search_actor_items",
+        Mock(side_effect=fetch),
+    )
+    final = search_jobs.execute_search_job(job["task_id"])
+    assert final["state"] == "cancelled"
+    assert fetched == [1, 2]
+    assert final["pages_completed"] == 1
+    assert not runtime[0].locks
+    assert runtime[0].save({**final, "state": "succeeded"})["state"] == "cancelled"
 
 
 @pytest.mark.django_db
@@ -93,6 +155,12 @@ def test_api_submission_worker_poll_and_completed_reuse(
     assert result["state"] == "succeeded"
     polled = api_client.get(path, {"token": job["token"]}).json()["data"]
     assert polled["result"]["data"]["external_results"][0]["avid"] == "TEST-123"
+    assert (
+        api_client.post(
+            f"{path}/cancel", {"token": job["token"]}, format="json"
+        ).status_code
+        == 409
+    )
     assert "query_key" not in polled
     assert (
         api_client.post("/nassav/api/search/jobs", query, format="json").json()["data"][

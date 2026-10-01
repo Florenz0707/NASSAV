@@ -626,3 +626,5 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 ## 逐页外部搜索
 
 `uv run pytest tests/test_search_jobs.py tests/test_access_control.py -v`，无需公网或正式 Redis。覆盖 MissAV/Jable 的演员/类别累计去重、running 阶段快照、后续页失败后保留结果与重试、不缓存残缺列表、终态保护、通知负载以及已登录 WebSocket 透传。前端 `pnpm run test` 验证逐页呈现、推送/查询竞态与旧版本防护。
+
+`test_search_jobs.py` 还覆盖带签名凭证的取消接口、排队任务释放锁后重试、运行任务取消后停止后续页及保留阶段结果。前端 `externalSearchTask.test.js` 覆盖提交响应未到时点击取消，最终仍调用后台取消接口。

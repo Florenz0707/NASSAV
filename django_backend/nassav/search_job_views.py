@@ -9,6 +9,8 @@ from nassav.search_jobs import (
     get_search_job,
     search_job_token,
     valid_search_job_token,
+    cancel_search_job,
+    SearchJobAlreadyFinished,
 )
 from nassav.source.search_contracts import SourceSearchUnavailable
 
@@ -71,3 +73,19 @@ class SearchJobStatusView(SchemaAPIView):
         if snapshot is None:
             return build_response(404, "搜索任务已过期或不存在，请重新搜索", None)
         return build_response(200, "success", public_snapshot(snapshot))
+
+
+class SearchJobCancelView(SchemaAPIView):
+    def post(self, request, task_id):
+        task_id = str(task_id)
+        if not valid_search_job_token(task_id, request.data.get("token", "")):
+            return build_response(403, "搜索任务访问凭证无效", None)
+        try:
+            snapshot = cancel_search_job(task_id)
+        except SearchJobAlreadyFinished:
+            return build_response(409, "搜索任务已结束，无法取消", None)
+        except Exception:
+            return build_response(503, "搜索任务状态暂不可用", None)
+        if snapshot is None:
+            return build_response(404, "搜索任务已过期或不存在", None)
+        return build_response(200, "搜索任务已取消", public_snapshot(snapshot))

@@ -1362,11 +1362,17 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 
 需要已登录会话及提交返回的 token；凭证无效返回 403，快照不存在返回 404，Redis 不可用返回 503。
 
-HTTP 200 的 data.state 为 `queued`、`running`、`succeeded` 或 `failed`。每个非空源页面完成后，`running` 快照就包含累计去重、排序和分页后的 `data.result`，结构为 `data.detail`、`data.external_source`、`data.external_meta`、`data.external_results` 和 `pagination`。阶段结果的 detail 可以为空，`external_meta.partial=true`，`pages_completed` 记录已完成源页数。`pagination.total/pages` 与 Jable 本地排序会随后续页更新，最终成功后 `partial=false`。命中成功缓存时可直接返回完整结果。
+HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `cancelled`。每个非空源页面完成后，`running` 快照就包含累计去重、排序和分页后的 `data.result`，结构为 `data.detail`、`data.external_source`、`data.external_meta`、`data.external_results` 和 `pagination`。阶段结果的 detail 可以为空，`external_meta.partial=true`，`pages_completed` 记录已完成源页数。`pagination.total/pages` 与 Jable 本地排序会随后续页更新，最终成功后 `partial=false`。命中成功缓存时可直接返回完整结果。
 
 失败时包含 `error_code`、`message`；若此前有成功源页，保留最后的阶段结果，前端展示“不完整”提示，允许添加已获取的资源。阶段结果不写入成功缓存，重试不会将残缺列表当作成功结果。请求第 N 个展示页时，只有累计结果足以覆盖该展示页才能显示卡片。
 
-既有登录 WebSocket `/nassav/ws/tasks/` 增加 `external_search_update`，data 仅含 `task_id/state/version/updated_at`。收到新版本通知后，前端立即带签名 token 查询快照；通知不包含搜索结果、查询和 token。保留每 1.5 秒轮询恢复断线或丢失通知，忽略旧版本响应；切源、换页或离开页面时终止旧请求与订阅，后台任务继续执行。
+### POST /api/search/jobs/{task_id}/cancel
+
+需要已登录会话及 CSRF，JSON 请求体为 `{ "token": "提交时返回的签名凭证" }`。凭证无效返回 403，任务不存在返回 404，已成功或失败返回 409，Redis 不可用返回 503。成功返回 200 和 `cancelled` 快照；重复取消返回同一终态。已获取的阶段结果保留，后续同条件查询可重新提交任务。
+
+排队任务会向 Celery 发送撤销通知；运行中的任务在当前外站请求返回后停止后续页面抓取。取消状态先写入 Redis，迟到结果不会覆盖终态，也不会写入成功缓存。页面上的取消按钮发送该请求；离开页面只停止本地轮询。
+
+既有登录 WebSocket `/nassav/ws/tasks/` 增加 `external_search_update`，data 仅含 `task_id/state/version/updated_at`。收到新版本通知后，前端立即带签名 token 查询快照；通知不包含搜索结果、查询和 token。保留每 1.5 秒轮询恢复断线或丢失通知，忽略旧版本响应；切源、换页或离开页面时终止旧请求与订阅，后台任务继续执行。演员与类别页面进入外部搜索页、切源或调整排序均不自动提交；用户通过搜索按钮手动发起，按钮下方选择搜索源。
 
 ### 默认搜索源与封面
 

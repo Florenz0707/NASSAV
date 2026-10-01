@@ -22,6 +22,14 @@ JOB_DEADLINE = 1800
 RESULT_TTL = 300
 
 
+class SearchJobCancelled(Exception):
+    """A worker observed a persisted cancellation between upstream pages."""
+
+
+class SearchJobAlreadyFinished(Exception):
+    """Cancellation lost the race to a terminal snapshot."""
+
+
 class RedisSearchJobStore(RedisJobStore):
     """Keep search snapshots and locks separate from resource jobs."""
 
@@ -152,7 +160,7 @@ def submit_search_job(
     owner = store.acquire(key, task_id)
     if owner is not None:
         existing = get_search_job(owner, store=store) if owner else None
-        if existing and existing["state"] != "failed":
+        if existing and existing["state"] not in {"failed", "cancelled"}:
             # Forced requests only reuse work that is still running.
             fresh = existing.get("completed_at", 0) + RESULT_TTL > time.time()
             if existing["state"] in {"queued", "running"} or (
@@ -208,6 +216,35 @@ def get_search_job(task_id: str, *, store: JobStore | None = None) -> dict | Non
     return snapshot
 
 
+def cancel_search_job(task_id: str, *, store: JobStore | None = None) -> dict | None:
+    """Persist cancellation before revoking delivery; the worker checks between pages."""
+    store = store or RedisSearchJobStore()
+    snapshot = get_search_job(task_id, store=store)
+    if snapshot is None or snapshot["state"] == "cancelled":
+        return snapshot
+    if snapshot["state"] in {"succeeded", "failed"}:
+        raise SearchJobAlreadyFinished
+    cancelled = _save(
+        store,
+        {
+            **snapshot,
+            "state": "cancelled",
+            "error_code": "CANCELLED",
+            "message": "搜索已取消",
+            "completed_at": time.time(),
+        },
+    )
+    if cancelled["state"] != "cancelled":
+        raise SearchJobAlreadyFinished
+    store.release(cancelled["query_key"], task_id)
+    try:
+        run_search_job.app.control.revoke(task_id)
+    except Exception:
+        # The snapshot is authoritative even if the broker cannot revoke delivery.
+        logger.warning("搜索任务已取消，但队列撤销通知失败 task_id={}", task_id)
+    return cancelled
+
+
 def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict | None:
     store = store or RedisSearchJobStore()
     initial = get_search_job(task_id, store=store)
@@ -225,12 +262,20 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
             },
         )
     snapshot = _save(store, {**snapshot, "state": "running"})
+    if snapshot["state"] != "running":
+        return snapshot
     query = snapshot["query"]
+
+    def ensure_active() -> None:
+        current = store.get(task_id)
+        if current is None or current["state"] == "cancelled":
+            raise SearchJobCancelled
+        if not store.renew(snapshot["query_key"], task_id):
+            raise RuntimeError("搜索任务所有权已失效")
 
     def progress(result: ExternalSearchResult) -> None:
         nonlocal snapshot
-        if not store.renew(snapshot["query_key"], task_id):
-            raise RuntimeError("搜索任务所有权已失效")
+        ensure_active()
         snapshot = _save(
             store,
             {
@@ -254,7 +299,9 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
             ordering=query["ordering"],
             force_refresh=query["force_refresh"],
             on_progress=progress,
+            should_cancel=ensure_active,
         )
+        ensure_active()
         payload = _result_payload(result, query)
         return _save(
             store,
@@ -265,6 +312,8 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
                 "completed_at": time.time(),
             },
         )
+    except SearchJobCancelled:
+        return store.get(task_id)
     except SoftTimeLimitExceeded:
         code, message = "TIMEOUT", "搜索任务超时，请重试"
     except (SourceSearchError, SourceSearchUnavailable):

@@ -61,8 +61,11 @@ const {
   progress: searchProgress,
   search: searchExternal,
   cancel: cancelExternalSearch,
+  cancelJob: cancelExternalSearchJob,
 } = useExternalSearchTask()
 const externalError = ref('')
+const externalCancelled = ref(false)
+const cancellingExternal = ref(false)
 function externalCacheKey() {
   return `external_cn_v4_actor_${actorId.value}_${externalSource.value}`
 }
@@ -72,8 +75,6 @@ function onExternalSourceChange(value) {
   externalSource.value = value
   externalSortOrder.value = 'desc'
   resetExternalSearchState()
-  restoreExternalCache()
-  if (!externalSearched.value) startExternalSearch(1)
 }
 const availableSortOrders = computed(() =>
   externalSortOrderOptions.filter((item) =>
@@ -100,8 +101,19 @@ const externalSortOrderOptions = [
 ]
 
 function onExternalSortChange() {
-  externalPage.value = 1
-  startExternalSearch(1)
+  resetExternalSearchState()
+}
+
+async function stopExternalSearch() {
+  if (!loadingExternal.value || cancellingExternal.value) return
+  cancellingExternal.value = true
+  try {
+    if (await cancelExternalSearchJob()) externalCancelled.value = true
+  } catch (error) {
+    toastStore.error(error.message || '取消搜索失败，请重试')
+  } finally {
+    cancellingExternal.value = false
+  }
 }
 
 function clearExternalQueryCache() {
@@ -216,6 +228,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
   cancelExternalSearch()
   const request = requestGuard.begin()
   externalError.value = ''
+  externalCancelled.value = false
   externalSearched.value = true
   externalPage.value = p
 
@@ -291,6 +304,7 @@ function resetExternalSearchState() {
   requestGuard.invalidate()
   loadingExternal.value = false
   externalError.value = ''
+  externalCancelled.value = false
   externalSearched.value = false
   externalResources.value = []
   externalMeta.value = {}
@@ -559,18 +573,7 @@ onMounted(async () => {
   await loadActorInfo(actorId.value)
   await fetchResources(1)
   restoreExternalCache()
-  if (currentTab.value === 'external' && !externalSearched.value) startExternalSearch(1)
 })
-
-watch(
-  currentTab,
-  (newTab) => {
-    if (newTab === 'external' && !externalSearched.value && !loadingExternal.value) {
-      startExternalSearch(1)
-    }
-  },
-  { immediate: true }
-)
 
 // 状态变化时同步到 URL
 watch(
@@ -600,7 +603,6 @@ watch(
     page.value = 1
     await fetchResources(1)
     restoreExternalCache()
-    if (currentTab.value === 'external' && !externalSearched.value) startExternalSearch(1)
   }
 )
 
@@ -816,11 +818,28 @@ function goBack() {
     </div>
 
     <div v-show="currentTab === 'external'">
-      <div class="flex items-center gap-3 mb-4 text-text-primary">
-        <span>搜索源</span>
+      <div class="flex flex-col items-center gap-3 mb-6">
+        <button
+          v-if="!loadingExternal"
+          class="tw-btn tw-btn-primary px-8 py-2 rounded-lg"
+          :disabled="!sourcesReady || !externalSource"
+          @click="startExternalSearch(1, externalSearched)"
+        >
+          {{ externalSearched ? '重新搜索' : '开始搜索' }}
+        </button>
+        <button
+          v-else
+          class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] text-accent-danger px-8 py-2 rounded-lg disabled:opacity-50"
+          :disabled="cancellingExternal"
+          @click="stopExternalSearch"
+        >
+          {{ cancellingExternal ? '正在取消…' : '取消搜索' }}
+        </button>
+        <span class="text-text-secondary text-sm">搜索源</span>
         <CustomSelect
           :model-value="externalSource"
           :options="sourceOptions"
+          :disabled="loadingExternal"
           class="w-36"
           @update:model-value="onExternalSourceChange"
         />
@@ -856,6 +875,9 @@ function goBack() {
       <p v-if="externalError" class="text-accent-danger mb-4" role="alert">
         搜索失败：{{ externalError }}
       </p>
+      <p v-if="externalCancelled" class="text-text-muted mb-4 text-center" role="status">
+        搜索已取消，已获取的结果仍可查看。
+      </p>
       <div
         v-if="!externalSearched && !loadingExternal"
         class="flex flex-col items-center justify-center py-20 text-center"
@@ -871,16 +893,9 @@ function goBack() {
         </svg>
         <h3 class="text-xl font-medium text-[var(--text-primary)] mb-2">外部搜索</h3>
         <p class="text-[var(--text-muted)] mb-6 max-w-md">
-          点击下方按钮，开始使用外部数据源 (可选择 Jable 或 MissAV)
+          点击上方按钮，开始使用所选外部数据源
           搜索与该演员相关的资源。搜索过程可能需要一些时间，请耐心等待。
         </p>
-        <button
-          class="tw-btn tw-btn-primary px-8 py-2 rounded-lg"
-          :disabled="!sourcesReady || !externalSource"
-          @click="startExternalSearch(1)"
-        >
-          开始搜索
-        </button>
       </div>
 
       <div
@@ -900,12 +915,14 @@ function goBack() {
             <CustomSelect
               :model-value="externalSortBy"
               :options="externalSortByOptions"
+              :disabled="loadingExternal"
               class="w-28"
               @update:model-value="(v) => ((externalSortBy = v), onExternalSortChange())"
             />
             <CustomSelect
               :model-value="externalSortOrder"
               :options="availableSortOrders"
+              :disabled="loadingExternal"
               class="w-24"
               @update:model-value="(v) => ((externalSortOrder = v), onExternalSortChange())"
             />
@@ -922,7 +939,7 @@ function goBack() {
         <EmptyState
           v-if="externalResources.length === 0 && !externalError"
           icon="◇"
-          title="外部搜索暂无结果"
+          :title="externalCancelled ? '搜索已取消' : '外部搜索暂无结果'"
           description="未能从外部源获取到关于该演员的更多资源"
         />
 

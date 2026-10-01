@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { pollExternalSearch, waitForSearchPoll } from '../src/composables/useExternalSearchTask.js'
+import {
+  pollExternalSearch,
+  useExternalSearchTask,
+  waitForSearchPoll,
+} from '../src/composables/useExternalSearchTask.js'
+import { externalSearchApi } from '../src/api/index.js'
 
 test('queued submission polls through running to a completed result', async () => {
   const states = []
@@ -80,6 +85,37 @@ test('abort immediately releases the pending polling timer', async () => {
   const waiting = waitForSearchPoll(controller.signal, 60000)
   controller.abort()
   await waiting
+})
+
+test('manual cancellation waits for submission and cancels the server task', async () => {
+  const original = {
+    submit: externalSearchApi.submit,
+    getJob: externalSearchApi.getJob,
+    cancelJob: externalSearchApi.cancelJob,
+  }
+  let finishSubmission
+  const calls = []
+  externalSearchApi.submit = () =>
+    new Promise((resolve) => {
+      finishSubmission = resolve
+    })
+  externalSearchApi.getJob = async () => ({ data: { state: 'cancelled' } })
+  externalSearchApi.cancelJob = async (id, token) => {
+    calls.push([id, token])
+    return { data: { state: 'cancelled' } }
+  }
+  try {
+    const task = useExternalSearchTask()
+    const searching = task.search({}, () => true)
+    const cancelling = task.cancelJob()
+    finishSubmission({ data: { task_id: 'job-1', token: 'signed', state: 'queued' } })
+    assert.equal(await cancelling, true)
+    assert.equal(await searching, null)
+    assert.deepEqual(calls, [['job-1', 'signed']])
+    assert.equal(task.status.value, 'cancelled')
+  } finally {
+    Object.assign(externalSearchApi, original)
+  }
 })
 
 test('push wakes polling, renders each page and ignores unrelated or stale events', async () => {

@@ -22,7 +22,7 @@ from nassav.resource_service import (
 
 SNAPSHOT_TTL = 86400
 LOCK_TTL = 14400
-TERMINAL_STATES = {"succeeded", "failed"}
+TERMINAL_STATES = {"succeeded", "failed", "cancelled"}
 _RELEASE_LOCK = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
 _RENEW_LOCK = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end"
 

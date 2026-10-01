@@ -342,6 +342,8 @@ Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验
 
 搜索任务在现有 `scrape` 队列执行；API 与 scrape worker 都需要更新代码并重启。前端更新后使用任务接口。worker 软限 900 秒、硬限 930 秒；队列等待和失联 worker 在提交后 1800 秒通过状态查询显式失败。正常停止页面轮询不撤销后台抓取，返回页面重发相同查询可复用任务。
 
+手动取消验证：提交任务后以 `POST /api/search/jobs/{task_id}/cancel` 发送签名 token；状态应变为 `cancelled`，阶段结果仍可读取，同条件重试获得新任务 ID。运行中取消只等待当前外站请求结束，不再抓后续页。前端进入演员或类别外部搜索页后，应先显示搜索按钮及其下方来源菜单，切源和改排序不应自动提交任务。
+
 ### 逐页搜索回归
 
 `uv run pytest tests/test_search_jobs.py tests/test_access_control.py -v` 覆盖每页完成前后快照、四种源/实体组合、后续页失败保留结果、不缓存残缺列表、终态保护和已登录 WebSocket 通知。前端 `pnpm run test` 覆盖通知即时唤醒、HTTP 查询期间的通知竞态、旧版本响应、失败阶段卡片和订阅清理。`External search page ... failed` 日志补充白名单原因代码，未知异常仅记 `unclassified`，不输出 URL/Cookie/HTML。
