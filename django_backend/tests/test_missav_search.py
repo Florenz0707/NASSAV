@@ -29,7 +29,7 @@ def test_listing_uses_existing_browser_policy(kind):
     browser = Mock(provider="byparr")
     url = listing_url("missav.ai", kind, "波多野結衣", 2, "-likes")
     browser.fetch.return_value = PageResult(
-        html=HTML, final_url=url.replace("/en/", "/dm8/en/"), provider="byparr"
+        html=HTML, final_url=url.replace("/cn/", "/dm8/cn/"), provider="byparr"
     )
     source = MissAV("http://proxy.test:8080", page_fetcher=PageFetchService(browser))
     source.browser_fetch_strategy = "browser_first"
@@ -274,3 +274,12 @@ def test_switching_sources_keeps_cached_results_separate(
         assert response.json()["data"]["external_results"][0]["avid"] == avid
     missav.search_listing.assert_called_once()
     jable.search_listing.assert_called_once()
+
+
+def test_chinese_listing_path_and_empty_page():
+    from nassav.source.MissAVListings import valid_listing
+
+    assert "/cn/genres/" in listing_url("missav.ai", "genres", "VR", 1, "-views")
+    assert valid_listing(
+        "<title>MissAV</title><h1>搜索</h1><p>没有找到视频</p>", "missav.ai"
+    )
