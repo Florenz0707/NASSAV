@@ -16,6 +16,7 @@ from nassav.page_fetching import (
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import source_cookie_repository
 from nassav.source.SourceBase import SourceBase
+from nassav.source.search_contracts import SourceSearchError
 
 
 class Jable(SourceBase):
@@ -91,6 +92,34 @@ class Jable(SourceBase):
             expected_version,
             write_guard=write_guard,
         )
+
+    def search_listing(
+        self,
+        kind: str,
+        term: str,
+        *,
+        page: int = 1,
+        ordering: str = "-views",
+        force_refresh: bool = False,
+    ) -> list[dict]:
+        """Expose failures to external search while retaining legacy list callers."""
+        self._request_state.listing_failure = None
+        if kind == "models":
+            items = self.get_model_videos(
+                term, page, ordering, force_refresh=force_refresh
+            )
+        elif kind == "tags":
+            items = self.get_tag_videos(term, page, force_refresh=force_refresh)
+        elif kind == "categories":
+            items = self.get_category_videos(term, page, force_refresh=force_refresh)
+        elif kind == "search":
+            items = self.search(term, page, force_refresh=force_refresh)
+        else:
+            raise ValueError("Unsupported Jable listing kind")
+        failure = self._request_state.listing_failure
+        if failure is not None:
+            raise SourceSearchError(f"jable_listing_{failure}")
+        return items
 
     def get_html(self, avid: str) -> Optional[str]:
         urls = [
@@ -616,6 +645,8 @@ class Jable(SourceBase):
             and getattr(active_fetcher.browser, "provider", None) == "byparr"
             else None,
         )
+        if not result.ok:
+            self._request_state.listing_failure = result.failure
         return result.html if result.ok else None
 
     def _is_detail_page_html(self, html: str) -> bool:

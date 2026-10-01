@@ -9,6 +9,11 @@ urlpatterns = [
     path("api/auth/login", auth_views.login_view, name="auth-login"),
     path("api/auth/logout", auth_views.logout_view, name="auth-logout"),
     # GET /api/source/list - 获取可用的下载源列表
+    path(
+        "api/source/search-capabilities",
+        views.SourceSearchCapabilitiesView.as_view(),
+        name="source-search-capabilities",
+    ),
     path("api/source/list", views.SourceListView.as_view(), name="source-list"),
     # GET/POST/DELETE /api/source/cookie - 源Cookie管理
     path("api/source/cookie", views.SourceCookieView.as_view(), name="source-cookie"),

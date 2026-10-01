@@ -14,6 +14,13 @@ from nassav.page_fetching import (
 from nassav.source.CookieRepository import source_cookie_repository
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
+from nassav.source.MissAVListings import (
+    listing_url,
+    parse_listing,
+    valid_listing,
+    verify_listing_url,
+)
+from nassav.source.search_contracts import SourceSearchError
 
 
 class MissAV(SourceBase):
@@ -40,6 +47,38 @@ class MissAV(SourceBase):
 
     def get_source_name(self) -> str:
         return "MissAV"
+
+    def search_listing(
+        self,
+        kind: str,
+        term: str,
+        *,
+        page: int = 1,
+        ordering: str = "-views",
+        force_refresh: bool = False,
+    ) -> list[dict]:
+        # The external search service owns validated result caching.
+        url = listing_url(self.domain, kind, term, page, ordering)
+        fetcher = self.page_fetcher.for_lookup()
+        result = fetcher.fetch(
+            url,
+            direct_fetch=lambda: self.fetch_page(
+                url, referer=f"https://{self.domain}/en"
+            ),
+            validator=lambda html: valid_listing(html, self.domain),
+            strategy=self.browser_fetch_strategy,
+            source=self.get_source_name(),
+            path_kind="search" if kind == "search" else "listing",
+            session_handler=self
+            if fetcher.session_reuse_enabled
+            and self.proxy
+            and getattr(fetcher.browser, "provider", None) == "byparr"
+            else None,
+        )
+        if not result.ok:
+            raise SourceSearchError(f"missav_listing_{result.failure}")
+        verify_listing_url(url, result.final_url)
+        return parse_listing(result.html, self.domain)
 
     def get_html(self, avid: str) -> Optional[str]:
         """Fetch candidates in their original order and validate both paths alike."""

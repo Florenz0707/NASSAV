@@ -13,6 +13,9 @@ from nassav.models import AVResource, Actor, Genre
 from nassav.recommendation.actor_source_mapping import actor_source_mapping_service
 from nassav.recommendation.genre_source_mapping import genre_source_mapping_service
 from nassav.services import source_manager
+from nassav.source.SourceBase import SourceBase
+from nassav.source.CookieRepository import proxy_route_profile
+from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 
 
 @dataclass
@@ -68,6 +71,42 @@ class ExternalSourceAdapter(ABC):
     ) -> list[dict]:
         raise NotImplementedError
 
+    def _normalize_items(self, raw_items: list[dict]) -> list[dict]:
+        output: list[dict] = []
+        for item in raw_items:
+            metrics = dict(item.get("metrics") or {})
+            output.append(
+                {
+                    "avid": str(item.get("avid", "")).strip().upper(),
+                    "source_title": str(item.get("title", "")).strip(),
+                    "source": str(item.get("source", self.source_name)).strip()
+                    or self.source_name,
+                    "thumbnail_url": str(item.get("cover_url", "")).strip(),
+                    "detail_url": str(item.get("detail_url", "")).strip(),
+                    "metrics": metrics,
+                }
+            )
+        valid_items = [item for item in output if item["avid"]]
+        self._attach_library_presence(valid_items)
+        return valid_items
+
+    def _attach_library_presence(self, items: list[dict]) -> None:
+        avids = [str(item.get("avid", "")).strip().upper() for item in items]
+        valid_avids = [avid for avid in avids if avid]
+        if not valid_avids:
+            return
+
+        existing_avids = {
+            str(avid).strip().upper()
+            for avid in AVResource.objects.filter(avid__in=valid_avids).values_list(
+                "avid",
+                flat=True,
+            )
+        }
+        for item in items:
+            avid = str(item.get("avid", "")).strip().upper()
+            item["in_library"] = avid in existing_avids
+
 
 class PlaceholderExternalSourceAdapter(ExternalSourceAdapter):
     def __init__(self, source_name: str):
@@ -96,7 +135,7 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
     ) -> list[dict]:
         jable = self._get_jable_source()
         if jable is None:
-            return []
+            raise SourceSearchUnavailable("source_disabled")
 
         actor_pk = self._get_model_pk(actor)
         if actor_pk is None:
@@ -132,7 +171,7 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         _ = ordering
         jable = self._get_jable_source()
         if jable is None:
-            return []
+            raise SourceSearchUnavailable("source_disabled")
 
         genre_pk = self._get_model_pk(genre)
         if genre_pk is None:
@@ -198,6 +237,14 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         sort_by: str,
         force_refresh: bool,
     ) -> list[dict]:
+        if isinstance(jable, SourceBase):
+            return jable.search_listing(
+                "models",
+                model_slug,
+                page=page,
+                ordering=sort_by,
+                force_refresh=force_refresh,
+            )
         try:
             return jable.get_model_videos(
                 model_slug=model_slug,
@@ -220,6 +267,14 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         page: int,
         force_refresh: bool,
     ) -> list[dict]:
+        if isinstance(jable, SourceBase):
+            return jable.search_listing(
+                "search",
+                keyword,
+                page=page,
+                ordering="-views",
+                force_refresh=force_refresh,
+            )
         try:
             return jable.search(
                 keyword,
@@ -237,6 +292,14 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         page: int,
         force_refresh: bool,
     ) -> list[dict]:
+        if isinstance(jable, SourceBase):
+            return jable.search_listing(
+                "tags",
+                tag_slug,
+                page=page,
+                ordering="-views",
+                force_refresh=force_refresh,
+            )
         try:
             return jable.get_tag_videos(
                 tag_slug,
@@ -254,6 +317,14 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         page: int,
         force_refresh: bool,
     ) -> list[dict]:
+        if isinstance(jable, SourceBase):
+            return jable.search_listing(
+                "categories",
+                category_slug,
+                page=page,
+                ordering="-views",
+                force_refresh=force_refresh,
+            )
         try:
             return jable.get_category_videos(
                 category_slug,
@@ -267,6 +338,8 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         for source in source_manager.sources.values():
             source_name = getattr(source, "get_source_name", lambda: "")()
             if str(source_name).strip().lower() == self.source_name:
+                if isinstance(source, SourceBase):
+                    source_manager.refresh_source_session(source.get_source_name())
                 return cast("JableSearchProtocol", source)
         logger.warning("Jable source is unavailable in SourceManager")
         return None
@@ -291,40 +364,64 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
             return "post_date"
         return "video_viewed"
 
-    def _normalize_items(self, raw_items: list[dict]) -> list[dict]:
-        output: list[dict] = []
-        for item in raw_items:
-            metrics = dict(item.get("metrics") or {})
-            output.append(
-                {
-                    "avid": str(item.get("avid", "")).strip().upper(),
-                    "source_title": str(item.get("title", "")).strip(),
-                    "source": str(item.get("source", "Jable")).strip() or "Jable",
-                    "thumbnail_url": str(item.get("cover_url", "")).strip(),
-                    "detail_url": str(item.get("detail_url", "")).strip(),
-                    "metrics": metrics,
-                }
-            )
-        valid_items = [item for item in output if item["avid"]]
-        self._attach_library_presence(valid_items)
-        return valid_items
 
-    def _attach_library_presence(self, items: list[dict]) -> None:
-        avids = [str(item.get("avid", "")).strip().upper() for item in items]
-        valid_avids = [avid for avid in avids if avid]
-        if not valid_avids:
-            return
+class MissAVExternalSourceAdapter(ExternalSourceAdapter):
+    source_name = "missav"
+    implemented = True
 
-        existing_avids = {
-            str(avid).strip().upper()
-            for avid in AVResource.objects.filter(avid__in=valid_avids).values_list(
-                "avid",
-                flat=True,
-            )
-        }
-        for item in items:
-            avid = str(item.get("avid", "")).strip().upper()
-            item["in_library"] = avid in existing_avids
+    def search_actor_items(
+        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
+    ) -> list[dict]:
+        mapping = actor_source_mapping_service.get_actor_source_mappings(
+            actor_ids=[cast(int, actor.pk)],
+            source_name=self.source_name,
+        ).get(cast(int, actor.pk))
+        term = (
+            mapping.source_actor_slug
+            if mapping and mapping.source_actor_slug
+            else actor.name
+        )
+        kind = "actresses" if mapping and mapping.source_actor_slug else "search"
+        return self._search(kind, term, page, ordering, force_refresh)
+
+    def search_genre_items(
+        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
+    ) -> list[dict]:
+        mapping = genre_source_mapping_service.get_genre_source_mappings(
+            genre_ids=[cast(int, genre.pk)],
+            source_name=self.source_name,
+        ).get(cast(int, genre.pk))
+        term = (
+            mapping.source_genre_slug
+            if mapping and mapping.source_genre_slug
+            else genre.name
+        )
+        kind = "genres" if mapping and mapping.source_genre_slug else "search"
+        return self._search(kind, term, page, ordering, force_refresh)
+
+    def _search(
+        self, kind: str, term: str, page: int, ordering: str, force_refresh: bool
+    ) -> list[dict]:
+        source = next(
+            (
+                item
+                for item in source_manager.sources.values()
+                if item.get_source_name().lower() == self.source_name
+            ),
+            None,
+        )
+        if source is None:
+            raise SourceSearchUnavailable("source_disabled")
+        if isinstance(source, SourceBase):
+            source_manager.refresh_source_session(source.get_source_name())
+        items = cast(SourceBase, source).search_listing(
+            kind,
+            term,
+            page=page,
+            ordering=ordering,
+            force_refresh=force_refresh,
+        )
+        return self._normalize_items(items)
 
 
 class ExternalSearchService:
@@ -336,9 +433,27 @@ class ExternalSearchService:
     def __init__(self):
         self.adapters: dict[str, ExternalSourceAdapter] = {
             "jable": JableExternalSourceAdapter(),
-            "missav": PlaceholderExternalSourceAdapter("missav"),
+            "missav": MissAVExternalSourceAdapter(),
             "memo": PlaceholderExternalSourceAdapter("memo"),
         }
+
+    def capabilities(self) -> list[dict]:
+        enabled = {
+            item.get_source_name().lower() for item in source_manager.sources.values()
+        }
+        return [
+            {
+                "source": name,
+                "label": "MissAV" if name == "missav" else "Jable",
+                "actor": True,
+                "genre": True,
+                "orderings": ["-views", "-likes", "-latest"]
+                if name == "missav"
+                else ["-views", "views", "-likes", "likes", "-latest", "latest"],
+            }
+            for name, adapter in self.adapters.items()
+            if adapter.implemented and name in enabled
+        ]
 
     def search_actor_detail(
         self,
@@ -458,29 +573,24 @@ class ExternalSearchService:
         )
 
         if adapter is None:
-            return ExternalSearchResult(
-                items=[],
-                pagination=self._empty_pagination(safe_page, safe_page_size),
-                meta={
-                    "source": normalized_source,
-                    "implemented": False,
-                    "message": "source_not_supported",
-                    "supported_sources": sorted(self.adapters.keys()),
-                    "cache": {"enabled": False, "hit": False},
-                },
-            )
-
+            raise ValueError("source_not_supported")
         if not adapter.implemented:
-            return ExternalSearchResult(
-                items=[],
-                pagination=self._empty_pagination(safe_page, safe_page_size),
-                meta={
-                    "source": normalized_source,
-                    "implemented": False,
-                    "message": "source_adapter_not_implemented",
-                    "cache": {"enabled": False, "hit": False},
-                },
-            )
+            raise SourceSearchUnavailable("source_adapter_not_implemented")
+        capability = next(
+            (
+                entry
+                for entry in self.capabilities()
+                if entry["source"] == normalized_source
+            ),
+            None,
+        )
+        if capability is None:
+            raise SourceSearchUnavailable("source_disabled")
+        if (
+            normalized_source == "missav"
+            and safe_ordering not in capability["orderings"]
+        ):
+            raise ValueError("MissAV supports descending views, likes and latest only")
 
         fetch_pages = self._fetch_pages_limit()
         cache_enabled = self._cache_enabled()
@@ -491,9 +601,16 @@ class ExternalSearchService:
             else NoopExternalSearchCacheBackend()
         )
 
+        selected_source = next(
+            item
+            for item in source_manager.sources.values()
+            if item.get_source_name().lower() == normalized_source
+        )
+        domain = getattr(selected_source, "domain", "")
+        route = proxy_route_profile(getattr(selected_source, "proxy", None)) or "direct"
         cache_key = (
-            "external-search:"
-            f"{entity_type}:{entity_id}:{normalized_source}:"
+            "external-search:v3:"
+            f"{entity_type}:{entity_id}:{normalized_source}:{domain}:{route}:"
             f"{fetch_pages}:{safe_ordering}"
         )
         cache_hit = False
@@ -511,7 +628,11 @@ class ExternalSearchService:
             )
             cache_backend.set(cache_key, normalized_items, cache_ttl)
 
-        sorted_items = self._sort_items(normalized_items, safe_ordering)
+        sorted_items = (
+            normalized_items
+            if normalized_source == "missav"
+            else self._sort_items(normalized_items, safe_ordering)
+        )
         page_items, pagination = self._paginate(
             sorted_items,
             page=safe_page,
@@ -545,11 +666,13 @@ class ExternalSearchService:
                 page_items = fetch_page(target_page, ordering)
             except Exception as error:
                 logger.warning(
-                    "external search page fetch failed. page=%s error=%s",
+                    "External search page {} failed: {}",
                     target_page,
-                    error,
+                    type(error).__name__,
                 )
-                break
+                if isinstance(error, (SourceSearchError, ValueError)):
+                    raise
+                raise SourceSearchError("source_fetch_failed") from error
             if not page_items:
                 break
 

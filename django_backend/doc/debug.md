@@ -331,3 +331,7 @@ Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验
 ### Jable 自动 Cookie 500 回归
 
 回归文件：`tests/test_jable_auto_cookie.py`。在后端目录运行 `uv run pytest tests/test_jable_auto_cookie.py -v`，覆盖 HTTP 403 旧入口、浏览器与直连校验失败、手动更新/清空及租约保护。现场结果见 [修复验证记录](jable-auto-cookie-fix-record.md)。
+
+## 可选搜索源验证
+
+离线运行 `uv run pytest tests/test_missav_search.py tests/test_external_search_detail_api.py -v`；前端运行 `pnpm run test`。覆盖源能力、映射与关键词回退、错误状态、分页缓存、变体去重及慢响应保护。隔离现场用法见 [探针说明](../scripts/README.md) 与 [执行记录](selectable-external-search-execution.md)。
