@@ -258,3 +258,32 @@ def test_clear_settings_manager_cache_recreates_instance():
         manager2 = get_settings_manager(config_path)
 
         assert manager1 is not manager2
+
+
+@pytest.mark.django_db
+def test_default_search_source_persists_and_rejects_unknown(client):
+    from nassav.user_settings import clear_settings_manager_cache
+
+    assert (
+        client.put(
+            "/nassav/api/setting",
+            data={"default_external_search_source": "missav"},
+            content_type="application/json",
+        ).status_code
+        == 200
+    )
+    clear_settings_manager_cache()
+    assert (
+        client.get("/nassav/api/setting").json()["data"][
+            "default_external_search_source"
+        ]
+        == "missav"
+    )
+    assert (
+        client.put(
+            "/nassav/api/setting",
+            data={"default_external_search_source": "unknown"},
+            content_type="application/json",
+        ).status_code
+        == 400
+    )

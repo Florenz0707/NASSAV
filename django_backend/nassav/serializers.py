@@ -75,6 +75,7 @@ class UserSettingSerializer(serializers.Serializer):
     font_family = serializers.CharField()
     color_mode = serializers.CharField()
     search_result_display_style = serializers.CharField()
+    default_external_search_source = serializers.CharField()
 
 
 class UserSettingUpdateSerializer(serializers.Serializer):
@@ -85,6 +86,9 @@ class UserSettingUpdateSerializer(serializers.Serializer):
     font_family = serializers.CharField(required=False)
     color_mode = serializers.CharField(required=False)
     search_result_display_style = serializers.CharField(required=False)
+    default_external_search_source = serializers.ChoiceField(
+        choices=["jable", "missav"], required=False
+    )
 
     def validate_enable_avatar(self, value):
         """验证 enable_avatar 值"""

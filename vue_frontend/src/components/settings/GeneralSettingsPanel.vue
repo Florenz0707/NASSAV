@@ -18,6 +18,7 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  searchSourceOptions: { type: Array, required: true },
   availableFonts: {
     type: Array,
     required: true,
@@ -123,6 +124,19 @@ const emit = defineEmits(['update:previewFont', 'save'])
               :options="searchResultDisplayOptions"
               class="min-w-[12rem]"
               @update:model-value="settings.searchResultDisplayStyle = $event"
+            />
+          </div>
+
+          <div class="flex items-center justify-between pt-4 border-t border-white/10">
+            <div>
+              <div class="text-primary font-medium">默认外部搜索源</div>
+              <div class="text-sm text-muted">用于演员和类别搜索；页面切换来源不会修改此设置</div>
+            </div>
+            <CustomSelect
+              :model-value="settings.defaultExternalSearchSource"
+              :options="searchSourceOptions"
+              class="min-w-[12rem]"
+              @update:model-value="settings.defaultExternalSearchSource = $event"
             />
           </div>
 
