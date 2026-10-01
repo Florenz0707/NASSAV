@@ -622,3 +622,7 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 `test_missav_search.py` 增加中文路径、空结果和动态前缀回归。`test_search_covers.py` 覆盖源隔离、图片域名限制、原子缓存、下载大小及 Cookie 不外传。`test_search_jobs.py` 覆盖任务 API、真实业务调用边界、去重、终态复用、失败重试、超时、队列故障及持久化默认源。
 
 运行：`DEBUG=false NASSAV_CONFIG_PATH=config/config.example.yaml DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-search-tests.sqlite3 uv run pytest tests/test_missav_search.py tests/test_search_covers.py tests/test_search_jobs.py tests/test_user_settings.py -v`。离线测试使用模拟存储，不访问正式数据库或 Redis。现场脚本见 scripts/README.md。
+
+## 逐页外部搜索
+
+`uv run pytest tests/test_search_jobs.py tests/test_access_control.py -v`，无需公网或正式 Redis。覆盖 MissAV/Jable 的演员/类别累计去重、running 阶段快照、后续页失败后保留结果与重试、不缓存残缺列表、终态保护、通知负载以及已登录 WebSocket 透传。前端 `pnpm run test` 验证逐页呈现、推送/查询竞态与旧版本防护。

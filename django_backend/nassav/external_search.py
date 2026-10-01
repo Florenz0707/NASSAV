@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+import re
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
@@ -481,6 +483,7 @@ class ExternalSearchService:
         page_size: int,
         ordering: str,
         force_refresh: bool = False,
+        on_progress: Callable[[ExternalSearchResult], None] | None = None,
     ) -> ExternalSearchResult:
         actor = (
             Actor.objects.annotate(resource_count=Count("resources"))
@@ -507,6 +510,7 @@ class ExternalSearchService:
                 force_refresh=force_refresh,
             ),
             force_refresh=force_refresh,
+            on_progress=on_progress,
         )
         result.meta["actor"] = {
             "id": actor_pk,
@@ -526,6 +530,7 @@ class ExternalSearchService:
         page_size: int,
         ordering: str,
         force_refresh: bool = False,
+        on_progress: Callable[[ExternalSearchResult], None] | None = None,
     ) -> ExternalSearchResult:
         genre = (
             Genre.objects.annotate(resource_count=Count("resources"))
@@ -552,6 +557,7 @@ class ExternalSearchService:
                 force_refresh=force_refresh,
             ),
             force_refresh=force_refresh,
+            on_progress=on_progress,
         )
         result.meta["genre"] = {
             "id": genre_pk,
@@ -580,6 +586,7 @@ class ExternalSearchService:
         ordering: str,
         fetch_page,
         force_refresh: bool = False,
+        on_progress: Callable[[ExternalSearchResult], None] | None = None,
     ) -> ExternalSearchResult:
         normalized_source = self._normalize_source(source_name)
         adapter = self.adapters.get(normalized_source)
@@ -637,11 +644,43 @@ class ExternalSearchService:
             if normalized_items is not None:
                 cache_hit = True
 
+        def report_progress(items: list[dict], completed: int) -> None:
+            if on_progress is None:
+                return
+            ordered = (
+                items
+                if normalized_source == "missav"
+                else self._sort_items(items, safe_ordering)
+            )
+            visible, pagination = self._paginate(
+                ordered, page=safe_page, page_size=safe_page_size
+            )
+            on_progress(
+                ExternalSearchResult(
+                    items=visible,
+                    pagination=pagination,
+                    meta={
+                        "source": normalized_source,
+                        "implemented": True,
+                        "ordering": safe_ordering,
+                        "fetch_pages": fetch_pages,
+                        "pages_completed": completed,
+                        "partial": True,
+                        "cache": {
+                            "enabled": cache_enabled,
+                            "hit": False,
+                            "force_refresh": force_refresh,
+                        },
+                    },
+                )
+            )
+
         if normalized_items is None:
             normalized_items = self._collect_items(
                 fetch_page=fetch_page,
                 ordering=safe_ordering,
                 fetch_pages=fetch_pages,
+                on_progress=report_progress if on_progress is not None else None,
             )
             cache_backend.set(cache_key, normalized_items, cache_ttl)
 
@@ -661,6 +700,7 @@ class ExternalSearchService:
             meta={
                 "source": normalized_source,
                 "implemented": True,
+                "partial": False,
                 "ordering": safe_ordering,
                 "fetch_pages": fetch_pages,
                 "cache": {
@@ -672,7 +712,12 @@ class ExternalSearchService:
         )
 
     def _collect_items(
-        self, *, fetch_page, ordering: str, fetch_pages: int
+        self,
+        *,
+        fetch_page,
+        ordering: str,
+        fetch_pages: int,
+        on_progress: Callable[[list[dict], int], None] | None = None,
     ) -> list[dict]:
         _ = ordering
         merged: list[dict] = []
@@ -683,9 +728,13 @@ class ExternalSearchService:
                 page_items = fetch_page(target_page, ordering)
             except Exception as error:
                 logger.warning(
-                    "External search page {} failed: {}",
+                    "External search page {} failed: {} reason={}",
                     target_page,
                     type(error).__name__,
+                    str(error)
+                    if isinstance(error, SourceSearchError)
+                    and re.fullmatch(r"[A-Za-z0-9_.:-]{1,100}", str(error))
+                    else "unclassified",
                 )
                 if isinstance(error, (SourceSearchError, ValueError)):
                     raise
@@ -702,6 +751,8 @@ class ExternalSearchService:
                 merged.append(item)
                 new_count += 1
 
+            if on_progress is not None:
+                on_progress(list(merged), target_page)
             if new_count == 0:
                 break
 

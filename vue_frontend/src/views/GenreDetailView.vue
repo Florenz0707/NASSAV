@@ -55,6 +55,7 @@ const {
 const requestGuard = createSearchRequestGuard()
 const {
   status: searchStatus,
+  progress: searchProgress,
   search: searchExternal,
   cancel: cancelExternalSearch,
 } = useExternalSearchTask()
@@ -131,6 +132,7 @@ watch(
 )
 
 function saveExternalCache() {
+  if (externalMeta.value?.partial) return
   const key = externalCacheKey()
   sessionStorage.setItem(
     key,
@@ -185,7 +187,7 @@ function restoreExternalCache() {
   const key = externalCacheKey()
   try {
     const cached = JSON.parse(sessionStorage.getItem(key))
-    if (cached && Date.now() - cached.timestamp < EXTERNAL_CACHE_TTL_MS) {
+    if (cached && !cached.meta?.partial && Date.now() - cached.timestamp < EXTERNAL_CACHE_TTL_MS) {
       externalResources.value = cached.results
       externalMeta.value = cached.meta
       externalPage.value = cached.page
@@ -236,18 +238,15 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
     if (forceRefresh) {
       params.force_refresh = true
     }
-    const response = await searchExternal(
-      { entity_type: 'genre', entity_id: Number(genreId.value), ...params },
-      () => requestGuard.current(request)
-    )
-    if (!requestGuard.current(request)) return
-    if (response && response.data) {
+    function applyResult(response) {
+      if (!requestGuard.current(request) || !response?.data) return
+      const existing = new Map(externalResources.value.map((item) => [item.avid, item]))
       const formattedResults = (response.data.external_results || []).map((r) => ({
         ...r,
         title: r.source_title || r.original_title,
         cover_url: r.thumbnail_url,
         raw_metrics: r.metrics,
-        is_in_library: isExternalItemInLibrary(r),
+        is_in_library: isExternalItemInLibrary(r) || isExternalItemInLibrary(existing.get(r.avid)),
       }))
       externalResources.value = formattedResults
       externalMeta.value = response.data.external_meta || {}
@@ -255,8 +254,17 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
       if (response.data.detail) {
         genre.value = response.data.detail
       }
+    }
+    const response = await searchExternal(
+      { entity_type: 'genre', entity_id: Number(genreId.value), ...params },
+      () => requestGuard.current(request),
+      (result) => applyResult(result)
+    )
+    if (!requestGuard.current(request)) return
+    if (response && response.data) {
+      applyResult(response)
       setCachedExternalPage(p, {
-        results: formattedResults,
+        results: externalResources.value,
         meta: externalMeta.value,
         pagination: externalPagination.value,
       })
@@ -267,8 +275,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
     if (!requestGuard.current(request)) return
     externalError.value = err.message || '获取外部搜索失败'
     toastStore.error(externalError.value)
-    if (p === 1) {
-      externalResources.value = []
+    if (p === 1 && externalResources.value.length === 0) {
       externalPagination.value = null
     }
   } finally {
@@ -825,9 +832,19 @@ function goBack() {
       <p v-if="loadingExternal" class="text-muted text-sm mb-4" role="status">
         {{
           searchStatus === 'running'
-            ? '正在搜索，结果准备好后会自动显示…'
+            ? '正在搜索，已获取的结果会逐页显示…'
             : '搜索已提交，正在等待处理…'
         }}
+      </p>
+      <p v-if="loadingExternal && searchProgress" class="text-muted text-sm mb-4" role="status">
+        已完成 {{ searchProgress.pagesCompleted }} /
+        {{ searchProgress.fetchPages }} 页，结果与排序仍在更新。
+      </p>
+      <p
+        v-if="!loadingExternal && externalMeta.partial && externalError"
+        class="text-muted text-sm mb-4"
+      >
+        已保留成功获取的结果；列表不完整，可刷新重试。
       </p>
       <p v-if="externalError" class="text-accent-danger mb-4" role="alert">
         搜索失败：{{ externalError }}
@@ -859,7 +876,10 @@ function goBack() {
         </button>
       </div>
 
-      <div v-else-if="loadingExternal" class="flex items-center justify-center py-20">
+      <div
+        v-else-if="loadingExternal && externalResources.length === 0"
+        class="flex items-center justify-center py-20"
+      >
         <LoadingSpinner size="large" text="正在执行外部搜索，请耐心等待..." />
       </div>
 

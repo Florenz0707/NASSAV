@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core import signing
 from loguru import logger
 
-from nassav.external_search import external_search_service
+from nassav.external_search import ExternalSearchResult, external_search_service
 from nassav.models import Actor, Genre
 from nassav.scrape_jobs import JobStore, RedisJobStore
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
@@ -109,6 +109,39 @@ def _query_key(query: dict) -> str:
     return hashlib.sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()
 
 
+def _publish(snapshot: dict) -> None:
+    from nassav.consumers import send_task_update
+
+    # Global socket only carries routing/version; results need the signed API token.
+    event = {
+        key: snapshot[key] for key in ("task_id", "state", "version", "updated_at")
+    }
+    try:
+        send_task_update("external_search_update", event)
+    except Exception:
+        logger.warning(
+            "外部搜索推送失败 task_id={}，可通过快照恢复", snapshot["task_id"]
+        )
+
+
+def _save(store: JobStore, snapshot: dict) -> dict:
+    current = store.save(snapshot)
+    _publish(current)
+    return current
+
+
+def _result_payload(result: ExternalSearchResult, query: dict) -> dict:
+    return {
+        "data": {
+            "detail": result.meta.get(query["entity_type"]),
+            "external_source": query["source"],
+            "external_meta": result.meta,
+            "external_results": result.items,
+        },
+        "pagination": result.pagination,
+    }
+
+
 def submit_search_job(
     query: dict, *, store: JobStore | None = None
 ) -> tuple[dict, bool]:
@@ -138,11 +171,12 @@ def submit_search_job(
         state="queued",
         submitted_at=time.time(),
         result=None,
+        pages_completed=0,
         error_code=None,
         message=None,
     )
     try:
-        snapshot = store.save(snapshot)
+        snapshot = _save(store, snapshot)
         run_search_job.apply_async(
             args=(task_id,), task_id=task_id, queue="scrape", expires=JOB_DEADLINE
         )
@@ -161,13 +195,14 @@ def get_search_job(task_id: str, *, store: JobStore | None = None) -> dict | Non
         and snapshot["state"] in {"queued", "running"}
         and time.time() - snapshot["submitted_at"] > JOB_DEADLINE
     ):
-        snapshot = store.save(
+        snapshot = _save(
+            store,
             {
                 **snapshot,
                 "state": "failed",
                 "error_code": "TIMEOUT",
                 "message": "搜索任务已超时，请重试",
-            }
+            },
         )
         store.release(snapshot["query_key"], task_id)
     return snapshot
@@ -175,20 +210,39 @@ def get_search_job(task_id: str, *, store: JobStore | None = None) -> dict | Non
 
 def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict | None:
     store = store or RedisSearchJobStore()
-    snapshot = get_search_job(task_id, store=store)
-    if not snapshot or snapshot["state"] not in {"queued", "running"}:
-        return snapshot
+    initial = get_search_job(task_id, store=store)
+    if not initial or initial["state"] not in {"queued", "running"}:
+        return initial
+    snapshot: dict = initial
     if not store.renew(snapshot["query_key"], task_id):
-        return store.save(
+        return _save(
+            store,
             {
                 **snapshot,
                 "state": "failed",
                 "error_code": "WORKER_LOST",
                 "message": "搜索任务已过期，请重试",
-            }
+            },
         )
-    snapshot = store.save({**snapshot, "state": "running"})
+    snapshot = _save(store, {**snapshot, "state": "running"})
     query = snapshot["query"]
+
+    def progress(result: ExternalSearchResult) -> None:
+        nonlocal snapshot
+        if not store.renew(snapshot["query_key"], task_id):
+            raise RuntimeError("搜索任务所有权已失效")
+        snapshot = _save(
+            store,
+            {
+                **snapshot,
+                "state": "running",
+                "pages_completed": result.meta["pages_completed"],
+                "result": _result_payload(result, query),
+            },
+        )
+        if snapshot["state"] != "running":
+            raise RuntimeError("搜索任务已结束")
+
     try:
         entity = query["entity_type"]
         method = getattr(external_search_service, f"search_{entity}_detail")
@@ -199,23 +253,17 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
             page_size=query["page_size"],
             ordering=query["ordering"],
             force_refresh=query["force_refresh"],
+            on_progress=progress,
         )
-        payload = {
-            "data": {
-                "detail": result.meta.get(entity),
-                "external_source": query["source"],
-                "external_meta": result.meta,
-                "external_results": result.items,
-            },
-            "pagination": result.pagination,
-        }
-        return store.save(
+        payload = _result_payload(result, query)
+        return _save(
+            store,
             {
                 **snapshot,
                 "state": "succeeded",
                 "result": payload,
                 "completed_at": time.time(),
-            }
+            },
         )
     except SoftTimeLimitExceeded:
         code, message = "TIMEOUT", "搜索任务超时，请重试"
@@ -227,8 +275,8 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
         logger.exception("外部搜索任务失败 task_id={}", task_id)
         code, message = "INTERNAL_ERROR", "搜索失败，请稍后重试"
     store.release(snapshot["query_key"], task_id)
-    return store.save(
-        {**snapshot, "state": "failed", "error_code": code, "message": message}
+    return _save(
+        store, {**snapshot, "state": "failed", "error_code": code, "message": message}
     )
 
 

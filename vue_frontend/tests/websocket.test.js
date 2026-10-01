@@ -199,3 +199,24 @@ test('origin rejection closes without retry', async () => {
     state.cleanup()
   }
 })
+
+test('search WebSocket events reach active search subscribers', async () => {
+  const { subscribeSearchJobUpdates } = await import('../src/composables/searchJobEvents.js')
+  const events = []
+  const unsubscribe = subscribeSearchJobUpdates((event) => events.push(event))
+  const state = setup()
+  try {
+    state.socketStore.connect()
+    const socket = FakeWebSocket.instances[0]
+    socket.open()
+    const data = { task_id: 'search-id', state: 'running', version: 3, updated_at: 10 }
+    socket.onmessage({ data: JSON.stringify({ type: 'external_search_update', data }) })
+    assert.deepEqual(events, [data])
+    unsubscribe()
+    socket.onmessage({ data: JSON.stringify({ type: 'external_search_update', data }) })
+    assert.equal(events.length, 1)
+  } finally {
+    unsubscribe()
+    state.cleanup()
+  }
+})
