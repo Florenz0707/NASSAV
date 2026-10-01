@@ -94,6 +94,12 @@ export const sourceApi = {
   deleteCookie: (source) => api.delete('/source/cookie', { params: { source } }),
 }
 
+export const externalSearchApi = {
+  submit: (query, signal) => api.post('/search/jobs', query, { signal }),
+  getJob: (taskId, token, signal) =>
+    api.get(`/search/jobs/${taskId}`, { params: { token }, signal }),
+}
+
 // 用户设置管理
 export const settingsApi = {
   // 获取用户设置

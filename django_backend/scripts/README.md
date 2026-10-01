@@ -551,3 +551,9 @@ docker exec -e PYTHONPATH=/tmp/nassav-media-probe:/app nassav-api-1 \
 `probe_external_search_runtime.py --fetch-pages 1` 验证 MissAV/Jable 演员、类别搜索、指定源任务提交及缓存。可用 `--source missav|jable --entity actor|genre` 缩小验证范围，`--keyword` 删除临时 MissAV 映射以验证名称搜索回退；`--fetch-pages` 仅允许 1 或 2。运行 `PYTHONPATH=/app python scripts/probe_external_search_runtime.py --fetch-pages 1`，宿主机使用 `uv run`。
 
 探针强制数据库路径 `/tmp/nassav-external-search-acceptance.sqlite3` 和 Redis 主机 `nassav-external-search-test-redis`；仅在临时运行时迁移、创建测试实体/映射和登录用户，任务只进入临时队列。首个验收失败即退出 2。不得用于正式库。输出仅为状态、来源、条数与耗时，不输出 Cookie、UA、任务状态令牌。需已启用的 Byparr、同出口代理和两个下载源；日志目录写到 `/tmp/search-log`。
+
+## probe_async_search_runtime.py
+
+用法：`PYTHONPATH=/app python scripts/probe_async_search_runtime.py`，无命令行参数。
+
+仅允许 `DATABASE_PATH=/tmp/nassav-external-search-acceptance.sqlite3` 和 Redis 主机 `nassav-external-search-test-redis`。准备隔离配置，使用真实 Byparr 和源代理；运行目录必须可写入独立配置、日志与资源缓存。会创建临时用户、演员、类别及映射，并启动/关闭并发 1 的真实 Celery worker。使用单页抓取窗口，依次验证 MissAV 类别、演员、关键词和 Jable 类别、演员，输出计数、提交耗时、总耗时及图片字节数。验收完成后删除临时容器和存储。

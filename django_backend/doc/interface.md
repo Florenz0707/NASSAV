@@ -71,7 +71,8 @@ cd django_backend && uv run python scripts/generate_openapi.py
   "data": {
     "enable_avatar": "true",
     "display_title": "source_title",
-    "search_result_display_style": "grid"
+    "search_result_display_style": "grid",
+    "default_external_search_source": "jable"
   }
 }
 ```
@@ -113,7 +114,8 @@ PUT /nassav/api/setting
 {
   "enable_avatar": "false",
   "display_title": "translated_title",
-  "search_result_display_style": "masonry"
+  "search_result_display_style": "masonry",
+    "default_external_search_source": "missav"
 }
 ```
 
@@ -126,7 +128,8 @@ PUT /nassav/api/setting
   "data": {
     "enable_avatar": "false",
     "display_title": "translated_title",
-    "search_result_display_style": "masonry"
+    "search_result_display_style": "masonry",
+    "default_external_search_source": "missav"
   }
 }
 ```
@@ -1335,3 +1338,34 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 前端演员、类别页提供搜索源下拉选择，使用会话存储记住选择；缓存按实体、源和排序隔离，切换源重置分页，过期异步响应不会覆盖当前结果。添加资源时提交结果对应的源。
 
 演员/类别外部搜索请求单独使用 450 秒前端超时与 600 秒 Nginx 读取预算，以覆盖默认最多 5 页浏览器采集；普通 API 超时保持原设置。改变采集页数或浏览器等待预算时应同步评估这两个限制。
+
+## 外部搜索后台任务
+
+演员、类别页面使用后台任务；原有 `/api/actors/{id}/detail` 和 `/api/genres/{id}/detail` 同步接口保留。省略 source 时使用持久化默认源，不可用时选择启用且支持该搜索的源。
+
+### POST /api/search/jobs
+
+需要已登录会话；遵循既有 CSRF 要求。请求字段：
+
+- `entity_type`：`actor` 或 `genre`。
+- `entity_id`：正整数。
+- `source`：`jable` 或 `missav`，可省略。
+- `page`：正整数，默认 1；`page_size`：1–100，默认 20。
+- `ordering`：默认 `-views`；必须属于搜索源 capabilities 的排序项。
+- `force_refresh`：布尔值，默认 false。
+
+返回 HTTP 202，data 包含 `task_id`、签名 `token`、`state`、`duplicate` 和 `query`。相同查询复用正在执行的任务；普通查询可复用 300 秒内成功的任务。强制刷新只复用正在执行的相同强制刷新任务。
+
+参数无效返回 400，对象不存在返回 404，搜索源或队列不可用返回 503。提交不执行上游抓取。
+
+### GET /api/search/jobs/{task_id}?token=
+
+需要已登录会话及提交返回的 token；凭证无效返回 403，快照不存在返回 404，Redis 不可用返回 503。
+
+HTTP 200 的 data.state 为 `queued`、`running`、`succeeded` 或 `failed`。成功时 `data.result` 包含 `data.detail`、`data.external_source`、`data.external_meta`、`data.external_results` 和 `pagination`；失败时包含 `error_code`、`message`。前端每 1.5 秒轮询，切源、换页或离开页面时终止旧轮询。
+
+### 默认搜索源与封面
+
+`GET/PUT /api/setting` 增加 `default_external_search_source`，允许 `jable`（默认）和 `missav`。保存到现有实例共享 `user_settings.ini`；页面临时切换不修改默认值。旧文件启动时自动补齐此项，无数据库迁移。
+
+`GET /api/recommendations/cover?url=...&source=missav` 支持 MissAV 搜索封面。省略 source 保持 Jable 行为。MissAV 当前只允许实测的 `fourhoi.com`，使用源配置代理与中文页面 Referer；下载限 20 秒、5 MiB，不跟随重定向，不转发站点 Cookie，成功后原子写入现有封面缓存。

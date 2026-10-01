@@ -1,4 +1,5 @@
 <script setup>
+import { useExternalSearchTask } from '../composables/useExternalSearchTask.js'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
@@ -55,11 +56,17 @@ const {
   loadSearchSources,
 } = useExternalSearchSources('actor')
 const requestGuard = createSearchRequestGuard()
+const {
+  status: searchStatus,
+  search: searchExternal,
+  cancel: cancelExternalSearch,
+} = useExternalSearchTask()
 const externalError = ref('')
 function externalCacheKey() {
-  return `external_actor_${actorId.value}_${externalSource.value}`
+  return `external_cn_v4_actor_${actorId.value}_${externalSource.value}`
 }
 function onExternalSourceChange(value) {
+  cancelExternalSearch()
   requestGuard.invalidate()
   externalSource.value = value
   externalSortOrder.value = 'desc'
@@ -204,6 +211,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
     !sourceOptions.value.some((item) => item.value === externalSource.value)
   )
     return
+  cancelExternalSearch()
   const request = requestGuard.begin()
   externalError.value = ''
   externalSearched.value = true
@@ -231,7 +239,10 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
     if (forceRefresh) {
       params.force_refresh = true
     }
-    const response = await actorApi.getDetail(actorId.value, params)
+    const response = await searchExternal(
+      { entity_type: 'actor', entity_id: Number(actorId.value), ...params },
+      () => requestGuard.current(request)
+    )
     if (!requestGuard.current(request)) return
     if (response && response.data) {
       const formattedResults = (response.data.external_results || []).map((r) => ({
@@ -269,6 +280,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
 }
 
 function resetExternalSearchState() {
+  cancelExternalSearch()
   requestGuard.invalidate()
   loadingExternal.value = false
   externalError.value = ''
@@ -609,6 +621,7 @@ watch(searchQuery, () => {
 })
 
 onBeforeUnmount(() => {
+  cancelExternalSearch()
   requestGuard.invalidate()
   if (_searchTimer) clearTimeout(_searchTimer)
 })
@@ -815,6 +828,13 @@ function goBack() {
       <p v-if="sourcesError" class="text-text-muted mb-4" role="alert">{{ sourcesError }}</p>
       <p v-if="externalSource === 'missav'" class="text-text-muted text-sm mb-4">
         缺少演员或类别映射时按名称关键词匹配；排序沿用源站，列表不提供播放量和收藏量数值。
+      </p>
+      <p v-if="loadingExternal" class="text-muted text-sm mb-4" role="status">
+        {{
+          searchStatus === 'running'
+            ? '正在搜索，结果准备好后会自动显示…'
+            : '搜索已提交，正在等待处理…'
+        }}
       </p>
       <p v-if="externalError" class="text-accent-danger mb-4" role="alert">
         搜索失败：{{ externalError }}

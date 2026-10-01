@@ -1130,6 +1130,7 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
             "actor_seed_limit": 1,
             "genre_seed_limit": 1,
             "avoid_recent_recommendations": "false",
+            "random_seed": 42,  # Pin novelty jitter for the asserted baseline order.
         },
     )
     first_body = first_response.json()
