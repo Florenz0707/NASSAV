@@ -57,8 +57,6 @@ class PageFetchService:
         request_id = request_id or uuid4().hex[:12]
         if not self.session_reuse_enabled:
             session_handler = None
-            if strategy == "direct_first":
-                strategy = "browser_first"
         started = monotonic()
         direct_ms = 0
         browser_ms = 0

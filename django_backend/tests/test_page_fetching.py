@@ -131,7 +131,7 @@ def test_browser_connection_failure_is_scoped_to_one_lookup():
     assert browser.calls == 2
 
 
-def test_disabled_session_reuse_uses_original_browser_first_path():
+def test_disabled_session_reuse_keeps_direct_first_order_without_session_hooks():
     from unittest.mock import Mock
 
     browser = Mock()
@@ -150,8 +150,9 @@ def test_disabled_session_reuse_uses_original_browser_first_path():
         source="Jable",
         path_kind="detail",
     )
-    assert result.ok and result.provider == "byparr"
-    direct.assert_not_called()
+    assert result.ok and result.provider == "direct"
+    direct.assert_called_once()
+    browser.fetch.assert_not_called()
     handler.accept_browser_session.assert_not_called()
     handler.coordinate_browser_fallback.assert_not_called()
     service.session_reuse_enabled = True
@@ -164,7 +165,7 @@ def test_disabled_session_reuse_uses_original_browser_first_path():
         path_kind="detail",
     )
     assert result.ok and result.provider == "direct"
-    assert direct.call_count == 1
+    assert direct.call_count == 2
 
 
 def test_page_logs_show_direct_403_and_browser_completion_without_secrets(monkeypatch):
@@ -206,3 +207,36 @@ def test_page_logs_show_direct_403_and_browser_completion_without_secrets(monkey
     )
     assert any("page_fetch " in line and "browser_calls=1" in line for line in messages)
     assert all("https://" not in line and "Cookie" not in line for line in messages)
+
+
+def test_direct_first_falls_back_to_browser_when_reuse_is_disabled():
+    from unittest.mock import Mock
+
+    events = []
+    browser = Mock()
+
+    def browser_fetch(*args, **kwargs):
+        events.append("browser")
+        return PageResult(
+            html="valid", final_url="https://example.test/page", provider="byparr"
+        )
+
+    browser.fetch.side_effect = browser_fetch
+
+    def direct():
+        events.append("direct")
+        return PageResult(
+            final_url="https://example.test/page", provider="direct", target_status=403
+        )
+
+    handler = Mock()
+    result = PageFetchService(browser, session_reuse_enabled=False).fetch(
+        "https://example.test/page",
+        direct_fetch=direct,
+        validator=lambda html: html == "valid",
+        strategy="direct_first",
+        session_handler=handler,
+    )
+    assert result.ok and events == ["direct", "browser"]
+    handler.accept_browser_session.assert_not_called()
+    handler.coordinate_browser_fallback.assert_not_called()
