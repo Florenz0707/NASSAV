@@ -1,9 +1,10 @@
 import os
+from abc import ABC, abstractmethod
 from dataclasses import replace
 from threading import local
 from time import monotonic
 from collections.abc import Callable
-from typing import Optional, Protocol
+from typing import Optional
 
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
@@ -24,39 +25,7 @@ from nassav.source.CookieRepository import (
 )
 
 
-class ISource(Protocol):
-    """Source 接口协议
-
-    定义所有 Source 实现必须提供的方法。
-    使用 Protocol 提供更好的类型检查和 IDE 支持。
-    """
-
-    def get_source_name(self) -> str:
-        """获取源名称"""
-        ...
-
-    def get_html(self, avid: str) -> Optional[str]:
-        """根据 AVID 获取页面 HTML"""
-        ...
-
-    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
-        """解析 HTML 提取下载信息"""
-        ...
-
-    def get_cover_url(self, html: str) -> str:
-        """从 HTML 中提取封面 URL"""
-        ...
-
-    def set_domain(self, domain: str) -> None:
-        """设置域名"""
-        ...
-
-    def set_cookie(self, cookie: str) -> None:
-        """设置 Cookie"""
-        ...
-
-
-class SourceBase:
+class SourceBase(ABC):
     """下载源基类
 
     Source 的职责：
@@ -115,14 +84,19 @@ class SourceBase:
         self.cookie = session.cookie if session is not None else ""
         self._session_snapshot = session
 
+    @abstractmethod
     def get_source_name(self) -> str:
         raise NotImplementedError
 
-    def _get_home_url(self) -> str:
+    def get_home_url(self) -> str:
         """获取首页URL，用于cookie获取。子类可以重写此方法"""
         if not self.domain:
             raise ValueError(f"{self.get_source_name()} 未设置domain")
         return f"https://{self.domain}/"
+
+    def _get_home_url(self) -> str:
+        """Compatibility alias; consumers should use the public interface."""
+        return self.get_home_url()
 
     def set_cookie_auto(
         self,
@@ -155,7 +129,7 @@ class SourceBase:
                     return True
                 logger.info(f"{source_name}: 数据库中无cookie，开始自动获取")
 
-            home_url = self._get_home_url()
+            home_url = self.get_home_url()
             headers = HEADERS.copy()
             for i in range(self.cookie_retry_times):
                 session = requests.Session()
@@ -225,13 +199,16 @@ class SourceBase:
             )
             return False
 
+    @abstractmethod
     def get_html(self, avid: str) -> Optional[str]:
         raise NotImplementedError
 
+    @abstractmethod
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         raise NotImplementedError
 
-    def get_cover_url(self, html: str) -> str:
+    @abstractmethod
+    def get_cover_url(self, html: str) -> Optional[str]:
         raise NotImplementedError
 
     def fetch_page(

@@ -387,7 +387,7 @@ def test_two_old_auto_entrypoints_share_refresh_result(
         def get_source_name(self):
             return "Jable"
 
-        def _get_home_url(self):
+        def get_home_url(self):
             return "https://jable.tv/"
 
         def set_session(self, record):

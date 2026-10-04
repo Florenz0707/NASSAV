@@ -56,7 +56,7 @@ class SourceCookieListSerializer(serializers.Serializer):
         from nassav.source.CookieRepository import proxy_route_profile
         from nassav.source.SourceManager import source_manager
 
-        source = source_manager._get_source(obj.source_name)
+        source = source_manager.get_source(obj.source_name)
         route = proxy_route_profile(source.proxy) if source else None
         return bool(
             obj.cookie

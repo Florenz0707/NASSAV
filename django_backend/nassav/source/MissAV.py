@@ -14,6 +14,7 @@ from nassav.page_fetching import (
 from nassav.source.CookieRepository import source_cookie_repository
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
+from nassav.source.capabilities import ListingSource
 from nassav.source.MissAVListings import (
     listing_url,
     parse_listing,
@@ -23,7 +24,7 @@ from nassav.source.MissAVListings import (
 from nassav.source.search_contracts import SourceSearchError
 
 
-class MissAV(SourceBase):
+class MissAV(SourceBase, ListingSource):
     """MissAV下载器"""
 
     def __init__(

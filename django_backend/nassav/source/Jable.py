@@ -16,10 +16,11 @@ from nassav.page_fetching import (
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import source_cookie_repository
 from nassav.source.SourceBase import SourceBase
+from nassav.source.capabilities import ListingSource
 from nassav.source.search_contracts import SourceSearchError
 
 
-class Jable(SourceBase):
+class Jable(SourceBase, ListingSource):
     """Jable下载器"""
 
     HOT_BOARD_SORTS = [
@@ -75,7 +76,7 @@ class Jable(SourceBase):
             self.set_session(record)
             return True
         expected_version = record.updated_at if record is not None else None
-        url = self._get_home_url()
+        url = self.get_home_url()
         result = PageFetchService.validate_result(
             url,
             self.page_fetcher.browser.fetch(

@@ -2,39 +2,39 @@
 Scraper 管理器 - 管理所有刮削器的注册和调用
 """
 
+from collections.abc import Callable, Mapping
 from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
 
-from .Javbus import Busdmm, Dmmsee, Javbus
+from nassav.composition import scraper_factories
 from .ScraperBase import ScraperBase
 
 
 class ScraperManager:
     """刮削器管理器"""
 
-    # 刮削器类映射
-    SCRAPER_CLASSES = {
-        "javbus": Javbus,
-        "busdmm": Busdmm,
-        "dmmsee": Dmmsee,
-    }
-
-    def __init__(self, proxy: Optional[str] = None):
+    def __init__(
+        self,
+        proxy: Optional[str] = None,
+        *,
+        factories: Mapping[str, Callable[[], ScraperBase]] | None = None,
+        config: Mapping[str, dict] | None = None,
+    ):
         self.proxy = proxy
         self.scrapers: Dict[str, ScraperBase] = {}
 
         # 注册刮削器，根据配置
-        scraper_config = settings.SCRAPER_CONFIG
-
-        for scraper_name, scraper_class in self.SCRAPER_CLASSES.items():
-            config = scraper_config.get(scraper_name, {})
-            domain = config.get("domain")
+        scraper_config = config if config is not None else settings.SCRAPER_CONFIG
+        registered = factories if factories is not None else scraper_factories(proxy)
+        for scraper_name, factory in registered.items():
+            scraper_settings = scraper_config.get(scraper_name, {})
+            domain = scraper_settings.get("domain")
             # 只有配置了域名的刮削器才会被注册
             if domain:
-                scraper = scraper_class(proxy)
+                scraper = factory()
                 self.scrapers[scraper.get_scraper_name()] = scraper
 
     def get_scrapers(self) -> List[Tuple[str, ScraperBase]]:

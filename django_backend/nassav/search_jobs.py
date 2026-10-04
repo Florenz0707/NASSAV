@@ -104,7 +104,7 @@ def validate_search_query(query: dict) -> dict:
 def _query_key(query: dict) -> str:
     source = next(
         item
-        for item in source_manager.sources.values()
+        for _, item in source_manager.get_sources()
         if item.get_source_name().lower() == query["source"]
     )
     context = {

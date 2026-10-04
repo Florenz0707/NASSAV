@@ -337,7 +337,7 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
             return jable.get_category_videos(category_slug, page=page)
 
     def _get_jable_source(self) -> "JableSearchProtocol | None":
-        for source in source_manager.sources.values():
+        for _, source in source_manager.get_sources():
             source_name = getattr(source, "get_source_name", lambda: "")()
             if str(source_name).strip().lower() == self.source_name:
                 if isinstance(source, SourceBase):
@@ -407,7 +407,7 @@ class MissAVExternalSourceAdapter(ExternalSourceAdapter):
         source = next(
             (
                 item
-                for item in source_manager.sources.values()
+                for _, item in source_manager.get_sources()
                 if item.get_source_name().lower() == self.source_name
             ),
             None,
@@ -458,7 +458,7 @@ class ExternalSearchService:
 
     def capabilities(self) -> list[dict]:
         enabled = {
-            item.get_source_name().lower() for item in source_manager.sources.values()
+            item.get_source_name().lower() for _, item in source_manager.get_sources()
         }
         return [
             {
@@ -632,7 +632,7 @@ class ExternalSearchService:
 
         selected_source = next(
             item
-            for item in source_manager.sources.values()
+            for _, item in source_manager.get_sources()
             if item.get_source_name().lower() == normalized_source
         )
         domain = getattr(selected_source, "domain", "")

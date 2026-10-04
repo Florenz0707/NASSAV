@@ -1,4 +1,5 @@
 import time
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -6,7 +7,7 @@ from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
 from nassav.scraper import AVDownloadInfo
-from nassav.page_fetching import create_page_fetch_service
+from nassav.composition import source_factories
 from nassav.source.CookieRepository import (
     SourceCookieRecord,
     source_cookie_repository,
@@ -17,7 +18,7 @@ from nassav.page_fetching.coordination import (
     session_refresh_coordinator,
 )
 from nassav.source.CookieRepository import proxy_route_profile
-from nassav.source import Jable, Memo, MissAV, SourceBase
+from nassav.source.SourceBase import SourceBase
 
 
 def normalize_source_title(avid: str, source_title: str) -> str:
@@ -45,46 +46,37 @@ class SourceManager:
 
     LOCAL_COOKIE_CACHE_TTL = 30.0
 
-    # 下载器类映射
-    SOURCE_CLASSES = {"missav": MissAV, "jable": Jable, "memo": Memo}
-
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        factories: Mapping[str, Callable[[], SourceBase]] | None = None,
+        config: Mapping[str, dict] | None = None,
+    ):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         self.sources: Dict[str, SourceBase] = {}
 
         # 注册下载器，根据配置中的权重
-        source_config = settings.SOURCE_CONFIG
-
-        for source_name, source_class in self.SOURCE_CLASSES.items():
-            config = source_config.get(source_name, {})
-            weight = config.get("weight")
+        self._config = config
+        source_config = config if config is not None else settings.SOURCE_CONFIG
+        registered = (
+            factories
+            if factories is not None
+            else source_factories(
+                proxy, settings.BROWSER_FETCH_CONFIG, self.set_source_cookie
+            )
+        )
+        for source_name, factory in registered.items():
+            source_settings = source_config.get(source_name, {})
+            weight = source_settings.get("weight")
             # 只有配置了有效权重的源才会被注册
             if weight:
-                if source_name == "missav":
-                    source = MissAV(
-                        proxy,
-                        page_fetcher=create_page_fetch_service(
-                            settings.BROWSER_FETCH_CONFIG, proxy_url=proxy
-                        ),
-                        cookie_saver=lambda cookie: self.set_source_cookie(
-                            "MissAV", cookie
-                        ),
-                    )
-                elif source_name == "jable":
-                    source = Jable(
-                        proxy,
-                        page_fetcher=create_page_fetch_service(
-                            settings.BROWSER_FETCH_CONFIG, proxy_url=proxy
-                        ),
-                    )
-                else:
-                    source = source_class(proxy)
+                source = factory()
                 self.sources[source.get_source_name()] = source
 
     def refresh_source_session(
         self, source_name: str, *, force: bool = False
     ) -> SourceCookieRecord | None:
-        target = self._get_source(source_name)
+        target = self.get_source(source_name)
         if target is None:
             return None
 
@@ -114,7 +106,7 @@ class SourceManager:
         *,
         updated_at: str | None = None,
     ) -> None:
-        target = self._get_source(source_name)
+        target = self.get_source(source_name)
         if target is None:
             return
         shared = source_cookie_repository.get_cookie_record(source_name)
@@ -134,11 +126,11 @@ class SourceManager:
 
     def auto_source_cookie(self, source_name: str) -> bool:
         """Coordinate the old Cookie API with page refreshes across processes."""
-        source = self._get_source(source_name)
+        source = self.get_source(source_name)
         if source is None:
             return False
         route = proxy_route_profile(source.proxy) or "unknown"
-        key = refresh_key(source.get_source_name(), source._get_home_url(), route)
+        key = refresh_key(source.get_source_name(), source.get_home_url(), route)
         previous = source_cookie_repository.get_cookie_record(source_name)
         baseline = previous.updated_at if previous is not None else None
         timeout_ms = getattr(getattr(source, "page_fetcher", None), "timeout_ms", 60000)
@@ -235,7 +227,9 @@ class SourceManager:
 
     def get_sorted_sources(self) -> List[Tuple[str, SourceBase]]:
         """获取按权重排序的下载器列表"""
-        source_config = settings.SOURCE_CONFIG
+        source_config = (
+            self._config if self._config is not None else settings.SOURCE_CONFIG
+        )
         sorted_items = []
         for name, downloader in self.sources.items():
             weight = source_config.get(name.lower(), {}).get("weight", 0)
@@ -249,7 +243,7 @@ class SourceManager:
         Optional[AVDownloadInfo],
         Optional[SourceBase],
         Optional[str],
-        Dict[str, int | None],
+        Dict[str, int | str | None],
     ]:
         """
         遍历所有源获取信息
@@ -300,7 +294,7 @@ class SourceManager:
                 # 缓存损坏，删除并继续正常流程
                 cache.delete(cache_key)
 
-        errors: Dict[str, int | None] = {}
+        errors: Dict[str, int | str | None] = {}
 
         for name, source in self.get_sorted_sources():
             self.refresh_source_cookie(name)
@@ -357,13 +351,13 @@ class SourceManager:
         Optional[AVDownloadInfo],
         Optional[SourceBase],
         Optional[str],
-        Dict[str, int | None],
+        Dict[str, int | str | None],
     ]:
         """
         从指定源获取信息
         返回: (info, source, html, errors)
         """
-        errors: Dict[str, int | None] = {}
+        errors: Dict[str, int | str | None] = {}
 
         # 查找对应的下载器（不区分大小写）
         source = None
@@ -412,11 +406,19 @@ class SourceManager:
         video_dir.mkdir(parents=True, exist_ok=True)
         return Path(settings.RESOURCE_DIR)
 
-    def _get_source(self, source_name: str) -> Optional[SourceBase]:
+    def get_sources(self) -> List[Tuple[str, SourceBase]]:
+        """Return a snapshot of enabled names and adapters in registration order."""
+        return list(self.sources.items())
+
+    def get_source(self, source_name: str) -> Optional[SourceBase]:
         for name, source in self.sources.items():
             if name.lower() == source_name.lower():
                 return source
         return None
+
+    def _get_source(self, source_name: str) -> Optional[SourceBase]:
+        """Compatibility alias for callers migrating to the public interface."""
+        return self.get_source(source_name)
 
 
 source_manager = SourceManager()

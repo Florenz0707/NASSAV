@@ -350,7 +350,9 @@ class ResourceService:
 
     def _get_source_info(
         self, avid: str, source: str
-    ) -> Tuple[AVDownloadInfo, SourceBase | None, str | None, Dict[str, int | None]]:
+    ) -> Tuple[
+        AVDownloadInfo, SourceBase | None, str | None, Dict[str, int | str | None]
+    ]:
         """
         从源获取资源信息
 

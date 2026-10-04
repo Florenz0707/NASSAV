@@ -2,29 +2,27 @@
 Translator 管理器 - 管理所有翻译器的注册和调用
 """
 
+from collections.abc import Callable, Mapping
+from threading import Lock
 from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from loguru import logger
 from nassav.constants import TRANSLATION_DICT
+from nassav.composition import translator_factories
 
-from .OllamaTranslator import OllamaTranslator
 from .TranslatorBase import TranslatorBase
 
 
 class TranslatorManager:
     """翻译器管理器"""
 
-    # 翻译器类映射
-    TRANSLATOR_CLASSES = {
-        "ollama": OllamaTranslator,
-        # 未来可以添加其他翻译器：
-        # 'google': GoogleTranslator,
-        # 'deepl': DeepLTranslator,
-        # 'baidu': BaiduTranslator,
-    }
-
-    def __init__(self, timeout: int = 30):
+    def __init__(
+        self,
+        timeout: int = 30,
+        *,
+        factories: Mapping[str, Callable[[int, str], TranslatorBase]] | None = None,
+    ):
         """
         初始化翻译器管理器
 
@@ -34,6 +32,9 @@ class TranslatorManager:
         self.timeout = timeout
         self.translators: Dict[str, TranslatorBase] = {}
         self.translator_priority: List[str] = []  # 翻译器优先级列表
+        self._pending: list[TranslatorBase] = []
+        self._availability_checked = False
+        self._availability_lock = Lock()
 
         # 从配置中读取活动翻译器
         translator_config = getattr(settings, "TRANSLATOR_CONFIG", {})
@@ -45,35 +46,40 @@ class TranslatorManager:
             translator_type = config.get("type", "ollama")  # 读取 type 字段
 
             # 根据 type 获取翻译器类
-            translator_class = self.TRANSLATOR_CLASSES.get(translator_type)
-            if not translator_class:
+            registered = factories if factories is not None else translator_factories()
+            factory = registered.get(translator_type)
+            if factory is None:
                 logger.error(f"未知的翻译器类型: {translator_type}")
                 return
 
             try:
                 # 提取超时配置（如果有）
                 timeout_val = config.get("timeout", self.timeout)
-                translator = translator_class(
-                    timeout=timeout_val, config_name=active_translator
-                )
-
-                # 检查翻译器是否可用
-                if translator.is_available():
-                    translator_display_name = translator.get_translator_name()
-                    self.translators[translator_display_name] = translator
-                    self.translator_priority.append(translator_display_name)
-                    logger.info(
-                        f"已加载翻译器: {active_translator} (type: {translator_type})"
-                    )
-                else:
-                    logger.warning(f"翻译器 {active_translator} 不可用")
+                self._pending.append(factory(timeout_val, active_translator))
             except Exception as e:
                 logger.error(f"注册翻译器 {active_translator} 失败: {e}")
         else:
             logger.warning(f"未找到活动翻译器配置: {active_translator}")
 
-        if not self.translators:
-            logger.warning("没有可用的翻译器")
+    def _ensure_available(self) -> None:
+        """Probe once on first use, never at construction or module import."""
+        with self._availability_lock:
+            if self._availability_checked:
+                return
+            for translator in self._pending:
+                try:
+                    if translator.is_available():
+                        name = translator.get_translator_name()
+                        self.translators[name] = translator
+                        self.translator_priority.append(name)
+                    else:
+                        logger.warning(
+                            "翻译器 {} 不可用", translator.get_translator_name()
+                        )
+                except Exception as error:
+                    logger.warning("翻译器可用性检查失败: {}", type(error).__name__)
+            self._pending.clear()
+            self._availability_checked = True
 
     def _preprocess_fixed_terms(self, text: str) -> tuple[str, list]:
         """
@@ -125,6 +131,7 @@ class TranslatorManager:
         Returns:
             翻译器列表 [(名称, 翻译器实例), ...]
         """
+        self._ensure_available()
         return [
             (name, self.translators[name])
             for name in self.translator_priority
@@ -153,6 +160,7 @@ class TranslatorManager:
         if not text or not text.strip():
             return None
 
+        self._ensure_available()
         if not self.translators:
             logger.error("没有可用的翻译器")
             return None
@@ -205,6 +213,7 @@ class TranslatorManager:
         Returns:
             翻译后的文本，失败返回 None
         """
+        self._ensure_available()
         translator = self.translators.get(translator_name)
         if not translator:
             return None
@@ -247,6 +256,7 @@ class TranslatorManager:
         if not texts:
             return []
 
+        self._ensure_available()
         if not self.translators:
             logger.error("没有可用的翻译器")
             return [None] * len(texts)
@@ -321,6 +331,7 @@ class TranslatorManager:
         Returns:
             True 表示至少有一个翻译器可用，False 表示没有可用翻译器
         """
+        self._ensure_available()
         return len(self.translators) > 0
 
     def get_available_translators(self) -> List[str]:
@@ -330,6 +341,7 @@ class TranslatorManager:
         Returns:
             翻译器名称列表
         """
+        self._ensure_available()
         return list(self.translators.keys())
 
 

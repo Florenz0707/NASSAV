@@ -224,7 +224,7 @@ class SourceListView(SchemaAPIView):
     """
 
     def get(self, request):
-        sources = list(source_manager.sources.keys())
+        sources = [name for name, _ in source_manager.get_sources()]
         return Response({"code": 200, "message": "success", "data": sources})
 
 
@@ -276,7 +276,7 @@ class SourceCookieView(SchemaAPIView):
         # 所有同步 API 与 worker 使用同一站点会话刷新协调器。
         if auto:
             try:
-                if not source_manager._get_source(source_name):
+                if not source_manager.get_source(source_name):
                     return Response(
                         {
                             "code": 404,
@@ -1148,7 +1148,7 @@ class RecommendationCoverView(SchemaAPIView):
             source = next(
                 (
                     item
-                    for item in source_manager.sources.values()
+                    for _, item in source_manager.get_sources()
                     if item.get_source_name().lower() == "missav"
                 ),
                 None,
@@ -1550,12 +1550,18 @@ class ResourceView(SchemaAPIView):
 
         # 检查指定源是否存在
         if source != "any":
-            available_sources = [s.lower() for s in source_manager.sources.keys()]
+            available_sources = [
+                name.lower() for name, _ in source_manager.get_sources()
+            ]
             if source not in available_sources:
                 return build_response(
                     400,
                     f"源 {source} 不存在",
-                    {"available_sources": list(source_manager.sources.keys())},
+                    {
+                        "available_sources": [
+                            name for name, _ in source_manager.get_sources()
+                        ]
+                    },
                 )
 
         # 调用ResourceService添加资源
@@ -2255,7 +2261,7 @@ class ResourceJobView(SchemaAPIView):
         action = item["action"]
         source = item.get("source", "any").lower()
         if action == "add" and source != "any":
-            if source not in {name.lower() for name in source_manager.sources}:
+            if source not in {name.lower() for name, _ in source_manager.get_sources()}:
                 return build_response(400, "源不存在", {"source": source})
         options = {
             name: item[name]
@@ -2343,7 +2349,9 @@ class ResourceJobBatchView(SchemaAPIView):
             avid = item["avid"].upper()
             source = item.get("source", "any").lower()
             if action == "add" and source != "any":
-                if source not in {name.lower() for name in source_manager.sources}:
+                if source not in {
+                    name.lower() for name, _ in source_manager.get_sources()
+                }:
                     results.append(
                         {
                             "avid": avid,
