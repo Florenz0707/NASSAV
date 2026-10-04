@@ -194,20 +194,28 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
 
     @staticmethod
     def _terminate_process(process) -> None:
-        if process is None or process.poll() is not None:
+        if process is None:
             return
         try:
             if os.name == "posix":
+                # The parent may have exited while a descendant still owns the
+                # output pipe. Reap the complete execution group in either case.
                 os.killpg(process.pid, signal.SIGTERM)
-            else:
-                process.terminate()
-            try:
-                process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                if os.name == "posix":
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    pass
+                try:
                     os.killpg(process.pid, signal.SIGKILL)
-                else:
-                    process.kill()
+                except ProcessLookupError:
+                    pass
                 process.wait(timeout=2)
+            elif process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=2)
         except ProcessLookupError:
             pass

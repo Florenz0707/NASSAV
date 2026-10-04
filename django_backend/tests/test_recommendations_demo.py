@@ -1098,6 +1098,11 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
 ):
     from nassav.models import RecommendationAvidBlocklist, RecommendationSeedProfile
     from nassav.source import Jable
+    from nassav.recommendation.repository import recommendation_snapshot_repository
+
+    monkeypatch.setattr(
+        recommendation_snapshot_repository, "next_random_seed", lambda: 42
+    )
 
     actor = actor_factory(name="Alice")
     seed_resource = resource_factory(avid="SEED-701", original_title="Seed")
@@ -1131,7 +1136,6 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
             "actor_seed_limit": 1,
             "genre_seed_limit": 1,
             "avoid_recent_recommendations": "false",
-            "random_seed": 42,  # Pin novelty jitter for the asserted baseline order.
         },
     )
     first_body = first_response.json()
