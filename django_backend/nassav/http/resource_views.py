@@ -16,7 +16,8 @@ from nassav.resource_deletion import (
 from nassav.serializers import (
     NewResourceSerializer,
 )
-from nassav.services import list_resources, source_manager
+from nassav.resource_queries import list_resources
+from nassav.source.SourceManager import source_manager
 
 
 from nassav.http_base import SchemaAPIView

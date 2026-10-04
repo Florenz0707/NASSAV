@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from loguru import logger
-from nassav.scraper import AVDownloadInfo
+from nassav.resource_data import AVDownloadInfo
 from nassav.resource_contracts import ResourceWorkflow
 
 
@@ -17,17 +17,6 @@ class ResolvedDownload:
 class DownloadInfoResolver(ABC):
     @abstractmethod
     def resolve(self, avid: str) -> ResolvedDownload | None:
-        raise NotImplementedError
-
-
-class DownloadExecutor(ABC):
-    @abstractmethod
-    def download_video(
-        self,
-        avid: str,
-        progress_callback: Callable | None = None,
-        cancelled: Callable[[], bool] | None = None,
-    ) -> bool:
         raise NotImplementedError
 
 

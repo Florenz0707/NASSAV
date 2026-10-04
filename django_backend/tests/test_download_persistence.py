@@ -49,26 +49,34 @@ def test_failed_download_keeps_existing_size_for_retry(resource_factory):
 def test_download_task_keeps_progress_event_and_task_name(
     monkeypatch, resource_factory, settings, tmp_path
 ):
-    from nassav import tasks
+    from nassav import tasks, download_queue
     from nassav.services import video_download_service
 
     settings.VIDEO_DIR = tmp_path
     resource = resource_factory(avid="DL-004")
     events = []
     progress = []
-    monkeypatch.setattr(tasks, "create_task_lock", lambda *args: None)
-    monkeypatch.setattr(tasks, "wait_for_global_download_lock", lambda **kwargs: True)
-    monkeypatch.setattr(tasks, "update_task_state_in_queue", lambda *args: None)
-    monkeypatch.setattr(tasks, "remove_task_from_queue", lambda *args: None)
-    monkeypatch.setattr(tasks, "remove_task_lock", lambda *args: None)
-    monkeypatch.setattr(tasks, "release_global_download_lock", lambda: None)
-    monkeypatch.setattr(tasks, "remove_task_progress", lambda *args: None)
-    monkeypatch.setattr(tasks, "get_full_task_queue", lambda: [])
+    monkeypatch.setattr(download_queue, "create_task_lock", lambda *args: None)
     monkeypatch.setattr(
-        tasks, "notify_task_update", lambda name, data: events.append((name, data))
+        download_queue, "wait_for_global_download_lock", lambda **kwargs: True
     )
     monkeypatch.setattr(
-        tasks, "set_task_progress", lambda *args, **kwargs: progress.append(args)
+        download_queue, "update_task_state_in_queue", lambda *args: None
+    )
+    monkeypatch.setattr(download_queue, "remove_task_from_queue", lambda *args: None)
+    monkeypatch.setattr(download_queue, "remove_task_lock", lambda *args: None)
+    monkeypatch.setattr(download_queue, "release_global_download_lock", lambda: None)
+    monkeypatch.setattr(download_queue, "remove_task_progress", lambda *args: None)
+    monkeypatch.setattr(download_queue, "get_full_task_queue", lambda: [])
+    monkeypatch.setattr(
+        download_queue,
+        "notify_task_update",
+        lambda name, data: events.append((name, data)),
+    )
+    monkeypatch.setattr(
+        download_queue,
+        "set_task_progress",
+        lambda *args, **kwargs: progress.append(args),
     )
 
     def download(avid, progress_callback, cancelled=None):

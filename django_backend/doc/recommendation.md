@@ -746,3 +746,5 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_avid_blockl
 推荐流程由 AbstractRecommender 的主入口和扩种/补量 hook 维护。算法接收 CandidateInventory 批量存在性能力，历史、反馈与屏蔽上下文通过 RecommendationContextStore 在执行前准备；评分/过滤不查询全局 ORM 仓库。推荐器工厂集中装配，新增实现注册工厂和元信息即可。SeedSelector 只处理已读取的种子候选；LocalPreferenceSeedProvider 保留数据读取和映射。
 
 每次算法执行复制 RecommendationRequest，内部 active seeds/tier 更新记录在返回的 execution_request；HTTP 和快照仍使用原字段格式。纯算法模块可在没有 Django 配置时导入，默认生产 Adapter 只在调用装配入口时加载。
+
+推荐协调核心位于 recommendation.workflow，HTTP 和既有同步消费者仍使用 recommendation.manager 的生产 facade。RecommendationSource 替身必须接受真实 force_refresh、sort_by、detail_url 等能力参数；不再捕获任意 TypeError 重试旧签名，实现内部异常只调用一次。原策略、因子和反馈/快照事务规则保持。

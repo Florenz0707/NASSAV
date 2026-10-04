@@ -662,3 +662,5 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 `tests/test_recommendation_pipeline_contracts.py` 验证纯算法、固定种子、输入不变、注册新推荐器、纯种子排序、批量查询上限及无 Django 配置导入。
 
 `tests/test_http_contracts.py` 对照重构前 `fixtures/backend_http_contract.json` 验证 URL 与 OpenAPI，覆盖媒体缓存、缩略图回退、重新翻译状态/提交时序。
+
+R7 新增 `test_backend_final_contracts.py`：无 Django 配置子进程导入全部核心用例且不加载框架/默认装配，7 项运维 Celery eager 样本保持名称和命令参数，下载/翻译注册/路由/重试保持，完整 RecommendationSource 替身的内部 TypeError 只调用一次。结合固定 HTTP/OpenAPI 快照与临时 Redis 失租回归完成整体隔离验收；使用原 refactoring_test_settings 全套命令，实时样本仍显式跳过。

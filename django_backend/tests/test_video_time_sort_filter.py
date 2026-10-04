@@ -9,7 +9,7 @@
 
 import pytest
 from django.utils import timezone
-from nassav.services import list_resources
+from nassav.resource_queries import list_resources
 
 
 @pytest.fixture

@@ -1,64 +1,17 @@
 """Download orchestration independent of Celery task objects and Redis clients."""
 
-from abc import ABC, abstractmethod
+from nassav.download_contracts import (
+    DownloadRetriesExhausted,
+    DownloadRuntime,
+    DownloadWorkflow,
+)
+
 from collections.abc import Callable
 from typing import NoReturn
 from loguru import logger
-from nassav.download_leases import DownloadOwnership, DownloadLeaseLost
-from nassav.download_information import DownloadExecutor
-from nassav.download_persistence import DownloadPersistence
-
-
-class DownloadRetriesExhausted(Exception):
-    pass
-
-
-class DownloadRuntime(ABC):
-    @abstractmethod
-    def create_lock(self, avid: str, task_id: str) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def wait_for_slot(self, max_wait_time: int) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_lock(self, avid: str) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_from_queue(self, avid: str) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def notify(self, event: str, data: dict) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def queue_status(self) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_state(self, avid: str, state: str) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_progress(self, avid: str, percent: float, speed: str, *, eta: str) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def release_slot(self) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_progress(self, avid: str) -> None:
-        raise NotImplementedError
-
-
-class DownloadWorkflow(ABC):
-    @abstractmethod
-    def run(self, avid: str, task_id: str, **context) -> dict:
-        raise NotImplementedError
+from nassav.download_contracts import DownloadOwnership, DownloadLeaseLost
+from nassav.download_contracts import DownloadExecutor
+from nassav.download_contracts import DownloadPersistence
 
 
 class DownloadUseCase(DownloadWorkflow):

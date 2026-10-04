@@ -2,14 +2,10 @@
 
 import pytest
 
-from nassav.download_information import DownloadExecutor
-from nassav.download_persistence import DownloadPersistence
-from nassav.download_workflow import (
-    DownloadRuntime,
-    DownloadUseCase,
-    DownloadRetriesExhausted,
-    MockDownloadUseCase,
-)
+from nassav.download_contracts import DownloadExecutor
+from nassav.download_contracts import DownloadPersistence
+from nassav.download_contracts import DownloadRuntime, DownloadRetriesExhausted
+from nassav.download_workflow import DownloadUseCase, MockDownloadUseCase
 
 
 class Runtime(DownloadRuntime):

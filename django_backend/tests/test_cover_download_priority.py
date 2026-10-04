@@ -1,5 +1,7 @@
 """测试封面下载的优先级和回退逻辑"""
 
+from nassav.composition import build_resource_service
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -8,11 +10,9 @@ import pytest
 @pytest.mark.django_db
 def test_cover_download_priority():
     """测试封面下载优先使用Javbus，失败时回退到Source"""
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
     # 创建模拟对象
     mock_source = Mock()
@@ -21,7 +21,7 @@ def test_cover_download_priority():
     mock_source.download_file.return_value = True
 
     # 创建ResourceService实例
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
 
     # 模拟Javbus返回封面URL
     scraped_data = {
@@ -41,7 +41,7 @@ def test_cover_download_priority():
         html = "<html></html>"
 
         # 测试_download_cover方法
-        result = service._download_cover(
+        result = service.assets.save_cover(
             "TEST-001",
             scraped_data,
             "Javbus",
@@ -63,11 +63,9 @@ def test_cover_download_priority():
 @pytest.mark.django_db
 def test_cover_fallback_to_source():
     """测试Javbus无封面时回退到Source封面"""
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
     # 创建模拟对象
     mock_source = Mock()
@@ -76,7 +74,7 @@ def test_cover_fallback_to_source():
     mock_source.download_file.return_value = True
 
     # 创建ResourceService实例
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
 
     # Javbus返回数据但没有封面URL
     scraped_data = {
@@ -90,7 +88,9 @@ def test_cover_fallback_to_source():
     html = "<html></html>"
 
     # 测试_download_cover方法
-    result = service._download_cover("TEST-002", scraped_data, None, mock_source, html)
+    result = service.assets.save_cover(
+        "TEST-002", scraped_data, None, mock_source, html
+    )
 
     # 验证调用了Source的get_cover_url
     assert mock_source.get_cover_url.called
@@ -105,11 +105,9 @@ def test_cover_fallback_to_source():
 @pytest.mark.django_db
 def test_no_cover_available():
     """测试Javbus和Source都没有封面的情况"""
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
     # 创建模拟对象
     mock_source = Mock()
@@ -118,7 +116,7 @@ def test_no_cover_available():
     mock_source.download_file.return_value = True
 
     # 创建ResourceService实例
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
 
     # Javbus也没有封面
     scraped_data = {
@@ -132,7 +130,9 @@ def test_no_cover_available():
     html = "<html></html>"
 
     # 测试_download_cover方法
-    result = service._download_cover("TEST-003", scraped_data, None, mock_source, html)
+    result = service.assets.save_cover(
+        "TEST-003", scraped_data, None, mock_source, html
+    )
 
     # 验证cover_saved为False
     assert result is False

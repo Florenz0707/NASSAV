@@ -1,6 +1,10 @@
 """Execution-scoped download ownership, fenced mutations and bounded renewal."""
 
-from abc import ABC, abstractmethod
+from nassav.download_contracts import (
+    DownloadLeaseLost,
+    DownloadOwnership,
+)
+
 from contextlib import contextmanager
 from contextvars import ContextVar
 from collections.abc import Callable
@@ -8,33 +12,6 @@ from threading import Event, Thread, RLock
 from uuid import uuid4
 
 import redis
-
-
-class DownloadLeaseLost(RuntimeError):
-    pass
-
-
-class DownloadOwnership(ABC):
-    @abstractmethod
-    def start(self, ttl: int | None = None) -> None: ...
-
-    @abstractmethod
-    def acquire_global(self, ttl: int = 3600) -> bool: ...
-
-    @abstractmethod
-    def check(self) -> None: ...
-
-    @abstractmethod
-    def cancelled(self) -> bool: ...
-
-    @abstractmethod
-    def release_global(self) -> bool: ...
-
-    @abstractmethod
-    def mutate(self, operation: str, payload: str = "") -> bool: ...
-
-    @abstractmethod
-    def close(self) -> None: ...
 
 
 _OWNED = "for i=1,#KEYS do if redis.call('get',KEYS[i]) ~= ARGV[1] then return 0 end end; return 1"

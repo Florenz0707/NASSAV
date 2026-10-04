@@ -114,11 +114,4 @@ class JablePageLookupRecommender(JableSearchRecommender):
         page: int,
         force_refresh: bool,
     ) -> list[dict]:
-        try:
-            return fetch_page(
-                genre_slug,
-                page=page,
-                force_refresh=force_refresh,
-            )
-        except TypeError:
-            return fetch_page(genre_slug, page=page)
+        return fetch_page(genre_slug, page=page, force_refresh=force_refresh)

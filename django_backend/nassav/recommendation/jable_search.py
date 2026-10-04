@@ -301,19 +301,12 @@ class JableSearchRecommender(AbstractRecommender):
         sort_by: str,
         force_refresh: bool,
     ) -> list[dict]:
-        try:
-            return self.jable.get_model_videos(
-                model_slug=model_slug,
-                page=page,
-                sort_by=sort_by,
-                force_refresh=force_refresh,
-            )
-        except TypeError:
-            return self.jable.get_model_videos(
-                model_slug=model_slug,
-                page=page,
-                sort_by=sort_by,
-            )
+        return self.jable.get_model_videos(
+            model_slug=model_slug,
+            page=page,
+            sort_by=sort_by,
+            force_refresh=force_refresh,
+        )
 
     def _call_search(
         self,
@@ -322,14 +315,7 @@ class JableSearchRecommender(AbstractRecommender):
         page: int,
         force_refresh: bool,
     ) -> list[dict]:
-        try:
-            return self.jable.search(
-                keyword,
-                page=page,
-                force_refresh=force_refresh,
-            )
-        except TypeError:
-            return self.jable.search(keyword, page=page)
+        return self.jable.search(keyword, page=page, force_refresh=force_refresh)
 
     def _call_discovery_fetch(
         self,
@@ -338,30 +324,19 @@ class JableSearchRecommender(AbstractRecommender):
         page: int,
         force_refresh: bool,
     ) -> list[dict]:
-        try:
-            return fetch_page(page=page, force_refresh=force_refresh)
-        except TypeError:
-            return fetch_page(page=page)
+        return fetch_page(page=page, force_refresh=force_refresh)
 
     def _call_video_detail(
         self,
         candidate: RecommendationCandidate,
         request: RecommendationRequest,
     ) -> dict:
-        fetch_detail = getattr(self.jable, "get_video_detail", None)
-        if fetch_detail is None:
-            return {}
-        try:
-            return fetch_detail(
-                candidate.avid,
-                candidate.detail_url,
-                force_refresh=request.force_refresh_external,
-            )
-        except TypeError:
-            try:
-                return fetch_detail(candidate.avid, candidate.detail_url)
-            except TypeError:
-                return fetch_detail(candidate.avid)
+        fetch_detail = self.jable.get_video_detail
+        return fetch_detail(
+            candidate.avid,
+            candidate.detail_url,
+            force_refresh=request.force_refresh_external,
+        )
 
     def _apply_video_detail(
         self,

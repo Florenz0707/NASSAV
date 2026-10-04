@@ -7,7 +7,7 @@ import pytest
 from django.test import TestCase
 from nassav.models import AVResource, Genre
 from nassav.serializers import ResourceSummarySerializer
-from nassav.services import list_resources
+from nassav.resource_queries import list_resources
 
 
 @pytest.mark.django_db

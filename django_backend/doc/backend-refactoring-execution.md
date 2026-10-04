@@ -6,15 +6,20 @@
 
 ## 阶段状态
 
-| 阶段       | 分支                                                | 状态                                 |
-| ---------- | --------------------------------------------------- | ------------------------------------ |
-| R0         | `chore/backend-refactor-r0-baseline`                | 已完成，质量门槛通过后自动合并       |
-| R1         | `enhancement/backend-refactor-r1-contracts`         | 已完成，质量门槛通过后自动合并       |
-| R2 会话    | `enhancement/backend-refactor-r2-sessions`          | 已完成，质量门槛通过后自动合并       |
-| R2 搜索    | `enhancement/backend-refactor-r2-search-policies`   | 已完成，质量门槛通过后自动合并       |
-| R3         | `enhancement/backend-refactor-r3-resource-workflow` | 已完成，质量门槛通过后自动合并       |
-| R4 下载    | `enhancement/backend-refactor-r4-download-workflow` | 锁丢失验收失败，草稿已保存，等待决策 |
-| R4 翻译–R7 | 待创建                                              | 未开始                               |
+| 阶段              | 分支                                                      | 状态                                |
+| ----------------- | --------------------------------------------------------- | ----------------------------------- |
+| R0                | `chore/backend-refactor-r0-baseline`                      | 已完成，质量门槛通过后自动合并      |
+| R1                | `enhancement/backend-refactor-r1-contracts`               | 已完成，质量门槛通过后自动合并      |
+| R2 会话           | `enhancement/backend-refactor-r2-sessions`                | 已完成，质量门槛通过后自动合并      |
+| R2 搜索           | `enhancement/backend-refactor-r2-search-policies`         | 已完成，质量门槛通过后自动合并      |
+| R3                | `enhancement/backend-refactor-r3-resource-workflow`       | 已完成，质量门槛通过后自动合并      |
+| 锁 ownership 修复 | `fix/backend-download-lock-ownership`                     | 已完成并合并，含后续 CLI 子进程修复 |
+| R4 下载           | `enhancement/backend-refactor-r4-download-workflow`       | 已完成并合并                        |
+| 批量翻译修复      | `fix/backend-batch-translation-state`                     | 已完成并合并                        |
+| R4 翻译           | `enhancement/backend-refactor-r4-translation-workflow`    | 已完成并合并                        |
+| R5                | `enhancement/backend-refactor-r5-recommendation-pipeline` | 已完成并合并                        |
+| R6                | `enhancement/backend-refactor-r6-http-modules`            | 已完成并合并                        |
+| R7                | `enhancement/backend-refactor-r7-contract-cleanup`        | 已完成，质量门槛通过后自动合并      |
 
 ## R0：行为与隔离质量基线
 
@@ -199,3 +204,30 @@ POSIX 取消现在即使父进程退出，也会清理该执行的进程组；�
 保存阶段前的 URL/OpenAPI consumer 契约快照，新增验证组件及路径完全一致，并覆盖原图/fresh thumbnail/生成回退的 ETag、Last-Modified、Cache-Control、404/400 顺序和重新翻译状态提交时序。首次沙箱定向 46 passed、3 个本地 WebSocket 超时；按既有本地 IPC 方式复验相关路径。新 HTTP 测试第一次用了错误的刷新 URL，改为原路径后通过；没有改生产路由。
 
 最终全套 **529 passed、24 skipped，48.73秒**；HTTP 新契约五项通过，相关原路径 49 项在允许本地 IPC 的隔离配置下通过。全量 pre-commit 修正迁移后的未使用导入并采用格式化结果后复验通过。URL 与 OpenAPI paths/components 完全一致，无前端、schema 或部署变更。
+
+## R7 兼容清理与整体验收
+
+基线 `a82ee85`，分支 `enhancement/backend-refactor-r7-contract-cleanup`。URL 直接绑定各 HTTP 模块，删除无人消费的 views 聚合导出；资源查询和来源 Manager 从实际模块导入，删除 services 的过渡导出。删除无人消费的私有来源查询/首页别名，以及无人调用的翻译提交 wrapper。
+
+下载 Redis/Channels/inspect helper 归 download_queue，RedisDownloadRuntime 不再依赖 Celery tasks 模块对象；运维命令归 maintenance_tasks，显式保留全部原序列化任务名。download_contracts 与 resource_contracts 中的 ABC/数据输入只有一份定义，生产和测试消费者均迁移到该入口。资源核心移到 resource_workflow，七项能力全部显式注入，默认构造归 composition；仍有真实 HTTP/job/同步消费者的 resource_service 和 recommendation.manager 保留生产 facade。推荐协调核心移到 recommendation.workflow，不导入默认实例。AVDownloadInfo 的实现归 resource_data，原 scraper 导入路径继续导出同一个类；不改变 JSON 字段和序列化格式。
+
+推荐来源调用删除任意 TypeError 的旧签名兜底；测试替身补齐 force_refresh/detail_url 等真实参数。移除无业务规则的资产/翻译/展示私有转发方法，测试通过实际资产接口替换依赖。来源容器只在 SourceManager 内部读写；历史会话测试仍可显式配置容器以制造竞争场景。
+
+### 完成判定矩阵
+
+| 项目             | 隔离证据与结果                                                                                                 | 实际边界                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 面向接口编程     | 资源/下载/翻译/推荐核心接受 ABC 能力；内存用例契约及 Django/临时 Redis Adapter 回归通过                        | 资源读取仍允许 ORM 返回对象，未复制整套模型                  |
+| 单一职责         | 核心导入无 Django/Celery/Redis/默认装配；HTTP/CLI/队列/持久化/来源解析各归对应模块                             | 既有简单 HTTP ORM 查询保留，不增加转发 Repository            |
+| 开闭原则         | 新列表源无需通用流程改分支；新推荐器仅注册；因子/种子选择可替换                                                | 新生产来源仍需实现并注册其真实能力                           |
+| ISP/LSP          | 最小 ABC 替身实例化，生产能力参数一致；来源内部 TypeError 只调用一次                                           | 不支持列表的来源仍显式拒绝                                   |
+| 兼容与正确性     | URL/OpenAPI 固定快照；Celery 名称/路由/重试和运维 eager 样本；锁竞争/失租/CLI 子进程、翻译部分失败及旧链路回归 | 未运行真实外站下载或混合版本 worker                          |
+| 可测试性与局部性 | 无配置子进程导入、纯算法/内存用例、一次批量 inventory 查询；生产私有调用和容器访问检索收敛                     | 有行为的内部 helper 保留为实现细节                           |
+| 仓库质量         | 全套后端与全量 pre-commit 结果在阶段最终验证记录中给出；文档同步                                               | 24 项实时服务/人工样本保持显式跳过                           |
+| 环境接受         | SQLite/临时 Redis/临时文件/模拟网络与任务的隔离验收                                                            | PostgreSQL、真实站点、生产 worker 和部署未验收；不声明可部署 |
+
+### 保留与延期
+
+HTTP/Celery 结果 envelope、下载成功事件先于 DB 持久化且 DB 失败仅告警、无补偿的文件/数据库部分成功、源 parse_html 中既有网络获取，以及 legacy_batch 同步入口均保留。统一全仓库错误类型、更改事件/事务语义、混合版本 worker 与生产环境接受需另立行为或部署任务。备份目前没有第三引擎共享需求，不抽象假想插件系统。
+
+最终全套后端 **539 passed、24 skipped，46.89 秒**。首次全套 538 passed/1 failed 来自 P0 测试仍引用迁移前 tasks Redis helper，迁到实际 download_queue 接口后全套复验通过，原 TTL/进度断言保持。新增最终契约十项通过；AST 对照确认 16 个队列 helper、7 个运维 task 和 AVDownloadInfo 定义与 R6 完全一致。首次 pre-commit 采用格式化结果，并修正 Runtime.release_slot 的 None 返回契约：Redis 释放结果不向用例泄漏。修正后最终后端复验 **539 passed、24 skipped，47.77 秒**；采用格式化结果后全量 `pre-commit run -a` 通过再提交合并。

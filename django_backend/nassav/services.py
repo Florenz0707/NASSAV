@@ -11,8 +11,8 @@ from loguru import logger
 # 导入常量（为了向后兼容，重新导出HEADERS）
 from nassav.constants import HEADERS
 from nassav.m3u8downloader import M3u8DownloaderBase
-from nassav.source.SourceManager import source_manager as source_manager
-from nassav.download_information import DownloadExecutor, DownloadInfoResolver
+from nassav.download_contracts import DownloadExecutor
+from nassav.download_information import DownloadInfoResolver
 from nassav.composition import build_video_download_service
 from nassav.utils import parse_duration
 
@@ -98,6 +98,3 @@ class VideoDownloadService(DownloadExecutor):
 
 # 全局服务实例（使用依赖注入）
 video_download_service = build_video_download_service()
-
-
-from nassav.resource_queries import list_resources as list_resources

@@ -1,6 +1,7 @@
 """Persist the file state resulting from a video download task."""
 
-from abc import ABC, abstractmethod
+from nassav.download_contracts import DownloadPersistence
+
 from pathlib import Path
 
 from django.conf import settings
@@ -8,16 +9,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from nassav.models import AVResource
-
-
-class DownloadPersistence(ABC):
-    @abstractmethod
-    def mark_completed(self, avid: str) -> None:
-        """Reflect the downloaded file in the resource record."""
-
-    @abstractmethod
-    def mark_failed(self, avid: str) -> None:
-        """Mark a failed download as unavailable."""
 
 
 class DjangoDownloadPersistence(DownloadPersistence):

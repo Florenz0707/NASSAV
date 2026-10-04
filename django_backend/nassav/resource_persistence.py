@@ -1,40 +1,24 @@
 """Resource metadata persistence and actor/source relation synchronization."""
 
-from abc import ABC, abstractmethod
+from nassav.resource_contracts import (
+    ResourceSaveInput,
+    ResourcePersistence,
+)
+
 from typing import Any
 from copy import deepcopy
-from dataclasses import dataclass
 
 from django.utils import timezone
 from loguru import logger
 
 from nassav.models import AVResource, Actor, Genre
-from nassav.scraper import AVDownloadInfo
-from nassav.source.capabilities import SourceRelations
+from nassav.resource_contracts import SourceRelations
 from nassav.source.jable_actor_mapping import (
     select_best_model_candidate,
     persist_actor_source_mapping,
 )
 from nassav.utils import parse_duration
 from nassav.source.titles import normalize_source_title
-
-
-@dataclass(frozen=True)
-class ResourceSaveInput:
-    avid: str
-    info: AVDownloadInfo
-    source_name: str
-    scraped_data: dict | None = None
-    relations: SourceRelations = SourceRelations()
-
-
-class ResourcePersistence(ABC):
-    """Write a resource and its metadata relations as one application operation."""
-
-    @abstractmethod
-    def save(self, data: ResourceSaveInput) -> AVResource:
-        """Save parsed data without mutating its download info or scraper payload."""
-        raise NotImplementedError
 
 
 class DjangoResourcePersistence(ResourcePersistence):

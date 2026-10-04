@@ -1,6 +1,10 @@
 """Resource response shapes shared by synchronous and job entrypoints."""
 
-from nassav.models import AVResource
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nassav.models import AVResource
 
 
 def serialize_resource(resource: AVResource, include_relations: bool = False) -> dict:

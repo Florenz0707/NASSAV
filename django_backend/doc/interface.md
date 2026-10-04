@@ -1413,3 +1413,5 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 ## HTTP 模块归位
 
 共享 SchemaAPIView 在 `http_base.py`；参数规则在 `http_parameters.py`；具体视图在 `http/` 按资源、目录、来源、推荐、设置、任务和媒体组织。URL、OpenAPI 和响应 envelope 保持。封面文件/缩略图选择由 CoverLocator 处理，条件请求和缓存头仍由 HTTP Adapter 映射；同步刷新与旧 batch 共用 TranslationRequests 重置和提交重新翻译。
+
+R7 后 URL 直接引用 `nassav.http` 下的分类视图，原聚合 `nassav.views` 已删除；HTTP 路径、字段、schema 与响应头契约不变。资源和推荐的生产 facade 保留真实消费者，核心用例可独立导入并注入替身；队列/进度运输在 download_queue，旧 `nassav.tasks.*` 任务名继续注册。内部 SourceManager 私有查询别名不再提供，使用公开 get_source/get_sources。

@@ -11,7 +11,7 @@ from .factors import (
     SearchRankFactor,
     SeedWeightFactor,
 )
-from .seeds import LocalPreferenceSeedProvider, SeedProvider
+from .contracts import SeedProvider
 
 
 @dataclass
@@ -240,6 +240,8 @@ def _build_parameter_profile(
 
 
 def build_local_preference_strategy() -> RecommendationStrategy:
+    from .seeds import LocalPreferenceSeedProvider
+
     seed_provider_params = {
         "watched_boost": 0.75,
         "favorite_boost": 1.15,

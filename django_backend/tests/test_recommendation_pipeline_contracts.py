@@ -18,7 +18,7 @@ from nassav.recommendation.entities import (
 )
 from nassav.recommendation.factors import NoveltyFactor
 from nassav.recommendation.seed_selection import PreferenceSeedSelector
-from nassav.recommendation.manager import RecommenderManager
+from nassav.recommendation.workflow import RecommenderManager
 from nassav.recommendation.strategies import RecommendationStrategy
 
 
@@ -56,6 +56,9 @@ class Context(RecommendationContextStore):
 
 class Seeds(SeedProvider):
     def get_seeds(self, request):
+        return []
+
+    def get_additional_seeds(self, request, *, used_seeds, batch_size):
         return []
 
 

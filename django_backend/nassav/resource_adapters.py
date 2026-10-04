@@ -1,9 +1,15 @@
 """Filesystem and queue/event adapters for resource workflows."""
 
-from abc import ABC, abstractmethod
+from nassav.resource_contracts import (
+    ResourceReader,
+    AssetResult,
+    ResourceAssets,
+    TranslationSubmitter,
+    ResourceEvents,
+)
+
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass
 from django.conf import settings
 from loguru import logger
 from nassav.models import AVResource
@@ -12,42 +18,9 @@ from nassav.source.SourceBase import SourceBase
 from nassav.signals import resource_added, metadata_refreshed
 
 
-class ResourceReader(ABC):
-    @abstractmethod
-    def get(self, avid: str) -> AVResource | None:
-        raise NotImplementedError
-
-
 class DjangoResourceReader(ResourceReader):
     def get(self, avid: str) -> AVResource | None:
         return AVResource.objects.filter(avid=avid).first()
-
-
-@dataclass(frozen=True)
-class AssetResult:
-    path: Path
-    saved: bool
-
-
-class ResourceAssets(ABC):
-    @abstractmethod
-    def save_page(self, avid: str, html: str) -> AssetResult:
-        raise NotImplementedError
-
-    @abstractmethod
-    def save_cover(
-        self,
-        avid: str,
-        scraped_data: Optional[dict],
-        scraped_by: Optional[str],
-        source_inst: SourceBase | None,
-        html: str | None,
-    ) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def save_avatars(self, scraped_data: dict) -> None:
-        raise NotImplementedError
 
 
 class FileResourceAssets(ResourceAssets):
@@ -150,12 +123,6 @@ class FileResourceAssets(ResourceAssets):
                 logger.error(f"演员头像下载异常: {actor_name}, {e}")
 
 
-class TranslationSubmitter(ABC):
-    @abstractmethod
-    def submit(self, avid: str) -> Optional[str]:
-        raise NotImplementedError
-
-
 class CeleryTranslationSubmitter(TranslationSubmitter):
     def submit(self, avid: str) -> Optional[str]:
         """
@@ -177,12 +144,6 @@ class CeleryTranslationSubmitter(TranslationSubmitter):
         except Exception as e:
             logger.error(f"[ResourceService] 提交翻译任务失败: {avid}, {e}")
             return None
-
-
-class ResourceEvents(ABC):
-    @abstractmethod
-    def publish(self, event: str, sender: type, avid: str, result: dict) -> None:
-        raise NotImplementedError
 
 
 class SignalResourceEvents(ResourceEvents):

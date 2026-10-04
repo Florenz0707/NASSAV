@@ -45,6 +45,8 @@ def test_resource_delete_removes_only_isolated_files(
 
 
 def test_download_progress_round_trip_uses_fake_redis(monkeypatch):
+    from nassav import download_queue
+
     class FakeRedis:
         def __init__(self):
             self.values = {}
@@ -57,13 +59,13 @@ def test_download_progress_round_trip_uses_fake_redis(monkeypatch):
             return self.values.get(key)
 
     fake = FakeRedis()
-    monkeypatch.setattr(tasks, "get_redis_client", lambda: fake)
+    monkeypatch.setattr(download_queue, "get_redis_client", lambda: fake)
 
-    tasks.set_task_progress("p0-1", 42, speed="2MiB/s", eta="00:10")
+    download_queue.set_task_progress("p0-1", 42, speed="2MiB/s", eta="00:10")
 
-    assert tasks.get_task_progress("P0-1")["percent"] == 42
-    assert tasks.get_task_progress("P0-1")["speed"] == "2MiB/s"
-    assert tasks.get_task_progress("P0-1")["eta"] == "00:10"
+    assert download_queue.get_task_progress("P0-1")["percent"] == 42
+    assert download_queue.get_task_progress("P0-1")["speed"] == "2MiB/s"
+    assert download_queue.get_task_progress("P0-1")["eta"] == "00:10"
 
 
 @pytest.mark.django_db(transaction=True)

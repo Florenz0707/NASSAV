@@ -313,3 +313,9 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 ## 资源保存输入
 
 ResourcePersistence 只接收类型化 ResourceSaveInput，包含解析后的 SourceRelations；不再接收源实例或 HTML。来源 Adapter 解析演员候选，ORM Adapter 负责关系和映射写入，按候选来源 ID 做冲突保护。持久化在下载信息副本上补元数据，不修改来源缓存。metadata 字段格式、无刮削时保留已有 metadata、关系累加和时间戳更新保持原规则，不新增 schema 迁移。
+
+## 后端抽象重构后的持久化边界
+
+R0–R7 未修改 schema 或新增 migration。资源保存输入为 ResourceSaveInput，来源关系先解析为 SourceRelations，DjangoResourcePersistence 不接收 HTML/源实例，也不修改传入的下载信息。资源读取、翻译状态、推荐上下文与下载结果分别由对应 Django Adapter 处理；默认构造在 composition。
+
+批量翻译只选择实际 original_title/source_title 字段，在置为 translating 前固定选中记录；返回数量不匹配或保存异常时，只收尾本批仍在 translating 的记录为 failed，保留已经完成项及旧译文。该行为为用户授权的独立修复。文件和数据库的既有部分成功、下载成功通知先于 DB 写入的告警规则保持；本轮无补偿事务或 PostgreSQL 切换。

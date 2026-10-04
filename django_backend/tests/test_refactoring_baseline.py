@@ -1,12 +1,13 @@
 """R0 failure timing contracts; uv run pytest tests/test_refactoring_baseline.py -v."""
 
+from nassav.composition import build_resource_service
+
 from unittest.mock import Mock
 
 import pytest
 
-from nassav import services, tasks
+from nassav import services, tasks, download_queue
 from nassav.download_persistence import download_persistence
-from nassav.resource_service import ResourceService
 from nassav.scraper import AVDownloadInfo
 from nassav.signals import resource_added
 
@@ -23,12 +24,16 @@ def download_runtime(monkeypatch):
         "remove_task_progress",
     ):
         monkeypatch.setattr(
-            tasks, name, lambda *args, _name=name, **kwargs: trace.append(_name)
+            download_queue,
+            name,
+            lambda *args, _name=name, **kwargs: trace.append(_name),
         )
-    monkeypatch.setattr(tasks, "wait_for_global_download_lock", lambda **kwargs: True)
-    monkeypatch.setattr(tasks, "get_full_task_queue", lambda: {})
     monkeypatch.setattr(
-        tasks, "notify_task_update", lambda name, data: trace.append(name)
+        download_queue, "wait_for_global_download_lock", lambda **kwargs: True
+    )
+    monkeypatch.setattr(download_queue, "get_full_task_queue", lambda: {})
+    monkeypatch.setattr(
+        download_queue, "notify_task_update", lambda name, data: trace.append(name)
     )
     monkeypatch.setattr(
         services.video_download_service, "download_video", lambda *a, **k: True
@@ -76,7 +81,7 @@ def test_resource_persistence_failure_leaves_html_without_added_event(
     )
     persistence = Mock()
     persistence.save.side_effect = RuntimeError("isolated write failure")
-    service = ResourceService(source, Mock(), Mock(), persistence=persistence)
+    service = build_resource_service(source, Mock(), persistence=persistence)
     receiver = Mock()
     resource_added.connect(receiver, weak=False)
     try:

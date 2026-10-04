@@ -6,7 +6,8 @@ from typing import Callable
 from loguru import logger
 
 from nassav.models import AVResource
-from nassav.resource_adapters import ResourceReader, DjangoResourceReader
+from nassav.resource_contracts import ResourceReader
+from nassav.resource_adapters import DjangoResourceReader
 from nassav.resource_contracts import ResourceWorkflow
 from nassav.resource_service import (
     ResourceAccessDeniedError,

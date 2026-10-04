@@ -338,7 +338,7 @@ def test_type_preference_controls_actor_vs_genre_weight(
     genre_seed = resource_factory(avid="GENRE-SEED-001", original_title="Genre Seed")
     genre_seed.genres.add(genre)
 
-    def fake_search(self, keyword, page=1):
+    def fake_search(self, keyword, page=1, *, force_refresh=False):
         _ = self
         _ = page
         if keyword == "Alice":
@@ -407,7 +407,9 @@ def test_rare_actor_preference_includes_mid_and_low_frequency_actor_seeds(
             )
             resource.actors.add(actor)
 
-    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable, "search", lambda self, keyword, page=1, *, force_refresh=False: []
+    )
 
     response = api_client.get(
         "/nassav/api/recommendations/",
@@ -449,7 +451,7 @@ def test_recommendations_endpoint_persists_snapshot_and_items(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-401",
                 "title": "Persisted Result",
@@ -508,7 +510,7 @@ def test_blocked_seed_profile_excludes_matching_seed_from_recommendation_pool(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-BLOCK-001",
                 "title": "Blocked Seed Result",
@@ -549,7 +551,9 @@ def test_blocked_seed_profile_does_not_allow_discovery_bypass(
     )
 
     captured_discovery_pages = []
-    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable, "search", lambda self, keyword, page=1, *, force_refresh=False: []
+    )
     monkeypatch.setattr(
         Jable,
         "discover_hot_items",
@@ -566,7 +570,11 @@ def test_blocked_seed_profile_does_not_allow_discovery_bypass(
             ]
         ),
     )
-    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "discover_latest_updates",
+        lambda self, page=1, *, force_refresh=False: [],
+    )
     monkeypatch.setattr(
         Jable,
         "get_video_detail",
@@ -622,16 +630,18 @@ def test_seed_blacklist_excludes_blocked_keyword_but_allows_active_seed_fallback
     )
 
     captured_keywords = []
-    monkeypatch.setattr(Jable, "get_video_detail", lambda self, avid, **kwargs: {})
+    monkeypatch.setattr(
+        Jable, "get_video_detail", lambda self, avid, detail_url="", **kwargs: {}
+    )
     monkeypatch.setattr(
         Jable,
         "get_model_videos",
-        lambda self, model_slug, page=1, sort_by="video_viewed": [],
+        lambda self, model_slug, page=1, sort_by="video_viewed", *, force_refresh=False: [],
     )
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: (
+        lambda self, keyword, page=1, *, force_refresh=False: (
             captured_keywords.append(keyword)
             or [
                 {
@@ -981,7 +991,7 @@ def test_recommendations_endpoint_avoids_recent_snapshot_items_on_repeat_request
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-501-A",
                 "title": "First Result",
@@ -1038,7 +1048,7 @@ def test_recommendations_endpoint_penalizes_cross_strategy_recent_results(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-601-A",
                 "title": "Frequent Result",
@@ -1111,7 +1121,7 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-701-A",
                 "title": "Base Winner",
@@ -1226,7 +1236,7 @@ def test_recommendation_dislike_feedback_does_not_block_same_avid_from_future_re
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-702-A",
                 "title": "Disliked Candidate",
@@ -1321,7 +1331,7 @@ def test_recommendation_reset_endpoint_clears_history_but_preserves_blocklist(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-703-A",
                 "title": "Candidate",
@@ -1395,7 +1405,7 @@ def test_recommendations_endpoint_tops_up_when_recent_filter_would_underfill(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-901-A",
                 "title": "Result A",
@@ -1457,7 +1467,7 @@ def test_recommendations_endpoint_uses_actor_aliases_for_seed_recall(
 
     captured_keywords = []
 
-    def fake_search(self, keyword, page=1):
+    def fake_search(self, keyword, page=1, *, force_refresh=False):
         _ = self
         _ = page
         captured_keywords.append(keyword)
@@ -1516,7 +1526,7 @@ def test_recommendations_endpoint_uses_actor_source_mapping_for_model_recall(
     monkeypatch.setattr(
         Jable,
         "get_model_videos",
-        lambda self, model_slug, page=1, sort_by="video_viewed": (
+        lambda self, model_slug, page=1, sort_by="video_viewed", *, force_refresh=False: (
             captured_model_slugs.append((model_slug, page, sort_by))
             or [
                 {
@@ -1532,7 +1542,9 @@ def test_recommendations_endpoint_uses_actor_source_mapping_for_model_recall(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: captured_keywords.append(keyword) or [],
+        lambda self, keyword, page=1, *, force_refresh=False: (
+            captured_keywords.append(keyword) or []
+        ),
     )
 
     response = api_client.get(
@@ -1584,7 +1596,7 @@ def test_recommendations_endpoint_manual_blocked_actor_excludes_mapped_seed(
     monkeypatch.setattr(
         Jable,
         "get_model_videos",
-        lambda self, model_slug, page=1, sort_by="video_viewed": (
+        lambda self, model_slug, page=1, sort_by="video_viewed", *, force_refresh=False: (
             captured_model_slugs.append((model_slug, page, sort_by))
             or [
                 {
@@ -1628,7 +1640,7 @@ def test_recommendations_endpoint_does_not_write_actor_mapping(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-LAZY-404",
                 "title": "Lazy Mapping 404",
@@ -1674,7 +1686,7 @@ def test_recommendations_endpoint_expands_to_lower_ranked_seeds_when_exhausted(
         )
     resource_factory(avid="CAROL-SEED-0", original_title="Seed").actors.add(carol)
 
-    def fake_search(self, keyword, page=1):
+    def fake_search(self, keyword, page=1, *, force_refresh=False):
         _ = self
         _ = page
         mapping = {
@@ -1825,8 +1837,14 @@ def test_recommendations_endpoint_tops_up_after_detail_blacklist_filter(
 
     monkeypatch.setattr(Jable, "search", fake_search)
     monkeypatch.setattr(Jable, "get_video_detail", fake_get_video_detail)
-    monkeypatch.setattr(Jable, "discover_hot_items", lambda self, page=1: [])
-    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+    monkeypatch.setattr(
+        Jable, "discover_hot_items", lambda self, page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        Jable,
+        "discover_latest_updates",
+        lambda self, page=1, *, force_refresh=False: [],
+    )
 
     response = api_client.get(
         "/nassav/api/recommendations/",
@@ -1872,7 +1890,7 @@ def test_recommendations_endpoint_expands_when_primary_pool_is_only_recent(
         carol
     )
 
-    def fake_search(self, keyword, page=1):
+    def fake_search(self, keyword, page=1, *, force_refresh=False):
         _ = self
         _ = page
         mapping = {
@@ -1950,11 +1968,13 @@ def test_recommendations_endpoint_includes_hot_and_latest_discovery_candidates(
     seed_resource = resource_factory(avid="SEED-903", original_title="Seed")
     seed_resource.actors.add(actor)
 
-    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable, "search", lambda self, keyword, page=1, *, force_refresh=False: []
+    )
     monkeypatch.setattr(
         Jable,
         "discover_hot_items",
-        lambda self, page=1: [
+        lambda self, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-903-HOT",
                 "title": "Hot Candidate",
@@ -1971,7 +1991,7 @@ def test_recommendations_endpoint_includes_hot_and_latest_discovery_candidates(
     monkeypatch.setattr(
         Jable,
         "discover_latest_updates",
-        lambda self, page=1: [
+        lambda self, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-903-NEW",
                 "title": "Latest Candidate",
@@ -2017,11 +2037,13 @@ def test_recommendations_enriches_discovery_candidates_with_matching_seed_detail
     seed_resource = resource_factory(avid="SEED-904", original_title="Seed")
     seed_resource.actors.add(actor)
 
-    monkeypatch.setattr(Jable, "search", lambda self, keyword, page=1: [])
+    monkeypatch.setattr(
+        Jable, "search", lambda self, keyword, page=1, *, force_refresh=False: []
+    )
     monkeypatch.setattr(
         Jable,
         "discover_hot_items",
-        lambda self, page=1: [
+        lambda self, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-904-HOT",
                 "title": "Hot Candidate",
@@ -2035,7 +2057,11 @@ def test_recommendations_enriches_discovery_candidates_with_matching_seed_detail
             }
         ],
     )
-    monkeypatch.setattr(Jable, "discover_latest_updates", lambda self, page=1: [])
+    monkeypatch.setattr(
+        Jable,
+        "discover_latest_updates",
+        lambda self, page=1, *, force_refresh=False: [],
+    )
     monkeypatch.setattr(
         Jable,
         "get_video_detail",
@@ -2076,7 +2102,7 @@ def test_feedback_learning_profile_separates_dislike_from_avid_blocklist(
     monkeypatch.setattr(
         Jable,
         "search",
-        lambda self, keyword, page=1: [
+        lambda self, keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-905-A",
                 "title": "Feedback Candidate",

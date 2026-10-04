@@ -20,7 +20,7 @@ def test_jable_recommender_paginates_search_results(
     jable = Jable()
     calls = []
 
-    def fake_search(keyword, page=1):
+    def fake_search(keyword, page=1, *, force_refresh=False):
         calls.append((keyword, page))
         if page == 1:
             return [
@@ -45,8 +45,12 @@ def test_jable_recommender_paginates_search_results(
         return []
 
     monkeypatch.setattr(jable, "search", fake_search)
-    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
-    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+    monkeypatch.setattr(
+        jable, "discover_hot_items", lambda page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "discover_latest_updates", lambda page=1, *, force_refresh=False: []
+    )
 
     recommender = JableSearchRecommender(
         candidate_inventory=DjangoCandidateInventory(),
@@ -79,9 +83,11 @@ def test_jable_recommender_paginates_latest_discovery(monkeypatch):
     jable = Jable()
     calls = []
 
-    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
+    monkeypatch.setattr(
+        jable, "discover_hot_items", lambda page=1, *, force_refresh=False: []
+    )
 
-    def fake_latest_updates(page=1):
+    def fake_latest_updates(page=1, *, force_refresh=False):
         calls.append(page)
         if page == 1:
             return [
@@ -149,7 +155,7 @@ def test_jable_recommender_recommend_filters_seed_blocked_candidates(
     monkeypatch.setattr(
         jable,
         "search",
-        lambda keyword, page=1: (
+        lambda keyword, page=1, *, force_refresh=False: (
             captured_keywords.append(keyword)
             or [
                 {
@@ -162,8 +168,12 @@ def test_jable_recommender_recommend_filters_seed_blocked_candidates(
             ]
         ),
     )
-    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
-    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+    monkeypatch.setattr(
+        jable, "discover_hot_items", lambda page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "discover_latest_updates", lambda page=1, *, force_refresh=False: []
+    )
 
     recommender = JableSearchRecommender(
         candidate_inventory=DjangoCandidateInventory(),
@@ -209,22 +219,22 @@ def test_jable_recommender_filters_candidate_by_blocked_genre_slug_metrics(
     monkeypatch.setattr(
         jable,
         "search",
-        lambda keyword, page=1: [
+        lambda keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-BLK-002",
                 "title": "Has Blocked Tag",
                 "detail_url": "https://jable.tv/videos/rec-blk-002/",
                 "cover_url": "https://img/rec-blk-002.jpg",
-                "metrics": {
-                    "views": 100,
-                    "likes": 10,
-                    "tag_slug": "groupsex",
-                },
+                "metrics": {"views": 100, "likes": 10, "tag_slug": "groupsex"},
             }
         ],
     )
-    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
-    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+    monkeypatch.setattr(
+        jable, "discover_hot_items", lambda page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "discover_latest_updates", lambda page=1, *, force_refresh=False: []
+    )
 
     recommender = JableSearchRecommender(
         candidate_inventory=DjangoCandidateInventory(),
@@ -268,7 +278,7 @@ def test_jable_recommender_filters_matched_candidate_by_detail_category_slug(
     monkeypatch.setattr(
         jable,
         "search",
-        lambda keyword, page=1: [
+        lambda keyword, page=1, *, force_refresh=False: [
             {
                 "avid": "REC-BLK-003",
                 "title": "Has Blocked Category In Detail",
@@ -278,8 +288,12 @@ def test_jable_recommender_filters_matched_candidate_by_detail_category_slug(
             }
         ],
     )
-    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
-    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+    monkeypatch.setattr(
+        jable, "discover_hot_items", lambda page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "discover_latest_updates", lambda page=1, *, force_refresh=False: []
+    )
     monkeypatch.setattr(
         jable,
         "get_video_detail",

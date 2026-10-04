@@ -400,9 +400,5 @@ class SourceManager(SourceLookup):
                 return source
         return None
 
-    def _get_source(self, source_name: str) -> Optional[SourceBase]:
-        """Compatibility alias for callers migrating to the public interface."""
-        return self.get_source(source_name)
-
 
 source_manager = SourceManager()

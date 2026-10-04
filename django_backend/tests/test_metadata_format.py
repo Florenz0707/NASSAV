@@ -1,5 +1,7 @@
 """测试metadata格式和title字段处理"""
 
+from nassav.composition import build_resource_service
+
 from unittest.mock import Mock
 
 import pytest
@@ -9,14 +11,12 @@ from nassav.models import ActorSourceMapping
 @pytest.mark.django_db
 def test_metadata_format_with_scraper_data():
     """测试有刮削数据时的metadata格式"""
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
     # 创建ResourceService实例
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
 
     # 创建模拟的source对象
     mock_source = Mock()
@@ -88,14 +88,12 @@ def test_metadata_format_with_scraper_data():
 @pytest.mark.django_db
 def test_metadata_format_without_scraper_data():
     """测试没有刮削数据时的metadata格式"""
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
     # 创建ResourceService实例
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
 
     # 创建模拟的source对象
     mock_source = Mock()
@@ -133,13 +131,11 @@ def test_metadata_format_without_scraper_data():
 @pytest.mark.django_db
 def test_source_title_normalization():
     """测试source_title规范化逻辑"""
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
     mock_source = Mock()
     mock_source.get_source_name.return_value = "TestSource"
 
@@ -176,13 +172,11 @@ def test_source_title_normalization():
 
 @pytest.mark.django_db
 def test_save_to_database_syncs_jable_actor_mapping_from_html():
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"
@@ -232,13 +226,11 @@ def test_save_to_database_syncs_jable_actor_mapping_from_html():
 
 @pytest.mark.django_db
 def test_save_all_resources_syncs_jable_actor_mapping_during_add_flow(monkeypatch):
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"
@@ -296,13 +288,11 @@ def test_refresh_resource_preserves_existing_actor_relations_when_scrape_fails(
     monkeypatch,
 ):
     from nassav.models import AVResource, Actor
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
 
     actor = Actor.objects.create(name="明里つむぎ")
     resource = AVResource.objects.create(
@@ -327,8 +317,8 @@ def test_refresh_resource_preserves_existing_actor_relations_when_scrape_fails(
     )
     monkeypatch.setattr(service, "_scrape_metadata", lambda avid: (None, None))
     monkeypatch.setattr(
-        service,
-        "_download_cover",
+        service.assets,
+        "save_cover",
         lambda avid, scraped_data, scraped_by, source_inst, html: False,
     )
 
@@ -343,13 +333,11 @@ def test_refresh_resource_preserves_existing_actor_relations_when_scrape_fails(
 @pytest.mark.django_db
 def test_save_to_database_preserves_metadata_when_scrape_is_skipped():
     from nassav.models import AVResource
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
 
@@ -396,13 +384,11 @@ def test_save_to_database_preserves_metadata_when_scrape_is_skipped():
 @pytest.mark.django_db
 def test_save_to_database_preserves_metadata_when_scrape_is_skipped_even_with_jable_html():
     from nassav.models import AVResource
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"
@@ -457,13 +443,11 @@ def test_save_to_database_preserves_metadata_when_scrape_is_skipped_even_with_ja
 
 @pytest.mark.django_db
 def test_save_to_database_uses_jable_html_actor_fallback_when_scraper_has_no_actor():
-    from nassav.resource_service import ResourceService
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager
-    from nassav.translator.TranslatorManager import translator_manager
 
-    service = ResourceService(source_manager, scraper_manager, translator_manager)
+    service = build_resource_service(source_manager, scraper_manager)
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"

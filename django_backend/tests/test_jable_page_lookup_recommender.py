@@ -29,7 +29,7 @@ def test_jable_page_lookup_recommender_uses_genre_tag_mapping(
     jable = Jable()
     calls = []
 
-    def fake_get_tag_videos(tag_slug, page=1):
+    def fake_get_tag_videos(tag_slug, page=1, *, force_refresh=False):
         calls.append(("tag", tag_slug, page))
         if page == 1:
             return [
@@ -44,10 +44,18 @@ def test_jable_page_lookup_recommender_uses_genre_tag_mapping(
         return []
 
     monkeypatch.setattr(jable, "get_tag_videos", fake_get_tag_videos)
-    monkeypatch.setattr(jable, "get_category_videos", lambda slug, page=1: [])
-    monkeypatch.setattr(jable, "search", lambda keyword, page=1: [])
-    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
-    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+    monkeypatch.setattr(
+        jable, "get_category_videos", lambda slug, page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "search", lambda keyword, page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "discover_hot_items", lambda page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "discover_latest_updates", lambda page=1, *, force_refresh=False: []
+    )
 
     recommender = JablePageLookupRecommender(
         candidate_inventory=DjangoCandidateInventory(),
@@ -89,7 +97,7 @@ def test_jable_page_lookup_recommender_falls_back_to_search_without_mapping(
     jable = Jable()
     calls = []
 
-    def fake_search(keyword, page=1):
+    def fake_search(keyword, page=1, *, force_refresh=False):
         calls.append((keyword, page))
         if page == 1:
             return [
@@ -103,11 +111,19 @@ def test_jable_page_lookup_recommender_falls_back_to_search_without_mapping(
             ]
         return []
 
-    monkeypatch.setattr(jable, "get_tag_videos", lambda slug, page=1: [])
-    monkeypatch.setattr(jable, "get_category_videos", lambda slug, page=1: [])
+    monkeypatch.setattr(
+        jable, "get_tag_videos", lambda slug, page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "get_category_videos", lambda slug, page=1, *, force_refresh=False: []
+    )
     monkeypatch.setattr(jable, "search", fake_search)
-    monkeypatch.setattr(jable, "discover_hot_items", lambda page=1: [])
-    monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
+    monkeypatch.setattr(
+        jable, "discover_hot_items", lambda page=1, *, force_refresh=False: []
+    )
+    monkeypatch.setattr(
+        jable, "discover_latest_updates", lambda page=1, *, force_refresh=False: []
+    )
 
     recommender = JablePageLookupRecommender(
         candidate_inventory=DjangoCandidateInventory(),

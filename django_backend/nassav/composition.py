@@ -118,7 +118,7 @@ def build_translation_workflow():
 def build_recommendation_manager():
     from django.conf import settings
     from nassav.source import Jable
-    from nassav.recommendation.manager import RecommenderManager
+    from nassav.recommendation.workflow import RecommenderManager
     from nassav.recommendation.jable_page_lookup import JablePageLookupRecommender
     from nassav.recommendation.data_access import (
         DjangoRecommendationContext,
@@ -164,3 +164,31 @@ def build_translation_requests():
         return translate_title_task.delay(avid)
 
     return DjangoTranslationRequests(dispatch)
+
+
+def build_resource_service(source_manager=None, scraper_manager=None, **overrides):
+    from nassav.resource_workflow import ResourceService
+    from nassav.resource_persistence import DjangoResourcePersistence
+    from nassav.resource_adapters import (
+        DjangoResourceReader,
+        FileResourceAssets,
+        CeleryTranslationSubmitter,
+        SignalResourceEvents,
+    )
+
+    if source_manager is None:
+        from nassav.source.SourceManager import source_manager
+    if scraper_manager is None:
+        from nassav.scraper.ScraperManager import scraper_manager
+    defaults = {
+        "persistence": lambda: DjangoResourcePersistence(),
+        "reader": lambda: DjangoResourceReader(),
+        "assets": lambda: FileResourceAssets(scraper_manager),
+        "translations": lambda: CeleryTranslationSubmitter(),
+        "events": lambda: SignalResourceEvents(),
+    }
+    dependencies = {
+        key: overrides[key] if key in overrides else factory()
+        for key, factory in defaults.items()
+    }
+    return ResourceService(source_manager, scraper_manager, **dependencies)

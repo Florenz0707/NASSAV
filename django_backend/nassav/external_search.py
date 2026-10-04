@@ -14,7 +14,7 @@ from loguru import logger
 from nassav.models import AVResource, Actor, Genre
 from nassav.recommendation.actor_source_mapping import actor_source_mapping_service
 from nassav.recommendation.genre_source_mapping import genre_source_mapping_service
-from nassav.services import source_manager
+from nassav.source.SourceManager import source_manager
 from nassav.source.SourceBase import SourceBase
 from nassav.source.capabilities import ListingSource
 from nassav.composition import external_search_adapters

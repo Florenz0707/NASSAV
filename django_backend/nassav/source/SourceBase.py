@@ -13,7 +13,7 @@ from nassav.constants import HEADERS, IMPERSONATE
 from nassav.page_fetching import FetchFailure, PageResult
 from nassav.page_fetching.coordination import SessionRefreshCoordinator
 from nassav.source.session_lifecycle import SourceSessionLifecycle
-from nassav.source.capabilities import SourceRelations
+from nassav.resource_contracts import SourceRelations
 from nassav.page_fetching.contracts import BrowserSessionHandler
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import (
@@ -105,10 +105,6 @@ class SourceBase(BrowserSessionHandler):
         if not self.domain:
             raise ValueError(f"{self.get_source_name()} 未设置domain")
         return f"https://{self.domain}/"
-
-    def _get_home_url(self) -> str:
-        """Compatibility alias; consumers should use the public interface."""
-        return self.get_home_url()
 
     def set_cookie_auto(
         self,

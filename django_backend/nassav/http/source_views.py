@@ -13,7 +13,7 @@ from nassav.external_search import external_search_service
 from nassav.serializers import (
     SourceCookieListSerializer,
 )
-from nassav.services import source_manager
+from nassav.source.SourceManager import source_manager
 
 
 from nassav.http_base import SchemaAPIView

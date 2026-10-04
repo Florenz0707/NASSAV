@@ -6,22 +6,19 @@ from unittest.mock import Mock
 
 import pytest
 
-from nassav.resource_adapters import (
+from nassav.resource_contracts import (
     AssetResult,
     ResourceAssets,
     ResourceEvents,
     ResourceReader,
     TranslationSubmitter,
 )
-from nassav.resource_persistence import (
-    DjangoResourcePersistence,
-    ResourcePersistence,
-    ResourceSaveInput,
-)
-from nassav.resource_service import ResourceAlreadyExistsError, ResourceService
+from nassav.resource_persistence import DjangoResourcePersistence
+from nassav.resource_contracts import ResourcePersistence, ResourceSaveInput
+from nassav.resource_workflow import ResourceAlreadyExistsError, ResourceService
 from nassav.scraper import AVDownloadInfo
 from nassav.source.Jable import Jable
-from nassav.source.capabilities import SourceRelations
+from nassav.resource_contracts import SourceRelations
 from nassav.source.jable_actor_mapping import JableModelCandidate
 
 
@@ -117,7 +114,6 @@ def test_add_refresh_and_duplicate_use_injected_dependencies_without_database(tm
     service = ResourceService(
         sources,
         metadata,
-        Mock(),
         reader=store,
         persistence=store,
         assets=MemoryAssets(calls, tmp_path / "page"),

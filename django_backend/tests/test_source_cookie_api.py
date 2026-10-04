@@ -164,7 +164,7 @@ def test_verified_direct_status_requires_current_route_and_fresh_expiry(
     from nassav.source.CookieRepository import proxy_route_profile
     from nassav.source.SourceManager import source_manager
 
-    source = source_manager._get_source("Jable")
+    source = source_manager.get_source("Jable")
     assert source is not None
     monkeypatch.setattr(source, "proxy", "http://proxy.test:8080")
     record = SourceCookie.objects.create(

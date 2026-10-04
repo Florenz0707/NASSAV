@@ -18,7 +18,8 @@ from nassav.source.CookieRepository import CookieRepository
 from nassav.page_fetching.coordination import SessionRefreshCoordinator
 from nassav.source.SourceBase import SourceBase
 from nassav.recommendation.contracts import RecommendationSource
-from nassav.source.capabilities import ListingSource, SourceRelations
+from nassav.source.capabilities import ListingSource
+from nassav.resource_contracts import SourceRelations
 from nassav.source.jable_actor_mapping import parse_jable_model_candidates
 from nassav.source.search_contracts import SourceSearchError
 

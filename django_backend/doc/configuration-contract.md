@@ -13,3 +13,5 @@ Django 管理命令、ASGI 和 Celery worker 使用同一个设置加载入口�
 ## P4 会话复用开关
 
 `BrowserFetch.session_reuse_enabled` 只接受 YAML 布尔值，省略时为 `false`。关闭时保留原有 `browser_first` 页面次序与人工 Cookie 直连能力；配置为 `direct_first` 的源暂按 `browser_first` 执行，且不提取、验证或写入自动可复用会话。开启后才按各源 `browser_fetch_strategy` 执行；先只将 Jable 设为 `direct_first`，MissAV 维持 `browser_first` 直至独立验收。切换开关、策略或代理配置后，重启 API 与持有 Source 实例的 worker。回滚时关闭开关并把受影响源恢复 `browser_first`，不清理 Cookie 表。
+
+R7 将资源默认七项能力、下载 resolver、推荐 context/inventory/source factory、翻译 Adapter 及媒体定位集中在 composition；核心用例构造函数不创建默认 ORM/队列依赖。没有新增配置键或修改 config.example.yaml 默认值。任务分文件后仍以原 nassav.tasks.\* 名称注册，队列名、Redis key/TTL、路径和代理配置保持。
