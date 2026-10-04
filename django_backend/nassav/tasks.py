@@ -2,6 +2,7 @@
 Celery异步任务定义
 """
 
+from functools import wraps
 from typing import Any, Dict, List
 
 import redis
@@ -10,11 +11,19 @@ from celery.result import AsyncResult
 from django.conf import settings
 from django_project.celery import app as celery_app
 from loguru import logger
+from nassav.download_leases import (
+    DownloadLease,
+    DownloadLeaseLost,
+    current_download_ownership,
+    download_ownership,
+)
 
 
 def get_redis_client() -> redis.Redis:  # type: ignore
     """获取Redis客户端"""
-    return redis.from_url(settings.CELERY_BROKER_URL)
+    return redis.from_url(
+        settings.CELERY_BROKER_URL, socket_connect_timeout=2, socket_timeout=2
+    )
 
 
 def is_task_existed(avid: str):
@@ -136,6 +145,11 @@ def set_task_progress(
         progress_data["eta"] = eta
     if downloaded is not None:
         progress_data["downloaded"] = downloaded
+    lease = current_download_ownership()
+    if lease is not None:
+        if not lease.mutate("progress", __import__("json").dumps(progress_data)):
+            raise DownloadLeaseLost("下载进度写入时租约已丢失")
+        return
     # 设置过期时间为1小时
     redis_client.setex(progress_key, 3600, __import__("json").dumps(progress_data))
 
@@ -165,6 +179,10 @@ def remove_task_progress(avid: str):
     Args:
         avid: 视频ID
     """
+    lease = current_download_ownership()
+    if lease is not None:
+        lease.mutate("remove_progress", "")
+        return
     redis_client = get_redis_client()
     progress_key = f"nassav:task_progress:{avid.upper()}"
     redis_client.delete(progress_key)
@@ -298,9 +316,10 @@ def create_task_lock(avid: str, task_id: str, expire_time: int = 3600):
         task_id: 任务ID
         expire_time: 锁过期时间（秒）
     """
-    redis_client = get_redis_client()
-    lock_key = f"nassav:task_lock:{avid.upper()}"
-    redis_client.setex(lock_key, expire_time, task_id)
+    lease = current_download_ownership()
+    if lease is None:
+        raise RuntimeError("Task locks require an execution ownership context")
+    lease.start(expire_time)
 
 
 def add_task_to_queue(avid: str, task_id: str, task_type: str = "download"):
@@ -337,6 +356,11 @@ def update_task_state_in_queue(avid: str, state: str):
         avid: 视频ID
         state: 任务状态（'PENDING', 'STARTED', 'SUCCESS', 'FAILURE'）
     """
+    lease = current_download_ownership()
+    if lease is not None:
+        if not lease.mutate("state", state):
+            raise DownloadLeaseLost("下载状态写入时租约已丢失")
+        return
     redis_client = get_redis_client()
     queue_key = "nassav:task_queue"
     avid_upper = avid.upper()
@@ -357,6 +381,10 @@ def remove_task_from_queue(avid: str):
     Args:
         avid: 视频ID
     """
+    lease = current_download_ownership()
+    if lease is not None:
+        lease.mutate("remove_queue", "")
+        return
     redis_client = get_redis_client()
     queue_key = "nassav:task_queue"
     redis_client.hdel(queue_key, avid.upper())
@@ -429,6 +457,10 @@ def remove_task_lock(avid: str):
     Args:
         avid: 视频ID
     """
+    lease = current_download_ownership()
+    if lease is not None:
+        lease.mutate("cleanup", "")
+        return
     redis_client = get_redis_client()
     lock_key = f"nassav:task_lock:{avid.upper()}"
     redis_client.delete(lock_key)
@@ -444,19 +476,15 @@ def acquire_global_download_lock(timeout: int = 3600):
     Returns:
         bool: 成功获取锁返回True，否则返回False
     """
-    redis_client = get_redis_client()
-    lock_key = "nassav:global_download_lock"
-    # 使用 set nx ex 原子操作获取锁
-    return redis_client.set(lock_key, "locked", nx=True, ex=timeout)
+    lease = current_download_ownership()
+    if lease is None:
+        raise RuntimeError("Global downloads require an execution ownership context")
+    return lease.acquire_global(timeout)
 
 
 def release_global_download_lock():
-    """
-    释放全局下载锁
-    """
-    redis_client = get_redis_client()
-    lock_key = "nassav:global_download_lock"
-    redis_client.delete(lock_key)
+    lease = current_download_ownership()
+    return lease.release_global() if lease is not None else False
 
 
 def wait_for_global_download_lock(max_wait_time: int = 600, check_interval: int = 5):
@@ -482,7 +510,30 @@ def wait_for_global_download_lock(max_wait_time: int = 600, check_interval: int 
     return False
 
 
+def _owned_download(operation):
+    @wraps(operation)
+    def execute(task, avid, *args, **kwargs):
+        lease = DownloadLease(avid, get_redis_client)
+        with download_ownership(lease):
+            try:
+                return operation(task, avid, *args, **kwargs)
+            except DownloadLeaseLost as error:
+                notify_task_update(
+                    "task_failed",
+                    {
+                        "task_id": task.request.id,
+                        "avid": avid.upper(),
+                        "status": "failed",
+                        "message": str(error),
+                    },
+                )
+                return {"status": "failed", "avid": avid.upper(), "message": str(error)}
+
+    return execute
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@_owned_download
 def download_video_task(self, avid: str):
     """
     异步下载视频任务
@@ -545,6 +596,9 @@ def download_video_task(self, avid: str):
     # 定义进度回调函数
     def progress_callback(percent: float, speed: str, eta: str):
         """更新下载进度并通知 WebSocket（带节流）"""
+        ownership = current_download_ownership()
+        if ownership:
+            ownership.check()
         # Redis 进度更新保持原频率（供 API 查询）
         set_task_progress(avid, percent, speed, eta=eta)
 
@@ -562,10 +616,16 @@ def download_video_task(self, avid: str):
             )
 
     try:
+        ownership = current_download_ownership()
         success = video_download_service.download_video(
-            avid, progress_callback=progress_callback
+            avid,
+            progress_callback=progress_callback,
+            cancelled=ownership.cancelled if ownership else None,
         )
 
+        ownership = current_download_ownership()
+        if ownership:
+            ownership.check()
         if success:
             # 从 Redis 队列中移除任务
             remove_task_from_queue(avid)
@@ -584,7 +644,11 @@ def download_video_task(self, avid: str):
 
             # 文件元数据由持久化适配器更新，任务仅编排队列与通知。
             try:
+                if ownership:
+                    ownership.check()
                 download_persistence.mark_completed(avid)
+            except DownloadLeaseLost:
+                raise
             except Exception as e:
                 logger.warning(f"下载完成后更新 AVResource 失败: {e}")
 
@@ -614,6 +678,8 @@ def download_video_task(self, avid: str):
 
             return {"status": "failed", "avid": avid, "message": "下载失败"}
 
+    except DownloadLeaseLost:
+        raise
     except Exception as e:
         logger.error(f"视频 {avid} 下载异常: {str(e)}")
 
@@ -964,6 +1030,7 @@ def submit_translate_task(avid: str, async_mode: bool = True):
 
 
 @shared_task(bind=True)
+@_owned_download
 def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
     """
     模拟下载视频任务（仅用于测试）
@@ -1010,6 +1077,9 @@ def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
                 else f"00:{remaining // 60:02d}:{remaining % 60:02d}"
             )
 
+            ownership = current_download_ownership()
+            if ownership:
+                ownership.check()
             # 更新进度
             set_task_progress(avid, percent, speed, eta=eta)
 
@@ -1025,6 +1095,9 @@ def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
                 },
             )
 
+        ownership = current_download_ownership()
+        if ownership:
+            ownership.check()
         # 模拟下载完成
         logger.info(f"[测试] 模拟下载完成: {avid}")
 
@@ -1056,6 +1129,8 @@ def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
             "message": "模拟下载完成",
         }
 
+    except DownloadLeaseLost:
+        raise
     except Exception as e:
         logger.error(f"[测试] 模拟下载失败: {avid}, 错误: {e}")
 

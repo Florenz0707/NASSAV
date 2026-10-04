@@ -1395,3 +1395,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 外部搜索的来源 ID、显示名、演员/类别支持、可选排序均由 Adapter 的 SearchCapability 描述；能力接口仍使用现有字段。用户设置的来源选择由当前启用能力生成。Jable 客户端排序与 MissAV 来源原生降序语义不变，缓存继续区分来源、域名与出口。新增来源在装配注册 Adapter 及对应 CoverPolicy，不在通用搜索中增加源名分支。
 
 资源新增/刷新用例的读取、资产、保存、翻译提交和事件均可注入；HTTP、旧同步批量及任务响应继续采用现有资源字段。公共序列化位于 resource_presentation，保留原用例与旧 HTTP 的各自 payload 形状。副作用顺序和部分失败行为见[重构执行记录](backend-refactoring-execution.md)。
+
+## 下载任务租约
+
+下载执行使用独立 owner token，任务锁与全局锁的续租、释放均校验当前 owner。迟到执行不能覆盖后继任务的进度或清理其队列。失租或续租 Redis 故障停止下载 CLI，返回现有 failed 结果，不更新成功状态；CLI 无输出时也检测取消。默认锁 TTL 仍为 3600 秒，正常执行定期续租。任务名称和 HTTP 字段不变。旧 worker 的无条件删除逻辑不能与此实现混用，部署切换仍需单独验收。

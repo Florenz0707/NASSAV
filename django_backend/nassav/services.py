@@ -34,7 +34,10 @@ class VideoDownloadService:
         self.m3u8_downloader = m3u8_downloader
 
     def download_video(
-        self, avid: str, progress_callback: Optional[Callable] = None
+        self,
+        avid: str,
+        progress_callback: Optional[Callable] = None,
+        cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """
         下载视频
@@ -84,7 +87,7 @@ class VideoDownloadService:
 
         # 下载m3u8视频（使用 Redis 分布式锁确保只有一个下载任务运行）
         result = self._download_m3u8(
-            info.m3u8, avid, domain, duration_seconds, progress_callback
+            info.m3u8, avid, domain, duration_seconds, progress_callback, cancelled
         )
         logger.info(f"[{avid}] 视频下载{'成功' if result else '失败'}")
         return result
@@ -102,6 +105,7 @@ class VideoDownloadService:
         domain: str,
         total_duration: Optional[int] = None,
         progress_callback: Optional[Callable] = None,
+        cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """使用注入的 M3U8 下载器下载视频"""
         avid_upper = avid.upper()
@@ -122,8 +126,11 @@ class VideoDownloadService:
             thread_count=32,
             retry_count=5,
             progress_callback=progress_callback,
+            cancelled=cancelled,
         )
 
+        if cancelled and cancelled():
+            return False
         if success:
             # 确保输出文件为 MP4 格式
             self.m3u8_downloader.ensure_mp4(resource_dir, avid_upper)

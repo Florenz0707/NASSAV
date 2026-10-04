@@ -6,6 +6,8 @@ https://github.com/nilaoda/N_m3u8DL-RE
 import os
 import platform
 import subprocess
+import signal
+from threading import Event, Thread
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -43,15 +45,22 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         thread_count: int = 32,
         retry_count: int = 5,
         progress_callback: Optional[Callable] = None,
+        cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """使用 N_m3u8DL-RE 下载 M3U8 视频
 
         Args:
             progress_callback: 进度回调函数，参数为 (percent: float, speed: str, eta: str)
         """
+        if cancelled and cancelled():
+            return False
         output_dir.mkdir(parents=True, exist_ok=True)
         tmp_path = output_dir / "temp"
 
+        process = None
+        watchdog = None
+        stopped = Event()
+        cancelled_run = Event()
         try:
             # 构建命令
             cmd = [
@@ -101,7 +110,24 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 bufsize=1,
+                start_new_session=(os.name == "posix"),
             )
+
+            if cancelled is not None:
+
+                def watch_cancellation():
+                    while not stopped.wait(0.1):
+                        try:
+                            should_stop = cancelled()
+                        except Exception:
+                            should_stop = True
+                        if should_stop:
+                            cancelled_run.set()
+                            self._terminate_process(process)
+                            return
+
+                watchdog = Thread(target=watch_cancellation, daemon=True)
+                watchdog.start()
 
             # 实时读取输出并解析进度
             import re
@@ -131,6 +157,8 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
             # 等待进程完成
             returncode = process.wait()
 
+            if cancelled_run.is_set() or (cancelled and cancelled()):
+                return False
             if returncode != 0:
                 logger.error(f"N_m3u8DL-RE 下载失败，退出码: {returncode}")
                 return False
@@ -152,3 +180,34 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         except Exception as e:
             logger.error(f"下载失败: {e}")
             return False
+
+        finally:
+            stopped.set()
+            if watchdog is not None:
+                watchdog.join(timeout=3)
+            if process is not None and cancelled_run.is_set():
+                self._terminate_process(process)
+            if process is not None and process.stdout is not None:
+                close = getattr(process.stdout, "close", None)
+                if close:
+                    close()
+
+    @staticmethod
+    def _terminate_process(process) -> None:
+        if process is None or process.poll() is not None:
+            return
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGTERM)
+            else:
+                process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                if os.name == "posix":
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()
+                process.wait(timeout=2)
+        except ProcessLookupError:
+            pass

@@ -71,7 +71,7 @@ def test_download_task_keeps_progress_event_and_task_name(
         tasks, "set_task_progress", lambda *args, **kwargs: progress.append(args)
     )
 
-    def download(avid, progress_callback):
+    def download(avid, progress_callback, cancelled=None):
         (tmp_path / f"{avid}.mp4").write_bytes(b"video")
         progress_callback(100, "1 MB/s", "0s")
         return True

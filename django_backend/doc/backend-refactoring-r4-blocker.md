@@ -2,9 +2,9 @@
 
 记录日期：2026-10-04。通过并合并的最新代码：`idle@383bd83`。R4 下载草稿基于该提交，尚未提交或合并。原计划及阶段结果见[执行计划](backend-refactoring-plan.md)和[执行记录](backend-refactoring-execution.md)。
 
-## 决策事项
+## 决策与修复状态
 
-建议先在独立 `[Fix]` 分支修复下载锁所有权，再恢复 R4 下载重构并继续 R4 翻译、R5–R7。需要用户决定是否将这项语义修复加入本次任务。
+用户已授权独立 `[Fix]` 分支修复下载锁所有权与失租处理，然后恢复 R4 并继续 R5–R7。独立修复全套 **499 passed、24 skipped**，全量 `pre-commit run -a` 通过；原下载 owner 阻塞已解除。
 
 原计划第 2 节冻结“Redis key、TTL、锁所有权及旧任务兼容性”，第 4 节 R4 又要求通过“锁丢失”验收；第 2 节要求行为改善单独作为语义修复。现有下载锁不具有 owner 保护，纯结构迁移无法同时保持原行为和通过这项验收。用户另明确要求质量门槛不能达成时先沟通再决定下一步，因此已停止后续业务修改，未降低或跳过该验收。
 
@@ -57,11 +57,11 @@ uv run --no-sync pytest /tmp/test_nassav_r4_download_lock_ownership.py \
   --ds=django_project.refactoring_test_settings -v --tb=short
 ```
 
-预期该命令目前失败；这是缺陷证据，不是正常通过的测试命令。
+该脚本记录旧无 owner 接口的缺陷；修复后的验收使用 `tests/test_download_lock_ownership.py`，不再使用旧脚本作为正常门槛。
 
 ## 拟议独立修复范围
 
-若获准执行，使用新分支 `fix/backend-download-lock-ownership`，在恢复 R4 前完成下列工作：
+用户已授权独立修复并继续 R4–R7，使用新分支 `fix/backend-download-lock-ownership`，在恢复 R4 前完成下列工作：
 
 1. 为每次执行生成唯一 owner token，避免重复投递或重试共享同一个 task ID 被误判为同一个租约。
 2. 获取、续租和释放通过原子 owner 校验实现；旧 owner 不能删除或续租新 owner 的锁。保留 key 名和既有 TTL 默认值；明确任务锁及进度清理同样受所有权保护。
@@ -70,4 +70,4 @@ uv run --no-sync pytest /tmp/test_nassav_r4_download_lock_ownership.py \
 5. 使用临时 Redis 验证竞争、过期、旧 owner、重复投递、失租、续租故障和清理异常；使用 CLI 替身确认中止行为。相关测试、全套隔离后端测试及 `pre-commit run -a` 全部通过后才提交并合并 `idle`。
 6. 旧 worker 无条件删除锁，不能据此认定混合版本安全。实际部署需单独验证兼容路径或停止/排空旧 worker；本次授权不自动包含生产部署。
 
-该方案尚未实现，R4 翻译和 R5–R7 尚未开始。若用户决定暂不修复，则保持当前 `idle` 成果与草稿，另行调整 R4 验收及后续执行范围。
+独立修复已实现执行级 UUID owner、原子续租/释放、任务进度与清理 fencing，以及静默 CLI 的失租中止。测试使用真实临时 Redis 和本地 Python 子进程；实际外站下载、混合版本 worker 与生产部署仍不在本次验收内。原失败脚本描述旧接口，现有回归见 `tests/test_download_lock_ownership.py`。

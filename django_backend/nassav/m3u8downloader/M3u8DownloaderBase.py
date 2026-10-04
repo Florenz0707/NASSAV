@@ -35,6 +35,7 @@ class M3u8DownloaderBase(ABC):
         thread_count: int = 32,
         retry_count: int = 5,
         progress_callback: Optional[Callable] = None,
+        cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """
         下载 M3U8 视频
