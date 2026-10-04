@@ -177,3 +177,9 @@ POSIX 取消现在即使父进程退出，也会清理该执行的进程组；�
 用户授权独立修复，分支 `fix/backend-batch-translation-state`，基线 `3486e00`。批量筛选使用实际 original_title/source_title 字段；在更新状态前固定资源快照。返回数量不匹配或翻译/保存异常时，仅将本批仍处于 translating 的记录更新为 failed，保留已有译文和已经完成的部分结果，不影响其他批次。任务名、参数和结果 envelope 保持。
 
 定向 **7 passed**，全套 **515 passed、24 skipped，46.87秒**；全量 pre-commit 采用格式化结果后复验通过。用户已授权继续 R4–R7；批量翻译字段错误的门槛已解除，结构迁移在后续独立分支进行。
+
+## R4 翻译用例与传输入口
+
+基线 `a05a4b3`，分支 `enhancement/backend-refactor-r4-translation-workflow`。TranslationWorkflow 负责单条/批量执行，共享标题选择与结果状态转换；TranslationRepository 与 TextTranslator 是能力契约，Django 和 TranslatorManager Adapter 负责基础设施。Celery 名称与参数保持，包装只调用装配后的用例。保留单条跳过、无标题、空翻译、异常 envelope，以及独立修复后的批量快照和异常收尾。纯内存替身与 ORM 回归共用契约验收。
+
+全套 **519 passed、24 skipped，46.33秒**。纯内存用例四项与既有批量七项回归通过；全量 pre-commit 清除未使用局部变量、采用格式化结果后复验通过。R4 下载和翻译子阶段均完成；同步兼容提交入口保留，HTTP 刷新中的调度职责在 R6 归位。

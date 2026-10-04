@@ -100,3 +100,16 @@ def build_video_download_service():
         ),
         N_m3u8DL_RE(proxy=settings.DOWNLOAD_PROXY_URL or None),
     )
+
+
+def build_translation_workflow():
+    from nassav.translation_workflow import TitleTranslationUseCase
+    from nassav.translation_adapters import (
+        DjangoTranslationRepository,
+        ManagerTextTranslator,
+    )
+    from nassav.translator import translator_manager
+
+    return TitleTranslationUseCase(
+        DjangoTranslationRepository(), ManagerTextTranslator(translator_manager)
+    )
