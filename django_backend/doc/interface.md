@@ -1403,3 +1403,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 ### 下载用例与任务入口
 
 `download_video_task` 与 `mock_download_video_task` 保留原注册名和参数。任务入口适配重试及执行 ownership，下载编排由 `DownloadUseCase` / `MockDownloadUseCase` 承担；队列、进度、事件通过 `DownloadRuntime` 提供。`VideoDownloadService` 使用注入的 `DownloadInfoResolver`，缓存未命中时仍先准备资源，再读取缓存；资源准备异常后仍尝试已有缓存。默认依赖在 `composition.py` 装配。正常成功通知与持久化失败告警顺序保持既有行为。
+
+### 批量翻译异常收尾
+
+批量标题筛选使用 `original_title` 或 `source_title`，保留指定 AVID 和 `skip_existing` 规则。翻译器异常、返回数量不一致或保存异常返回失败；本批未完成记录从 translating 收尾为 failed，已有译文及已保存成功结果保留。未选中的任务状态不受影响。

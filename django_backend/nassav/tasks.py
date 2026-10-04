@@ -742,6 +742,7 @@ def batch_translate_titles_task(
     """
     logger.info("[批量翻译任务] 开始批量翻译")
 
+    processing_ids: list[int] = []
     try:
         from django.db.models import Q
         from nassav.models import AVResource
@@ -755,7 +756,7 @@ def batch_translate_titles_task(
             query = Q()
 
         # 只翻译有标题的记录
-        query &= (Q(title__isnull=False) & ~Q(title="")) | (
+        query &= (Q(original_title__isnull=False) & ~Q(original_title="")) | (
             Q(source_title__isnull=False) & ~Q(source_title="")
         )
 
@@ -764,7 +765,8 @@ def batch_translate_titles_task(
             query &= ~Q(translation_status="completed")
 
         resources = AVResource.objects.filter(query)
-        total = resources.count()
+        resource_list = list(resources)
+        total = len(resource_list)
 
         if total == 0:
             logger.info("[批量翻译任务] 没有需要翻译的记录")
@@ -779,16 +781,20 @@ def batch_translate_titles_task(
         logger.info(f"[批量翻译任务] 需要翻译 {total} 条记录")
 
         # 批量更新状态为翻译中
-        resources.update(translation_status="translating")
+        processing_ids = [resource.pk for resource in resource_list]
+        AVResource.objects.filter(pk__in=processing_ids).update(
+            translation_status="translating"
+        )
 
         # 准备翻译文本
         texts = []
-        resource_list = list(AVResource.objects.filter(query))  # 重新获取
         for r in resource_list:
             texts.append(r.original_title or r.source_title or "")
 
         # 批量翻译
         results = translator_manager.batch_translate(texts)
+        if results is None or len(results) != total:
+            raise ValueError("批量翻译结果数量与资源数量不一致")
 
         # 保存结果
         translated_count = 0
@@ -825,6 +831,13 @@ def batch_translate_titles_task(
 
     except Exception as e:
         logger.error(f"[批量翻译任务] 失败: {e}")
+        if processing_ids:
+            try:
+                AVResource.objects.filter(
+                    pk__in=processing_ids, translation_status="translating"
+                ).update(translation_status="failed")
+            except Exception as cleanup_error:
+                logger.error(f"[批量翻译任务] 失败状态收尾异常: {cleanup_error}")
         return {"success": False, "error": str(e)}
 
 

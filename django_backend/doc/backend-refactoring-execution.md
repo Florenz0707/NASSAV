@@ -171,3 +171,9 @@ POSIX 取消现在即使父进程退出，也会清理该执行的进程组；�
 最终全套 **507 passed、24 skipped，47.10秒**；新增八项用例契约全部通过。采用格式化结果后执行最终全量 `pre-commit run -a`，通过才提交和合并下载子阶段。原 stash `30c12da1616fec8fab4c7f52ac1630be21878b13` 保留为历史草稿，不应再次覆盖已修复的下载 owner 测试。翻译门槛证据及下一步范围见[翻译阻塞记录](backend-refactoring-r4-translation-blocker.md)；未获范围决定前不进行依赖此决定的行为修改。
 
 整合 `6b6825a` 后全套 **508 passed、24 skipped，46.68秒**，包含子进程取消回归。两份文档的恢复冲突保留双方实测记录；单条/批量翻译任务 AST 与已复现的 `c4ea2a5` baseline 完全相同。最终全量 `pre-commit run -a` 通过后合并下载子阶段至 `idle`。这是隔离验收，不是目标环境部署或混合版本 worker 接受；翻译范围决定仍待用户回复。
+
+## 独立修复：批量翻译筛选与异常状态收尾
+
+用户授权独立修复，分支 `fix/backend-batch-translation-state`，基线 `3486e00`。批量筛选使用实际 original_title/source_title 字段；在更新状态前固定资源快照。返回数量不匹配或翻译/保存异常时，仅将本批仍处于 translating 的记录更新为 failed，保留已有译文和已经完成的部分结果，不影响其他批次。任务名、参数和结果 envelope 保持。
+
+定向 **7 passed**，全套 **515 passed、24 skipped，46.87秒**；全量 pre-commit 采用格式化结果后复验通过。用户已授权继续 R4–R7；批量翻译字段错误的门槛已解除，结构迁移在后续独立分支进行。

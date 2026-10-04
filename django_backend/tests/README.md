@@ -654,3 +654,5 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 ### 下载用例替换验收
 
 `uv run pytest tests/test_download_workflow_contracts.py --ds=django_project.refactoring_test_settings -v` 不启动 worker、不访问数据库或网络，通过真实 ABC 替身验证下载及模拟用例的结果、超时、重试和清理，以及资源缓存未命中的准备与回退。
+
+`tests/test_batch_translation_state.py` 使用临时 SQLite 和翻译替身，验证原始/来源标题选择、skip_existing、返回数量异常、翻译器异常及部分保存失败收尾。

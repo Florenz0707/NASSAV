@@ -30,7 +30,7 @@ uv run --no-sync pytest /tmp/test_nassav_batch_translation_gate.py \
 
 ## 所需范围决定
 
-计划第 2 节要求行为修复与结构迁移分开记录。用户本次新增授权明确为锁所有权和失租处理；批量任务从必然失败变为成功属于另一项行为修复，已提出范围问题，待用户决定后继续依赖此行为的阶段。
+计划第 2 节要求行为修复与结构迁移分开记录。用户本次新增授权明确为锁所有权和失租处理；批量任务从必然失败变为成功属于另一项行为修复，用户已授权独立修复并继续后续阶段，修复已通过七项回归及全套 515 passed、24 skipped。
 
 建议独立分支 `fix/backend-batch-translation-state`：
 
@@ -39,4 +39,4 @@ uv run --no-sync pytest /tmp/test_nassav_batch_translation_gate.py \
 3. 单条与批量共享标题/状态规则，保持原任务名和结果 envelope；行为修复先单独提交，结构迁移在 R4 后续分支完成。
 4. 新增回归、全套隔离后端测试、`pre-commit run -a` 通过后合并 `idle`，然后继续 R4–R7。
 
-若不授权该独立修复，保留已通过的下载成果和本记录，在此门槛停止；不降低验收或悄悄将批量翻译失败冻结成正常结果。
+本门槛已解除；本文保留原始缺陷证据，当前正常回归见 tests/test_batch_translation_state.py。
