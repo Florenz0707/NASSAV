@@ -1,59 +1,54 @@
 """Resource metadata persistence and actor/source relation synchronization."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
+from copy import deepcopy
+from dataclasses import dataclass
 
 from django.utils import timezone
 from loguru import logger
 
 from nassav.models import AVResource, Actor, Genre
 from nassav.scraper import AVDownloadInfo
-from nassav.source.SourceBase import SourceBase
+from nassav.source.capabilities import SourceRelations
 from nassav.source.jable_actor_mapping import (
-    parse_jable_model_candidates,
-    sync_actor_source_mappings_from_jable_html,
+    select_best_model_candidate,
+    persist_actor_source_mapping,
 )
 from nassav.utils import parse_duration
+from nassav.source.titles import normalize_source_title
+
+
+@dataclass(frozen=True)
+class ResourceSaveInput:
+    avid: str
+    info: AVDownloadInfo
+    source_name: str
+    scraped_data: dict | None = None
+    relations: SourceRelations = SourceRelations()
 
 
 class ResourcePersistence(ABC):
     """Write a resource and its metadata relations as one application operation."""
 
     @abstractmethod
-    def save(
-        self,
-        avid: str,
-        info: AVDownloadInfo,
-        source_inst: SourceBase | None,
-        scraped_data: Optional[dict],
-        html: str | None = None,
-    ) -> AVResource:
-        """Create or update resource metadata and return its ORM record."""
+    def save(self, data: ResourceSaveInput) -> AVResource:
+        """Save parsed data without mutating its download info or scraper payload."""
+        raise NotImplementedError
 
 
 class DjangoResourcePersistence(ResourcePersistence):
     """Django ORM implementation of resource metadata persistence."""
 
-    def save(
-        self,
-        avid: str,
-        info: AVDownloadInfo,
-        source_inst: SourceBase | None,
-        scraped_data: Optional[dict],
-        html: str | None = None,
-    ) -> AVResource:
-        """
-        保存资源到数据库（创建或更新）
-
-        Returns:
-            AVResource对象
-        """
-        from nassav.source.SourceManager import normalize_source_title
+    def save(self, data: ResourceSaveInput) -> AVResource:
+        avid = data.avid
+        info = deepcopy(data.info)
+        scraped_data = data.scraped_data
 
         logger.info(f"[ResourceService] 开始保存数据库记录: {avid}")
 
         # 获取源名称
-        source_name = source_inst.get_source_name() if source_inst else "unknown"
+        source_name = data.source_name
         existing_resource = AVResource.objects.filter(avid=avid).first()
 
         # 规范化source_title，确保以AVID开头
@@ -71,7 +66,7 @@ class DjangoResourcePersistence(ResourcePersistence):
 
         scraped_payload = dict(scraped_data or {})
         relation_payload = dict(scraped_payload)
-        fallback_actor_names = self._extract_source_actor_names(source_inst, html)
+        fallback_actor_names = list(data.relations.actor_names)
         if (
             scraped_data is not None
             and fallback_actor_names
@@ -82,11 +77,11 @@ class DjangoResourcePersistence(ResourcePersistence):
 
         # 如果有刮削数据，更新AVDownloadInfo对象并保存完整metadata
         if scraped_payload:
-            # 更新info对象（与旧代码保持一致）
+            # 更新独立副本，避免污染来源缓存中的下载信息
             info.update_from_scraper(scraped_payload)
 
             # 保存完整的AVDownloadInfo对象到metadata（与旧代码保持一致）
-            defaults["metadata"] = info.__dict__
+            defaults["metadata"] = deepcopy(info.__dict__)
 
             # 从scraper获取的标题字段是"title"，映射到数据库的original_title
             defaults["original_title"] = scraped_payload.get("title", "")
@@ -126,38 +121,9 @@ class DjangoResourcePersistence(ResourcePersistence):
         if relation_payload:
             self._associate_actors(resource, relation_payload.get("actors", []))
             self._associate_genres(resource, relation_payload.get("genres", []))
-            self._sync_source_actor_mappings(resource, source_inst, html)
+            self._sync_source_actor_mappings(resource, data.relations)
 
         return resource
-
-    def _extract_source_actor_names(
-        self,
-        source_inst: SourceBase | None,
-        html: str | None,
-    ) -> list[str]:
-        if not html:
-            return []
-
-        source_name = ""
-        if source_inst is not None:
-            source_name = str(source_inst.get_source_name() or "").strip().lower()
-        if source_name != "jable":
-            return []
-
-        domain = getattr(source_inst, "domain", "jable.tv") or "jable.tv"
-        candidates = parse_jable_model_candidates(
-            html,
-            base_url=f"https://{domain}/",
-        )
-        actor_names: list[str] = []
-        seen_names: set[str] = set()
-        for candidate in candidates:
-            actor_name = str(candidate.source_actor_name or "").strip()
-            if not actor_name or actor_name in seen_names:
-                continue
-            seen_names.add(actor_name)
-            actor_names.append(actor_name)
-        return actor_names
 
     def _associate_actors(self, resource: AVResource, actors: list):
         """关联演员"""
@@ -183,39 +149,19 @@ class DjangoResourcePersistence(ResourcePersistence):
                 resource.genres.add(genre)
 
     def _sync_source_actor_mappings(
-        self,
-        resource: AVResource,
-        source_inst: SourceBase | None,
-        html: str | None,
+        self, resource: AVResource, relations: SourceRelations
     ) -> None:
-        if not html:
+        candidates = list(relations.actor_candidates)
+        if not candidates:
             return
-
-        source_name = ""
-        if source_inst is not None:
-            source_name = str(source_inst.get_source_name() or "").strip().lower()
-        if not source_name:
-            source_name = str(resource.source or "").strip().lower()
-        if source_name != "jable":
-            return
-
-        actors = list(resource.actors.all())
-        if not actors:
-            return
-
-        domain = getattr(source_inst, "domain", "jable.tv") or "jable.tv"
-        stats = sync_actor_source_mappings_from_jable_html(
-            actors=actors,
-            html=html,
-            base_url=f"https://{domain}/",
-            match_method="imported",
-        )
-        if any(
-            int(stats.get(key, 0)) > 0 for key in ("saved", "unmatched", "conflict")
-        ):
-            logger.info(
-                "[ResourceService] Jable 演员映射同步完成: "
-                f"saved={stats.get('saved', 0)}, "
-                f"unmatched={stats.get('unmatched', 0)}, "
-                f"conflict={stats.get('conflict', 0)}"
+        for actor in resource.actors.all():
+            selected, confidence, _ = select_best_model_candidate(
+                actor_name=actor.name, candidates=candidates
             )
+            if selected is not None:
+                persist_actor_source_mapping(
+                    actor=actor,
+                    candidate=selected,
+                    confidence=confidence,
+                    match_method="imported",
+                )

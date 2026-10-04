@@ -186,6 +186,9 @@ def test_save_to_database_syncs_jable_actor_mapping_from_html():
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"
+    from nassav.source.Jable import Jable
+
+    mock_source.parse_relations.side_effect = Jable().parse_relations
 
     info = AVDownloadInfo(
         avid="SSIS-075",
@@ -239,6 +242,9 @@ def test_save_all_resources_syncs_jable_actor_mapping_during_add_flow(monkeypatc
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"
+    from nassav.source.Jable import Jable
+
+    mock_source.parse_relations.side_effect = Jable().parse_relations
 
     info = AVDownloadInfo(
         avid="SSIS-076",
@@ -400,6 +406,9 @@ def test_save_to_database_preserves_metadata_when_scrape_is_skipped_even_with_ja
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"
+    from nassav.source.Jable import Jable
+
+    mock_source.parse_relations.side_effect = Jable().parse_relations
 
     AVResource.objects.create(
         avid="META-KEEP-002",
@@ -458,6 +467,9 @@ def test_save_to_database_uses_jable_html_actor_fallback_when_scraper_has_no_act
     mock_source = Mock()
     mock_source.get_source_name.return_value = "Jable"
     mock_source.domain = "jable.tv"
+    from nassav.source.Jable import Jable
+
+    mock_source.parse_relations.side_effect = Jable().parse_relations
 
     info = AVDownloadInfo(
         avid="ABF-308",

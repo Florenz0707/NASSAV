@@ -2,27 +2,35 @@
 ResourceService - 资源服务层
 负责组合各个Manager完成完整的资源操作流程
 
-职责:
-1. 组合 SourceManager, ScraperManager, M3u8Downloader, TranslatorManager
-2. 处理数据库操作 (AVResource, Actor, Genre)
-3. 处理文件操作 (封面、头像、缩略图、HTML)
-4. 编排业务流程 (获取源信息 -> 刮削元数据 -> 保存数据库 -> 提交翻译任务)
+职责: 编排来源、元数据、资产、持久化、翻译提交与事件；具体副作用通过能力依赖注入。
 """
 
 import traceback as tb
 from datetime import datetime
-from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
-from django.conf import settings
 from loguru import logger
 from nassav.models import AVResource
 from nassav.scraper import AVDownloadInfo
-from nassav.resource_persistence import DjangoResourcePersistence, ResourcePersistence
-from nassav.scraper.ScraperManager import ScraperManager
-from nassav.signals import metadata_refreshed, resource_added
+from nassav.resource_persistence import (
+    DjangoResourcePersistence,
+    ResourcePersistence,
+    ResourceSaveInput,
+)
+from nassav.resource_presentation import serialize_resource
+from nassav.resource_adapters import (
+    ResourceReader,
+    DjangoResourceReader,
+    ResourceAssets,
+    FileResourceAssets,
+    TranslationSubmitter,
+    CeleryTranslationSubmitter,
+    ResourceEvents,
+    SignalResourceEvents,
+)
+from nassav.source.capabilities import SourceRelations
+from nassav.resource_contracts import SourceLookup, MetadataProvider, ResourceWorkflow
 from nassav.source.SourceBase import SourceBase
-from nassav.source.SourceManager import SourceManager
 from nassav.translator.TranslatorManager import TranslatorManager
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -123,7 +131,7 @@ class ResourceFetchError(ResourceServiceException):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-class ResourceService:
+class ResourceService(ResourceWorkflow):
     """
     资源服务 - 组合各个Manager完成完整的资源操作
 
@@ -135,10 +143,15 @@ class ResourceService:
 
     def __init__(
         self,
-        source_manager: SourceManager,
-        scraper_manager: ScraperManager,
+        source_manager: SourceLookup,
+        scraper_manager: MetadataProvider,
         translator_manager: TranslatorManager,
         persistence: ResourcePersistence | None = None,
+        *,
+        reader: ResourceReader | None = None,
+        assets: ResourceAssets | None = None,
+        translations: TranslationSubmitter | None = None,
+        events: ResourceEvents | None = None,
     ):
         """
         初始化资源服务
@@ -151,7 +164,17 @@ class ResourceService:
         self.source_manager = source_manager
         self.scraper_manager = scraper_manager
         self.translator_manager = translator_manager
-        self.persistence = persistence or DjangoResourcePersistence()
+        self.persistence = (
+            persistence if persistence is not None else DjangoResourcePersistence()
+        )
+        self.reader = reader if reader is not None else DjangoResourceReader()
+        self.assets = (
+            assets if assets is not None else FileResourceAssets(scraper_manager)
+        )
+        self.translations = (
+            translations if translations is not None else CeleryTranslationSubmitter()
+        )
+        self.events = events if events is not None else SignalResourceEvents()
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # 公共方法
@@ -198,7 +221,7 @@ class ResourceService:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 1: 检查资源是否已存在
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        existing = AVResource.objects.filter(avid=avid).first()
+        existing = self.reader.get(avid)
         if existing:
             logger.warning(f"资源 {avid} 已存在")
             raise ResourceAlreadyExistsError(
@@ -229,12 +252,7 @@ class ResourceService:
         logger.info(f"[ResourceService] 资源 {avid} 添加成功")
 
         # 发布资源添加事件
-        resource_added.send(
-            sender=self.__class__,
-            avid=avid,
-            resource=result.get("resource"),
-            result=result,
-        )
+        self.events.publish("added", self.__class__, avid, result)
 
         return result
 
@@ -270,7 +288,7 @@ class ResourceService:
         logger.info(f"[ResourceService] 开始刷新资源: {avid}")
 
         # 检查资源是否存在
-        resource = AVResource.objects.filter(avid=avid).first()
+        resource = self.reader.get(avid)
         if not resource:
             logger.error(f"资源 {avid} 不存在于数据库中")
             raise ResourceNotFoundError(avid, {"database": "404"})
@@ -297,12 +315,7 @@ class ResourceService:
         logger.info(f"[ResourceService] 资源 {avid} 刷新成功")
 
         # 发布元数据刷新事件
-        metadata_refreshed.send(
-            sender=self.__class__,
-            avid=avid,
-            resource=result.get("resource"),
-            result=result,
-        )
+        self.events.publish("refreshed", self.__class__, avid, result)
 
         return result
 
@@ -325,7 +338,7 @@ class ResourceService:
             AVDownloadInfo对象,如果不存在则返回None
         """
         avid = avid.upper()
-        resource = AVResource.objects.filter(avid=avid).first()
+        resource = self.reader.get(avid)
         if not resource:
             return None
 
@@ -420,9 +433,7 @@ class ResourceService:
         # Step 1: 保存HTML原始页面
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         if html:
-            html_path = Path(settings.COVER_DIR) / f"{avid}.html"
-            html_path.parent.mkdir(parents=True, exist_ok=True)
-            html_path.write_text(html, encoding="utf-8")
+            self.assets.save_page(avid, html)
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Step 2: 刮削Javbus元数据（可选）
@@ -523,45 +534,7 @@ class ResourceService:
         source_inst: SourceBase | None,
         html: str | None,
     ) -> bool:
-        """
-        下载封面图片（双源备份策略）
-
-        优先级:
-        1. Javbus封面 (scraped_data.cover_url)
-        2. 源网站封面 (source_inst.get_cover_url())
-
-        Returns:
-            是否下载成功
-        """
-        logger.info(f"[ResourceService] 开始下载封面: {avid}")
-
-        cover_path = Path(settings.COVER_DIR) / f"{avid}.jpg"
-        cover_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # 策略1: 尝试Javbus封面
-        if scraped_data and scraped_data.get("cover_url"):
-            cover_url = scraped_data["cover_url"]
-            if self.scraper_manager.download_cover(
-                cover_url,
-                str(cover_path),
-                scraper_name=scraped_by,
-            ):
-                logger.info(f"[ResourceService] 从Javbus下载封面成功: {avid}")
-                return True
-
-        # 策略2: 尝试源网站封面
-        if source_inst and html:
-            cover_url = source_inst.get_cover_url(html)
-            if cover_url:
-                source_name = source_inst.get_source_name()
-                if source_inst.download_file(cover_url, str(cover_path)):
-                    logger.info(
-                        f"[ResourceService] 从{source_name}下载封面成功: {avid}"
-                    )
-                    return True
-
-        logger.warning(f"[ResourceService] 封面下载失败: {avid}")
-        return False
+        return self.assets.save_cover(avid, scraped_data, scraped_by, source_inst, html)
 
     def _save_to_database(
         self,
@@ -572,123 +545,31 @@ class ResourceService:
         html: str | None = None,
     ) -> AVResource:
         """Retain the existing service entry point for metadata persistence."""
-        return self.persistence.save(avid, info, source_inst, scraped_data, html)
+        relations = (
+            source_inst.parse_relations(html)
+            if source_inst is not None and html
+            else SourceRelations()
+        )
+        return self.persistence.save(
+            ResourceSaveInput(
+                avid,
+                info,
+                source_inst.get_source_name() if source_inst else "unknown",
+                scraped_data,
+                relations,
+            )
+        )
 
     def _download_avatars(self, scraped_data: dict):
-        """
-        下载演员头像
-
-        Args:
-            scraped_data: 刮削数据（包含actors列表）
-        """
-        actors = scraped_data.get("actors", [])
-        if not actors:
-            return
-
-        logger.info(f"[ResourceService] 开始下载演员头像: {len(actors)} 个")
-
-        for actor_data in actors:
-            if not isinstance(actor_data, dict):
-                continue
-
-            actor_name = actor_data.get("name")
-            avatar_url = actor_data.get("avatar_url")
-
-            if not actor_name or not avatar_url:
-                continue
-
-            # 下载头像
-            avatar_path = Path(settings.AVATAR_DIR) / f"{actor_name}.jpg"
-            avatar_path.parent.mkdir(parents=True, exist_ok=True)
-
-            try:
-                # 获取第一个可用的scraper来下载头像
-                scrapers = self.scraper_manager.get_scrapers()
-                if scrapers:
-                    _, scraper_instance = scrapers[0]
-                    if scraper_instance.download_avatar(avatar_url, str(avatar_path)):
-                        logger.info(f"演员头像下载成功: {actor_name}")
-                    else:
-                        logger.warning(f"演员头像下载失败: {actor_name}")
-                else:
-                    logger.warning("没有可用的刮削器来下载头像")
-            except Exception as e:
-                logger.error(f"演员头像下载异常: {actor_name}, {e}")
+        self.assets.save_avatars(scraped_data)
 
     def _submit_translate_task(self, avid: str) -> Optional[str]:
-        """
-        提交翻译任务
-
-        Returns:
-            任务ID（如果成功）
-        """
-        logger.info(f"[ResourceService] 提交翻译任务: {avid}")
-
-        try:
-            # 导入Celery任务
-            from nassav.tasks import translate_title_task
-
-            # 提交异步任务
-            task = translate_title_task.delay(avid)
-            logger.info(f"[ResourceService] 翻译任务已提交: {avid}, task_id={task.id}")
-            return task.id
-        except Exception as e:
-            logger.error(f"[ResourceService] 提交翻译任务失败: {avid}, {e}")
-            return None
-
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # 私有方法 - 辅助函数
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        return self.translations.submit(avid)
 
     def _serialize_resource(
         self, resource: AVResource, include_relations: bool = False
     ) -> dict:
-        """
-        序列化资源对象
-
-        Args:
-            resource: AVResource对象
-            include_relations: 是否包含关系字段（actors, genres）
-
-        Returns:
-            资源字典
-        """
-        data = {
-            "avid": resource.avid,
-            "original_title": resource.original_title,
-            "source_title": resource.source_title,
-            "translated_title": resource.translated_title,
-            "translation_status": resource.translation_status,
-            "source": resource.source,
-            "release_date": resource.release_date,
-            "duration": resource.duration,
-            "m3u8": resource.m3u8,
-            "cover_filename": resource.cover_filename,
-            "file_exists": resource.file_exists,
-            "file_size": resource.file_size,
-            "metadata_created_at": (
-                resource.metadata_created_at.isoformat()
-                if resource.metadata_created_at
-                else None
-            ),
-            "metadata_updated_at": (
-                resource.metadata_updated_at.isoformat()
-                if resource.metadata_updated_at
-                else None
-            ),
-            "video_saved_at": (
-                resource.video_saved_at.isoformat() if resource.video_saved_at else None
-            ),
-            "created_at": (
-                resource.created_at.isoformat() if resource.created_at else None
-            ),
-        }
-
-        if include_relations:
-            data["actors"] = [actor.name for actor in resource.actors.all()]
-            data["genres"] = [genre.name for genre in resource.genres.all()]
-
-        return data
+        return serialize_resource(resource, include_relations)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

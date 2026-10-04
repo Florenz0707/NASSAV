@@ -309,3 +309,7 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 ## 会话存储契约
 
 会话读写由 `CookieRepository` ABC 约束，生产实现仍为 `SourceCookieRepository`。Source 的会话获取、验证和刷新协调位于 `SourceSessionLifecycle`，可注入独立存储与协调器。完整快照字段、数据库版本校验、人工写入优先、CAS 和缓存格式保持现有行为；本轮迁移没有 schema 或迁移文件变化。
+
+## 资源保存输入
+
+ResourcePersistence 只接收类型化 ResourceSaveInput，包含解析后的 SourceRelations；不再接收源实例或 HTML。来源 Adapter 解析演员候选，ORM Adapter 负责关系和映射写入，按候选来源 ID 做冲突保护。持久化在下载信息副本上补元数据，不修改来源缓存。metadata 字段格式、无刮削时保留已有 metadata、关系累加和时间戳更新保持原规则，不新增 schema 迁移。

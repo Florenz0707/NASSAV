@@ -1,3 +1,5 @@
+from nassav.resource_contracts import MetadataProvider
+
 """
 Scraper 管理器 - 管理所有刮削器的注册和调用
 """
@@ -13,7 +15,7 @@ from nassav.composition import scraper_factories
 from .ScraperBase import ScraperBase
 
 
-class ScraperManager:
+class ScraperManager(MetadataProvider):
     """刮削器管理器"""
 
     def __init__(

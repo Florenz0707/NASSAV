@@ -13,6 +13,7 @@ from nassav.constants import HEADERS, IMPERSONATE
 from nassav.page_fetching import FetchFailure, PageResult
 from nassav.page_fetching.coordination import SessionRefreshCoordinator
 from nassav.source.session_lifecycle import SourceSessionLifecycle
+from nassav.source.capabilities import SourceRelations
 from nassav.page_fetching.contracts import BrowserSessionHandler
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import (
@@ -76,6 +77,10 @@ class SourceBase(BrowserSessionHandler):
     ) -> list[dict]:
         """Fetch source-native listing items; unsupported sources reject explicitly."""
         raise NotImplementedError("This source does not support listing search")
+
+    def parse_relations(self, html: str) -> SourceRelations:
+        """Optional source-native relation data; never performs persistence."""
+        return SourceRelations()
 
     def set_domain(self, domain: str):
         self.domain = domain

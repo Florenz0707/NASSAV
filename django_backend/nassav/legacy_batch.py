@@ -6,6 +6,8 @@ from typing import Callable
 from loguru import logger
 
 from nassav.models import AVResource
+from nassav.resource_adapters import ResourceReader, DjangoResourceReader
+from nassav.resource_contracts import ResourceWorkflow
 from nassav.resource_service import (
     ResourceAccessDeniedError,
     ResourceAlreadyExistsError,
@@ -18,6 +20,15 @@ from nassav.resource_service import (
 class LegacyBatchOperation(ABC):
     """One synchronous batch item with the established per-item envelope."""
 
+    def __init__(
+        self,
+        *,
+        reader: ResourceReader | None = None,
+        workflow: ResourceWorkflow | None = None,
+    ):
+        self.reader = reader if reader is not None else DjangoResourceReader()
+        self.workflow = workflow if workflow is not None else resource_service
+
     @abstractmethod
     def execute(
         self, avid: str, options: dict, serialize: Callable[[AVResource], dict]
@@ -28,7 +39,7 @@ class AddBatchOperation(LegacyBatchOperation):
     def execute(
         self, avid: str, options: dict, serialize: Callable[[AVResource], dict]
     ) -> dict:
-        existing = AVResource.objects.filter(avid=avid).first()
+        existing = self.reader.get(avid)
         if existing:
             return dict(
                 action="add",
@@ -41,7 +52,7 @@ class AddBatchOperation(LegacyBatchOperation):
         # The former unconditional two-second wait had no source rate evidence.
         # Source adapters own retries and target-specific pacing.
         try:
-            result = resource_service.add_resource(avid, source)
+            result = self.workflow.add_resource(avid, source)
             return dict(
                 action="add",
                 avid=avid,
@@ -76,7 +87,7 @@ class RefreshBatchOperation(LegacyBatchOperation):
     def execute(
         self, avid: str, options: dict, serialize: Callable[[AVResource], dict]
     ) -> dict:
-        resource = AVResource.objects.filter(avid=avid).first()
+        resource = self.reader.get(avid)
         if not resource:
             return self._error(avid, 404, "资源不存在")
         if not resource.source:
@@ -87,7 +98,7 @@ class RefreshBatchOperation(LegacyBatchOperation):
         details = {}
         if refresh_metadata or refresh_m3u8:
             try:
-                refreshed = resource_service.refresh_resource(
+                refreshed = self.workflow.refresh_resource(
                     avid, scrape=refresh_metadata, download_cover=refresh_metadata
                 )
                 details.update(

@@ -47,33 +47,9 @@ class SchemaAPIView(APIView):
     serializer_class = EmptySchemaSerializer
 
 
-def _serialize_resource_obj(resource):
-    """Convert AVResource instance to plain dict suitable for API responses."""
-    try:
-        actors = [a.name for a in resource.actors.all()]
-    except Exception:
-        actors = []
-    try:
-        genres = [g.name for g in resource.genres.all()]
-    except Exception:
-        genres = []
-
-    return {
-        "avid": resource.avid,
-        "original_title": resource.original_title or "",
-        "source_title": resource.source_title or "",
-        "translated_title": resource.translated_title or "",
-        "m3u8": resource.m3u8 or "",
-        "source": resource.source or "",
-        "release_date": resource.release_date or "",
-        "duration": resource.duration,
-        "actors": actors,
-        "genres": genres,
-        "file_size": resource.file_size,
-        "file_exists": bool(resource.file_exists),
-        "watched": bool(resource.watched),
-        "is_favorite": bool(resource.is_favorite),
-    }
+from nassav.resource_presentation import (
+    serialize_legacy_resource as _serialize_resource_obj,
+)
 
 
 def _parse_positive_int(value, default: int) -> int:

@@ -17,7 +17,8 @@ from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import CookieRepository
 from nassav.page_fetching.coordination import SessionRefreshCoordinator
 from nassav.source.SourceBase import SourceBase
-from nassav.source.capabilities import ListingSource
+from nassav.source.capabilities import ListingSource, SourceRelations
+from nassav.source.jable_actor_mapping import parse_jable_model_candidates
 from nassav.source.search_contracts import SourceSearchError
 
 
@@ -129,6 +130,19 @@ class Jable(SourceBase, ListingSource):
         if failure is not None:
             raise SourceSearchError(f"jable_listing_{failure}")
         return items
+
+    def parse_relations(self, html: str) -> SourceRelations:
+        candidates = parse_jable_model_candidates(
+            html, base_url=f"https://{self.domain}/"
+        )
+        names = tuple(
+            dict.fromkeys(
+                candidate.source_actor_name.strip()
+                for candidate in candidates
+                if candidate.source_actor_name.strip()
+            )
+        )
+        return SourceRelations(names, tuple(candidates))
 
     def get_html(self, avid: str) -> Optional[str]:
         urls = [

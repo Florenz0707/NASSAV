@@ -6,13 +6,14 @@
 
 ## 阶段状态
 
-| 阶段    | 分支                                              | 状态                           |
-| ------- | ------------------------------------------------- | ------------------------------ |
-| R0      | `chore/backend-refactor-r0-baseline`              | 已完成，质量门槛通过后自动合并 |
-| R1      | `enhancement/backend-refactor-r1-contracts`       | 已完成，质量门槛通过后自动合并 |
-| R2 会话 | `enhancement/backend-refactor-r2-sessions`        | 已完成，质量门槛通过后自动合并 |
-| R2 搜索 | `enhancement/backend-refactor-r2-search-policies` | 已完成，质量门槛通过后自动合并 |
-| R3–R7   | 待创建                                            | 未开始                         |
+| 阶段    | 分支                                                | 状态                           |
+| ------- | --------------------------------------------------- | ------------------------------ |
+| R0      | `chore/backend-refactor-r0-baseline`                | 已完成，质量门槛通过后自动合并 |
+| R1      | `enhancement/backend-refactor-r1-contracts`         | 已完成，质量门槛通过后自动合并 |
+| R2 会话 | `enhancement/backend-refactor-r2-sessions`          | 已完成，质量门槛通过后自动合并 |
+| R2 搜索 | `enhancement/backend-refactor-r2-search-policies`   | 已完成，质量门槛通过后自动合并 |
+| R3      | `enhancement/backend-refactor-r3-resource-workflow` | 已完成，质量门槛通过后自动合并 |
+| R4–R7   | 待创建                                              | 未开始                         |
 
 ## R0：行为与隔离质量基线
 
@@ -119,3 +120,13 @@ Jable 的真实来源已实现 ListingSource；唯一旧签名消费者是测试
 封面缓存注入 CoverPolicy，默认工厂集中装配 Jable/MissAV 策略。MissAV 保留第三方 Cookie 隔离、5 MiB 上限、image 响应检查、禁止重定向、原子替换和临时文件清理；Jable 行为未改变。
 
 定向验证 **63 passed**，包含新来源仅通过 Adapter 注册完成能力/搜索/排序、缓存域名隔离、TypeError 单次调用以及既有取消/逐页竞争与图片测试。离线全套 **490 passed、24 skipped，45.22秒**；全量 `pre-commit run -a` 修正字段类型并采用格式化结果后复验通过；无外站策略、数据库或部署切换。
+
+## R3：资源用例与解析后持久化
+
+基线 `495d816`。ResourceService 通过 SourceLookup、MetadataProvider、ResourceReader、ResourcePersistence、ResourceAssets、TranslationSubmitter、ResourceEvents 编排新增/刷新；读取也可替换。HTML、封面/头像、Celery 提交与 signals 在 Adapter 内，旧批量操作可注入 reader/workflow。删除流程仍复用既有删除模块。
+
+ResourceSaveInput 携带 AVID、下载信息、来源名、刮削 payload 和 SourceRelations，不携带 HTML/源实例。Jable 解析已知演员名与候选映射，其他来源可输出同一数据。持久化不识别 Jable 名称或解析页面；ORM 映射存储按候选来源 ID 处理既有匹配、冲突保护和别名。源信息在独立副本上补 metadata，避免修改调用输入或缓存对象；数据字段、关联累加与时间戳更新顺序保持。
+
+ResourceAssets 返回保存页面的 AssetResult，并承接既有封面优先级和头像异常规则。序列化集中到 resource_presentation；保留资源用例和旧同步 HTTP 的两种现有字段集合，避免结构重构改变 payload。已有 helper 暂作兼容委托，R7 按调用证据收敛。
+
+定向验证 **32 passed**，新增无 DB 新增/重复/刷新全流程、解析无需 DB、其他来源候选映射及输入不变测试。HTML→metadata→封面→DB→头像→翻译提交→事件顺序保持；R0 写库失败保留 HTML 且不发事件测试通过。离线全套 **493 passed、24 skipped，45.26秒**；全量 `pre-commit run -a` 采用格式化结果后复验通过；没有 schema 或生产切换。

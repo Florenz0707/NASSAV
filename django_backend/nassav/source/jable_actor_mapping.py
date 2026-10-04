@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-from django.utils import timezone
 
-from nassav.models import Actor, ActorSourceMapping
+if TYPE_CHECKING:
+    from nassav.models import Actor
 
 
 @dataclass(frozen=True)
@@ -14,6 +16,7 @@ class JableModelCandidate:
     source_actor_name: str
     source_actor_slug: str
     source_actor_url: str
+    source_name: str = "jable"
 
 
 def extract_actor_aliases(raw_name: str) -> list[str]:
@@ -165,9 +168,12 @@ def persist_actor_source_mapping(
     match_method: str = "imported",
     is_verified: bool = False,
 ) -> tuple[bool, str]:
+    from django.utils import timezone
+    from nassav.models import ActorSourceMapping
+
     conflict = (
         ActorSourceMapping.objects.filter(
-            source_name="jable",
+            source_name=candidate.source_name,
             source_actor_slug=candidate.source_actor_slug,
             is_active=True,
         )
@@ -182,13 +188,13 @@ def persist_actor_source_mapping(
 
     existing = ActorSourceMapping.objects.filter(
         actor=actor,
-        source_name="jable",
+        source_name=candidate.source_name,
     ).first()
     aliases = list(existing.aliases or []) if existing is not None else []
 
     ActorSourceMapping.objects.update_or_create(
         actor=actor,
-        source_name="jable",
+        source_name=candidate.source_name,
         defaults={
             "source_actor_name": candidate.source_actor_name,
             "source_actor_slug": candidate.source_actor_slug,

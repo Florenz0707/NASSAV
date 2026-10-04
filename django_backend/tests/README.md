@@ -640,3 +640,7 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 ## 来源扩展契约
 
 `uv run pytest tests/test_search_adapter_contracts.py --ds=django_project.refactoring_test_settings -v` 验证新增列表 Adapter 无需修改通用能力/排序流程、缓存上下文隔离，以及实现内 TypeError 不重试旧签名。生产 Jable/MissAV 和测试替身均消费 ListingSource；源特有封面规则在 CoverPolicy 中维护。
+
+## 资源用例注入
+
+`uv run pytest tests/test_resource_workflow_contracts.py --ds=django_project.refactoring_test_settings -v` 验证无数据库新增/重复/刷新、来源纯解析、其他来源映射写入与输入不被持久化修改；配合 metadata、封面优先级和 R0 失败时序回归运行。
