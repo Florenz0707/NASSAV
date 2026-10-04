@@ -6,14 +6,15 @@
 
 ## 阶段状态
 
-| 阶段    | 分支                                                | 状态                           |
-| ------- | --------------------------------------------------- | ------------------------------ |
-| R0      | `chore/backend-refactor-r0-baseline`                | 已完成，质量门槛通过后自动合并 |
-| R1      | `enhancement/backend-refactor-r1-contracts`         | 已完成，质量门槛通过后自动合并 |
-| R2 会话 | `enhancement/backend-refactor-r2-sessions`          | 已完成，质量门槛通过后自动合并 |
-| R2 搜索 | `enhancement/backend-refactor-r2-search-policies`   | 已完成，质量门槛通过后自动合并 |
-| R3      | `enhancement/backend-refactor-r3-resource-workflow` | 已完成，质量门槛通过后自动合并 |
-| R4–R7   | 待创建                                              | 未开始                         |
+| 阶段       | 分支                                                | 状态                                 |
+| ---------- | --------------------------------------------------- | ------------------------------------ |
+| R0         | `chore/backend-refactor-r0-baseline`                | 已完成，质量门槛通过后自动合并       |
+| R1         | `enhancement/backend-refactor-r1-contracts`         | 已完成，质量门槛通过后自动合并       |
+| R2 会话    | `enhancement/backend-refactor-r2-sessions`          | 已完成，质量门槛通过后自动合并       |
+| R2 搜索    | `enhancement/backend-refactor-r2-search-policies`   | 已完成，质量门槛通过后自动合并       |
+| R3         | `enhancement/backend-refactor-r3-resource-workflow` | 已完成，质量门槛通过后自动合并       |
+| R4 下载    | `enhancement/backend-refactor-r4-download-workflow` | 锁丢失验收失败，草稿已保存，等待决策 |
+| R4 翻译–R7 | 待创建                                              | 未开始                               |
 
 ## R0：行为与隔离质量基线
 
@@ -130,3 +131,13 @@ ResourceSaveInput 携带 AVID、下载信息、来源名、刮削 payload 和 So
 ResourceAssets 返回保存页面的 AssetResult，并承接既有封面优先级和头像异常规则。序列化集中到 resource_presentation；保留资源用例和旧同步 HTTP 的两种现有字段集合，避免结构重构改变 payload。已有 helper 暂作兼容委托，R7 按调用证据收敛。
 
 定向验证 **32 passed**，新增无 DB 新增/重复/刷新全流程、解析无需 DB、其他来源候选映射及输入不变测试。HTML→metadata→封面→DB→头像→翻译提交→事件顺序保持；R0 写库失败保留 HTML 且不发事件测试通过。离线全套 **493 passed、24 skipped，45.26秒**；全量 `pre-commit run -a` 采用格式化结果后复验通过；没有 schema 或生产切换。
+
+## R4：下载门槛失败，停止后续业务修改
+
+R0–R3 已依次提交并合并 `idle`：`77e149c`、`75d787d`、`d17e7d5`、`495d816`、`383bd83`。默认工作树仍在 `dev@c9aa701`，没有修改。
+
+R4 下载草稿的兼容测试 **22 passed**；加入锁所有权验收后，全套 **493 passed、24 skipped、1 failed，45.11秒**。现有全局下载锁固定值且无条件释放，旧任务失租后会删掉新任务的锁；恢复 `idle@383bd83` 后同样复现，确认是既有缺陷。草稿静态质量检查通过，但不满足 R4 测试门槛，未提交合并。
+
+按用户要求停止后续重构，并保存草稿至 stash `30c12da1616fec8fab4c7f52ac1630be21878b13` 和 `/tmp/nassav-refactor-r4-download-wip.patch`。阻塞证据、恢复方法、拟议独立 `[Fix]` 范围和所需决策见[R4 阻塞记录](backend-refactoring-r4-blocker.md)。阻塞记录在独立文档分支验证后合并，工作树恢复到 `idle`。未降低质量门槛，也未将 R4–R7 标为完成。
+
+收尾验证：恢复后的已合并代码离线全套 **493 passed、24 skipped，44.72秒**；文档相对链接均有效；阻塞说明的全量 `pre-commit run -a` 采用格式化结果后复验通过。R4 失败回归仍保存在草稿与外部复现脚本中，不作为已完成阶段。
