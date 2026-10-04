@@ -191,3 +191,11 @@ POSIX 取消现在即使父进程退出，也会清理该执行的进程组；�
 定向 **58 passed，8.87秒**，包含固定种子结果、请求不变、新推荐器仅注册即可使用、纯种子选择、1/100 候选都只需一次 inventory 查询、无 Django 配置导入及原推荐/分页/反馈回归。现有策略、因子、快照字段和 HTTP 参数保持。
 
 全套 **524 passed、24 skipped，47.19秒**。新增来源契约补齐 sort_by 能力参数，lazy 导出补充静态类型声明；最终全量 pre-commit 复验通过后提交合并。没有改变评分权重、快照 schema、学习事务或生产来源配置。
+
+## R6 HTTP 基础与视图归位
+
+基线 `a862af1`，分支 `enhancement/backend-refactor-r6-http-modules`。SchemaAPIView 和参数规则独立，搜索 Job 视图不再反向导入聚合 views。视图按资源、目录、来源、设置、推荐、任务、媒体分组；暂保留 URL 使用的旧类导出，在 R7 检索后删除。封面定位/缩略图 freshness/生成回退归 CoverLocator；HTTP 保留条件请求与响应头映射。重新翻译重置/提交归 TranslationRequests，HTTP 与旧同步 batch 共用，提交失败仍返回既有显式 translation_error。
+
+保存阶段前的 URL/OpenAPI consumer 契约快照，新增验证组件及路径完全一致，并覆盖原图/fresh thumbnail/生成回退的 ETag、Last-Modified、Cache-Control、404/400 顺序和重新翻译状态提交时序。首次沙箱定向 46 passed、3 个本地 WebSocket 超时；按既有本地 IPC 方式复验相关路径。新 HTTP 测试第一次用了错误的刷新 URL，改为原路径后通过；没有改生产路由。
+
+最终全套 **529 passed、24 skipped，48.73秒**；HTTP 新契约五项通过，相关原路径 49 项在允许本地 IPC 的隔离配置下通过。全量 pre-commit 修正迁移后的未使用导入并采用格式化结果后复验通过。URL 与 OpenAPI paths/components 完全一致，无前端、schema 或部署变更。

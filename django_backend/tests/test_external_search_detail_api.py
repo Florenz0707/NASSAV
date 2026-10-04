@@ -240,7 +240,7 @@ def test_actor_detail_api_propagates_force_refresh_query(
         )()
 
     monkeypatch.setattr(
-        "nassav.views.external_search_service.search_actor_detail",
+        "nassav.http.catalog_views.external_search_service.search_actor_detail",
         _fake_search_actor_detail,
     )
 
@@ -296,7 +296,7 @@ def test_actor_detail_api_returns_external_results(
         )()
 
     monkeypatch.setattr(
-        "nassav.views.external_search_service.search_actor_detail",
+        "nassav.http.catalog_views.external_search_service.search_actor_detail",
         _fake_search_actor_detail,
     )
 

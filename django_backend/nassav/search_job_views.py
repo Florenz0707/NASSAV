@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 from nassav.api_utils import build_response
-from nassav.views import SchemaAPIView
+from nassav.http_base import SchemaAPIView
 from nassav.models import Actor, Genre
 from nassav.search_jobs import (
     submit_search_job,

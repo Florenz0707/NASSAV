@@ -1409,3 +1409,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 批量标题筛选使用 `original_title` 或 `source_title`，保留指定 AVID 和 `skip_existing` 规则。翻译器异常、返回数量不一致或保存异常返回失败；本批未完成记录从 translating 收尾为 failed，已有译文及已保存成功结果保留。未选中的任务状态不受影响。
 
 单条/批量翻译的标题优先级和结果状态规则由 `TitleTranslationUseCase` 统一维护，任务入口仍为原 `nassav.tasks.*` 名称。持久化及 TranslatorManager 由 Adapter 注入，不改变 HTTP/任务结果字段。
+
+## HTTP 模块归位
+
+共享 SchemaAPIView 在 `http_base.py`；参数规则在 `http_parameters.py`；具体视图在 `http/` 按资源、目录、来源、推荐、设置、任务和媒体组织。URL、OpenAPI 和响应 envelope 保持。封面文件/缩略图选择由 CoverLocator 处理，条件请求和缓存头仍由 HTTP Adapter 映射；同步刷新与旧 batch 共用 TranslationRequests 重置和提交重新翻译。

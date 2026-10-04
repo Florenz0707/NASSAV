@@ -137,3 +137,30 @@ def build_recommendation_manager():
     return RecommenderManager(
         DjangoRecommendationContext(), {"jable_page_lookup": jable_factory}
     )
+
+
+def build_cover_locator():
+    from pathlib import Path
+    from django.conf import settings
+    from nassav.resource_media import FileCoverLocator
+    from nassav.utils import generate_thumbnail, generate_etag_for_file
+
+    return FileCoverLocator(
+        Path(settings.COVER_DIR),
+        Path(
+            getattr(settings, "THUMBNAIL_DIR", Path(settings.COVER_DIR) / "thumbnails")
+        ),
+        generate_thumbnail,
+        generate_etag_for_file,
+    )
+
+
+def build_translation_requests():
+    from nassav.translation_requests import DjangoTranslationRequests
+
+    def dispatch(avid):
+        from nassav.tasks import translate_title_task
+
+        return translate_title_task.delay(avid)
+
+    return DjangoTranslationRequests(dispatch)

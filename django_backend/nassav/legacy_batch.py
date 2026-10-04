@@ -115,13 +115,9 @@ class RefreshBatchOperation(LegacyBatchOperation):
                 return self._error(avid, 500, f"刷新失败: {exc}")
         if retranslate:
             try:
-                resource.refresh_from_db()
-                from nassav.tasks import translate_title_task
+                from nassav.composition import build_translation_requests
 
-                resource.translation_status = "pending"
-                resource.translated_title = None
-                resource.save(update_fields=["translation_status", "translated_title"])
-                translate_title_task.delay(avid)
+                build_translation_requests().request(avid)
                 details["translation_queued"] = True
             except Exception as exc:
                 logger.exception("Legacy batch translation submit failed for {}", avid)

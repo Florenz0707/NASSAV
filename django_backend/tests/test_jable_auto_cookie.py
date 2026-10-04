@@ -52,7 +52,7 @@ def automatic_source(monkeypatch, fake_session_store):
     monkeypatch.setattr(module.requests, "Session", Mock(return_value=legacy))
     manager = SourceManager.__new__(SourceManager)
     manager.sources = {"Jable": source}
-    import nassav.views as views
+    import nassav.http.source_views as views
 
     monkeypatch.setattr(views, "source_manager", manager)
     source_cookie_repository.invalidate_cookie("Jable")

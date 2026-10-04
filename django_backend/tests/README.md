@@ -660,3 +660,5 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 `tests/test_translation_workflow_contracts.py` 不访问 DB 或 worker，验证单条/批量共享标题优先级、状态规则及单条结果 envelope。
 
 `tests/test_recommendation_pipeline_contracts.py` 验证纯算法、固定种子、输入不变、注册新推荐器、纯种子排序、批量查询上限及无 Django 配置导入。
+
+`tests/test_http_contracts.py` 对照重构前 `fixtures/backend_http_contract.json` 验证 URL 与 OpenAPI，覆盖媒体缓存、缩略图回退、重新翻译状态/提交时序。

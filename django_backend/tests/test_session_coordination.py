@@ -305,7 +305,7 @@ def test_refresh_keys_isolate_site_and_route():
 def test_old_auto_cookie_api_uses_same_lease_and_preserves_response(
     client, monkeypatch, fake_session_store
 ):
-    import nassav.views as views
+    import nassav.http.source_views as views
 
     home = "https://missav.ai/"
     browser = FakeBrowser(
@@ -429,7 +429,7 @@ def test_two_old_auto_entrypoints_share_refresh_result(
 def test_old_auto_cookie_late_result_does_not_replace_manual_write(
     client, monkeypatch, fake_session_store
 ):
-    import nassav.views as views
+    import nassav.http.source_views as views
 
     home = "https://missav.ai/"
     browser = FakeBrowser(
@@ -462,7 +462,7 @@ def test_old_auto_cookie_late_result_does_not_replace_manual_write(
 def test_jable_legacy_auto_cookie_uses_versioned_write(
     client, monkeypatch, fake_session_store
 ):
-    import nassav.views as views
+    import nassav.http.source_views as views
 
     class Cookies:
         def get_dict(self):
@@ -498,7 +498,7 @@ def test_jable_legacy_auto_cookie_uses_versioned_write(
 def test_auto_api_redis_disconnect_preserves_existing_cookie(
     client, monkeypatch, fake_session_store
 ):
-    import nassav.views as views
+    import nassav.http.source_views as views
 
     source_cookie_repository.set_cookie("MissAV", "manual=old")
     browser = FakeBrowser(url="https://missav.ai/", html="MissAV home")

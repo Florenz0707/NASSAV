@@ -1,0 +1,871 @@
+{
+  "paths": {
+    "/nassav/api/actors": {
+      "get": {
+        "operationId": "actors_retrieve",
+        "description": "GET /api/actors/ - 返回演员列表及每个演员的作品数，支持分页",
+        "tags": ["actors"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/actors/": {
+      "get": {
+        "operationId": "actors_retrieve_2",
+        "description": "GET /api/actors/ - 返回演员列表及每个演员的作品数，支持分页",
+        "tags": ["actors"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/actors/{actor_id}/avatar": {
+      "get": {
+        "operationId": "actors_avatar_retrieve",
+        "description": "GET /api/actors/<int:actor_id>/avatar - 返回演员头像图片",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "actor_id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["actors"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/actors/{actor_id}/detail": {
+      "get": {
+        "operationId": "actors_detail_retrieve",
+        "description": "GET /api/actors/<int:actor_id>/detail - 演员详情与外部源搜索结果",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "actor_id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["actors"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/downloads/{avid}": {
+      "post": {
+        "operationId": "downloads_create",
+        "description": "POST /api/resource/downloads\n通过avid下载视频，此avid的元数据必须已存在于 resource 目录中",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "avid",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["downloads"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "downloads_destroy",
+        "description": "DELETE /api/downloads/{avid}: remove MP4 and clear database state.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "avid",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["downloads"],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/downloads/abspath": {
+      "get": {
+        "operationId": "downloads_abspath_retrieve",
+        "description": "GET /api/downloads/abspath?avid=\n返回视频文件的绝对路径，并在前面拼接 config.FilePathPrefix 作为前缀",
+        "tags": ["downloads"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/downloads/batch_submit": {
+      "post": {
+        "operationId": "downloads_batch_submit_create",
+        "description": "POST /api/downloads/batch_submit\n\nBody example: { \"avids\": [\"ABC-123\",\"DEF-222\"] }",
+        "tags": ["downloads"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/downloads/mock/{avid}": {
+      "post": {
+        "operationId": "downloads_mock_create",
+        "description": "POST /api/downloads/mock/{avid}\n\nBody (可选):\n{\n    \"duration\": 30  // 模拟下载持续时间（秒），默认 30\n}",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "avid",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["downloads"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/genres": {
+      "get": {
+        "operationId": "genres_retrieve",
+        "description": "GET /api/genres/ - 返回类别列表及每个类别的作品数，支持分页",
+        "tags": ["genres"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/genres/": {
+      "get": {
+        "operationId": "genres_retrieve_2",
+        "description": "GET /api/genres/ - 返回类别列表及每个类别的作品数，支持分页",
+        "tags": ["genres"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/genres/{genre_id}/detail": {
+      "get": {
+        "operationId": "genres_detail_retrieve",
+        "description": "GET /api/genres/<int:genre_id>/detail - 类别详情与外部源搜索结果",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "genre_id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["genres"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations": {
+      "get": {
+        "operationId": "recommendations_retrieve",
+        "description": "GET /api/recommendations/ - 统一推荐接口",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/": {
+      "get": {
+        "operationId": "recommendations_retrieve_2",
+        "description": "GET /api/recommendations/ - 统一推荐接口",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/avid-blocklist": {
+      "get": {
+        "operationId": "recommendations_avid_blocklist_retrieve",
+        "description": "GET/POST/DELETE /api/recommendations/avid-blocklist - 管理资源黑名单",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      },
+      "post": {
+        "operationId": "recommendations_avid_blocklist_create",
+        "description": "GET/POST/DELETE /api/recommendations/avid-blocklist - 管理资源黑名单",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "recommendations_avid_blocklist_destroy",
+        "description": "GET/POST/DELETE /api/recommendations/avid-blocklist - 管理资源黑名单",
+        "tags": ["recommendations"],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/cover": {
+      "get": {
+        "operationId": "recommendations_cover_retrieve",
+        "description": "GET /api/recommendations/cover - 代理并缓存推荐封面",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/demo": {
+      "get": {
+        "operationId": "recommendations_demo_retrieve",
+        "description": "GET /api/recommendations/demo - 返回基于本地偏好的 demo 推荐结果",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/feedback": {
+      "post": {
+        "operationId": "recommendations_feedback_create",
+        "description": "POST /api/recommendations/feedback - 提交推荐结果反馈",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/metrics": {
+      "get": {
+        "operationId": "recommendations_metrics_retrieve",
+        "description": "GET /api/recommendations/metrics - 返回推荐效果与状态概览",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/options": {
+      "get": {
+        "operationId": "recommendations_options_retrieve",
+        "description": "GET /api/recommendations/options - 返回可用推荐器与策略",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/reset": {
+      "post": {
+        "operationId": "recommendations_reset_create",
+        "description": "POST /api/recommendations/reset - 清空推荐历史，默认保留黑名单状态",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/recommendations/seed-block": {
+      "post": {
+        "operationId": "recommendations_seed_block_create",
+        "description": "POST/DELETE /api/recommendations/seed-block - 手动屏蔽或取消屏蔽 actor/genre",
+        "tags": ["recommendations"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "recommendations_seed_block_destroy",
+        "description": "POST/DELETE /api/recommendations/seed-block - 手动屏蔽或取消屏蔽 actor/genre",
+        "tags": ["recommendations"],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource": {
+      "post": {
+        "operationId": "resource_create",
+        "description": "POST /api/resource/new\n通过avid获取资源信息并保存（HTML、封面、元数据）\n\n请求参数:\n    avid: 视频编号\n    downloader: 指定源名称，默认 \"any\" 表示尝试所有源",
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/{avid}": {
+      "delete": {
+        "operationId": "resource_destroy",
+        "description": "DELETE /api/resource/{avid}\n删除整个资源目录（包括 HTML、封面、元数据、视频）",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "avid",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["resource"],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/{avid}/preview": {
+      "get": {
+        "operationId": "resource_preview_retrieve",
+        "description": "GET /api/resource/{avid}/preview - 返回 metadata + thumbnail_url（small 默认为首屏预览）",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "avid",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/{avid}/status": {
+      "patch": {
+        "operationId": "resource_status_partial_update",
+        "description": "PATCH /api/resource/{avid}/status\n更新资源的观看状态和收藏状态\n\n请求参数:\n    watched: 是否已观看 (boolean, optional)\n    is_favorite: 是否收藏 (boolean, optional)",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "avid",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/cover": {
+      "get": {
+        "operationId": "resource_cover_retrieve",
+        "description": "GET /api/resource/cover?avid=\n根据avid获取封面图片",
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/jobs": {
+      "post": {
+        "operationId": "resource_jobs_create",
+        "description": "Submit one scrape job without waiting for browser or metadata requests.",
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/jobs/{task_id}": {
+      "get": {
+        "operationId": "resource_jobs_retrieve",
+        "description": "Return the latest Redis snapshot, including a terminal result when present.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/jobs/batch": {
+      "post": {
+        "operationId": "resource_jobs_batch_create",
+        "description": "Submit independent add/refresh jobs and report each outcome.",
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/metadata": {
+      "get": {
+        "operationId": "resource_metadata_retrieve",
+        "description": "GET /api/resource/downloads/metadata?avid=\n根据avid获取视频元数据",
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resource/refresh/{avid}": {
+      "post": {
+        "operationId": "resource_refresh_create",
+        "description": "POST /api/resource/refresh/{avid}\n刷新已有资源的元数据和m3u8链接，使用原有source获取\n\n支持细粒度刷新参数：\n- refresh_m3u8: 是否刷新 m3u8 链接（默认 true）\n- refresh_metadata: 是否刷新元数据（默认 true）\n- retranslate: 是否重新翻译标题（默认 false）\n\n注意：当同时刷新元数据和重新翻译时，会先刷新元数据获取新标题，再执行翻译",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "avid",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["resource"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resources": {
+      "get": {
+        "operationId": "resources_retrieve",
+        "description": "GET /api/resources/ - consolidated resource listing with filters/pagination",
+        "tags": ["resources"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resources/": {
+      "get": {
+        "operationId": "resources_retrieve_2",
+        "description": "GET /api/resources/ - consolidated resource listing with filters/pagination",
+        "tags": ["resources"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/resources/batch": {
+      "post": {
+        "operationId": "resources_batch_create",
+        "description": "POST /api/resources/batch\n\nBody example:\n  { \"actions\": [ {\"action\":\"add\",\"avid\":\"ABC-123\",\"source\":\"any\"},\n                  {\"action\":\"delete-video\",\"avid\":\"XYZ-001\"},\n                  {\"action\":\"delete-all\",\"avid\":\"OLD-999\"},\n                  {\"action\":\"refresh\",\"avid\":\"DEF-222\"} ] }\n\n支持的 action 类型：\n- add: 添加资源\n- refresh: 刷新资源元数据和 m3u8\n- delete-video: 只删除视频文件，保留元数据\n- delete-all 或 delete: 删除全部数据（视频+元数据+封面+备份）",
+        "tags": ["resources"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/search/jobs": {
+      "post": {
+        "operationId": "search_jobs_create",
+        "description": "Provide default serializer for drf-spectacular on plain APIViews.",
+        "tags": ["search"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchQuery"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchQuery"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchQuery"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/nassav/api/search/jobs/{task_id}": {
+      "get": {
+        "operationId": "search_jobs_retrieve",
+        "description": "Provide default serializer for drf-spectacular on plain APIViews.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["search"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/search/jobs/{task_id}/cancel": {
+      "post": {
+        "operationId": "search_jobs_cancel_create",
+        "description": "Provide default serializer for drf-spectacular on plain APIViews.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true
+          }
+        ],
+        "tags": ["search"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/setting": {
+      "get": {
+        "operationId": "setting_retrieve",
+        "description": "获取所有用户设置",
+        "tags": ["setting"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      },
+      "put": {
+        "operationId": "setting_update",
+        "description": "更新用户设置",
+        "tags": ["setting"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/source/cookie": {
+      "get": {
+        "operationId": "source_cookie_retrieve",
+        "description": "获取所有源的 Cookie 配置",
+        "tags": ["source"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      },
+      "post": {
+        "operationId": "source_cookie_create",
+        "description": "GET /api/source/cookie\n获取所有源的 Cookie 列表。\n\nPOST /api/source/cookie\n设置或自动获取指定源的 Cookie。\n\nDELETE /api/source/cookie?source=xxx\n清除指定源的 Cookie。\n\nRequest JSON (POST):\n  - source: 源名称 (required)\n  - cookie: 手动设置的 cookie (optional)\n  - user_agent: 手动 Cookie 配套 User-Agent (optional)\n  - auto: 是否自动获取 cookie (boolean, optional)",
+        "tags": ["source"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "source_cookie_destroy",
+        "description": "删除指定源的 Cookie（设为空）",
+        "tags": ["source"],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/source/list": {
+      "get": {
+        "operationId": "source_list_retrieve",
+        "description": "GET /api/source/list\n获取所有可用的下载源名称列表",
+        "tags": ["source"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/source/search-capabilities": {
+      "get": {
+        "operationId": "source_search_capabilities_retrieve",
+        "description": "Enabled source capabilities for actor and genre external search.",
+        "tags": ["source"],
+        "responses": {
+          "200": {
+            "description": "No response body"
+          }
+        }
+      }
+    },
+    "/nassav/api/tasks/queue/status": {
+      "get": {
+        "operationId": "task_queue_status",
+        "description": "返回任务队列的完整状态（含 PENDING 与 STARTED 任务）。",
+        "summary": "获取任务队列状态",
+        "tags": ["tasks"],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": "获取失败"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EntityTypeEnum": {
+        "enum": ["actor", "genre"],
+        "type": "string",
+        "description": "* `actor` - actor\n* `genre` - genre"
+      },
+      "SearchQuery": {
+        "type": "object",
+        "properties": {
+          "entity_type": {
+            "$ref": "#/components/schemas/EntityTypeEnum"
+          },
+          "entity_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "default": 20
+          },
+          "ordering": {
+            "type": "string",
+            "default": "-views"
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "default": false
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceEnum"
+          }
+        },
+        "required": ["entity_id", "entity_type"]
+      },
+      "SourceEnum": {
+        "enum": ["jable", "missav"],
+        "type": "string",
+        "description": "* `jable` - jable\n* `missav` - missav"
+      }
+    }
+  },
+  "routes": [
+    ["nassav/api/search/jobs", "search-job-submit", "SearchJobSubmitView"],
+    ["nassav/api/search/jobs/<uuid:task_id>", "search-job-status", "SearchJobStatusView"],
+    ["nassav/api/search/jobs/<uuid:task_id>/cancel", "search-job-cancel", "SearchJobCancelView"],
+    ["nassav/api/auth/session", "auth-session", "session_view"],
+    ["nassav/api/auth/login", "auth-login", "login_view"],
+    ["nassav/api/auth/logout", "auth-logout", "logout_view"],
+    [
+      "nassav/api/source/search-capabilities",
+      "source-search-capabilities",
+      "SourceSearchCapabilitiesView"
+    ],
+    ["nassav/api/source/list", "source-list", "SourceListView"],
+    ["nassav/api/source/cookie", "source-cookie", "SourceCookieView"],
+    ["nassav/api/setting", "user-setting", "UserSettingView"],
+    ["nassav/api/resources", "resources-list", "ResourcesListView"],
+    ["nassav/api/resources/", null, "ResourcesListView"],
+    ["nassav/api/recommendations", "recommendations", "RecommendationsView"],
+    ["nassav/api/recommendations/", null, "RecommendationsView"],
+    ["nassav/api/recommendations/options", "recommendations-options", "RecommendationOptionsView"],
+    ["nassav/api/recommendations/metrics", "recommendations-metrics", "RecommendationMetricsView"],
+    [
+      "nassav/api/recommendations/feedback",
+      "recommendations-feedback",
+      "RecommendationFeedbackView"
+    ],
+    [
+      "nassav/api/recommendations/seed-block",
+      "recommendations-seed-block",
+      "RecommendationSeedBlockView"
+    ],
+    [
+      "nassav/api/recommendations/avid-blocklist",
+      "recommendations-avid-blocklist",
+      "RecommendationAvidBlocklistView"
+    ],
+    ["nassav/api/recommendations/reset", "recommendations-reset", "RecommendationResetView"],
+    ["nassav/api/recommendations/cover", "recommendations-cover", "RecommendationCoverView"],
+    ["nassav/api/recommendations/demo", "recommendations-demo", "RecommendationsDemoView"],
+    ["nassav/api/actors", "actors-list", "ActorsListView"],
+    ["nassav/api/actors/", null, "ActorsListView"],
+    ["nassav/api/actors/<int:actor_id>/detail", "actor-detail", "ActorDetailView"],
+    ["nassav/api/actors/<int:actor_id>/avatar", "actor-avatar", "ActorAvatarView"],
+    ["nassav/api/genres", "genres-list", "GenresListView"],
+    ["nassav/api/genres/", null, "GenresListView"],
+    ["nassav/api/genres/<int:genre_id>/detail", "genre-detail", "GenreDetailView"],
+    ["nassav/api/resource/cover", "resource-cover", "ResourceCoverView"],
+    ["nassav/api/resource/<str:avid>/preview", "resource-preview", "ResourcePreviewView"],
+    ["nassav/api/resources/batch", "resources-batch", "ResourcesBatchView"],
+    ["nassav/api/downloads/batch_submit", "downloads-batch-submit", "DownloadsBatchSubmitView"],
+    ["nassav/api/resource/metadata", "resource-metadata", "ResourceMetadataView"],
+    ["nassav/api/resource/jobs", "resource-jobs", "ResourceJobView"],
+    ["nassav/api/resource/jobs/batch", "resource-jobs-batch", "ResourceJobBatchView"],
+    ["nassav/api/resource/jobs/<uuid:task_id>", "resource-job-status", "ResourceJobStatusView"],
+    ["nassav/api/resource", "resource-new", "ResourceView"],
+    ["nassav/api/resource/refresh/<str:avid>", "resource-refresh", "RefreshResourceView"],
+    ["nassav/api/resource/<str:avid>", "resource-delete", "DeleteResourceView"],
+    ["nassav/api/resource/<str:avid>/status", "resource-status", "ResourceStatusView"],
+    ["nassav/api/downloads/abspath", "downloads-abspath", "DownloadAbspathView"],
+    ["nassav/api/downloads/<str:avid>", "downloads-new", "DownloadView"],
+    ["nassav/api/downloads/<str:avid>", "downloads-delete", "DownloadView"],
+    ["nassav/api/downloads/mock/<str:avid>", "downloads-mock", "MockDownloadView"],
+    ["nassav/api/tasks/queue/status", "task-queue-status", "TaskQueueStatusView"]
+  ]
+}
