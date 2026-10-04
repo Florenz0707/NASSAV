@@ -113,3 +113,27 @@ def build_translation_workflow():
     return TitleTranslationUseCase(
         DjangoTranslationRepository(), ManagerTextTranslator(translator_manager)
     )
+
+
+def build_recommendation_manager():
+    from django.conf import settings
+    from nassav.source import Jable
+    from nassav.recommendation.manager import RecommenderManager
+    from nassav.recommendation.jable_page_lookup import JablePageLookupRecommender
+    from nassav.recommendation.data_access import (
+        DjangoRecommendationContext,
+        DjangoCandidateInventory,
+    )
+
+    def jable_factory(strategy):
+        return JablePageLookupRecommender(
+            jable=Jable(proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None),
+            candidate_inventory=DjangoCandidateInventory(),
+            seed_provider=strategy.seed_provider_builder(),
+            factors=[builder() for builder in strategy.factor_builders],
+            **strategy.recommender_kwargs,
+        )
+
+    return RecommenderManager(
+        DjangoRecommendationContext(), {"jable_page_lookup": jable_factory}
+    )

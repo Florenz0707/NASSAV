@@ -1,25 +1,26 @@
 from loguru import logger
 
-from nassav.source import Jable
+from .contracts import RecommendationSource, CandidateInventory
 
 from .base import AbstractRecommender
 from .entities import RecommendationCandidate, RecommendationRequest, RecommendationSeed
-from .seeds import SeedProvider
+from .contracts import SeedProvider
 
 
 class JableSearchRecommender(AbstractRecommender):
     def __init__(
         self,
-        jable: Jable,
+        jable: RecommendationSource,
         seed_provider: SeedProvider,
         factors=None,
         *,
+        candidate_inventory: CandidateInventory,
         diversity_penalty: float = 0.0,
         actor_diversity_weight: float = 1.0,
         genre_diversity_weight: float = 0.5,
         max_pages_per_query: int = 5,
     ):
-        super().__init__(factors=factors)
+        super().__init__(factors=factors, candidate_inventory=candidate_inventory)
         self.jable = jable
         self.seed_provider = seed_provider
         self.diversity_penalty = diversity_penalty
@@ -27,37 +28,18 @@ class JableSearchRecommender(AbstractRecommender):
         self.genre_diversity_weight = genre_diversity_weight
         self.max_pages_per_query = max(max_pages_per_query, 1)
 
-    def recommend(self, request: RecommendationRequest):
-        seeds = self.build_seeds(request)
-        seeds = self.exclude_seed_blocked_seeds(seeds, request)
-        request.active_seeds = list(seeds)
+    def _prepare_seed_context(self, request, seeds) -> None:
         self._hydrate_seed_occurrence_tiers(request, seeds)
-        candidates = self.recall_candidates(seeds, request)
-        candidates = self.exclude_existing_resources(candidates, request)
-        candidates = self.filter_blocklisted_candidates(candidates, request)
-        seeds, candidates = self._expand_seed_pool_if_needed(
-            seeds=seeds,
-            candidates=candidates,
-            request=request,
-        )
-        request.active_seeds = list(seeds)
-        candidates = self.exclude_existing_resources(candidates, request)
-        candidates = self.filter_blocklisted_candidates(candidates, request)
-        self._hydrate_seed_occurrence_tiers(request, seeds)
-        candidates = self.filter_recent_recommendations(candidates, request)
-        candidates = self.enrich_candidates(candidates, request)
-        candidates = self.filter_blocklisted_candidates(candidates, request)
-        seeds, candidates = self._top_up_after_detail_filter_if_needed(
-            seeds=seeds,
-            candidates=candidates,
-            request=request,
-        )
-        candidates = self.score_candidates(candidates, request)
-        items = self.rank_and_trim(candidates, request)
-        items = self.filter_blocklisted_candidates(items, request)
-        from .entities import RecommendationRun
 
-        return RecommendationRun(seeds=seeds, items=items)
+    def _expand_candidates(self, *, seeds, candidates, request):
+        return self._expand_seed_pool_if_needed(
+            seeds=seeds, candidates=candidates, request=request
+        )
+
+    def _top_up_candidates(self, *, seeds, candidates, request):
+        return self._top_up_after_detail_filter_if_needed(
+            seeds=seeds, candidates=candidates, request=request
+        )
 
     def build_seeds(self, request: RecommendationRequest) -> list[RecommendationSeed]:
         return self.seed_provider.get_seeds(request)

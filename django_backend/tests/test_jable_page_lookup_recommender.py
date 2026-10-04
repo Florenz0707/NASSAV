@@ -1,3 +1,4 @@
+from nassav.recommendation.data_access import DjangoCandidateInventory
 import pytest
 
 
@@ -49,6 +50,7 @@ def test_jable_page_lookup_recommender_uses_genre_tag_mapping(
     monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
 
     recommender = JablePageLookupRecommender(
+        candidate_inventory=DjangoCandidateInventory(),
         jable=jable,
         seed_provider=LocalPreferenceSeedProvider(),
         max_pages_per_query=2,
@@ -108,6 +110,7 @@ def test_jable_page_lookup_recommender_falls_back_to_search_without_mapping(
     monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
 
     recommender = JablePageLookupRecommender(
+        candidate_inventory=DjangoCandidateInventory(),
         jable=jable,
         seed_provider=LocalPreferenceSeedProvider(),
         max_pages_per_query=2,

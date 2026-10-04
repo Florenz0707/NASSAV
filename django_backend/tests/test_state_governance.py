@@ -101,9 +101,9 @@ def test_scraper_manager_download_cover_uses_explicit_scraper_name():
 
 
 def test_recommender_manager_keeps_registry_in_class_metadata():
-    from nassav.recommendation import RecommenderManager
+    from nassav.composition import build_recommendation_manager
 
-    manager = RecommenderManager()
+    manager = build_recommendation_manager()
     assert "RECOMMENDER_META" in type(manager).__dict__
     assert "STRATEGY_BUILDERS" in type(manager).__dict__
     assert "RECOMMENDER_META" not in manager.__dict__

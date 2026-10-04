@@ -658,3 +658,5 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 `tests/test_batch_translation_state.py` 使用临时 SQLite 和翻译替身，验证原始/来源标题选择、skip_existing、返回数量异常、翻译器异常及部分保存失败收尾。
 
 `tests/test_translation_workflow_contracts.py` 不访问 DB 或 worker，验证单条/批量共享标题优先级、状态规则及单条结果 envelope。
+
+`tests/test_recommendation_pipeline_contracts.py` 验证纯算法、固定种子、输入不变、注册新推荐器、纯种子排序、批量查询上限及无 Django 配置导入。

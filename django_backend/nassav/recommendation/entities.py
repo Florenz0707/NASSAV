@@ -111,6 +111,9 @@ class RecommendationRequest:
 class RecommendationRun:
     seeds: list[RecommendationSeed]
     items: list[RecommendationCandidate]
+    execution_request: RecommendationRequest | None = field(
+        default=None, repr=False, compare=False
+    )
 
     def to_dict(self) -> dict:
         return {

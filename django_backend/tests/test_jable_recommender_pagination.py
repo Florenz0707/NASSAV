@@ -1,3 +1,4 @@
+from nassav.recommendation.data_access import DjangoCandidateInventory
 import pytest
 
 
@@ -48,6 +49,7 @@ def test_jable_recommender_paginates_search_results(
     monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
 
     recommender = JableSearchRecommender(
+        candidate_inventory=DjangoCandidateInventory(),
         jable=jable,
         seed_provider=LocalPreferenceSeedProvider(),
         max_pages_per_query=3,
@@ -106,6 +108,7 @@ def test_jable_recommender_paginates_latest_discovery(monkeypatch):
     monkeypatch.setattr(jable, "discover_latest_updates", fake_latest_updates)
 
     recommender = JableSearchRecommender(
+        candidate_inventory=DjangoCandidateInventory(),
         jable=jable,
         seed_provider=LocalPreferenceSeedProvider(),
         max_pages_per_query=3,
@@ -163,6 +166,7 @@ def test_jable_recommender_recommend_filters_seed_blocked_candidates(
     monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
 
     recommender = JableSearchRecommender(
+        candidate_inventory=DjangoCandidateInventory(),
         jable=jable,
         seed_provider=LocalPreferenceSeedProvider(),
         max_pages_per_query=1,
@@ -223,6 +227,7 @@ def test_jable_recommender_filters_candidate_by_blocked_genre_slug_metrics(
     monkeypatch.setattr(jable, "discover_latest_updates", lambda page=1: [])
 
     recommender = JableSearchRecommender(
+        candidate_inventory=DjangoCandidateInventory(),
         jable=jable,
         seed_provider=LocalPreferenceSeedProvider(),
         max_pages_per_query=1,
@@ -287,6 +292,7 @@ def test_jable_recommender_filters_matched_candidate_by_detail_category_slug(
     )
 
     recommender = JableSearchRecommender(
+        candidate_inventory=DjangoCandidateInventory(),
         jable=jable,
         seed_provider=LocalPreferenceSeedProvider(),
         max_pages_per_query=1,

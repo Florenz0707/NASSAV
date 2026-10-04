@@ -1,27 +1,64 @@
 from abc import ABC, abstractmethod
 from hashlib import blake2b
 
-from nassav.models import AVResource
+from copy import deepcopy
+from .contracts import CandidateInventory
+from .seed_policy import normalize_seed_value
 
 from .entities import RecommendationCandidate, RecommendationRequest, RecommendationRun
 from .factors import RecommendationFactor
 
 
 class AbstractRecommender(ABC):
-    def __init__(self, factors: list[RecommendationFactor] | None = None):
+    def __init__(
+        self,
+        factors: list[RecommendationFactor] | None = None,
+        *,
+        candidate_inventory: CandidateInventory,
+    ):
         self.factors = factors or []
+        self.candidate_inventory = candidate_inventory
 
-    def recommend(self, request: RecommendationRequest) -> RecommendationRun:
+    def recommend(self, request: RecommendationRequest):
+        request = deepcopy(request)
         seeds = self.build_seeds(request)
         seeds = self.exclude_seed_blocked_seeds(seeds, request)
+        request.active_seeds = list(seeds)
+        self._prepare_seed_context(request, seeds)
         candidates = self.recall_candidates(seeds, request)
-        candidates = self.filter_existing_resources(candidates, request)
+        candidates = self.exclude_existing_resources(candidates, request)
+        candidates = self.filter_blocklisted_candidates(candidates, request)
+        seeds, candidates = self._expand_candidates(
+            seeds=seeds,
+            candidates=candidates,
+            request=request,
+        )
+        request.active_seeds = list(seeds)
+        candidates = self.exclude_existing_resources(candidates, request)
+        candidates = self.filter_blocklisted_candidates(candidates, request)
+        self._prepare_seed_context(request, seeds)
+        candidates = self.filter_recent_recommendations(candidates, request)
         candidates = self.enrich_candidates(candidates, request)
         candidates = self.filter_blocklisted_candidates(candidates, request)
+        seeds, candidates = self._top_up_candidates(
+            seeds=seeds,
+            candidates=candidates,
+            request=request,
+        )
         candidates = self.score_candidates(candidates, request)
         items = self.rank_and_trim(candidates, request)
         items = self.filter_blocklisted_candidates(items, request)
-        return RecommendationRun(seeds=seeds, items=items)
+
+        return RecommendationRun(seeds=seeds, items=items, execution_request=request)
+
+    def _prepare_seed_context(self, request, seeds) -> None:
+        pass
+
+    def _expand_candidates(self, *, seeds, candidates, request):
+        return seeds, candidates
+
+    def _top_up_candidates(self, *, seeds, candidates, request):
+        return seeds, candidates
 
     @abstractmethod
     def build_seeds(self, request: RecommendationRequest):
@@ -69,12 +106,9 @@ class AbstractRecommender(ABC):
         seed,
         request: RecommendationRequest,
     ) -> bool:
-        from .seed_profiles import recommendation_seed_profile_repository
 
         seed_type = str(seed.seed_type or "").strip().lower()
-        normalized_value = recommendation_seed_profile_repository.normalize_value(
-            seed.value
-        )
+        normalized_value = normalize_seed_value(seed.value)
         if (seed_type, normalized_value) in request.blocked_seed_name_keys:
             return True
 
@@ -97,10 +131,8 @@ class AbstractRecommender(ABC):
             return candidates
 
         if request.exclude_existing:
-            existing_avids = set(
-                AVResource.objects.filter(
-                    avid__in=[candidate.avid for candidate in candidates]
-                ).values_list("avid", flat=True)
+            existing_avids = self.candidate_inventory.existing(
+                {candidate.avid for candidate in candidates}
             )
             candidates = [
                 candidate
@@ -132,8 +164,6 @@ class AbstractRecommender(ABC):
         if not candidates or not request.seed_blacklist_active:
             return candidates
 
-        from .seed_profiles import recommendation_seed_profile_repository
-
         blocked_name_keys = request.blocked_seed_name_keys
         blocked_source_keys = request.blocked_seed_source_keys
 
@@ -143,9 +173,7 @@ class AbstractRecommender(ABC):
             is_blocked = False
             for seed in matched:
                 seed_type = str(seed.seed_type or "").strip().lower()
-                normalized_value = (
-                    recommendation_seed_profile_repository.normalize_value(seed.value)
-                )
+                normalized_value = normalize_seed_value(seed.value)
                 if (seed_type, normalized_value) in blocked_name_keys:
                     is_blocked = True
                     break

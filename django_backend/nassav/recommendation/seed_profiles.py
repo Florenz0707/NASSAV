@@ -1,4 +1,4 @@
-import re
+from .seed_policy import normalize_seed_value
 from collections.abc import Iterable
 
 from django.db.models import F
@@ -566,7 +566,7 @@ class RecommendationSeedProfileRepository:
 
     @staticmethod
     def normalize_value(value: str) -> str:
-        return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+        return normalize_seed_value(value)
 
     def _set_manual_block(
         self,
