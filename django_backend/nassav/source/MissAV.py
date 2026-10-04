@@ -11,7 +11,8 @@ from nassav.page_fetching import (
     create_page_fetch_service,
     validate_strategy,
 )
-from nassav.source.CookieRepository import source_cookie_repository
+from nassav.source.CookieRepository import CookieRepository
+from nassav.page_fetching.coordination import SessionRefreshCoordinator
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 from nassav.source.capabilities import ListingSource
@@ -33,9 +34,16 @@ class MissAV(SourceBase, ListingSource):
         timeout: int = 15,
         *,
         page_fetcher: PageFetchService | None = None,
+        cookie_repository: CookieRepository | None = None,
+        refresh_coordinator: SessionRefreshCoordinator | None = None,
         cookie_saver=None,
     ):
-        super().__init__(proxy, timeout)
+        super().__init__(
+            proxy,
+            timeout,
+            cookie_repository=cookie_repository,
+            refresh_coordinator=refresh_coordinator,
+        )
         source_config = settings.SOURCE_CONFIG.get("missav", {})
         self.domain = source_config.get("domain", "missav.ai")
         self.browser_fetch_strategy = validate_strategy(
@@ -134,14 +142,12 @@ class MissAV(SourceBase, ListingSource):
         if not self.page_fetcher.browser:
             return super().set_cookie_auto(force_refresh, write_guard=write_guard)
         source_name = self.get_source_name()
-        existing = source_cookie_repository.get_cookie_record(source_name)
+        existing = self._sessions.repository.get_cookie_record(source_name)
         expected_version = existing.updated_at if existing is not None else None
         if not force_refresh:
             if existing is not None and existing.cookie:
                 self.set_session(existing)
                 return True
-        from urllib.parse import urlparse
-
         home_url = f"https://{self.domain}/"
         result = self.page_fetcher.browser.fetch(
             home_url, timeout_ms=self.page_fetcher.timeout_ms
@@ -153,30 +159,9 @@ class MissAV(SourceBase, ListingSource):
             or "missav" not in result.html.lower()
         ):
             return False
-        cookies = []
-        target_host = urlparse(home_url).hostname or ""
-        for item in result.cookies:
-            name, value = item.get("name"), item.get("value")
-            domain = str(item.get("domain") or target_host).lstrip(".").lower()
-            if (
-                name
-                and value
-                and (target_host == domain or target_host.endswith("." + domain))
-            ):
-                cookies.append(f"{name}={value}")
-        if not cookies:
-            return False
-        cookie_str = "; ".join(cookies)
-        saved = source_cookie_repository.set_automatic_cookie_if_version(
-            source_name,
-            expected_updated_at=expected_version,
-            cookie=cookie_str,
-            write_guard=write_guard,
+        return self._sessions.accept_legacy_browser_cookies(
+            home_url, result, expected_version, write_guard=write_guard
         )
-        if saved is None:
-            return False
-        self.set_session(saved)
-        return True
 
     def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
         """解析 HTML 获取核心下载信息（m3u8、avid、title）

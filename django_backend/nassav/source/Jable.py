@@ -14,7 +14,8 @@ from nassav.page_fetching import (
     validate_strategy,
 )
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.source.CookieRepository import source_cookie_repository
+from nassav.source.CookieRepository import CookieRepository
+from nassav.page_fetching.coordination import SessionRefreshCoordinator
 from nassav.source.SourceBase import SourceBase
 from nassav.source.capabilities import ListingSource
 from nassav.source.search_contracts import SourceSearchError
@@ -36,8 +37,15 @@ class Jable(SourceBase, ListingSource):
         timeout: int = 15,
         *,
         page_fetcher: PageFetchService | None = None,
+        cookie_repository: CookieRepository | None = None,
+        refresh_coordinator: SessionRefreshCoordinator | None = None,
     ):
-        super().__init__(proxy, timeout)
+        super().__init__(
+            proxy,
+            timeout,
+            cookie_repository=cookie_repository,
+            refresh_coordinator=refresh_coordinator,
+        )
         source_config = settings.SOURCE_CONFIG.get("jable", {})
         self.domain = source_config.get("domain", "jable.tv")
         self.browser_fetch_strategy = validate_strategy(
@@ -71,7 +79,7 @@ class Jable(SourceBase, ListingSource):
         """Acquire and verify a paired browser session for explicit refreshes."""
         if self.page_fetcher.browser is None:
             return super().set_cookie_auto(force_refresh, write_guard=write_guard)
-        record = source_cookie_repository.get_cookie_record(self.get_source_name())
+        record = self._sessions.repository.get_cookie_record(self.get_source_name())
         if not force_refresh and record is not None and record.cookie:
             self.set_session(record)
             return True

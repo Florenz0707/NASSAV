@@ -1,5 +1,7 @@
 """Atomic, versioned SourceCookie snapshots and proxy-route identity."""
 
+from abc import ABC, abstractmethod
+
 import hashlib
 import hmac
 import json
@@ -53,7 +55,50 @@ def proxy_route_profile(proxy_url: str | None) -> str | None:
     return hmac.new(settings.SECRET_KEY.encode(), payload, hashlib.sha256).hexdigest()
 
 
-class SourceCookieRepository:
+class CookieRepository(ABC):
+    """Complete snapshots, manual writes and version-fenced automatic writes."""
+
+    @abstractmethod
+    def get_cookie_record(self, source_name: str) -> SourceCookieRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_cookie(
+        self, source_name: str, cookie: str, *, user_agent: str | None = None
+    ) -> SourceCookieRecord:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_session_if_version(
+        self,
+        source_name: str,
+        *,
+        expected_updated_at: str | None,
+        cookie: str,
+        user_agent: str,
+        expires_at: datetime | None,
+        egress_profile: str | None,
+        write_guard: Callable[[], bool] | None = None,
+    ) -> SourceCookieRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_automatic_cookie_if_version(
+        self,
+        source_name: str,
+        *,
+        expected_updated_at: str | None,
+        cookie: str,
+        write_guard: Callable[[], bool] | None = None,
+    ) -> SourceCookieRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def invalidate_cookie(self, source_name: str) -> None:
+        raise NotImplementedError
+
+
+class SourceCookieRepository(CookieRepository):
     CACHE_TIMEOUT = 3600
 
     def get_cookie(self, source_name: str) -> str:

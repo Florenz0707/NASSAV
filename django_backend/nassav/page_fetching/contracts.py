@@ -2,7 +2,6 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Protocol
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -46,19 +45,24 @@ class BrowserPageClient(ABC):
         raise NotImplementedError
 
 
-class BrowserSessionHandler(Protocol):
-    """Source-owned hooks for committing and coordinating browser sessions."""
+class BrowserSessionHandler(ABC):
+    """Session lifecycle hooks for committing and coordinating browser sessions."""
 
-    def browser_session_version(self) -> str | None: ...
+    @abstractmethod
+    def browser_session_version(self) -> str | None:
+        raise NotImplementedError
 
+    @abstractmethod
     def accept_browser_session(
         self,
         url: str,
         result: PageResult,
         validator: Callable[[str], bool],
         expected_version: str | None,
-    ) -> bool: ...
+    ) -> bool:
+        raise NotImplementedError
 
+    @abstractmethod
     def coordinate_browser_fallback(
         self,
         url: str,
@@ -67,4 +71,5 @@ class BrowserSessionHandler(Protocol):
         browser_fetch: Callable[[], PageResult],
         validator: Callable[[str], bool],
         timeout_ms: int,
-    ) -> PageResult: ...
+    ) -> PageResult:
+        raise NotImplementedError

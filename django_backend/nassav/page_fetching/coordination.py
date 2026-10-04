@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+
 import math
 import time
 from dataclasses import dataclass
@@ -35,9 +37,47 @@ def refresh_key(source_name: str, url: str, route_profile: str) -> str:
     )
 
 
-class RedisRefreshStore:
-    def __init__(self):
-        self.client = redis.from_url(settings.CELERY_BROKER_URL)
+class RefreshStore(ABC):
+    """Owner-fenced lease operations and short-lived refresh outcomes."""
+
+    @abstractmethod
+    def acquire(self, key: str, owner: str, ttl: int) -> tuple[bool, str | None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def owner(self, key: str) -> str | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def renew(self, key: str, owner: str, ttl: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def release(self, key: str, owner: str, outcome: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def outcome(self, key: str) -> str | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def mark_unusable(self, key: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def recently_unusable(self, key: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear_unusable(self, key: str) -> None:
+        raise NotImplementedError
+
+
+class RedisRefreshStore(RefreshStore):
+    def __init__(self, client: redis.Redis | None = None):
+        self.client = (
+            client if client is not None else redis.from_url(settings.CELERY_BROKER_URL)
+        )
 
     @staticmethod
     def _decoded(value) -> str | None:
@@ -74,7 +114,7 @@ class RedisRefreshStore:
 
 @dataclass
 class RefreshLease:
-    store: RedisRefreshStore
+    store: RefreshStore
     key: str
     owner: str
     ttl: int
@@ -116,8 +156,8 @@ class RefreshLease:
 
 
 class SessionRefreshCoordinator:
-    def __init__(self, store: RedisRefreshStore | None = None):
-        self.store = store or RedisRefreshStore()
+    def __init__(self, store: RefreshStore | None = None):
+        self.store = store if store is not None else RedisRefreshStore()
 
     def acquire(
         self, key: str, timeout_ms: int

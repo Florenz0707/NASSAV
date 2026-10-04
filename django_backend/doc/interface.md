@@ -1387,3 +1387,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 关闭完整会话复用时，直连仍采用已有 Cookie 的传统请求方式，不进行完整 Cookie + UA 会话复用、自动验证保存或刷新协调；开启后采用配套 UA、出口与过期检查及已验证会话刷新。此改动不修改正式配置或自动启用复用。
 
 实现与五组两页现场证据见 [逐页搜索执行记录](progressive-external-search-execution.md)。
+
+## 后端内部能力契约
+
+源和刮削器的必需方法由 ABC 约束，列表搜索为独立 `ListingSource` 能力。Manager 工厂在 `composition.py` 装配；来源查询使用公开 `get_source/get_sources/get_home_url`。SourceBase 的浏览器会话入口委托到可注入存储与协调器的 `SourceSessionLifecycle`，HTTP URL、请求/响应及错误映射保持原契约。阶段验证结果见[重构执行记录](backend-refactoring-execution.md)。

@@ -8,6 +8,8 @@
 
 `test_refactoring_baseline.py` 冻结下载“先通知成功、写库失败仍成功”和资源“写库失败保留HTML且不发新增事件”的现有时序；`test_search_jobs.py` 区分合法空列表与来源失败。真实 Ollama、Javbus封面/头像、资源现场及浏览器样本不算离线通过；需要专门环境验证。
 
+`test_backend_contracts.py` 验证 ABC 必需能力、Manager 工厂替换和翻译可用性延迟检查。`test_session_lifecycle_contracts.py` 验证无数据库会话替换和失租保护，并启动无凭证、禁止 TCP、只监听临时 Unix socket 的 Redis，验证真实 Lua 所有权与 TTL。该套件要求系统提供 `redis-server`；进程与目录在测试结束后清理，不复用项目 Redis。
+
 ## P1 会话数据与迁移测试
 
 `test_source_cookie_session.py` 在隔离 SQLite 测试库上验证增量迁移、会话快照、代理摘要、人工 Cookie 覆盖/清除、旧结果晚到、缓存版本与两个并发写入者。该测试不请求外站或写生产库；同一文件也应在隔离 PostgreSQL 测试库运行。

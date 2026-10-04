@@ -6,11 +6,12 @@
 
 ## 阶段状态
 
-| 阶段  | 分支                                        | 状态                           |
-| ----- | ------------------------------------------- | ------------------------------ |
-| R0    | `chore/backend-refactor-r0-baseline`        | 已完成，质量门槛通过后自动合并 |
-| R1    | `enhancement/backend-refactor-r1-contracts` | 已完成，质量门槛通过后自动合并 |
-| R2–R7 | 待创建                                      | 未开始                         |
+| 阶段       | 分支                                        | 状态                           |
+| ---------- | ------------------------------------------- | ------------------------------ |
+| R0         | `chore/backend-refactor-r0-baseline`        | 已完成，质量门槛通过后自动合并 |
+| R1         | `enhancement/backend-refactor-r1-contracts` | 已完成，质量门槛通过后自动合并 |
+| R2 会话    | `enhancement/backend-refactor-r2-sessions`  | 已完成，质量门槛通过后自动合并 |
+| R2 搜索–R7 | 待创建                                      | 未开始                         |
 
 ## R0：行为与隔离质量基线
 
@@ -95,3 +96,13 @@ SourceManager、ScraperManager、TranslatorManager 接受工厂，具体实现�
 | Translator 可用性  | 首次公开查询或非空翻译探测；失败沿用无可用翻译器结果                        | 构造不联网，同实例通过锁只探测一次；恢复需重建实例。重试/固定词与批量规则不变 |
 
 验证：新增契约测试 **18 passed**；定向兼容测试 **60 passed**；离线全套 **483 passed、24 skipped，45.56秒**。全量 `pre-commit run -a` 通过，包括类型、编译及前端构建/测试检查。真实远端、Redis/PostgreSQL、混合 worker 和目标环境仍未验收。
+
+## R2：会话生命周期内聚
+
+会话子阶段基线 `75d787d`。`SourceSessionLifecycle` 承接自动 Cookie 获取、加载、浏览器快照验证/CAS 提交以及 single-flight 编排；SourceBase 保留原 BrowserSessionHandler 委托。Jable/MissAV 构造函数可注入 CookieRepository 与 SessionRefreshCoordinator，站点业务页校验和获取策略留在源中。MissAV 旧自动 Cookie 路径也由生命周期模块提交，保持不附加 UA/出口元数据的旧规则。
+
+CookieRepository ABC 声明完整快照读取、手工更新和版本校验写入；RefreshStore ABC 声明 owner/续租/释放、结果与短期不可用记录。生产 ORM/Redis 和测试 Adapter 使用同一契约。浏览器处理契约收敛为 ABC，既有签名和 PageFetchService 入口保持。
+
+CAS、Cookie+UA+出口+有效期、3 秒业务探测、人工写入优先、失租不能提交、有限等待、路由 key/TTL 及 Redis 故障回退均未改变。协调仅复用会话，等待者仍自行读取业务页。
+
+定向验证 **73 passed**，包含新的临时 Redis Lua 竞争、过期 owner 不能续租/释放新 owner、结果 TTL 和站点隔离测试。Redis 只监听临时 Unix socket，禁用 TCP 与持久化；测试结束停止进程和清理目录。沙箱禁止绑定 socket，使用获准本地执行。离线全套 **486 passed、24 skipped，45.86秒**；全量 `pre-commit run -a` 采用格式化结果后复验通过；目标 PostgreSQL 与正式部署仍未验收。

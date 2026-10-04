@@ -236,7 +236,10 @@ def bulk_resources(resource_factory):
     return _create
 
 
-class FakeSessionRefreshStore:
+from nassav.page_fetching.coordination import RefreshStore
+
+
+class FakeSessionRefreshStore(RefreshStore):
     """Process-shared Redis lease behavior for offline session tests."""
 
     def __init__(self):
