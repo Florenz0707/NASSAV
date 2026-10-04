@@ -2,14 +2,28 @@ import pytest
 
 from nassav.external_search import external_search_service
 from nassav.models import ActorSourceMapping, GenreSourceMapping
+from nassav.source.capabilities import ListingSource
 
 
-class _FakeJableSource:
+class _FakeJableSource(ListingSource):
     def __init__(self):
         self.model_calls = []
         self.search_calls = []
         self.tag_calls = []
         self.category_calls = []
+
+    def search_listing(
+        self, kind, term, *, page=1, ordering="-views", force_refresh=False
+    ):
+        if kind == "models":
+            return self.get_model_videos(
+                term, page, ordering, force_refresh=force_refresh
+            )
+        if kind == "search":
+            return self.search(term, page, force_refresh=force_refresh)
+        if kind == "tags":
+            return self.get_tag_videos(term, page, force_refresh=force_refresh)
+        return self.get_category_videos(term, page, force_refresh=force_refresh)
 
     def get_source_name(self):
         return "Jable"

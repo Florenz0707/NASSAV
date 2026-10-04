@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import re
 from dataclasses import dataclass
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.cache import cache
@@ -16,6 +16,8 @@ from nassav.recommendation.actor_source_mapping import actor_source_mapping_serv
 from nassav.recommendation.genre_source_mapping import genre_source_mapping_service
 from nassav.services import source_manager
 from nassav.source.SourceBase import SourceBase
+from nassav.source.capabilities import ListingSource
+from nassav.composition import external_search_adapters
 from nassav.source.CookieRepository import proxy_route_profile
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 
@@ -57,9 +59,61 @@ class DjangoExternalSearchCacheBackend(ExternalSearchCacheBackend):
         cache.set(key, payload, timeout=ttl_seconds)
 
 
+@dataclass(frozen=True)
+class SearchCapability:
+    source: str
+    label: str
+    actor: bool = True
+    genre: bool = True
+    orderings: tuple[str, ...] = (
+        "-views",
+        "views",
+        "-likes",
+        "likes",
+        "-latest",
+        "latest",
+    )
+    native_order: bool = False
+
+    def public_payload(self) -> dict:
+        return {
+            "source": self.source,
+            "label": self.label,
+            "actor": self.actor,
+            "genre": self.genre,
+            "orderings": list(self.orderings),
+        }
+
+
 class ExternalSourceAdapter(ABC):
     source_name: str = ""
     implemented: bool = False
+
+    def __init__(
+        self, *, source_lookup: Callable[[str], SourceBase | None] | None = None
+    ):
+        self.source_lookup = (
+            source_lookup if source_lookup is not None else source_manager.get_source
+        )
+
+    def capability(self) -> SearchCapability:
+        return SearchCapability(self.source_name, self.source_name)
+
+    def is_enabled(self) -> bool:
+        return self.source_lookup(self.source_name) is not None
+
+    def cache_context(self) -> tuple[str, str]:
+        source = self.source_lookup(self.source_name)
+        if source is None:
+            raise SourceSearchUnavailable("source_disabled")
+        return (
+            getattr(source, "domain", ""),
+            proxy_route_profile(getattr(source, "proxy", None)) or "direct",
+        )
+
+    def validate_ordering(self, ordering: str) -> None:
+        # Preserve legacy client sorting (including title/AVID) by default.
+        pass
 
     @abstractmethod
     def search_actor_items(
@@ -131,6 +185,9 @@ class PlaceholderExternalSourceAdapter(ExternalSourceAdapter):
 class JableExternalSourceAdapter(ExternalSourceAdapter):
     source_name = "jable"
     implemented = True
+
+    def capability(self) -> SearchCapability:
+        return SearchCapability(self.source_name, "Jable")
 
     def search_actor_items(
         self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
@@ -233,118 +290,56 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
     def _call_get_model_videos(
         self,
         *,
-        jable: "JableSearchProtocol",
+        jable: ListingSource,
         model_slug: str,
         page: int,
         sort_by: str,
         force_refresh: bool,
     ) -> list[dict]:
-        if isinstance(jable, SourceBase):
-            return jable.search_listing(
-                "models",
-                model_slug,
-                page=page,
-                ordering=sort_by,
-                force_refresh=force_refresh,
-            )
-        try:
-            return jable.get_model_videos(
-                model_slug=model_slug,
-                page=page,
-                sort_by=sort_by,
-                force_refresh=force_refresh,
-            )
-        except TypeError:
-            return jable.get_model_videos(
-                model_slug=model_slug,
-                page=page,
-                sort_by=sort_by,
-            )
+        return jable.search_listing(
+            "models",
+            model_slug,
+            page=page,
+            ordering=sort_by,
+            force_refresh=force_refresh,
+        )
 
     def _call_search(
-        self,
-        *,
-        jable: "JableSearchProtocol",
-        keyword: str,
-        page: int,
-        force_refresh: bool,
+        self, *, jable: ListingSource, keyword: str, page: int, force_refresh: bool
     ) -> list[dict]:
-        if isinstance(jable, SourceBase):
-            return jable.search_listing(
-                "search",
-                keyword,
-                page=page,
-                ordering="-views",
-                force_refresh=force_refresh,
-            )
-        try:
-            return jable.search(
-                keyword,
-                page=page,
-                force_refresh=force_refresh,
-            )
-        except TypeError:
-            return jable.search(keyword, page=page)
+        return jable.search_listing(
+            "search", keyword, page=page, force_refresh=force_refresh
+        )
 
     def _call_get_tag_videos(
-        self,
-        *,
-        jable: "JableSearchProtocol",
-        tag_slug: str,
-        page: int,
-        force_refresh: bool,
+        self, *, jable: ListingSource, tag_slug: str, page: int, force_refresh: bool
     ) -> list[dict]:
-        if isinstance(jable, SourceBase):
-            return jable.search_listing(
-                "tags",
-                tag_slug,
-                page=page,
-                ordering="-views",
-                force_refresh=force_refresh,
-            )
-        try:
-            return jable.get_tag_videos(
-                tag_slug,
-                page=page,
-                force_refresh=force_refresh,
-            )
-        except TypeError:
-            return jable.get_tag_videos(tag_slug, page=page)
+        return jable.search_listing(
+            "tags", tag_slug, page=page, force_refresh=force_refresh
+        )
 
     def _call_get_category_videos(
         self,
         *,
-        jable: "JableSearchProtocol",
+        jable: ListingSource,
         category_slug: str,
         page: int,
         force_refresh: bool,
     ) -> list[dict]:
-        if isinstance(jable, SourceBase):
-            return jable.search_listing(
-                "categories",
-                category_slug,
-                page=page,
-                ordering="-views",
-                force_refresh=force_refresh,
-            )
-        try:
-            return jable.get_category_videos(
-                category_slug,
-                page=page,
-                force_refresh=force_refresh,
-            )
-        except TypeError:
-            return jable.get_category_videos(category_slug, page=page)
+        return jable.search_listing(
+            "categories", category_slug, page=page, force_refresh=force_refresh
+        )
 
-    def _get_jable_source(self) -> "JableSearchProtocol | None":
-        for _, source in source_manager.get_sources():
-            source_name = getattr(source, "get_source_name", lambda: "")()
-            if str(source_name).strip().lower() == self.source_name:
-                if isinstance(source, SourceBase):
-                    source_manager.refresh_source_session(source.get_source_name())
-                return cast("JableSearchProtocol", source)
-        logger.warning("Jable source is unavailable in SourceManager")
-        return None
+    def _get_jable_source(self) -> ListingSource | None:
+        source = self.source_lookup(self.source_name)
+        if source is None:
+            logger.warning("Jable source is unavailable in SourceManager")
+            return None
+        if not isinstance(source, ListingSource):
+            raise SourceSearchUnavailable("source_adapter_not_implemented")
+        if isinstance(source, SourceBase):
+            source_manager.refresh_source_session(source.get_source_name())
+        return source
 
     def _get_model_pk(self, instance: Any) -> int | None:
         raw_pk = getattr(instance, "pk", None)
@@ -370,6 +365,18 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
 class MissAVExternalSourceAdapter(ExternalSourceAdapter):
     source_name = "missav"
     implemented = True
+
+    def capability(self) -> SearchCapability:
+        return SearchCapability(
+            self.source_name,
+            "MissAV",
+            orderings=("-views", "-likes", "-latest"),
+            native_order=True,
+        )
+
+    def validate_ordering(self, ordering: str) -> None:
+        if ordering not in self.capability().orderings:
+            raise ValueError("MissAV supports descending views, likes and latest only")
 
     def search_actor_items(
         self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
@@ -404,14 +411,7 @@ class MissAVExternalSourceAdapter(ExternalSourceAdapter):
     def _search(
         self, kind: str, term: str, page: int, ordering: str, force_refresh: bool
     ) -> list[dict]:
-        source = next(
-            (
-                item
-                for _, item in source_manager.get_sources()
-                if item.get_source_name().lower() == self.source_name
-            ),
-            None,
-        )
+        source = self.source_lookup(self.source_name)
         if source is None:
             raise SourceSearchUnavailable("source_disabled")
         if isinstance(source, SourceBase):
@@ -449,30 +449,23 @@ class ExternalSearchService:
             else (enabled[0] if enabled else preferred)
         )
 
-    def __init__(self):
-        self.adapters: dict[str, ExternalSourceAdapter] = {
-            "jable": JableExternalSourceAdapter(),
-            "missav": MissAVExternalSourceAdapter(),
-            "memo": PlaceholderExternalSourceAdapter("memo"),
-        }
+    def __init__(self, *, adapters: Mapping[str, ExternalSourceAdapter] | None = None):
+        self.adapters = (
+            dict(adapters) if adapters is not None else external_search_adapters()
+        )
 
     def capabilities(self) -> list[dict]:
-        enabled = {
-            item.get_source_name().lower() for _, item in source_manager.get_sources()
-        }
         return [
-            {
-                "source": name,
-                "label": "MissAV" if name == "missav" else "Jable",
-                "actor": True,
-                "genre": True,
-                "orderings": ["-views", "-likes", "-latest"]
-                if name == "missav"
-                else ["-views", "views", "-likes", "likes", "-latest", "latest"],
-            }
-            for name, adapter in self.adapters.items()
-            if adapter.implemented and name in enabled
+            adapter.capability().public_payload()
+            for adapter in self.adapters.values()
+            if adapter.implemented and adapter.is_enabled()
         ]
+
+    def registered_sources(self) -> set[str]:
+        return {name for name, adapter in self.adapters.items() if adapter.implemented}
+
+    def cache_context(self, source_name: str) -> tuple[str, str]:
+        return self.adapters[source_name].cache_context()
 
     def search_actor_detail(
         self,
@@ -615,11 +608,8 @@ class ExternalSearchService:
         )
         if capability is None:
             raise SourceSearchUnavailable("source_disabled")
-        if (
-            normalized_source == "missav"
-            and safe_ordering not in capability["orderings"]
-        ):
-            raise ValueError("MissAV supports descending views, likes and latest only")
+        adapter.validate_ordering(safe_ordering)
+        source_native_order = adapter.capability().native_order
 
         fetch_pages = self._fetch_pages_limit()
         cache_enabled = self._cache_enabled()
@@ -630,13 +620,7 @@ class ExternalSearchService:
             else NoopExternalSearchCacheBackend()
         )
 
-        selected_source = next(
-            item
-            for _, item in source_manager.get_sources()
-            if item.get_source_name().lower() == normalized_source
-        )
-        domain = getattr(selected_source, "domain", "")
-        route = proxy_route_profile(getattr(selected_source, "proxy", None)) or "direct"
+        domain, route = adapter.cache_context()
         cache_key = (
             "external-search:v4:cn:"
             f"{entity_type}:{entity_id}:{normalized_source}:{domain}:{route}:"
@@ -653,9 +637,7 @@ class ExternalSearchService:
             if on_progress is None:
                 return
             ordered = (
-                items
-                if normalized_source == "missav"
-                else self._sort_items(items, safe_ordering)
+                items if source_native_order else self._sort_items(items, safe_ordering)
             )
             visible, pagination = self._paginate(
                 ordered, page=safe_page, page_size=safe_page_size
@@ -696,7 +678,7 @@ class ExternalSearchService:
 
         sorted_items = (
             normalized_items
-            if normalized_source == "missav"
+            if source_native_order
             else self._sort_items(normalized_items, safe_ordering)
         )
         page_items, pagination = self._paginate(
@@ -874,38 +856,3 @@ class ExternalSearchService:
 
 
 external_search_service = ExternalSearchService()
-
-
-class JableSearchProtocol(Protocol):
-    def get_model_videos(
-        self,
-        model_slug: str,
-        page: int = 1,
-        sort_by: str = "video_viewed",
-        *,
-        force_refresh: bool = False,
-    ) -> list[dict]: ...
-
-    def search(
-        self,
-        keyword: str,
-        page: int = 1,
-        *,
-        force_refresh: bool = False,
-    ) -> list[dict]: ...
-
-    def get_tag_videos(
-        self,
-        tag_slug: str,
-        page: int = 1,
-        *,
-        force_refresh: bool = False,
-    ) -> list[dict]: ...
-
-    def get_category_videos(
-        self,
-        category_slug: str,
-        page: int = 1,
-        *,
-        force_refresh: bool = False,
-    ) -> list[dict]: ...

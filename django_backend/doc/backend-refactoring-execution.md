@@ -6,12 +6,13 @@
 
 ## 阶段状态
 
-| 阶段       | 分支                                        | 状态                           |
-| ---------- | ------------------------------------------- | ------------------------------ |
-| R0         | `chore/backend-refactor-r0-baseline`        | 已完成，质量门槛通过后自动合并 |
-| R1         | `enhancement/backend-refactor-r1-contracts` | 已完成，质量门槛通过后自动合并 |
-| R2 会话    | `enhancement/backend-refactor-r2-sessions`  | 已完成，质量门槛通过后自动合并 |
-| R2 搜索–R7 | 待创建                                      | 未开始                         |
+| 阶段    | 分支                                              | 状态                           |
+| ------- | ------------------------------------------------- | ------------------------------ |
+| R0      | `chore/backend-refactor-r0-baseline`              | 已完成，质量门槛通过后自动合并 |
+| R1      | `enhancement/backend-refactor-r1-contracts`       | 已完成，质量门槛通过后自动合并 |
+| R2 会话 | `enhancement/backend-refactor-r2-sessions`        | 已完成，质量门槛通过后自动合并 |
+| R2 搜索 | `enhancement/backend-refactor-r2-search-policies` | 已完成，质量门槛通过后自动合并 |
+| R3–R7   | 待创建                                            | 未开始                         |
 
 ## R0：行为与隔离质量基线
 
@@ -106,3 +107,15 @@ CookieRepository ABC 声明完整快照读取、手工更新和版本校验写�
 CAS、Cookie+UA+出口+有效期、3 秒业务探测、人工写入优先、失租不能提交、有限等待、路由 key/TTL 及 Redis 故障回退均未改变。协调仅复用会话，等待者仍自行读取业务页。
 
 定向验证 **73 passed**，包含新的临时 Redis Lua 竞争、过期 owner 不能续租/释放新 owner、结果 TTL 和站点隔离测试。Redis 只监听临时 Unix socket，禁用 TCP 与持久化；测试结束停止进程和清理目录。沙箱禁止绑定 socket，使用获准本地执行。离线全套 **486 passed、24 skipped，45.86秒**；全量 `pre-commit run -a` 采用格式化结果后复验通过；目标 PostgreSQL 与正式部署仍未验收。
+
+## R2：搜索来源策略
+
+搜索子阶段基线 `d17e7d5`。SearchCapability 在 Adapter 描述来源 ID/显示名、实体、排序和来源原生排序。Adapter 提供启用状态及域名/出口缓存上下文；ExternalSearchService 可注入 Adapter 注册表，通用流程只负责分页、去重、缓存、进度与取消。MissAV 排序校验和原生顺序保留在 Adapter，Jable 继续客户端排序。
+
+HTTP 用户设置的源选择从已启用能力集生成；异步查询区分未注册来源与已注册但禁用的来源。搜索缓存仍使用 v4 中文前缀和原上下文，任务查询 hash 仍按相同域名/出口/页数构造。能力响应字段与既有来源排序保持。
+
+Jable 的真实来源已实现 ListingSource；唯一旧签名消费者是测试替身，已迁到同一能力契约，因而直接移除旧签名桥接而不新增无生产消费者的 legacy Adapter。实现内 TypeError 不再触发第二次调用，通用流程仍映射为显式来源失败。
+
+封面缓存注入 CoverPolicy，默认工厂集中装配 Jable/MissAV 策略。MissAV 保留第三方 Cookie 隔离、5 MiB 上限、image 响应检查、禁止重定向、原子替换和临时文件清理；Jable 行为未改变。
+
+定向验证 **63 passed**，包含新来源仅通过 Adapter 注册完成能力/搜索/排序、缓存域名隔离、TypeError 单次调用以及既有取消/逐页竞争与图片测试。离线全套 **490 passed、24 skipped，45.22秒**；全量 `pre-commit run -a` 修正字段类型并采用格式化结果后复验通过；无外站策略、数据库或部署切换。

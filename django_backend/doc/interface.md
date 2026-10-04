@@ -1391,3 +1391,5 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 ## 后端内部能力契约
 
 源和刮削器的必需方法由 ABC 约束，列表搜索为独立 `ListingSource` 能力。Manager 工厂在 `composition.py` 装配；来源查询使用公开 `get_source/get_sources/get_home_url`。SourceBase 的浏览器会话入口委托到可注入存储与协调器的 `SourceSessionLifecycle`，HTTP URL、请求/响应及错误映射保持原契约。阶段验证结果见[重构执行记录](backend-refactoring-execution.md)。
+
+外部搜索的来源 ID、显示名、演员/类别支持、可选排序均由 Adapter 的 SearchCapability 描述；能力接口仍使用现有字段。用户设置的来源选择由当前启用能力生成。Jable 客户端排序与 MissAV 来源原生降序语义不变，缓存继续区分来源、域名与出口。新增来源在装配注册 Adapter 及对应 CoverPolicy，不在通用搜索中增加源名分支。

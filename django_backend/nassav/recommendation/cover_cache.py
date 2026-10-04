@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import hashlib
 import os
 import tempfile
@@ -7,65 +9,52 @@ from urllib.parse import urlparse
 from django.conf import settings
 
 from nassav.source.SourceBase import SourceBase
+from nassav.composition import cover_policy_for
 from nassav.constants import HEADERS, IMPERSONATE
 from curl_cffi import requests
 
 
-class RecommendationCoverCacheService:
-    ALLOWED_HOSTS = {
-        "assets-cdn.jable.tv",
-        "assets.jable.tv",
-        "jable.tv",
-    }
+class CoverPolicy(ABC):
+    @abstractmethod
+    def is_allowed_url(self, url: str) -> bool:
+        raise NotImplementedError
 
-    def __init__(self, jable: SourceBase):
-        self.jable = jable
+    @abstractmethod
+    def download(self, source: SourceBase, url: str, target: Path) -> Path | None:
+        raise NotImplementedError
 
-    def ensure_cached(self, cover_url: str) -> Path | None:
-        normalized_url = cover_url.strip()
-        if not normalized_url or not self.is_allowed_url(normalized_url):
-            return None
 
-        cache_path = self.get_cache_path(normalized_url)
-        if cache_path.exists():
-            return cache_path
+class JableCoverPolicy(CoverPolicy):
+    ALLOWED_HOSTS = {"assets-cdn.jable.tv", "assets.jable.tv", "jable.tv"}
 
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        if self.jable.get_source_name().lower() == "missav":
-            return self._cache_missav_image(normalized_url, cache_path)
-        success = self.jable.download_file(
-            normalized_url,
-            str(cache_path),
-            referer=f"https://{self.jable.domain}/",
+    def is_allowed_url(self, url: str) -> bool:
+        parsed = urlparse(url)
+        return (
+            parsed.scheme in {"http", "https"} and parsed.netloc in self.ALLOWED_HOSTS
         )
-        if not success or not cache_path.exists():
-            return None
-        return cache_path
 
-    def get_cache_path(self, cover_url: str) -> Path:
-        url_hash = hashlib.sha256(cover_url.encode("utf-8")).hexdigest()
-        suffix = self.get_file_suffix(cover_url)
-        return Path(settings.RECOMMENDATION_COVER_DIR) / f"{url_hash}{suffix}"
-
-    def is_allowed_url(self, cover_url: str) -> bool:
-        parsed = urlparse(cover_url)
-        hosts = (
-            {"fourhoi.com"}
-            if self.jable.get_source_name().lower() == "missav"
-            else self.ALLOWED_HOSTS
+    def download(self, source: SourceBase, url: str, target: Path) -> Path | None:
+        success = source.download_file(
+            url, str(target), referer=f"https://{source.domain}/"
         )
-        return parsed.scheme in {"http", "https"} and parsed.netloc in hosts
+        return target if success and target.exists() else None
 
-    def _cache_missav_image(self, url: str, target: Path) -> Path | None:
+
+class MissAVCoverPolicy(CoverPolicy):
+    def is_allowed_url(self, url: str) -> bool:
+        parsed = urlparse(url)
+        return parsed.scheme in {"http", "https"} and parsed.netloc == "fourhoi.com"
+
+    def download(self, source: SourceBase, url: str, target: Path) -> Path | None:
         """Bounded CDN download; never forward site cookies to a third party."""
         temporary = None
         response = None
         try:
-            headers = {**HEADERS, "Referer": f"https://{self.jable.domain}/cn/"}
+            headers = {**HEADERS, "Referer": f"https://{source.domain}/cn/"}
             response = requests.get(
                 url,
                 headers=headers,
-                proxy=self.jable.proxy,
+                proxy=source.proxy,
                 impersonate=IMPERSONATE,
                 timeout=20,
                 stream=True,
@@ -97,6 +86,37 @@ class RecommendationCoverCacheService:
                 response.close()
             if temporary:
                 temporary.unlink(missing_ok=True)
+
+
+class RecommendationCoverCacheService:
+    # Historical public constant retained for callers during migration.
+    ALLOWED_HOSTS = JableCoverPolicy.ALLOWED_HOSTS
+
+    def __init__(self, jable: SourceBase, *, policy: CoverPolicy | None = None):
+        self.jable = jable
+        self.policy = (
+            policy if policy is not None else cover_policy_for(jable.get_source_name())
+        )
+
+    def ensure_cached(self, cover_url: str) -> Path | None:
+        normalized_url = cover_url.strip()
+        if not normalized_url or not self.is_allowed_url(normalized_url):
+            return None
+
+        cache_path = self.get_cache_path(normalized_url)
+        if cache_path.exists():
+            return cache_path
+
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        return self.policy.download(self.jable, normalized_url, cache_path)
+
+    def get_cache_path(self, cover_url: str) -> Path:
+        url_hash = hashlib.sha256(cover_url.encode("utf-8")).hexdigest()
+        suffix = self.get_file_suffix(cover_url)
+        return Path(settings.RECOMMENDATION_COVER_DIR) / f"{url_hash}{suffix}"
+
+    def is_allowed_url(self, cover_url: str) -> bool:
+        return self.policy.is_allowed_url(cover_url)
 
     def get_file_suffix(self, cover_url: str) -> str:
         suffix = Path(urlparse(cover_url).path).suffix.lower()

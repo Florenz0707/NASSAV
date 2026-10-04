@@ -15,8 +15,6 @@ from nassav.external_search import ExternalSearchResult, external_search_service
 from nassav.models import Actor, Genre
 from nassav.scrape_jobs import JobStore, RedisJobStore
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
-from nassav.source.SourceManager import source_manager
-from nassav.source.CookieRepository import proxy_route_profile
 
 JOB_DEADLINE = 1800
 RESULT_TTL = 300
@@ -66,7 +64,7 @@ def validate_search_query(query: dict) -> dict:
     source = str(query.get("source") or "").strip().lower()
     if not source:
         source = external_search_service.default_source(entity)
-    if source not in {"jable", "missav"}:
+    if source not in external_search_service.registered_sources():
         if not source:
             raise SourceSearchUnavailable("source_disabled")
         raise ValueError("搜索源无效")
@@ -102,16 +100,12 @@ def validate_search_query(query: dict) -> dict:
 
 
 def _query_key(query: dict) -> str:
-    source = next(
-        item
-        for _, item in source_manager.get_sources()
-        if item.get_source_name().lower() == query["source"]
-    )
+    domain, route = external_search_service.cache_context(query["source"])
     context = {
         "query": query,
         "language": "cn-v4",
-        "domain": source.domain,
-        "route": proxy_route_profile(getattr(source, "proxy", None)),
+        "domain": domain,
+        "route": None if route == "direct" else route,
         "fetch_pages": getattr(settings, "EXTERNAL_SEARCH_FETCH_PAGES", 5),
     }
     return hashlib.sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()

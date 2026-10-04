@@ -1,3 +1,5 @@
+from typing import cast
+
 from rest_framework import serializers
 from rest_framework.fields import Field
 
@@ -86,9 +88,17 @@ class UserSettingUpdateSerializer(serializers.Serializer):
     font_family = serializers.CharField(required=False)
     color_mode = serializers.CharField(required=False)
     search_result_display_style = serializers.CharField(required=False)
-    default_external_search_source = serializers.ChoiceField(
-        choices=["jable", "missav"], required=False
-    )
+    default_external_search_source = serializers.ChoiceField(choices=[], required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from nassav.external_search import external_search_service
+
+        cast(
+            serializers.ChoiceField, self.fields["default_external_search_source"]
+        ).choices = [
+            entry["source"] for entry in external_search_service.capabilities()
+        ]
 
     def validate_enable_avatar(self, value):
         """验证 enable_avatar 值"""

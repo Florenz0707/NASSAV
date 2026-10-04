@@ -56,3 +56,25 @@ def translator_factories() -> dict[str, Callable[[int, str], "TranslatorBase"]]:
             timeout=timeout, config_name=name
         )
     }
+
+
+def external_search_adapters():
+    from nassav.external_search import (
+        JableExternalSourceAdapter,
+        MissAVExternalSourceAdapter,
+        PlaceholderExternalSourceAdapter,
+    )
+
+    return {
+        "jable": JableExternalSourceAdapter(),
+        "missav": MissAVExternalSourceAdapter(),
+        "memo": PlaceholderExternalSourceAdapter("memo"),
+    }
+
+
+def cover_policy_for(source_name: str):
+    from nassav.recommendation.cover_cache import JableCoverPolicy, MissAVCoverPolicy
+
+    policies = {"jable": JableCoverPolicy, "missav": MissAVCoverPolicy}
+    factory = policies.get(source_name.strip().lower(), JableCoverPolicy)
+    return factory()
