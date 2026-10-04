@@ -1,5 +1,0 @@
-{"source": "missav", "entity": "genre", "keyword": false, "state": "succeeded", "count": 12, "submit_seconds": 0.085, "total_seconds": 65.86, "image_status": 200, "image_bytes": 37010}
-{"source": "missav", "entity": "actor", "keyword": false, "state": "succeeded", "count": 12, "submit_seconds": 0.006, "total_seconds": 62.76, "image_status": 200, "image_bytes": 37908}
-{"source": "missav", "entity": "actor", "keyword": true, "state": "succeeded", "count": 12, "submit_seconds": 0.005, "total_seconds": 29.2, "image_status": 200, "image_bytes": 37908}
-{"source": "jable", "entity": "genre", "keyword": false, "state": "succeeded", "count": 20, "submit_seconds": 0.005, "total_seconds": 25.8, "image_status": 200, "image_bytes": 47018}
-{"source": "jable", "entity": "actor", "keyword": false, "state": "succeeded", "count": 20, "submit_seconds": 0.006, "total_seconds": 25.66, "image_status": 200, "image_bytes": 45752}
