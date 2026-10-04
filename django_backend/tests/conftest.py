@@ -5,6 +5,50 @@ import pytest
 from nassav.models import Actor, AVResource
 
 
+def pytest_collection_modifyitems(items):
+    from django.conf import settings
+
+    if not getattr(settings, "NASSAV_REFACTORING_OFFLINE", False):
+        return
+    for item in items:
+        if item.get_closest_marker("external"):
+            item.add_marker(
+                pytest.mark.skip(reason="Live service test outside offline gate")
+            )
+
+
+@pytest.fixture(autouse=True)
+def refactoring_offline_network_guard(monkeypatch, settings):
+    """Fail even when application error handling swallows unmocked network use."""
+    if not getattr(settings, "NASSAV_REFACTORING_OFFLINE", False):
+        yield
+        return
+
+    import socket
+
+    import requests
+    from curl_cffi import requests as curl_requests
+
+    attempts = []
+
+    def blocked(*args, **kwargs):
+        attempts.append("unmocked network request")
+        raise AssertionError("Offline tests must replace the network transport")
+
+    original_connect = socket.socket.connect
+
+    def connect(sock, address):
+        if sock.family in {socket.AF_INET, socket.AF_INET6}:
+            return blocked()
+        return original_connect(sock, address)
+
+    monkeypatch.setattr(requests.Session, "request", blocked)
+    monkeypatch.setattr(curl_requests.Session, "request", blocked)
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    yield
+    assert not attempts, "Unmocked network use was caught by the offline guard"
+
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_user_settings():
     """

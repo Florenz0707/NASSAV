@@ -2,6 +2,12 @@
 
 本文档提供 NASSAV 后端测试套件的完整概览和使用指南。
 
+## 抽象重构离线质量门槛
+
+从 `django_backend/` 运行 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`。测试配置强制使用无凭证示例配置、临时 SQLite/资源/用户设置、内存缓存和 Channels，并跳过标记为 `external` 的真实服务样本。未模拟的网络调用即使被业务捕获，也会在测试收尾失败；测试进程不连接生产 Redis或外站。具体兼容矩阵和阶段结果见[执行记录](../doc/backend-refactoring-execution.md)。
+
+`test_refactoring_baseline.py` 冻结下载“先通知成功、写库失败仍成功”和资源“写库失败保留HTML且不发新增事件”的现有时序；`test_search_jobs.py` 区分合法空列表与来源失败。真实 Ollama、Javbus封面/头像、资源现场及浏览器样本不算离线通过；需要专门环境验证。
+
 ## P1 会话数据与迁移测试
 
 `test_source_cookie_session.py` 在隔离 SQLite 测试库上验证增量迁移、会话快照、代理摘要、人工 Cookie 覆盖/清除、旧结果晚到、缓存版本与两个并发写入者。该测试不请求外站或写生产库；同一文件也应在隔离 PostgreSQL 测试库运行。

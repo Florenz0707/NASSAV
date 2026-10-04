@@ -141,6 +141,7 @@ def test_entrypoints_report_same_invalid_config(tmp_path, entrypoint):
     config_path.write_text("Proxy: []\n")
     environment = os.environ.copy()
     environment.update(
+        DJANGO_SETTINGS_MODULE="django_project.settings",
         NASSAV_CONFIG_PATH=str(config_path),
         NASSAV_ENV_PATH=str(tmp_path / "absent.env"),
         NASSAV_RESOURCE_DIR=str(tmp_path / "resource"),

@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock
 import pytest
-from nassav.page_fetching import PageFetchService, PageResult
+from nassav.page_fetching import FetchFailure, PageFetchService, PageResult
 from nassav.source.MissAV import MissAV
 from nassav.source.MissAVListings import listing_url, parse_listing
 from nassav.source.search_contracts import SourceSearchError
@@ -58,6 +58,7 @@ def test_invalid_listing_is_an_error(html, final):
     )
     source = MissAV(page_fetcher=PageFetchService(browser))
     source.browser_fetch_strategy = "browser_first"
+    source.fetch_page = Mock(return_value=PageResult(failure=FetchFailure.CONNECTION))
     with pytest.raises(SourceSearchError):
         source.search_listing("genres", "VR")
 

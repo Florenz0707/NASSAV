@@ -1,6 +1,6 @@
 # 后端抽象重构执行计划
 
-计划日期：2026-10-04。基线：`dev@106a719`。依据：[模块抽象评估报告](backend-abstraction-report.md)。状态：待执行；本次仅交付文档。
+计划日期：2026-10-04。分析基线：`dev@106a719`。依据：[模块抽象评估报告](backend-abstraction-report.md)。执行状态与实测结果见[执行记录](backend-refactoring-execution.md)。
 
 ## 1. 目标与范围
 
@@ -12,7 +12,7 @@
 
 ## 2. 执行纪律与兼容基线
 
-使用隔离工作树 `/tmp/nassav-agent-worktree` 和独立功能分支；默认工作树保持 `dev`。每阶段独立评审与提交，不一次迁移全后端。提交前按根规范询问是否代为提交，并提供 `[Enhancement]` / `[Fix]` / `[Doc]` 信息。
+使用隔离工作树 `/tmp/nassav-agent-worktree` 和独立功能分支；默认工作树保持 `dev`。用户已授权每功能/阶段质量门槛通过后自动提交并合并到 `idle`，最终工作树回到 `idle`；提交遵循 `[Enhancement]` / `[Fix]` / `[Doc]` 等前缀。质量门槛无法达成时停止并与用户沟通决策。
 
 冻结的对外与运行契约：
 

@@ -622,6 +622,7 @@ def test_seed_blacklist_excludes_blocked_keyword_but_allows_active_seed_fallback
     )
 
     captured_keywords = []
+    monkeypatch.setattr(Jable, "get_video_detail", lambda self, avid, **kwargs: {})
     monkeypatch.setattr(
         Jable,
         "get_model_videos",

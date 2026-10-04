@@ -2,6 +2,8 @@
 
 import pytest
 
+pytestmark = pytest.mark.external
+
 
 @pytest.mark.django_db
 def test_javbus_scraper_returns_actor_avatars():

@@ -59,6 +59,39 @@ def runtime(monkeypatch):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("source_fails", [False, True])
+def test_empty_search_is_success_but_source_failure_is_visible(
+    actor_factory, runtime, monkeypatch, source_fails
+):
+    method = Mock(
+        return_value=ExternalSearchResult(items=[], pagination={"total": 0}, meta={}),
+        side_effect=SourceSearchError("isolated failure") if source_fails else None,
+    )
+    monkeypatch.setattr(
+        search_jobs.external_search_service, "search_actor_detail", method
+    )
+    job, _ = search_jobs.submit_search_job(
+        {"entity_type": "actor", "entity_id": actor_factory().pk, "source": "jable"}
+    )
+    final = search_jobs.execute_search_job(job["task_id"])
+    if source_fails:
+        assert final["state"] == "failed"
+        assert final["error_code"] == "SOURCE_FETCH_FAILED"
+        assert final["result"] is None
+    else:
+        assert final["state"] == "succeeded"
+        assert final["error_code"] is None
+        assert final["result"]["data"]["external_results"] == []
+        assert final["result"]["pagination"]["total"] == 0
+    if source_fails:
+        assert not runtime[0].locks
+    else:
+        # A successful query retains ownership for completed-result reuse.
+        assert runtime[0].locks[job["query_key"]] == job["task_id"]
+    method.assert_called_once()
+
+
+@pytest.mark.django_db
 def test_cancel_requires_token_releases_lock_and_allows_resubmit(
     actor_factory, api_client, runtime
 ):

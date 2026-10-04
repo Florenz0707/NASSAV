@@ -53,6 +53,7 @@ def test_cover_url_absolute():
 
 
 @pytest.mark.django_db
+@pytest.mark.external
 def test_javbus_scraper_returns_cover_url():
     """测试Javbus刮削器是否返回封面URL"""
     from nassav.scraper.Javbus import Javbus
