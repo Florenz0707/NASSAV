@@ -6,31 +6,24 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from django.conf import settings
-from django.core.paginator import Paginator
-from django.db.models import Q
 from loguru import logger
 
 # 导入常量（为了向后兼容，重新导出HEADERS）
 from nassav.constants import HEADERS
-from nassav.m3u8downloader import M3u8DownloaderBase, N_m3u8DL_RE
-from nassav.source.SourceManager import SourceManager, source_manager
+from nassav.m3u8downloader import M3u8DownloaderBase
+from nassav.source.SourceManager import source_manager as source_manager
+from nassav.download_information import DownloadExecutor, DownloadInfoResolver
+from nassav.composition import build_video_download_service
 from nassav.utils import parse_duration
 
 
-class VideoDownloadService:
+class VideoDownloadService(DownloadExecutor):
     """视频下载服务"""
 
     def __init__(
-        self, resource_manager: SourceManager, m3u8_downloader: M3u8DownloaderBase
+        self, info_resolver: DownloadInfoResolver, m3u8_downloader: M3u8DownloaderBase
     ):
-        """
-        初始化视频下载服务
-
-        Args:
-            resource_manager: 资源管理器（获取元数据、封面等）
-            m3u8_downloader: M3U8 下载器（下载视频流）
-        """
-        self.manager = resource_manager
+        self.info_resolver = info_resolver
         self.m3u8_downloader = m3u8_downloader
 
     def download_video(
@@ -47,40 +40,11 @@ class VideoDownloadService:
             avid: 视频编号
             progress_callback: 进度回调函数
         """
-        from nassav.resource_service import resource_service
-
         avid = avid.upper()
-        self.manager.get_resource_dir(avid)
-
-        # 优先从缓存读取元数据
-        info = resource_service.load_cached_metadata(avid)
-        if info and info.m3u8:
-            domain = self._get_domain_from_source(info.source)
-        else:
-            # 缓存不存在，重新获取
-            logger.warning(f"缓存不存在，重新获取 {avid} 的信息")
-
-            try:
-                # 使用resource_service添加资源(如果不存在)
-                result = resource_service.add_resource(avid, source="any")
-                info = resource_service.load_cached_metadata(avid)
-
-                if not info:
-                    logger.error(f"无法获取 {avid} 的下载信息")
-                    return False
-
-                domain = self._get_domain_from_source(info.source)
-
-            except Exception as e:
-                # 资源已存在等异常也视为成功,尝试加载缓存
-                logger.warning(f"添加资源异常: {e}, 尝试加载缓存")
-                info = resource_service.load_cached_metadata(avid)
-
-                if not info:
-                    logger.error(f"无法获取 {avid} 的下载信息: {e}")
-                    return False
-
-                domain = self._get_domain_from_source(info.source)
+        resolved = self.info_resolver.resolve(avid)
+        if resolved is None:
+            return False
+        info, domain = resolved.info, resolved.domain
 
         # 解析视频时长（用于日志显示）
         duration_seconds = parse_duration(info.duration) if info.duration else None
@@ -91,12 +55,6 @@ class VideoDownloadService:
         )
         logger.info(f"[{avid}] 视频下载{'成功' if result else '失败'}")
         return result
-
-    def _get_domain_from_source(self, source: str) -> str:
-        """根据 downloader 名称获取对应的 domain"""
-        source_lower = source.lower()
-        source_config = settings.SOURCE_CONFIG.get(source_lower, {})
-        return source_config.get("domain", source_lower + ".com")
 
     def _download_m3u8(
         self,
@@ -139,123 +97,7 @@ class VideoDownloadService:
 
 
 # 全局服务实例（使用依赖注入）
-video_download_service = VideoDownloadService(
-    resource_manager=source_manager,
-    m3u8_downloader=N_m3u8DL_RE(proxy=settings.DOWNLOAD_PROXY_URL or None),
-)
+video_download_service = build_video_download_service()
 
 
-def list_resources(params):
-    """Return (objects, pagination) for resources list based on params dict/querydict.
-
-    Supported params: file_exists (true/false), source (comma separated), ordering,
-    page, page_size.
-    """
-    from nassav.models import AVResource
-
-    qs = AVResource.objects.all()
-
-    # 优化查询：预加载关联对象，避免 N+1 查询问题
-    qs = qs.prefetch_related("genres")
-
-    # support status: downloaded/pending/all (alias to file_exists)
-    status = params.get("status")
-    if status:
-        s = str(status).lower()
-        if s == "downloaded":
-            qs = qs.filter(file_exists=True)
-        elif s == "pending":
-            qs = qs.filter(file_exists=False)
-
-    # legacy/file_exists parameter (boolean-like)
-    fe = params.get("file_exists")
-    if fe is not None:
-        if str(fe).lower() in ("1", "true", "yes"):
-            qs = qs.filter(file_exists=True)
-        else:
-            qs = qs.filter(file_exists=False)
-
-    source = params.get("source")
-    if source:
-        sources = [s.strip() for s in str(source).split(",") if s.strip()]
-        qs = qs.filter(source__in=sources)
-
-    # filter by actor (accept actor id or name fragment)
-    actor = params.get("actor")
-    if actor:
-        try:
-            aid = int(actor)
-            qs = qs.filter(actors__id=aid)
-        except Exception:
-            a = str(actor).strip()
-            if a:
-                qs = qs.filter(actors__name__icontains=a)
-        qs = qs.distinct()
-
-    # filter by genre (accept genre id or name fragment)
-    genre = params.get("genre")
-    if genre:
-        try:
-            gid = int(genre)
-            qs = qs.filter(genres__id=gid)
-        except Exception:
-            g = str(genre).strip()
-            if g:
-                qs = qs.filter(genres__name__icontains=g)
-        qs = qs.distinct()
-
-    # filter by watched status
-    watched = params.get("watched")
-    if watched is not None:
-        if str(watched).lower() in ("1", "true", "yes"):
-            qs = qs.filter(watched=True)
-        elif str(watched).lower() in ("0", "false", "no"):
-            qs = qs.filter(watched=False)
-
-    # filter by favorite status
-    is_favorite = params.get("is_favorite")
-    if is_favorite is not None:
-        if str(is_favorite).lower() in ("1", "true", "yes"):
-            qs = qs.filter(is_favorite=True)
-        elif str(is_favorite).lower() in ("0", "false", "no"):
-            qs = qs.filter(is_favorite=False)
-
-    # search in title fields (original_title, source_title, translated_title)
-    search = params.get("search")
-    if search:
-        search_term = str(search).strip()
-        if search_term:
-            # 使用Q对象进行多字段搜索，不区分大小写
-            qs = qs.filter(
-                Q(original_title__icontains=search_term)
-                | Q(source_title__icontains=search_term)
-                | Q(translated_title__icontains=search_term)
-            )
-
-    ordering = params.get("ordering")
-    if ordering:
-        # 当按 video_saved_at 排序时，只返回已下载的视频
-        # 避免返回 video_saved_at 为 NULL 的未下载资源
-        if "video_saved_at" in ordering:
-            qs = qs.filter(file_exists=True, video_saved_at__isnull=False)
-        qs = qs.order_by(ordering)
-
-    # pagination
-    try:
-        page = int(params.get("page", 1))
-    except Exception:
-        page = 1
-    try:
-        page_size = int(params.get("page_size", 20))
-    except Exception:
-        page_size = 20
-
-    paginator = Paginator(qs, page_size)
-    page_obj = paginator.get_page(page)
-
-    return page_obj.object_list, {
-        "total": paginator.count,
-        "page": page_obj.number,
-        "page_size": page_size,
-        "pages": paginator.num_pages,
-    }
+from nassav.resource_queries import list_resources as list_resources

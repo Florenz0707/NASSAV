@@ -157,3 +157,17 @@ R4 下载草稿的兼容测试 **22 passed**；加入锁所有权验收后，全
 POSIX 取消现在即使父进程退出，也会清理该执行的进程组；温和终止等待后执行强制终止，避免子进程保留管道阻塞下载返回。验证创建本地 Python 父/子进程，其中子进程显式忽略 SIGTERM；不启动真实媒体工具或请求外站。Windows 仍保留父进程 terminate/kill 规则，未宣称 Windows 进程树验收。
 
 定向 **15 passed，1.76秒**；全套 **500 passed、24 skipped，46.91秒**。同时修正 R0 推荐反馈测试的种子隔离：HTTP 未接收测试传入的 random_seed，替换实际随机生成器固定为 42，保持生产行为不变。采用格式化结果后全量 `pre-commit run -a` 通过再提交；本阶段无数据库或生产部署变更。
+
+## R4 下载子阶段
+
+恢复草稿基线 `c4ea2a5`，最终整合基线 `6b6825a`，分支 `enhancement/backend-refactor-r4-download-workflow`。恢复草稿时保留已合并的 owner 回归，重新将失租检查与取消能力接入 DownloadUseCase/MockDownloadUseCase。Celery 包装只适配 task ID、重试信号与执行级 ownership；用例接收 DownloadExecutor、DownloadPersistence、DownloadRuntime。ResourceDownloadInfoResolver 注入缓存/资源准备与域名查询，VideoDownloadService 不再在方法体内读取全局 ResourceService。资源列表查询迁到 resource_queries，旧导出保留兼容。
+
+定向兼容 **28 passed**；新增八项无 DB/worker 契约验证覆盖成功、失败、超时、重试传播、清理异常、模拟进度及缓存未命中的正常/异常回退。正常成功事件仍在文件持久化前发送，DB 更新失败仍只告警返回成功；此次结构迁移不改变该既有规则。CLI 失租中止来自独立 `[Fix]` 提交。
+
+翻译子阶段的既有批量查询引用不存在的 `title` 字段，已用临时 SQLite 与翻译替身复现。关于单独修复该行为的范围决定已向用户提出；未把翻译及 R5–R7 标为完成。R4 下载子阶段单独验证，后续结果补充于此。
+
+首次全套 **506 passed、24 skipped、1 failed，46.93秒**。失败来自原推荐反馈测试：它通过 HTTP 传 `random_seed=42`，但现有 HTTP 参数解析没有该字段，仍调用随机种子生成器；单独复跑偶然通过。测试改为注入固定种子生成器，保持生产 HTTP 行为不变，防止通过重跑随机碰运气隐藏失败。最终全套门槛使用确定性测试重新验证。
+
+最终全套 **507 passed、24 skipped，47.10秒**；新增八项用例契约全部通过。采用格式化结果后执行最终全量 `pre-commit run -a`，通过才提交和合并下载子阶段。原 stash `30c12da1616fec8fab4c7f52ac1630be21878b13` 保留为历史草稿，不应再次覆盖已修复的下载 owner 测试。翻译门槛证据及下一步范围见[翻译阻塞记录](backend-refactoring-r4-translation-blocker.md)；未获范围决定前不进行依赖此决定的行为修改。
+
+整合 `6b6825a` 后全套 **508 passed、24 skipped，46.68秒**，包含子进程取消回归。两份文档的恢复冲突保留双方实测记录；单条/批量翻译任务 AST 与已复现的 `c4ea2a5` baseline 完全相同。最终全量 `pre-commit run -a` 通过后合并下载子阶段至 `idle`。这是隔离验收，不是目标环境部署或混合版本 worker 接受；翻译范围决定仍待用户回复。

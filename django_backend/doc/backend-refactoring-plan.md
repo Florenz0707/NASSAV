@@ -2,7 +2,7 @@
 
 计划日期：2026-10-04。分析基线：`dev@106a719`。依据：[模块抽象评估报告](backend-abstraction-report.md)。执行状态与实测结果见[执行记录](backend-refactoring-execution.md)。
 
-当前执行到 R3，相关分支已通过质量门槛并合并 `idle`。R4 下载的锁丢失验收复现既有 owner 缺陷，用户已授权独立修复锁所有权与失租处理，然后继续 R4–R7，详见[R4 阻塞记录](backend-refactoring-r4-blocker.md)。原验收门槛保持。
+R0–R3 已通过并合并 `idle`。下载 owner 与失租独立修复已完成，R4 下载子阶段已恢复并单独执行门槛。R4 翻译验收复现既有批量字段错误，独立行为修复范围待用户决定，详见[翻译阻塞记录](backend-refactoring-r4-translation-blocker.md)。R4 翻译及 R5–R7 未完成，原验收门槛保持。
 
 ## 1. 目标与范围
 

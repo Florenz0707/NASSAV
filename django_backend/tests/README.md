@@ -650,3 +650,7 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 `uv run pytest tests/test_download_lock_ownership.py --ds=django_project.refactoring_test_settings -v` 使用临时 Redis（仅 Unix socket、无持久化）和本地静默 CLI，覆盖旧 owner 释放/续租/进度/清理、重复投递、心跳失租、成功抑制及清理异常。无需服务凭证或外站网络。
 
 `tests/test_download_cli_cancellation.py` 追加 POSIX 进程组验收：子进程忽略 SIGTERM 且保留 stdout，失租取消仍须及时结束调用。测试有独立兜底清理计时器，防止失败样本留下本地进程。
+
+### 下载用例替换验收
+
+`uv run pytest tests/test_download_workflow_contracts.py --ds=django_project.refactoring_test_settings -v` 不启动 worker、不访问数据库或网络，通过真实 ABC 替身验证下载及模拟用例的结果、超时、重试和清理，以及资源缓存未命中的准备与回退。

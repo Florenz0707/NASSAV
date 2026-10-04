@@ -1,6 +1,6 @@
 # R4 质量门槛阻塞：下载锁所有权
 
-记录日期：2026-10-04。通过并合并的最新代码：`idle@383bd83`。R4 下载草稿基于该提交，尚未提交或合并。原计划及阶段结果见[执行计划](backend-refactoring-plan.md)和[执行记录](backend-refactoring-execution.md)。
+记录日期：2026-10-04。初次阻塞基线：`idle@383bd83`；当时 R4 下载草稿未提交或合并。现已通过独立锁修复 `c4ea2a5` 和 CLI 子进程取消补充修复 `6b6825a` 解除本记录中的下载阻塞。原计划及阶段结果见[执行计划](backend-refactoring-plan.md)和[执行记录](backend-refactoring-execution.md)。
 
 ## 决策与修复状态
 

@@ -78,3 +78,25 @@ def cover_policy_for(source_name: str):
     policies = {"jable": JableCoverPolicy, "missav": MissAVCoverPolicy}
     factory = policies.get(source_name.strip().lower(), JableCoverPolicy)
     return factory()
+
+
+def build_video_download_service():
+    from django.conf import settings
+    from nassav.services import VideoDownloadService
+    from nassav.download_information import ResourceDownloadInfoResolver
+    from nassav.resource_service import resource_service
+    from nassav.source.SourceManager import source_manager
+    from nassav.m3u8downloader import N_m3u8DL_RE
+
+    def domain_lookup(name: str) -> str:
+        source_name = name.lower()
+        return settings.SOURCE_CONFIG.get(source_name, {}).get(
+            "domain", source_name + ".com"
+        )
+
+    return VideoDownloadService(
+        ResourceDownloadInfoResolver(
+            resource_service, source_manager.get_resource_dir, domain_lookup
+        ),
+        N_m3u8DL_RE(proxy=settings.DOWNLOAD_PROXY_URL or None),
+    )

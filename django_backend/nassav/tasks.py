@@ -3,7 +3,7 @@ Celery异步任务定义
 """
 
 from functools import wraps
-from typing import Any, Dict, List
+from typing import NoReturn, Any, Dict, List
 
 import redis
 from celery import shared_task
@@ -546,194 +546,21 @@ def download_video_task(self, avid: str):
     """
     from .download_persistence import download_persistence
     from .services import video_download_service
+    from .download_workflow import DownloadUseCase, DownloadRetriesExhausted
+    from .download_transport import LegacyTaskDownloadRuntime
+    import sys
 
-    avid = avid.upper()
-    logger.info(f"开始执行下载任务: {avid}, 任务ID: {self.request.id}")
-
-    # 创建任务锁，防止重复执行
-    create_task_lock(avid, self.request.id)
-
-    # 等待并获取全局下载锁，确保同一时间只有一个下载任务在执行
-    if not wait_for_global_download_lock(max_wait_time=1800):  # 最多等待30分钟
-        logger.error(f"获取全局下载锁超时: {avid}")
-        remove_task_lock(avid)
-        remove_task_from_queue(avid)
-
-        # 发送任务失败通知
-        notify_task_update(
-            "task_failed",
-            {
-                "task_id": self.request.id,
-                "avid": avid,
-                "status": "failed",
-                "message": "获取下载锁超时，可能有其他下载任务正在执行",
-            },
-        )
-        notify_task_update("queue_status", get_full_task_queue())
-
-        return {
-            "status": "failed",
-            "avid": avid,
-            "message": "获取下载锁超时，可能有其他下载任务正在执行",
-        }
-
-    # 更新 Redis 队列中的任务状态为 STARTED
-    update_task_state_in_queue(avid, "STARTED")
-
-    # 发送任务开始通知
-    notify_task_update(
-        "task_started", {"task_id": self.request.id, "avid": avid, "status": "started"}
-    )
-
-    # 发送更新后的队列状态（使用完整队列）
-    notify_task_update("queue_status", get_full_task_queue())
-
-    # 创建节流器，限制 WebSocket 通知频率（每秒最多1次）
-    from nassav.utils import Throttler
-
-    ws_throttler = Throttler(min_interval=1.0)
-
-    # 定义进度回调函数
-    def progress_callback(percent: float, speed: str, eta: str):
-        """更新下载进度并通知 WebSocket（带节流）"""
-        ownership = current_download_ownership()
-        if ownership:
-            ownership.check()
-        # Redis 进度更新保持原频率（供 API 查询）
-        set_task_progress(avid, percent, speed, eta=eta)
-
-        # WebSocket 通知使用节流：100% 时强制发送
-        if ws_throttler.should_execute(force=(percent >= 100)):
-            notify_task_update(
-                "progress_update",
-                {
-                    "task_id": self.request.id,
-                    "avid": avid,
-                    "percent": percent,
-                    "speed": speed,
-                    "eta": eta,
-                },
-            )
-
-    try:
-        ownership = current_download_ownership()
-        success = video_download_service.download_video(
-            avid,
-            progress_callback=progress_callback,
-            cancelled=ownership.cancelled if ownership else None,
-        )
-
-        ownership = current_download_ownership()
-        if ownership:
-            ownership.check()
-        if success:
-            # 从 Redis 队列中移除任务
-            remove_task_from_queue(avid)
-
-            # 发送任务完成通知
-            notify_task_update(
-                "task_completed",
-                {
-                    "task_id": self.request.id,
-                    "avid": avid,
-                    "status": "success",
-                    "message": "下载完成",
-                },
-            )
-            notify_task_update("queue_status", get_full_task_queue())
-
-            # 文件元数据由持久化适配器更新，任务仅编排队列与通知。
-            try:
-                if ownership:
-                    ownership.check()
-                download_persistence.mark_completed(avid)
-            except DownloadLeaseLost:
-                raise
-            except Exception as e:
-                logger.warning(f"下载完成后更新 AVResource 失败: {e}")
-
-            return {"status": "success", "avid": avid, "message": "下载完成"}
-        else:
-            logger.error(f"视频 {avid} 下载失败")
-
-            # 从 Redis 队列中移除任务
-            remove_task_from_queue(avid)
-
-            # 发送任务失败通知
-            notify_task_update(
-                "task_failed",
-                {
-                    "task_id": self.request.id,
-                    "avid": avid,
-                    "status": "failed",
-                    "message": "下载失败",
-                },
-            )
-            notify_task_update("queue_status", get_full_task_queue())
-
-            try:
-                download_persistence.mark_failed(avid)
-            except Exception as e:
-                logger.warning(f"下载失败后更新 AVResource 失败: {e}")
-
-            return {"status": "failed", "avid": avid, "message": "下载失败"}
-
-    except DownloadLeaseLost:
-        raise
-    except Exception as e:
-        logger.error(f"视频 {avid} 下载异常: {str(e)}")
-
-        # 从 Redis 队列中移除任务
-        remove_task_from_queue(avid)
-
-        # 发送任务失败通知
-        notify_task_update(
-            "task_failed",
-            {
-                "task_id": self.request.id,
-                "avid": avid,
-                "status": "failed",
-                "message": f"下载异常: {str(e)}",
-            },
-        )
-        notify_task_update("queue_status", get_full_task_queue())
-
-        # 重试
+    def retry(error: Exception) -> NoReturn:
         try:
-            raise self.retry(exc=e)
-        except self.MaxRetriesExceededError:
-            try:
-                download_persistence.mark_failed(avid)
-            except Exception as e:
-                logger.warning(f"重试出现异常：{str(e)}")
-            return {
-                "status": "failed",
-                "avid": avid,
-                "message": f"下载失败，已达最大重试次数: {str(e)}",
-            }
-    finally:
-        # 任务完成后清理队列锁和全局下载锁（无论成功或失败）
-        try:
-            release_global_download_lock()
-            logger.info(f"已释放全局下载锁: {avid}")
-        except Exception as e:
-            logger.error(f"释放全局下载锁失败 {avid}: {str(e)}")
+            raise self.retry(exc=error)
+        except self.MaxRetriesExceededError as exhausted:
+            raise DownloadRetriesExhausted() from exhausted
 
-        try:
-            remove_task_lock(avid)
-            logger.info(f"已清理任务锁: {avid}")
-        except Exception as e:
-            logger.error(f"清理任务锁失败 {avid}: {str(e)}")
-
-        # 清理进度信息
-        try:
-            remove_task_progress(avid)
-            logger.info(f"已清理任务进度: {avid}")
-        except Exception as e:
-            logger.error(f"清理任务进度失败 {avid}: {str(e)}")
-
-        # 发送最终队列状态
-        notify_task_update("queue_status", get_full_task_queue())
+    return DownloadUseCase(
+        video_download_service,
+        download_persistence,
+        LegacyTaskDownloadRuntime(sys.modules[__name__]),
+    ).run(avid, self.request.id, retry=retry, ownership=current_download_ownership())
 
 
 def submit_download_task(avid: str) -> tuple[AsyncResult | None, bool]:
@@ -1042,125 +869,19 @@ def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
     Returns:
         dict: 下载结果
     """
-    import time
+    import sys
+    from time import sleep
+    from .download_workflow import MockDownloadUseCase
+    from .download_transport import LegacyTaskDownloadRuntime
 
-    avid = avid.upper()
-    logger.info(
-        f"[测试] 开始模拟下载任务: {avid}, 任务ID: {self.request.id}, 持续时间: {duration_seconds}秒"
+    return MockDownloadUseCase(
+        LegacyTaskDownloadRuntime(sys.modules[__name__]), sleep
+    ).run(
+        avid,
+        self.request.id,
+        duration_seconds=duration_seconds,
+        ownership=current_download_ownership(),
     )
-
-    # 创建任务锁
-    create_task_lock(avid, self.request.id)
-
-    # 更新 Redis 队列中的任务状态为 STARTED
-    update_task_state_in_queue(avid, "STARTED")
-
-    # 发送任务开始通知
-    notify_task_update(
-        "task_started", {"task_id": self.request.id, "avid": avid, "status": "started"}
-    )
-
-    # 发送更新后的队列状态
-    notify_task_update("queue_status", get_full_task_queue())
-
-    try:
-        # 模拟下载过程，每秒更新进度
-        step = 100.0 / duration_seconds
-        for i in range(duration_seconds):
-            time.sleep(1)
-            percent = min(100.0, (i + 1) * step)
-            speed = f"{((i + 1) * 2):.1f} MB/s"  # 模拟速度
-            remaining = duration_seconds - (i + 1)
-            eta = (
-                f"00:00:{remaining:02d}"
-                if remaining < 60
-                else f"00:{remaining // 60:02d}:{remaining % 60:02d}"
-            )
-
-            ownership = current_download_ownership()
-            if ownership:
-                ownership.check()
-            # 更新进度
-            set_task_progress(avid, percent, speed, eta=eta)
-
-            # 发送进度通知
-            notify_task_update(
-                "progress_update",
-                {
-                    "task_id": self.request.id,
-                    "avid": avid,
-                    "percent": percent,
-                    "speed": speed,
-                    "eta": eta,
-                },
-            )
-
-        ownership = current_download_ownership()
-        if ownership:
-            ownership.check()
-        # 模拟下载完成
-        logger.info(f"[测试] 模拟下载完成: {avid}")
-
-        # 清理进度和锁
-        remove_task_progress(avid)
-        remove_task_lock(avid)
-
-        # 从 Redis 队列中移除任务
-        remove_task_from_queue(avid)
-
-        # 发送任务完成通知
-        notify_task_update(
-            "task_completed",
-            {
-                "task_id": self.request.id,
-                "avid": avid,
-                "status": "completed",
-                "message": "模拟下载完成",
-            },
-        )
-
-        # 发送更新后的队列状态
-        notify_task_update("queue_status", get_full_task_queue())
-
-        return {
-            "status": "completed",
-            "avid": avid,
-            "task_id": self.request.id,
-            "message": "模拟下载完成",
-        }
-
-    except DownloadLeaseLost:
-        raise
-    except Exception as e:
-        logger.error(f"[测试] 模拟下载失败: {avid}, 错误: {e}")
-
-        # 清理
-        remove_task_progress(avid)
-        remove_task_lock(avid)
-
-        # 从 Redis 队列中移除任务
-        remove_task_from_queue(avid)
-
-        # 发送任务失败通知
-        notify_task_update(
-            "task_failed",
-            {
-                "task_id": self.request.id,
-                "avid": avid,
-                "status": "failed",
-                "message": f"模拟下载失败: {str(e)}",
-            },
-        )
-
-        # 发送更新后的队列状态
-        notify_task_update("queue_status", get_full_task_queue())
-
-        return {
-            "status": "failed",
-            "avid": avid,
-            "task_id": self.request.id,
-            "error": str(e),
-        }
 
 
 def submit_mock_download_task(avid: str, duration_seconds: int = 30):

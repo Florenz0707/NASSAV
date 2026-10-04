@@ -1399,3 +1399,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 ## 下载任务租约
 
 下载执行使用独立 owner token，任务锁与全局锁的续租、释放均校验当前 owner。迟到执行不能覆盖后继任务的进度或清理其队列。失租或续租 Redis 故障停止下载 CLI，返回现有 failed 结果，不更新成功状态；CLI 无输出时也检测取消。默认锁 TTL 仍为 3600 秒，正常执行定期续租。任务名称和 HTTP 字段不变。旧 worker 的无条件删除逻辑不能与此实现混用，部署切换仍需单独验收。
+
+### 下载用例与任务入口
+
+`download_video_task` 与 `mock_download_video_task` 保留原注册名和参数。任务入口适配重试及执行 ownership，下载编排由 `DownloadUseCase` / `MockDownloadUseCase` 承担；队列、进度、事件通过 `DownloadRuntime` 提供。`VideoDownloadService` 使用注入的 `DownloadInfoResolver`，缓存未命中时仍先准备资源，再读取缓存；资源准备异常后仍尝试已有缓存。默认依赖在 `composition.py` 装配。正常成功通知与持久化失败告警顺序保持既有行为。
