@@ -10,8 +10,12 @@ Django 管理命令、ASGI 和 Celery worker 使用同一个设置加载入口�
 
 资源目录默认是后端根目录的 `resource/`；隔离测试可以设置 `NASSAV_RESOURCE_DIR`。启动时会创建资源和日志目录，文件系统错误直接使进程失败。用户界面的 `user_settings.ini` 在首次使用时创建和补齐，`manage.py check` 不再为其写文件。信号接收器在 `AppConfig.ready()` 注册；日志文件 sink 每进程只添加一次。配置修改后须重启持有配置的 API/worker；修改 Compose 环境变量则须重建容器。
 
-## P4 会话复用开关
+## 会话复用与来源策略
 
-`BrowserFetch.session_reuse_enabled` 只接受 YAML 布尔值，省略时为 `false`。关闭时保留原有 `browser_first` 页面次序与人工 Cookie 直连能力；配置为 `direct_first` 的源暂按 `browser_first` 执行，且不提取、验证或写入自动可复用会话。开启后才按各源 `browser_fetch_strategy` 执行；先只将 Jable 设为 `direct_first`，MissAV 维持 `browser_first` 直至独立验收。切换开关、策略或代理配置后，重启 API 与持有 Source 实例的 worker。回滚时关闭开关并把受影响源恢复 `browser_first`，不清理 Cookie 表。
+BrowserFetch.session_reuse_enabled 只接受 YAML 布尔值，省略为 false。它只控制配套 Cookie+UA、过期/路线校验、自动验证保存和刷新协调，不改写各源 browser_fetch_strategy；关闭时 direct_first 仍先直连，使用已有 Cookie 的传统方式。页面顺序分别为 direct_first、browser_first、direct_only，以来源配置为准。开启完整复用后才使用经验证的配套会话；不自动修改正式配置或放行 MissAV。
 
-R7 将资源默认七项能力、下载 resolver、推荐 context/inventory/source factory、翻译 Adapter 及媒体定位集中在 composition；核心用例构造函数不创建默认 ORM/队列依赖。没有新增配置键或修改 config.example.yaml 默认值。任务分文件后仍以原 nassav.tasks.\* 名称注册，队列名、Redis key/TTL、路径和代理配置保持。
+更改开关、来源策略或代理配置后重启 API 与持有 Source 实例的 worker。关闭复用与改为 browser_first 是两个独立操作；不要通过清空 Cookie 表代替配置切换。默认本地和 Compose 样例、模板具体值以上文为准，验收边界见[验证状态](validation-status.md)。
+
+## 默认依赖装配
+
+资源七项能力、下载 resolver、推荐 context/inventory/source factory、翻译 Adapter 和媒体定位在 composition 构造，核心不创建 ORM/队列默认实例。没有因职责整理新增配置键。队列、路径、Redis key/TTL、代理覆盖顺序保持；架构和替换规则见[模块边界](p5-domain-boundaries.md)。

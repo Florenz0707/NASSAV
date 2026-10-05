@@ -426,14 +426,14 @@ uv run python scripts/generate_thumbnails.py --sizes small,medium
 
 #### generate_openapi.py
 
-生成 OpenAPI 文档
+离线生成 OpenAPI；当前没有注册 Schema/Swagger HTTP 入口。默认脚本使用实例配置，输出 doc/openapi.yaml；无凭证生成临时文件优先使用：
 
 ```bash
-# 生成 OpenAPI 文档
-uv run python scripts/generate_openapi.py
+DJANGO_SETTINGS_MODULE=django_project.refactoring_test_settings \
+  uv run python manage.py spectacular --file /tmp/nassav-openapi.yaml
 ```
 
-输出文件: `doc/openapi.yaml`
+接口和固定快照的关系见[接口说明](../doc/interface.md)。
 
 ## 🔍 使用注意事项
 

@@ -32,28 +32,22 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ## 内部健康检查
 
-`GET /healthz` 检查 SQLite 与 Redis，返回 `{"status":"ok"}` 或 HTTP 503 的 `{"status":"unavailable"}`。此端点仅用于 Compose 内部就绪检查；网关不转发它，也不代表外部抓取源可用。
+`GET /healthz` 检查当前配置的数据库连接与 Redis，返回 `{"status":"ok"}` 或 HTTP 503 的 `{"status":"unavailable"}`。此端点仅用于 Compose 内部就绪检查；网关不转发它，也不代表外部抓取源可用。
 
-## OpenAPI 文档
+## OpenAPI 与契约快照
 
-项目已启用基于 drf-spectacular 的 OpenAPI 支持，可通过以下端点访问：
+drf-spectacular 用于离线生成和消费者契约检查。当前 django_project/urls.py 和 nassav/urls.py 未注册 Swagger UI 或 Schema HTTP 路由，因此 /nassav/docs 与 /nassav/openapi 不是现有访问入口；历史版本说明不代表当前 URL 已启用。
 
-- Swagger UI：`/nassav/docs`
-- OpenAPI Schema：`/nassav/openapi`
-
-示例：
+从后端目录以专用无凭证设置生成临时文件：
 
 ```bash
-curl "http://localhost:9790/nassav/openapi" | head
+DJANGO_SETTINGS_MODULE=django_project.refactoring_test_settings \
+  uv run python manage.py spectacular --file /tmp/nassav-openapi.yaml
 ```
 
-如需离线生成文档文件，可执行：
+scripts/generate_openapi.py 是另一离线包装，默认使用实例配置并写 doc/openapi.yaml；运行前确认配置及输出目标。URL/OpenAPI 基线由 test_http_contracts.py 对照固定 paths/components，不因移动视图或生成器告警自动重建。若新增在线文档端点，需明确权限并单独更新路由与消费者契约。
 
-```bash
-cd django_backend && uv run python scripts/generate_openapi.py
-```
-
-生成结果默认写入：`django_backend/doc/openapi.yaml`。
+2026-10-05 离线复验的 paths/components 与固定快照一致，生成结果为 53 条告警（42 条唯一）、0 错误。告警包括自定义会话认证缺少 Schema 扩展及兼容尾斜杠导致的 operationId 冲突；生成文件不能替代本文的权限约定。
 
 ---
 
@@ -1386,32 +1380,22 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 
 关闭完整会话复用时，直连仍采用已有 Cookie 的传统请求方式，不进行完整 Cookie + UA 会话复用、自动验证保存或刷新协调；开启后采用配套 UA、出口与过期检查及已验证会话刷新。此改动不修改正式配置或自动启用复用。
 
-实现与五组两页现场证据见 [外部搜索接口契约](interface.md)。
-
-## 后端内部能力契约
-
-源和刮削器的必需方法由 ABC 约束，列表搜索为独立 `ListingSource` 能力。Manager 工厂在 `composition.py` 装配；来源查询使用公开 `get_source/get_sources/get_home_url`。SourceBase 的浏览器会话入口委托到可注入存储与协调器的 `SourceSessionLifecycle`，HTTP URL、请求/响应及错误映射保持原契约。阶段验证结果见[验证边界与历史记录](validation-status.md)。
-
-外部搜索的来源 ID、显示名、演员/类别支持、可选排序均由 Adapter 的 SearchCapability 描述；能力接口仍使用现有字段。用户设置的来源选择由当前启用能力生成。Jable 客户端排序与 MissAV 来源原生降序语义不变，缓存继续区分来源、域名与出口。新增来源在装配注册 Adapter 及对应 CoverPolicy，不在通用搜索中增加源名分支。
-
-资源新增/刷新用例的读取、资产、保存、翻译提交和事件均可注入；HTTP、旧同步批量及任务响应继续采用现有资源字段。公共序列化位于 resource_presentation，保留原用例与旧 HTTP 的各自 payload 形状。副作用顺序和部分失败行为见[验证边界与历史记录](validation-status.md)。
+策略语义以本节与[配置契约](configuration-contract.md)为准；当前验证范围见[验证状态](validation-status.md)，历史现场报告不作为本次新测量。
 
 ## 下载任务租约
 
 下载执行使用独立 owner token，任务锁与全局锁的续租、释放均校验当前 owner。迟到执行不能覆盖后继任务的进度或清理其队列。失租或续租 Redis 故障停止下载 CLI，返回现有 failed 结果，不更新成功状态；CLI 无输出时也检测取消。默认锁 TTL 仍为 3600 秒，正常执行定期续租。任务名称和 HTTP 字段不变。旧 worker 的无条件删除逻辑不能与此实现混用，部署切换仍需单独验收。
 
-### 下载用例与任务入口
+### 下载提交与缓存准备
 
-`download_video_task` 与 `mock_download_video_task` 保留原注册名和参数。任务入口适配重试及执行 ownership，下载编排由 `DownloadUseCase` / `MockDownloadUseCase` 承担；队列、进度、事件通过 `DownloadRuntime` 提供。`VideoDownloadService` 使用注入的 `DownloadInfoResolver`，缓存未命中时仍先准备资源，再读取缓存；资源准备异常后仍尝试已有缓存。默认依赖在 `composition.py` 装配。正常成功通知与持久化失败告警顺序保持既有行为。
+真实下载任务注册名仍为 nassav.tasks.download_video_task，模拟为 nassav.tasks.mock_download_video_task；参数和队列不变。缓存元数据缺失或无 m3u8 时，真实下载可能先准备资源并再次读取缓存，准备异常后仍尝试已有缓存。正常成功通知先于 DB 持久化，DB 失败告警不改变既有成功返回；数据一致性检查见[数据库说明](database.md)。
 
 ### 批量翻译异常收尾
 
 批量标题筛选使用 `original_title` 或 `source_title`，保留指定 AVID 和 `skip_existing` 规则。翻译器异常、返回数量不一致或保存异常返回失败；本批未完成记录从 translating 收尾为 failed，已有译文及已保存成功结果保留。未选中的任务状态不受影响。
 
-单条/批量翻译的标题优先级和结果状态规则由 `TitleTranslationUseCase` 统一维护，任务入口仍为原 `nassav.tasks.*` 名称。持久化及 TranslatorManager 由 Adapter 注入，不改变 HTTP/任务结果字段。
+单条/批量翻译仍使用原 nassav.tasks.\* 任务名和结果字段。HTTP 重新翻译先清空译文、重置 pending，再提交任务；提交失败返回既有 translation_error，已重置状态不回滚。标题和持久化规则见[数据库说明](database.md)。
 
-## HTTP 模块归位
+## 开发与复验导航
 
-共享 SchemaAPIView 在 `http_base.py`；参数规则在 `http_parameters.py`；具体视图在 `http/` 按资源、目录、来源、推荐、设置、任务和媒体组织。URL、OpenAPI 和响应 envelope 保持。封面文件/缩略图选择由 CoverLocator 处理，条件请求和缓存头仍由 HTTP Adapter 映射；同步刷新与旧 batch 共用 TranslationRequests 重置和提交重新翻译。
-
-R7 后 URL 直接引用 `nassav.http` 下的分类视图，原聚合 `nassav.views` 已删除；HTTP 路径、字段、schema 与响应头契约不变。资源和推荐的生产 facade 保留真实消费者，核心用例可独立导入并注入替身；队列/进度运输在 download_queue，旧 `nassav.tasks.*` 任务名继续注册。内部 SourceManager 私有查询别名不再提供，使用公开 get_source/get_sources。
+本文件维护消费者 URL、字段、权限、错误、缓存头和任务状态；内部模块与装配规则见[模块边界](p5-domain-boundaries.md)。URL/OpenAPI 的 paths/components 及路由由 tests/fixtures/backend_http_contract.json 对照验证，模拟/故障样本见[测试说明](../tests/README.md)。旧同步入口、兼容尾斜杠与原任务名继续存在；维护文档无需调整消费者请求。

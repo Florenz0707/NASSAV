@@ -64,6 +64,19 @@
 
     ![Downloads](public/preview/downloads.png)
 
+- 推荐页
+  - 路由：`/recommendations`；请求当前默认推荐器，支持偏好调整、推荐反馈、种子/资源屏蔽及加入资源库。
+- 设置页
+  - 路由：`/settings`；管理 Cookie、用户设置与默认外部搜索源。
+
+## 登录与外部搜索
+
+应用使用单用户 Django 会话；未登录时展示登录界面，写请求携带 CSRF token，会话失效后回到登录流程。API 与 WebSocket 使用同源网关；DEBUG 不能绕过登录。权限和部署配置见[接口文档](../django_backend/doc/interface.md)。
+
+演员/类别详情提供来源下拉与搜索按钮，不自动发起外部抓取。可用来源和排序以后端 search-capabilities 为准，当前支持启用的 Jable/MissAV；默认选择取持久化设置，不可用时回退到支持该搜索的源。MissAV 缺少映射时可能是关键词结果，页面明确提示，不能保证全部属于该演员/类别。
+
+搜索使用后台任务，逐页展示 partial 结果；失败或取消保留已有结果并显示状态，不伪装成完整成功。用户可以取消任务；切源、翻页或离开页面终止旧请求/订阅，后台任务仍可能继续，过期响应不得覆盖新状态。WebSocket 通知触发带 token 的版本快照查询，1.5 秒轮询补偿断线。添加结果时携带对应来源；部分结果不进入成功会话缓存。详细接口见[外部搜索契约](../django_backend/doc/interface.md)。
+
 ## 技术栈
 
 - Vue 3、Vite 5（`@vitejs/plugin-vue`）
@@ -73,7 +86,7 @@
 
 ## 本地开发
 
-> 要求 Node.js ≥ 18（Vite 5）。包管理器推荐 pnpm。
+> 要求 Node.js ≥ 18（Vite 5）。项目固定 pnpm 10.30.1（见 package.json 的 packageManager），使用与仓库配置兼容的 Node.js。
 
 1. 安装依赖
 
@@ -110,7 +123,7 @@ pnpm preview
   - `server.proxy['/nassav/api']` 和 `server.proxy['/nassav/ws']` → `NASSAV_VITE_BACKEND_URL`（默认 `127.0.0.1:9790`）；WebSocket 随目标协议选择 ws/wss
   - `resolve.alias['@'] = '/src'`
 - 主要代码结构：
-  - 视图：`src/views/`（首页、资源库、演员库、类别库、详情、添加、下载）
+  - 视图：`src/views/`（首页、资源库、演员/类别详情、添加、下载、推荐、设置）
   - 组件：`src/components/`（包括资源卡片、演员卡片、类别卡片、批处理控件等）
   - 路由：`src/router/index.js`
   - 状态：`src/stores/`（资源、演员、类别等状态管理）

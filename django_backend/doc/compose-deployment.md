@@ -91,7 +91,7 @@ curl -i http://127.0.0.1:9780/nassav/api/auth/session
 curl -i http://127.0.0.1:9780/nassav/api/source/list
 ```
 
-浏览器中再检查一次资源添加/刷新任务直至终态、一个实际下载的进度和文件、WebSocket 断线重连。真实外部页面和代理出口需要在目标环境按 [验证边界与历史记录](validation-status.md) 与 [验证边界与历史记录](validation-status.md) 测量；内部 TCP 和 `/healthz` 无法替代样本页验证。改端口时同步调整 `curl`。
+浏览器中再检查一次资源添加/刷新任务直至终态、一个实际下载的进度和文件、WebSocket 断线重连。真实外部页面和代理出口需要在目标环境按[验证边界](validation-status.md)测量；内部 TCP 和 `/healthz` 无法替代样本页验证。改端口时同步调整 `curl`。
 
 隔离验证可设置独立项目名与数据目录，例如 `SECRET_KEY=... NASSAV_DATA_DIR=/tmp/nassav-p4-check FRONTEND_PORT=9781 docker compose -p nassav-p4-check up -d`。不要让两个栈同时写同一 SQLite、Redis 或资源目录。
 
@@ -134,3 +134,9 @@ docker compose -f compose.yaml -f compose.postgres.yaml exec api \
 PostgreSQL 数据库恢复不搬移视频和资源目录。执行前先停止所有应用写入者，并确保目标数据库为空；恢复失败时丢弃并重建隔离目标库，不在部分恢复的数据库继续导入。
 
 正式切换宿主机部署时，只让一套 API、Celery worker 与 Beat 写入这份数据。若 Compose 回退，停用新栈并从备份恢复完整数据目录，再启动原部署。不要直接把容器版与宿主机版同时指向同一个 SQLite 文件。
+
+## 下载 worker 版本切换
+
+原 Celery task 名称和路由保持，不代表旧、新锁实现可混用。旧 worker 的无条件删锁会破坏新执行的 owner 保护；更新前停止旧版本继续消费，并检查在途任务、租约与队列记录，再按确认的版本启动 API/worker。不要清空共享 Redis 或手工删除当前 owner 的锁作为升级步骤。
+
+切换验收至少包含去重/积压任务、重试、失租失败、CLI 中止、进度/文件及 DB 状态和 WebSocket 终态。正常完成后 DB 仍可能只记录告警；资源/媒体一致性需单独检查。本文没有执行切换，隔离/eager 通过不代表混合版本或目标环境接受；当前结果见[验证状态](validation-status.md)。宿主机进程使用同样版本边界，见[进程管理](host-processes.md)。

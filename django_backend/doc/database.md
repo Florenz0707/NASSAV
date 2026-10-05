@@ -259,7 +259,7 @@ Database:
 
 ## 一致性与事务控制
 
-- 对于涉及多表更新（写 `AVResource` + 设置 M2M actor/genre）使用 `transaction.atomic()` 保证原子性。
+- 当前资源保存先 update_or_create 主记录，再追加演员/类别关系与来源映射，没有覆盖整个保存操作的外层 transaction.atomic；ORM 单步事务不保证完整多表原子性，异常可能留下部分关系。文件和 DB 同样没有整体补偿事务。
 - 对于下载任务的后置更新（`file_exists`、`file_size`、`video_saved_at`）也使用事务以防止部分写入。
 
 ## 查询与搜索
@@ -286,8 +286,8 @@ Database:
 
 ## 建议 / 注意事项
 
-- 数据库迁移和恢复依照 [数据库模式与备份说明](database.md)验证；当前业务数据以数据库记录为准，不依赖旧布局的逐资源 JSON 导入命令。
-- 若转向生产级数据库（Postgres），为 `actors`/`genres` 添加唯一约束和必要的索引，并考虑使用 `GIN` 索引优化 `metadata` JSON 查询。
+- 数据库模式和恢复按本页行为及[Compose 部署](compose-deployment.md)验证；当前业务数据以数据库记录为准，不依赖旧布局的逐资源 JSON 导入命令。
+- Actor.name 与 Genre.name 已有唯一约束和索引，SQLite/PostgreSQL 共用模型。metadata 的 PostgreSQL GIN 索引不是当前已声明能力；新增索引须依据实际查询与独立迁移验收。
 - 定期运行对比/校验任务，确保磁盘文件（cover/mp4）与 `AVResource.file_exists`、`file_size` 一致。
 
 文件: `nassav/models.py`, 修复脚本: `scripts/fix_durations.py`。
