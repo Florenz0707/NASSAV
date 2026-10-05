@@ -62,6 +62,12 @@ const assert = require('node:assert/strict')
             pending_count: 1,
           }
         }
+        if (path.endsWith('/resource/metadata'))
+          data = {
+            avid: url.searchParams.get('avid'),
+            source_title:
+              url.searchParams.get('avid') === 'AV-1' ? '正在下载的资源' : '等待下载的资源',
+          }
         if (path.endsWith('/resource/cover')) {
           if (url.searchParams.get('avid') === 'AV-2') return r.fulfill({ status: 404, body: '' })
           return r.fulfill({
@@ -96,6 +102,17 @@ const assert = require('node:assert/strict')
       assert.equal(await detail.getByRole('alert').textContent(), '来源超时')
       assert.equal(await detail.getByRole('progressbar').count(), 0)
       assert.equal(
+        (
+          await page
+            .getByRole('button', { name: 'AV-3，查看任务明细' })
+            .locator('xpath=ancestor::tr')
+            .locator('td')
+            .last()
+            .textContent()
+        ).trim(),
+        '失败'
+      )
+      assert.equal(
         await detail.getByRole('link', { name: '查看资源' }).getAttribute('href'),
         '/resource/AV-3'
       )
@@ -114,6 +131,17 @@ const assert = require('node:assert/strict')
         })
       )
       await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 2)
+      await page.getByRole('checkbox', { name: '选择当前列表全部任务' }).check()
+      await page.getByRole('button', { name: '不再跟踪所选 (2)' }).click()
+      await page
+        .getByRole('dialog', { name: '不再跟踪任务' })
+        .getByRole('button', { name: '不再跟踪', exact: true })
+        .click()
+      await page.getByText('暂无此类任务', { exact: true }).waitFor()
+      assert.equal(
+        await page.evaluate(() => JSON.parse(localStorage.getItem('nassav:scrape-jobs:v1')).length),
+        0
+      )
       await page.setViewportSize({ width: 390, height: 844 })
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

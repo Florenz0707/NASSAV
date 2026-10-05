@@ -79,8 +79,10 @@ export const useResourceStore = defineStore('resource', () => {
     pendingJobRequests.add(taskId)
     try {
       const response = await resourceApi.getScrapeJob(taskId, current.status_token)
+      if (!scrapeJobs.value.has(taskId)) return null
       return setScrapeJob({ ...response.data, status_token: current.status_token })
     } catch (err) {
+      if (!scrapeJobs.value.has(taskId)) return null
       if (err.code === 404 || err.code === 403) {
         return setScrapeJob({
           ...current,
@@ -170,6 +172,7 @@ export const useResourceStore = defineStore('resource', () => {
   function dismissScrapeJob(taskId) {
     const next = new Map(scrapeJobs.value)
     next.delete(taskId)
+    pendingJobEventVersions.delete(taskId)
     scrapeJobs.value = next
     persistScrapeJobs()
     syncScrapePolling()

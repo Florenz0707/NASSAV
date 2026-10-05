@@ -263,3 +263,27 @@ test('WebSocket terminal event during an in-flight snapshot is followed up', asy
     store.stopScrapeTracking()
   }
 })
+
+test('dismissed in-flight job cannot be restored by its delayed snapshot', async () => {
+  globalThis.localStorage = storage()
+  setActivePinia(createPinia())
+  submitTaskId = 'job-1'
+  remoteState = 'running'
+  remoteVersion = 2
+  holdNextSnapshot = true
+  const store = useResourceStore()
+  try {
+    await store.addResource('ABC-1')
+    await new Promise(setImmediate)
+    store.dismissScrapeJob('job-1')
+    releaseSnapshot()
+    await new Promise(setImmediate)
+    assert.equal(store.visibleScrapeJobs.length, 0)
+    assert.deepEqual(JSON.parse(localStorage.getItem('nassav:scrape-jobs:v1')), [])
+  } finally {
+    releaseSnapshot?.()
+    releaseSnapshot = null
+    holdNextSnapshot = false
+    store.stopScrapeTracking()
+  }
+})

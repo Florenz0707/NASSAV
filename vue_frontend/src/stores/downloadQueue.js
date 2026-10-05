@@ -11,6 +11,22 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
   const activeCount = ref(0),
     pendingCount = ref(0),
     totalCount = ref(0)
+  const ignoredTaskIds = ref(new Set())
+  const IGNORED_KEY = 'nassav:ignored-download-tasks:v1'
+  try {
+    const saved = JSON.parse(globalThis.localStorage?.getItem(IGNORED_KEY) || '[]')
+    if (Array.isArray(saved))
+      ignoredTaskIds.value = new Set(saved.filter((id) => typeof id === 'string').slice(-500))
+  } catch {
+    /* Ignore invalid browser state. */
+  }
+  function isTracked(task) {
+    return !ignoredTaskIds.value.has(task.task_id || task.avid)
+  }
+  function dismissTasks(ids) {
+    ignoredTaskIds.value = new Set([...ignoredTaskIds.value, ...ids].slice(-500))
+    globalThis.localStorage?.setItem(IGNORED_KEY, JSON.stringify([...ignoredTaskIds.value]))
+  }
   const titleCache = ref(new Map())
   const settings = useSettingsStore()
   let metadataGeneration = 0
@@ -20,7 +36,7 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
   }
   watch(
     () => settings.displayTitle,
-    () => fetchMissingMetadata(true)
+    () => fetchMissingMetadata()
   )
   // 更新任务数据
   function updateTaskData(data) {
@@ -72,7 +88,7 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
   const fetchingMetadata = ref(new Set())
 
   // 获取缺失的元数据
-  async function fetchMissingMetadata(force = false) {
+  async function fetchMissingMetadata() {
     const generation = metadataGeneration
     const allTasks = [...activeTasks.value, ...pendingTasks.value]
     for (const task of allTasks) {
@@ -82,7 +98,7 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
         updateTaskTitle(task.avid, cachedTitleFor(task.avid))
         continue
       }
-      if (task.title && !force) continue
+
       fetchingMetadata.value.add(task.avid)
       try {
         const response = await resourceApi.getMetadata(task.avid)
@@ -140,6 +156,8 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
     pendingCount,
     totalCount,
     titleCache,
+    isTracked,
+    dismissTasks,
     updateTaskData,
     fetchMissingMetadata,
     startTracking,

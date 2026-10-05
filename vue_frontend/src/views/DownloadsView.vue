@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.js'
 import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import TaskDetailsPanel from '../components/TaskDetailsPanel.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import AppButton from '../components/AppButton.vue'
 import { useResourceStore } from '../stores/resource'
 import { useWebSocketStore } from '../stores/websocket'
@@ -29,8 +30,8 @@ const tasks = computed(() =>
   DEBUG_MODE
     ? debugTasks.value
     : buildTaskDetails({
-        active: queue.activeTasks,
-        pending: queue.pendingTasks,
+        active: queue.activeTasks.filter(queue.isTracked),
+        pending: queue.pendingTasks.filter(queue.isTracked),
         scrapeJobs: resourceStore.visibleScrapeJobs,
         resources: resourceStore.resources,
         metadataCache: queue.titleCache,
@@ -38,6 +39,23 @@ const tasks = computed(() =>
         coverUrlFor: (avid) => resourceApi.getCoverUrl(avid, 'medium'),
       })
 )
+const showDismiss = ref(false),
+  dismissIds = ref([])
+function requestDismiss(ids) {
+  dismissIds.value = ids
+  showDismiss.value = true
+}
+function dismiss() {
+  if (DEBUG_MODE)
+    debugTasks.value = debugTasks.value.filter((task) => !dismissIds.value.includes(task.id))
+  else {
+    for (const task of tasks.value.filter((task) => dismissIds.value.includes(task.id))) {
+      if (task.type === 'scrape') resourceStore.dismissScrapeJob(task.taskId)
+      else queue.dismissTasks([task.taskId || task.avid])
+    }
+  }
+  dismissIds.value = []
+}
 const pollingTimer = ref(null)
 let pollingGeneration = 0,
   pendingQueueGeneration = null
@@ -132,7 +150,7 @@ function stopPolling() {
   <NotificationsDemo v-if="notificationDemo" />
   <div v-else>
     <p v-if="queueError" class="text-accent-danger mb-4" role="alert">{{ queueError }}</p>
-    <TaskDetailsPanel :tasks="tasks" :debug="DEBUG_MODE">
+    <TaskDetailsPanel :tasks="tasks" :debug="DEBUG_MODE" @dismiss="requestDismiss">
       <template #details="{ task }">
         <template v-if="DEBUG_MODE">
           <AppButton class="mt-5" @click="advance(task)">{{
@@ -148,5 +166,12 @@ function stopPolling() {
         >
       </template>
     </TaskDetailsPanel>
+    <ConfirmDialog
+      v-model:show="showDismiss"
+      title="不再跟踪任务"
+      :message="`不再跟踪所选 ${dismissIds.length} 个任务？后台任务仍会继续，不会取消任务或删除资源。`"
+      confirm-text="不再跟踪"
+      @confirm="dismiss"
+    />
   </div>
 </template>

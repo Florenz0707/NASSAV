@@ -1,12 +1,13 @@
 <script setup>
 // Presentation only: task snapshots are supplied by DownloadsView.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AppButton from './AppButton.vue'
 import AppIcon from './AppIcon.vue'
 import CustomSelect from './CustomSelect.vue'
 import EmptyState from './EmptyState.vue'
 import TaskResourceCover from './TaskResourceCover.vue'
 import { SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
+const emit = defineEmits(['dismiss'])
 const props = defineProps({ tasks: { type: Array, required: true }, debug: Boolean })
 const type = ref('all'),
   state = ref('all'),
@@ -19,6 +20,25 @@ const typeTasks = computed(() =>
 const visible = computed(() =>
   typeTasks.value.filter((t) => state.value === 'all' || t.state === state.value)
 )
+const checkedIds = ref(new Set())
+watch(
+  () => props.tasks.map((task) => task.id),
+  (ids) => {
+    checkedIds.value = new Set([...checkedIds.value].filter((id) => ids.includes(id)))
+  }
+)
+const allChecked = computed(
+  () => visible.value.length > 0 && visible.value.every((task) => checkedIds.value.has(task.id))
+)
+function check(taskId, value) {
+  const next = new Set(checkedIds.value)
+  if (value) next.add(taskId)
+  else next.delete(taskId)
+  checkedIds.value = next
+}
+function checkAll(value) {
+  visible.value.forEach((task) => check(task.id, value))
+}
 const selected = computed(
   () => visible.value.find((t) => t.id === selectedId.value) || visible.value[0]
 )
@@ -27,15 +47,17 @@ const resourceName = (task) => task.title || task.avid
 const taskType = (task) =>
   task.type === 'download' ? '下载' : task.action === 'refresh' ? '刷新资源' : '新增资源'
 const progress = (task) =>
-  task.state === 'queued'
-    ? '尚未开始'
-    : task.type === 'download'
-      ? task.percent === null
-        ? '等待进度'
-        : `${task.percent}%`
-      : task.state === 'succeeded'
-        ? '已完成'
-        : stageLabels[task.stage] || '阶段待获取'
+  task.state === 'failed'
+    ? '失败'
+    : task.state === 'queued'
+      ? '尚未开始'
+      : task.type === 'download'
+        ? task.percent === null
+          ? '等待进度'
+          : `${task.percent}%`
+        : task.state === 'succeeded'
+          ? '已完成'
+          : stageLabels[task.stage] || '阶段待获取'
 </script>
 <template>
   <div class="pb-24 min-w-0">
@@ -82,6 +104,27 @@ const progress = (task) =>
         ]"
       />
     </div>
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <AppButton
+        variant="neutral"
+        :disabled="checkedIds.size === 0"
+        @click="emit('dismiss', [...checkedIds])"
+        >不再跟踪所选 ({{ checkedIds.size }})</AppButton
+      >
+      <AppButton
+        variant="neutral"
+        :disabled="!visible.some((task) => ['succeeded', 'failed'].includes(task.state))"
+        @click="
+          emit(
+            'dismiss',
+            visible
+              .filter((task) => ['succeeded', 'failed'].includes(task.state))
+              .map((task) => task.id)
+          )
+        "
+        >不再跟踪当前列表已结束任务</AppButton
+      >
+    </div>
     <p class="text-muted text-sm mb-4">
       下载显示当前队列；刮削显示本浏览器追踪的任务，非服务器完整历史。
     </p>
@@ -99,6 +142,14 @@ const progress = (task) =>
           </caption>
           <thead>
             <tr class="border-b text-secondary border-[var(--border-color)]">
+              <th class="p-4">
+                <input
+                  type="checkbox"
+                  :checked="allChecked"
+                  aria-label="选择当前列表全部任务"
+                  @change="checkAll($event.target.checked)"
+                />
+              </th>
               <th class="p-4 text-left">任务</th>
               <th class="p-4 text-left">状态</th>
               <th class="p-4 text-left">阶段</th>
@@ -111,6 +162,14 @@ const progress = (task) =>
               class="border-b hover:bg-surface-subtle/5 border-[var(--border-color)]"
               :class="selected?.id === task.id ? 'bg-accent-primary/10' : ''"
             >
+              <td class="p-4">
+                <input
+                  type="checkbox"
+                  :checked="checkedIds.has(task.id)"
+                  :aria-label="'选择任务 ' + task.avid"
+                  @change="check(task.id, $event.target.checked)"
+                />
+              </td>
               <td class="p-4">
                 <button
                   class="flex items-center gap-3 w-full text-primary text-left min-w-[240px]"
@@ -207,6 +266,9 @@ const progress = (task) =>
         <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
           {{ selected.error }}
         </p>
+        <AppButton variant="neutral" class="mt-5" @click="emit('dismiss', [selected.id])"
+          >不再跟踪此任务</AppButton
+        >
         <slot name="details" :task="selected" />
       </aside>
     </div>

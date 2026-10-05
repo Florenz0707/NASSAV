@@ -53,3 +53,19 @@ test('queue metadata stays raw, updates with title preference and ignores respon
     resourceApi.getMetadata = original
   }
 })
+
+test('dismissal hides only the specified download and survives new queue snapshots', () => {
+  setActivePinia(createPinia())
+  const queue = useDownloadQueueStore()
+  queue.dismissTasks(['done-one'])
+  queue.updateTaskData({
+    active_tasks: [
+      { task_id: 'done-one', avid: 'AV-1', title: 'Old' },
+      { task_id: 'new-one', avid: 'AV-1', title: 'New' },
+    ],
+  })
+  assert.deepEqual(
+    queue.activeTasks.filter(queue.isTracked).map((task) => task.task_id),
+    ['new-one']
+  )
+})
