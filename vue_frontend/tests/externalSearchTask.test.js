@@ -256,3 +256,38 @@ test('a push releases and cleans a pending timer immediately', async () => {
   ])
   assert.equal(cleaned, true)
 })
+
+test('a terminal response for an old view cannot replace the newly selected result page', async () => {
+  let page = 1,
+    reads = 0
+  const make = (p) => ({
+    state: 'succeeded',
+    version: 2,
+    result: { data: { external_results: [p] }, pagination: { page: p } },
+  })
+  const displayed = []
+  const result = await pollExternalSearch(
+    {},
+    {
+      signal: new AbortController().signal,
+      current: () => true,
+      onStatus: () => {},
+      getPagination: () => ({ page, page_size: 15 }),
+      onResult: (value) => displayed.push(value.pagination.page),
+      wait: async () => {},
+      api: {
+        submit: async () => ({
+          data: { task_id: 'same', token: 'demo', state: 'running', version: 1 },
+        }),
+        getJob: async (_id, _token, _signal, requested) => {
+          reads++
+          if (reads === 1) page = 2
+          return { data: make(requested.page) }
+        },
+      },
+    }
+  )
+  assert.equal(reads, 2)
+  assert.equal(result.pagination.page, 2)
+  assert.deepEqual(displayed, [2])
+})

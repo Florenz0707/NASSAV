@@ -332,6 +332,12 @@ def test_page_progress_is_visible_before_completion_and_failure_keeps_results(
                 item["avid"] for item in snapshot["result"]["data"]["external_results"]
             ] == expected
             assert snapshot["result"]["pagination"]["total"] == page - 1
+            assert len(snapshot["collected_results"]) == page - 1
+            paged = search_jobs.get_search_job(
+                job["task_id"], page=page - 1, page_size=1
+            )
+            assert paged["result"]["pagination"]["pages"] == page - 1
+            assert len(paged["result"]["data"]["external_results"]) == 1
             seen.append(snapshot["version"])
         if page == 3 and fail_last:
             raise SourceSearchError("timeout")
@@ -433,3 +439,76 @@ def test_late_page_cannot_revive_a_terminal_search(actor_factory, runtime, monke
     final = search_jobs.execute_search_job(job["task_id"])
     assert final["state"] == "failed" and final["error_code"] == "TIMEOUT"
     assert final["result"] is None
+
+
+@pytest.mark.parametrize("state", ["running", "succeeded", "failed", "cancelled"])
+def test_read_other_pages_of_same_job_without_fetching_or_mutating(runtime, state):
+    store, enqueue = runtime
+    items = [{"avid": f"ITEM-{i}"} for i in range(31)]
+    original = {
+        "task_id": "paged-job",
+        "state": state,
+        "submitted_at": time.time(),
+        "query": {"page": 1, "page_size": 15},
+        "collected_results": items,
+        "result": {
+            "data": {
+                "external_results": items[:15],
+                "external_meta": {"partial": state != "succeeded"},
+            },
+            "pagination": {"page": 1, "page_size": 15, "pages": 3, "total": 31},
+        },
+    }
+    store.rows["paged-job"] = original
+    second = search_jobs.get_search_job("paged-job", page=2, page_size=15, store=store)
+    assert second["result"]["data"]["external_results"] == items[15:30]
+    last = search_jobs.get_search_job("paged-job", page=3, page_size=15, store=store)
+    assert last["result"]["data"]["external_results"] == items[30:]
+    assert last["result"]["pagination"] == {
+        "page": 3,
+        "page_size": 15,
+        "pages": 3,
+        "total": 31,
+    }
+    assert original["result"]["pagination"]["page"] == 1
+    enqueue.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_signed_status_pages_do_not_expose_internal_collection(
+    actor_factory, api_client, runtime
+):
+    actor = actor_factory()
+    job, _ = search_jobs.submit_search_job(
+        {"entity_type": "actor", "entity_id": actor.pk}
+    )
+    items = [{"avid": f"ITEM-{i}"} for i in range(31)]
+    runtime[0].save(
+        {
+            **job,
+            "state": "running",
+            "collected_results": items,
+            "result": {
+                "data": {
+                    "external_results": items[:15],
+                    "external_meta": {"partial": True},
+                },
+                "pagination": {"page": 1, "page_size": 15, "pages": 3, "total": 31},
+            },
+        }
+    )
+    url = f"/nassav/api/search/jobs/{job['task_id']}"
+    params = {
+        "token": search_jobs.search_job_token(job["task_id"]),
+        "page": 2,
+        "page_size": 15,
+    }
+    response = api_client.get(url, params)
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert "collected_results" not in data
+    assert "query_key" not in data
+    assert data["result"]["data"]["external_results"] == items[15:30]
+    assert api_client.get(url, {**params, "page": 0}).status_code == 400
+    assert api_client.get(url, {**params, "token": "invalid"}).status_code == 403
+    assert runtime[1].call_count == 1

@@ -1294,7 +1294,7 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 
 ## P4 Cookie 管理兼容扩展
 
-人工 `POST /nassav/api/source/cookie` 可加可选字符串 `user_agent`（最多 4096 字符）；省略或传空值会清除旧的配套 UA 和自动会话元数据。`auto=true` 的旧请求方式不变。GET 保留 `source/cookie/mtime`，增加 `session_source`（`manual`/`verified_browser`）、`user_agent_paired`、`session_expired` 和 `verified_direct_reuse` 布尔状态；完整 UA 不返回。`verified_direct_reuse` 还要求当前源的代理路线与保存时一致，仍不保证站点此刻放行。设置页“已保存”与“已验证可直连”按此状态区分。
+人工 `POST /nassav/api/source/cookie` 可加可选字符串 `user_agent`（最多 4096 字符）；省略或传空值会清除旧的配套 UA 和自动会话元数据。`auto=true` 的旧请求方式不变。GET 保留 `source/cookie/mtime`，增加 `session_source`（`manual`/`verified_browser`）、`user_agent_paired`、`session_expired` 和 `verified_direct_reuse` 布尔状态；完整 UA 不返回。`verified_direct_reuse` 还要求当前源的代理路线与保存时一致，仍不保证站点此刻放行。添加资源页 Cookie 弹窗中的“已保存”与“已验证可直连”按此状态区分。
 
 ### Jable 自动 Cookie（2026-10-01 修复）
 
@@ -1366,7 +1366,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 
 排队任务会向 Celery 发送撤销通知；运行中的任务在当前外站请求返回后停止后续页面抓取。取消状态先写入 Redis，迟到结果不会覆盖终态，也不会写入成功缓存。页面上的取消按钮发送该请求；离开页面只停止本地轮询。
 
-既有登录 WebSocket `/nassav/ws/tasks/` 增加 `external_search_update`，data 仅含 `task_id/state/version/updated_at`。收到新版本通知后，前端立即带签名 token 查询快照；通知不包含搜索结果、查询和 token。保留每 1.5 秒轮询恢复断线或丢失通知，忽略旧版本响应；切源、换页或离开页面时终止旧请求与订阅，后台任务继续执行。演员与类别页面进入外部搜索页、切源或调整排序均不自动提交；用户通过搜索按钮手动发起，按钮下方选择搜索源。
+既有登录 WebSocket `/nassav/ws/tasks/` 增加 `external_search_update`，data 仅含 `task_id/state/version/updated_at`。收到新版本通知后，前端立即带签名 token 查询快照；通知不包含搜索结果、查询和 token。保留每 1.5 秒轮询恢复断线或丢失通知，忽略旧版本响应；切源、离开页面时终止旧请求与订阅，后台任务继续执行。演员与类别页面进入外部搜索页、切源或调整排序均不自动提交；用户通过搜索按钮手动发起，来源设置不触发搜索。
 
 ### 默认搜索源与封面
 
@@ -1399,3 +1399,9 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 ## 开发与复验导航
 
 本文件维护消费者 URL、字段、权限、错误、缓存头和任务状态；内部模块与装配规则见[模块边界](p5-domain-boundaries.md)。URL/OpenAPI 的 paths/components 及路由由 tests/fixtures/backend_http_contract.json 对照验证，模拟/故障样本见[测试说明](../tests/README.md)。旧同步入口、兼容尾斜杠与原任务名继续存在；维护文档无需调整消费者请求。
+
+### 外部任务结果分页
+
+`GET /api/search/jobs/{task_id}?token=...` 支持可选 `page`（正整数）与 `page_size`（1–100，默认 20）；省略 page 保留提交时的结果页。分页参数无效返回 400。带有效签名 token 的查询从同一任务累积去重结果切片，返回的 `result.pagination` 按展示条数计算，不提交任务、不重新抓取、不修改任务版本。运行、失败、取消和成功状态均可浏览已获取结果；总条数和可浏览页数随进度增长，fetch_pages/pages_completed 专指源站抓取页数。内部累积结果不直接出现在公开快照或 WebSocket 中。
+
+前端默认每页 15 项；搜索和浏览结果页是独立操作，翻页不停止后台搜索。已有旧 worker 生成的快照无法补出未保存的其他页，跨页读取返回 400 并提示重新搜索；发布时同步更新 API/worker。原有 URL、签名校验、取消、版本及 TTL 保持。

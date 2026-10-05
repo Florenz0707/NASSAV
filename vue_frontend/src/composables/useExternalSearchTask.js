@@ -26,6 +26,7 @@ export async function pollExternalSearch(
     onStatus,
     onResult = () => {},
     onSubmitted = () => {},
+    getPagination = () => undefined,
     api = externalSearchApi,
     wait = (signal, listen) => waitForSearchPoll(signal, 1500, listen),
     subscribe = subscribeSearchJobUpdates,
@@ -67,7 +68,15 @@ export async function pollExternalSearch(
         displayedVersion = snapshot.version ?? displayedVersion
         displayedResult = snapshot.result
       }
-      if (snapshot.state === 'succeeded') return snapshot.result
+      if (snapshot.state === 'succeeded') {
+        const desired = getPagination()
+        if (
+          !desired ||
+          !snapshot.result?.pagination ||
+          snapshot.result.pagination.page === desired.page
+        )
+          return snapshot.result
+      }
       if (snapshot.state === 'cancelled') return null
       if (snapshot.state === 'failed') throw new Error(snapshot.message || '搜索失败，请重试')
       if (Date.now() > deadline) throw new Error('搜索等待超时，请重试')
@@ -81,7 +90,9 @@ export async function pollExternalSearch(
       notified = false
       if (signal.aborted || !current()) return null
       try {
-        const response = await api.getJob(taskId, token, signal)
+        const requested = getPagination()
+        const response = await api.getJob(taskId, token, signal, requested)
+        if (requested && requested.page !== getPagination()?.page) continue
         if (
           !Number.isFinite(snapshot.version) ||
           !Number.isFinite(response.data.version) ||
@@ -107,10 +118,12 @@ export function useExternalSearchTask() {
   const progress = ref(null)
   let controller
   let active
+  let submittedJob
   function cancel() {
     controller?.abort()
     active?.resolveSubmitted(null)
     active = null
+    submittedJob = null
     status.value = ''
     progress.value = null
   }
@@ -128,7 +141,7 @@ export function useExternalSearchTask() {
     }
     return true
   }
-  async function search(query, current, onResult = () => {}) {
+  async function search(query, current, onResult = () => {}, getPagination = () => undefined) {
     cancel()
     controller = new AbortController()
     let resolveSubmitted
@@ -141,7 +154,11 @@ export function useExternalSearchTask() {
       return await pollExternalSearch(query, {
         signal: controller.signal,
         current,
-        onSubmitted: resolveSubmitted,
+        getPagination,
+        onSubmitted: (snapshot) => {
+          if (active === job) submittedJob = snapshot
+          resolveSubmitted(snapshot)
+        },
         onStatus: (value) => {
           status.value = value
         },
@@ -158,5 +175,20 @@ export function useExternalSearchTask() {
       if (active === job) active = null
     }
   }
-  return { status, progress, search, cancel, cancelJob }
+  async function readPage(page, pageSize) {
+    const job = submittedJob
+    if (!job) return null
+    const response = await externalSearchApi.getJob(job.task_id, job.token, undefined, {
+      page,
+      page_size: pageSize,
+    })
+    return submittedJob === job ? response.data.result : null
+  }
+  function getJobHandle() {
+    return submittedJob ? { task_id: submittedJob.task_id, token: submittedJob.token } : null
+  }
+  function restoreJob(handle) {
+    if (handle?.task_id && handle?.token) submittedJob = handle
+  }
+  return { status, progress, search, cancel, cancelJob, readPage, getJobHandle, restoreJob }
 }

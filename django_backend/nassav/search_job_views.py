@@ -33,7 +33,11 @@ class SearchQuerySerializer(serializers.Serializer):
 
 
 def public_snapshot(snapshot: dict) -> dict:
-    return {key: value for key, value in snapshot.items() if key != "query_key"}
+    return {
+        key: value
+        for key, value in snapshot.items()
+        if key not in {"query_key", "collected_results"}
+    }
 
 
 class SearchJobSubmitView(SchemaAPIView):
@@ -67,7 +71,17 @@ class SearchJobStatusView(SchemaAPIView):
         if not valid_search_job_token(task_id, request.query_params.get("token", "")):
             return build_response(403, "搜索任务访问凭证无效", None)
         try:
-            snapshot = get_search_job(task_id)
+            page = request.query_params.get("page")
+            page_size = request.query_params.get("page_size", 20)
+            if page is not None and (int(page) < 1 or not 1 <= int(page_size) <= 100):
+                raise ValueError("分页参数无效")
+            snapshot = get_search_job(
+                task_id,
+                page=int(page) if page is not None else None,
+                page_size=int(page_size),
+            )
+        except (ValueError, TypeError) as error:
+            return build_response(400, str(error), None)
         except Exception:
             return build_response(503, "搜索任务状态暂不可用", None)
         if snapshot is None:
@@ -84,6 +98,8 @@ class SearchJobCancelView(SchemaAPIView):
             snapshot = cancel_search_job(task_id)
         except SearchJobAlreadyFinished:
             return build_response(409, "搜索任务已结束，无法取消", None)
+        except (ValueError, TypeError) as error:
+            return build_response(400, str(error), None)
         except Exception:
             return build_response(503, "搜索任务状态暂不可用", None)
         if snapshot is None:

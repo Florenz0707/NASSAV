@@ -11,7 +11,11 @@ from django.conf import settings
 from django.core import signing
 from loguru import logger
 
-from nassav.external_search import ExternalSearchResult, external_search_service
+from nassav.external_search import (
+    ExternalSearchResult,
+    external_search_service,
+    paginate_results,
+)
 from nassav.models import Actor, Genre
 from nassav.scrape_jobs import JobStore, RedisJobStore
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
@@ -189,7 +193,13 @@ def submit_search_job(
     return snapshot, False
 
 
-def get_search_job(task_id: str, *, store: JobStore | None = None) -> dict | None:
+def get_search_job(
+    task_id: str,
+    *,
+    page: int | None = None,
+    page_size: int | None = None,
+    store: JobStore | None = None,
+) -> dict | None:
     store = store or RedisSearchJobStore()
     snapshot = store.get(task_id)
     if (
@@ -207,6 +217,25 @@ def get_search_job(task_id: str, *, store: JobStore | None = None) -> dict | Non
             },
         )
         store.release(snapshot["query_key"], task_id)
+    if snapshot and page is not None and snapshot.get("result"):
+        if page < 1 or page_size is None or not 1 <= page_size <= 100:
+            raise ValueError("分页参数无效")
+        items = snapshot.get("collected_results")
+        if items is None:
+            original = snapshot["result"]["pagination"]
+            if page == original["page"] and page_size == original.get("page_size", 20):
+                return snapshot
+            raise ValueError("旧任务不支持跨页浏览，请重新搜索")
+        visible, pagination = paginate_results(items, page=page, page_size=page_size)
+        payload = snapshot["result"]
+        snapshot = {
+            **snapshot,
+            "result": {
+                **payload,
+                "data": {**payload["data"], "external_results": visible},
+                "pagination": pagination,
+            },
+        }
     return snapshot
 
 
@@ -277,6 +306,9 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
                 "state": "running",
                 "pages_completed": result.meta["pages_completed"],
                 "result": _result_payload(result, query),
+                "collected_results": result.collected_items
+                if result.collected_items is not None
+                else result.items,
             },
         )
         if snapshot["state"] != "running":
@@ -303,6 +335,9 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
                 **snapshot,
                 "state": "succeeded",
                 "result": payload,
+                "collected_results": result.collected_items
+                if result.collected_items is not None
+                else result.items,
                 "completed_at": time.time(),
             },
         )

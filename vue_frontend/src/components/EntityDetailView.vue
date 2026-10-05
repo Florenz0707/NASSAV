@@ -77,6 +77,9 @@ const {
   search: searchExternal,
   cancel: cancelExternalSearch,
   cancelJob: cancelExternalSearchJob,
+  readPage: readExternalPage,
+  getJobHandle,
+  restoreJob,
 } = useExternalSearchTask()
 const externalError = ref('')
 const externalCancelled = ref(false)
@@ -175,6 +178,7 @@ function saveExternalCache() {
       sortBy: externalSortBy.value,
       sortOrder: externalSortOrder.value,
       pageCache: externalPageCache.value,
+      job: getJobHandle(),
       timestamp: Date.now(),
     })
   )
@@ -218,6 +222,7 @@ function restoreExternalCache() {
   try {
     const cached = JSON.parse(sessionStorage.getItem(key))
     if (cached && !cached.meta?.partial && Date.now() - cached.timestamp < EXTERNAL_CACHE_TTL_MS) {
+      restoreJob(cached.job)
       externalResources.value = cached.results
       externalMeta.value = cached.meta
       externalPage.value = cached.page
@@ -234,6 +239,55 @@ function restoreExternalCache() {
   return false
 }
 
+function applyExternalResult(response) {
+  if (!response?.data || response.pagination?.page !== externalPage.value) return
+  const existing = new Map(externalResources.value.map((item) => [item.avid, item]))
+  const formattedResults = (response.data.external_results || []).map((r) => ({
+    ...r,
+    title: r.source_title || r.original_title,
+    cover_url: r.thumbnail_url,
+    raw_metrics: r.metrics,
+    is_in_library: isExternalItemInLibrary(r) || isExternalItemInLibrary(existing.get(r.avid)),
+  }))
+  externalResources.value = formattedResults
+  externalMeta.value = response.data.external_meta || {}
+  externalPagination.value = response.pagination || null
+  if (response.data.detail) {
+    entity.value = response.data.detail
+  }
+}
+const pageReadGuard = createSearchRequestGuard()
+const readingExternalPage = ref(false)
+async function changeExternalPage(p) {
+  const request = pageReadGuard.begin()
+  externalPage.value = p
+  readingExternalPage.value = true
+  externalError.value = ''
+  try {
+    const cached = getCachedExternalPage(p)
+    const result = cached
+      ? {
+          data: { external_results: cached.results, external_meta: cached.meta },
+          pagination: cached.pagination,
+        }
+      : await readExternalPage(p, 15)
+    if (!pageReadGuard.current(request)) return
+    if (!result) throw new Error('结果缓存已失效，请重新搜索')
+    applyExternalResult(result)
+    if (!result.data?.external_meta?.partial) {
+      setCachedExternalPage(p, {
+        results: externalResources.value,
+        meta: externalMeta.value,
+        pagination: externalPagination.value,
+      })
+    }
+  } catch (error) {
+    if (pageReadGuard.current(request)) externalError.value = error.message || '读取结果页失败'
+  } finally {
+    if (pageReadGuard.current(request)) readingExternalPage.value = false
+  }
+}
+
 async function startExternalSearch(p = 1, forceRefresh = false) {
   if (
     !sourcesReady.value ||
@@ -241,6 +295,8 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
   )
     return
   cancelExternalSearch()
+  pageReadGuard.invalidate()
+  readingExternalPage.value = false
   const request = requestGuard.begin()
   externalError.value = ''
   externalCancelled.value = false
@@ -262,39 +318,23 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
     const params = {
       source: externalSource.value,
       page: p,
-      page_size: 20,
+      page_size: 15,
       ordering:
         externalSortOrder.value === 'desc' ? '-' + externalSortBy.value : externalSortBy.value,
     }
     if (forceRefresh) {
       params.force_refresh = true
     }
-    function applyResult(response) {
-      if (!requestGuard.current(request) || !response?.data) return
-      const existing = new Map(externalResources.value.map((item) => [item.avid, item]))
-      const formattedResults = (response.data.external_results || []).map((r) => ({
-        ...r,
-        title: r.source_title || r.original_title,
-        cover_url: r.thumbnail_url,
-        raw_metrics: r.metrics,
-        is_in_library: isExternalItemInLibrary(r) || isExternalItemInLibrary(existing.get(r.avid)),
-      }))
-      externalResources.value = formattedResults
-      externalMeta.value = response.data.external_meta || {}
-      externalPagination.value = response.pagination || null
-      if (response.data.detail) {
-        entity.value = response.data.detail
-      }
-    }
     const response = await searchExternal(
       { entity_type: props.entityType, entity_id: Number(entityId.value), ...params },
       () => requestGuard.current(request),
-      (result) => applyResult(result)
+      (result) => requestGuard.current(request) && applyExternalResult(result),
+      () => ({ page: externalPage.value, page_size: 15 })
     )
     if (!requestGuard.current(request)) return
     if (response && response.data) {
-      applyResult(response)
-      setCachedExternalPage(p, {
+      applyExternalResult(response)
+      setCachedExternalPage(externalPage.value, {
         results: externalResources.value,
         meta: externalMeta.value,
         pagination: externalPagination.value,
@@ -317,6 +357,8 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
 function resetExternalSearchState() {
   cancelExternalSearch()
   requestGuard.invalidate()
+  pageReadGuard.invalidate()
+  readingExternalPage.value = false
   loadingExternal.value = false
   externalError.value = ''
   externalCancelled.value = false
@@ -658,6 +700,7 @@ onBeforeUnmount(() => {
   navigationGuard.invalidate()
   infoGuard.invalidate()
   resourceStore.cancelResourceQuery()
+  pageReadGuard.invalidate()
   cancelExternalSearch()
   requestGuard.invalidate()
   if (_searchTimer) clearTimeout(_searchTimer)
@@ -891,7 +934,7 @@ function goBack() {
       </p>
       <p v-if="loadingExternal && searchProgress" class="text-muted text-sm mb-4" role="status">
         已完成 {{ searchProgress.pagesCompleted }} /
-        {{ searchProgress.fetchPages }} 页，结果与排序仍在更新。
+        {{ searchProgress.fetchPages }} 个源站页面，结果与排序仍在更新。
       </p>
       <p
         v-if="!loadingExternal && externalMeta.partial && externalError"
@@ -990,26 +1033,27 @@ function goBack() {
         >
           <button
             class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="externalPage === 1 || loadingExternal"
-            @click="startExternalSearch(externalPage - 1)"
+            :disabled="externalPage === 1 || readingExternalPage"
+            @click="changeExternalPage(externalPage - 1)"
           >
             上一页
           </button>
           <span class="text-[var(--text-muted)] text-sm">
             第 {{ externalPage }} 页
             <template v-if="externalPagination && externalPagination.pages">
-              / 共 {{ externalPagination.pages }} 页
+              / {{ loadingExternal || externalMeta.partial ? '当前可浏览' : '共' }}
+              {{ externalPagination.pages }} 页
             </template>
           </span>
           <button
             class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="
-              loadingExternal ||
+              readingExternalPage ||
               (externalPagination && externalPagination.pages
                 ? externalPage >= externalPagination.pages
-                : externalResources.length < 20)
+                : externalResources.length < 15)
             "
-            @click="startExternalSearch(externalPage + 1)"
+            @click="changeExternalPage(externalPage + 1)"
           >
             下一页
           </button>

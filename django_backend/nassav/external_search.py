@@ -27,6 +27,22 @@ class ExternalSearchResult:
     items: list[dict]
     pagination: dict[str, int]
     meta: dict[str, Any]
+    collected_items: list[dict] | None = None
+
+
+def paginate_results(
+    items: list[dict], *, page: int, page_size: int
+) -> tuple[list[dict], dict[str, int]]:
+    total = len(items)
+    pages = max((total + page_size - 1) // page_size, 1)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return items[start:end], {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": pages,
+    }
 
 
 class ExternalSearchCacheBackend(ABC):
@@ -645,6 +661,7 @@ class ExternalSearchService:
             on_progress(
                 ExternalSearchResult(
                     items=visible,
+                    collected_items=ordered,
                     pagination=pagination,
                     meta={
                         "source": normalized_source,
@@ -688,6 +705,7 @@ class ExternalSearchService:
         )
         return ExternalSearchResult(
             items=page_items,
+            collected_items=sorted_items,
             pagination=pagination,
             meta={
                 "source": normalized_source,
@@ -788,16 +806,7 @@ class ExternalSearchService:
         page: int,
         page_size: int,
     ) -> tuple[list[dict], dict[str, int]]:
-        total = len(items)
-        pages = max((total + page_size - 1) // page_size, 1)
-        start = (page - 1) * page_size
-        end = start + page_size
-        return items[start:end], {
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "pages": pages,
-        }
+        return paginate_results(items, page=page, page_size=page_size)
 
     def _empty_pagination(self, page: int, page_size: int) -> dict[str, int]:
         return {
