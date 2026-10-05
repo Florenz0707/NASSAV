@@ -22,20 +22,22 @@ python3 scripts/compose_stack.py --mode sqlite exec api python manage.py creates
 
 账号密码由 `createsuperuser` 的交互提示设置。若修改 `NASSAV_OPERATOR_USERNAME`，用户名须与其一致。默认页面仅监听 `127.0.0.1:9780`；远程访问需同源 HTTPS 反向代理，并按部署说明配置 Host、CSRF 和安全 Cookie。Beat 在 `scheduler` profile 中启用且全系统只运行一个实例。
 
-PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.yaml` 覆盖文件；具体命令与回滚步骤见[部署说明](django_backend/doc/compose-deployment.md#外部-postgresql可选)。**开发库的数据已导入，业务回归、备份恢复验收及正式切换尚未完成**。默认 Compose 仍使用 SQLite；首次启动需声明数据目录的数据库模式，后续 `up`、`ps`、`logs`、`exec`、`down` 使用相同模式的部署入口。直接误用基础 Compose 时，应用会在连接数据库前拒绝模式冲突；不要仅修改 `.env` 的 `DB_ENGINE` 来切换。迁移进度见[独立迁移计划](django_backend/doc/postgresql-migration-plan.md)，其中早期基线描述应按记录日期理解。
+PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.yaml` 覆盖文件；具体命令与回滚步骤见[部署说明](django_backend/doc/compose-deployment.md#外部-postgresql可选)。**开发库的数据已导入，业务回归、备份恢复验收及正式切换尚未完成**。默认 Compose 仍使用 SQLite；首次启动需声明数据目录的数据库模式，后续 `up`、`ps`、`logs`、`exec`、`down` 使用相同模式的部署入口。直接误用基础 Compose 时，应用会在连接数据库前拒绝模式冲突；不要仅修改 `.env` 的 `DB_ENGINE` 来切换。数据库行为见[数据库模式与备份说明](django_backend/doc/database.md)；开发导入与正式切换的边界见[验证状态](django_backend/doc/validation-status.md)。
 
 本机开发分别参照[后端说明](django_backend/README.md#快速开始)和[前端说明](vue_frontend/README.md#本地开发)；Vite 开发页的 API 和 WebSocket 使用同源代理。启动检查、代理路由和数据目录的细节统一记录在[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)和[Compose 部署说明](django_backend/doc/compose-deployment.md)。
 
-## 当前验证状态
+## 当前功能与验证状态
 
-资源删除边界和数据库模式护栏已实现；隔离 SQLite 后端测试、前端检查及双模式 Compose 配置渲染已通过。独立 PostgreSQL 容器启动、另一设备 HTTPS/WSS、真实抓取/下载和备份恢复尚未在目标环境验收。具体证据与缺项见[补充计划](docs/project-quality-follow-up-plan.md)；开发库导入不代表正式数据库切换。
+资源添加/刷新通过异步任务执行；演员和类别外部搜索支持来源选择、渐进结果、取消和终态补查。下载和批量翻译的 owner/异常收尾修复、资源/下载/翻译/推荐用例分层已实现；消费者 URL、响应字段和 Celery 任务名保持。
+
+隔离测试、目标环境接受和正式发布分别记录。重构基线的历史离线门槛为 539 passed、24 skipped；真实 PostgreSQL 恢复、另一设备 HTTPS/WSS、外站抓取/下载及混合版本 worker 不由这个结果覆盖。当前边界和待验收证据见[验证状态](django_backend/doc/validation-status.md)。
 
 ## 文档导航
 
-- [接口与权限](django_backend/doc/interface.md)、[推荐系统](django_backend/doc/recommendation.md)、[数据库与备份](django_backend/doc/database.md)
-- [项目质量与运行边界](docs/project-quality.md)、[业务模块边界](django_backend/doc/p5-domain-boundaries.md)
-- [质量改进补充开发与验收计划](docs/project-quality-follow-up-plan.md)
-- [前端页面预览](vue_frontend/README.md)、[前端检查命令](vue_frontend/README.md#异步资源任务反馈)
+- 本地开发：[后端](django_backend/README.md)、[前端](vue_frontend/README.md)
+- 消费者与数据：[接口与权限](django_backend/doc/interface.md)、[数据库与备份](django_backend/doc/database.md)、[推荐系统](django_backend/doc/recommendation.md)
+- 架构与配置：[模块边界](django_backend/doc/p5-domain-boundaries.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
+- 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[验证状态](django_backend/doc/validation-status.md)
 
 ## 版本更新
 
@@ -61,7 +63,7 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 #### 📚 文档
 
-- 将此前的项目质量阶段实施过程归档为[现状说明](docs/project-quality.md)；未完成的职责收口与目标环境验收见[补充计划](docs/project-quality-follow-up-plan.md)。PostgreSQL、Byparr 和异步刮削的独立验收计划继续保留。
+- 将此前的项目质量阶段实施过程归档为[验证边界与历史记录](django_backend/doc/validation-status.md)；未完成的职责收口与目标环境验收见[验证边界与历史记录](django_backend/doc/validation-status.md)。PostgreSQL、Byparr 和异步刮削的独立验收计划继续保留。
 
 ### v2.3.0（2026-09-28）
 
@@ -83,7 +85,7 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 #### 📚 文档
 
-- 补充异步刮削、Compose 部署、代理路由和 PostgreSQL 迁移说明；当时新增的质量执行计划已在 v2.4.0 归档，当前结论见[项目质量与运行边界](docs/project-quality.md)。
+- 补充异步刮削、Compose 部署、代理路由和 PostgreSQL 迁移说明；当时新增的质量执行计划已在 v2.4.0 归档，当前结论见[验证边界与历史记录](django_backend/doc/validation-status.md)。
 
 ### v2.2.0（2026-09-26）
 
@@ -92,7 +94,7 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 - 使用固定 digest 的 Byparr 3.0.4 Compose 服务，宿主机控制地址为 `http://127.0.0.1:8192`；新增 `BrowserFetch` 配置及逐源请求顺序。
 - 新增统一的浏览器页面获取层。MissAV 默认浏览器优先，Jable 默认直连优先；两条路径共用业务页面校验，拒绝挑战页、异常重定向和无效详情页。
 - MissAV 自动获取的 Cookie 经现有 Repository 保存并更新运行时缓存；Cookie API 的请求和响应结构、数据库表结构均未改变。
-- 将在线抓取测试改为显式启用，补充协议、配置、回退、搜索缓存及 Cookie 回归测试。本地开发已验证两个详情样本；生产验收范围与剩余项见 [验收记录](django_backend/doc/byparr-rollout-validation.md)。
+- 将在线抓取测试改为显式启用，补充协议、配置、回退、搜索缓存及 Cookie 回归测试。本地开发已验证两个详情样本；生产验收范围与剩余项见 [验证边界与历史记录](django_backend/doc/validation-status.md)。
 
 ### v2.1.0（2026-04-17）
 

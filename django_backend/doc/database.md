@@ -278,7 +278,7 @@ Database:
 
 ## 建议 / 注意事项
 
-- 数据库迁移和恢复依照 [PostgreSQL 迁移计划](postgresql-migration-plan.md)验证；当前业务数据以数据库记录为准，不依赖旧布局的逐资源 JSON 导入命令。
+- 数据库迁移和恢复依照 [数据库模式与备份说明](database.md)验证；当前业务数据以数据库记录为准，不依赖旧布局的逐资源 JSON 导入命令。
 - 若转向生产级数据库（Postgres），为 `actors`/`genres` 添加唯一约束和必要的索引，并考虑使用 `GIN` 索引优化 `metadata` JSON 查询。
 - 定期运行对比/校验任务，确保磁盘文件（cover/mp4）与 `AVResource.file_exists`、`file_size` 一致。
 
@@ -290,7 +290,7 @@ Database:
 
 ### Jable 自动 Cookie 写入（2026-10-01）
 
-Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连验证后，通过现有 `set_session_if_version` 原子保存 Cookie、UA、到期时间及出口信息。复用既有字段，无需数据库迁移；版本变化或刷新租约失效时拒绝写入。见 [修复验证记录](jable-auto-cookie-fix-record.md)。
+Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连验证后，通过现有 `set_session_if_version` 原子保存 Cookie、UA、到期时间及出口信息。复用既有字段，无需数据库迁移；版本变化或刷新租约失效时拒绝写入。见 [Cookie 回归说明](../tests/README.md)。
 
 ## MissAV 演员、类别搜索映射
 

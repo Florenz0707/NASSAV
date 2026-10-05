@@ -33,7 +33,7 @@ API 默认监听 `127.0.0.1:9790`。默认 worker 不消费 `scrape` 和 `downlo
 
 ## 数据库与部署状态
 
-本机默认和基础 Compose 使用 SQLite；PostgreSQL 是显式选择的外部数据库模式。开发 PostgreSQL 库的数据已导入，业务回归、备份恢复验收及正式切换尚未完成。连接方式、schema、备份与恢复见[数据库文档](doc/database.md)；正式迁移步骤见[迁移计划](doc/postgresql-migration-plan.md)。该计划中的早期“当前配置”是当时基线，不代表现在的配置。
+本机默认和基础 Compose 使用 SQLite；PostgreSQL 是显式选择的外部数据库模式。开发 PostgreSQL 库的数据已导入，业务回归、备份恢复验收及正式切换尚未完成。连接方式、schema、备份与恢复见[数据库文档](doc/database.md)；正式迁移步骤见[数据库模式与备份说明](doc/database.md)。历史导入与目标环境接受分开记录，见[验证状态](doc/validation-status.md)。
 
 ## 开发检查
 
@@ -51,7 +51,7 @@ uv run pytest tests/ -v
 - [配置校验与覆盖顺序](doc/configuration-contract.md)
 - [资源、下载、推荐模块边界](doc/p5-domain-boundaries.md)
 - [Compose 部署和外部 PostgreSQL](doc/compose-deployment.md)
-- [运行脚本清单](doc/script-inventory.md)及[脚本用法](scripts/README.md)
+- [脚本分类与用法](scripts/README.md)及[脚本用法](scripts/README.md)
 
 ## License
 

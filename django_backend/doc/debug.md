@@ -22,7 +22,7 @@ P1 不新增调试端点。可在隔离数据库上运行 `uv run pytest tests/t
 
 ## P5 正式验收
 
-隔离 SQLite、PostgreSQL 与 Redis 结果及现场 NO-GO 判定见 [P5 验证记录](byparr-session-reuse-p5-record.md)。 MissAV 的两时段只读现场结果与 NO-GO 判定见 [MissAV P5 记录](byparr-session-reuse-p5-missav-record.md)。 后续详情候选路径的单时段在线对照见 [MissAV 路径验证记录](missav-path-selection-record.md)，该结果不放行会话复用。真实站点测试须显式 opt-in；已有 API 容器内只读预筛，但没有 API/worker 共享会话联调和 24 小时灰度证据。
+隔离 SQLite、PostgreSQL 与 Redis 结果及现场 NO-GO 判定见 [验证边界与历史记录](validation-status.md)。 MissAV 的两时段只读现场结果与 NO-GO 判定见 [验证边界与历史记录](validation-status.md)。 后续详情候选路径的单时段在线对照见 [验证边界与历史记录](validation-status.md)，该结果不放行会话复用。真实站点测试须显式 opt-in；已有 API 容器内只读预筛，但没有 API/worker 共享会话联调和 24 小时灰度证据。
 
 ## 模拟下载接口
 
@@ -324,17 +324,17 @@ ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
 
 资源删除回归：`uv run pytest tests/test_resource_deletion.py -v` 覆盖单项/批量删除、部分文件与数据库状态，以及未配置 `THUMBNAIL_DIR` 时按封面接口相同的 `COVER_DIR/thumbnails/{size}/{avid}.jpg` 目录清理缩略图。缺省配置不应使 `DELETE /api/resource/{avid}` 返回 500。
 
-Byparr 第三步固定版本隔离对照和等待 PoC 见[实验记录](byparr-media-experiment-record.md)。运行方式见 scripts/README.md；仅在临时实验容器运行，初始业务等待在不存在详情上会耗尽预算，不能直接部署到正式服务。离线契约：`uv run pytest tests/test_probe_byparr_media.py -v`。
+Byparr 第三步固定版本隔离对照和等待 PoC 见[验证边界与历史记录](validation-status.md)。运行方式见 scripts/README.md；仅在临时实验容器运行，初始业务等待在不存在详情上会耗尽预算，不能直接部署到正式服务。离线契约：`uv run pytest tests/test_probe_byparr_media.py -v`。
 
-Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验收记录](byparr-candidate-acceptance-record.md)。预筛通过不代表可灰度；本次自动 Cookie 管理入口复现 500，因此整体 NO-GO。`probe_byparr_runtime.py` 强制使用专用 PostgreSQL、Redis 和资源目录；不可对正式服务执行。
+Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[验证边界与历史记录](validation-status.md)。预筛通过不代表可灰度；本次自动 Cookie 管理入口复现 500，因此整体 NO-GO。`probe_byparr_runtime.py` 强制使用专用 PostgreSQL、Redis 和资源目录；不可对正式服务执行。
 
 ### Jable 自动 Cookie 500 回归
 
-回归文件：`tests/test_jable_auto_cookie.py`。在后端目录运行 `uv run pytest tests/test_jable_auto_cookie.py -v`，覆盖 HTTP 403 旧入口、浏览器与直连校验失败、手动更新/清空及租约保护。现场结果见 [修复验证记录](jable-auto-cookie-fix-record.md)。
+回归文件：`tests/test_jable_auto_cookie.py`。在后端目录运行 `uv run pytest tests/test_jable_auto_cookie.py -v`，覆盖 HTTP 403 旧入口、浏览器与直连校验失败、手动更新/清空及租约保护。现场结果见 [Cookie 回归说明](../tests/README.md)。
 
 ## 可选搜索源验证
 
-离线运行 `uv run pytest tests/test_missav_search.py tests/test_external_search_detail_api.py -v`；前端运行 `pnpm run test`。覆盖源能力、映射与关键词回退、错误状态、分页缓存、变体去重及慢响应保护。隔离现场用法见 [探针说明](../scripts/README.md) 与 [执行记录](selectable-external-search-execution.md)。
+离线运行 `uv run pytest tests/test_missav_search.py tests/test_external_search_detail_api.py -v`；前端运行 `pnpm run test`。覆盖源能力、映射与关键词回退、错误状态、分页缓存、变体去重及慢响应保护。隔离现场用法见 [探针说明](../scripts/README.md) 与 [外部搜索接口契约](interface.md)。
 
 ## 中文及异步外部搜索验收
 
@@ -348,4 +348,4 @@ Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[候选验
 
 `uv run pytest tests/test_search_jobs.py tests/test_access_control.py -v` 覆盖每页完成前后快照、四种源/实体组合、后续页失败保留结果、不缓存残缺列表、终态保护和已登录 WebSocket 通知。前端 `pnpm run test` 覆盖通知即时唤醒、HTTP 查询期间的通知竞态、旧版本响应、失败阶段卡片和订阅清理。`External search page ... failed` 日志补充白名单原因代码，未知异常仅记 `unclassified`，不输出 URL/Cookie/HTML。
 
-实现与五组两页现场证据见 [逐页搜索执行记录](progressive-external-search-execution.md)。
+实现与五组两页现场证据见 [外部搜索接口契约](interface.md)。

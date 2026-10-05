@@ -4,7 +4,7 @@
 
 ## 抽象重构离线质量门槛
 
-从 `django_backend/` 运行 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`。测试配置强制使用无凭证示例配置、临时 SQLite/资源/用户设置、内存缓存和 Channels，并跳过标记为 `external` 的真实服务样本。未模拟的网络调用即使被业务捕获，也会在测试收尾失败；测试进程不连接生产 Redis或外站。具体兼容矩阵和阶段结果见[执行记录](../doc/backend-refactoring-execution.md)。
+从 `django_backend/` 运行 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`。测试配置强制使用无凭证示例配置、临时 SQLite/资源/用户设置、内存缓存和 Channels，并跳过标记为 `external` 的真实服务样本。未模拟的网络调用即使被业务捕获，也会在测试收尾失败；测试进程不连接生产 Redis或外站。具体兼容矩阵和阶段结果见[验证边界与历史记录](../doc/validation-status.md)。
 
 `test_refactoring_baseline.py` 冻结下载“先通知成功、写库失败仍成功”和资源“写库失败保留HTML且不发新增事件”的现有时序；`test_search_jobs.py` 区分合法空列表与来源失败。真实 Ollama、Javbus封面/头像、资源现场及浏览器样本不算离线通过；需要专门环境验证。
 
@@ -28,7 +28,7 @@ DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p1-test.sqlite3 NASSAV_CONFIG_PATH=co
 
 ## Byparr 页面抓取测试
 
-`test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选、挑战页、错域校验及 MissAV 嵌入脚本误判分类；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[基线记录](../doc/byparr-session-reuse-p0-record.md)。
+`test_probe_byparr_session.py` 离线验证 P0 探测脚本的 Cookie 域名/路径/过期筛选、挑战页、错域校验及 MissAV 嵌入脚本误判分类；不会访问外站或读取生产 Cookie。运行：`uv run pytest tests/test_probe_byparr_session.py -v`。P0 现场方案与未完成证据见[验证边界与历史记录](../doc/validation-status.md)。
 
 旧的 `test_resource_samples.py`、`test_real_resource_kir062.py` 和 `test_debug_requests.py` 会访问真实目标站，默认跳过；仅设置 `NASSAV_EXTERNAL_TESTS=1` 才运行，其中资源测试可能写入测试数据库和资源文件。
 
@@ -47,7 +47,7 @@ uv run pytest tests/test_browser_fetch_integration.py -v
 
 ## 访问与业务隔离回归
 
-[项目质量与运行边界](../../docs/project-quality.md)概述访问和部署要求。本节覆盖 Cookie、设置、资源删除、推荐重置、资源添加/刷新、下载进度、WebSocket 重连和数据库备份的隔离样本。以下命令在 `django_backend/` 下运行；使用无凭证模板与 SQLite 测试库，不连接开发 PostgreSQL。删除及备份样本另用 pytest 临时目录。
+[验证边界与历史记录](../doc/validation-status.md)概述访问和部署要求。本节覆盖 Cookie、设置、资源删除、推荐重置、资源添加/刷新、下载进度、WebSocket 重连和数据库备份的隔离样本。以下命令在 `django_backend/` 下运行；使用无凭证模板与 SQLite 测试库，不连接开发 PostgreSQL。删除及备份样本另用 pytest 临时目录。
 
 ```bash
 DB_ENGINE=sqlite DATABASE_PATH=/tmp/nassav-p0-pytest.sqlite3 \
@@ -611,13 +611,13 @@ P4 离线回归包含 Cookie API 可选 UA 与旧请求清除旧 UA、复用开�
 
 ## Byparr 会话复用 P5
 
-隔离全套命令使用当前本地样例 `config/config.example.yaml`，并显式设置测试专用 `NASSAV_ENV_PATH`、`DATABASE_PATH` 与 `NASSAV_RESOURCE_DIR`。PostgreSQL 迁移与会话测试应使用单独测试实例和库；正式站点测试需要 `BROWSER_FETCH_EXTERNAL=1`，服务不可用即失败，不计入离线通过。现场样本数、门槛、24 小时观察及回滚见[P5 记录](../doc/byparr-session-reuse-p5-record.md)。
+隔离全套命令使用当前本地样例 `config/config.example.yaml`，并显式设置测试专用 `NASSAV_ENV_PATH`、`DATABASE_PATH` 与 `NASSAV_RESOURCE_DIR`。PostgreSQL 迁移与会话测试应使用单独测试实例和库；正式站点测试需要 `BROWSER_FETCH_EXTERNAL=1`，服务不可用即失败，不计入离线通过。现场样本数、门槛、24 小时观察及回滚见[验证边界与历史记录](../doc/validation-status.md)。
 
-`test_probe_byparr_media.py` 离线验证第三步隔离 A/B 的顺序平衡、控制请求只改变媒体参数、计时不串请求、失败请求仍纳入时延统计，以及业务就绪等待不会接纳错番号、挑战或缺少播放结构的页面。运行 `uv run pytest tests/test_probe_byparr_media.py -v`；线上方法与结果见[第三步实验记录](../doc/byparr-media-experiment-record.md)。
+`test_probe_byparr_media.py` 离线验证第三步隔离 A/B 的顺序平衡、控制请求只改变媒体参数、计时不串请求、失败请求仍纳入时延统计，以及业务就绪等待不会接纳错番号、挑战或缺少播放结构的页面。运行 `uv run pytest tests/test_probe_byparr_media.py -v`；线上方法与结果见[验证边界与历史记录](../doc/validation-status.md)。
 
 ## Byparr 有界等待及验收门槛
 
-`uv run pytest tests/test_byparr_bounded_wait.py tests/test_assess_byparr_acceptance.py -v` 覆盖错误页继续原等待、业务完成取消闲置任务、慢内容读取的两秒上限、总预算耗尽、请求取消和并发完成时保留原异常；门槛评估拒绝缺少第二窗口、重复番号、慢失败被剔除、直连有效率不足、浏览器调用过多和反向误接纳。在线验证只使用隔离候选，方法见[第四步验收记录](../doc/byparr-candidate-acceptance-record.md)。
+`uv run pytest tests/test_byparr_bounded_wait.py tests/test_assess_byparr_acceptance.py -v` 覆盖错误页继续原等待、业务完成取消闲置任务、慢内容读取的两秒上限、总预算耗尽、请求取消和并发完成时保留原异常；门槛评估拒绝缺少第二窗口、重复番号、慢失败被剔除、直连有效率不足、浏览器调用过多和反向误接纳。在线验证只使用隔离候选，方法见[验证边界与历史记录](../doc/validation-status.md)。
 
 - `test_jable_auto_cookie.py`：Jable 自动 Cookie API 的浏览器获取、完整会话保存、失败保护及并发手动写入保护；无额外参数，运行 `uv run pytest tests/test_jable_auto_cookie.py -v`。
 

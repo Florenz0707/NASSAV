@@ -91,7 +91,7 @@ curl -i http://127.0.0.1:9780/nassav/api/auth/session
 curl -i http://127.0.0.1:9780/nassav/api/source/list
 ```
 
-浏览器中再检查一次资源添加/刷新任务直至终态、一个实际下载的进度和文件、WebSocket 断线重连。真实外部页面和代理出口需要在目标环境按 [计划](async-scraping-compose-plan.md) 与 [P3 记录](async-scraping-p3-channel-evaluation.md) 测量；内部 TCP 和 `/healthz` 无法替代样本页验证。改端口时同步调整 `curl`。
+浏览器中再检查一次资源添加/刷新任务直至终态、一个实际下载的进度和文件、WebSocket 断线重连。真实外部页面和代理出口需要在目标环境按 [验证边界与历史记录](validation-status.md) 与 [验证边界与历史记录](validation-status.md) 测量；内部 TCP 和 `/healthz` 无法替代样本页验证。改端口时同步调整 `curl`。
 
 隔离验证可设置独立项目名与数据目录，例如 `SECRET_KEY=... NASSAV_DATA_DIR=/tmp/nassav-p4-check FRONTEND_PORT=9781 docker compose -p nassav-p4-check up -d`。不要让两个栈同时写同一 SQLite、Redis 或资源目录。
 
