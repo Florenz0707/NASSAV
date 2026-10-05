@@ -164,13 +164,21 @@ function viewResource() {
 <template>
   <div class="add-view">
     <div class="page-header">
-      <h1 class="page-title">添加资源</h1>
+      <div class="flex items-center justify-center gap-3 mb-2">
+        <h1 class="page-title">添加资源</h1>
+        <AppButton
+          variant="neutral"
+          size="sm"
+          class="rounded-lg"
+          aria-label="Cookie 设置"
+          title="Cookie 设置"
+          @click="showCookies = true"
+          ><AppIcon name="cookie"
+        /></AppButton>
+      </div>
       <p class="page-subtitle">支持单个或批量输入视频编号（换行、逗号、空格分隔）</p>
     </div>
 
-    <AppButton variant="neutral" class="mb-6" @click="showCookies = true"
-      ><AppIcon name="cookie" />Cookie 设置</AppButton
-    >
     <CookieManagementDialog v-if="showCookies" @close="showCookies = false" />
     <div class="add-form-card">
       <form class="add-form" @submit.prevent="handleSubmit">
@@ -579,7 +587,7 @@ function viewResource() {
   font-size: 2rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
 
 .page-subtitle {

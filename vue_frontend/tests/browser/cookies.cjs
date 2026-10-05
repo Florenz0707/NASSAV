@@ -38,7 +38,27 @@ const assert = require('node:assert/strict')
     assert.equal(reads, 0)
     assert.equal(await page.getByText('Cookie 管理', { exact: true }).count(), 0)
     await page.goto(origin + '/add')
-    await page.getByRole('button', { name: 'Cookie 设置', exact: true }).click()
+    const entry = page.getByRole('button', { name: 'Cookie 设置', exact: true })
+    const headingBox = await page
+      .getByRole('heading', { name: '添加资源', exact: true })
+      .boundingBox()
+    const entryBox = await entry.boundingBox()
+    assert.ok(entryBox.x >= headingBox.x + headingBox.width)
+    assert.ok(Math.abs(entryBox.y + entryBox.height / 2 - headingBox.y - headingBox.height / 2) < 2)
+    assert.equal((await entry.textContent()).trim(), '')
+    assert.equal(await entry.locator('svg').count(), 1)
+    assert.ok(
+      await entry.evaluate((button) => {
+        const style = getComputedStyle(button)
+        return parseFloat(style.borderRadius) > 0 && style.backgroundColor !== 'rgba(0, 0, 0, 0)'
+      })
+    )
+    await page.setViewportSize({ width: 390, height: 844 })
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true
+    )
+    await entry.click()
     await page.getByRole('button', { name: '更新', exact: true }).click()
     const editor = page.getByRole('dialog', { name: '设置 Cookie - Jable' })
     await editor.locator('textarea').fill('demo-cookie')
