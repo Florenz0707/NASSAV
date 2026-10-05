@@ -15,9 +15,10 @@ const assert = require('node:assert/strict')
         pagination
       if (path.endsWith('/auth/session')) data = { authenticated: true, username: 'audit' }
       if (path.endsWith('/setting')) data = { color_mode: 'light', enable_avatar: 'false' }
-      if (path.endsWith('/actors') || path.endsWith('/resources')) {
+      if (path.endsWith('/actors') || path.endsWith('/genres') || path.endsWith('/resources')) {
         requests.push(url)
-        data = Array.from({ length: 15 }, (_, i) => ({
+        const size = Number(url.searchParams.get('page_size'))
+        data = Array.from({ length: size }, (_, i) => ({
           id: i + 1,
           name: 'Actor ' + i,
           avid: 'DEMO-' + i,
@@ -25,27 +26,32 @@ const assert = require('node:assert/strict')
           resource_count: 1,
           downloaded: false,
         }))
-        pagination = { total: 30, page: 1, page_size: 15, pages: 2 }
+        pagination = { total: size * 2, page: 1, page_size: size, pages: 2 }
       }
       return route.fulfill({ json: { code: 200, data, pagination } })
     })
-    for (const path of ['/resources/actors', '/resources']) {
+    for (const [path, columns, size] of [
+      ['/resources/actors', 5, 15],
+      ['/resources/genres', 5, 18],
+      ['/resources', 3, 15],
+    ]) {
       await page.setViewportSize({ width: 1440, height: 1000 })
       await page.goto((process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178') + path)
       await page.waitForFunction(
-        () =>
-          document.querySelector('.library-grid')?.children.length === 15 &&
-          !document.querySelector('.skeleton-card')
+        (count) =>
+          document.querySelector('.library-grid')?.children.length === count &&
+          !document.querySelector('.skeleton-card'),
+        size
       )
-      assert.equal(requests.at(-1).searchParams.get('page_size'), '15')
+      assert.equal(requests.at(-1).searchParams.get('page_size'), String(size))
       const boxes = await page.locator('.library-grid > *').evaluateAll((els) =>
         els.map((el) => {
           const r = el.getBoundingClientRect()
           return [Math.round(r.x), Math.round(r.y)]
         })
       )
-      assert.equal(new Set(boxes.map(([x]) => x)).size, 5)
-      assert.equal(new Set(boxes.map(([, y]) => y)).size, 3)
+      assert.equal(new Set(boxes.map(([x]) => x)).size, columns)
+      assert.equal(new Set(boxes.map(([, y]) => y)).size, Math.ceil(size / columns))
       await page.setViewportSize({ width: 390, height: 844 })
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -54,7 +60,7 @@ const assert = require('node:assert/strict')
     }
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: actors/resources request 15 items, desktop five columns by three rows, mobile no overflow'
+      'PASS: actors/genres use five columns, resources use three columns, page sizes preserved, mobile no overflow'
     )
   } finally {
     await browser.close()

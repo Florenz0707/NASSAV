@@ -532,7 +532,7 @@ select option {
   }
 }
 
-/* Fifteen-item libraries: five columns on desktop, responsive on smaller screens. */
+/* Directories use five desktop columns; resource cards use three. */
 .library-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -550,5 +550,11 @@ select option {
 @media (min-width: 1200px) {
   .library-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .resource-library-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

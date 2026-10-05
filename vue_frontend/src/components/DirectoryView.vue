@@ -118,7 +118,7 @@ onBeforeUnmount(() => {
     <p v-if="store.error" class="text-accent-danger mb-4" role="alert">{{ store.error }}</p>
     <LoadingSpinner v-if="store.loading" text="正在加载..." role="status" />
     <EmptyState v-else-if="!store.error && !store.groups.length" title="暂无匹配结果" />
-    <div class="directory-grid" :class="{ 'library-grid': actor }">
+    <div class="directory-grid library-grid">
       <component
         :is="actor ? ActorGroupCard : GenreGroupCard"
         v-for="item in store.groups"
@@ -140,10 +140,6 @@ onBeforeUnmount(() => {
 </template>
 <style scoped>
 .directory-grid {
-  display: grid;
-  &:not(.library-grid) {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  }
   gap: 1rem;
 }
 </style>

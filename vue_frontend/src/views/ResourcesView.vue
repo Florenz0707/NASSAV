@@ -381,7 +381,7 @@ function onPageSizeChange(newSize) {
       </template>
     </ConfirmDialog>
     <!-- Skeleton Loading -->
-    <div v-if="resourceStore.loading" class="library-grid gap-6">
+    <div v-if="resourceStore.loading" class="library-grid resource-library-grid gap-6">
       <div
         v-for="i in pageSize"
         :key="i"
@@ -403,7 +403,7 @@ function onPageSizeChange(newSize) {
     </EmptyState>
 
     <!-- Resources Grid -->
-    <div v-else class="library-grid gap-6">
+    <div v-else class="library-grid resource-library-grid gap-6">
       <ResourceCard
         v-for="resource in filteredResources"
         :key="resource.avid"
