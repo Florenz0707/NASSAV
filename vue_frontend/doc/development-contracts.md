@@ -22,6 +22,7 @@
 主题值定义在 `src/styles/main.css`，Tailwind 映射定义在 `tailwind.config.js`，入口保留显式 `@config`。独立组件不得新增十六进制、rgb/rgba 等颜色字面量；使用语义工具类或已定义 CSS token。新增 token 同时提供深浅主题并检查生成的类和实际样式，不能仅凭类名判断生效。
 
 - 背景为 `bg-primary`、`bg-secondary`；文字为 `text-primary`、`text-secondary`、`text-muted`，不得混用背景和文字的 primary 映射。
+- ResourceCard 的 AVID 徽标使用主强调色文字和淡强调色背景；不套用实心主强调背景的浅色文字规则。
 - 主强调背景上的文字与头像开关圆点使用固定浅色 `on-accent` token（对应深色主题正文色），不随浅色主题变暗。
 - 交互使用 accent 系列；危险、成功、警告和信息分别使用对应语义 token。边框使用 `--border-color` 对应默认 `border`，浅表面使用 `surface-subtle`，阴影复用预设；不新建固定白色边框或独立状态色。
 - 操作按钮优先使用 `AppButton` 的 `primary`、`neutral`、`danger` 及 loading/disabled 状态；搜索、分页、下拉和确认复用 `SearchInput`、`ResourcePagination`、`CustomSelect`、`ConfirmDialog`。
@@ -30,7 +31,7 @@
 
 弹窗复用 `useDialog`：初始可见、嵌套、关闭和卸载均处理焦点、滚动锁及清理；仅最顶层响应 Escape/Tab。下拉保持键盘导航、禁用项跳过与交互属性传递。无文本按钮提供可访问名称，表单提供关联标签。设置子面板通过事件更新父状态，保持即时预览与手动保存的区别。
 
-演员库和资源库默认每页 15 项，类别目录默认每页 18 项；桌面资源库每行三项，演员和类别目录每行五项，小屏响应式；请求 page_size、URL 默认值和占位布局同步维护。Cookie 管理入口位于添加资源标题右侧，使用带饼干 SVG 图标的圆角矩形按钮（保留可访问名称）；仅在弹窗打开时加载，来源共享会话的后端作用范围保持不变。
+演员库和资源库默认每页 15 项，类别目录默认每页 18 项；桌面资源库每行三项，演员和类别目录每行五项，小屏响应式；请求 page_size、URL 默认值和占位布局同步维护。Cookie 管理入口位于添加资源表单的提交按钮右侧，使用带饼干 SVG 图标的圆角矩形按钮（保留可访问名称）；仅在弹窗打开时加载，来源共享会话的后端作用范围保持不变。
 
 ## 异步、缓存与失败
 

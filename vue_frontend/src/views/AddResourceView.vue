@@ -164,18 +164,7 @@ function viewResource() {
 <template>
   <div class="add-view">
     <div class="page-header">
-      <div class="flex items-center justify-center gap-3 mb-2">
-        <h1 class="page-title">添加资源</h1>
-        <AppButton
-          variant="neutral"
-          size="sm"
-          class="rounded-lg"
-          aria-label="Cookie 设置"
-          title="Cookie 设置"
-          @click="showCookies = true"
-          ><AppIcon name="cookie"
-        /></AppButton>
-      </div>
+      <h1 class="page-title">添加资源</h1>
       <p class="page-subtitle">支持单个或批量输入视频编号（换行、逗号、空格分隔）</p>
     </div>
 
@@ -212,25 +201,35 @@ function viewResource() {
           <p class="form-hint">选择自动将依次尝试所有可用源</p>
         </div>
 
-        <button
-          type="submit"
-          class="btn-primary w-full text-lg flex items-center justify-center gap-2 rounded-lg px-6 py-4 hover:bg-opacity-80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="submitting || parseAvids().length === 0"
-        >
-          <LoadingSpinner v-if="submitting" size="small" />
-          <template v-else>
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" stroke-width="2" />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v8M8 12h8"
-              />
-            </svg>
-            {{ parseAvids().length > 1 ? `批量添加 (${parseAvids().length})` : '添加资源' }}
-          </template>
-        </button>
+        <div class="flex items-stretch gap-3">
+          <button
+            type="submit"
+            class="btn-primary flex-1 min-w-0 text-lg flex items-center justify-center gap-2 rounded-lg px-6 py-4 hover:bg-opacity-80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="submitting || parseAvids().length === 0"
+          >
+            <LoadingSpinner v-if="submitting" size="small" />
+            <template v-else>
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="2" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v8M8 12h8"
+                />
+              </svg>
+              {{ parseAvids().length > 1 ? `批量添加 (${parseAvids().length})` : '添加资源' }}
+            </template>
+          </button>
+          <AppButton
+            variant="neutral"
+            class="rounded-lg px-4 shrink-0"
+            aria-label="Cookie 设置"
+            title="Cookie 设置"
+            @click="showCookies = true"
+            ><AppIcon name="cookie"
+          /></AppButton>
+        </div>
       </form>
     </div>
 
@@ -587,7 +586,7 @@ function viewResource() {
   font-size: 2rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0;
+  margin: 0 0 0.5rem;
 }
 
 .page-subtitle {

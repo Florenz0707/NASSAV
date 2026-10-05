@@ -52,6 +52,26 @@ const assert = require('node:assert/strict')
       )
       assert.equal(new Set(boxes.map(([x]) => x)).size, columns)
       assert.equal(new Set(boxes.map(([, y]) => y)).size, Math.ceil(size / columns))
+      if (path === '/resources') {
+        const badge = page.getByText('DEMO-0', { exact: true })
+        for (const theme of ['dark', 'light']) {
+          await page.evaluate((mode) => {
+            document.body.classList.remove('dark-mode', 'light-mode')
+            document.body.classList.add(mode + '-mode')
+          }, theme)
+          assert.equal(
+            await badge.evaluate((element) => {
+              const probe = document.createElement('span')
+              probe.style.color = 'var(--accent-primary)'
+              element.append(probe)
+              const matches = getComputedStyle(element).color === getComputedStyle(probe).color
+              probe.remove()
+              return matches
+            }),
+            true
+          )
+        }
+      }
       await page.setViewportSize({ width: 390, height: 844 })
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
