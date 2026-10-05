@@ -1,5 +1,5 @@
 <template>
-  <div class="actor-card" @click="$emit('click')">
+  <button type="button" class="actor-card" @click="$emit('click')">
     <div class="avatar">
       <div class="avatar-circle" :style="{ backgroundColor: bgColor }">
         <img
@@ -16,7 +16,7 @@
       {{ actor.name }}
     </div>
     <div class="actor-count">共有 {{ actor.resource_count }} 部作品</div>
-  </div>
+  </button>
 </template>
 
 <script setup>
@@ -53,6 +53,8 @@ const bgColor = computed(() => {
   padding: 12px;
   border-radius: 8px;
   cursor: pointer;
+  border: 0;
+  font: inherit;
   background: transparent;
   transition:
     transform 0.18s ease,

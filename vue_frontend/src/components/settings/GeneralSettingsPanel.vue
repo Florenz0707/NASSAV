@@ -1,4 +1,5 @@
 <script setup>
+import AppButton from '../AppButton.vue'
 import CustomSelect from '../CustomSelect.vue'
 
 const props = defineProps({
@@ -187,13 +188,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
       </div>
 
       <div class="flex pt-4 justify-end min-w-full">
-        <button
-          class="px-6 py-2.5 text-white rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)]"
-          style="background: var(--accent-primary)"
-          @click="emit('save')"
-        >
-          保存设置
-        </button>
+        <AppButton @click="emit('save')">保存设置</AppButton>
       </div>
     </div>
   </div>

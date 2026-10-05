@@ -315,7 +315,7 @@ function viewResource() {
                 </svg>
                 <svg
                   v-else
-                  class="w-4 h-4 text-text-muted"
+                  class="w-4 h-4 text-muted"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -343,7 +343,7 @@ function viewResource() {
                 </svg>
                 <svg
                   v-else
-                  class="w-4 h-4 text-text-muted"
+                  class="w-4 h-4 text-muted"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -375,7 +375,7 @@ function viewResource() {
                 </svg>
                 <svg
                   v-else
-                  class="w-4 h-4 text-text-muted"
+                  class="w-4 h-4 text-muted"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

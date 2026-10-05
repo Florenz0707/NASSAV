@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import SearchInput from './SearchInput.vue'
 import CustomSelect from './CustomSelect.vue'
 
 const props = defineProps({
@@ -40,10 +41,6 @@ const emit = defineEmits([
   'update:sortOrder',
   'sortChange',
 ])
-
-function handleSearchInput(event) {
-  emit('update:searchQuery', event.target.value)
-}
 
 function handleFilterChange(event) {
   emit('update:filterStatus', event.target.value)
@@ -96,30 +93,12 @@ const sortOrderOptions = [
 
 <template>
   <div class="flex gap-4 mb-6 flex-wrap">
-    <!-- Search Box -->
-    <div class="flex-1 min-w-[250px] relative">
-      <svg
-        class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5"
-        style="color: var(--text-muted)"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-        />
-      </svg>
-      <input
-        :value="searchQuery"
-        type="text"
-        placeholder="搜索标题..."
-        class="search-input w-full py-3.5 px-4 pl-12 border rounded-xl text-[0.95rem] transition-all duration-200 focus:outline-none"
-        @input="handleSearchInput"
-      />
-    </div>
+    <SearchInput
+      :model-value="searchQuery"
+      placeholder="搜索标题..."
+      class="basis-full sm:basis-auto"
+      @update:model-value="emit('update:searchQuery', $event)"
+    />
 
     <!-- Filters -->
     <div class="flex gap-3 flex-wrap">
@@ -148,19 +127,6 @@ const sortOrderOptions = [
 </template>
 
 <style scoped>
-.search-input {
-  background: var(--bg-input);
-  border-color: var(--border-color);
-  color: var(--text-primary);
-}
-.search-input::placeholder {
-  color: var(--text-muted);
-}
-.search-input:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 10%, transparent);
-}
-
 .filter-select {
   min-width: 8.5rem;
 }

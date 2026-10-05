@@ -1,54 +1,21 @@
 <template>
   <div class="mt-8 w-full">
     <div class="flex flex-wrap items-center justify-center gap-2 mb-3">
-      <button
-        :disabled="page === 1"
-        class="hidden sm:inline-flex px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
-        @click="goFirst"
-      >
+      <AppButton :disabled="page === 1" class="hidden sm:inline-flex" @click="goFirst">
         跳转开头
-      </button>
-      <button
-        :disabled="page === 1"
-        class="px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
-        @click="goPrev"
-      >
-        上一页
-      </button>
-      <div
-        class="px-4 py-2 rounded-md bg-surface-subtle/[0.03] text-sm"
-        style="color: var(--text-primary)"
-      >
+      </AppButton>
+      <AppButton :disabled="page === 1" @click="goPrev"> 上一页 </AppButton>
+      <div class="px-4 py-2 rounded-lg bg-secondary text-primary text-sm">
         第 {{ page }} 页 / 共 {{ pages }} 页
       </div>
-      <button
-        :disabled="page === pages"
-        class="px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
-        @click="goNext"
-      >
-        下一页
-      </button>
-      <button
-        :disabled="page === pages"
-        class="hidden sm:inline-flex px-4 py-2 rounded-lg text-white shadow-md transition-transform duration-200 hover:-translate-y-1 disabled:opacity-50 disabled:translate-y-0"
-        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
-        @click="goLast"
-      >
+      <AppButton :disabled="page === pages" @click="goNext"> 下一页 </AppButton>
+      <AppButton :disabled="page === pages" class="hidden sm:inline-flex" @click="goLast">
         跳转末尾
-      </button>
+      </AppButton>
     </div>
     <div class="flex flex-wrap items-center justify-center gap-3">
       <div class="flex items-center gap-2">
-        <button
-          class="px-3 py-1 rounded-md text-white shadow-md text-sm"
-          style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
-          @click="emitGoTo(localPage)"
-        >
-          跳转至第
-        </button>
+        <AppButton size="sm" @click="emitGoTo(localPage)"> 跳转至第 </AppButton>
         <input
           v-model.number="localPage"
           type="number"
@@ -75,10 +42,12 @@
 </template>
 
 <script>
+import AppButton from './AppButton.vue'
 import { defineComponent, ref, watch } from 'vue'
 
 export default defineComponent({
   name: 'ResourcePagination',
+  components: { AppButton },
   props: {
     page: { type: Number, required: true },
     pages: { type: Number, required: true },
@@ -117,12 +86,15 @@ export default defineComponent({
     }
 
     function emitGoTo(p) {
-      const np = Number(p) || 1
+      const np = Math.trunc(Number(p)) || 1
       emit('change-page', Math.max(1, Math.min(props.pages, np)))
     }
 
     function emitPageSizeChange() {
-      const ns = Number(localPageSize.value) || props.pageSize
+      const ns = Math.max(
+        1,
+        Math.min(200, Math.trunc(Number(localPageSize.value)) || props.pageSize)
+      )
       emit('change-page-size', ns)
     }
 

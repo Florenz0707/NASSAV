@@ -836,7 +836,7 @@ function goBack() {
         >
           {{ cancellingExternal ? '正在取消…' : '取消搜索' }}
         </button>
-        <span class="text-text-secondary text-sm">搜索源</span>
+        <span class="text-secondary text-sm">搜索源</span>
         <CustomSelect
           :model-value="externalSource"
           :options="sourceOptions"
@@ -852,8 +852,8 @@ function goBack() {
           重新加载搜索源
         </button>
       </div>
-      <p v-if="sourcesError" class="text-text-muted mb-4" role="alert">{{ sourcesError }}</p>
-      <p v-if="externalSource === 'missav'" class="text-text-muted text-sm mb-4">
+      <p v-if="sourcesError" class="text-muted mb-4" role="alert">{{ sourcesError }}</p>
+      <p v-if="externalSource === 'missav'" class="text-muted text-sm mb-4">
         缺少演员或类别映射时按名称关键词匹配；排序沿用源站，列表不提供播放量和收藏量数值。
       </p>
       <p v-if="loadingExternal" class="text-muted text-sm mb-4" role="status">
@@ -876,7 +876,7 @@ function goBack() {
       <p v-if="externalError" class="text-accent-danger mb-4" role="alert">
         搜索失败：{{ externalError }}
       </p>
-      <p v-if="externalCancelled" class="text-text-muted mb-4 text-center" role="status">
+      <p v-if="externalCancelled" class="text-muted mb-4 text-center" role="status">
         搜索已取消，已获取的结果仍可查看。
       </p>
       <div
@@ -884,7 +884,7 @@ function goBack() {
         class="flex flex-col items-center justify-center py-20 text-center"
       >
         <svg
-          class="w-10 h-10 mb-4 text-text-muted"
+          class="w-10 h-10 mb-4 text-muted"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

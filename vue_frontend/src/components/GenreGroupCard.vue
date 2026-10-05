@@ -1,5 +1,5 @@
 <template>
-  <div class="genre-card" @click="$emit('click')">
+  <button type="button" class="genre-card" @click="$emit('click')">
     <div class="genre-icon">
       <div class="icon-circle" :style="{ backgroundColor: bgColor }">
         <span class="icon-text">{{ iconText }}</span>
@@ -9,7 +9,7 @@
       {{ genre.name }}
     </div>
     <div class="genre-count">共有 {{ genre.resource_count }} 部作品</div>
-  </div>
+  </button>
 </template>
 
 <script>
@@ -40,6 +40,8 @@ export default {
   padding: 12px;
   border-radius: 8px;
   cursor: pointer;
+  border: 0;
+  font: inherit;
   background: transparent;
   transition:
     transform 0.18s ease,
