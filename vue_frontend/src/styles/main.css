@@ -531,3 +531,24 @@ select option {
     background: var(--bg-overlay);
   }
 }
+
+/* Fifteen-item libraries: five columns on desktop, responsive on smaller screens. */
+.library-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 640px) {
+  .library-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 900px) {
+  .library-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .library-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}

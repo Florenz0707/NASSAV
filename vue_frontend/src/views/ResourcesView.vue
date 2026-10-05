@@ -109,7 +109,7 @@ const router = useRouter()
 
 // 从 URL query 初始化状态
 const page = ref(parseInt(route.query.page) || 1)
-const pageSize = ref(parseInt(route.query.pageSize) || 18)
+const pageSize = ref(parseInt(route.query.pageSize) || 15)
 const searchQuery = ref(route.query.search || '')
 const filterStatus = ref(route.query.status || 'all')
 const sortBy = ref(route.query.sortBy || 'metadata_create_time')
@@ -130,7 +130,7 @@ watch(
     const query = {
       page: page.value,
     }
-    if (pageSize.value !== 18) query.pageSize = pageSize.value
+    if (pageSize.value !== 15) query.pageSize = pageSize.value
     if (searchQuery.value) query.search = searchQuery.value
     if (filterStatus.value !== 'all') query.status = filterStatus.value
     if (sortBy.value !== 'metadata_create_time') query.sortBy = sortBy.value
@@ -381,12 +381,9 @@ function onPageSizeChange(newSize) {
       </template>
     </ConfirmDialog>
     <!-- Skeleton Loading -->
-    <div
-      v-if="resourceStore.loading"
-      class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6"
-    >
+    <div v-if="resourceStore.loading" class="library-grid gap-6">
       <div
-        v-for="i in 6"
+        v-for="i in pageSize"
         :key="i"
         class="skeleton-card rounded-2xl overflow-hidden"
         style="height: 380px"
@@ -406,7 +403,7 @@ function onPageSizeChange(newSize) {
     </EmptyState>
 
     <!-- Resources Grid -->
-    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-6">
+    <div v-else class="library-grid gap-6">
       <ResourceCard
         v-for="resource in filteredResources"
         :key="resource.avid"
