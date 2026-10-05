@@ -1,5 +1,7 @@
 <script setup>
 import { createRequestGuard } from '../utils/requestGuard.js'
+import AppIcon from '../components/AppIcon.vue'
+import SettingsModal from '../components/settings/SettingsModal.vue'
 import AppButton from '../components/AppButton.vue'
 import { useExternalSearchTask } from '../composables/useExternalSearchTask.js'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -56,6 +58,7 @@ const entity = ref({ id: entityId.value, name: '', resource_count: 0, avatar_url
 const toastStore = useToastStore()
 
 // External Search states
+const showSearchSettings = ref(false)
 const externalSearched = ref(false)
 const loadingExternal = ref(false)
 const externalResources = ref([])
@@ -888,8 +891,24 @@ function goBack() {
       />
     </div>
 
+    <SettingsModal :show="showSearchSettings" title="搜索设置" @close="showSearchSettings = false">
+      <label class="block text-secondary mb-3">搜索源</label>
+      <CustomSelect
+        :model-value="externalSource"
+        :options="sourceOptions"
+        aria-label="搜索源"
+        :disabled="loadingExternal"
+        full-width
+        @update:model-value="onExternalSourceChange"
+      />
+      <p class="text-muted text-sm mt-4">选择来源后，点击开始搜索。更改来源不会自动搜索。</p>
+      <template #footer><AppButton @click="showSearchSettings = false">完成</AppButton></template>
+    </SettingsModal>
     <div v-show="currentTab === 'external'">
-      <div class="flex flex-col items-center gap-3 mb-6">
+      <div
+        class="flex justify-center items-center gap-3"
+        :class="externalSearched ? 'mb-6' : 'py-20'"
+      >
         <AppButton
           v-if="!loadingExternal"
           :disabled="!sourcesReady || !externalSource"
@@ -905,14 +924,14 @@ function goBack() {
         >
           {{ cancellingExternal ? '正在取消…' : '取消搜索' }}
         </AppButton>
-        <span class="text-secondary text-sm">搜索源</span>
-        <CustomSelect
-          :model-value="externalSource"
-          :options="sourceOptions"
+        <AppButton
+          variant="neutral"
+          size="sm"
+          aria-label="搜索设置"
           :disabled="loadingExternal"
-          class="w-36"
-          @update:model-value="onExternalSourceChange"
-        />
+          @click="showSearchSettings = true"
+          ><AppIcon name="settings"
+        /></AppButton>
         <button
           v-if="sourcesError"
           class="tw-btn tw-btn-primary rounded-lg px-3 py-2"
@@ -949,38 +968,17 @@ function goBack() {
         搜索已取消，已获取的结果仍可查看。
       </p>
       <div
-        v-if="!externalSearched && !loadingExternal"
-        class="flex flex-col items-center justify-center py-20 text-center"
-      >
-        <svg
-          class="w-10 h-10 mb-4 text-muted"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-        >
-          <circle cx="12" cy="12" r="9" />
-          <path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18" />
-        </svg>
-        <h3 class="text-xl font-medium text-[var(--text-primary)] mb-2">外部搜索</h3>
-        <p class="text-[var(--text-muted)] mb-6 max-w-md">
-          点击上方按钮，开始使用所选外部数据源 搜索与该{{
-            entityLabel
-          }}相关的资源。搜索过程可能需要一些时间，请耐心等待。
-        </p>
-      </div>
-
-      <div
-        v-else-if="loadingExternal && externalResources.length === 0"
+        v-if="loadingExternal && externalResources.length === 0"
         class="flex items-center justify-center py-20"
       >
         <LoadingSpinner size="large" text="正在执行外部搜索，请耐心等待..." />
       </div>
 
-      <template v-else>
+      <template v-else-if="externalSearched">
         <div
           class="mb-4 text-sm text-[var(--text-muted)] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         >
-          <span>来源: {{ externalSource }}</span>
+          <span>已获取 {{ externalPagination?.total || 0 }} 项结果</span>
           <div class="flex items-center gap-2">
             <span class="text-[var(--text-muted)]">排序</span>
             <CustomSelect
