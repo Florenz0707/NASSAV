@@ -25,7 +25,7 @@ const selected = computed(
 const count = (s) => typeTasks.value.filter((t) => t.state === s).length
 const resourceName = (task) => task.title || task.avid
 const taskType = (task) =>
-  task.type === 'download' ? '下载' : task.action === 'refresh' ? '刷新刮削' : '新增刮削'
+  task.type === 'download' ? '下载' : task.action === 'refresh' ? '刷新资源' : '新增资源'
 const progress = (task) =>
   task.state === 'queued'
     ? '尚未开始'
@@ -99,9 +99,9 @@ const progress = (task) =>
           </caption>
           <thead>
             <tr class="border-b text-secondary border-[var(--border-color)]">
-              <th class="p-4 text-left">资源 / 任务</th>
+              <th class="p-4 text-left">任务</th>
               <th class="p-4 text-left">状态</th>
-              <th class="p-4 text-left">进度 / 阶段</th>
+              <th class="p-4 text-left">阶段</th>
             </tr>
           </thead>
           <tbody>
@@ -169,9 +169,6 @@ const progress = (task) =>
           class="w-full aspect-video mb-4"
         />
         <h3 class="text-primary font-medium break-words">{{ resourceName(selected) }}</h3>
-        <p v-if="!selected.title" class="text-muted text-xs mt-2">
-          正在获取资源信息，暂以 AVID 标识任务。
-        </p>
         <p class="text-muted text-sm mt-2">
           {{ selected.avid }} · {{ taskType(selected) }} ·
           {{ labels[selected.state] || '状态未知' }}
@@ -188,7 +185,7 @@ const progress = (task) =>
             {{ progress(selected) }} · {{ selected.speed || '—' }}
           </p>
           <p class="text-muted text-xs mt-2">
-            {{ selected.downloaded || '0 MB' }} / {{ selected.total || '大小待获取' }}
+            {{ selected.downloaded || '0 MB' }} / {{ selected.total || '体积待获取' }}
           </p></template
         >
         <ol v-else class="space-y-2 mt-5">
@@ -201,20 +198,14 @@ const progress = (task) =>
             {{ selected.stage === key ? '→ ' : '' }}{{ label }}
           </li>
         </ol>
-        <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
-          {{ selected.error }}
-        </p>
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm mt-5">
           <dt class="text-muted">任务编号</dt>
           <dd class="text-secondary break-all">{{ selected.taskId || selected.id }}</dd>
           <dt class="text-muted">最近更新</dt>
           <dd class="text-secondary">{{ selected.updated || '—' }}</dd>
         </dl>
-        <p
-          v-if="selected.type === 'scrape' && selected.state === 'succeeded'"
-          class="text-muted text-xs mt-4"
-        >
-          刮削已完成；翻译排队不代表翻译完成。
+        <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
+          {{ selected.error }}
         </p>
         <slot name="details" :task="selected" />
       </aside>

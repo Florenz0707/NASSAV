@@ -1,11 +1,11 @@
 export const TERMINAL_JOB_STATES = new Set(['succeeded', 'failed'])
 
 export const SCRAPE_STAGE_LABELS = {
-  source_lookup: '正在查找资源',
-  metadata: '正在获取元数据',
-  cover: '正在下载封面',
-  saving: '正在保存',
-  translation_queued: '正在提交翻译',
+  source_lookup: '查找资源',
+  metadata: '获取元数据',
+  cover: '下载封面',
+  saving: '保存',
+  translation_queued: '提交翻译',
 }
 
 export function scrapeJobLabel(job) {
