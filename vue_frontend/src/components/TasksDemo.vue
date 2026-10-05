@@ -1,22 +1,12 @@
 <script setup>
-// PROTOTYPE: three task-detail layouts on /downloads?demo=tasks&variant=list|board|timeline.
+// PROTOTYPE: selected list/detail layout on /downloads?demo=tasks.
 // All task state is synthetic and memory-only; no backend mutations.
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
 import AppButton from './AppButton.vue'
 import AppIcon from './AppIcon.vue'
 import CustomSelect from './CustomSelect.vue'
 import EmptyState from './EmptyState.vue'
-import PrototypeSwitcher from './PrototypeSwitcher.vue'
-const route = useRoute()
-const variants = [
-  { value: 'list', label: 'A · 列表与详情' },
-  { value: 'board', label: 'B · 状态看板' },
-  { value: 'timeline', label: 'C · 活动时间线' },
-]
-const variant = computed(() =>
-  variants.some((v) => v.value === route.query.variant) ? route.query.variant : 'list'
-)
+import DemoResourceCover from './DemoResourceCover.vue'
 const type = ref('all'),
   state = ref('all'),
   selectedId = ref('d1')
@@ -33,7 +23,8 @@ const tasks = ref([
     id: 'd1',
     type: 'download',
     avid: 'DEMO-001',
-    title: '示例资源 · 正在下载',
+    title: '雨后森林的清晨',
+    coverScene: 'forest',
     state: 'running',
     percent: 45,
     speed: '5.2 MB/s',
@@ -45,7 +36,8 @@ const tasks = ref([
     id: 's1',
     type: 'scrape',
     avid: 'DEMO-002',
-    title: '新资源 · 获取元数据',
+    title: '',
+    coverScene: '',
     state: 'running',
     action: 'add',
     stage: 'metadata',
@@ -55,7 +47,8 @@ const tasks = ref([
     id: 'd2',
     type: 'download',
     avid: 'DEMO-003',
-    title: '示例资源 · 等待下载',
+    title: '山间来信：沿着溪流走向远方',
+    coverScene: 'mountain',
     state: 'queued',
     percent: 0,
     updated: '14:31:20',
@@ -64,7 +57,8 @@ const tasks = ref([
     id: 's2',
     type: 'scrape',
     avid: 'DEMO-004',
-    title: '刷新资源 · 来源超时',
+    title: '暮色中的海岸',
+    coverScene: 'coast',
     state: 'failed',
     action: 'refresh',
     stage: 'metadata',
@@ -75,7 +69,8 @@ const tasks = ref([
     id: 'd3',
     type: 'download',
     avid: 'DEMO-005',
-    title: '示例资源 · 下载完成',
+    title: '城市夜行：最后一班列车',
+    coverScene: 'city',
     state: 'succeeded',
     percent: 100,
     downloaded: '800 MB',
@@ -86,7 +81,8 @@ const tasks = ref([
     id: 's3',
     type: 'scrape',
     avid: 'DEMO-006',
-    title: '新资源 · 保存完成',
+    title: '海边的一日',
+    coverScene: 'coast',
     state: 'succeeded',
     action: 'add',
     stage: 'translation_queued',
@@ -103,6 +99,7 @@ const selected = computed(
   () => visible.value.find((t) => t.id === selectedId.value) || visible.value[0]
 )
 const count = (s) => typeTasks.value.filter((t) => t.state === s).length
+const resourceName = (task) => task.title || task.avid
 const taskType = (task) =>
   task.type === 'download' ? '下载' : task.action === 'refresh' ? '刷新刮削' : '新增刮削'
 const progress = (task) =>
@@ -176,21 +173,20 @@ function advance() {
       />
     </div>
     <EmptyState v-if="!visible.length" title="暂无此类任务" />
-    <div
-      v-else
-      class="grid gap-6"
-      :class="
-        variant === 'board' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px]'
-      "
-    >
+    <div v-else class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
       <div
-        v-if="variant === 'list'"
         class="overflow-x-auto bg-secondary border rounded-xl min-w-0 border-[var(--border-color)]"
       >
         <table class="w-full text-sm">
+          <caption class="text-left p-4 text-secondary">
+            {{
+              visible.length
+            }}
+            个任务 · 点击资源查看明细
+          </caption>
           <thead>
             <tr class="border-b text-secondary border-[var(--border-color)]">
-              <th class="p-4 text-left">任务</th>
+              <th class="p-4 text-left">资源 / 任务</th>
               <th class="p-4 text-left">状态</th>
               <th class="p-4 text-left">进度 / 阶段</th>
             </tr>
@@ -200,15 +196,29 @@ function advance() {
               v-for="task in visible"
               :key="task.id"
               class="border-b hover:bg-surface-subtle/5 border-[var(--border-color)]"
+              :class="selected?.id === task.id ? 'bg-accent-primary/10' : ''"
             >
               <td class="p-4">
                 <button
-                  class="text-primary text-left"
+                  class="flex items-center gap-3 w-full text-primary text-left min-w-[240px]"
+                  :aria-label="resourceName(task) + '，查看任务明细'"
                   :aria-pressed="selected?.id === task.id"
                   @click="selectedId = task.id"
                 >
-                  <span class="block font-medium">{{ task.title }}</span
-                  ><span class="text-muted text-xs">{{ task.avid }} · {{ taskType(task) }}</span>
+                  <DemoResourceCover
+                    :scene="task.coverScene"
+                    :title="resourceName(task)"
+                    class="w-24 h-16 shrink-0"
+                  />
+                  <span class="min-w-0">
+                    <span class="block font-medium line-clamp-2">{{ resourceName(task) }}</span>
+                    <span class="block text-muted text-xs mt-1"
+                      >{{ task.avid }} · {{ taskType(task) }}</span
+                    >
+                    <span v-if="!task.title" class="block text-muted text-xs mt-1"
+                      >资源名称尚未获取</span
+                    >
+                  </span>
                 </button>
               </td>
               <td
@@ -217,54 +227,18 @@ function advance() {
               >
                 {{ labels[task.state] }}
               </td>
-              <td class="p-4 text-secondary whitespace-nowrap">{{ progress(task) }}</td>
+              <td class="p-4 text-secondary whitespace-nowrap">
+                <span class="block">{{ progress(task) }}</span>
+                <span
+                  v-if="task.type === 'download' && task.state === 'running'"
+                  class="text-muted text-xs"
+                  >{{ task.speed }}</span
+                >
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div
-        v-else-if="variant === 'board'"
-        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
-      >
-        <section
-          v-for="(label, key) in labels"
-          :key="key"
-          class="bg-secondary border rounded-xl p-4 border-[var(--border-color)]"
-        >
-          <h2 class="text-primary font-semibold mb-4">{{ label }}</h2>
-          <div class="space-y-3">
-            <button
-              v-for="task in visible.filter((t) => t.state === key)"
-              :key="task.id"
-              class="w-full text-left bg-primary border rounded-lg p-3 hover:border-accent-primary"
-              @click="selectedId = task.id"
-            >
-              <span class="text-muted text-xs">{{ taskType(task) }} · {{ task.avid }}</span
-              ><span class="block text-primary my-2">{{ task.title }}</span
-              ><span class="text-secondary text-sm">{{ progress(task) }}</span>
-            </button>
-            <p v-if="!visible.some((t) => t.state === key)" class="text-muted text-sm">暂无任务</p>
-          </div>
-        </section>
-      </div>
-      <ol v-else class="border-l pl-6 space-y-5 border-[var(--border-color)]">
-        <li
-          v-for="task in visible"
-          :key="task.id"
-          class="bg-secondary border rounded-xl p-4 border-[var(--border-color)]"
-        >
-          <time class="text-muted text-xs">{{ task.updated }}</time
-          ><button
-            class="block text-primary font-semibold my-2 text-left"
-            @click="selectedId = task.id"
-          >
-            {{ task.title }}
-          </button>
-          <p class="text-secondary text-sm">
-            {{ taskType(task) }} · {{ labels[task.state] }} · {{ progress(task) }}
-          </p>
-        </li>
-      </ol>
       <aside
         v-if="selected"
         class="bg-secondary border rounded-xl p-5 min-w-0 border-[var(--border-color)]"
@@ -274,7 +248,15 @@ function advance() {
           <AppIcon :name="selected.type === 'download' ? 'download' : 'bolt'" />
           <h2 class="font-semibold">任务明细</h2>
         </div>
-        <h3 class="text-primary font-medium">{{ selected.title }}</h3>
+        <DemoResourceCover
+          :scene="selected.coverScene"
+          :title="resourceName(selected)"
+          class="w-full aspect-video mb-4"
+        />
+        <h3 class="text-primary font-medium break-words">{{ resourceName(selected) }}</h3>
+        <p v-if="!selected.title" class="text-muted text-xs mt-2">
+          正在获取资源信息，暂以 AVID 标识任务。
+        </p>
         <p class="text-muted text-sm mt-2">
           {{ selected.avid }} · {{ taskType(selected) }} · {{ labels[selected.state] }}
         </p>
@@ -305,6 +287,12 @@ function advance() {
         <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
           {{ selected.error }}
         </p>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm mt-5">
+          <dt class="text-muted">任务编号</dt>
+          <dd class="text-secondary">{{ selected.id }}</dd>
+          <dt class="text-muted">最近更新</dt>
+          <dd class="text-secondary">{{ selected.updated }}</dd>
+        </dl>
         <AppButton class="mt-5" @click="advance">{{
           selected.state === 'failed'
             ? '演示重试'
@@ -318,10 +306,9 @@ function advance() {
     <details class="mt-6 bg-secondary border rounded-lg p-4 border-[var(--border-color)]">
       <summary class="cursor-pointer text-muted text-sm">模拟状态数据</summary>
       <pre class="overflow-x-auto text-secondary text-xs mt-3">{{
-        JSON.stringify({ variant, type, state, selected, tasks }, null, 2)
+        JSON.stringify({ type, state, selected, tasks }, null, 2)
       }}</pre>
     </details>
-    <PrototypeSwitcher :variants="variants" :current="variant" />
   </div>
 </template>
 <style scoped>
