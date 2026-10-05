@@ -183,4 +183,4 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 ## 通知设计预览
 
-开发环境运行 `pnpm demo:notifications`，比较侧栏时间线、通知中心和事件分组。使用独立内存样例，生产构建不包含通知预览；入口和边界见[通知 Demo](doc/notifications-demo.md)。
+正式通知由导航栏铃铛打开，任意页面可用，记录当前登录会话事件。开发环境运行 `pnpm demo:notifications` 查看独立侧栏样例；入口、消息保留范围与边界见[通知侧栏与预览](doc/notifications-demo.md)。

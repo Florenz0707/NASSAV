@@ -1,5 +1,5 @@
 <script setup>
-// Synthetic notification cards shared by the three development previews.
+// Notification cards shared by the global sidebar and isolated preview.
 import AppButton from './AppButton.vue'
 import AppIcon from './AppIcon.vue'
 defineProps({ events: { type: Array, required: true }, selectedId: { type: String, default: '' } })

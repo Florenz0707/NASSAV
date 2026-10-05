@@ -8,10 +8,25 @@ import EmptyState from './EmptyState.vue'
 import TaskResourceCover from './TaskResourceCover.vue'
 import { SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
 const emit = defineEmits(['dismiss'])
-const props = defineProps({ tasks: { type: Array, required: true }, debug: Boolean })
+const props = defineProps({
+  tasks: { type: Array, required: true },
+  debug: Boolean,
+  focusTaskId: { type: String, default: '' },
+})
 const type = ref('all'),
   state = ref('all'),
   selectedId = ref(null)
+watch(
+  () => props.focusTaskId,
+  (id) => {
+    if (id) {
+      selectedId.value = id
+      type.value = 'all'
+      state.value = 'all'
+    }
+  },
+  { immediate: true }
+)
 const labels = { queued: '等待中', running: '执行中', succeeded: '已完成', failed: '失败' }
 const stageLabels = SCRAPE_STAGE_LABELS
 const translationLabels = {

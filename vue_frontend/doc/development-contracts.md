@@ -26,7 +26,7 @@
 - 主强调背景上的文字与头像开关圆点使用固定浅色 `on-accent` token（对应深色主题正文色），不随浅色主题变暗。
 - 交互使用 accent 系列；危险、成功、警告和信息分别使用对应语义 token。边框使用 `--border-color` 对应默认 `border`，浅表面使用 `surface-subtle`，阴影复用预设；不新建固定白色边框或独立状态色。
 - 操作按钮优先使用 `AppButton` 的 `primary`、`neutral`、`danger` 及 loading/disabled 状态；搜索、分页、下拉和确认复用 `SearchInput`、`ResourcePagination`、`CustomSelect`、`ConfirmDialog`。
-- 公共组件基础样式放在合适的 CSS layer，让 Tailwind 显示、尺寸等工具类正常覆盖；新增交互同时检查移动布局与禁用状态。
+- 入口 main.js 必须先加载 main.css，其层级顺序为 theme / base / components / utilities；避免全局组件先定义 components 后被 preflight 覆盖。公共组件基础样式放在合适的 CSS layer，让 Tailwind 显示、尺寸等工具类正常覆盖；新增交互同时检查移动布局与禁用状态。
 - 核心图标复用 `AppIcon` 或内联 SVG，以 currentColor 跟随语义颜色并明确尺寸；不使用 Emoji 或 HTML 字符串表示功能图标。导航使用真实链接，动作使用按钮。
 
 弹窗复用 `useDialog`：初始可见、嵌套、关闭和卸载均处理焦点、滚动锁及清理；仅最顶层响应 Escape/Tab。下拉保持键盘导航、禁用项跳过与交互属性传递。无文本按钮提供可访问名称，表单提供关联标签。设置子面板通过事件更新父状态，保持即时预览与手动保存的区别。
@@ -35,7 +35,7 @@
 
 任务详情保留 `/downloads` 路径。DownloadsView 装配下载队列及 visibleScrapeJobs，TaskDetailsPanel 仅拥有筛选/选择状态；taskDetails 统一展示字段，不改变原始任务。刮削终态附加资源标题与翻译子任务信息；翻译 pending/unknown 继续签名快照轮询，过期只结束翻译跟踪，不覆盖资源刮削成功。停止跟踪是本浏览器的展示/轮询行为，单条与批量均确认，不调用取消接口；刮削迟到响应不得恢复已移除记录，下载隐藏按任务 ID 隔离。下载数据来自当前队列，刮削来自本浏览器追踪，不宣称完整任务历史；DEBUG_MODE 采用独立内存样例，页面不读取队列或提交真实操作。
 
-通知预览使用 DEV 下的 `/downloads?demo=notifications&variant=panel|timeline|grouped`，动态加载独立模拟组件，不进入生产构建，不写真实任务或持久状态。页面装配层在预览期间停止下载队列读取，退出时恢复；请求按轮询代次检查归属，旧代次不阻止新读取。演示消息已读不等于任务问题已解决。
+全局通知归 notifications store（会话内最多 100 条、按事件 ID 去重），下载与刮削 / 翻译结果由独立通知适配器记录；Navbar 只打开，App 装配侧栏并在退出登录时清空。进度不写通知，已读不等于失败已解决；停止跟踪后迟到响应不得新增消息。DEV 任意页面 `demo=notifications` 动态加载独立样例，生产不包含样例；通知预览不替换任务页或停止其读取。
 
 ## 异步、缓存与失败
 

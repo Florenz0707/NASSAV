@@ -1,6 +1,12 @@
-# 通知设计 Demo
+# 全局通知侧栏与开发预览
 
-本轮只实现开发预览，不建设正式通知历史、未读同步或推送能力。初始设想见[通知时间线提案](notification-timeline-concept.md)。
+正式通知采用侧栏，由导航栏铃铛打开；桌面及手机均可在任意已登录页面使用。侧栏复用 useDialog，支持 Escape、焦点循环与恢复、滚动锁及卸载清理。包含全部 / 未读 / 需要处理筛选、单条及全部已读、事件详情和相关任务 / 资源链接。
+
+当前记录本登录会话收到的下载完成 / 失败、刮削完成 / 失败和翻译完成 / 失败 / 跳过事件，最多 100 条，按事件 ID 去重。消息在路由切换中保留，刷新页面或退出登录后清空；没有服务器历史或跨设备同步。进度更新不产生通知。已读只代表看过，失败事件仍是历史失败，不代表关联任务当前仍失败。停止跟踪的任务不再新增跟踪结果消息。下载完成通知遵循现有后端事件时序，不额外承诺数据库写入已完成。
+
+通知中的任务入口可定位任务详情；已移出队列或不再跟踪时页面明确提示，通知本身仍保留发生时的信息。资源链接沿用现有资源详情页。
+
+## 开发预览
 
 从前端目录运行：
 
@@ -8,16 +14,6 @@
 pnpm demo:notifications
 ```
 
-沿用现有 `/downloads` 页面、应用导航和登录流程，通过开发环境预览参数进入：
+默认打开 `/?demo=notifications`。任意页面可添加 `demo=notifications` 参数，例如 `/resources?demo=notifications`、`/settings?demo=notifications`；会自动打开导航栏侧栏的独立样例模式。预览只修改样例的已读和选择状态，不写正式通知 store、localStorage 或 API；关联详情只在侧栏内演示，不跳转或重试真实任务。去掉参数恢复真实通知。样例模块仅在 DEV 动态加载，生产构建不包含。
 
-- `/downloads?demo=notifications&variant=panel`：A，铃铛入口打开侧栏时间线，小屏全宽。
-- `/downloads?demo=notifications&variant=timeline`：B，通知中心按今天、昨天排列时间线。
-- `/downloads?demo=notifications&variant=grouped`：C，按需要处理和完成消息分组。
-
-底部按钮或左右方向键切换，URL 保留选项；输入框及弹窗中不拦截方向键。支持全部 / 未读 / 需要处理筛选、单条及全部已读、批量失败展开、关联详情演示和重置。标为已读不会把失败改为已解决。
-
-四条事件全部是虚构样例，时间和 AVID 也只用于演示。查看任务 / 资源 / 批次仅选中本页关联详情，不操作或跳转真实任务。状态保存在组件内存，不写 localStorage、store 或后端；离开预览会清空状态。通知侧栏复用 useDialog，支持 Escape、焦点循环与恢复、滚动锁和卸载清理。
-
-Demo 动态组件仅在 `import.meta.env.DEV` 加载，生产构建不含 NotificationsDemo、NotificationDemoTimeline 或 PrototypeSwitcher。生产环境即使带上述参数，仍呈现正式任务页。预览期间 DownloadsView 停止自身下载队列读取 / 轮询；退出预览恢复正常读取，并拒绝迟到响应。应用原有全局 WebSocket、刮削跟踪不因预览而改变。
-
-本 Demo 用于确定通知入口和消息密度；真实事件来源、历史保存、用户归属、已读同步、失败后恢复及批次聚合仍需后续设计。模拟消息不能用作真实下载、刮削或翻译已完成的证据。
+已选定侧栏方案；旧的通知中心与分组三种布局保留于历史分支 `demo/notification-timeline`（`861731b`）。通知不再借用 DownloadsView 替换任务页，也不影响任务页自身的读取与轮询。最初设想见[通知时间线提案](notification-timeline-concept.md)。

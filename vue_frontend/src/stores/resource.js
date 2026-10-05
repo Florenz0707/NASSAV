@@ -19,6 +19,7 @@ export const useResourceStore = defineStore('resource', () => {
   const pendingJobRequests = new Set()
   const pendingJobEventVersions = new Map()
   let scrapePollTimer = null
+  let trackingGeneration = 0
   const SCRAPE_STORAGE_KEY = 'nassav:scrape-jobs:v1'
 
   function persistScrapeJobs() {
@@ -74,13 +75,14 @@ export const useResourceStore = defineStore('resource', () => {
   async function refreshScrapeJob(taskId) {
     const current = scrapeJobs.value.get(taskId)
     if (!current?.status_token || pendingJobRequests.has(taskId)) return current
+    const generation = trackingGeneration
     pendingJobRequests.add(taskId)
     try {
       const response = await resourceApi.getScrapeJob(taskId, current.status_token)
-      if (!scrapeJobs.value.has(taskId)) return null
+      if (generation !== trackingGeneration || !scrapeJobs.value.has(taskId)) return null
       return setScrapeJob({ ...response.data, status_token: current.status_token })
     } catch (err) {
-      if (!scrapeJobs.value.has(taskId)) return null
+      if (generation !== trackingGeneration || !scrapeJobs.value.has(taskId)) return null
       if (err.code === 404 || err.code === 403) {
         if (current.state === 'failed') return current
         if (current.state === 'succeeded')
@@ -104,6 +106,7 @@ export const useResourceStore = defineStore('resource', () => {
       pendingJobEventVersions.delete(taskId)
       const latest = scrapeJobs.value.get(taskId)
       if (
+        generation === trackingGeneration &&
         pendingVersion > (latest?.version || 0) &&
         latest &&
         !TERMINAL_JOB_STATES.has(latest.state)
@@ -181,6 +184,8 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   function stopScrapeTracking() {
+    trackingGeneration++
+    pendingJobEventVersions.clear()
     if (scrapePollTimer) clearInterval(scrapePollTimer)
     scrapePollTimer = null
   }

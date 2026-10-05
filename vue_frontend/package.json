@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "demo:notifications": "vite --host 127.0.0.1 --open '/downloads?demo=notifications&variant=panel'",
+    "demo:notifications": "vite --host 127.0.0.1 --open '/?demo=notifications'",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
