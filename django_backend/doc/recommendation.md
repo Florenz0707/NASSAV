@@ -1,6 +1,6 @@
 # Recommendation Overview
 
-本文档说明当前后端实际生效的推荐机制实现。内容以 `django_backend/nassav/recommendation/`、`nassav/views.py` 与现有测试为准，不再保留历史方案设想。
+本文档说明当前后端实际生效的推荐机制实现。内容以 `django_backend/nassav/recommendation/`、`nassav/http/recommendation_views.py` 与现有测试为准，不再保留历史方案设想。
 
 ## 当前实现结论
 
@@ -191,7 +191,7 @@
 
 文件：
 
-- `nassav/views.py`
+- `nassav/http/recommendation_views.py`
 - `nassav/urls.py`
 
 职责：
@@ -201,29 +201,21 @@
 - 返回统一响应结构
 - 处理 actor / genre 的手动屏蔽写接口
 
-### 2. Manager 层
+### 2. 用例、装配与数据层
 
-文件：
+| 模块                                                        | 职责                                                                                                                       |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| recommendation/workflow.py                                  | RecommenderManager 组织策略、请求与推荐执行，依赖 RecommendationContextStore 和 recommender 工厂                           |
+| recommendation/manager.py                                   | 为 HTTP 和既有同步消费者导出生产 facade；不承载 ORM 查询实现                                                               |
+| composition.py                                              | 装配生产来源、inventory/context Adapter 和推荐器工厂                                                                       |
+| recommendation/contracts.py                                 | 定义来源召回、种子、存在性、上下文与推荐工作流能力                                                                         |
+| recommendation/data_access.py                               | DjangoRecommendationContext 生成随机种子/指纹、加载历史/反馈/屏蔽并保存 execution；DjangoCandidateInventory 批量查询存在性 |
+| recommendation/repository.py、feedback.py、seed_profiles.py | 对应快照、学习与屏蔽数据规则及持久化事务                                                                                   |
+| recommendation/seed_selection.py                            | 纯种子选择、配额与排序；不查询 Django                                                                                      |
 
-- `nassav/recommendation/manager.py`
+实际默认注册仍为 jable_page_lookup 与 local_preference。工厂在注入表中查找，新测试推荐器只需实现并注册；新增生产来源还需实现完整 RecommendationSource。实现内部 TypeError 不重试旧签名，替身也需接受 force_refresh、sort_by 和 detail_url 等真实参数。
 
-职责：
-
-- 维护 recommender / strategy 注册表
-- 构造 `RecommendationRequest`
-- 计算请求指纹
-- 读取近期推荐历史与种子历史
-- 读取负反馈学习结果
-- 构造具体 recommender
-- 执行推荐
-- 持久化 snapshot 与 item
-
-当前注册表非常简单：
-
-- recommender:
-  - `jable_page_lookup`
-- strategy:
-  - `local_preference`
+上下文在执行前加载给 RecommendationRequest；算法复制运行请求，active seeds/tier 等写入返回的 execution_request，不修改调用者输入。算法通过 CandidateInventory 一次查询候选集合，避免评分/过滤时逐项查询 ORM。纯核心可在没有 Django 配置时导入；生产 facade 和策略 builder 使用真实 Adapter 时需要项目配置。
 
 ### 3. Strategy 层
 
@@ -274,22 +266,14 @@
 2. genre 种子先尝试 Jable tag/category 页
 3. 若页映射召回不到结果，再按种子值与别名搜索
 
-`JableSearchRecommender.recommend()` 的完整执行顺序为：
+主流程只在 `AbstractRecommender.recommend()` 维护，JableSearchRecommender 通过种子上下文、扩种和详情后补量 hook 保留来源特殊行为：
 
-1. `build_seeds()`
-2. 计算种子出现档位 `seed_occurrence_tiers`
-3. `recall_candidates()`
-4. 过滤本地已有资源
-5. 过滤 AVID 黑名单资源与命中 seed 黑名单的资源
-6. 若“优先候选”不足，扩展种子池并再次召回
-7. 再次过滤本地已有资源、AVID 黑名单资源与命中 seed 黑名单的资源
-8. 再次刷新种子档位
-9. 做近期推荐避让
-10. `enrich_candidates()`，对 discovery 候选补充详情页 actor / genre 元数据；开启 seed 黑名单时，也会对已命中 seed 的候选补详情用于详情级兜底过滤
-11. enrichment 后再次过滤 AVID 黑名单资源与命中 seed 黑名单的资源
-12. `score_candidates()`
-13. `rank_and_trim()`
-14. 返回前再做一次黑名单兜底过滤
+1. 复制请求，build_seeds 并排除已屏蔽 seed，记录 active seeds 和出现档位。
+2. recall_candidates，批量排除库内资源及黑名单候选。
+3. 扩展不足的种子池，再次排除已有/屏蔽候选并刷新种子上下文。
+4. 近期避让后 enrich_candidates，补详情元数据并再次执行黑名单过滤。
+5. 详情过滤后按需补量，再 score_candidates、rank_and_trim，返回前做黑名单兜底。
+6. 返回 RecommendationRun 的 seeds、items 和 execution_request；协调用例将实际运行请求交给上下文 Adapter 写快照。
 
 其中 `rank_and_trim()` 又分为：
 
@@ -727,9 +711,14 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_avid_blockl
 
 ## 相关文件
 
-- `nassav/views.py`
+- `nassav/http/recommendation_views.py`
 - `nassav/models.py`
 - `nassav/recommendation/manager.py`
+- `nassav/recommendation/workflow.py`
+- `nassav/recommendation/contracts.py`
+- `nassav/recommendation/data_access.py`
+- `nassav/recommendation/seed_selection.py`
+- `nassav/composition.py`
 - `nassav/recommendation/entities.py`
 - `nassav/recommendation/base.py`
 - `nassav/recommendation/seeds.py`
@@ -741,10 +730,4 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_avid_blockl
 - `nassav/recommendation/repository.py`
 - `nassav/recommendation/cover_cache.py`
 
-## 推荐模块职责与替换契约
-
-推荐流程由 AbstractRecommender 的主入口和扩种/补量 hook 维护。算法接收 CandidateInventory 批量存在性能力，历史、反馈与屏蔽上下文通过 RecommendationContextStore 在执行前准备；评分/过滤不查询全局 ORM 仓库。推荐器工厂集中装配，新增实现注册工厂和元信息即可。SeedSelector 只处理已读取的种子候选；LocalPreferenceSeedProvider 保留数据读取和映射。
-
-每次算法执行复制 RecommendationRequest，内部 active seeds/tier 更新记录在返回的 execution_request；HTTP 和快照仍使用原字段格式。纯算法模块可在没有 Django 配置时导入，默认生产 Adapter 只在调用装配入口时加载。
-
-推荐协调核心位于 recommendation.workflow，HTTP 和既有同步消费者仍使用 recommendation.manager 的生产 facade。RecommendationSource 替身必须接受真实 force_refresh、sort_by、detail_url 等能力参数；不再捕获任意 TypeError 重试旧签名，实现内部异常只调用一次。原策略、因子和反馈/快照事务规则保持。
+扩展接口与默认装配见[模块边界](p5-domain-boundaries.md)，纯算法和批量查询验证见[测试说明](../tests/README.md)。

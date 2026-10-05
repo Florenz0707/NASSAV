@@ -187,25 +187,33 @@ Database:
 
 ## 持久化 & 更新流程（简要）
 
-- 新资源入库（SourceManager.save_all_resources）:
-  - 从 scraper 得到 `AVDownloadInfo`（内存结构），包含 `original_title`, `source_title`, `avid`, `m3u8`, `actors`, `actor_avatars`, `genres`, `duration` 等。
-  - 封面下载策略：优先从 Javbus 刮削结果中获取封面URL（`cover_url` 字段），使用 `scraper.download_cover()` 下载（带Referer头绕过防护）；如果Javbus没有封面则回退到Source提供的封面URL，使用 `source.download_file()` 下载。封面保存到 `resource/cover/{AVID}.jpg`。
-  - 将元数据写入 `AVResource`：
-    - `original_title`: Scraper获取的原始标题（通常为日语）。
-    - `source_title`: Source获取的标题（备用）。
-    - `translated_title`: 初始为空，等待翻译任务填充。
-    - `translation_status`: 初始为 "pending"。
-    - `metadata`: 保存原始 JSON。
-    - `metadata_created_at`: 首次创建时设置为当前时间。
-    - `metadata_updated_at`: 自动更新为当前时间。
-  - 对 `actors`/`genres` 做 `get_or_create` 并设置 M2M 关系。
-  - 若当前 source 为 `Jable` 且拿到了原始作品 HTML，会顺带解析 `div.models a.model`，把本地演员与 `ActorSourceMapping(source_name="jable")` 自动对齐。
-  - 演员头像处理：从 `actor_avatars` 字典获取URL，更新 `Actor.avatar_url` 和 `avatar_filename`，使用 `utils.download_avatar()` 下载（带Referer头），保存到 `resource/avatar/` 目录。
-  - `duration` 的写入规则：若爬取值是字符串（如 "150分钟"），解析为秒并写入；如果同时存在本地 MP4，优先用 `ffprobe` 获取的秒数覆盖。
+### 资源新增与刷新
 
-- 下载任务完成（Celery `download_video_task`）:
-  - 任务成功时：检测 `resource/{AVID}/{AVID}.mp4` 是否存在，若存在则通过 `stat()` 取得 `file_size` 并写入 `AVResource.file_size`，设置 `file_exists=True`，并写入 `video_saved_at` 为当前时间；若不存在则将 `file_exists=False`。
-  - 任务失败或异常时：尽量将 `file_exists=False` 写入数据库并记录失败原因到日志/监控（不抛出未捕获异常以破坏重试机制）。
+`resource_workflow.ResourceService` 编排完整用例；`resource_service.resource_service` 保留同步消费者的生产实例，资源 job 也使用相同用例。读取、来源、刮削、资产、保存、翻译提交和事件能力由装配入口注入。
+
+1. 读取已存在记录并获取来源信息。`resource_data.AVDownloadInfo` 的原始标题字段是 `title`，来源备用标题是 `source_title`，并包含 avid/m3u8/source/actors/genres/duration 等；`original_title` 是数据库字段。
+2. 有 HTML 时先保存原始页面；可选刮削后处理封面。文件位于 `COVER_DIR/{AVID}.html` 和 `COVER_DIR/{AVID}.jpg`，默认分别在 `resource/cover/`。封面优先使用 Javbus 刮削 URL，再使用来源封面能力。
+3. 来源把 HTML 解析为 `SourceRelations`，用例构造 `ResourceSaveInput` 交给 `DjangoResourcePersistence`。保存器不接收 HTML 或源实例，在下载信息副本上合并刮削数据，不修改来源缓存。
+4. 保存 `AVResource` 及关系。刮削的 `title` 映射到 `original_title`，来源标题规范化到 `source_title`；有刮削时 metadata 保留完整下载信息字典，无刮削时保留原 metadata 并更新来源字段。`translation_status` 置为 pending；已有译文不会因此自动清空。
+5. 来源演员候选与刮削关系交给 ORM Adapter，按 source ID 同步映射和保护冲突；Jable HTML 解析发生在来源 Adapter 内。actor/genre 关联和时间戳保留原规则。duration 解析为秒；本地视频存在时使用 ffprobe 的秒数覆盖。
+6. 保存后按选项处理演员头像，再按已刮削数据提交翻译；完整资源结果返回后发布新增/刷新事件。头像在 `AVATAR_DIR`，封面在 `COVER_DIR`，视频在 `VIDEO_DIR`，自定义目录以实际 settings 为准。
+
+文件与数据库不是统一事务：HTML/封面可能先保存，即使写库失败也不会自动补偿删除文件；写库失败不会发布资源新增事件。资源响应采用 `resource_presentation` 的既有字段，ORM 返回对象仍是读取能力允许的过渡契约。
+
+### 下载结果写入
+
+真实 `nassav.tasks.download_video_task` 调用 DownloadUseCase，`DjangoDownloadPersistence` 负责写库：
+
+- 文件检查路径为 `VIDEO_DIR/{AVID.upper()}.mp4`，默认 `resource/video/{AVID}.mp4`。文件存在时写 file_exists、file_size、video_saved_at；不存在时清除大小/保存时间并置 file_exists 为 false。
+- 正常流程仍先发下载成功事件，再持久化文件状态；写库失败仅告警，用例仍可返回成功，不能根据成功通知认定 DB 已同步。
+- 下载失败时尽量置 file_exists 为 false，已有大小/保存时间沿用失败处理规则；不把失败当作删除视频操作。重试由 Celery 入口适配，次数和队列保持。
+- 失租或 Redis 续租失败时中止 CLI 并抑制后续成功状态，迟到执行不能修改后继 owner 的进度或清理其队列。Redis 锁保护不等于跨文件/DB 的事务。
+
+### 翻译状态
+
+单条与批量由 TitleTranslationUseCase 共享标题选择：original_title 优先，缺失时使用 source_title。TranslatorManager 和 DjangoTranslationRepository 分别处理文本与状态读写。
+
+批量按实际标题字段、指定 AVID 和 skip_existing 筛选；置 translating 前固定本批快照。翻译器异常、返回数量不匹配或逐项保存异常时，仅将本批仍 translating 的记录置 failed，保留已完成项和旧译文，不影响其他批次。HTTP 重新翻译通过 TranslationRequests 显式清空译文/重置 pending 后提交；提交失败维持已重置状态并返回既有 translation_error，不自动回滚重置。
 
 - 更新资源状态（API PATCH `/resource/{avid}/status`）:
   - 支持更新 `watched`（是否已观看）和 `is_favorite`（是否收藏）字段。
@@ -216,7 +224,7 @@ Database:
   - `DELETE /resource/{avid}` 和批量 `delete` / `delete-all` 共用完整删除操作：删除封面、缩略图、MP4、备份目录和 `AVResource` 行。纯数据库行或纯文件仍可删除；文件步骤失败不会删除数据库行，数据库步骤失败可重试。
   - `DELETE /downloads/{avid}` 和批量 `delete-video` 仅删除 MP4，并将 `file_exists=False`、`file_size=None`、`video_saved_at=None`；元数据保留。文件已删除但数据库更新失败时可重试清除状态。
 
-- 推荐请求完成（RecommenderManager）:
+- 推荐请求完成（RecommendationWorkflow 与 DjangoRecommendationContext）:
   - 执行推荐前会根据：
     - `recommender_id`
     - `strategy_id`
@@ -310,12 +318,4 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 
 会话读写由 `CookieRepository` ABC 约束，生产实现仍为 `SourceCookieRepository`。Source 的会话获取、验证和刷新协调位于 `SourceSessionLifecycle`，可注入独立存储与协调器。完整快照字段、数据库版本校验、人工写入优先、CAS 和缓存格式保持现有行为；本轮迁移没有 schema 或迁移文件变化。
 
-## 资源保存输入
-
-ResourcePersistence 只接收类型化 ResourceSaveInput，包含解析后的 SourceRelations；不再接收源实例或 HTML。来源 Adapter 解析演员候选，ORM Adapter 负责关系和映射写入，按候选来源 ID 做冲突保护。持久化在下载信息副本上补元数据，不修改来源缓存。metadata 字段格式、无刮削时保留已有 metadata、关系累加和时间戳更新保持原规则，不新增 schema 迁移。
-
-## 后端抽象重构后的持久化边界
-
-R0–R7 未修改 schema 或新增 migration。资源保存输入为 ResourceSaveInput，来源关系先解析为 SourceRelations，DjangoResourcePersistence 不接收 HTML/源实例，也不修改传入的下载信息。资源读取、翻译状态、推荐上下文与下载结果分别由对应 Django Adapter 处理；默认构造在 composition。
-
-批量翻译只选择实际 original_title/source_title 字段，在置为 translating 前固定选中记录；返回数量不匹配或保存异常时，只收尾本批仍在 translating 的记录为 failed，保留已经完成项及旧译文。该行为为用户授权的独立修复。文件和数据库的既有部分成功、下载成功通知先于 DB 写入的告警规则保持；本轮无补偿事务或 PostgreSQL 切换。
+核心能力与 ORM Adapter 的分工见[模块边界](p5-domain-boundaries.md)，复验命令见[测试说明](../tests/README.md)。本轮职责整理未引入 schema 或数据库迁移。

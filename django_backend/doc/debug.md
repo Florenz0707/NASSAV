@@ -1,351 +1,104 @@
-# 调试和测试接口文档
+# 调试与链路验证
 
-本文档描述仅在开发/调试模式下可用的特殊接口。这些接口用于测试和开发，不应在生产环境中使用。
+本地 API 默认 `http://127.0.0.1:9790`，Vite/Compose 网关默认 `http://127.0.0.1:9780`。浏览器始终通过页面同源 `/nassav/api/` 和 `/nassav/ws/` 请求，网关须转发 WebSocket Upgrade、Cookie、Host 与 Origin。配置和启动见[后端 README](../README.md)及[部署说明](compose-deployment.md)。
 
----
+业务接口需要 operator 登录；写请求还需 CSRF。`DEBUG=true` 只控制调试功能，不绕过认证。开发账号、Host 和 CSRF_TRUSTED_ORIGINS 按[配置契约](configuration-contract.md)设置；正式环境不启用 DEBUG。
 
-## 浏览器抓取验证
+## 登录后使用 curl
 
-固定版本 Byparr 的 Docker 启动与日志命令见 [`scripts/README.md`](../scripts/README.md)。离线契约和 Source 回归由普通 pytest 执行；在线探测需要 `BROWSER_FETCH_EXTERNAL=1`，并设置当前有效的 `BROWSER_FETCH_MISSAV_URL`、`BROWSER_FETCH_MISSAV_AVID`、`BROWSER_FETCH_JABLE_URL`、`BROWSER_FETCH_JABLE_AVID`。具体命令见 [`tests/README.md`](../tests/README.md)。在线探测只读取目标页面，不写生产数据库。`/health` 依赖外部 Google 访问，不能单独作为本地服务可用性判断。
-
-## P1 会话迁移与并发验证
-
-P1 不新增调试端点。可在隔离数据库上运行 `uv run pytest tests/test_source_cookie_session.py -v`，覆盖旧行迁移、人工覆盖/清除、晚到刷新、跨进程缓存、直连请求头快照及并发版本检查。旧 Cookie API 的请求与返回格式保持不变；详细命令见 [`tests/README.md`](../tests/README.md)。
-
-## P2 页面回退与会话验证
-
-`uv run pytest tests/test_browser_session_reuse.py -v` 在隔离测试库验证直连 HTTP 状态和挑战分类、三种页面策略、浏览器 Cookie 域名/路径/过期筛选、一次 3 秒直连探测、晚到人工更新、失败探测不写库及 Jable/MissAV 业务校验。该测试不访问外站；线上真实站点与代理出口的灰度验收仍按执行计划 P5 单独进行。
-
-## P3 站点会话刷新协调
-
-`uv run pytest tests/test_session_coordination.py -v` 在离线环境验证同站 10 个并发 403 请求至多一次可复用会话刷新、不同站点互不阻塞、锁持有者崩溃/租约过期、Redis 断连、人工写入竞争、旧 Cookie 自动获取 API 与短期不可复用抑制。测试使用隔离的进程内 Redis 行为模拟；真实 Redis 的 Lua 续租、释放和结果通知需在独立容器验证，勿连接生产 Redis。
-
-## P5 正式验收
-
-隔离 SQLite、PostgreSQL 与 Redis 结果及现场 NO-GO 判定见 [验证边界与历史记录](validation-status.md)。 MissAV 的两时段只读现场结果与 NO-GO 判定见 [验证边界与历史记录](validation-status.md)。 后续详情候选路径的单时段在线对照见 [验证边界与历史记录](validation-status.md)，该结果不放行会话复用。真实站点测试须显式 opt-in；已有 API 容器内只读预筛，但没有 API/worker 共享会话联调和 24 小时灰度证据。
-
-## 模拟下载接口
-
-### 概述
-
-模拟下载接口允许在不实际下载视频的情况下测试完整的下载流程，包括任务队列、进度更新、WebSocket 通知等功能。
-
-### 启用条件
-
-- **必须在 DEBUG 模式下**：在 `django_backend/.env` 文件中设置 `DEBUG=True`
-- 非 DEBUG 模式下调用此接口会返回 `403 Forbidden` 错误
-
-### 端点信息
+以下从后端目录执行，只是操作示例，本轮文档检查不执行请求。使用本机 HTTP 入口；若使用 HTTPS 网关，替换 base 并保持同一 Host。账号例为默认 nassav；改过 NASSAV_OPERATOR_USERNAME 时同步修改。
 
 ```bash
-POST /nassav/api/downloads/mock/{avid}
+set -e
+umask 077
+doc_base=http://127.0.0.1:9790/nassav
+doc_cookie_jar=$(mktemp /tmp/nassav-debug-cookie.XXXXXX)
+trap 'rm -f "$doc_cookie_jar"' EXIT
+
+# 返回 JSON 只含登录状态；CSRF token 从 Set-Cookie 写入 cookie jar
+curl --fail --silent --show-error --cookie-jar "$doc_cookie_jar" \
+  "$doc_base/api/auth/session"
+
+doc_read_csrf() {
+  uv run python -c 'import http.cookiejar,sys; jar=http.cookiejar.MozillaCookieJar(sys.argv[1]); jar.load(ignore_discard=True,ignore_expires=True); print(next(c.value for c in jar if c.name=="csrftoken"))' "$doc_cookie_jar"
+}
+doc_csrf=$(doc_read_csrf)
+
+# 密码交互输入，只通过 stdin 提交，不写入命令行或示例文件
+uv run python -c 'import getpass,json; print(json.dumps({"username":"nassav","password":getpass.getpass("Operator password: ")}))' | \
+  curl --fail --silent --show-error --cookie "$doc_cookie_jar" \
+    --cookie-jar "$doc_cookie_jar" -H 'Content-Type: application/json' \
+    -H "X-CSRFToken: $doc_csrf" -H "Origin: ${doc_base%/nassav}" \
+    --data-binary @- "$doc_base/api/auth/login"
+
+# 登录会轮换 CSRF cookie；后续写请求使用新 token
+curl --fail --silent --show-error --cookie "$doc_cookie_jar" \
+  --cookie-jar "$doc_cookie_jar" "$doc_base/api/auth/session"
+doc_csrf=$(doc_read_csrf)
 ```
 
-### 请求参数
+保留当前终端用于以下命令；退出时 cookie jar 自动删除。不要将真实 Cookie/密码放入仓库或输出到分享日志。
 
-**路径参数：**
+## 模拟下载
 
-| 参数 | 类型   | 必填 | 说明                            |
-| ---- | ------ | ---- | ------------------------------- |
-| avid | string | 是   | 资源 AVID（必须在数据库中存在） |
-
-**请求体（JSON，可选）：**
-
-| 参数     | 类型    | 必填 | 默认值 | 说明                                |
-| -------- | ------- | ---- | ------ | ----------------------------------- |
-| duration | integer | 否   | 30     | 模拟下载持续时间（秒），范围：1-300 |
-
-### 请求示例
-
-**基本请求（使用默认 30 秒）：**
+`POST /nassav/api/downloads/mock/{avid}` 要求已登录、DEBUG=true，且 AVID 已存在数据库。duration 为整数，默认 30，允许 1–300 秒。它会写任务队列/锁/进度并发送事件，不创建媒体文件，也不更新 file_exists；不能替代真实 CLI、媒体文件或全局下载并发验收。
 
 ```bash
-curl -X POST http://localhost:8000/nassav/api/downloads/mock/SSIS-465 \
-  -H "Content-Type: application/json"
+curl --fail --silent --show-error --cookie "$doc_cookie_jar" \
+  -H 'Content-Type: application/json' -H "X-CSRFToken: $doc_csrf" \
+  -H "Origin: ${doc_base%/nassav}" -d '{"duration":10}' \
+  "$doc_base/api/downloads/mock/EXISTING-AVID"
+
+curl --fail --silent --show-error --cookie "$doc_cookie_jar" \
+  "$doc_base/api/tasks/queue/status"
 ```
 
-**指定持续时间：**
+EXISTING-AVID 替换为当前隔离样本编号。成功返回 202 与 task_id/avid/status/duration/mock；这只是入队，不是终态。未登录为 401；无 DEBUG 为 403；无资源为 404；重复任务为 409；整数 duration 越界为 400。CSRF 校验失败为 403。任务需要监听 download 队列的 worker。
 
-```bash
-curl -X POST http://localhost:8000/nassav/api/downloads/mock/SSIS-465 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "duration": 60
-  }'
-```
+### 浏览器事件
 
-**JavaScript 示例：**
+在已经登录的应用页控制台运行；浏览器自动携带会话 Cookie，协议由页面决定，不通过 query 传登录凭证。
 
 ```javascript
-// 使用默认 30 秒
-fetch('/nassav/api/downloads/mock/SSIS-465', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-  .then((response) => response.json())
-  .then((data) => console.log(data))
-
-// 指定持续时间
-fetch('/nassav/api/downloads/mock/SSIS-465', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    duration: 45,
-  }),
-})
-  .then((response) => response.json())
-  .then((data) => console.log(data))
-```
-
-### 响应格式
-
-**成功响应（202 Accepted）：**
-
-```json
-{
-  "code": 202,
-  "message": "模拟下载任务已提交",
-  "data": {
-    "avid": "SSIS-465",
-    "task_id": "abc-123-def-456",
-    "status": "pending",
-    "duration": 30,
-    "mock": true
+const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
+const socket = new WebSocket(`${protocol}//${location.host}/nassav/ws/tasks/`)
+socket.onmessage = ({ data }) => {
+  const event = JSON.parse(data)
+  if (event.type === 'progress_update') {
+    console.log(event.data.avid, event.data.percent, event.data.speed, event.data.eta)
+  } else {
+    console.log(event.type, event.data)
   }
 }
 ```
 
-**错误响应示例：**
+progress_update 字段直接位于 data；任务事件还有 task_started/task_completed/task_failed/queue_status。下载页在连接失败时使用 API 轮询，其他任务的完整快照仍需独立 token 查询。关闭码与会话核对规则见[接口文档](interface.md)。
 
-| HTTP 状态码 | Code | 说明             | 示例                                                                    |
-| ----------- | ---- | ---------------- | ----------------------------------------------------------------------- |
-| 403         | 403  | DEBUG 模式未启用 | `{"code": 403, "message": "此接口仅在 DEBUG 模式下可用", "data": null}` |
-| 404         | 404  | 资源不存在       | `{"code": 404, "message": "SSIS-465 的元数据不存在", "data": null}`     |
-| 409         | 409  | 任务已存在       | `{"code": 409, "message": "下载任务已存在", "data": null}`              |
-| 400         | 400  | 参数错误         | `{"code": 400, "message": "持续时间必须在 1-300 秒之间", "data": null}` |
-| 500         | 500  | 服务器错误       | `{"code": 500, "message": "提交失败: ...", "data": null}`               |
+## 资源与外部搜索任务
 
-### 功能特性
+前端已使用异步资源和外部搜索任务，旧同步接口继续保留。不要以 202 入队或 WebSocket 通知认定成功：
 
-1. **完整模拟真实下载流程**
-   - 任务提交和队列管理
-   - 任务锁和去重检查
-   - 进度更新（每秒更新一次）
-   - WebSocket 实时通知
-   - 任务完成/失败通知
+| 链路          | 提交                           | 查询与令牌                                                    | 终态与补偿                                                               |
+| ------------- | ------------------------------ | ------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 资源新增/刷新 | POST /nassav/api/resource/jobs | GET /nassav/api/resource/jobs/{task_id}，X-Resource-Job-Token | succeeded 后刷新库；scrape worker 执行，断线补查                         |
+| 外部搜索      | POST /nassav/api/search/jobs   | GET /nassav/api/search/jobs/{task_id}，token query            | 按 version 合并阶段结果，failed/cancelled 保留 partial；默认 worker 执行 |
 
-2. **进度更新**
-   - 百分比从 0% 到 100% 线性递增
-   - 模拟下载速度（MB/s）
-   - 可通过 WebSocket 或轮询接口获取实时进度
+具体 body、取消、签名校验和 TTL 见[接口文档](interface.md)。阶段页或失败部分结果不写入成功缓存；切源/翻页后的旧请求不得覆盖新页面。真实 worker、队列和共享缓存联调在目标环境单独验收。
 
-3. **不产生副作用**
-   - 不下载任何实际文件
-   - 不修改数据库中的 `file_exists` 字段
-   - 任务完成后自动清理进度和锁
+## 离线验证与在线探针
 
-### 监控进度
+首选[测试说明](../tests/README.md)中的 refactoring_test_settings；它隔离数据库、资源和网络。离线会话模拟、临时 Redis 的真实 Lua 与实际浏览器/站点分别记录。
 
-模拟下载任务提交后，可以通过以下方式监控进度：
+在线验证须显式 opt-in，并使用当前有效页面、源对应路线、独立库/Redis/文件目录（若探针需要写入）。参数和容器命令见[脚本说明](../scripts/README.md)，当前接受边界见[验证状态](validation-status.md)。Byparr /health 可能依赖外部连通性，HTTP 200、Cookie 存在和 TCP 成功均不能替代同站非挑战业务 HTML 校验。
 
-#### 1. WebSocket 实时通知
+日志 page_fetch 记录来源、路径类型、提供方、失败分类、浏览器次数、会话版本、锁等待与耗时；scrape_job 记录队列等待和任务耗时。task_id/request_id 用于关联同一执行，检查前确认日志未包含原始 Cookie、UA 或代理凭据。生产策略/等待候选不因本地调试结果自动放行。
 
-连接到 WebSocket：
+## 排查顺序
 
-```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/tasks/')
+1. 401/CSRF 403：先核对 operator 会话、登录后轮换的 token、请求 Host/Origin，再排查业务参数。
+2. 已入队无进展：核对 default/scrape/download 的 worker 订阅与 Redis；不要同时启动两个 Beat。
+3. 进度或快照迟到：按任务 version 和终态读取，不用旧事件覆盖完成/取消。
+4. 下载失租：核对该执行日志与当前 owner；不要手工删除另一执行的锁，不将 Redis 故障改成成功。
+5. 文件/DB 状态不一致：检查 VIDEO_DIR 与持久化告警，再在隔离副本使用一致性工具；成功通知可能先于 DB 写入。
 
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data)
-
-  if (data.type === 'task_started') {
-    console.log('任务开始:', data.data)
-  }
-
-  if (data.type === 'progress_update') {
-    console.log('进度更新:', data.data.progress)
-    // { percent: 50.0, speed: "50.0 MB/s" }
-  }
-
-  if (data.type === 'task_completed') {
-    console.log('任务完成:', data.data)
-  }
-
-  if (data.type === 'task_failed') {
-    console.log('任务失败:', data.data)
-  }
-}
-```
-
-#### 2. 轮询队列状态
-
-```bash
-curl http://localhost:8000/nassav/api/tasks/queue/status
-```
-
-响应包含活跃任务的进度信息：
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "active_tasks": [
-      {
-        "task_id": "abc-123-def",
-        "avid": "SSIS-465",
-        "state": "STARTED",
-        "progress": {
-          "percent": 45.5,
-          "speed": "46.0 MB/s"
-        }
-      }
-    ],
-    "pending_tasks": [],
-    "active_count": 1,
-    "pending_count": 0
-  }
-}
-```
-
-### 使用场景
-
-1. **前端开发和测试**
-   - 测试下载按钮和进度条UI
-   - 测试 WebSocket 连接和消息处理
-   - 测试任务队列显示
-
-2. **后端集成测试**
-   - 验证任务队列机制
-   - 测试并发任务处理
-   - 验证去重逻辑
-
-3. **性能测试**
-   - 测试多任务并发
-   - 测试 WebSocket 性能
-   - 测试 Redis 队列性能
-
-### 配置示例
-
-**启用 DEBUG 模式：**
-
-创建或编辑 `django_backend/.env`：
-
-```bash
-# 开发环境配置
-DEBUG=True
-SECRET_KEY=your-development-secret-key
-ALLOWED_HOSTS=localhost,127.0.0.1
-```
-
-**禁用 DEBUG 模式（生产环境）：**
-
-```bash
-# 生产环境配置
-DEBUG=False
-SECRET_KEY=your-strong-production-secret-key
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-```
-
-### 注意事项
-
-⚠️ **重要提示：**
-
-1. **仅用于开发/测试**：此接口不应在生产环境中启用
-2. **资源必须存在**：只能使用数据库中已存在的 AVID
-3. **不产生实际文件**：模拟任务不会创建任何视频文件
-4. **遵守任务队列规则**：模拟任务同样受队列和锁的限制
-5. **时长限制**：最长 300 秒，防止长时间占用队列
-
-### 与真实下载的对比
-
-| 特性             | 模拟下载          | 真实下载     |
-| ---------------- | ----------------- | ------------ |
-| 是否下载文件     | ❌ 否             | ✅ 是        |
-| 更新进度         | ✅ 是             | ✅ 是        |
-| WebSocket 通知   | ✅ 是             | ✅ 是        |
-| 任务队列         | ✅ 是             | ✅ 是        |
-| 去重检查         | ✅ 是             | ✅ 是        |
-| 更新 file_exists | ❌ 否             | ✅ 是        |
-| 持续时间         | 自定义（1-300秒） | 实际下载时间 |
-| 需要资源存在     | ✅ 是             | ✅ 是        |
-
-### 故障排查
-
-### 问题：返回 403 错误
-
-- 检查 `.env` 文件中 `DEBUG=True`
-- 重启 Django 服务器以加载新配置
-
-### 问题：返回 404 错误
-
-- 确认 AVID 在数据库中存在
-- 可以先调用 `POST /nassav/api/resource` 添加资源
-
-### 问题：返回 409 错误
-
-- 该 AVID 的任务已在队列中
-- 等待当前任务完成或使用不同的 AVID
-
-### 问题：进度不更新
-
-- 检查 `uv run nassav-worker-download` 是否运行；资源抓取还需 `uv run nassav-worker-scrape`，翻译和默认任务需 `uv run nassav-worker-default`
-- 检查 Redis 服务是否正常
-- 查看 Celery Worker 日志
-
----
-
-## 其他调试功能
-
-### 待添加
-
-未来可能添加的其他调试接口：
-
-- 模拟元数据刮削接口
-- 批量数据生成接口
-- 缓存清理接口
-- 任务队列重置接口
-
----
-
-**文档更新日期：** 2026-01-02
-
-## 异步资源任务本地验证
-
-使用 `POST /nassav/api/resource/jobs` 提交后，先记录返回的 `task_id` 和 `status_token`，再以 `X-Resource-Job-Token` 请求 `GET /nassav/api/resource/jobs/{task_id}`。`queued` 表示已入队，只有 `succeeded` 才代表数据库资源已写入。当前后端尚未切换前端入口；旧资源接口继续同步执行。运行任务需要独立的 `scrape` worker，启动命令见 [后端 README](../README.md)。离线测试命令见 [测试说明](../tests/README.md)。
-
-## P4 观测与回归
-
-`page_fetch` 日志提供源、`detail/search/listing` 路径类型、请求 ID、候选序号、提供方、目标状态、失败分类、浏览器次数、会话版本、锁等待、直连、Byparr 及页面总耗时。`scrape_job` 日志另记录队列等待与 worker 总刮削耗时；不要用 API 202 耗时替代任务耗时。日志不含 Cookie、完整 UA、代理 URL、页面 URL 或 HTML。用同一请求 ID 的候选行可追踪 403 后的等待或浏览器回退；会话租约的实际 Redis 行为仍需在独立测试环境验证。离线回归：`uv run pytest tests/test_source_cookie_api.py tests/test_browser_fetch_config.py tests/test_page_fetching.py tests/test_session_coordination.py -v`，前端运行 `pnpm run build` 与 `pnpm run lint:fix`。
-
-资源删除回归：`uv run pytest tests/test_resource_deletion.py -v` 覆盖单项/批量删除、部分文件与数据库状态，以及未配置 `THUMBNAIL_DIR` 时按封面接口相同的 `COVER_DIR/thumbnails/{size}/{avid}.jpg` 目录清理缩略图。缺省配置不应使 `DELETE /api/resource/{avid}` 返回 500。
-
-Byparr 第三步固定版本隔离对照和等待 PoC 见[验证边界与历史记录](validation-status.md)。运行方式见 scripts/README.md；仅在临时实验容器运行，初始业务等待在不存在详情上会耗尽预算，不能直接部署到正式服务。离线契约：`uv run pytest tests/test_probe_byparr_media.py -v`。
-
-Byparr 替代方案第四步的两窗口与隔离 API/worker 证据见[验证边界与历史记录](validation-status.md)。预筛通过不代表可灰度；本次自动 Cookie 管理入口复现 500，因此整体 NO-GO。`probe_byparr_runtime.py` 强制使用专用 PostgreSQL、Redis 和资源目录；不可对正式服务执行。
-
-### Jable 自动 Cookie 500 回归
-
-回归文件：`tests/test_jable_auto_cookie.py`。在后端目录运行 `uv run pytest tests/test_jable_auto_cookie.py -v`，覆盖 HTTP 403 旧入口、浏览器与直连校验失败、手动更新/清空及租约保护。现场结果见 [Cookie 回归说明](../tests/README.md)。
-
-## 可选搜索源验证
-
-离线运行 `uv run pytest tests/test_missav_search.py tests/test_external_search_detail_api.py -v`；前端运行 `pnpm run test`。覆盖源能力、映射与关键词回退、错误状态、分页缓存、变体去重及慢响应保护。隔离现场用法见 [探针说明](../scripts/README.md) 与 [外部搜索接口契约](interface.md)。
-
-## 中文及异步外部搜索验收
-
-隔离运行 `scripts/probe_async_search_runtime.py`，要求专用 SQLite 和 Redis，禁止连接正式存储。脚本默认使用单页窗口，可用 `--fetch-pages 2 --cases missav-genre jable-genre` 验证逐页快照与 Redis 通知；启动真实 Celery worker，验证持久化默认源、快速提交、运行任务去重、中文结果路径及封面代理，遇到首个失败立即退出。具体参数和限制见脚本头部及 scripts/README.md。
-
-搜索任务在现有 `scrape` 队列执行；API 与 scrape worker 都需要更新代码并重启。前端更新后使用任务接口。worker 软限 900 秒、硬限 930 秒；队列等待和失联 worker 在提交后 1800 秒通过状态查询显式失败。正常停止页面轮询不撤销后台抓取，返回页面重发相同查询可复用任务。
-
-手动取消验证：提交任务后以 `POST /api/search/jobs/{task_id}/cancel` 发送签名 token；状态应变为 `cancelled`，阶段结果仍可读取，同条件重试获得新任务 ID。运行中取消只等待当前外站请求结束，不再抓后续页。前端进入演员或类别外部搜索页后，应先显示搜索按钮及其下方来源菜单，切源和改排序不应自动提交任务。
-
-### 逐页搜索回归
-
-`uv run pytest tests/test_search_jobs.py tests/test_access_control.py -v` 覆盖每页完成前后快照、四种源/实体组合、后续页失败保留结果、不缓存残缺列表、终态保护和已登录 WebSocket 通知。前端 `pnpm run test` 覆盖通知即时唤醒、HTTP 查询期间的通知竞态、旧版本响应、失败阶段卡片和订阅清理。`External search page ... failed` 日志补充白名单原因代码，未知异常仅记 `unclassified`，不输出 URL/Cookie/HTML。
-
-实现与五组两页现场证据见 [外部搜索接口契约](interface.md)。
+更新日期：2026-10-05。
