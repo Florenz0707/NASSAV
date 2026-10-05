@@ -14,6 +14,16 @@ const type = ref('all'),
   selectedId = ref(null)
 const labels = { queued: '等待中', running: '执行中', succeeded: '已完成', failed: '失败' }
 const stageLabels = SCRAPE_STAGE_LABELS
+const translationLabels = {
+  queued: '翻译已排队',
+  translating: '正在翻译',
+  completed: '翻译成功',
+  failed: '翻译失败',
+  skipped: '翻译已跳过',
+  not_requested: '未请求翻译',
+  unavailable: '翻译结果未记录或已过期',
+  unknown: '翻译状态暂不可用',
+}
 const typeTasks = computed(() =>
   props.tasks.filter((t) => type.value === 'all' || t.type === type.value)
 )
@@ -203,6 +213,12 @@ const progress = (task) =>
               <td class="p-4 text-secondary whitespace-nowrap">
                 <span class="block">{{ progress(task) }}</span>
                 <span
+                  v-if="task.translation"
+                  class="block text-xs mt-1"
+                  :class="task.translation.state === 'failed' ? 'text-accent-danger' : 'text-muted'"
+                  >{{ translationLabels[task.translation.state] }}</span
+                >
+                <span
                   v-if="task.type === 'download' && task.state === 'running'"
                   class="text-muted text-xs"
                   >{{ task.speed }}</span
@@ -266,6 +282,16 @@ const progress = (task) =>
         <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
           {{ selected.error }}
         </p>
+        <div
+          v-if="selected.translation"
+          class="mt-4 text-sm"
+          :class="selected.translation.state === 'failed' ? 'text-accent-danger' : 'text-secondary'"
+        >
+          <p>{{ translationLabels[selected.translation.state] }}</p>
+          <p v-if="selected.translation.message" class="text-xs mt-1">
+            {{ selected.translation.message }}
+          </p>
+        </div>
         <AppButton variant="neutral" class="mt-5" @click="emit('dismiss', [selected.id])"
           >不再跟踪此任务</AppButton
         >

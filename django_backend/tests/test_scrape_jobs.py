@@ -76,6 +76,8 @@ def test_submission_failure_releases_owner_and_snapshot(monkeypatch):
 
 @pytest.mark.django_db
 def test_worker_reports_real_stages_and_terminal_result(monkeypatch):
+    # Load store subclasses before monkeypatching the Redis factory.
+    __import__("nassav.search_jobs")
     store = MemoryJobStore()
     task_id = "job-1"
     store.acquire("ABC-3", task_id)
@@ -107,7 +109,7 @@ def test_worker_reports_real_stages_and_terminal_result(monkeypatch):
             "translation_queued",
         ):
             progress(stage)
-        return {"resource": {"avid": avid}}
+        return {"resource": {"avid": avid}, "translate_task_id": "translation-child"}
 
     monkeypatch.setattr(
         "nassav.resource_service.resource_service.add_resource", add_resource
@@ -117,6 +119,10 @@ def test_worker_reports_real_stages_and_terminal_result(monkeypatch):
     ).get()
     assert result == {"resource_avid": "ABC-3"}
     assert store.get(task_id)["state"] == "succeeded" and store.owners == {}
+    assert store.get(task_id)["translation"] == {
+        "task_id": "translation-child",
+        "state": "queued",
+    }
     assert [call.args[0]["stage"] for call in publish.call_args_list] == [
         None,
         "source_lookup",
@@ -200,6 +206,7 @@ def test_existing_resource_does_not_leave_lock(resource_factory):
     assert store.owners == {}
 
 
+@pytest.mark.django_db
 def test_lost_worker_snapshot_becomes_failed(monkeypatch):
     store = MemoryJobStore()
     store.save(
@@ -252,3 +259,44 @@ def test_single_api_returns_202_with_status_capability(api_client, monkeypatch):
     assert data["task_id"] == task_id
     assert data["job"]["state"] == "queued"
     assert scrape_jobs.valid_job_token(task_id, data["status_token"])
+
+
+@pytest.mark.django_db
+def test_translation_enqueue_failure_preserves_saved_resource(
+    monkeypatch, resource_factory
+):
+    from nassav import (
+        search_jobs,
+    )  # Load subclasses before replacing their store factory.
+    from nassav.tasks import translate_title_task
+
+    resource_factory(avid="TRANS-1", source_title="Source")
+    store = MemoryJobStore()
+    store.acquire("TRANS-1", "translation-parent")
+    store.save(
+        {
+            "task_id": "translation-parent",
+            "job_type": "scrape",
+            "action": "refresh",
+            "avid": "TRANS-1",
+            "state": "queued",
+            "stage": None,
+        }
+    )
+    monkeypatch.setattr(scrape_jobs, "RedisJobStore", lambda: store)
+    monkeypatch.setattr(scrape_jobs, "_publish", Mock())
+    monkeypatch.setattr(
+        translate_title_task, "delay", Mock(side_effect=RuntimeError("broker down"))
+    )
+    scrape_jobs.run_resource_job.apply(
+        args=[
+            "refresh",
+            "TRANS-1",
+            "any",
+            {"refresh_metadata": False, "refresh_m3u8": False, "retranslate": True},
+        ],
+        task_id="translation-parent",
+    ).get()
+    assert store.get("translation-parent")["state"] == "succeeded"
+    assert store.get("translation-parent")["translation"]["state"] == "failed"
+    assert search_jobs.RedisSearchJobStore is not None

@@ -68,6 +68,7 @@ export function createTaskDebugData() {
       state: 'succeeded',
       action: 'add',
       stage: 'translation_queued',
+      translation: { state: 'completed' },
       updated: '14:28:51',
     },
   ]

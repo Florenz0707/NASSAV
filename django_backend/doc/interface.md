@@ -1290,6 +1290,8 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 
 快照字段为 `task_id`、`job_type=scrape`、`action`、`avid`、`state`、`stage`、`version`、`updated_at`、`resource_avid`、`error_code`、`message`。状态顺序为 `queued → running → succeeded|failed`；运行阶段按实际执行进入 `source_lookup`、`metadata`、`cover`、`saving`、`translation_queued`。无总工作量时不提供百分比。前端应在入队后先查快照，按 `version` 忽略旧事件；成功后再重新查询资源。`scrape_job_update` WebSocket 事件仅含任务 ID、类型、状态、阶段、版本和更新时间；完整快照需凭令牌查询。
 
+快照查询额外返回 `resource`（可为空，含 AVID 和原始 / 来源 / 译后标题）及 `translation`。后者含 `state`，已提交时含翻译子任务 `task_id`；状态为 `not_requested`、`queued`、`translating`、`completed`、`failed`、`skipped`、`unknown` 或 `unavailable`。`unknown` 表示暂时无法读取结果，可重试；旧任务未记录子任务为 `unavailable`。Celery `SUCCESS` 必须结合业务返回的 `success` 和 `translation_status` 判定，不能当作翻译成功。刮削保存成功仍保持父任务 `succeeded`，翻译结果单独显示；子任务状态通过签名快照查询读取，不修改父任务终态和版本，也不在公开 WebSocket 广播标题或子任务结果。入队失败单独返回翻译 `failed`。结果和快照保留期限届满后停止跟踪，不能声称已有翻译成功证据。
+
 资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前业务接口和任务 WebSocket 均要求 operator session；任务快照还要求独立签名令牌。远程部署必须使用同源 HTTPS 代理。
 
 ## P4 Cookie 管理兼容扩展

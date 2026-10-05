@@ -112,7 +112,12 @@ def submit_download_task(avid: str) -> tuple[AsyncResult | None, bool]:
 # ============================================================
 
 
-@shared_task(bind=True, name="nassav.tasks.translate_title_task", ignore_result=False)
+@shared_task(
+    bind=True,
+    name="nassav.tasks.translate_title_task",
+    ignore_result=False,
+    track_started=True,
+)
 def translate_title_task(self, avid: str):
     from nassav.composition import build_translation_workflow
 

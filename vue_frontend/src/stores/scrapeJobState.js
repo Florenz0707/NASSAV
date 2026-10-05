@@ -27,5 +27,22 @@ export function mergeScrapeJob(current, incoming) {
   ) {
     return current
   }
-  return { ...current, ...incoming }
+  const merged = { ...current, ...incoming }
+  if (
+    current.translation?.task_id &&
+    current.translation.task_id === incoming.translation?.task_id &&
+    ['completed', 'failed', 'skipped'].includes(current.translation.state) &&
+    ['queued', 'translating', 'unknown'].includes(incoming.translation.state)
+  ) {
+    merged.translation = current.translation
+  }
+  return merged
+}
+
+export function scrapeJobNeedsPolling(job) {
+  return (
+    !TERMINAL_JOB_STATES.has(job.state) ||
+    (job.state === 'succeeded' &&
+      ['queued', 'translating', 'unknown'].includes(job.translation?.state))
+  )
 }

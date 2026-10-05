@@ -25,8 +25,11 @@ export function buildTaskDetails({
   preferredTitle,
   coverUrlFor,
 }) {
-  const metadataFor = (task) =>
-    metadataCache?.get(task.avid)?.metadata || resources.find((r) => r.avid === task.avid) || {}
+  const metadataFor = (task) => ({
+    ...resources.find((r) => r.avid === task.avid),
+    ...metadataCache?.get(task.avid)?.metadata,
+    ...task.resource,
+  })
   const resourceFields = (task, type) => {
     const metadata = metadataFor(task)
     const resource = { ...task, ...metadata, avid: task.avid }
@@ -79,6 +82,7 @@ export function buildTaskDetails({
       state: task.state,
       action: task.action,
       stage: task.stage,
+      translation: task.translation,
       error: task.state === 'failed' ? task.message || '刮削失败' : '',
       updated: taskTime(task.updated_at),
     })),

@@ -70,3 +70,22 @@ test('unknown states and absent metadata remain explicit; refresh failures retai
   assert.equal(tasks[2].error, '来源超时')
   assert.equal(tasks[2].coverUrl, '/cover/AV-3')
 })
+
+test('scrape snapshot titles follow preference and translation status is separate from saved resource', () => {
+  const input = {
+    scrapeJobs: [
+      {
+        task_id: 'job',
+        avid: 'AV-1',
+        state: 'succeeded',
+        resource: { avid: 'AV-1', source_title: 'Source', translated_title: 'Translation' },
+        translation: { task_id: 'child', state: 'failed' },
+      },
+    ],
+    preferredTitle: 'translated_title',
+  }
+  const task = build(input)[0]
+  assert.equal(task.title, 'Translation')
+  assert.equal(task.state, 'succeeded')
+  assert.equal(task.translation.state, 'failed')
+})

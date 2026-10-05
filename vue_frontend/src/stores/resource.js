@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { downloadApi, resourceApi, sourceApi } from '../api/index.js'
 import { notifyScrapeBatch, notifyScrapeJobTransition } from './scrapeJobNotifications.js'
-import { mergeScrapeJob, TERMINAL_JOB_STATES } from './scrapeJobState.js'
+import { mergeScrapeJob, scrapeJobNeedsPolling, TERMINAL_JOB_STATES } from './scrapeJobState.js'
 
 export const useResourceStore = defineStore('resource', () => {
   const list = createResourceList(resourceApi)
@@ -24,7 +24,7 @@ export const useResourceStore = defineStore('resource', () => {
   function persistScrapeJobs() {
     if (typeof localStorage === 'undefined') return
     const current = [...scrapeJobs.value.values()].filter(
-      (job) => !TERMINAL_JOB_STATES.has(job.state) || Date.now() / 1000 - job.updated_at < 86400
+      (job) => scrapeJobNeedsPolling(job) || Date.now() / 1000 - job.updated_at < 86400
     )
     localStorage.setItem(SCRAPE_STORAGE_KEY, JSON.stringify(current.slice(0, 100)))
   }
@@ -47,9 +47,7 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   function syncScrapePolling() {
-    const pending = [...scrapeJobs.value.values()].some(
-      (job) => !TERMINAL_JOB_STATES.has(job.state)
-    )
+    const pending = [...scrapeJobs.value.values()].some((job) => scrapeJobNeedsPolling(job))
     if (pending && !scrapePollTimer) {
       scrapePollTimer = setInterval(() => refreshPendingScrapeJobs(), 5000)
     } else if (!pending && scrapePollTimer) {
@@ -70,7 +68,7 @@ export const useResourceStore = defineStore('resource', () => {
     } catch {
       localStorage.removeItem(SCRAPE_STORAGE_KEY)
     }
-    refreshPendingScrapeJobs()
+    Promise.allSettled([...scrapeJobs.value.keys()].map((taskId) => refreshScrapeJob(taskId)))
   }
 
   async function refreshScrapeJob(taskId) {
@@ -84,6 +82,12 @@ export const useResourceStore = defineStore('resource', () => {
     } catch (err) {
       if (!scrapeJobs.value.has(taskId)) return null
       if (err.code === 404 || err.code === 403) {
+        if (current.state === 'failed') return current
+        if (current.state === 'succeeded')
+          return setScrapeJob({
+            ...current,
+            translation: { state: 'unavailable', message: '翻译跟踪已过期' },
+          })
         return setScrapeJob({
           ...current,
           state: 'failed',
@@ -110,9 +114,7 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   async function refreshPendingScrapeJobs() {
-    const pending = [...scrapeJobs.value.values()].filter(
-      (job) => !TERMINAL_JOB_STATES.has(job.state)
-    )
+    const pending = [...scrapeJobs.value.values()].filter((job) => scrapeJobNeedsPolling(job))
     await Promise.allSettled(pending.map((job) => refreshScrapeJob(job.task_id)))
   }
 

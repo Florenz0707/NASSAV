@@ -185,6 +185,7 @@ def submit_resource_job(
         "resource_avid": None,
         "error_code": None,
         "message": None,
+        "translation": {"state": "not_requested"},
     }
     try:
         snapshot = store.save(snapshot)
@@ -226,7 +227,11 @@ def get_resource_job(task_id: str, *, store: JobStore | None = None) -> dict | N
                 error_code="JOB_EXPIRED",
                 message="任务锁已过期，请重新提交",
             )
-    return snapshot
+    if snapshot:
+        from nassav.resource_job_details import resource_job_details
+
+        return resource_job_details(snapshot)
+    return None
 
 
 @shared_task(
@@ -254,13 +259,18 @@ def run_resource_job(self, action: str, avid: str, source: str, options: dict):
     )
     scrape_started = time.monotonic()
 
+    translation_requested = False
+
     def progress(stage: str) -> None:
-        nonlocal snapshot
+        nonlocal snapshot, translation_requested
+        if stage == "translation_queued":
+            translation_requested = True
         if not store.renew(avid, task_id):
             raise RuntimeError("任务锁已过期")
         snapshot = _update(store, snapshot, state="running", stage=stage)
 
     snapshot = _update(store, snapshot, state="running")
+    result: dict
     try:
         if action == "add":
             # A prior delivery may have saved the resource before losing its worker.
@@ -286,13 +296,34 @@ def run_resource_job(self, action: str, avid: str, source: str, options: dict):
                 resource.translated_title = None
                 resource.save(update_fields=["translation_status", "translated_title"])
                 progress("translation_queued")
-                translate_title_task.delay(avid)
+                try:
+                    result["translate_task_id"] = translate_title_task.delay(avid).id
+                except Exception:
+                    logger.exception("资源已保存，但翻译任务未能入队: {}", avid)
+        translation_id = result.get("translate_task_id")
+        translation = (
+            {"task_id": translation_id, "state": "queued"}
+            if translation_id
+            else {"state": "failed", "message": "翻译任务未能入队"}
+            if translation_requested
+            else {"state": "not_requested"}
+        )
         snapshot = _update(
             store,
             snapshot,
             state="succeeded",
             stage=None,
             resource_avid=result["resource"]["avid"],
+            resource={
+                key: result["resource"].get(key)
+                for key in (
+                    "avid",
+                    "original_title",
+                    "source_title",
+                    "translated_title",
+                )
+            },
+            translation=translation,
         )
         return {"resource_avid": snapshot["resource_avid"]}
     except (

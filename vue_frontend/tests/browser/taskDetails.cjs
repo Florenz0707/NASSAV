@@ -8,6 +8,7 @@ const assert = require('node:assert/strict')
       const errors = [],
         writes = []
       let socket,
+        translationReads = 0,
         queueReads = 0
       const jobs = [
         {
@@ -21,6 +22,8 @@ const assert = require('node:assert/strict')
         },
         {
           task_id: 'scrape-ok',
+          resource: { avid: 'AV-4', source_title: '已保存的资源', translated_title: '资源译文' },
+          translation: { task_id: 'child', state: 'queued' },
           avid: 'AV-4',
           action: 'add',
           state: 'succeeded',
@@ -45,6 +48,19 @@ const assert = require('node:assert/strict')
         let data = []
         if (path.endsWith('/auth/session')) data = { authenticated: true, username: 'audit' }
         if (path.endsWith('/setting')) data = { color_mode: theme }
+        if (path.includes('/resource/jobs/')) {
+          data = jobs.find((job) => path.endsWith(job.task_id))
+          if (data?.task_id === 'scrape-ok') {
+            translationReads++
+            data = {
+              ...data,
+              translation: {
+                task_id: 'child',
+                state: translationReads > 1 ? 'completed' : 'queued',
+              },
+            }
+          }
+        }
         if (path.endsWith('/tasks/queue/status')) {
           queueReads++
           data = {
@@ -98,6 +114,8 @@ const assert = require('node:assert/strict')
       await page.getByRole('button', { name: '等待下载的资源，查看任务明细' }).click()
       await detail.getByRole('heading', { name: '等待下载的资源' }).waitFor()
       await page.getByRole('button', { name: '刮削任务', exact: true }).click()
+      await page.getByRole('button', { name: '已保存的资源，查看任务明细' }).click()
+      await detail.getByText('翻译成功', { exact: true }).waitFor()
       await page.getByRole('button', { name: 'AV-3，查看任务明细' }).click()
       assert.equal(await detail.getByRole('alert').textContent(), '来源超时')
       assert.equal(await detail.getByRole('progressbar').count(), 0)

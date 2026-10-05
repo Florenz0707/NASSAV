@@ -287,3 +287,21 @@ test('dismissed in-flight job cannot be restored by its delayed snapshot', async
     store.stopScrapeTracking()
   }
 })
+
+test('translation polling and terminal result cannot regress after scrape succeeds', async () => {
+  const { scrapeJobNeedsPolling } = await import('../src/stores/scrapeJobState.js')
+  const current = {
+    task_id: 'parent',
+    state: 'succeeded',
+    version: 7,
+    translation: { task_id: 'child', state: 'completed' },
+  }
+  assert.equal(scrapeJobNeedsPolling(current), false)
+  assert.equal(scrapeJobNeedsPolling({ ...current, translation: { state: 'queued' } }), true)
+  assert.equal(scrapeJobNeedsPolling({ ...current, translation: { state: 'unknown' } }), true)
+  assert.equal(
+    mergeScrapeJob(current, { ...current, translation: { task_id: 'child', state: 'queued' } })
+      .translation.state,
+    'completed'
+  )
+})
