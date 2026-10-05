@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../components/AppIcon.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
@@ -506,7 +507,9 @@ function viewResource() {
           </div>
 
           <div v-if="result.failed.length > 0" class="result-group">
-            <h4 class="result-group-title failed">✕ 添加失败 ({{ result.failed.length }})</h4>
+            <h4 class="result-group-title failed flex items-center gap-2">
+              <AppIcon name="close" /> 添加失败 ({{ result.failed.length }})
+            </h4>
             <div class="result-group-list">
               <span
                 v-for="failedItem in result.failed"
@@ -657,7 +660,7 @@ function viewResource() {
   display: inline-block;
   padding: 0.125rem 0.5rem;
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  color: var(--primary-color);
+  color: var(--accent-primary);
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 600;

@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../AppIcon.vue'
 defineProps({
   items: {
     type: Array,
@@ -15,10 +16,11 @@ const emit = defineEmits(['select'])
 
 <template>
   <div class="tw-surface-overlay rounded-xl p-2">
-    <div
+    <button
+      type="button"
       v-for="item in items"
       :key="item.id"
-      class="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200"
+      class="w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200"
       :style="
         activeId === item.id
           ? 'background: color-mix(in srgb, var(--accent-primary) 10%, transparent); color: var(--accent-primary);'
@@ -26,8 +28,8 @@ const emit = defineEmits(['select'])
       "
       @click="emit('select', item.id)"
     >
-      <span class="text-xl">{{ item.icon }}</span>
+      <AppIcon :name="item.icon" />
       <span class="font-medium">{{ item.name }}</span>
-    </div>
+    </button>
   </div>
 </template>

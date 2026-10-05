@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { ref, toRef } from 'vue'
+import { useDialog } from '../../composables/useDialog.js'
+const props = defineProps({
   show: {
     type: Boolean,
     default: false,
@@ -19,51 +21,65 @@ defineProps({
 })
 
 const emit = defineEmits(['close'])
+const dialogRef = ref(null)
+const { titleId } = useDialog(toRef(props, 'show'), dialogRef, () => emit('close'))
 </script>
 
 <template>
-  <div
-    v-if="show"
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-  >
+  <Teleport to="body">
     <div
-      class="rounded-2xl w-full overflow-hidden shadow-2xl tw-surface-overlay"
-      :class="maxWidthClass"
+      v-if="show"
+      class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
     >
       <div
-        class="p-6 flex justify-between items-center"
-        style="border-bottom: 1px solid var(--border-color)"
+        ref="dialogRef"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="titleId"
+        tabindex="-1"
+        class="rounded-2xl w-full overflow-hidden shadow-2xl tw-surface-overlay"
+        :class="maxWidthClass"
       >
-        <div class="settings-modal-header-main">
-          <h3 class="text-xl font-bold text-[var(--text-primary)]">{{ title }}</h3>
-          <slot name="header-extra" />
-        </div>
-        <button v-if="showClose" class="settings-modal-close-btn" @click="emit('close')">
-          <svg
-            class="w-5 h-5 flex items-center"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <div
+          class="p-6 flex justify-between items-center"
+          style="border-bottom: 1px solid var(--border-color)"
+        >
+          <div class="settings-modal-header-main">
+            <h3 :id="titleId" class="text-xl font-bold text-[var(--text-primary)]">{{ title }}</h3>
+            <slot name="header-extra" />
+          </div>
+          <button
+            v-if="showClose"
+            class="settings-modal-close-btn"
+            aria-label="关闭弹窗"
+            @click="emit('close')"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            ></path>
-          </svg>
-        </button>
-      </div>
+            <svg
+              class="w-5 h-5 flex items-center"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
 
-      <div class="p-6">
-        <slot />
-      </div>
+        <div class="p-6">
+          <slot />
+        </div>
 
-      <div class="p-6" style="border-top: 1px solid var(--border-color)">
-        <slot name="footer" />
+        <div class="p-6" style="border-top: 1px solid var(--border-color)">
+          <slot name="footer" />
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>

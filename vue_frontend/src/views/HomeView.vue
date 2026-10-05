@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../components/AppIcon.vue'
 import { RouterLink } from 'vue-router'
 </script>
 
@@ -75,7 +76,7 @@ import { RouterLink } from 'vue-router'
             </RouterLink>
             <RouterLink
               to="/resources"
-              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-[var(--bg-surface-subtle-5)] border border-[var(--border-surface-subtle-10)] hover:bg-[var(--bg-surface-subtle-10)] hover:border-surface-subtle/20 hover:-translate-y-1 backdrop-blur-sm"
+              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-[var(--bg-white-5)] border border-[var(--border-white-10)] hover:bg-[var(--bg-white-10)] hover:border-surface-subtle/20 hover:-translate-y-1 backdrop-blur-sm"
               style="color: var(--text-primary)"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,12 +97,12 @@ import { RouterLink } from 'vue-router'
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Card 1 -->
         <div
-          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
             class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-info/10 to-accent-purple/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-info/10"
           >
-            <span class="text-3xl filter drop-shadow-lg">⚡</span>
+            <AppIcon name="bolt" class="w-8 h-8" />
           </div>
           <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
             极速下载引擎
@@ -113,12 +114,12 @@ import { RouterLink } from 'vue-router'
 
         <!-- Card 2 -->
         <div
-          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-emerald-500/10"
+            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-success/10 to-accent-tertiary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-success/10"
           >
-            <span class="text-3xl filter drop-shadow-lg">🎯</span>
+            <AppIcon name="target" class="w-8 h-8" />
           </div>
           <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
             智能元数据刮削
@@ -130,12 +131,12 @@ import { RouterLink } from 'vue-router'
 
         <!-- Card 3 -->
         <div
-          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
             class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-secondary/10 to-accent-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-secondary/10"
           >
-            <span class="text-3xl filter drop-shadow-lg">🎨</span>
+            <AppIcon name="palette" class="w-8 h-8" />
           </div>
           <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
             沉浸式体验

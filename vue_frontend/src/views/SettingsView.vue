@@ -30,8 +30,8 @@ const searchResultDisplayOptions = [
 
 // 设置菜单项
 const menuItems = [
-  { id: 'general', name: '通用设置', icon: '⚙️' },
-  { id: 'cookies', name: 'Cookie 管理', icon: '🍪' },
+  { id: 'general', name: '通用设置', icon: 'settings' },
+  { id: 'cookies', name: 'Cookie 管理', icon: 'cookie' },
 ]
 
 // 下载源列表数据
@@ -316,7 +316,7 @@ const copyCookie = async () => {
       @close="showViewModal = false"
     >
       <div
-        class="bg-[var(--bg-black-40)] rounded-xl p-4 font-mono text-sm text-white break-all max-h-[400px] overflow-y-auto border border-[var(--border-surface-subtle-5)]"
+        class="bg-[var(--bg-black-40)] rounded-xl p-4 font-mono text-sm text-white break-all max-h-[400px] overflow-y-auto border border-[var(--border-white-5)]"
       >
         {{ viewCookieValue || '无内容' }}
       </div>
@@ -363,7 +363,7 @@ const copyCookie = async () => {
       <template #footer>
         <div class="flex justify-between items-center">
           <button
-            class="px-4 py-2 rounded-xl bg-[var(--bg-surface-subtle-5)] text-[var(--text-muted)] text-sm border border-surface-subtle/[0.08] hover:bg-[var(--bg-surface-subtle-10)] hover:text-[var(--text-primary)] transition-all"
+            class="px-4 py-2 rounded-xl bg-[var(--bg-white-5)] text-[var(--text-muted)] text-sm border border-surface-subtle/[0.08] hover:bg-[var(--bg-white-10)] hover:text-[var(--text-primary)] transition-all"
             @click="autoFetchCookie()"
           >
             自动获取

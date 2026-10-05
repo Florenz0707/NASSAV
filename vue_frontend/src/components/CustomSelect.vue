@@ -64,6 +64,7 @@ function handleSelect(option) {
   emit('update:modelValue', option.value)
   emit('change', option.value)
   closeMenu()
+  rootRef.value?.querySelector('.custom-select-button')?.focus()
 }
 
 function handleDocumentClick(event) {
@@ -93,22 +94,32 @@ async function handleButtonKeydown(event) {
   }
 }
 
-function handleOptionKeydown(event, index) {
+function handleOptionKeydown(event) {
   if (event.key === 'Escape') {
     closeMenu()
     rootRef.value?.querySelector('.custom-select-button')?.focus()
     return
   }
-  if (event.key === 'ArrowDown') {
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
     event.preventDefault()
-    const options = rootRef.value?.querySelectorAll('.custom-select-option:not(.is-disabled)')
-    options?.[Math.min(index + 1, options.length - 1)]?.focus()
+    const options = [...rootRef.value.querySelectorAll('.custom-select-option:not(:disabled)')]
+    const index = options.indexOf(event.currentTarget)
+    const next =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? options.length - 1
+          : Math.max(0, Math.min(options.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)))
+    options[next]?.focus()
   }
-  if (event.key === 'ArrowUp') {
-    event.preventDefault()
-    const options = rootRef.value?.querySelectorAll('.custom-select-option:not(.is-disabled)')
-    options?.[Math.max(index - 1, 0)]?.focus()
-  }
+  if (event.key === 'Tab') closeMenu()
+}
+
+const listboxId = `select-${Math.random().toString(36).slice(2)}`
+function buttonAttrs() {
+  return Object.fromEntries(
+    Object.entries(attrs).filter(([key]) => !['class', 'style'].includes(key))
+  )
 }
 
 onMounted(() => {
@@ -134,6 +145,9 @@ onBeforeUnmount(() => {
     <button
       type="button"
       class="custom-select-button"
+      v-bind="buttonAttrs()"
+      aria-haspopup="listbox"
+      :aria-controls="listboxId"
       :disabled="disabled"
       :aria-expanded="open"
       @click="toggleMenu"
@@ -143,7 +157,13 @@ onBeforeUnmount(() => {
         {{ displayLabel }}
       </span>
       <span class="custom-select-chevron" aria-hidden="true">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+        <svg
+          class="w-4 h-4"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+        >
           <path stroke-linecap="round" stroke-linejoin="round" d="m5 7 5 6 5-6" />
         </svg>
       </span>
@@ -152,11 +172,12 @@ onBeforeUnmount(() => {
     <transition name="custom-select-fade">
       <div
         v-if="open"
-        class="custom-select-menu bg-secondary border border-[var(--border-surface-subtle-10)] rounded-lg shadow-lg"
+        class="custom-select-menu bg-secondary border border-[var(--border-white-10)] rounded-lg shadow-lg"
+        :id="listboxId"
         role="listbox"
       >
         <button
-          v-for="(option, index) in options"
+          v-for="option in options"
           :key="`${option.value}`"
           type="button"
           class="custom-select-option"
@@ -164,9 +185,11 @@ onBeforeUnmount(() => {
             'is-selected': String(option.value) === String(modelValue),
             'is-disabled': option.disabled,
           }"
+          role="option"
+          :aria-selected="String(option.value) === String(modelValue)"
           :disabled="option.disabled"
           @click="handleSelect(option)"
-          @keydown="handleOptionKeydown($event, index)"
+          @keydown="handleOptionKeydown($event)"
         >
           <span class="custom-select-option-label">{{ option.label }}</span>
           <span
@@ -316,8 +339,8 @@ onBeforeUnmount(() => {
 .custom-select-option:hover:not(.is-disabled),
 .custom-select-option:focus-visible {
   outline: none;
-  background: var(--bg-surface-subtle-8);
-  border-color: var(--border-surface-subtle-10);
+  background: var(--bg-white-8);
+  border-color: var(--border-white-10);
   color: var(--text-primary);
   transform: translateY(-1px);
 }

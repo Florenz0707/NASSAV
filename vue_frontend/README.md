@@ -149,3 +149,22 @@ pnpm run check
 ```
 
 该命令依次运行 lint、`pnpm run test` 和构建。测试覆盖资源任务从入队到终态的快照补齐、WebSocket URL、重连与会话失效，以及 Vite 的 HTTP/WebSocket 同源代理。WebSocket 连接失败时，下载页改用 API 轮询；资源任务继续通过带令牌的状态查询补齐终态。浏览器握手失败若只返回异常关闭码，前端会查询 HTTP 会话：登录已过期则停止重连，网络故障则继续重试。
+
+## 公共组件浏览器验收
+
+`tests/browser/components.cjs` 使用 Playwright 在独立页面挂载真实 Vue 组件，检查初始弹窗、焦点循环/恢复、嵌套滚动锁、卸载清理和下拉禁用项导航；不调用后端。普通 `pnpm run test` 不包括此浏览器检查。
+
+在临时目录安装测试驱动，启动本地 Vite 后，在另一终端运行：
+
+```bash
+npm install --prefix /tmp/nassav-browser-audit --no-audit --no-fund playwright
+# 可设置 PLAYWRIGHT_BROWSERS_PATH=/tmp/nassav-browsers 并安装 Chromium。
+NODE_PATH=/tmp/nassav-browser-audit/node_modules node /tmp/nassav-browser-audit/node_modules/playwright/cli.js install chromium
+pnpm exec vite --host 127.0.0.1 --port 4178
+```
+
+```bash
+NODE_PATH=/tmp/nassav-browser-audit/node_modules node tests/browser/components.cjs
+```
+
+有现成 Chromium 时设置 `NASSAV_CHROMIUM_PATH` 指向可执行文件；`NASSAV_BROWSER_ORIGIN` 可覆盖默认本地地址。重构阶段与验收边界见 [执行记录](doc/refactoring-progress.md)。

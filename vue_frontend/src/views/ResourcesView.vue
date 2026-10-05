@@ -396,7 +396,7 @@ function onPageSizeChange(newSize) {
     <!-- Empty State -->
     <EmptyState
       v-else-if="filteredResources.length === 0"
-      icon="◇"
+      icon="empty"
       title="暂无资源"
       :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
     >

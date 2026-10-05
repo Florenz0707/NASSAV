@@ -1,4 +1,5 @@
 <script setup>
+import { useDialog } from '../composables/useDialog.js'
 import { ref, watch } from 'vue'
 
 const props = defineProps({
@@ -55,20 +56,8 @@ function close() {
   emit('update:show', false)
 }
 
-function handleKeydown(e) {
-  if (e.key === 'Escape') handleCancel()
-}
-
-// 阻止背景滚动，绑定 Esc 关闭
-watch(isVisible, (val) => {
-  if (val) {
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', handleKeydown)
-  } else {
-    document.body.style.overflow = ''
-    document.removeEventListener('keydown', handleKeydown)
-  }
-})
+const dialogRef = ref(null)
+const { titleId, descriptionId } = useDialog(isVisible, dialogRef, handleCancel)
 </script>
 
 <template>
@@ -81,10 +70,12 @@ watch(isVisible, (val) => {
       >
         <div
           class="rounded-2xl shadow-[0_20px_60px_color-mix(in_srgb,_var(--shadow-color)_50%,_transparent)] min-w-[320px] max-w-[480px] w-full overflow-hidden confirm-dialog confirm-dialog-box"
+          ref="dialogRef"
+          tabindex="-1"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="confirm-dialog-title"
-          aria-describedby="confirm-dialog-desc"
+          :aria-labelledby="titleId"
+          :aria-describedby="descriptionId"
           :class="`confirm-${type}`"
         >
           <!-- Header -->
@@ -131,7 +122,7 @@ watch(isVisible, (val) => {
               </svg>
             </div>
             <h3
-              id="confirm-dialog-title"
+              :id="titleId"
               class="text-xl font-semibold text-center"
               style="color: var(--text-primary)"
             >
@@ -142,7 +133,7 @@ watch(isVisible, (val) => {
           <!-- Body -->
           <div class="px-6 pb-6">
             <p
-              id="confirm-dialog-desc"
+              :id="descriptionId"
               class="text-[0.95rem] text-center leading-relaxed"
               style="color: var(--text-secondary)"
             >

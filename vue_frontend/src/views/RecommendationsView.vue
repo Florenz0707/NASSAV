@@ -855,14 +855,14 @@ watch(blacklistSearch, () => {
 
       <EmptyState
         v-else-if="!hasRequested && !visibleItems.length"
-        icon="✦"
+        icon="star"
         title="尚未开始推荐"
         description="设置偏好，开始推荐"
       />
 
       <EmptyState
         v-else-if="error && !visibleItems.length"
-        icon="!"
+        icon="warning"
         title="推荐加载失败"
         :description="error"
       >
@@ -875,7 +875,7 @@ watch(blacklistSearch, () => {
 
       <EmptyState
         v-else-if="!visibleItems.length"
-        icon="✦"
+        icon="star"
         title="暂时没有推荐结果"
         description="尝试添加本地资源，或者稍后重试。"
       >

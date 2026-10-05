@@ -72,12 +72,12 @@ body.dark-mode {
   --bg-input: rgba(18, 18, 28, 0.8);
 
   /* Utilities for subtle backgrounds */
-  --bg-surface-subtle-5: rgba(255, 255, 255, 0.05);
-  --bg-surface-subtle-8: rgba(255, 255, 255, 0.08);
-  --bg-surface-subtle-10: rgba(255, 255, 255, 0.1);
-  --bg-surface-subtle-12: rgba(255, 255, 255, 0.12);
-  --border-surface-subtle-5: rgba(255, 255, 255, 0.05);
-  --border-surface-subtle-10: rgba(255, 255, 255, 0.1);
+  --bg-white-5: rgba(255, 255, 255, 0.05);
+  --bg-white-8: rgba(255, 255, 255, 0.08);
+  --bg-white-10: rgba(255, 255, 255, 0.1);
+  --bg-white-12: rgba(255, 255, 255, 0.12);
+  --border-white-5: rgba(255, 255, 255, 0.05);
+  --border-white-10: rgba(255, 255, 255, 0.1);
   --bg-black-40: rgba(0, 0, 0, 0.4);
 
   /* Shadows */
@@ -142,12 +142,12 @@ body.light-mode {
   --bg-input: rgba(255, 255, 255, 0.8);
 
   /* Utilities for subtle backgrounds inverted for light mode */
-  --bg-surface-subtle-5: rgba(0, 0, 0, 0.03);
-  --bg-surface-subtle-8: rgba(0, 0, 0, 0.05);
-  --bg-surface-subtle-10: rgba(0, 0, 0, 0.08);
-  --bg-surface-subtle-12: rgba(0, 0, 0, 0.1);
-  --border-surface-subtle-5: rgba(0, 0, 0, 0.05);
-  --border-surface-subtle-10: rgba(0, 0, 0, 0.1);
+  --bg-white-5: rgba(0, 0, 0, 0.03);
+  --bg-white-8: rgba(0, 0, 0, 0.05);
+  --bg-white-10: rgba(0, 0, 0, 0.08);
+  --bg-white-12: rgba(0, 0, 0, 0.1);
+  --border-white-5: rgba(0, 0, 0, 0.05);
+  --border-white-10: rgba(0, 0, 0, 0.1);
   --bg-black-40: rgba(0, 0, 0, 0.04);
 
   /* Shadows */
@@ -464,7 +464,7 @@ select option {
 
 @layer components {
   .tw-back-btn {
-    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-[var(--bg-surface-subtle-5)] hover:text-[var(--text-primary)];
+    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-[var(--bg-white-5)] hover:text-[var(--text-primary)];
   }
 
   .tw-btn-primary {
@@ -524,11 +524,11 @@ select option {
   }
 
   .tw-home-hero-secondary-btn {
-    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border-surface-subtle-10)] bg-[var(--bg-surface-subtle-5)] px-8 py-4 text-lg font-medium text-[var(--text-primary)] no-underline backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-surface-subtle/20 hover:bg-[var(--bg-surface-subtle-10)];
+    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border-white-10)] bg-[var(--bg-white-5)] px-8 py-4 text-lg font-medium text-[var(--text-primary)] no-underline backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-surface-subtle/20 hover:bg-[var(--bg-white-10)];
   }
 
   .tw-home-feature-card {
-    @apply min-h-[20rem] rounded-2xl border border-[var(--border-surface-subtle-5)] bg-surface-subtle/[0.02] p-10 md:p-12 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-surface-subtle/[0.04];
+    @apply min-h-[20rem] rounded-2xl border border-[var(--border-white-5)] bg-surface-subtle/[0.02] p-10 md:p-12 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-surface-subtle/[0.04];
   }
 
   .tw-home-feature-icon {
@@ -546,7 +546,7 @@ select option {
   }
 
   .tw-btn-muted {
-    @apply rounded-xl bg-[var(--bg-surface-subtle-5)] px-6 py-2 font-medium text-[var(--text-primary)] transition-all hover:bg-[var(--bg-surface-subtle-10)];
+    @apply rounded-xl bg-[var(--bg-white-5)] px-6 py-2 font-medium text-[var(--text-primary)] transition-all hover:bg-[var(--bg-white-10)];
   }
 
   .tw-btn-settings-primary {
@@ -555,7 +555,7 @@ select option {
   }
 
   .tw-btn-settings-danger-soft {
-    @apply rounded-lg border border-surface-subtle/[0.08] bg-[var(--bg-surface-subtle-5)] px-3 py-1.5 text-sm text-accent-danger transition-all hover:border-accent-danger/20 hover:bg-accent-danger/10;
+    @apply rounded-lg border border-surface-subtle/[0.08] bg-[var(--bg-white-5)] px-3 py-1.5 text-sm text-accent-danger transition-all hover:border-accent-danger/20 hover:bg-accent-danger/10;
   }
 
   .tw-card-action-neutral {
@@ -569,7 +569,7 @@ select option {
   }
 
   .tw-card-menu-item {
-    @apply w-full border-none bg-transparent px-4 py-2.5 text-center text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--bg-surface-subtle-8)] hover:text-[var(--text-primary)];
+    @apply w-full border-none bg-transparent px-4 py-2.5 text-center text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--bg-white-8)] hover:text-[var(--text-primary)];
   }
 
   .tw-cookie-btn-view {

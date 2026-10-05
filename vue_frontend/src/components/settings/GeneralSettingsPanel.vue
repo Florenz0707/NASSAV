@@ -36,9 +36,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
     </div>
 
     <div class="space-y-6">
-      <div
-        class="p-4 rounded-xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)]"
-      >
+      <div class="p-4 rounded-xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)]">
         <h3 class="text-sm font-medium text-[var(--text-muted)] mb-4 uppercase tracking-wider">
           显示设置
         </h3>
@@ -54,7 +52,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
                 :class="
                   settings.colorMode === 'light'
                     ? 'bg-[var(--accent-primary)] text-white'
-                    : 'bg-[var(--bg-surface-subtle-5)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle-10)]'
+                    : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
                 @click="settings.colorMode = 'light'"
               >
@@ -65,7 +63,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
                 :class="
                   settings.colorMode === 'dark'
                     ? 'bg-[var(--accent-primary)] text-white'
-                    : 'bg-[var(--bg-surface-subtle-5)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle-10)]'
+                    : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
                 @click="settings.colorMode = 'dark'"
               >
@@ -75,7 +73,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-surface-subtle-5)]"
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">显示女优头像</div>
@@ -98,7 +96,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-surface-subtle-5)]"
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">标题显示字段</div>
@@ -113,7 +111,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-surface-subtle-5)]"
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">搜索结果展示样式</div>
@@ -142,7 +140,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
             />
           </div>
 
-          <div class="pt-4 border-t border-[var(--border-surface-subtle-5)]">
+          <div class="pt-4 border-t border-[var(--border-white-5)]">
             <div class="flex items-center justify-between mb-4">
               <div>
                 <div class="text-[var(--text-primary)] font-medium">字体样式</div>
@@ -162,7 +160,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
             </div>
 
             <div
-              class="p-4 rounded-lg bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)]"
+              class="p-4 rounded-lg bg-surface-subtle/[0.02] border border-[var(--border-white-5)]"
             >
               <div class="text-xs text-[var(--text-muted)] mb-2">预览效果：</div>
               <div

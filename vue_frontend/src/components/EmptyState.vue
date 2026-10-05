@@ -1,8 +1,9 @@
 <script setup>
+import AppIcon from './AppIcon.vue'
 defineProps({
   icon: {
     type: String,
-    default: '◇',
+    default: 'empty',
   },
   title: {
     type: String,
@@ -18,12 +19,7 @@ defineProps({
 <template>
   <div class="flex flex-col items-center justify-center py-16 px-8 text-center">
     <div class="text-6xl opacity-30 mb-6 animate-[float_3s_ease-in-out_infinite]">
-      <template v-if="icon.startsWith('<svg')">
-        <span v-html="icon"></span>
-      </template>
-      <template v-else>
-        {{ icon }}
-      </template>
+      <slot name="icon"><AppIcon :name="icon" class="w-14 h-14" /></slot>
     </div>
     <h3 class="text-xl font-semibold text-primary mb-2">
       {{ title }}

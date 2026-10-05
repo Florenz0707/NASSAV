@@ -776,7 +776,7 @@ function goBack() {
       <!-- Empty State -->
       <EmptyState
         v-else-if="displayedResources.length === 0"
-        icon="◇"
+        icon="empty"
         title="暂无资源"
         :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
       >
@@ -932,7 +932,7 @@ function goBack() {
 
         <EmptyState
           v-if="externalResources.length === 0 && !externalError"
-          icon="◇"
+          icon="empty"
           :title="externalCancelled ? '搜索已取消' : '外部搜索暂无结果'"
           description="未能从外部源获取到关于该类别的更多资源"
         />

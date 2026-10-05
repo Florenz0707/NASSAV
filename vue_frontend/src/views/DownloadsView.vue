@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../components/AppIcon.vue'
 import { computed, onBeforeUnmount, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
@@ -292,7 +293,9 @@ function goToResourceDetail(task) {
 
     <!-- 空状态 -->
     <div v-else class="empty-state">
-      <div class="empty-icon">📥</div>
+      <div class="empty-icon flex justify-center">
+        <AppIcon name="download" class="w-14 h-14" />
+      </div>
       <div class="empty-text">暂无下载任务</div>
       <div class="empty-hint">在资源详情页点击下载按钮添加任务</div>
     </div>
