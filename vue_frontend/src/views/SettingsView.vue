@@ -222,13 +222,13 @@ onMounted(async () => {
 const cookieTextareaStyle = computed(() => {
   if (settingsStore.colorMode === 'light') {
     return {
-      background: 'rgba(255, 255, 255, 0.96)',
-      border: '1px solid rgba(15, 23, 42, 0.12)',
-      color: '#1f2937',
+      background: 'color-mix(in srgb, var(--bg-secondary) 96%, transparent)',
+      border: '1px solid color-mix(in srgb, var(--shadow-ink) 12%, transparent)',
+      color: 'var(--text-primary)',
     }
   }
   return {
-    background: 'rgba(0, 0, 0, 0.4)',
+    background: 'color-mix(in srgb, var(--shadow-color) 40%, transparent)',
     border: '1px solid var(--border-color)',
     color: 'var(--text-primary)',
   }
@@ -316,7 +316,7 @@ const copyCookie = async () => {
       @close="showViewModal = false"
     >
       <div
-        class="bg-[var(--bg-black-40)] rounded-xl p-4 font-mono text-sm text-white break-all max-h-[400px] overflow-y-auto border border-[var(--border-white-5)]"
+        class="bg-[var(--bg-black-40)] rounded-xl p-4 font-mono text-sm text-white break-all max-h-[400px] overflow-y-auto border border-[var(--border-surface-subtle-5)]"
       >
         {{ viewCookieValue || '无内容' }}
       </div>
@@ -363,7 +363,7 @@ const copyCookie = async () => {
       <template #footer>
         <div class="flex justify-between items-center">
           <button
-            class="px-4 py-2 rounded-xl bg-[var(--bg-white-5)] text-[var(--text-muted)] text-sm border border-white/[0.08] hover:bg-[var(--bg-white-10)] hover:text-[var(--text-primary)] transition-all"
+            class="px-4 py-2 rounded-xl bg-[var(--bg-surface-subtle-5)] text-[var(--text-muted)] text-sm border border-surface-subtle/[0.08] hover:bg-[var(--bg-surface-subtle-10)] hover:text-[var(--text-primary)] transition-all"
             @click="autoFetchCookie()"
           >
             自动获取
@@ -412,8 +412,8 @@ const copyCookie = async () => {
   align-items: center;
   justify-content: center;
   border-radius: 0.9rem;
-  border: 1px solid rgba(255, 107, 107, 0.32);
-  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 32%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   color: var(--accent-primary);
   font-size: 0.95rem;
   font-weight: 700;
@@ -426,9 +426,9 @@ const copyCookie = async () => {
 
 .settings-modal-action-btn:hover {
   transform: translateY(-1px);
-  border-color: rgba(255, 107, 107, 0.5);
-  background: rgba(255, 107, 107, 0.16);
-  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.16);
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 16%, transparent);
 }
 
 .settings-modal-primary-btn {
@@ -438,12 +438,12 @@ const copyCookie = async () => {
   align-items: center;
   justify-content: center;
   border-radius: 0.9rem;
-  border: 1px solid rgba(255, 107, 107, 0.56);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 56%, transparent);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 0.95rem;
   font-weight: 700;
-  box-shadow: 0 12px 26px rgba(255, 107, 107, 0.24);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--accent-primary) 24%, transparent);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -452,7 +452,7 @@ const copyCookie = async () => {
 
 .settings-modal-primary-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px rgba(255, 107, 107, 0.3);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--accent-primary) 30%, transparent);
   filter: saturate(1.05);
 }
 

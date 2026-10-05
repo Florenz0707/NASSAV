@@ -2,6 +2,7 @@
 @import 'tailwindcss/theme';
 @import 'tailwindcss/preflight';
 @import 'tailwindcss/utilities';
+@config '../../tailwind.config.js';
 
 /* ===== Local fonts (public/font) ===== */
 @font-face {
@@ -52,6 +53,17 @@ body.dark-mode {
   --accent-success: #2ed573;
   --accent-warning: #ffc107;
 
+  --accent-info: #3498db;
+  --accent-purple: #9b59b6;
+  --accent-tertiary-light: #66e6d8;
+  --accent-secondary-light: #ffbf69;
+  --accent-success-light: #7bed9f;
+  --shadow-ink: #0f172a;
+  --shadow-color: #000000;
+  --decoration-color: #ffffff;
+  --neutral-color: #ffffff;
+  --muted-fill: #646464;
+
   /* Border */
   --border-color: rgba(255, 255, 255, 0.08);
 
@@ -60,12 +72,12 @@ body.dark-mode {
   --bg-input: rgba(18, 18, 28, 0.8);
 
   /* Utilities for subtle backgrounds */
-  --bg-white-5: rgba(255, 255, 255, 0.05);
-  --bg-white-8: rgba(255, 255, 255, 0.08);
-  --bg-white-10: rgba(255, 255, 255, 0.1);
-  --bg-white-12: rgba(255, 255, 255, 0.12);
-  --border-white-5: rgba(255, 255, 255, 0.05);
-  --border-white-10: rgba(255, 255, 255, 0.1);
+  --bg-surface-subtle-5: rgba(255, 255, 255, 0.05);
+  --bg-surface-subtle-8: rgba(255, 255, 255, 0.08);
+  --bg-surface-subtle-10: rgba(255, 255, 255, 0.1);
+  --bg-surface-subtle-12: rgba(255, 255, 255, 0.12);
+  --border-surface-subtle-5: rgba(255, 255, 255, 0.05);
+  --border-surface-subtle-10: rgba(255, 255, 255, 0.1);
   --bg-black-40: rgba(0, 0, 0, 0.4);
 
   /* Shadows */
@@ -117,6 +129,11 @@ body.light-mode {
   --accent-success: #2ed573;
   --accent-warning: #ffc107;
 
+  --accent-info: #256fa1;
+  --accent-purple: #75418b;
+  --neutral-color: #000000;
+  --decoration-color: #1d1d1f;
+
   /* Border */
   --border-color: rgba(0, 0, 0, 0.1);
 
@@ -125,12 +142,12 @@ body.light-mode {
   --bg-input: rgba(255, 255, 255, 0.8);
 
   /* Utilities for subtle backgrounds inverted for light mode */
-  --bg-white-5: rgba(0, 0, 0, 0.03);
-  --bg-white-8: rgba(0, 0, 0, 0.05);
-  --bg-white-10: rgba(0, 0, 0, 0.08);
-  --bg-white-12: rgba(0, 0, 0, 0.1);
-  --border-white-5: rgba(0, 0, 0, 0.05);
-  --border-white-10: rgba(0, 0, 0, 0.1);
+  --bg-surface-subtle-5: rgba(0, 0, 0, 0.03);
+  --bg-surface-subtle-8: rgba(0, 0, 0, 0.05);
+  --bg-surface-subtle-10: rgba(0, 0, 0, 0.08);
+  --bg-surface-subtle-12: rgba(0, 0, 0, 0.1);
+  --border-surface-subtle-5: rgba(0, 0, 0, 0.05);
+  --border-surface-subtle-10: rgba(0, 0, 0, 0.1);
   --bg-black-40: rgba(0, 0, 0, 0.04);
 
   /* Shadows */
@@ -229,8 +246,8 @@ select {
   background-repeat: no-repeat;
   color: var(--text-primary);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 10px 22px rgba(15, 23, 42, 0.08);
+    inset 0 1px 0 color-mix(in srgb, var(--neutral-color) 4%, transparent),
+    0 10px 22px color-mix(in srgb, var(--shadow-ink) 8%, transparent);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -239,17 +256,17 @@ select {
 }
 
 select:hover:not(:disabled) {
-  border-color: rgba(255, 107, 107, 0.28);
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
   background-color: color-mix(in srgb, var(--bg-input) 88%, var(--accent-primary) 12%);
 }
 
 select:focus,
 select:focus-visible {
   outline: none;
-  border-color: rgba(255, 107, 107, 0.42);
+  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
   box-shadow:
-    0 0 0 3px rgba(255, 107, 107, 0.14),
-    0 14px 28px rgba(15, 23, 42, 0.12);
+    0 0 0 3px color-mix(in srgb, var(--accent-primary) 14%, transparent),
+    0 14px 28px color-mix(in srgb, var(--shadow-ink) 12%, transparent);
 }
 
 select:disabled {
@@ -273,17 +290,17 @@ select option {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--neutral-color) 15%, transparent);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: color-mix(in srgb, var(--neutral-color) 25%, transparent);
 }
 
 /* ===== Selection ===== */
 ::selection {
-  background: rgba(255, 107, 107, 0.3);
+  background: color-mix(in srgb, var(--accent-primary) 30%, transparent);
   color: var(--text-primary);
 }
 
@@ -392,9 +409,9 @@ select option {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.05) 25%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.05) 75%
+    color-mix(in srgb, var(--neutral-color) 5%, transparent) 25%,
+    color-mix(in srgb, var(--neutral-color) 10%, transparent) 50%,
+    color-mix(in srgb, var(--neutral-color) 5%, transparent) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -447,7 +464,7 @@ select option {
 
 @layer components {
   .tw-back-btn {
-    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-[var(--bg-white-5)] hover:text-[var(--text-primary)];
+    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-[var(--bg-surface-subtle-5)] hover:text-[var(--text-primary)];
   }
 
   .tw-btn-primary {
@@ -456,37 +473,37 @@ select option {
   }
 
   .tw-btn-primary-elevated {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3.5 text-[0.95rem] font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)];
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3.5 text-[0.95rem] font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)];
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
   .tw-btn-danger {
-    @apply flex-1 cursor-pointer rounded-lg border-none px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(220,38,38,0.3)];
+    @apply flex-1 cursor-pointer rounded-lg border-none px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_color-mix(in_srgb,_var(--accent-danger)_30%,_transparent)];
     font: inherit;
     background: var(--accent-danger);
   }
 
   .tw-fab-primary {
-    @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full border-none text-xl text-white shadow-[0_4px_20px_rgba(255,107,107,0.3)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_25px_rgba(255,107,107,0.4)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0;
+    @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full border-none text-xl text-white shadow-[0_4px_20px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_25px_color-mix(in_srgb,_var(--accent-primary)_40%,_transparent)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
   .tw-btn-accent {
     @apply inline-flex min-h-[2.9rem] min-w-[8rem] cursor-pointer items-center justify-center rounded-lg border-none px-4 font-semibold text-white;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    box-shadow: 0 10px 24px rgba(255, 107, 107, 0.22);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 22%, transparent);
   }
 
   .tw-btn-outline-muted {
     @apply inline-flex min-h-[2.9rem] min-w-[7.6rem] cursor-pointer items-center justify-center rounded-lg border px-4 font-semibold text-[var(--text-secondary)];
-    border-color: rgba(255, 255, 255, 0.16);
-    background: rgba(255, 255, 255, 0.04);
+    border-color: color-mix(in srgb, var(--neutral-color) 16%, transparent);
+    background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
   }
 
   .tw-btn-footer {
     @apply inline-flex min-h-[2.85rem] min-w-[10rem] cursor-pointer items-center justify-center rounded-lg border px-[1.1rem] font-semibold text-[var(--text-primary)];
-    border-color: rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.05);
+    border-color: color-mix(in srgb, var(--neutral-color) 10%, transparent);
+    background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
   }
 
   .tw-btn-accent:disabled,
@@ -499,19 +516,19 @@ select option {
   .tw-home-hero-primary-btn {
     @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border-none px-8 py-4 text-lg font-medium text-white no-underline transition-all duration-300 hover:-translate-y-1 active:translate-y-0 active:shadow-none;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
-    box-shadow: 0 8px 20px rgba(255, 107, 107, 0.25);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--accent-primary) 25%, transparent);
   }
 
   .tw-home-hero-primary-btn:hover {
-    box-shadow: 0 12px 25px rgba(255, 107, 107, 0.35);
+    box-shadow: 0 12px 25px color-mix(in srgb, var(--accent-primary) 35%, transparent);
   }
 
   .tw-home-hero-secondary-btn {
-    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border-white-10)] bg-[var(--bg-white-5)] px-8 py-4 text-lg font-medium text-[var(--text-primary)] no-underline backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-[var(--bg-white-10)];
+    @apply inline-flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--border-surface-subtle-10)] bg-[var(--bg-surface-subtle-5)] px-8 py-4 text-lg font-medium text-[var(--text-primary)] no-underline backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-surface-subtle/20 hover:bg-[var(--bg-surface-subtle-10)];
   }
 
   .tw-home-feature-card {
-    @apply min-h-[20rem] rounded-2xl border border-[var(--border-white-5)] bg-white/[0.02] p-10 md:p-12 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/[0.04];
+    @apply min-h-[20rem] rounded-2xl border border-[var(--border-surface-subtle-5)] bg-surface-subtle/[0.02] p-10 md:p-12 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-surface-subtle/[0.04];
   }
 
   .tw-home-feature-icon {
@@ -522,23 +539,23 @@ select option {
 
   .tw-surface-overlay {
     background: var(--bg-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
     box-shadow:
-      0 10px 15px -3px rgba(0, 0, 0, 0.1),
-      0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      0 10px 15px -3px color-mix(in srgb, var(--shadow-color) 10%, transparent),
+      0 4px 6px -4px color-mix(in srgb, var(--shadow-color) 10%, transparent);
   }
 
   .tw-btn-muted {
-    @apply rounded-xl bg-[var(--bg-white-5)] px-6 py-2 font-medium text-[var(--text-primary)] transition-all hover:bg-[var(--bg-white-10)];
+    @apply rounded-xl bg-[var(--bg-surface-subtle-5)] px-6 py-2 font-medium text-[var(--text-primary)] transition-all hover:bg-[var(--bg-surface-subtle-10)];
   }
 
   .tw-btn-settings-primary {
-    @apply rounded-xl px-6 py-2.5 font-medium text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,107,107,0.3)];
+    @apply rounded-xl px-6 py-2.5 font-medium text-white shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)];
     background: var(--accent-primary);
   }
 
   .tw-btn-settings-danger-soft {
-    @apply rounded-lg border border-white/[0.08] bg-[var(--bg-white-5)] px-3 py-1.5 text-sm text-red-400 transition-all hover:border-red-500/20 hover:bg-red-500/10;
+    @apply rounded-lg border border-surface-subtle/[0.08] bg-[var(--bg-surface-subtle-5)] px-3 py-1.5 text-sm text-accent-danger transition-all hover:border-accent-danger/20 hover:bg-accent-danger/10;
   }
 
   .tw-card-action-neutral {
@@ -546,25 +563,25 @@ select option {
   }
 
   .tw-card-menu-popover {
-    @apply z-[100] min-w-[130px] overflow-hidden rounded-lg border shadow-[0_4px_12px_rgba(0,0,0,0.2)];
+    @apply z-[100] min-w-[130px] overflow-hidden rounded-lg border shadow-[0_4px_12px_color-mix(in_srgb,_var(--shadow-color)_20%,_transparent)];
     border-color: var(--border-color);
     background: var(--bg-overlay);
   }
 
   .tw-card-menu-item {
-    @apply w-full border-none bg-transparent px-4 py-2.5 text-center text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--bg-white-8)] hover:text-[var(--text-primary)];
+    @apply w-full border-none bg-transparent px-4 py-2.5 text-center text-[0.85rem] text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--bg-surface-subtle-8)] hover:text-[var(--text-primary)];
   }
 
   .tw-cookie-btn-view {
     @apply rounded-lg border px-3 py-1.5 text-sm transition-all;
-    border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.06);
+    border-color: color-mix(in srgb, var(--neutral-color) 12%, transparent);
+    background: color-mix(in srgb, var(--neutral-color) 6%, transparent);
     color: var(--text-secondary);
   }
 
   .tw-cookie-btn-view:hover:not(:disabled) {
-    border-color: rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.1);
+    border-color: color-mix(in srgb, var(--neutral-color) 20%, transparent);
+    background: color-mix(in srgb, var(--neutral-color) 10%, transparent);
     color: var(--text-primary);
   }
 
@@ -575,27 +592,27 @@ select option {
 
   .tw-cookie-btn-update {
     @apply rounded-lg border px-3 py-1.5 text-sm transition-all;
-    border-color: rgba(255, 107, 107, 0.22);
-    background: rgba(255, 107, 107, 0.1);
+    border-color: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
     color: var(--accent-primary);
   }
 
   .tw-cookie-btn-update:hover {
-    border-color: rgba(255, 107, 107, 0.32);
-    background: rgba(255, 107, 107, 0.16);
+    border-color: color-mix(in srgb, var(--accent-primary) 32%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
     color: var(--accent-danger);
   }
 
   .tw-cookie-btn-delete {
     @apply rounded-lg border px-3 py-1.5 text-sm transition-all;
-    border-color: rgba(239, 68, 68, 0.24);
-    background: rgba(239, 68, 68, 0.1);
+    border-color: color-mix(in srgb, var(--accent-danger) 24%, transparent);
+    background: color-mix(in srgb, var(--accent-danger) 10%, transparent);
     color: var(--accent-danger);
   }
 
   .tw-cookie-btn-delete:hover {
-    border-color: rgba(239, 68, 68, 0.35);
-    background: rgba(239, 68, 68, 0.16);
+    border-color: color-mix(in srgb, var(--accent-danger) 35%, transparent);
+    background: color-mix(in srgb, var(--accent-danger) 16%, transparent);
     color: var(--accent-danger);
   }
 }

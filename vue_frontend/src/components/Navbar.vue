@@ -535,7 +535,7 @@ watch(
 }
 
 .navbar.scrolled {
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 24px color-mix(in srgb, var(--shadow-color) 35%, transparent);
 }
 
 .navbar-inner {
@@ -568,7 +568,7 @@ watch(
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
   flex-shrink: 0;
 }
 
@@ -609,12 +609,12 @@ watch(
 
 .nav-item:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
 }
 
 .nav-item.active {
   color: var(--accent-primary);
-  background: rgba(255, 107, 107, 0.1);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 
 .nav-icon {
@@ -652,7 +652,7 @@ watch(
   backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 40%, transparent);
   min-width: 120px;
   overflow: hidden;
   z-index: 10;
@@ -675,12 +675,12 @@ watch(
 
 .dropdown-item:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
 }
 
 .dropdown-item.active {
   color: var(--accent-primary);
-  background: rgba(255, 107, 107, 0.1);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 
 /* Hamburger button - mobile only */
@@ -698,7 +698,7 @@ watch(
 }
 
 .hamburger-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
 }
 
 /* Mobile menu */
@@ -727,7 +727,7 @@ watch(
 .mobile-nav-item:hover,
 .mobile-nav-item.active {
   color: var(--accent-primary);
-  background: rgba(255, 107, 107, 0.1);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 
 .mobile-nav-group-label {

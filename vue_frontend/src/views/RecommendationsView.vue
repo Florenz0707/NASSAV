@@ -1126,10 +1126,18 @@ watch(blacklistSearch, () => {
   padding: 1.5rem 1.75rem;
   border-radius: 1.5rem;
   background:
-    radial-gradient(circle at top right, rgba(255, 107, 107, 0.18), transparent 34%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--accent-primary) 18%, transparent),
+      transparent 34%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--neutral-color) 5%, transparent),
+      color-mix(in srgb, var(--neutral-color) 2%, transparent)
+    );
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 8%, transparent);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 18%, transparent);
 }
 
 .eyebrow {
@@ -1138,7 +1146,7 @@ watch(blacklistSearch, () => {
   min-height: 1.85rem;
   padding: 0.2rem 0.7rem;
   border-radius: 999px;
-  background: rgba(255, 107, 107, 0.12);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
   font-size: 0.76rem;
   font-weight: 700;
@@ -1201,21 +1209,21 @@ watch(blacklistSearch, () => {
 }
 
 .rec-action-btn-primary {
-  color: #fff;
+  color: var(--text-inverse);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
-  box-shadow: 0 10px 22px rgba(255, 107, 107, 0.22);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
 .rec-action-btn-secondary {
-  color: #fff7ef;
+  color: var(--text-inverse);
   background: var(--accent-danger);
-  box-shadow: 0 10px 22px rgba(255, 159, 67, 0.2);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent-secondary) 20%, transparent);
 }
 
 .rec-action-btn-muted {
   color: var(--text-secondary);
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: color-mix(in srgb, var(--neutral-color) 16%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
 }
 
 .meta-strip,
@@ -1224,9 +1232,9 @@ watch(blacklistSearch, () => {
 .seed-panel,
 .content-shell {
   border-radius: 1.35rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.14);
+  background: color-mix(in srgb, var(--neutral-color) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 8%, transparent);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--shadow-color) 14%, transparent);
 }
 
 .meta-strip {
@@ -1243,8 +1251,8 @@ watch(blacklistSearch, () => {
   gap: 0.35rem;
   padding: 0.95rem 1rem;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--neutral-color) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 6%, transparent);
 }
 
 .meta-label {
@@ -1298,8 +1306,8 @@ watch(blacklistSearch, () => {
 }
 
 .strategy-card .meta-select:focus {
-  border-color: rgba(78, 205, 196, 0.35);
-  box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.12);
+  border-color: color-mix(in srgb, var(--accent-tertiary) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
 }
 
 .metrics-panel {
@@ -1318,8 +1326,8 @@ watch(blacklistSearch, () => {
   min-height: 4.4rem;
   padding: 0.75rem 0.85rem;
   border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--neutral-color) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 6%, transparent);
 }
 
 .metrics-label {
@@ -1341,8 +1349,8 @@ watch(blacklistSearch, () => {
   width: 3rem;
   min-height: 4.4rem;
   border-radius: 0.95rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 12%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
   color: var(--text-secondary);
   cursor: pointer;
   transition:
@@ -1354,7 +1362,7 @@ watch(blacklistSearch, () => {
 .metrics-refresh-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.07);
+  background: color-mix(in srgb, var(--neutral-color) 7%, transparent);
 }
 
 .metrics-refresh-btn:disabled {
@@ -1408,8 +1416,8 @@ watch(blacklistSearch, () => {
   min-height: 2.1rem;
   padding: 0.3rem 0.75rem;
   border-radius: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 12%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
   color: var(--text-primary);
   font-size: 0.78rem;
   font-weight: 600;
@@ -1417,8 +1425,8 @@ watch(blacklistSearch, () => {
 }
 
 .strategy-params-toggle:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.07);
+  border-color: color-mix(in srgb, var(--neutral-color) 20%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 7%, transparent);
 }
 
 .strategy-params-grid {
@@ -1433,8 +1441,8 @@ watch(blacklistSearch, () => {
   gap: 0.75rem;
   padding: 0.9rem;
   border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--neutral-color) 3%, transparent);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 6%, transparent);
 }
 
 .strategy-params-section-title {
@@ -1508,14 +1516,14 @@ watch(blacklistSearch, () => {
   min-height: 2rem;
   padding: 0.3rem 0.75rem;
   border-radius: 999px;
-  background: rgba(255, 107, 107, 0.12);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
   font-size: 0.8rem;
   font-weight: 600;
 }
 
 .seed-pill.secondary {
-  background: rgba(78, 205, 196, 0.12);
+  background: color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
   color: var(--accent-tertiary);
 }
 
@@ -1579,12 +1587,16 @@ watch(blacklistSearch, () => {
 
 .rec-footer-btn {
   border-width: 1.5px;
-  border-color: rgba(255, 107, 107, 0.32);
+  border-color: color-mix(in srgb, var(--accent-primary) 32%, transparent);
   border-radius: 999px;
   background:
-    linear-gradient(180deg, rgba(255, 107, 107, 0.12), rgba(255, 107, 107, 0.05)),
-    rgba(255, 255, 255, 0.04);
-  box-shadow: 0 12px 28px rgba(255, 107, 107, 0.12);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent-primary) 12%, transparent),
+      color-mix(in srgb, var(--accent-primary) 5%, transparent)
+    ),
+    color-mix(in srgb, var(--neutral-color) 4%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent-primary) 12%, transparent);
 }
 
 .scroll-top-btn {
@@ -1601,7 +1613,7 @@ watch(blacklistSearch, () => {
   border: 1px solid var(--accent-primary);
   border-radius: 999px;
   background: var(--accent-primary);
-  color: #ffffff;
+  color: var(--text-inverse);
   font-weight: 700;
   font-size: 1.2rem;
   backdrop-filter: blur(14px);
@@ -1632,7 +1644,7 @@ watch(blacklistSearch, () => {
   border: 1px solid var(--border-color);
   background: var(--bg-overlay);
   color: var(--text-primary);
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--shadow-ink) 22%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -1663,7 +1675,7 @@ watch(blacklistSearch, () => {
   padding: 0 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--neutral-color) 6%, transparent);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -1681,7 +1693,7 @@ watch(blacklistSearch, () => {
   min-height: 2rem;
   padding: 0.35rem 0.78rem;
   border-radius: 999px;
-  background: rgba(255, 107, 107, 0.12);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
   font-size: 0.8rem;
   font-weight: 700;
@@ -1698,8 +1710,8 @@ watch(blacklistSearch, () => {
 .reason-panel-item {
   padding: 0.78rem 0.9rem;
   border-radius: 1rem;
-  background: rgba(255, 107, 107, 0.06);
-  border: 1px solid rgba(255, 107, 107, 0.12);
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--text-primary);
   font-size: 0.78rem;
   line-height: 1.4;
@@ -1726,10 +1738,10 @@ watch(blacklistSearch, () => {
 
 .blacklist-tab {
   min-height: 2.3rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
   border-radius: 60px;
   padding: 0 1rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
   color: var(--text-secondary);
   font-size: 0.82rem;
   font-weight: 400;
@@ -1740,9 +1752,9 @@ watch(blacklistSearch, () => {
 }
 
 .blacklist-tab.active {
-  border-color: rgba(255, 159, 67, 0.32);
-  background: rgba(255, 159, 67, 0.12);
-  color: #fff7ef;
+  border-color: color-mix(in srgb, var(--accent-secondary) 32%, transparent);
+  background: color-mix(in srgb, var(--accent-secondary) 12%, transparent);
+  color: var(--text-inverse);
 }
 
 .header-tabs {
@@ -1765,9 +1777,9 @@ watch(blacklistSearch, () => {
 
 .blacklist-search input {
   min-height: 2.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 12%, transparent);
   border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
   padding: 0 0.9rem;
   color: var(--text-primary);
 }
@@ -1793,8 +1805,8 @@ watch(blacklistSearch, () => {
   height: 1.2rem;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 12%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 8%, transparent);
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
@@ -1807,13 +1819,13 @@ watch(blacklistSearch, () => {
   width: 1.05rem;
   height: 1.05rem;
   border-radius: 999px;
-  background: #fff7ef;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+  background: var(--text-inverse);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--shadow-ink) 20%, transparent);
   transition: transform 0.2s ease;
 }
 
 .pretty-toggle input:checked + .pretty-toggle-track {
-  border-color: rgba(255, 159, 67, 0.28);
+  border-color: color-mix(in srgb, var(--accent-secondary) 28%, transparent);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-danger));
 }
 
@@ -1832,9 +1844,9 @@ watch(blacklistSearch, () => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid rgba(255, 159, 67, 0.14);
+  border: 1px solid color-mix(in srgb, var(--accent-secondary) 14%, transparent);
   border-radius: 1rem;
-  background: rgba(255, 159, 67, 0.06);
+  background: color-mix(in srgb, var(--accent-secondary) 6%, transparent);
   padding: 0.9rem 1rem;
 }
 
@@ -1868,8 +1880,8 @@ watch(blacklistSearch, () => {
   align-items: center;
   justify-content: center;
   border-radius: 1rem;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.025);
+  border: 1px dashed color-mix(in srgb, var(--neutral-color) 12%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 2.5%, transparent);
   color: var(--text-secondary);
 }
 
@@ -1887,9 +1899,9 @@ watch(blacklistSearch, () => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 8%, transparent);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--neutral-color) 3%, transparent);
   padding: 0.95rem 1rem;
 }
 
@@ -1939,12 +1951,12 @@ watch(blacklistSearch, () => {
 .blacklist-action-btn.is-block {
   border: none;
   background: var(--accent-primary);
-  color: #fff7ef;
+  color: var(--text-inverse);
 }
 
 .blacklist-action-btn.is-unblock {
-  border: 1px solid rgba(220, 38, 38, 0.22);
-  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid color-mix(in srgb, var(--accent-danger) 22%, transparent);
+  background: color-mix(in srgb, var(--accent-danger) 10%, transparent);
   color: var(--accent-danger);
 }
 

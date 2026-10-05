@@ -2,7 +2,7 @@
   <div class="mb-4 flex flex-wrap items-center gap-2">
     <div>
       <button
-        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-white/[0.06] hover:bg-[var(--bg-white-10)] transition-colors duration-200"
+        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-surface-subtle/[0.06] hover:bg-[var(--bg-surface-subtle-10)] transition-colors duration-200"
         style="color: var(--text-primary)"
         @click="$emit('toggle-batch-mode')"
       >
@@ -24,7 +24,7 @@
             :style="
               selectedCount === totalCount && totalCount > 0
                 ? 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary)); border-color: white;'
-                : 'background: rgba(128,128,128,0.6); border-color: white;'
+                : 'background: color-mix(in srgb, var(--text-muted) 60%, transparent); border-color: white;'
             "
           >
             <svg
@@ -44,7 +44,7 @@
         <span>已选择 {{ selectedCount }} 项</span>
       </label>
       <button
-        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-white/[0.06] text-sm hover:bg-[var(--bg-white-10)] disabled:opacity-60 transition-colors duration-200"
+        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-surface-subtle/[0.06] text-sm hover:bg-[var(--bg-surface-subtle-10)] disabled:opacity-60 transition-colors duration-200"
         style="color: var(--text-primary)"
         :disabled="batchLoading"
         @click="$emit('batch-refresh')"

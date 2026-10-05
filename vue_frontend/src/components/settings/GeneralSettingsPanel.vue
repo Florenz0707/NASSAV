@@ -36,7 +36,9 @@ const emit = defineEmits(['update:previewFont', 'save'])
     </div>
 
     <div class="space-y-6">
-      <div class="p-4 rounded-xl bg-white/[0.02] border border-[var(--border-white-5)]">
+      <div
+        class="p-4 rounded-xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)]"
+      >
         <h3 class="text-sm font-medium text-[var(--text-muted)] mb-4 uppercase tracking-wider">
           显示设置
         </h3>
@@ -52,7 +54,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
                 :class="
                   settings.colorMode === 'light'
                     ? 'bg-[var(--accent-primary)] text-white'
-                    : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
+                    : 'bg-[var(--bg-surface-subtle-5)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle-10)]'
                 "
                 @click="settings.colorMode = 'light'"
               >
@@ -63,7 +65,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
                 :class="
                   settings.colorMode === 'dark'
                     ? 'bg-[var(--accent-primary)] text-white'
-                    : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
+                    : 'bg-[var(--bg-surface-subtle-5)] text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle-10)]'
                 "
                 @click="settings.colorMode = 'dark'"
               >
@@ -73,7 +75,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-surface-subtle-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">显示女优头像</div>
@@ -89,14 +91,14 @@ const emit = defineEmits(['update:previewFont', 'save'])
               @click="settings.showActorAvatar = !settings.showActorAvatar"
             >
               <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                class="inline-block h-4 w-4 transform rounded-full bg-surface-subtle transition-transform"
                 :class="settings.showActorAvatar ? 'translate-x-6' : 'translate-x-1'"
               />
             </button>
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-surface-subtle-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">标题显示字段</div>
@@ -111,7 +113,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+            class="flex items-center justify-between pt-4 border-t border-[var(--border-surface-subtle-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">搜索结果展示样式</div>
@@ -127,7 +129,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
             />
           </div>
 
-          <div class="flex items-center justify-between pt-4 border-t border-white/10">
+          <div class="flex items-center justify-between pt-4 border-t border-surface-subtle/10">
             <div>
               <div class="text-primary font-medium">默认外部搜索源</div>
               <div class="text-sm text-muted">用于演员和类别搜索；页面切换来源不会修改此设置</div>
@@ -140,7 +142,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
             />
           </div>
 
-          <div class="pt-4 border-t border-[var(--border-white-5)]">
+          <div class="pt-4 border-t border-[var(--border-surface-subtle-5)]">
             <div class="flex items-center justify-between mb-4">
               <div>
                 <div class="text-[var(--text-primary)] font-medium">字体样式</div>
@@ -159,7 +161,9 @@ const emit = defineEmits(['update:previewFont', 'save'])
               />
             </div>
 
-            <div class="p-4 rounded-lg bg-white/[0.02] border border-[var(--border-white-5)]">
+            <div
+              class="p-4 rounded-lg bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)]"
+            >
               <div class="text-xs text-[var(--text-muted)] mb-2">预览效果：</div>
               <div
                 class="text-[var(--text-primary)] leading-relaxed"
@@ -186,7 +190,7 @@ const emit = defineEmits(['update:previewFont', 'save'])
 
       <div class="flex pt-4 justify-end min-w-full">
         <button
-          class="px-6 py-2.5 text-white rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(255,107,107,0.3)]"
+          class="px-6 py-2.5 text-white rounded-xl font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)]"
           style="background: var(--accent-primary)"
           @click="emit('save')"
         >

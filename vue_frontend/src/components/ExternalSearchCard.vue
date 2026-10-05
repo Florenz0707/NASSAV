@@ -106,7 +106,7 @@ const metrics = computed(() => {
 
 <style scoped>
 .external-search-card {
-  background: linear-gradient(180deg, var(--bg-white-8), var(--bg-white-5));
+  background: linear-gradient(180deg, var(--bg-surface-subtle-8), var(--bg-surface-subtle-5));
   border: 1px solid;
   border-color: var(--border-color);
   border-radius: 1.25rem;
@@ -257,7 +257,7 @@ const metrics = computed(() => {
 }
 
 .action-btn.secondary {
-  background: var(--bg-white-5);
+  background: var(--bg-surface-subtle-5);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
 }

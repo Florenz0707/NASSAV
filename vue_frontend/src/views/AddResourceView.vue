@@ -606,7 +606,7 @@ function viewResource() {
 .mode-btn:hover:not(:disabled) {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
-  background: rgba(255, 107, 107, 0.05);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
 }
 
 .mode-btn.active {
@@ -656,7 +656,7 @@ function viewResource() {
 .count-badge {
   display: inline-block;
   padding: 0.125rem 0.5rem;
-  background: rgba(255, 107, 107, 0.15);
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   color: var(--primary-color);
   border-radius: 8px;
   font-size: 0.75rem;
@@ -686,7 +686,7 @@ function viewResource() {
 .form-textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
 }
 
 .form-input::placeholder,
@@ -739,17 +739,17 @@ function viewResource() {
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--neutral-color) 8%, transparent);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--neutral-color) 12%, transparent);
 }
 
 .btn-icon {
@@ -765,11 +765,11 @@ function viewResource() {
 }
 
 .result-card.success {
-  border-color: rgba(46, 213, 115, 0.3);
+  border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);
 }
 
 .result-card.exists {
-  border-color: rgba(78, 205, 196, 0.3);
+  border-color: color-mix(in srgb, var(--accent-tertiary) 30%, transparent);
 }
 
 .result-header {
@@ -787,17 +787,17 @@ function viewResource() {
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
-  background: rgba(255, 107, 107, 0.15);
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   color: var(--accent-primary);
 }
 
 .result-card.success .result-icon {
-  background: rgba(46, 213, 115, 0.15);
+  background: color-mix(in srgb, var(--accent-success) 15%, transparent);
   color: var(--accent-success);
 }
 
 .result-card.exists .result-icon {
-  background: rgba(78, 205, 196, 0.15);
+  background: color-mix(in srgb, var(--accent-tertiary) 15%, transparent);
   color: var(--accent-tertiary);
 }
 
@@ -906,24 +906,24 @@ function viewResource() {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 1.25rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--shadow-color) 20%, transparent);
   border-radius: 12px;
   border: 1px solid var(--border-color);
 }
 
 .stat-item.success {
-  border-color: rgba(46, 213, 115, 0.3);
-  background: rgba(46, 213, 115, 0.05);
+  border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-success) 5%, transparent);
 }
 
 .stat-item.exists {
-  border-color: rgba(52, 152, 219, 0.3);
-  background: rgba(52, 152, 219, 0.05);
+  border-color: color-mix(in srgb, var(--accent-info) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-info) 5%, transparent);
 }
 
 .stat-item.failed {
-  border-color: rgba(231, 76, 60, 0.3);
-  background: rgba(231, 76, 60, 0.05);
+  border-color: color-mix(in srgb, var(--accent-danger) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-danger) 5%, transparent);
 }
 
 .stat-icon {
@@ -1001,46 +1001,46 @@ function viewResource() {
 }
 
 .result-tag.success {
-  background: rgba(46, 213, 115, 0.15);
+  background: color-mix(in srgb, var(--accent-success) 15%, transparent);
   color: var(--accent-success);
-  border: 1px solid rgba(46, 213, 115, 0.3);
+  border: 1px solid color-mix(in srgb, var(--accent-success) 30%, transparent);
 }
 
 .result-tag.exists {
-  background: rgba(52, 152, 219, 0.15);
+  background: color-mix(in srgb, var(--accent-info) 15%, transparent);
   color: var(--accent-tertiary);
-  border: 1px solid rgba(52, 152, 219, 0.3);
+  border: 1px solid color-mix(in srgb, var(--accent-info) 30%, transparent);
 }
 
 .result-tag.failed {
-  background: rgba(231, 76, 60, 0.15);
+  background: color-mix(in srgb, var(--accent-danger) 15%, transparent);
   color: var(--accent-danger);
-  border: 1px solid rgba(231, 76, 60, 0.3);
+  border: 1px solid color-mix(in srgb, var(--accent-danger) 30%, transparent);
 }
 
 /* 不同错误类型的颜色 */
 .result-tag.error-404 {
-  background: rgba(255, 159, 64, 0.15);
-  color: #ff9f40;
-  border: 1px solid rgba(255, 159, 64, 0.3);
+  background: color-mix(in srgb, var(--accent-secondary) 15%, transparent);
+  color: var(--accent-secondary);
+  border: 1px solid color-mix(in srgb, var(--accent-secondary) 30%, transparent);
 }
 
 .result-tag.error-403 {
-  background: rgba(155, 89, 182, 0.15);
-  color: #9b59b6;
-  border: 1px solid rgba(155, 89, 182, 0.3);
+  background: color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  color: var(--accent-purple);
+  border: 1px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
 }
 
 .result-tag.error-502 {
-  background: rgba(241, 196, 15, 0.15);
-  color: #f1c40f;
-  border: 1px solid rgba(241, 196, 15, 0.3);
+  background: color-mix(in srgb, var(--accent-warning) 15%, transparent);
+  color: var(--accent-warning);
+  border: 1px solid color-mix(in srgb, var(--accent-warning) 30%, transparent);
 }
 
 .result-tag.error-500 {
-  background: rgba(192, 57, 43, 0.15);
-  color: #c0392b;
-  border: 1px solid rgba(192, 57, 43, 0.3);
+  background: color-mix(in srgb, var(--accent-danger) 15%, transparent);
+  color: var(--accent-danger);
+  border: 1px solid color-mix(in srgb, var(--accent-danger) 30%, transparent);
 }
 
 .result-enter-active {
@@ -1063,8 +1063,8 @@ function viewResource() {
 }
 
 .tips-section {
-  background: rgba(78, 205, 196, 0.05);
-  border: 1px solid rgba(78, 205, 196, 0.1);
+  background: color-mix(in srgb, var(--accent-tertiary) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-tertiary) 10%, transparent);
   border-radius: 16px;
   padding: 1.5rem;
 }

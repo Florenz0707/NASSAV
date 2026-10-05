@@ -83,8 +83,8 @@ const emit = defineEmits(['close'])
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid rgba(255, 107, 107, 0.22);
-  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
   color: var(--accent-primary);
   background: theme('backgroundColor.accent-primary/10');
   color: var(--accent-primary);
@@ -99,8 +99,8 @@ const emit = defineEmits(['close'])
 .settings-modal-close-btn:hover {
   transform: translateY(-1px);
   transform: translateY(-1px);
-  border-color: rgba(255, 107, 107, 0.42);
-  background: rgba(255, 107, 107, 0.14);
+  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
   background: theme('backgroundColor.accent-primary/20');
 }
 </style>

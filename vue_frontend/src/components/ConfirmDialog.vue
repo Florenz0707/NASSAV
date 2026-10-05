@@ -80,7 +80,7 @@ watch(isVisible, (val) => {
         @click.self="handleCancel"
       >
         <div
-          class="rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] min-w-[320px] max-w-[480px] w-full overflow-hidden confirm-dialog confirm-dialog-box"
+          class="rounded-2xl shadow-[0_20px_60px_color-mix(in_srgb,_var(--shadow-color)_50%,_transparent)] min-w-[320px] max-w-[480px] w-full overflow-hidden confirm-dialog confirm-dialog-box"
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-dialog-title"
@@ -194,7 +194,7 @@ watch(isVisible, (val) => {
 
 .confirm-btn {
   border: 1px solid transparent;
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .confirm-btn:hover {
@@ -207,7 +207,7 @@ watch(isVisible, (val) => {
 }
 
 .confirm-btn.is-danger {
-  background: #ef4444;
+  background: var(--accent-danger);
 }
 
 .confirm-btn.is-info {

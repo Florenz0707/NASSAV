@@ -279,19 +279,23 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
+    class="relative rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_color-mix(in_srgb,_var(--shadow-color)_30%,_transparent)]"
     :class="statusClass"
     :style="
       selected
-        ? 'background: var(--card-bg); border-color: rgba(255,107,107,0.75); box-shadow: 0 0 0 3px rgba(255,107,107,0.2);'
-        : 'background: var(--card-bg); border-color: rgba(255,107,107,0.35);'
+        ? 'background: var(--card-bg); border-color: color-mix(in srgb, var(--accent-primary) 75%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);'
+        : 'background: var(--card-bg); border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);'
     "
-    @mouseenter="!selected && ($event.currentTarget.style.borderColor = 'rgba(255,107,107,0.2)')"
+    @mouseenter="
+      !selected &&
+      ($event.currentTarget.style.borderColor =
+        'color-mix(in srgb, var(--accent-primary) 20%, transparent)')
+    "
     @mouseleave="
       !selected &&
       ($event.currentTarget.style.borderColor = selected
-        ? 'rgba(255,107,107,0.75)'
-        : 'rgba(255,107,107,0.35)')
+        ? 'color-mix(in srgb, var(--accent-primary) 75%, transparent)'
+        : 'color-mix(in srgb, var(--accent-primary) 35%, transparent)')
     "
   >
     <!-- 选择复选框（可选） -> 放到封面内以保证可见性 -->
@@ -313,8 +317,8 @@ onUnmounted(() => {
             :class="[
               'w-6 h-6 flex items-center justify-center rounded-md transition border-2',
               selected
-                ? 'border-white shadow-lg'
-                : 'bg-[rgba(128,128,128,0.6)] border-white text-white',
+                ? 'border-surface-subtle shadow-lg'
+                : 'bg-[color-mix(in_srgb,_var(--text-muted)_60%,_transparent)] border-surface-subtle text-white',
             ]"
             :style="
               selected
@@ -364,7 +368,10 @@ onUnmounted(() => {
       <div class="flex gap-4 mb-2.5 items-center flex-wrap">
         <div
           class="text-[0.85rem] font-semibold rounded-md w-fit px-2 py-1"
-          style="color: var(--accent-primary); background: rgba(255, 107, 107, 0.15)"
+          style="
+            color: var(--accent-primary);
+            background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+          "
         >
           {{ resource.avid }}
         </div>
@@ -419,7 +426,7 @@ onUnmounted(() => {
         <!-- 刷新按钮容器 -->
         <div class="relative" @click.stop>
           <button
-            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)] border border-[var(--border-white-10)] bg-[var(--bg-white-8)] hover:bg-white/[0.14]"
+            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)] border border-[var(--border-surface-subtle-10)] bg-[var(--bg-surface-subtle-8)] hover:bg-surface-subtle/[0.14]"
             :data-avid="resource.avid"
             title="刷新资源"
             aria-label="刷新资源"
@@ -446,7 +453,7 @@ onUnmounted(() => {
               v-for="option in refreshOptions"
               :key="option.text"
               role="menuitem"
-              class="w-full px-4 py-2.5 text-center border-none text-[0.75rem] cursor-pointer transition-colors duration-200 text-[var(--text-secondary)] bg-[var(--bg-white-8)] hover:bg-white/[0.14] hover:text-[var(--text-primary)]"
+              class="w-full px-4 py-2.5 text-center border-none text-[0.75rem] cursor-pointer transition-colors duration-200 text-[var(--text-secondary)] bg-[var(--bg-surface-subtle-8)] hover:bg-surface-subtle/[0.14] hover:text-[var(--text-primary)]"
               @click="handleRefreshOption(option)"
             >
               {{ option.text }}
@@ -460,18 +467,18 @@ onUnmounted(() => {
             resource.has_video
               ? 'cursor-not-allowed opacity-60'
               : isSubmittingDownload
-                ? 'cursor-not-allowed text-white shadow-[0_8px_20px_rgba(78,205,196,0.24)]'
+                ? 'cursor-not-allowed text-white shadow-[0_8px_20px_color-mix(in_srgb,_var(--accent-tertiary)_24%,_transparent)]'
                 : isDownloading
-                  ? 'cursor-not-allowed text-white shadow-[0_8px_20px_rgba(255,159,67,0.28)]'
+                  ? 'cursor-not-allowed text-white shadow-[0_8px_20px_color-mix(in_srgb,_var(--accent-secondary)_28%,_transparent)]'
                   : 'text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5',
           ]"
           :style="
             resource.has_video
               ? 'background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color)'
               : isSubmittingDownload
-                ? 'background: linear-gradient(135deg, var(--accent-tertiary), #66e6d8)'
+                ? 'background: linear-gradient(135deg, var(--accent-tertiary), var(--accent-tertiary-light))'
                 : isDownloading
-                  ? 'background: linear-gradient(135deg, var(--accent-secondary), #ffbf69)'
+                  ? 'background: linear-gradient(135deg, var(--accent-secondary), var(--accent-secondary-light))'
                   : 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
           "
           :disabled="resource.has_video || isDownloadBusy"

@@ -81,7 +81,10 @@
         </button>
         <div
           class="px-4 py-2 rounded-md"
-          style="background: rgba(255, 255, 255, 0.03); color: var(--text-primary)"
+          style="
+            background: color-mix(in srgb, var(--neutral-color) 3%, transparent);
+            color: var(--text-primary);
+          "
         >
           第 {{ page }} 页 / 共 {{ store.pagination.pages }} 页
         </div>
@@ -320,6 +323,6 @@ export default {
   color: var(--text-primary);
   padding: 6px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 6%, transparent);
 }
 </style>

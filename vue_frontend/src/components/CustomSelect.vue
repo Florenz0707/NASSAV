@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
     <transition name="custom-select-fade">
       <div
         v-if="open"
-        class="custom-select-menu bg-secondary border border-[var(--border-white-10)] rounded-lg shadow-lg"
+        class="custom-select-menu bg-secondary border border-[var(--border-surface-subtle-10)] rounded-lg shadow-lg"
         role="listbox"
       >
         <button
@@ -209,8 +209,8 @@ onBeforeUnmount(() => {
   background: var(--bg-secondary);
   color: var(--text-primary);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 12px 28px rgba(15, 23, 42, 0.08);
+    inset 0 1px 0 color-mix(in srgb, var(--neutral-color) 6%, transparent),
+    0 12px 28px color-mix(in srgb, var(--shadow-ink) 8%, transparent);
   cursor: pointer;
   transition:
     border-color 0.2s ease,
@@ -220,17 +220,17 @@ onBeforeUnmount(() => {
 }
 
 .custom-select-button:hover:not(:disabled) {
-  border-color: rgba(255, 107, 107, 0.26);
+  border-color: color-mix(in srgb, var(--accent-primary) 26%, transparent);
   transform: translateY(-1px);
 }
 
 .custom-select.is-open .custom-select-button,
 .custom-select-button:focus-visible {
   outline: none;
-  border-color: rgba(255, 107, 107, 0.42);
+  border-color: color-mix(in srgb, var(--accent-primary) 42%, transparent);
   box-shadow:
-    0 0 0 3px rgba(255, 107, 107, 0.14),
-    0 18px 34px rgba(15, 23, 42, 0.14);
+    0 0 0 3px color-mix(in srgb, var(--accent-primary) 14%, transparent),
+    0 18px 34px color-mix(in srgb, var(--shadow-ink) 14%, transparent);
 }
 
 .custom-select-button:disabled {
@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 1rem;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-ink) 40%, transparent);
 }
 
 .custom-select-option {
@@ -316,8 +316,8 @@ onBeforeUnmount(() => {
 .custom-select-option:hover:not(.is-disabled),
 .custom-select-option:focus-visible {
   outline: none;
-  background: var(--bg-white-8);
-  border-color: var(--border-white-10);
+  background: var(--bg-surface-subtle-8);
+  border-color: var(--border-surface-subtle-10);
   color: var(--text-primary);
   transform: translateY(-1px);
 }

@@ -17,7 +17,10 @@
       >
         上一页
       </button>
-      <div class="px-4 py-2 rounded-md bg-white/[0.03] text-sm" style="color: var(--text-primary)">
+      <div
+        class="px-4 py-2 rounded-md bg-surface-subtle/[0.03] text-sm"
+        style="color: var(--text-primary)"
+      >
         第 {{ page }} 页 / 共 {{ pages }} 页
       </div>
       <button

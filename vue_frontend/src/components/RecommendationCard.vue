@@ -211,13 +211,17 @@ function handleReasonsClick(event) {
 
 <style scoped>
 .recommendation-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--neutral-color) 4%, transparent),
+    color-mix(in srgb, var(--neutral-color) 2%, transparent)
+  );
   border: 1px solid;
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: color-mix(in srgb, var(--neutral-color) 16%, transparent);
   border-radius: 1.25rem;
   overflow: hidden;
   backdrop-filter: blur(16px);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -229,13 +233,17 @@ function handleReasonsClick(event) {
 
 .recommendation-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 107, 107, 0.24);
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+  box-shadow: 0 22px 48px color-mix(in srgb, var(--shadow-color) 28%, transparent);
 }
 
 .recommendation-card.blocked {
-  background: linear-gradient(180deg, rgba(255, 107, 107, 0.03), rgba(255, 255, 255, 0.01));
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-primary) 3%, transparent),
+    color-mix(in srgb, var(--neutral-color) 1%, transparent)
+  );
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
 }
 
 .cover-shell {
@@ -243,8 +251,16 @@ function handleReasonsClick(event) {
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background:
-    radial-gradient(circle at top left, rgba(255, 107, 107, 0.28), transparent 55%),
-    linear-gradient(145deg, rgba(18, 18, 24, 0.92), rgba(28, 28, 38, 0.86));
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--accent-primary) 28%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--bg-secondary) 92%, transparent),
+      color-mix(in srgb, var(--bg-secondary) 86%, transparent)
+    );
 }
 
 .feedback-overlay {
@@ -255,7 +271,11 @@ function handleReasonsClick(event) {
   justify-content: flex-end;
   gap: 0.35rem;
   padding: 0.4rem;
-  background: linear-gradient(180deg, rgba(20, 24, 34, 0.12), rgba(20, 24, 34, 0.42));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--shadow-ink) 12%, transparent),
+    color-mix(in srgb, var(--shadow-ink) 42%, transparent)
+  );
   pointer-events: none;
 }
 
@@ -273,8 +293,8 @@ function handleReasonsClick(event) {
 }
 
 .feedback-overlay-badge.blocked {
-  background: rgba(255, 107, 107, 0.5);
-  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.28);
+  background: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 28%, transparent);
 }
 
 .feedback-overlay-button {
@@ -286,20 +306,20 @@ function handleReasonsClick(event) {
   padding: 0.28rem 0.72rem;
   border: 0;
   border-radius: 999px;
-  background: rgba(78, 205, 196, 0.24);
+  background: color-mix(in srgb, var(--accent-tertiary) 24%, transparent);
   color: white;
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: 0 10px 24px rgba(78, 205, 196, 0.18);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-tertiary) 18%, transparent);
   pointer-events: auto;
   cursor: pointer;
   gap: 0.35rem;
 }
 
 .feedback-overlay-button.danger {
-  background: rgba(255, 107, 107, 0.3);
-  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.22);
+  background: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
 .feedback-overlay-button.active {
@@ -338,7 +358,7 @@ function handleReasonsClick(event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.86);
+  color: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1rem;
@@ -370,12 +390,12 @@ function handleReasonsClick(event) {
 }
 
 .avid-chip {
-  background: rgba(255, 107, 107, 0.12);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
 }
 
 .source-chip {
-  background: rgba(78, 205, 196, 0.12);
+  background: color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
   color: var(--accent-tertiary);
 }
 
@@ -413,10 +433,10 @@ function handleReasonsClick(event) {
 
 .reason-toggle {
   align-self: flex-start;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
   border-radius: 999px;
   padding: 0.38rem 0.72rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
   color: var(--text-secondary);
   font-size: 0.76rem;
   font-weight: 600;
@@ -433,8 +453,8 @@ function handleReasonsClick(event) {
 }
 
 .reason-toggle.active {
-  border-color: rgba(255, 107, 107, 0.28);
-  background: rgba(255, 107, 107, 0.08);
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
   color: var(--text-primary);
 }
 
@@ -450,9 +470,9 @@ function handleReasonsClick(event) {
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
   border-radius: 999px;
-  background: rgba(78, 205, 196, 0.1);
+  background: color-mix(in srgb, var(--accent-tertiary) 10%, transparent);
   color: var(--accent-tertiary);
   cursor: pointer;
   transition:
@@ -464,28 +484,28 @@ function handleReasonsClick(event) {
 
 .inline-feedback-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(78, 205, 196, 0.25);
-  background: rgba(78, 205, 196, 0.16);
+  border-color: color-mix(in srgb, var(--accent-tertiary) 25%, transparent);
+  background: color-mix(in srgb, var(--accent-tertiary) 16%, transparent);
 }
 
 .inline-feedback-btn.danger {
-  background: rgba(255, 107, 107, 0.1);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   color: var(--accent-primary);
 }
 
 .inline-feedback-btn.danger:hover:not(:disabled) {
-  border-color: rgba(255, 107, 107, 0.28);
-  background: rgba(255, 107, 107, 0.16);
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
 }
 
 .inline-feedback-btn.active {
-  border-color: rgba(78, 205, 196, 0.36);
+  border-color: color-mix(in srgb, var(--accent-tertiary) 36%, transparent);
   background: var(--accent-tertiary);
   color: white;
 }
 
 .inline-feedback-btn.danger.active {
-  border-color: rgba(255, 107, 107, 0.36);
+  border-color: color-mix(in srgb, var(--accent-primary) 36%, transparent);
   background: var(--accent-primary);
   color: white;
 }
@@ -527,17 +547,21 @@ function handleReasonsClick(event) {
 .action-btn.primary {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   color: white;
-  box-shadow: 0 10px 20px rgba(255, 107, 107, 0.22);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
 .action-btn.secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
   color: var(--text-primary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
 }
 
 .action-btn.success {
-  background: linear-gradient(135deg, rgba(46, 204, 113, 0.9), rgba(26, 188, 156, 0.9));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-success) 90%, transparent),
+    color-mix(in srgb, var(--accent-tertiary) 90%, transparent)
+  );
   color: white;
 }
 

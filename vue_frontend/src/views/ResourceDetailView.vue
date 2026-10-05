@@ -333,7 +333,7 @@ async function navigateToGenre(genreName) {
     <div v-else-if="error" class="text-center py-16 px-8">
       <div
         class="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center text-[var(--accent-primary)]"
-        style="background: rgba(255, 107, 107, 0.1)"
+        style="background: color-mix(in srgb, var(--accent-primary) 10%, transparent)"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -358,7 +358,7 @@ async function navigateToGenre(genreName) {
         <!-- 封面和状态按钮 -->
         <div class="flex flex-col gap-4">
           <div
-            class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.1)] flex justify-center items-center"
+            class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_color-mix(in_srgb,_var(--shadow-color)_10%,_transparent)] flex justify-center items-center"
           >
             <img
               :src="coverUrl"
@@ -370,10 +370,10 @@ async function navigateToGenre(genreName) {
           <!-- 收藏和观看按钮 -->
           <div class="flex justify-between gap-3">
             <button
-              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-white-5)] border"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-surface-subtle-5)] border"
               :style="
                 metadata.is_favorite
-                  ? 'background: rgba(255,107,107,0.1); border-color: rgba(255,107,107,0.3);'
+                  ? 'background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);'
                   : 'border-color: var(--border-color);'
               "
               :title="metadata.is_favorite ? '取消收藏' : '添加到收藏'"
@@ -414,10 +414,10 @@ async function navigateToGenre(genreName) {
             </button>
 
             <button
-              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-white-5)] border"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-surface-subtle-5)] border"
               :style="
                 metadata.watched
-                  ? 'background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);'
+                  ? 'background: color-mix(in srgb, var(--accent-success) 10%, transparent); border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);'
                   : 'border-color: var(--border-color);'
               "
               :title="metadata.watched ? '标记为未观看' : '标记为已观看'"
@@ -471,7 +471,7 @@ async function navigateToGenre(genreName) {
           <div class="grid grid-cols-2 gap-4 mb-2.5">
             <div
               class="inline-block px-3.5 py-1.5 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[var(--accent-primary)] w-fit"
-              style="background: rgba(255, 107, 107, 0.15)"
+              style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent)"
             >
               {{ metadata.avid }}
             </div>
@@ -482,7 +482,7 @@ async function navigateToGenre(genreName) {
                   ? 'text-[var(--accent-primary)]'
                   : 'text-[var(--accent-secondary)]'
               "
-              style="background: rgba(255, 107, 107, 0.15)"
+              style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent)"
             >
               {{ metadata.file_exists ? '已下载' : '未下载' }}
             </div>
@@ -528,7 +528,7 @@ async function navigateToGenre(genreName) {
             <!-- 刷新按钮容器 -->
             <div class="relative" @click.stop>
               <button
-                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-[var(--bg-white-8)] text-[var(--text-primary)] hover:bg-[var(--bg-white-12)] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
+                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-[var(--bg-surface-subtle-8)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-subtle-12)] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
                 style="border: 1px solid var(--border-color)"
                 :disabled="refreshing"
                 @click="showRefreshMenu = !showRefreshMenu"
@@ -539,13 +539,13 @@ async function navigateToGenre(genreName) {
               <!-- 刷新下拉菜单 -->
               <div
                 v-if="showRefreshMenu && !refreshing"
-                class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden"
+                class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_color-mix(in_srgb,_var(--shadow-color)_20%,_transparent)] min-w-[120px] z-[80] overflow-hidden"
                 style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
               >
                 <button
                   v-for="option in refreshOptions"
                   :key="option.text"
-                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--text-muted)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[var(--bg-white-8)] hover:text-[var(--text-primary)]"
+                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--text-muted)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[var(--bg-surface-subtle-8)] hover:text-[var(--text-primary)]"
                   @click="handleRefreshOption(option)"
                 >
                   {{ option.text }}
@@ -555,12 +555,12 @@ async function navigateToGenre(genreName) {
 
             <button
               v-if="!metadata.file_exists"
-              class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               :style="
                 isSubmittingDownload
-                  ? 'background: linear-gradient(135deg, var(--accent-tertiary), #66e6d8)'
+                  ? 'background: linear-gradient(135deg, var(--accent-tertiary), var(--accent-tertiary-light))'
                   : isDownloading
-                    ? 'background: linear-gradient(135deg, var(--accent-secondary), #ffbf69)'
+                    ? 'background: linear-gradient(135deg, var(--accent-secondary), var(--accent-secondary-light))'
                     : 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
               "
               :disabled="isDownloadBusy"
@@ -570,7 +570,7 @@ async function navigateToGenre(genreName) {
             </button>
             <button
               v-if="metadata.file_exists"
-              class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(255,107,107,0.3)]"
+              class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)]"
               style="
                 background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
               "
@@ -585,7 +585,7 @@ async function navigateToGenre(genreName) {
             <!-- 删除按钮容器 -->
             <div class="relative" @click.stop>
               <button
-                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_rgba(239,71,111,0.3)] min-w-[120px]"
+                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-danger)_30%,_transparent)] min-w-[120px]"
                 style="background: var(--accent-danger)"
                 @click="showDeleteMenu = !showDeleteMenu"
               >
@@ -595,7 +595,7 @@ async function navigateToGenre(genreName) {
               <!-- 删除下拉菜单 -->
               <div
                 v-if="showDeleteMenu"
-                class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[120px] z-[80] overflow-hidden"
+                class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_color-mix(in_srgb,_var(--shadow-color)_20%,_transparent)] min-w-[120px] z-[80] overflow-hidden"
                 style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
               >
                 <button

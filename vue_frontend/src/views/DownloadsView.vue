@@ -353,15 +353,15 @@ function goToResourceDetail(task) {
 }
 
 .stat-active {
-  border-color: rgba(46, 213, 115, 0.3);
+  border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);
 }
 
 .stat-waiting {
-  border-color: rgba(255, 159, 67, 0.3);
+  border-color: color-mix(in srgb, var(--accent-secondary) 30%, transparent);
 }
 
 .stat-total {
-  border-color: rgba(86, 204, 242, 0.3);
+  border-color: color-mix(in srgb, var(--accent-info) 30%, transparent);
 }
 
 .stat-value {
@@ -408,17 +408,17 @@ function goToResourceDetail(task) {
 }
 
 .task-row:hover {
-  border-color: rgba(255, 107, 107, 0.3);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
   transform: translateX(4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--shadow-color) 20%, transparent);
 }
 
 .task-row.is-active {
-  border-color: rgba(46, 213, 115, 0.4);
+  border-color: color-mix(in srgb, var(--accent-success) 40%, transparent);
 }
 
 .task-row.is-active:hover {
-  border-color: rgba(46, 213, 115, 0.6);
+  border-color: color-mix(in srgb, var(--accent-success) 60%, transparent);
 }
 
 /* 任务封面 */
@@ -428,7 +428,7 @@ function goToResourceDetail(task) {
   min-width: 180px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.3);
+  background: color-mix(in srgb, var(--shadow-color) 30%, transparent);
   flex-shrink: 0;
   border-radius: 10px;
   margin: 0.5rem;
@@ -454,12 +454,12 @@ function goToResourceDetail(task) {
 }
 
 .task-status-badge.active {
-  background: rgba(46, 213, 115, 0.9);
+  background: color-mix(in srgb, var(--accent-success) 90%, transparent);
   color: white;
 }
 
 .task-status-badge.pending {
-  background: rgba(255, 159, 67, 0.9);
+  background: color-mix(in srgb, var(--accent-secondary) 90%, transparent);
   color: white;
 }
 
@@ -505,7 +505,7 @@ function goToResourceDetail(task) {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--accent-primary);
-  background: rgba(255, 107, 107, 0.15);
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
   border-radius: 6px;
   padding: 4px 10px;
 }
@@ -545,7 +545,7 @@ function goToResourceDetail(task) {
 .progress-bar {
   flex: 1;
   height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--neutral-color) 10%, transparent);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -553,12 +553,17 @@ function goToResourceDetail(task) {
 .progress-fill {
   height: 100%;
   border-radius: 4px;
-  background: rgba(100, 100, 100, 0.5);
+  background: color-mix(in srgb, var(--muted-fill) 50%, transparent);
   transition: width 0.3s ease;
 }
 
 .progress-fill.is-active {
-  background: linear-gradient(90deg, var(--accent-success), #7bed9f, var(--accent-success));
+  background: linear-gradient(
+    90deg,
+    var(--accent-success),
+    var(--accent-success-light),
+    var(--accent-success)
+  );
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }

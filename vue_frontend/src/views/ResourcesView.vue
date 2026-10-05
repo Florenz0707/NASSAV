@@ -433,7 +433,7 @@ function onPageSizeChange(newSize) {
     <!-- Floating Refresh Button -->
     <button
       class="tw-fab-primary floating-refresh-btn"
-      style="color: #ffffff"
+      style="color: var(--text-inverse)"
       :disabled="refreshing"
       :title="refreshing ? '刷新中...' : '刷新资源列表'"
       @click="handleManualRefresh"

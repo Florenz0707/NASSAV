@@ -8,7 +8,7 @@ import { RouterLink } from 'vue-router'
     <div
       class="fixed inset-0 z-[-1] opacity-[0.03] pointer-events-none"
       style="
-        background-image: radial-gradient(#fff 1px, transparent 1px);
+        background-image: radial-gradient(var(--decoration-color) 1px, transparent 1px);
         background-size: 30px 30px;
       "
     />
@@ -57,7 +57,7 @@ import { RouterLink } from 'vue-router'
           <div class="flex gap-5 flex-wrap">
             <RouterLink
               to="/add"
-              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 text-white shadow-[0_8px_20px_rgba(255,107,107,0.25)] hover:-translate-y-1 hover:shadow-[0_12px_25px_rgba(255,107,107,0.35)] active:translate-y-0 active:shadow-none"
+              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 text-white shadow-[0_8px_20px_color-mix(in_srgb,_var(--accent-primary)_25%,_transparent)] hover:-translate-y-1 hover:shadow-[0_12px_25px_color-mix(in_srgb,_var(--accent-primary)_35%,_transparent)] active:translate-y-0 active:shadow-none"
               style="
                 background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
               "
@@ -75,7 +75,7 @@ import { RouterLink } from 'vue-router'
             </RouterLink>
             <RouterLink
               to="/resources"
-              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-[var(--bg-white-5)] border border-[var(--border-white-10)] hover:bg-[var(--bg-white-10)] hover:border-white/20 hover:-translate-y-1 backdrop-blur-sm"
+              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-[var(--bg-surface-subtle-5)] border border-[var(--border-surface-subtle-10)] hover:bg-[var(--bg-surface-subtle-10)] hover:border-surface-subtle/20 hover:-translate-y-1 backdrop-blur-sm"
               style="color: var(--text-primary)"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,24 +96,24 @@ import { RouterLink } from 'vue-router'
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Card 1 -->
         <div
-          class="p-8 rounded-2xl bg-white/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-white/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-blue-500/10"
+            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-info/10 to-accent-purple/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-info/10"
           >
             <span class="text-3xl filter drop-shadow-lg">⚡</span>
           </div>
           <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
             极速下载引擎
           </h3>
-          <p class="text-gray-500 leading-relaxed text-sm">
+          <p class="text-muted leading-relaxed text-sm">
             内置多线程下载器，支持断点续传与自动合并。智能队列管理，让资源获取更高效。
           </p>
         </div>
 
         <!-- Card 2 -->
         <div
-          class="p-8 rounded-2xl bg-white/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-white/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
             class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-emerald-500/10"
@@ -123,24 +123,24 @@ import { RouterLink } from 'vue-router'
           <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
             智能元数据刮削
           </h3>
-          <p class="text-gray-500 leading-relaxed text-sm">
+          <p class="text-muted leading-relaxed text-sm">
             自动匹配影片信息，获取高清封面、演员阵容与标签分类。让您的媒体库井井有条。
           </p>
         </div>
 
         <!-- Card 3 -->
         <div
-          class="p-8 rounded-2xl bg-white/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-white/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-surface-subtle-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500/10 to-rose-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-orange-500/10"
+            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-secondary/10 to-accent-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-secondary/10"
           >
             <span class="text-3xl filter drop-shadow-lg">🎨</span>
           </div>
           <h3 class="text-xl font-semibold mb-3" style="color: var(--feature-title-color)">
             沉浸式体验
           </h3>
-          <p class="text-gray-500 leading-relaxed text-sm">
+          <p class="text-muted leading-relaxed text-sm">
             精心设计的现代化 UI，流畅的交互动画。支持深色模式，提供舒适的视觉享受。
           </p>
         </div>

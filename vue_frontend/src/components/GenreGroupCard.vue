@@ -78,6 +78,6 @@ export default {
 .genre-card:hover {
   transform: translateY(-6px);
   box-shadow: var(--shadow-xl);
-  background-color: var(--bg-white-5);
+  background-color: var(--bg-surface-subtle-5);
 }
 </style>

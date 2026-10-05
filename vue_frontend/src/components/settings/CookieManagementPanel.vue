@@ -50,8 +50,10 @@ const emit = defineEmits(['view', 'edit', 'delete'])
           <tr
             v-for="source in sources"
             :key="source.name"
-            class="hover:bg-white/[0.02] transition-colors"
-            style="border-bottom: 1px solid rgba(255, 255, 255, 0.04)"
+            class="hover:bg-surface-subtle/[0.02] transition-colors"
+            style="
+              border-bottom: 1px solid color-mix(in srgb, var(--neutral-color) 4%, transparent);
+            "
           >
             <td class="py-4 px-4 text-[var(--text-primary)] font-medium">
               {{ source.name }}
@@ -96,7 +98,10 @@ const emit = defineEmits(['view', 'edit', 'delete'])
     <div
       v-if="sources.length > 0"
       class="mt-6 p-4 rounded-lg"
-      style="background: rgba(78, 205, 196, 0.05); border: 1px solid rgba(78, 205, 196, 0.2)"
+      style="
+        background: color-mix(in srgb, var(--accent-tertiary) 5%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent-tertiary) 20%, transparent);
+      "
     >
       <div class="flex flex-col gap-3 sm:flex-row">
         <svg
@@ -139,14 +144,14 @@ const emit = defineEmits(['view', 'edit', 'delete'])
 }
 
 .cookie-btn-view {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: color-mix(in srgb, var(--neutral-color) 14%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 6%, transparent);
   color: var(--text-secondary);
 }
 
 .cookie-btn-view:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.24);
-  background: rgba(255, 255, 255, 0.12);
+  border-color: color-mix(in srgb, var(--neutral-color) 24%, transparent);
+  background: color-mix(in srgb, var(--neutral-color) 12%, transparent);
   color: var(--text-primary);
 }
 
@@ -156,26 +161,26 @@ const emit = defineEmits(['view', 'edit', 'delete'])
 }
 
 .cookie-btn-update {
-  border-color: rgba(255, 107, 107, 0.25);
-  background: rgba(255, 107, 107, 0.12);
+  border-color: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
 }
 
 .cookie-btn-update:hover {
-  border-color: rgba(255, 107, 107, 0.38);
-  background: rgba(255, 107, 107, 0.2);
+  border-color: color-mix(in srgb, var(--accent-primary) 38%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
   color: var(--text-primary);
 }
 
 .cookie-btn-delete {
-  border-color: rgba(239, 68, 68, 0.25);
-  background: rgba(239, 68, 68, 0.11);
+  border-color: color-mix(in srgb, var(--accent-danger) 25%, transparent);
+  background: color-mix(in srgb, var(--accent-danger) 11%, transparent);
   color: var(--accent-danger);
 }
 
 .cookie-btn-delete:hover {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.2);
+  border-color: color-mix(in srgb, var(--accent-danger) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-danger) 20%, transparent);
   color: var(--text-primary);
 }
 </style>

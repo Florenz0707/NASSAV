@@ -26,7 +26,7 @@ async function submit() {
 <template>
   <div class="mx-auto flex min-h-screen max-w-md items-center px-4 py-8">
     <form
-      class="w-full rounded-xl border border-white/10 bg-secondary p-6 shadow-lg"
+      class="w-full rounded-xl border border-surface-subtle/10 bg-secondary p-6 shadow-lg"
       @submit.prevent="submit"
     >
       <div class="mb-6 flex items-center gap-3">
@@ -58,7 +58,7 @@ async function submit() {
         name="username"
         autocomplete="username"
         required
-        class="mb-4 w-full rounded-lg border border-white/10 bg-primary px-3 py-2 text-primary outline-none focus:border-accent-primary"
+        class="mb-4 w-full rounded-lg border border-surface-subtle/10 bg-primary px-3 py-2 text-primary outline-none focus:border-accent-primary"
       />
       <label for="login-password" class="mb-2 block text-sm text-secondary">密码</label>
       <input
@@ -68,7 +68,7 @@ async function submit() {
         type="password"
         autocomplete="current-password"
         required
-        class="mb-4 w-full rounded-lg border border-white/10 bg-primary px-3 py-2 text-primary outline-none focus:border-accent-primary"
+        class="mb-4 w-full rounded-lg border border-surface-subtle/10 bg-primary px-3 py-2 text-primary outline-none focus:border-accent-primary"
       />
       <p v-if="errorMessage" role="alert" class="mb-4 text-sm text-accent-danger">
         {{ errorMessage }}

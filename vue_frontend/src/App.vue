@@ -110,9 +110,21 @@ watch(
   right: 0;
   bottom: 0;
   background:
-    radial-gradient(ellipse at 20% 20%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, rgba(255, 119, 115, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(78, 205, 196, 0.08) 0%, transparent 70%);
+    radial-gradient(
+      ellipse at 20% 20%,
+      color-mix(in srgb, var(--accent-purple) 15%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 80%,
+      color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      color-mix(in srgb, var(--accent-tertiary) 8%, transparent) 0%,
+      transparent 70%
+    );
   pointer-events: none;
   z-index: 0;
 }

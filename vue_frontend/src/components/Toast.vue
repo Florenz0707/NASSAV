@@ -16,7 +16,7 @@ const toastStore = useToastStore()
           v-for="toast in toastStore.toasts"
           :key="toast.id"
           :role="toast.type === 'error' ? 'alert' : 'status'"
-          class="flex items-center gap-3 px-5 py-4 rounded-xl backdrop-blur-[10px] border border-[var(--border-white-10)] shadow-[0_8px_32px_rgba(0,0,0,0.3)] cursor-pointer min-w-[280px] max-w-[400px]"
+          class="flex items-center gap-3 px-5 py-4 rounded-xl backdrop-blur-[10px] border border-[var(--border-surface-subtle-10)] shadow-[0_8px_32px_color-mix(in_srgb,_var(--shadow-color)_30%,_transparent)] cursor-pointer min-w-[280px] max-w-[400px]"
           :class="`toast-${toast.type}`"
           style="background: var(--bg-overlay)"
           @click="toastStore.remove(toast.id)"
@@ -26,12 +26,12 @@ const toastStore = useToastStore()
             :style="{
               background:
                 toast.type === 'success'
-                  ? 'rgba(46,213,115,0.2)'
+                  ? 'color-mix(in srgb, var(--accent-success) 20%, transparent)'
                   : toast.type === 'error'
-                    ? 'rgba(255,107,107,0.2)'
+                    ? 'color-mix(in srgb, var(--accent-primary) 20%, transparent)'
                     : toast.type === 'warning'
-                      ? 'rgba(255,193,7,0.2)'
-                      : 'rgba(78,205,196,0.2)',
+                      ? 'color-mix(in srgb, var(--accent-warning) 20%, transparent)'
+                      : 'color-mix(in srgb, var(--accent-tertiary) 20%, transparent)',
               color:
                 toast.type === 'success'
                   ? 'var(--accent-success)'
