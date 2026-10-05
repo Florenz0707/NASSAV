@@ -1,4 +1,6 @@
 <script setup>
+import CookieManagementDialog from '../components/settings/CookieManagementDialog.vue'
+import AppButton from '../components/AppButton.vue'
 import AppIcon from '../components/AppIcon.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -14,6 +16,7 @@ const resourceStore = useResourceStore()
 const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 
+const showCookies = ref(false)
 const avid = ref('')
 const source = ref('any')
 const submitting = ref(false)
@@ -165,6 +168,10 @@ function viewResource() {
       <p class="page-subtitle">支持单个或批量输入视频编号（换行、逗号、空格分隔）</p>
     </div>
 
+    <AppButton variant="neutral" class="mb-6" @click="showCookies = true"
+      ><AppIcon name="cookie" />Cookie 设置</AppButton
+    >
+    <CookieManagementDialog v-if="showCookies" @close="showCookies = false" />
     <div class="add-form-card">
       <form class="add-form" @submit.prevent="handleSubmit">
         <div class="form-group">

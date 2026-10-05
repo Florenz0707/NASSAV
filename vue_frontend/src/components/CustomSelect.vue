@@ -349,7 +349,6 @@ onBeforeUnmount(() => {
   background: var(--accent-primary);
   color: var(--on-accent);
   border-color: var(--accent-primary);
-  color: var(--text-inverse);
 }
 
 .custom-select-option.is-disabled {
