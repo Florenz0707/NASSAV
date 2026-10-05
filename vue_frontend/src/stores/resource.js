@@ -1,3 +1,4 @@
+import { createRequestGuard } from '../utils/requestGuard.js'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { downloadApi, resourceApi, sourceApi } from '../api/index.js'
@@ -19,6 +20,7 @@ export const useResourceStore = defineStore('resource', () => {
   const pendingJobEventVersions = new Map()
   let scrapePollTimer = null
   let lastResourceQuery = null
+  const resourceQueryGuard = createRequestGuard()
   const SCRAPE_STORAGE_KEY = 'nassav:scrape-jobs:v1'
 
   function persistScrapeJobs() {
@@ -196,6 +198,7 @@ export const useResourceStore = defineStore('resource', () => {
     watched = undefined,
     is_favorite = undefined,
   } = {}) {
+    const request = resourceQueryGuard.begin()
     loading.value = true
     error.value = null
     try {
@@ -230,6 +233,7 @@ export const useResourceStore = defineStore('resource', () => {
       if (typeof is_favorite !== 'undefined') params.is_favorite = is_favorite
       console.debug('[resource] fetchResources request params:', params)
       const response = await resourceApi.getList(params)
+      if (!resourceQueryGuard.current(request)) return
       console.debug('[resource] fetchResources response:', response)
 
       // 后端可能返回多种格式：
@@ -287,11 +291,18 @@ export const useResourceStore = defineStore('resource', () => {
         pagination.value.page_size = page_size
       }
     } catch (err) {
+      if (!resourceQueryGuard.current(request)) return
       error.value = err.message || '获取资源列表失败'
       throw err
     } finally {
-      loading.value = false
+      if (resourceQueryGuard.current(request)) loading.value = false
     }
+  }
+
+  function cancelResourceQuery() {
+    resourceQueryGuard.invalidate()
+    loading.value = false
+    lastResourceQuery = null
   }
 
   // 获取下载源列表
@@ -542,6 +553,7 @@ export const useResourceStore = defineStore('resource', () => {
     pagination,
     stats,
     fetchResources,
+    cancelResourceQuery,
     fetchSources,
     addResource,
     refreshResource,

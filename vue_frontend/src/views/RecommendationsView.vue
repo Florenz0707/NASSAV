@@ -1,4 +1,5 @@
 <script setup>
+import { createRequestGuard } from '../utils/requestGuard.js'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -50,6 +51,8 @@ const blacklistItems = ref([])
 const blacklistPagination = ref(null)
 const blacklistSubmittingKey = ref('')
 const blacklistCache = new Map()
+const blacklistGuard = createRequestGuard()
+let blacklistSearchTimer = null
 const blacklistTabs = [
   { value: 'actor', label: '演员黑名单' },
   { value: 'genre', label: '类别黑名单' },
@@ -285,11 +288,13 @@ function invalidateBlacklistCache(seedType = '') {
 }
 
 async function loadBlacklistItems() {
+  const request = blacklistGuard.begin()
   const cacheKey = buildBlacklistCacheKey()
   const cached = blacklistCache.get(cacheKey)
   if (cached) {
     blacklistItems.value = cached.items
     blacklistPagination.value = cached.pagination
+    blacklistLoading.value = false
     return
   }
 
@@ -311,6 +316,7 @@ async function loadBlacklistItems() {
       blacklistBlockedOnly.value
     )
 
+    if (!blacklistGuard.current(request)) return
     blacklistItems.value = list
     blacklistPagination.value = pagination
     blacklistCache.set(cacheKey, {
@@ -318,11 +324,12 @@ async function loadBlacklistItems() {
       pagination: pagination ? { ...pagination } : null,
     })
   } catch (err) {
+    if (!blacklistGuard.current(request)) return
     toastStore.error(err.message || '加载黑名单列表失败')
     blacklistItems.value = []
     blacklistPagination.value = null
   } finally {
-    blacklistLoading.value = false
+    if (blacklistGuard.current(request)) blacklistLoading.value = false
   }
 }
 
@@ -665,6 +672,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  blacklistGuard.invalidate()
+  clearTimeout(blacklistSearchTimer)
   saveViewState()
   window.removeEventListener('scroll', updateScrollState)
   window.removeEventListener('resize', handleViewportResize)
@@ -674,6 +683,10 @@ onBeforeUnmount(() => {
 watch(showPersonalizationModal, (visible) => {
   if (visible) {
     loadBlacklistItems()
+  } else {
+    blacklistGuard.invalidate()
+    clearTimeout(blacklistSearchTimer)
+    blacklistLoading.value = false
   }
 })
 
@@ -687,8 +700,10 @@ watch([blacklistSeedType, blacklistBlockedOnly], () => {
 })
 
 watch(blacklistSearch, () => {
+  blacklistGuard.invalidate()
+  clearTimeout(blacklistSearchTimer)
   if (!showPersonalizationModal.value) return
-  loadBlacklistItems()
+  blacklistSearchTimer = setTimeout(loadBlacklistItems, 300)
 })
 </script>
 

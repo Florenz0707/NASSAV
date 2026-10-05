@@ -54,6 +54,9 @@
       </div>
     </div>
 
+    <p v-if="store.error" class="text-accent-danger mb-4" role="alert">{{ store.error }}</p>
+    <p v-if="store.loading" class="text-muted mb-4" role="status">正在加载...</p>
+    <p v-else-if="!store.error && !store.groups.length" class="text-muted mb-4">暂无匹配结果</p>
     <div class="grid">
       <ActorGroupCard v-for="a in store.groups" :key="a.id" :actor="a" @click="openActor(a)" />
     </div>
@@ -150,7 +153,7 @@
 import ActorGroupCard from '../components/ActorGroupCard.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import { useActorGroupsStore } from '../stores/actorGroups'
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 export default {
@@ -234,6 +237,11 @@ export default {
         page.value = 1
         loadPage(1)
       }, 300)
+    })
+
+    onBeforeUnmount(() => {
+      if (_searchTimer) clearTimeout(_searchTimer)
+      store.cancel()
     })
 
     onMounted(() => {

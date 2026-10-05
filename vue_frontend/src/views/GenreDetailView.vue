@@ -627,6 +627,7 @@ watch(searchQuery, () => {
 })
 
 onBeforeUnmount(() => {
+  resourceStore.cancelResourceQuery()
   cancelExternalSearch()
   requestGuard.invalidate()
   if (_searchTimer) clearTimeout(_searchTimer)

@@ -43,13 +43,4 @@ export function useExternalSearchSources(entityType, settings = useSettingsStore
   }
 }
 
-export function createSearchRequestGuard() {
-  let version = 0
-  return {
-    begin: () => ++version,
-    current: (request) => request === version,
-    invalidate: () => {
-      version++
-    },
-  }
-}
+export { createRequestGuard as createSearchRequestGuard } from '../utils/requestGuard.js'

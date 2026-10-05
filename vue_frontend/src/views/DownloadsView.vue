@@ -12,6 +12,8 @@ const settingsStore = useSettingsStore()
 const router = useRouter()
 
 const pollingTimer = ref(null)
+let pollingGeneration = 0
+let queueRequestPending = false
 
 const POLLING_INTERVAL = 1000 // API 轮询间隔
 
@@ -147,15 +149,20 @@ watch(
 
 // 获取任务队列状态（API 轮询）
 async function fetchQueueStatus() {
+  if (queueRequestPending) return
+  const generation = pollingGeneration
+  queueRequestPending = true
   try {
     const response = await taskApi.getQueueStatus()
     const data = response.data
-    if (data) {
+    if (data && generation === pollingGeneration) {
       // 通过 store 更新数据
       wsStore.updateTaskData(data)
     }
   } catch (error) {
-    console.error('获取任务队列状态失败:', error)
+    if (generation === pollingGeneration) console.error('获取任务队列状态失败:', error)
+  } finally {
+    queueRequestPending = false
   }
 }
 
@@ -185,6 +192,7 @@ function startPolling() {
 
 // 停止轮询
 function stopPolling() {
+  pollingGeneration++
   if (pollingTimer.value) {
     console.log('[DownloadsView] 停止轮询')
     clearInterval(pollingTimer.value)

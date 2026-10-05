@@ -239,6 +239,7 @@ watch(page, () => {
 })
 
 onBeforeUnmount(() => {
+  resourceStore.cancelResourceQuery()
   if (_searchTimer) clearTimeout(_searchTimer)
 })
 

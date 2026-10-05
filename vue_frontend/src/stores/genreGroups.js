@@ -1,3 +1,5 @@
+import { genreApi } from '../api/index.js'
+import { createRequestGuard } from '../utils/requestGuard.js'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
@@ -7,6 +9,8 @@ export const useGenreGroupsStore = defineStore('genreGroups', () => {
   const loading = ref(false)
   const error = ref(null)
 
+  const guard = createRequestGuard()
+
   // direct call to /genres to get groups
   async function load({
     page = 1,
@@ -15,29 +19,28 @@ export const useGenreGroupsStore = defineStore('genreGroups', () => {
     order = 'desc',
     search,
   } = {}) {
+    const request = guard.begin()
     loading.value = true
     error.value = null
     try {
-      // use plain fetch to avoid circular imports
-      const params = { page: String(page), page_size: String(page_size), order_by }
-      if (order) params.order = order
-      if (typeof search !== 'undefined' && search !== null && String(search).trim() !== '')
-        params.search = String(search).trim()
-      const qs = new URLSearchParams(params)
-      const r = await fetch(`/nassav/api/genres?${qs.toString()}`)
-      const body = await r.json()
-      if (body && body.code === 200) {
-        groups.value = body.data || []
-        pagination.value = body.pagination || pagination.value
-      } else {
-        error.value = body && body.message ? body.message : 'Failed to load genre groups'
-      }
+      const params = { page, page_size, order_by, order }
+      if (String(search || '').trim()) params.search = String(search).trim()
+      const response = await genreApi.getList(params)
+      if (!guard.current(request)) return
+      groups.value = response.data || []
+      pagination.value = response.pagination || pagination.value
     } catch (err) {
+      if (!guard.current(request)) return
       error.value = err.message || String(err)
     } finally {
-      loading.value = false
+      if (guard.current(request)) loading.value = false
     }
   }
 
-  return { groups, pagination, loading, error, load }
+  function cancel() {
+    guard.invalidate()
+    loading.value = false
+  }
+
+  return { groups, pagination, loading, error, load, cancel }
 })
