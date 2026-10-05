@@ -4,7 +4,13 @@ import { logger } from '../utils/logger.js'
 import { resolveResourceTitle } from '../utils/resourceTitle.js'
 import AppIcon from '../components/AppIcon.vue'
 import { computed, onBeforeUnmount, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { defineAsyncComponent } from 'vue'
+const TasksDemo = import.meta.env.DEV
+  ? defineAsyncComponent(() => import('../components/TasksDemo.vue'))
+  : null
+const route = useRoute()
+const demoMode = computed(() => import.meta.env.DEV && route.query.demo === 'tasks')
 import { useResourceStore } from '../stores/resource'
 import { useWebSocketStore } from '../stores/websocket'
 import { useSettingsStore } from '../stores/settings'
@@ -115,8 +121,12 @@ onUnmounted(() => {
 
 // 监听 WebSocket 连接状态变化
 watch(
-  [() => wsStore.connected, () => wsStore.connectionFailed],
+  [() => wsStore.connected, () => wsStore.connectionFailed, () => demoMode.value],
   ([isConnected, hasFailed]) => {
+    if (demoMode.value) {
+      stopPolling()
+      return
+    }
     if (isConnected) {
       // WebSocket 连接成功，停止轮询
       logger.debug('[DownloadsView] WebSocket 已连接，停止轮询')
@@ -192,7 +202,8 @@ function goToResourceDetail(task) {
 </script>
 
 <template>
-  <div class="downloads-view">
+  <TasksDemo v-if="demoMode" />
+  <div v-else class="downloads-view">
     <div class="page-header">
       <h1 class="page-title">下载管理</h1>
       <p class="page-subtitle">实时监控下载任务与已下载视频</p>
