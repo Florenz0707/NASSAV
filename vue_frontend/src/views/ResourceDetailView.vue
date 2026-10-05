@@ -556,6 +556,7 @@ async function navigateToGenre(genreName) {
               class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)]"
               style="
                 background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
+                color: var(--on-accent);
               "
               @click="jumpPlay"
             >

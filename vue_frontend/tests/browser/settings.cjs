@@ -25,7 +25,18 @@ async function main() {
     await page.goto(`${process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178'}/settings`)
     await page.getByRole('button', { name: '浅色', exact: true }).click()
     await page.locator('body.light-mode').waitFor()
+    await page.waitForTimeout(400)
     const avatar = page.getByRole('switch', { name: '显示女优头像' })
+    assert.equal(
+      await avatar.locator('span').evaluate((el) => getComputedStyle(el).backgroundColor),
+      'rgb(244, 244, 245)'
+    )
+    assert.equal(
+      await page
+        .getByRole('button', { name: '浅色', exact: true })
+        .evaluate((el) => getComputedStyle(el).color),
+      'rgb(244, 244, 245)'
+    )
     await avatar.click()
     assert.equal(await avatar.getAttribute('aria-checked'), 'false')
     assert.equal(saved.length, 0)

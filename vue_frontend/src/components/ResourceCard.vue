@@ -351,6 +351,7 @@ onUnmounted(() => {
           class="text-[0.85rem] font-semibold rounded-md w-fit px-2 py-1"
           style="
             color: var(--accent-primary);
+            color: var(--on-accent);
             background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
           "
         >

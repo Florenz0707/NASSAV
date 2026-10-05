@@ -31,7 +31,7 @@ async function submit() {
     >
       <div class="mb-6 flex items-center gap-3">
         <span
-          class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-primary text-white"
+          class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-primary text-on-accent"
         >
           <svg
             class="h-5 w-5"
@@ -76,7 +76,7 @@ async function submit() {
       <button
         type="submit"
         :disabled="submitting"
-        class="w-full rounded-lg bg-accent-primary px-4 py-2 font-medium text-white transition-colors duration-200 hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
+        class="w-full rounded-lg bg-accent-primary px-4 py-2 font-medium text-on-accent transition-colors duration-200 hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
       >
         {{ submitting ? '正在登录…' : '登录' }}
       </button>

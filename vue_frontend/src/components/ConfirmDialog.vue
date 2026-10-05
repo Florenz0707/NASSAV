@@ -203,6 +203,7 @@ const { titleId, descriptionId } = useDialog(isVisible, dialogRef, handleCancel)
 
 .confirm-btn.is-info {
   background: var(--accent-primary);
+  color: var(--on-accent);
 }
 
 /* 对话框动画 */

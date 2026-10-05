@@ -475,6 +475,7 @@ defineExpose({ invalidate: invalidateBlacklistCache })
 .pretty-toggle input:checked + .pretty-toggle-track {
   border-color: color-mix(in srgb, var(--accent-secondary) 28%, transparent);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-danger));
+  color: var(--on-accent);
 }
 
 .pretty-toggle input:checked + .pretty-toggle-track .pretty-toggle-thumb {
@@ -599,7 +600,7 @@ defineExpose({ invalidate: invalidateBlacklistCache })
 .blacklist-action-btn.is-block {
   border: none;
   background: var(--accent-primary);
-  color: var(--text-inverse);
+  color: var(--on-accent);
 }
 
 .blacklist-action-btn.is-unblock {

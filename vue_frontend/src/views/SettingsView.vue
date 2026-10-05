@@ -441,7 +441,7 @@ const copyCookie = async () => {
   border-radius: 0.9rem;
   border: 1px solid color-mix(in srgb, var(--accent-primary) 56%, transparent);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: var(--text-inverse);
+  color: var(--on-accent);
   font-size: 0.95rem;
   font-weight: 700;
   box-shadow: 0 12px 26px color-mix(in srgb, var(--accent-primary) 24%, transparent);

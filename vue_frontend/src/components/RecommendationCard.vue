@@ -331,6 +331,7 @@ function handleReasonsClick(event) {
 
 .feedback-overlay-button.danger.active {
   background: var(--accent-primary);
+  color: var(--on-accent);
 }
 
 .feedback-overlay-label {
@@ -510,7 +511,7 @@ function handleReasonsClick(event) {
 .inline-feedback-btn.danger.active {
   border-color: color-mix(in srgb, var(--accent-primary) 36%, transparent);
   background: var(--accent-primary);
-  color: white;
+  color: var(--on-accent);
 }
 
 .inline-feedback-btn:disabled {
@@ -549,7 +550,7 @@ function handleReasonsClick(event) {
 
 .action-btn.primary {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: white;
+  color: var(--on-accent);
   box-shadow: 0 10px 20px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 

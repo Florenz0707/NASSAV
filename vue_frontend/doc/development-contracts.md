@@ -22,6 +22,7 @@
 主题值定义在 `src/styles/main.css`，Tailwind 映射定义在 `tailwind.config.js`，入口保留显式 `@config`。独立组件不得新增十六进制、rgb/rgba 等颜色字面量；使用语义工具类或已定义 CSS token。新增 token 同时提供深浅主题并检查生成的类和实际样式，不能仅凭类名判断生效。
 
 - 背景为 `bg-primary`、`bg-secondary`；文字为 `text-primary`、`text-secondary`、`text-muted`，不得混用背景和文字的 primary 映射。
+- 主强调背景上的文字与头像开关圆点使用固定浅色 `on-accent` token（对应深色主题正文色），不随浅色主题变暗。
 - 交互使用 accent 系列；危险、成功、警告和信息分别使用对应语义 token。边框使用 `--border-color` 对应默认 `border`，浅表面使用 `surface-subtle`，阴影复用预设；不新建固定白色边框或独立状态色。
 - 操作按钮优先使用 `AppButton` 的 `primary`、`neutral`、`danger` 及 loading/disabled 状态；搜索、分页、下拉和确认复用 `SearchInput`、`ResourcePagination`、`CustomSelect`、`ConfirmDialog`。
 - 公共组件基础样式放在合适的 CSS layer，让 Tailwind 显示、尺寸等工具类正常覆盖；新增交互同时检查移动布局与禁用状态。

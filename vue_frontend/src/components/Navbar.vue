@@ -564,6 +564,7 @@ watch(
   width: 2.25rem;
   height: 2.25rem;
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: var(--on-accent);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -580,6 +581,7 @@ watch(
 
 .logo-text {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: var(--on-accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

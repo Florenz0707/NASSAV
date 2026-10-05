@@ -23,7 +23,7 @@
             class="w-5 h-5 flex items-center justify-center rounded-md transition border-2"
             :style="
               selectedCount === totalCount && totalCount > 0
-                ? 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary)); border-color: white;'
+                ? 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary)); color: var(--on-accent); border-color: white;'
                 : 'background: color-mix(in srgb, var(--text-muted) 60%, transparent); border-color: white;'
             "
           >

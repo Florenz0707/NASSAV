@@ -61,6 +61,7 @@ import { RouterLink } from 'vue-router'
               class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 text-white shadow-[0_8px_20px_color-mix(in_srgb,_var(--accent-primary)_25%,_transparent)] hover:-translate-y-1 hover:shadow-[0_12px_25px_color-mix(in_srgb,_var(--accent-primary)_35%,_transparent)] active:translate-y-0 active:shadow-none"
               style="
                 background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
+                color: var(--on-accent);
               "
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

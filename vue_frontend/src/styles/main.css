@@ -41,7 +41,8 @@ body.dark-mode {
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
   --text-inverse: #ffffff;
-  --on-accent: #1d1d1f;
+  --text-on-primary: #f4f4f5;
+  --on-accent: var(--text-on-primary);
 
   /* Accent Colors */
   --accent-primary: #ff6b6b;
@@ -117,7 +118,8 @@ body.light-mode {
   --text-secondary: #6e6e73;
   --text-muted: #86868b;
   --text-inverse: #ffffff;
-  --on-accent: #1d1d1f;
+  --text-on-primary: #f4f4f5;
+  --on-accent: var(--text-on-primary);
 
   /* Accent Colors */
   --accent-primary: #ff6b6b;
@@ -470,12 +472,12 @@ select option {
   }
 
   .tw-btn-primary {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3 text-[0.95rem] font-medium text-white no-underline transition-all duration-200 hover:-translate-y-0.5;
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3 text-[0.95rem] font-medium text-on-accent no-underline transition-all duration-200 hover:-translate-y-0.5;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
   .tw-btn-primary-elevated {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3.5 text-[0.95rem] font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)];
+    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3.5 text-[0.95rem] font-medium text-on-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)];
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
@@ -486,12 +488,12 @@ select option {
   }
 
   .tw-fab-primary {
-    @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full border-none text-xl text-white shadow-[0_4px_20px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_25px_color-mix(in_srgb,_var(--accent-primary)_40%,_transparent)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0;
+    @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full border-none text-xl text-on-accent shadow-[0_4px_20px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_25px_color-mix(in_srgb,_var(--accent-primary)_40%,_transparent)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
   }
 
   .tw-btn-accent {
-    @apply inline-flex min-h-[2.9rem] min-w-[8rem] cursor-pointer items-center justify-center rounded-lg border-none px-4 font-semibold text-white;
+    @apply inline-flex min-h-[2.9rem] min-w-[8rem] cursor-pointer items-center justify-center rounded-lg border-none px-4 font-semibold text-on-accent;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
     box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 22%, transparent);
   }

@@ -65,7 +65,7 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors"
                 :class="
                   colorMode === 'light'
-                    ? 'bg-[var(--accent-primary)] text-white'
+                    ? 'bg-[var(--accent-primary)] text-on-accent'
                     : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
                 @click="colorMode = 'light'"
@@ -76,7 +76,7 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors"
                 :class="
                   colorMode === 'dark'
-                    ? 'bg-[var(--accent-primary)] text-white'
+                    ? 'bg-[var(--accent-primary)] text-on-accent'
                     : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
                 @click="colorMode = 'dark'"
@@ -100,13 +100,13 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
               class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
               :style="
                 showActorAvatar
-                  ? 'background: var(--accent-primary);'
+                  ? 'background: var(--accent-primary); color: var(--on-accent);'
                   : 'background: var(--bg-secondary);'
               "
               @click="showActorAvatar = !showActorAvatar"
             >
               <span
-                class="inline-block h-4 w-4 transform rounded-full bg-surface-subtle transition-transform"
+                class="inline-block h-4 w-4 transform rounded-full bg-on-accent transition-transform"
                 :class="showActorAvatar ? 'translate-x-6' : 'translate-x-1'"
               />
             </button>

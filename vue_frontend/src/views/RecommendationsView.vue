@@ -872,6 +872,7 @@ onBeforeUnmount(() => {
 .rec-action-btn-primary {
   color: var(--text-inverse);
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
+  color: var(--on-accent);
   box-shadow: 0 10px 22px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
@@ -1257,6 +1258,7 @@ onBeforeUnmount(() => {
       color-mix(in srgb, var(--accent-primary) 5%, transparent)
     ),
     color-mix(in srgb, var(--neutral-color) 4%, transparent);
+  color: var(--on-accent);
   box-shadow: 0 12px 28px color-mix(in srgb, var(--accent-primary) 12%, transparent);
 }
 
@@ -1274,7 +1276,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--accent-primary);
   border-radius: 999px;
   background: var(--accent-primary);
-  color: var(--text-inverse);
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 1.2rem;
   backdrop-filter: blur(14px);

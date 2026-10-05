@@ -615,7 +615,7 @@ function viewResource() {
 .mode-btn.active {
   border-color: var(--accent-primary);
   background: var(--accent-primary);
-  color: white;
+  color: var(--on-accent);
 }
 
 .mode-btn:disabled {
@@ -737,7 +737,7 @@ function viewResource() {
 
 .btn-primary {
   background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
-  color: white;
+  color: var(--on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
