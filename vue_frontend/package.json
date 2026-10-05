@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "demo:tasks": "vite --host 127.0.0.1 --open '/downloads?demo=tasks&variant=list'",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",

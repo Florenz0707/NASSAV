@@ -1,14 +1,11 @@
 <script setup>
 defineOptions({ name: 'AppNavbar' })
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../stores/session'
 import { useToastStore } from '../stores/toast'
 
 const route = useRoute()
-const taskPageLabel = computed(() =>
-  import.meta.env.DEV && route.query.demo === 'tasks' ? '任务详情' : '下载管理'
-)
 const router = useRouter()
 const sessionStore = useSessionStore()
 const toastStore = useToastStore()
@@ -269,7 +266,7 @@ watch(
             <path stroke-linecap="round" stroke-linejoin="round" d="M10 3v10M6 9l4 4 4-4" />
             <path stroke-linecap="round" d="M3 16h14" />
           </svg>
-          <span class="nav-label">{{ taskPageLabel }}</span>
+          <span class="nav-label">任务详情</span>
         </RouterLink>
 
         <RouterLink
@@ -463,7 +460,7 @@ watch(
           <path stroke-linecap="round" stroke-linejoin="round" d="M10 3v10M6 9l4 4 4-4" />
           <path stroke-linecap="round" d="M3 16h14" />
         </svg>
-        {{ taskPageLabel }}
+        任务详情
       </RouterLink>
 
       <RouterLink

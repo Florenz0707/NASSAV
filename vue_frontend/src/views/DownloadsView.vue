@@ -1,148 +1,71 @@
 <script setup>
 import { logger } from '../utils/logger.js'
-
-import { resolveResourceTitle } from '../utils/resourceTitle.js'
-import AppIcon from '../components/AppIcon.vue'
-import { computed, onBeforeUnmount, onUnmounted, ref, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { defineAsyncComponent } from 'vue'
-const TasksDemo = import.meta.env.DEV
-  ? defineAsyncComponent(() => import('../components/TasksDemo.vue'))
-  : null
-const route = useRoute()
-const demoMode = computed(() => import.meta.env.DEV && route.query.demo === 'tasks')
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
+import TaskDetailsPanel from '../components/TaskDetailsPanel.vue'
+import AppButton from '../components/AppButton.vue'
 import { useResourceStore } from '../stores/resource'
 import { useWebSocketStore } from '../stores/websocket'
+import { useDownloadQueueStore } from '../stores/downloadQueue'
 import { useSettingsStore } from '../stores/settings'
 import { resourceApi, taskApi } from '../api'
+import { buildTaskDetails } from '../utils/taskDetails.js'
+import { createTaskDebugData } from '../utils/taskDebugData.js'
 
-const resourceStore = useResourceStore()
-const wsStore = useWebSocketStore()
-const settingsStore = useSettingsStore()
-const router = useRouter()
-
-const pollingTimer = ref(null)
-let pollingGeneration = 0
-let queueRequestPending = false
-
-const POLLING_INTERVAL = 1000 // API 轮询间隔
-
-// 调试模式 - 设为 true 显示样例数据
+// Set true to preview synthetic download/scrape tasks. Real queue data is never mixed in.
 const DEBUG_MODE = false
-
-// helper to normalize resources array (store may expose a ref)
-function getResourcesArray() {
-  const raw =
-    resourceStore.resources && resourceStore.resources.value !== undefined
-      ? resourceStore.resources.value
-      : resourceStore.resources
-  return Array.isArray(raw) ? raw : []
-}
-
-// 根据设置获取显示的标题
-function getDisplayedTitle(resource) {
-  return resolveResourceTitle(resource, settingsStore.displayTitle)
-}
-
-// 获取任务标题（从任务对象或资源列表）
-function getTaskTitle(task) {
-  if (!task) return '正在加载标题...'
-
-  // 如果任务已有标题，直接返回
-  if (task.title) return task.title
-
-  // 尝试从资源列表中查找对应的资源
-  const resources = getResourcesArray()
-  const resource = resources.find((r) => r.avid === task.avid)
-
-  if (resource) {
-    return getDisplayedTitle(resource)
-  }
-
-  // 如果都找不到，返回 AVID
-  return task.avid || '正在加载标题...'
-}
-
-// 基于资源列表生成模拟任务
-const mockActiveTasks = computed(() => {
-  const resources = getResourcesArray().slice(0, 2)
-  return resources.map((r, i) => ({
-    task_id: `mock-active-${i + 1}`,
-    avid: r.avid,
-    title: getDisplayedTitle(r),
-    state: 'STARTED',
-    progress: {
-      percent: i === 0 ? 45.2 : 78.9,
-      speed: i === 0 ? '5.2 MB/s' : '3.8 MB/s',
-      downloaded: i === 0 ? '452 MB' : '789 MB',
-      total: i === 0 ? '1.0 GB' : '1.0 GB',
-    },
-  }))
-})
-
-const mockPendingTasks = computed(() => {
-  const resources = getResourcesArray().slice(2, 5)
-  return resources.map((r, i) => ({
-    task_id: `mock-pending-${i + 1}`,
-    avid: r.avid,
-    title: getDisplayedTitle(r),
-  }))
-})
-
-// 合并所有任务为单一列表
-const allTasks = computed(() => {
-  const active =
-    DEBUG_MODE && wsStore.activeTasks.length === 0 ? mockActiveTasks.value : wsStore.activeTasks
-  const pending =
-    DEBUG_MODE && wsStore.pendingTasks.length === 0 ? mockPendingTasks.value : wsStore.pendingTasks
-  return [
-    ...active.map((t) => ({ ...t, isActive: true })),
-    ...pending.map((t) => ({ ...t, isActive: false })),
-  ]
-})
-
-// 显示用的计数
-const displayActiveCount = computed(() =>
-  DEBUG_MODE && wsStore.activeCount === 0 ? mockActiveTasks.value.length : wsStore.activeCount
+const debugTasks = ref(DEBUG_MODE ? createTaskDebugData() : [])
+const resourceStore = useResourceStore(),
+  wsStore = useWebSocketStore()
+const queue = useDownloadQueueStore(),
+  settings = useSettingsStore()
+const queueError = ref('')
+const tasks = computed(() =>
+  DEBUG_MODE
+    ? debugTasks.value
+    : buildTaskDetails({
+        active: queue.activeTasks,
+        pending: queue.pendingTasks,
+        scrapeJobs: resourceStore.visibleScrapeJobs,
+        resources: resourceStore.resources,
+        metadataCache: queue.titleCache,
+        preferredTitle: settings.displayTitle,
+        coverUrlFor: (avid) => resourceApi.getCoverUrl(avid, 'medium'),
+      })
 )
-const displayPendingCount = computed(() =>
-  DEBUG_MODE && wsStore.pendingCount === 0 ? mockPendingTasks.value.length : wsStore.pendingCount
-)
-const displayTotalCount = computed(() => displayActiveCount.value + displayPendingCount.value)
-
-onBeforeUnmount(() => {
-  // 离开下载页时停止轮询
-  stopPolling()
+const pollingTimer = ref(null)
+let pollingGeneration = 0,
+  queueRequestPending = false
+const POLLING_INTERVAL = 1000
+onBeforeUnmount(stopPolling)
+onMounted(() => {
+  if (!DEBUG_MODE) fetchQueueStatus()
 })
-
-onUnmounted(() => {
-  stopPolling()
-})
-
-// 监听 WebSocket 连接状态变化
 watch(
-  [() => wsStore.connected, () => wsStore.connectionFailed, () => demoMode.value],
-  ([isConnected, hasFailed]) => {
-    if (demoMode.value) {
-      stopPolling()
-      return
-    }
-    if (isConnected) {
-      // WebSocket 连接成功，停止轮询
-      logger.debug('[DownloadsView] WebSocket 已连接，停止轮询')
-      stopPolling()
-    } else if (hasFailed) {
-      // WebSocket 断开且已发生连接失败，启动轮询
-      logger.debug('[DownloadsView] WebSocket 连接失败，启动轮询')
-      startPolling()
-    }
+  [() => wsStore.connected, () => wsStore.connectionFailed],
+  ([connected, failed]) => {
+    if (DEBUG_MODE || connected) stopPolling()
+    else if (failed) startPolling()
   },
   { immediate: true }
 )
-
-// 获取任务队列状态（API 轮询）
+function advance(task) {
+  if (!DEBUG_MODE) return
+  if (task.state === 'failed' || task.state === 'succeeded') {
+    Object.assign(task, { state: 'queued', error: '', percent: 0, stage: 'source_lookup' })
+  } else if (task.state === 'queued') task.state = 'running'
+  else if (task.type === 'download') {
+    task.percent = Math.min(100, (task.percent || 0) + 20)
+    if (task.percent === 100) task.state = 'succeeded'
+  } else {
+    const stages = ['source_lookup', 'metadata', 'cover', 'saving', 'translation_queued']
+    const index = stages.indexOf(task.stage)
+    if (index === stages.length - 1) task.state = 'succeeded'
+    else task.stage = stages[index + 1]
+  }
+}
 async function fetchQueueStatus() {
-  if (queueRequestPending) return
+  if (queueRequestPending || DEBUG_MODE) return
   const generation = pollingGeneration
   queueRequestPending = true
   try {
@@ -150,10 +73,14 @@ async function fetchQueueStatus() {
     const data = response.data
     if (data && generation === pollingGeneration) {
       // 通过 store 更新数据
-      wsStore.updateTaskData(data)
+      queue.updateTaskData(data)
+      queueError.value = ''
     }
   } catch (error) {
-    if (generation === pollingGeneration) console.error('获取任务队列状态失败:', error)
+    if (generation === pollingGeneration) {
+      queueError.value = '无法更新下载队列，已显示的数据可能过期。'
+      logger.debug('[DownloadsView] 队列读取失败', error.message)
+    }
   } finally {
     queueRequestPending = false
   }
@@ -162,7 +89,7 @@ async function fetchQueueStatus() {
 // 开始轮询（仅在下载页且 WebSocket 未连接时使用）
 function startPolling() {
   // 如果 WebSocket 已连接，不启动轮询
-  if (wsStore.connected) {
+  if (wsStore.connected || DEBUG_MODE) {
     logger.debug('[DownloadsView] WebSocket 已连接，跳过轮询')
     return
   }
@@ -175,7 +102,7 @@ function startPolling() {
   // 定时轮询
   pollingTimer.value = setInterval(() => {
     // 再次检查 WebSocket 状态，如果已连接则停止轮询
-    if (wsStore.connected) {
+    if (wsStore.connected || DEBUG_MODE) {
       stopPolling()
       return
     }
@@ -192,480 +119,25 @@ function stopPolling() {
     pollingTimer.value = null
   }
 }
-
-// 点击任务跳转到详情页
-function goToResourceDetail(task) {
-  if (task && task.avid) {
-    router.push(`/resource/${task.avid}`)
-  }
-}
 </script>
-
 <template>
-  <TasksDemo v-if="demoMode" />
-  <div v-else class="downloads-view">
-    <div class="page-header">
-      <h1 class="page-title">下载管理</h1>
-      <p class="page-subtitle">实时监控下载任务与已下载视频</p>
-    </div>
-
-    <!-- 任务队列统计 -->
-    <div class="stats-bar">
-      <div class="stat stat-active">
-        <span class="stat-value">{{ displayActiveCount }}</span>
-        <span class="stat-label">正在下载</span>
-      </div>
-      <div class="stat stat-waiting">
-        <span class="stat-value">{{ displayPendingCount }}</span>
-        <span class="stat-label">等待中</span>
-      </div>
-      <div class="stat stat-total">
-        <span class="stat-value">{{ displayTotalCount }}</span>
-        <span class="stat-label">总任务数</span>
-      </div>
-    </div>
-
-    <!-- 下载任务列表 -->
-    <div v-if="allTasks.length > 0" class="task-section">
-      <h2 class="section-title">下载队列</h2>
-      <div class="tasks-list">
-        <div
-          v-for="task in allTasks"
-          :key="task.task_id"
-          class="task-row"
-          :class="{ 'is-active': task.isActive }"
-          @click="goToResourceDetail(task)"
+  <div>
+    <p v-if="queueError" class="text-accent-danger mb-4" role="alert">{{ queueError }}</p>
+    <TaskDetailsPanel :tasks="tasks" :debug="DEBUG_MODE">
+      <template #details="{ task }">
+        <template v-if="DEBUG_MODE">
+          <AppButton class="mt-5" @click="advance(task)">{{
+            task.state === 'failed' ? '演示重试' : '演示下一阶段'
+          }}</AppButton>
+          <p class="text-muted text-xs mt-3">仅改变模拟状态，不操作真实任务。</p>
+        </template>
+        <RouterLink
+          v-else-if="task.hasResource"
+          :to="'/resource/' + encodeURIComponent(task.avid)"
+          class="inline-flex mt-5 text-accent-primary"
+          >查看资源</RouterLink
         >
-          <!-- 左侧封面 -->
-          <div class="task-cover">
-            <img
-              :src="resourceApi.getCoverUrl(task.avid, 'small')"
-              :alt="task.avid"
-              loading="lazy"
-            />
-          </div>
-
-          <!-- 右侧信息 -->
-          <div class="task-info">
-            <div class="task-header">
-              <span class="task-avid">{{ task.avid }}</span>
-              <div v-if="task.isActive" class="task-status-badge active">
-                <span class="pulse-dot" />
-                下载中
-              </div>
-              <div v-else class="task-status-badge pending">等待中</div>
-            </div>
-            <template v-if="task.isActive">
-              <div class="task-title-row">
-                <div class="task-title">
-                  {{ getTaskTitle(task) }}
-                </div>
-                <span v-if="task.progress?.speed" class="task-speed">
-                  {{ task.progress.speed }}
-                </span>
-              </div>
-              <div class="task-progress">
-                <div class="progress-bar">
-                  <div
-                    class="progress-fill is-active"
-                    :style="{ width: (task.progress?.percent || 0) + '%' }"
-                  />
-                </div>
-                <span v-if="task.progress" class="progress-text">
-                  {{ task.progress.percent?.toFixed(1) || 0 }}%
-                </span>
-              </div>
-            </template>
-            <div v-else class="task-title">
-              {{ getTaskTitle(task) }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 空状态 -->
-    <div v-else class="empty-state">
-      <div class="empty-icon flex justify-center">
-        <AppIcon name="download" class="w-14 h-14" />
-      </div>
-      <div class="empty-text">暂无下载任务</div>
-      <div class="empty-hint">在资源详情页点击下载按钮添加任务</div>
-    </div>
+      </template>
+    </TaskDetailsPanel>
   </div>
 </template>
-
-<style scoped>
-.downloads-view {
-  animation: fadeIn 0.5s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.page-header {
-  margin-bottom: 2rem;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.page-subtitle {
-  color: var(--text-muted);
-  font-size: 1rem;
-}
-
-/* 统计栏 */
-.stats-bar {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1.5rem;
-  background: var(--card-bg);
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
-}
-
-.stat:hover {
-  transform: translateY(-2px);
-}
-
-.stat-active {
-  border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);
-}
-
-.stat-waiting {
-  border-color: color-mix(in srgb, var(--accent-secondary) 30%, transparent);
-}
-
-.stat-total {
-  border-color: color-mix(in srgb, var(--accent-info) 30%, transparent);
-}
-
-.stat-value {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-/* 任务区块 */
-.task-section {
-  margin-bottom: 2rem;
-}
-
-.section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 1rem;
-}
-
-/* 任务列表 - 长条状布局 */
-.tasks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.task-row {
-  display: flex;
-  align-items: stretch;
-  background: transparent;
-  border-radius: 12px;
-  border: 2px solid var(--border-color);
-  overflow: visible;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.task-row:hover {
-  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
-  transform: translateX(4px);
-  box-shadow: 0 8px 30px color-mix(in srgb, var(--shadow-color) 20%, transparent);
-}
-
-.task-row.is-active {
-  border-color: color-mix(in srgb, var(--accent-success) 40%, transparent);
-}
-
-.task-row.is-active:hover {
-  border-color: color-mix(in srgb, var(--accent-success) 60%, transparent);
-}
-
-/* 任务封面 */
-.task-cover {
-  position: relative;
-  width: 180px;
-  min-width: 180px;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--shadow-color) 30%, transparent);
-  flex-shrink: 0;
-  border-radius: 10px;
-  margin: 0.5rem;
-}
-
-.task-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 10px;
-  transition: transform 0.3s ease;
-}
-
-/* 状态徽章 - 现在在 header 中 */
-.task-status-badge {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.task-status-badge.active {
-  background: color-mix(in srgb, var(--accent-success) 90%, transparent);
-  color: white;
-}
-
-.task-status-badge.pending {
-  background: color-mix(in srgb, var(--accent-secondary) 90%, transparent);
-  color: white;
-}
-
-.pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: white;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.5;
-    transform: scale(0.8);
-  }
-}
-
-/* 任务信息 */
-.task-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 1rem 1.5rem;
-  min-width: 0;
-}
-
-.task-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.task-avid {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  border-radius: 6px;
-  padding: 4px 10px;
-}
-
-.task-speed {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
-  color: var(--accent-success);
-  font-weight: 500;
-}
-
-.task-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.task-title {
-  font-size: 1rem;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
-}
-
-/* 进度条 */
-.task-progress {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 8px;
-  background: color-mix(in srgb, var(--neutral-color) 10%, transparent);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--muted-fill) 50%, transparent);
-  transition: width 0.3s ease;
-}
-
-.progress-fill.is-active {
-  background: linear-gradient(
-    90deg,
-    var(--accent-success),
-    var(--accent-success-light),
-    var(--accent-success)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.progress-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--accent-success);
-  min-width: 50px;
-  text-align: right;
-}
-
-.progress-speed {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--accent-tertiary);
-}
-
-.progress-size {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.progress-text.pending {
-  color: var(--text-muted);
-}
-
-/* 空状态 */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  background: var(--card-bg);
-  border-radius: 16px;
-  border: 1px dashed var(--border-color);
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.empty-text {
-  font-size: 1.25rem;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.empty-hint {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-  .stats-bar {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-  }
-
-  .stat {
-    padding: 1rem;
-  }
-
-  .stat-value {
-    font-size: 1.75rem;
-  }
-
-  .task-row {
-    flex-direction: column;
-  }
-
-  .task-cover {
-    width: 100%;
-    min-width: unset;
-  }
-
-  .task-info {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .stats-bar {
-    grid-template-columns: 1fr;
-  }
-
-  .task-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-}
-</style>

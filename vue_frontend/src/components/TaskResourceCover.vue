@@ -1,12 +1,32 @@
 <script setup>
-// Synthetic cover artwork for the task prototype; no external image requests.
+// Existing resource images, with an error placeholder and optional debug artwork.
+import { ref, watch } from 'vue'
 import AppIcon from './AppIcon.vue'
-defineProps({ scene: { type: String, default: '' }, title: { type: String, default: '' } })
+const props = defineProps({
+  url: { type: String, default: '' },
+  scene: { type: String, default: '' },
+  title: { type: String, default: '' },
+})
+const failed = ref(false)
+watch(
+  () => props.url,
+  () => {
+    failed.value = false
+  }
+)
 </script>
 <template>
   <div class="rounded-lg overflow-hidden bg-primary">
+    <img
+      v-if="url && !failed"
+      :src="url"
+      :alt="title + ' · 资源封面'"
+      loading="lazy"
+      class="w-full h-full object-cover"
+      @error="failed = true"
+    />
     <svg
-      v-if="scene"
+      v-else-if="scene"
       class="w-full h-full"
       viewBox="0 0 320 180"
       preserveAspectRatio="xMidYMid slice"

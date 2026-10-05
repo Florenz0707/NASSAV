@@ -1,96 +1,20 @@
 <script setup>
-// PROTOTYPE: selected list/detail layout on /downloads?demo=tasks.
-// All task state is synthetic and memory-only; no backend mutations.
+// Presentation only: task snapshots are supplied by DownloadsView.
 import { computed, ref } from 'vue'
 import AppButton from './AppButton.vue'
 import AppIcon from './AppIcon.vue'
 import CustomSelect from './CustomSelect.vue'
 import EmptyState from './EmptyState.vue'
-import DemoResourceCover from './DemoResourceCover.vue'
+import TaskResourceCover from './TaskResourceCover.vue'
+import { SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
+const props = defineProps({ tasks: { type: Array, required: true }, debug: Boolean })
 const type = ref('all'),
   state = ref('all'),
-  selectedId = ref('d1')
+  selectedId = ref(null)
 const labels = { queued: '等待中', running: '执行中', succeeded: '已完成', failed: '失败' }
-const stageLabels = {
-  source_lookup: '查找资源',
-  metadata: '获取元数据',
-  cover: '下载封面',
-  saving: '保存资源',
-  translation_queued: '提交翻译',
-}
-const tasks = ref([
-  {
-    id: 'd1',
-    type: 'download',
-    avid: 'DEMO-001',
-    title: '雨后森林的清晨',
-    coverScene: 'forest',
-    state: 'running',
-    percent: 45,
-    speed: '5.2 MB/s',
-    downloaded: '452 MB',
-    total: '1 GB',
-    updated: '14:32:10',
-  },
-  {
-    id: 's1',
-    type: 'scrape',
-    avid: 'DEMO-002',
-    title: '',
-    coverScene: '',
-    state: 'running',
-    action: 'add',
-    stage: 'metadata',
-    updated: '14:31:48',
-  },
-  {
-    id: 'd2',
-    type: 'download',
-    avid: 'DEMO-003',
-    title: '山间来信：沿着溪流走向远方',
-    coverScene: 'mountain',
-    state: 'queued',
-    percent: 0,
-    updated: '14:31:20',
-  },
-  {
-    id: 's2',
-    type: 'scrape',
-    avid: 'DEMO-004',
-    title: '暮色中的海岸',
-    coverScene: 'coast',
-    state: 'failed',
-    action: 'refresh',
-    stage: 'metadata',
-    error: '来源请求超时，已有资源未覆盖',
-    updated: '14:30:12',
-  },
-  {
-    id: 'd3',
-    type: 'download',
-    avid: 'DEMO-005',
-    title: '城市夜行：最后一班列车',
-    coverScene: 'city',
-    state: 'succeeded',
-    percent: 100,
-    downloaded: '800 MB',
-    total: '800 MB',
-    updated: '14:29:03',
-  },
-  {
-    id: 's3',
-    type: 'scrape',
-    avid: 'DEMO-006',
-    title: '海边的一日',
-    coverScene: 'coast',
-    state: 'succeeded',
-    action: 'add',
-    stage: 'translation_queued',
-    updated: '14:28:51',
-  },
-])
+const stageLabels = SCRAPE_STAGE_LABELS
 const typeTasks = computed(() =>
-  tasks.value.filter((t) => type.value === 'all' || t.type === type.value)
+  props.tasks.filter((t) => type.value === 'all' || t.type === type.value)
 )
 const visible = computed(() =>
   typeTasks.value.filter((t) => state.value === 'all' || t.state === state.value)
@@ -103,31 +27,15 @@ const resourceName = (task) => task.title || task.avid
 const taskType = (task) =>
   task.type === 'download' ? '下载' : task.action === 'refresh' ? '刷新刮削' : '新增刮削'
 const progress = (task) =>
-  task.type === 'download' ? `${task.percent || 0}%` : stageLabels[task.stage] || '尚未开始'
-function advance() {
-  const task = selected.value
-  if (!task) return
-  if (task.state === 'failed' || task.state === 'succeeded') {
-    task.state = 'queued'
-    task.error = ''
-    task.percent = 0
-    task.stage = 'source_lookup'
-    return
-  }
-  if (task.state === 'queued') {
-    task.state = 'running'
-    return
-  }
-  if (task.type === 'download') {
-    task.percent = Math.min(100, task.percent + 20)
-    if (task.percent === 100) task.state = 'succeeded'
-  } else {
-    const stages = Object.keys(stageLabels),
-      index = stages.indexOf(task.stage)
-    if (index === stages.length - 1) task.state = 'succeeded'
-    else task.stage = stages[index + 1]
-  }
-}
+  task.state === 'queued'
+    ? '尚未开始'
+    : task.type === 'download'
+      ? task.percent === null
+        ? '等待进度'
+        : `${task.percent}%`
+      : task.state === 'succeeded'
+        ? '已完成'
+        : stageLabels[task.stage] || '阶段待获取'
 </script>
 <template>
   <div class="pb-24 min-w-0">
@@ -136,8 +44,10 @@ function advance() {
         <h1 class="text-3xl font-bold text-primary">任务详情</h1>
         <p class="text-secondary mt-2">统一查看下载与刮削的状态、进度和失败原因</p>
       </div>
-      <span class="text-accent-warning border border-accent-warning/30 rounded-lg px-3 py-2 text-sm"
-        >Demo · 模拟数据</span
+      <span
+        v-if="debug"
+        class="text-accent-warning border border-accent-warning/30 rounded-lg px-3 py-2 text-sm"
+        >DEBUG · 模拟数据</span
       >
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -172,6 +82,9 @@ function advance() {
         ]"
       />
     </div>
+    <p class="text-muted text-sm mb-4">
+      下载显示当前队列；刮削显示本浏览器追踪的任务，非服务器完整历史。
+    </p>
     <EmptyState v-if="!visible.length" title="暂无此类任务" />
     <div v-else class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
       <div
@@ -205,8 +118,9 @@ function advance() {
                   :aria-pressed="selected?.id === task.id"
                   @click="selectedId = task.id"
                 >
-                  <DemoResourceCover
-                    :scene="task.coverScene"
+                  <TaskResourceCover
+                    :url="task.coverUrl"
+                    :scene="debug ? task.coverScene : ''"
                     :title="resourceName(task)"
                     class="w-24 h-16 shrink-0"
                   />
@@ -225,7 +139,7 @@ function advance() {
                 class="p-4 whitespace-nowrap"
                 :class="task.state === 'failed' ? 'text-accent-danger' : 'text-secondary'"
               >
-                {{ labels[task.state] }}
+                {{ labels[task.state] || '状态未知' }}
               </td>
               <td class="p-4 text-secondary whitespace-nowrap">
                 <span class="block">{{ progress(task) }}</span>
@@ -248,8 +162,9 @@ function advance() {
           <AppIcon :name="selected.type === 'download' ? 'download' : 'bolt'" />
           <h2 class="font-semibold">任务明细</h2>
         </div>
-        <DemoResourceCover
-          :scene="selected.coverScene"
+        <TaskResourceCover
+          :url="selected.coverUrl"
+          :scene="debug ? selected.coverScene : ''"
           :title="resourceName(selected)"
           class="w-full aspect-video mb-4"
         />
@@ -258,10 +173,12 @@ function advance() {
           正在获取资源信息，暂以 AVID 标识任务。
         </p>
         <p class="text-muted text-sm mt-2">
-          {{ selected.avid }} · {{ taskType(selected) }} · {{ labels[selected.state] }}
+          {{ selected.avid }} · {{ taskType(selected) }} ·
+          {{ labels[selected.state] || '状态未知' }}
         </p>
         <template v-if="selected.type === 'download'"
           ><progress
+            v-if="selected.percent !== null"
             :value="selected.percent"
             max="100"
             class="w-full mt-5"
@@ -289,26 +206,19 @@ function advance() {
         </p>
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm mt-5">
           <dt class="text-muted">任务编号</dt>
-          <dd class="text-secondary">{{ selected.id }}</dd>
+          <dd class="text-secondary break-all">{{ selected.taskId || selected.id }}</dd>
           <dt class="text-muted">最近更新</dt>
-          <dd class="text-secondary">{{ selected.updated }}</dd>
+          <dd class="text-secondary">{{ selected.updated || '—' }}</dd>
         </dl>
-        <AppButton class="mt-5" @click="advance">{{
-          selected.state === 'failed'
-            ? '演示重试'
-            : selected.state === 'succeeded'
-              ? '重置演示'
-              : '演示下一阶段'
-        }}</AppButton>
-        <p class="text-muted text-xs mt-3">仅改变本页模拟状态，不提交或取消真实任务。</p>
+        <p
+          v-if="selected.type === 'scrape' && selected.state === 'succeeded'"
+          class="text-muted text-xs mt-4"
+        >
+          刮削已完成；翻译排队不代表翻译完成。
+        </p>
+        <slot name="details" :task="selected" />
       </aside>
     </div>
-    <details class="mt-6 bg-secondary border rounded-lg p-4 border-[var(--border-color)]">
-      <summary class="cursor-pointer text-muted text-sm">模拟状态数据</summary>
-      <pre class="overflow-x-auto text-secondary text-xs mt-3">{{
-        JSON.stringify({ type, state, selected, tasks }, null, 2)
-      }}</pre>
-    </details>
   </div>
 </template>
 <style scoped>

@@ -59,7 +59,7 @@
 
     ![Add Resource](public/preview/addResource.png)
 
-- 下载管理（已下载清单）
+- 任务详情（当前下载队列及本浏览器追踪的刮削任务）
   - 功能：统计已下载与待下载数量；展示已下载列表，支持跳转到资源详情。
   - 路由：`/downloads`
   - 预览：
@@ -177,6 +177,6 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 目录和实体详情模块的实体类型在各自生命周期中保持固定；同一实体类型的 ID 变化由路由监听处理。浏览器套件同时截断 WebSocket 到真实后端的连接。
 
-## 任务详情设计预览
+## 任务详情与调试
 
-开发环境运行 `pnpm demo:tasks`，在现有下载页比较列表、看板与时间线；入口和数据边界见[任务详情 Demo](doc/task-details-demo.md)。Demo 使用内存模拟状态，生产构建不包含预览。
+正式 `/downloads` 使用列表与详情布局，支持下载与刮削筛选。模拟效果由 `DownloadsView.vue` 的 `DEBUG_MODE` 开关启用，见[任务详情与调试说明](doc/task-details-demo.md)。
