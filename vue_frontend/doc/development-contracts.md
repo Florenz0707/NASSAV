@@ -35,6 +35,8 @@
 
 任务详情保留 `/downloads` 路径。DownloadsView 装配下载队列及 visibleScrapeJobs，TaskDetailsPanel 仅拥有筛选/选择状态；taskDetails 统一展示字段，不改变原始任务。下载数据来自当前队列，刮削来自本浏览器追踪，不宣称完整任务历史；DEBUG_MODE 采用独立内存样例，页面不读取队列或提交真实操作。
 
+通知预览使用 DEV 下的 `/downloads?demo=notifications&variant=panel|timeline|grouped`，动态加载独立模拟组件，不进入生产构建，不写真实任务或持久状态。页面装配层在预览期间停止下载队列读取，退出时恢复；请求按轮询代次检查归属，旧代次不阻止新读取。演示消息已读不等于任务问题已解决。
+
 ## 异步、缓存与失败
 
 所有能重入的查询明确结果归属，复用 `createRequestGuard` 或当前模块等效的版本/令牌机制。旧响应不能覆盖当前数据、错误、loading 或缓存；路由变化、实体切换、注销连接及卸载均使旧操作失效。只清除 loading 或只调用 AbortController 不能替代归属检查。

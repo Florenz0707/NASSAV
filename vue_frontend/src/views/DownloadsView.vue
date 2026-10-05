@@ -1,7 +1,7 @@
 <script setup>
 import { logger } from '../utils/logger.js'
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import TaskDetailsPanel from '../components/TaskDetailsPanel.vue'
 import AppButton from '../components/AppButton.vue'
 import { useResourceStore } from '../stores/resource'
@@ -14,6 +14,11 @@ import { createTaskDebugData } from '../utils/taskDebugData.js'
 
 // Set true to preview synthetic download/scrape tasks. Real queue data is never mixed in.
 const DEBUG_MODE = false
+const route = useRoute()
+const notificationDemo = computed(() => import.meta.env.DEV && route.query.demo === 'notifications')
+const NotificationsDemo = import.meta.env.DEV
+  ? defineAsyncComponent(() => import('../components/NotificationsDemo.vue'))
+  : null
 const debugTasks = ref(DEBUG_MODE ? createTaskDebugData() : [])
 const resourceStore = useResourceStore(),
   wsStore = useWebSocketStore()
@@ -35,20 +40,23 @@ const tasks = computed(() =>
 )
 const pollingTimer = ref(null)
 let pollingGeneration = 0,
-  queueRequestPending = false
+  pendingQueueGeneration = null
 const POLLING_INTERVAL = 1000
 onBeforeUnmount(stopPolling)
 onMounted(() => {
-  if (!DEBUG_MODE) fetchQueueStatus()
+  if (!DEBUG_MODE && !notificationDemo.value) fetchQueueStatus()
 })
 watch(
-  [() => wsStore.connected, () => wsStore.connectionFailed],
+  [() => wsStore.connected, () => wsStore.connectionFailed, () => notificationDemo.value],
   ([connected, failed]) => {
-    if (DEBUG_MODE || connected) stopPolling()
+    if (DEBUG_MODE || notificationDemo.value || connected) stopPolling()
     else if (failed) startPolling()
   },
   { immediate: true }
 )
+watch(notificationDemo, (show) => {
+  if (!show && !DEBUG_MODE) fetchQueueStatus()
+})
 function advance(task) {
   if (!DEBUG_MODE) return
   if (task.state === 'failed' || task.state === 'succeeded') {
@@ -65,9 +73,9 @@ function advance(task) {
   }
 }
 async function fetchQueueStatus() {
-  if (queueRequestPending || DEBUG_MODE) return
+  if (pendingQueueGeneration === pollingGeneration || DEBUG_MODE || notificationDemo.value) return
   const generation = pollingGeneration
-  queueRequestPending = true
+  pendingQueueGeneration = generation
   try {
     const response = await taskApi.getQueueStatus()
     const data = response.data
@@ -82,14 +90,14 @@ async function fetchQueueStatus() {
       logger.debug('[DownloadsView] 队列读取失败', error.message)
     }
   } finally {
-    queueRequestPending = false
+    if (pendingQueueGeneration === generation) pendingQueueGeneration = null
   }
 }
 
 // 开始轮询（仅在下载页且 WebSocket 未连接时使用）
 function startPolling() {
   // 如果 WebSocket 已连接，不启动轮询
-  if (wsStore.connected || DEBUG_MODE) {
+  if (wsStore.connected || DEBUG_MODE || notificationDemo.value) {
     logger.debug('[DownloadsView] WebSocket 已连接，跳过轮询')
     return
   }
@@ -102,7 +110,7 @@ function startPolling() {
   // 定时轮询
   pollingTimer.value = setInterval(() => {
     // 再次检查 WebSocket 状态，如果已连接则停止轮询
-    if (wsStore.connected || DEBUG_MODE) {
+    if (wsStore.connected || DEBUG_MODE || notificationDemo.value) {
       stopPolling()
       return
     }
@@ -121,7 +129,8 @@ function stopPolling() {
 }
 </script>
 <template>
-  <div>
+  <NotificationsDemo v-if="notificationDemo" />
+  <div v-else>
     <p v-if="queueError" class="text-accent-danger mb-4" role="alert">{{ queueError }}</p>
     <TaskDetailsPanel :tasks="tasks" :debug="DEBUG_MODE">
       <template #details="{ task }">
