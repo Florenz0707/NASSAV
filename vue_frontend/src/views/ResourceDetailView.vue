@@ -1,4 +1,5 @@
 <script setup>
+import { resolveResourceTitle } from '../utils/resourceTitle.js'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { actorApi, downloadApi, genreApi, resourceApi } from '../api'
@@ -79,27 +80,9 @@ watch(
 )
 
 // 根据设置选择显示的标题
-const displayedTitle = computed(() => {
-  if (!metadata.value) return ''
-
-  const titleField = settingsStore.displayTitle
-  const resource = metadata.value
-
-  if (titleField === 'original_title' && resource.original_title) {
-    return resource.original_title
-  }
-  if (titleField === 'source_title' && resource.source_title) {
-    return resource.source_title
-  }
-  if (titleField === 'translated_title' && resource.translated_title) {
-    return resource.translated_title
-  }
-
-  // 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
-  return (
-    resource.source_title || resource.translated_title || resource.original_title || resource.avid
-  )
-})
+const displayedTitle = computed(() =>
+  resolveResourceTitle(metadata.value, settingsStore.displayTitle)
+)
 
 async function loadCover() {
   if (!avid.value) return

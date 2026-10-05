@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.js'
 import axios from 'axios'
 
 const api = axios.create({
@@ -285,7 +286,7 @@ export const resourceApi = {
     }
 
     const timeout = baseTimeout + count * timeoutPerItem
-    console.log(`[API] 批量${actionType} ${count} 个任务，超时: ${timeout}ms`)
+    logger.debug(`[API] 批量${actionType} ${count} 个任务，超时: ${timeout}ms`)
 
     return api.post('/resources/batch', payload, { timeout })
   },
@@ -305,7 +306,7 @@ export const downloadApi = {
   batchSubmit: (avids) => {
     // 基础超时 10 秒，每个任务增加 2 秒
     const timeout = 10000 + avids.length * 2000
-    console.log(`[API] 批量下载 ${avids.length} 个任务，超时设置: ${timeout}ms`)
+    logger.debug(`[API] 批量下载 ${avids.length} 个任务，超时设置: ${timeout}ms`)
     return api.post('/downloads/batch_submit', { avids }, { timeout })
   },
 }

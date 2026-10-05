@@ -1,4 +1,5 @@
 <script setup>
+defineOptions({ name: 'AppNavbar' })
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../stores/session'

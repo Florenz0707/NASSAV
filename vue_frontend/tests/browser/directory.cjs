@@ -9,6 +9,7 @@ async function main() {
     const page = await browser.newPage()
     const errors = [],
       requests = []
+    await page.routeWebSocket('**/nassav/ws/**', () => {})
     page.on('pageerror', (error) => errors.push(error.message))
     await page.route('**/nassav/api/**', async (route) => {
       const url = new URL(route.request().url())

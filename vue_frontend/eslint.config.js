@@ -16,13 +16,16 @@ export default [
       },
     },
   },
-  ...pluginVue.configs['flat/base'],
+  ...pluginVue.configs['flat/essential'],
   {
     rules: {
       'no-console': 'off',
-      'no-debugger': 'off',
-      'no-undef': 'off',
-      'no-unused-vars': 'off',
+      'no-debugger': 'error',
+      'no-undef': 'error',
+      'no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
     },
   },
 ]

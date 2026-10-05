@@ -1,7 +1,7 @@
-import { defineStore } from 'pinia'
+import { logger } from '../utils/logger.js'
+import { defineStore, storeToRefs } from 'pinia'
+import { useDownloadQueueStore } from './downloadQueue.js'
 import { ref, shallowRef } from 'vue'
-import { resourceApi } from '../api/index.js'
-import { useSettingsStore } from './settings.js'
 import { useToastStore } from './toast.js'
 import { useResourceStore } from './resource.js'
 import { useSessionStore } from './session.js'
@@ -23,21 +23,15 @@ export const useWebSocketStore = defineStore('websocket', () => {
   const WS_RECONNECT_INTERVAL = 3000 // WebSocket 重连间隔
   const WS_CONNECTION_TIMEOUT = 5000 // WebSocket 连接超时时间
 
-  // 任务状态数据
-  const activeTasks = ref([])
-  const pendingTasks = ref([])
-  const activeCount = ref(0)
-  const pendingCount = ref(0)
-  const totalCount = ref(0)
-
-  // 缓存已获取的标题数据，避免重复请求和标题闪烁
-  // Map<avid, { title: string, timestamp: number }>
-  const titleCache = ref(new Map())
+  const queue = useDownloadQueueStore()
+  const { activeTasks, pendingTasks, activeCount, pendingCount, totalCount, titleCache } =
+    storeToRefs(queue)
+  const updateTaskData = queue.updateTaskData
 
   // 连接 WebSocket
   function connect() {
     if (useSessionStore().status !== 'authenticated') return
-    if (!cleanupTimer) cleanupTimer = setInterval(cleanupCache, 10 * 60 * 1000)
+    queue.startTracking()
     shouldReconnect.value = true
     // 如果已连接，不重复连接
     if (ws.value && (connected.value || ws.value.readyState === WebSocket.CONNECTING)) {
@@ -53,7 +47,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     // The page host is also the WebSocket origin in development and production.
     const wsUrl = taskWebSocketUrl(window.location)
 
-    console.log('[WebSocket] 正在连接:', wsUrl)
+    logger.debug('[WebSocket] 正在连接:', wsUrl)
 
     try {
       const socket = new WebSocket(wsUrl)
@@ -73,7 +67,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
       socket.onopen = () => {
         if (ws.value !== socket) return
-        console.log('[WebSocket] 连接成功')
+        logger.debug('[WebSocket] 连接成功')
         connected.value = true
         connectionFailed.value = false
         useResourceStore().refreshPendingScrapeJobs()
@@ -101,7 +95,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
       socket.onclose = async (event) => {
         if (ws.value !== socket) return
-        console.log('[WebSocket] 连接关闭:', event.code, event.reason)
+        logger.debug('[WebSocket] 连接关闭:', event.code, event.reason)
         connected.value = false
         connectionFailed.value = true // 标记连接失败
         ws.value = null
@@ -153,10 +147,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
       clearTimeout(reconnectTimer.value)
       reconnectTimer.value = null
     }
-    if (cleanupTimer) {
-      clearInterval(cleanupTimer)
-      cleanupTimer = null
-    }
+    queue.stopTracking()
     if (ws.value) {
       ws.value.close()
       ws.value = null
@@ -174,7 +165,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
     reconnectTimer.value = setTimeout(() => {
       reconnectTimer.value = null
-      console.log('[WebSocket] 尝试重新连接...')
+      logger.debug('[WebSocket] 尝试重新连接...')
       connect()
     }, WS_RECONNECT_INTERVAL)
   }
@@ -253,162 +244,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
         break
 
       default:
-        console.log('[WebSocket] 未知消息类型:', message.type)
+        logger.debug('[WebSocket] 未知消息类型:', message.type)
     }
   }
-
-  // 更新任务数据
-  function updateTaskData(data) {
-    if (
-      !data ||
-      (!Array.isArray(data.active_tasks) &&
-        !Array.isArray(data.pending_tasks) &&
-        typeof data.active_count === 'undefined' &&
-        typeof data.pending_count === 'undefined' &&
-        typeof data.total_count === 'undefined')
-    ) {
-      return
-    }
-
-    const resourceStore = useResourceStore()
-    // 更新任务列表时，先从缓存应用标题
-    activeTasks.value = (data.active_tasks || []).map((task) => {
-      const cachedTitle = titleCache.value.get(task.avid)?.title
-      const finalTitle = task.title || cachedTitle || null
-      console.log(`[WebSocket] 更新任务 ${task.avid}:`, {
-        taskTitle: task.title,
-        cachedTitle,
-        finalTitle,
-      })
-      return {
-        ...task,
-        title: finalTitle,
-      }
-    })
-
-    pendingTasks.value = (data.pending_tasks || []).map((task) => {
-      const cachedTitle = titleCache.value.get(task.avid)?.title
-      const finalTitle = task.title || cachedTitle || null
-      return {
-        ...task,
-        title: finalTitle,
-      }
-    })
-
-    activeCount.value = data.active_count || 0
-    pendingCount.value = data.pending_count || 0
-    totalCount.value = data.total_count || 0
-
-    resourceStore.syncDownloadingAvids([
-      ...activeTasks.value.map((task) => task.avid),
-      ...pendingTasks.value.map((task) => task.avid),
-    ])
-
-    // 检查并补充缺失的元数据
-    fetchMissingMetadata()
-  }
-
-  // 正在获取元数据的 AVID 集合（避免重复请求）
-  const fetchingMetadata = ref(new Set())
-
-  // 获取缺失的元数据
-  async function fetchMissingMetadata() {
-    const allTasks = [...activeTasks.value, ...pendingTasks.value]
-    const settingsStore = useSettingsStore()
-
-    for (const task of allTasks) {
-      // 如果任务没有 title 且缓存中也没有，且当前没有正在获取
-      if (
-        !task.title &&
-        task.avid &&
-        !titleCache.value.has(task.avid) &&
-        !fetchingMetadata.value.has(task.avid)
-      ) {
-        // 标记为正在获取
-        fetchingMetadata.value.add(task.avid)
-
-        try {
-          console.log(`[WebSocket] 获取元数据: ${task.avid}`)
-          const response = await resourceApi.getMetadata(task.avid)
-
-          if (response.data) {
-            const data = response.data
-            const titleField = settingsStore.displayTitle
-
-            console.log(`[WebSocket] 收到元数据响应 (${task.avid}):`, {
-              original_title: data.original_title,
-              source_title: data.source_title,
-              translated_title: data.translated_title,
-              titleField,
-            })
-
-            // 根据设置获取标题
-            let displayTitle = ''
-            if (titleField === 'original_title' && data.original_title) {
-              displayTitle = data.original_title
-            } else if (titleField === 'source_title' && data.source_title) {
-              displayTitle = data.source_title
-            } else if (titleField === 'translated_title' && data.translated_title) {
-              displayTitle = data.translated_title
-            } else {
-              // 降级逻辑
-              displayTitle =
-                data.translated_title ||
-                data.source_title ||
-                data.original_title ||
-                data.title ||
-                task.avid
-            }
-
-            console.log(`[WebSocket] 选择的标题 (${task.avid}): ${displayTitle}`)
-
-            // 存入缓存
-            titleCache.value.set(task.avid, {
-              title: displayTitle,
-              timestamp: Date.now(),
-            })
-
-            // 立即更新当前任务列表
-            updateTaskTitle(task.avid, displayTitle)
-          }
-        } catch (error) {
-          console.error(`[WebSocket] 获取元数据失败 (${task.avid}):`, error)
-          // 失败后不存入缓存，允许下次重试
-        } finally {
-          // 移除正在获取标记
-          fetchingMetadata.value.delete(task.avid)
-        }
-      }
-    }
-  }
-
-  // 辅助函数：更新指定 AVID 的标题
-  function updateTaskTitle(avid, title) {
-    const activeIndex = activeTasks.value.findIndex((t) => t.avid === avid)
-    if (activeIndex !== -1) {
-      activeTasks.value[activeIndex].title = title
-    }
-
-    const pendingIndex = pendingTasks.value.findIndex((t) => t.avid === avid)
-    if (pendingIndex !== -1) {
-      pendingTasks.value[pendingIndex].title = title
-    }
-  }
-
-  // 定期清理过期缓存（超过 1 小时的条目）
-  function cleanupCache() {
-    const now = Date.now()
-    const maxAge = 60 * 60 * 1000 // 1 小时
-
-    for (const [avid, data] of titleCache.value.entries()) {
-      if (now - data.timestamp > maxAge) {
-        titleCache.value.delete(avid)
-      }
-    }
-  }
-
-  // 仅在连接生命周期内清理缓存；退出登录后停止定时器。
-  let cleanupTimer = null
 
   return {
     // 连接状态

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "node --test tests/*.test.js",
     "lint:fix": "eslint . --fix",
-    "check": "pnpm run lint && pnpm run test && pnpm run build"
+    "check": "pnpm run lint && pnpm run test && pnpm run build",
+    "test:browser": "node tests/browser/run.cjs"
   },
   "dependencies": {
     "axios": "^1.6.8",

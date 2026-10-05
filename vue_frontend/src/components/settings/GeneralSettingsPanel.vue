@@ -1,4 +1,6 @@
 <script setup>
+import { computed } from 'vue'
+import AppIcon from '../AppIcon.vue'
 import AppButton from '../AppButton.vue'
 import CustomSelect from '../CustomSelect.vue'
 
@@ -26,7 +28,18 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:previewFont', 'save'])
+const emit = defineEmits(['update:previewFont', 'update-setting', 'save'])
+function settingModel(field) {
+  return computed({
+    get: () => props.settings[field],
+    set: (value) => emit('update-setting', field, value),
+  })
+}
+const colorMode = settingModel('colorMode')
+const showActorAvatar = settingModel('showActorAvatar')
+const displayTitle = settingModel('displayTitle')
+const searchResultDisplayStyle = settingModel('searchResultDisplayStyle')
+const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
 </script>
 
 <template>
@@ -42,77 +55,80 @@ const emit = defineEmits(['update:previewFont', 'save'])
           显示设置
         </h3>
         <div class="space-y-4">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div class="text-[var(--text-primary)] font-medium">主题模式</div>
               <div class="text-sm text-[var(--text-muted)]">切换深色模式或浅色模式</div>
             </div>
             <div class="flex gap-2">
               <button
-                class="px-4 py-2 rounded-lg text-sm transition-all"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors"
                 :class="
-                  settings.colorMode === 'light'
+                  colorMode === 'light'
                     ? 'bg-[var(--accent-primary)] text-white'
                     : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
-                @click="settings.colorMode = 'light'"
+                @click="colorMode = 'light'"
               >
-                ☀️ 浅色
+                <AppIcon name="sun" /> 浅色
               </button>
               <button
-                class="px-4 py-2 rounded-lg text-sm transition-all"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors"
                 :class="
-                  settings.colorMode === 'dark'
+                  colorMode === 'dark'
                     ? 'bg-[var(--accent-primary)] text-white'
                     : 'bg-[var(--bg-white-5)] text-[var(--text-muted)] hover:bg-[var(--bg-white-10)]'
                 "
-                @click="settings.colorMode = 'dark'"
+                @click="colorMode = 'dark'"
               >
-                🌙 深色
+                <AppIcon name="moon" /> 深色
               </button>
             </div>
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+            class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">显示女优头像</div>
               <div class="text-sm text-[var(--text-muted)]">在列表和详情页中渲染女优头像图片</div>
             </div>
             <button
+              role="switch"
+              aria-label="显示女优头像"
+              :aria-checked="showActorAvatar"
               class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
               :style="
-                settings.showActorAvatar
+                showActorAvatar
                   ? 'background: var(--accent-primary);'
                   : 'background: var(--bg-secondary);'
               "
-              @click="settings.showActorAvatar = !settings.showActorAvatar"
+              @click="showActorAvatar = !showActorAvatar"
             >
               <span
                 class="inline-block h-4 w-4 transform rounded-full bg-surface-subtle transition-transform"
-                :class="settings.showActorAvatar ? 'translate-x-6' : 'translate-x-1'"
+                :class="showActorAvatar ? 'translate-x-6' : 'translate-x-1'"
               />
             </button>
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+            class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">标题显示字段</div>
               <div class="text-sm text-[var(--text-muted)]">选择在资源列表中显示的标题类型</div>
             </div>
             <CustomSelect
-              :model-value="settings.displayTitle"
+              :model-value="displayTitle"
               :options="displayTitleOptions"
               class="min-w-[10rem]"
-              @update:model-value="settings.displayTitle = $event"
+              @update:model-value="displayTitle = $event"
             />
           </div>
 
           <div
-            class="flex items-center justify-between pt-4 border-t border-[var(--border-white-5)]"
+            class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
           >
             <div>
               <div class="text-[var(--text-primary)] font-medium">搜索结果展示样式</div>
@@ -121,28 +137,30 @@ const emit = defineEmits(['update:previewFont', 'save'])
               </div>
             </div>
             <CustomSelect
-              :model-value="settings.searchResultDisplayStyle"
+              :model-value="searchResultDisplayStyle"
               :options="searchResultDisplayOptions"
               class="min-w-[12rem]"
-              @update:model-value="settings.searchResultDisplayStyle = $event"
+              @update:model-value="searchResultDisplayStyle = $event"
             />
           </div>
 
-          <div class="flex items-center justify-between pt-4 border-t border-surface-subtle/10">
+          <div
+            class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-surface-subtle/10"
+          >
             <div>
               <div class="text-primary font-medium">默认外部搜索源</div>
               <div class="text-sm text-muted">用于演员和类别搜索；页面切换来源不会修改此设置</div>
             </div>
             <CustomSelect
-              :model-value="settings.defaultExternalSearchSource"
+              :model-value="defaultExternalSearchSource"
               :options="searchSourceOptions"
               class="min-w-[12rem]"
-              @update:model-value="settings.defaultExternalSearchSource = $event"
+              @update:model-value="defaultExternalSearchSource = $event"
             />
           </div>
 
           <div class="pt-4 border-t border-[var(--border-white-5)]">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <div class="text-[var(--text-primary)] font-medium">字体样式</div>
                 <div class="text-sm text-[var(--text-muted)]">选择应用的全局字体样式</div>

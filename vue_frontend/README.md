@@ -164,7 +164,13 @@ pnpm exec vite --host 127.0.0.1 --port 4178
 ```
 
 ```bash
-NODE_PATH=/tmp/nassav-browser-audit/node_modules node tests/browser/components.cjs
+NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 ```
 
 有现成 Chromium 时设置 `NASSAV_CHROMIUM_PATH` 指向可执行文件；`NASSAV_BROWSER_ORIGIN` 可覆盖默认本地地址。重构阶段与验收边界见 [执行记录](doc/refactoring-progress.md)。
+
+浏览器套件还检查深浅主题映射、目录分页/错误/竞态及移动布局、演员与类别的手动外部搜索/部分结果/取消、黑名单读写隔离和设置保存。必须使用 Vite 开发服务以编译组件样例；真实接口由 Playwright 拦截并模拟。
+
+前端职责约定：路由页装配目录或实体详情模块；统一 HTTP 客户端处理 envelope、CSRF 和登录失效；资源列表查询由 resourceList 管理，下载队列和标题元数据由 downloadQueue 管理，WebSocket store 保持连接与事件分发。主题类由 tailwind.config.js 显式映射；公共按钮、搜索输入、下拉和弹窗供页面复用，标题选择集中在 utils/resourceTitle.js。
+
+目录和实体详情模块的实体类型在各自生命周期中保持固定；同一实体类型的 ID 变化由路由监听处理。浏览器套件同时截断 WebSocket 到真实后端的连接。

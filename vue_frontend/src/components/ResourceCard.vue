@@ -1,4 +1,5 @@
 <script setup>
+import { resolveResourceTitle } from '../utils/resourceTitle.js'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { downloadApi, resourceApi } from '../api'
 import { useResourceStore } from '../stores/resource'
@@ -90,29 +91,9 @@ const statusClass = computed(() => ({
 }))
 
 // 根据设置选择显示的标题
-const displayedTitle = computed(() => {
-  const titleField = settingsStore.displayTitle
-  const resource = props.resource
-
-  if (titleField === 'original_title' && resource.original_title) {
-    return resource.original_title
-  }
-  if (titleField === 'source_title' && resource.source_title) {
-    return resource.source_title
-  }
-  if (titleField === 'translated_title' && resource.translated_title) {
-    return resource.translated_title
-  }
-
-  // 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
-  return (
-    resource.translated_title ||
-    resource.source_title ||
-    resource.original_title ||
-    resource.title ||
-    resource.avid
-  )
-})
+const displayedTitle = computed(() =>
+  resolveResourceTitle(props.resource, settingsStore.displayTitle)
+)
 
 const toastStore = useToastStore()
 const showDeleteMenu = ref(false)

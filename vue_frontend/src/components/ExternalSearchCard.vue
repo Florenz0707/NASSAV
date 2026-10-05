@@ -1,4 +1,6 @@
 <script setup>
+import { resolveResourceTitle } from '../utils/resourceTitle.js'
+import { useSettingsStore } from '../stores/settings.js'
 import { computed, ref, watch } from 'vue'
 import { recommendationApi } from '../api'
 
@@ -19,7 +21,8 @@ const props = defineProps({
 
 const emit = defineEmits(['add', 'open', 'view'])
 
-const displayTitle = computed(() => props.item?.title || props.item?.avid || '')
+const settingsStore = useSettingsStore()
+const displayTitle = computed(() => resolveResourceTitle(props.item, settingsStore.displayTitle))
 const imageFailed = ref(false)
 const proxiedCoverUrl = computed(() =>
   props.item?.cover_url

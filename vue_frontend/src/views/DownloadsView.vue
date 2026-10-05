@@ -1,4 +1,7 @@
 <script setup>
+import { logger } from '../utils/logger.js'
+
+import { resolveResourceTitle } from '../utils/resourceTitle.js'
 import AppIcon from '../components/AppIcon.vue'
 import { computed, onBeforeUnmount, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -32,28 +35,7 @@ function getResourcesArray() {
 
 // 根据设置获取显示的标题
 function getDisplayedTitle(resource) {
-  if (!resource) return ''
-
-  const titleField = settingsStore.displayTitle
-
-  if (titleField === 'original_title' && resource.original_title) {
-    return resource.original_title
-  }
-  if (titleField === 'source_title' && resource.source_title) {
-    return resource.source_title
-  }
-  if (titleField === 'translated_title' && resource.translated_title) {
-    return resource.translated_title
-  }
-
-  // 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
-  return (
-    resource.translated_title ||
-    resource.source_title ||
-    resource.original_title ||
-    resource.title ||
-    resource.avid
-  )
+  return resolveResourceTitle(resource, settingsStore.displayTitle)
 }
 
 // 获取任务标题（从任务对象或资源列表）
@@ -137,11 +119,11 @@ watch(
   ([isConnected, hasFailed]) => {
     if (isConnected) {
       // WebSocket 连接成功，停止轮询
-      console.log('[DownloadsView] WebSocket 已连接，停止轮询')
+      logger.debug('[DownloadsView] WebSocket 已连接，停止轮询')
       stopPolling()
     } else if (hasFailed) {
       // WebSocket 断开且已发生连接失败，启动轮询
-      console.log('[DownloadsView] WebSocket 连接失败，启动轮询')
+      logger.debug('[DownloadsView] WebSocket 连接失败，启动轮询')
       startPolling()
     }
   },
@@ -171,13 +153,13 @@ async function fetchQueueStatus() {
 function startPolling() {
   // 如果 WebSocket 已连接，不启动轮询
   if (wsStore.connected) {
-    console.log('[DownloadsView] WebSocket 已连接，跳过轮询')
+    logger.debug('[DownloadsView] WebSocket 已连接，跳过轮询')
     return
   }
 
   // 先停止之前的轮询
   stopPolling()
-  console.log('[DownloadsView] 启动 API 轮询')
+  logger.debug('[DownloadsView] 启动 API 轮询')
   // 立即获取一次
   fetchQueueStatus()
   // 定时轮询
@@ -195,7 +177,7 @@ function startPolling() {
 function stopPolling() {
   pollingGeneration++
   if (pollingTimer.value) {
-    console.log('[DownloadsView] 停止轮询')
+    logger.debug('[DownloadsView] 停止轮询')
     clearInterval(pollingTimer.value)
     pollingTimer.value = null
   }

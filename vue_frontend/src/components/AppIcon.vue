@@ -2,6 +2,11 @@
 import { computed } from 'vue'
 const props = defineProps({ name: { type: String, default: 'empty' } })
 const paths = {
+  sun: [
+    'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
+    'M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1',
+  ],
+  moon: ['M21 13A9 9 0 0 1 11 3a9 9 0 1 0 10 10Z'],
   settings: [
     'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
     'm9 3-1 3-3 1-2 5 2 5 3 1 1 3h6l1-3 3-1 2-5-2-5-3-1-1-3z',

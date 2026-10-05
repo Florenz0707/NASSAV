@@ -11,6 +11,7 @@ async function main() {
       submissions = [],
       resourceQueries = [],
       jobs = new Map()
+    await page.routeWebSocket('**/nassav/ws/**', () => {})
     page.on('pageerror', (error) => errors.push(error.message))
     await page.route('**/nassav/api/**', async (route) => {
       const request = route.request(),

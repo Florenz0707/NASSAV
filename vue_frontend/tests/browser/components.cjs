@@ -9,6 +9,7 @@ async function main() {
   try {
     const page = await browser.newPage()
     const errors = []
+    await page.routeWebSocket('**/nassav/ws/**', () => {})
     page.on('pageerror', (error) => errors.push(error.message))
     await page.route('**/__component-audit', (route) =>
       route.fulfill({

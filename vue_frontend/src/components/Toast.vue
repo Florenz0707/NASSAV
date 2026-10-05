@@ -1,4 +1,5 @@
 <script setup>
+defineOptions({ name: 'AppToast' })
 import { useToastStore } from '../stores/toast'
 
 const toastStore = useToastStore()

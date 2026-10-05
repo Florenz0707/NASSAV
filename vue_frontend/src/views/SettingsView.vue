@@ -272,14 +272,14 @@ const copyCookie = async () => {
     </div>
 
     <!-- Main Content: Left Menu + Right Panel -->
-    <div class="flex gap-6">
+    <div class="flex flex-col md:flex-row gap-6">
       <!-- Left Sidebar Menu -->
-      <div class="w-64 flex-shrink-0">
+      <div class="w-full md:w-64 flex-shrink-0">
         <SettingsSidebarMenu :items="menuItems" :active-id="activeMenu" @select="selectMenu" />
       </div>
 
       <!-- Right Content Panel -->
-      <div class="flex-1">
+      <div class="flex-1 min-w-0">
         <transition name="settings-panel-fade" mode="out-in">
           <div :key="activeMenu" class="tw-surface-overlay rounded-xl p-6">
             <!-- Cookie 管理面板 -->
@@ -294,6 +294,7 @@ const copyCookie = async () => {
 
             <!-- 通用设置面板 -->
             <GeneralSettingsPanel
+              @update-setting="(field, value) => (settingsStore[field] = value)"
               v-else-if="activeMenu === 'general'"
               :settings="settingsStore"
               :preview-font="previewFont"

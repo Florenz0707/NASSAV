@@ -1,4 +1,6 @@
 <script setup>
+import { resolveResourceTitle } from '../utils/resourceTitle.js'
+import { useSettingsStore } from '../stores/settings.js'
 import { computed } from 'vue'
 import { recommendationApi } from '../api'
 
@@ -45,7 +47,8 @@ const isBlocked = computed(() => props.blocked)
 const hasReasons = computed(
   () => Array.isArray(props.item?.reasons) && props.item.reasons.length > 0
 )
-const displayTitle = computed(() => props.item?.title || props.item?.avid || '')
+const settingsStore = useSettingsStore()
+const displayTitle = computed(() => resolveResourceTitle(props.item, settingsStore.displayTitle))
 const reasonsCount = computed(() => (hasReasons.value ? props.item.reasons.length : 0))
 const formattedScore = computed(() => Number(props.item?.score || 0).toFixed(1))
 const proxiedCoverUrl = computed(() =>
