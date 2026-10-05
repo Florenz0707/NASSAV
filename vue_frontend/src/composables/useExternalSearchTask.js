@@ -27,6 +27,7 @@ export async function pollExternalSearch(
     onResult = () => {},
     onSubmitted = () => {},
     getPagination = () => undefined,
+    getMinimumVersion = () => -1,
     api = externalSearchApi,
     wait = (signal, listen) => waitForSearchPoll(signal, 1500, listen),
     subscribe = subscribeSearchJobUpdates,
@@ -96,7 +97,7 @@ export async function pollExternalSearch(
         if (
           !Number.isFinite(snapshot.version) ||
           !Number.isFinite(response.data.version) ||
-          response.data.version >= snapshot.version
+          response.data.version >= Math.max(snapshot.version || 0, getMinimumVersion())
         ) {
           snapshot = response.data
         }
@@ -119,11 +120,13 @@ export function useExternalSearchTask() {
   let controller
   let active
   let submittedJob
+  let latestVersion = -1
   function cancel() {
     controller?.abort()
     active?.resolveSubmitted(null)
     active = null
     submittedJob = null
+    latestVersion = -1
     status.value = ''
     progress.value = null
   }
@@ -155,6 +158,7 @@ export function useExternalSearchTask() {
         signal: controller.signal,
         current,
         getPagination,
+        getMinimumVersion: () => latestVersion,
         onSubmitted: (snapshot) => {
           if (active === job) submittedJob = snapshot
           resolveSubmitted(snapshot)
@@ -163,6 +167,8 @@ export function useExternalSearchTask() {
           status.value = value
         },
         onResult: (result, snapshot) => {
+          if (Number.isFinite(snapshot.version) && snapshot.version < latestVersion) return
+          latestVersion = Math.max(latestVersion, snapshot.version || 0)
           progress.value = {
             pagesCompleted: snapshot.pages_completed || 0,
             fetchPages: result.data?.external_meta?.fetch_pages || 0,
@@ -182,7 +188,11 @@ export function useExternalSearchTask() {
       page,
       page_size: pageSize,
     })
-    return submittedJob === job ? response.data.result : null
+    if (submittedJob !== job) return null
+    if (Number.isFinite(response.data.version) && response.data.version < latestVersion)
+      return undefined
+    latestVersion = Math.max(latestVersion, response.data.version || 0)
+    return response.data.result
   }
   function getJobHandle() {
     return submittedJob ? { task_id: submittedJob.task_id, token: submittedJob.token } : null

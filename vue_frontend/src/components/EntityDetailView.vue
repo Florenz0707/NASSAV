@@ -275,6 +275,7 @@ async function changeExternalPage(p) {
         }
       : await readExternalPage(p, 15)
     if (!pageReadGuard.current(request)) return
+    if (result === undefined) return
     if (!result) throw new Error('结果缓存已失效，请重新搜索')
     applyExternalResult(result)
     if (!result.data?.external_meta?.partial) {

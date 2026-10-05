@@ -5,6 +5,7 @@ const assert = require('node:assert/strict')
   try {
     const page = await browser.newPage(),
       errors = []
+    let delayPage = true
     let submitted = 0,
       version = 1,
       state = 'running',
@@ -30,7 +31,7 @@ const assert = require('node:assert/strict')
     })
     page.on('pageerror', (e) => errors.push(e.message))
     await page.routeWebSocket('**/nassav/ws/**', () => {})
-    await page.route('**/nassav/api/**', (route) => {
+    await page.route('**/nassav/api/**', async (route) => {
       const request = route.request(),
         url = new URL(request.url()),
         path = url.pathname
@@ -58,6 +59,17 @@ const assert = require('node:assert/strict')
         version++
         data = snapshot()
       }
+      if (
+        path.endsWith('/search/jobs/same-job') &&
+        url.searchParams.get('page') === '2' &&
+        delayPage
+      ) {
+        delayPage = false
+        data = structuredClone(data)
+        data.result.data.external_results[0].source_title = 'Stale result'
+        version++
+        await new Promise((resolve) => setTimeout(resolve, 2200))
+      }
       return route.fulfill({ json: { code: 200, data, pagination } })
     })
     await page.goto((process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178') + '/actors/1')
@@ -66,6 +78,8 @@ const assert = require('node:assert/strict')
     await page.getByText('Result 0', { exact: true }).waitFor()
     await page.getByRole('button', { name: '下一页', exact: true }).click()
     await page.getByText('Result 15', { exact: true }).waitFor()
+    await page.waitForTimeout(1000)
+    assert.equal(await page.getByText('Stale result', { exact: true }).count(), 0)
     assert.equal(await page.locator('.external-search-card').count(), 15)
     total = 46
     version++
