@@ -1,22 +1,35 @@
-# 项目开发规范（FOR AGENT）
+# 后端开发规范（FOR AGENT）
 
-## 编写代码前
+## 开发前
 
-- 阅读项目代码，理解项目结构和功能
-- 本项目使用`uv`管理虚拟环境，若需要运行python脚本，请运行`uv run script.py`
-- `config/`是项目配置目录目录，若需要新增/删除配置，请同步修改`config.example.yaml`
-- `doc`是项目文档目录，其中包含[接口说明](doc/interface.md)，[数据库说明](doc/database.md)和[测试端点说明](doc/debug.md)。若项目有改动，请同步更新它们
-- `scripts/`是项目脚本目录，用于批量修改数据或其他用途。脚本应该把支持的参数写在文件开头，并将用法更新到[文档](scripts/README.md)
-- `tests/`是项目测试目录，用于测试项目的可用性和正确性。脚本应该把支持的参数写在文件开头，并将用法更新到[文档](tests/README.md)。使用`uv run pytest tests/ -q`进行集成测试
+- 阅读[仓库规范](../AGENTS.md)、[重构原则](../docs/development-principles.md)和[模块边界](doc/p5-domain-boundaries.md)，核对目标用例与消费者。
+- 使用 `uv` 管理环境和运行 Python；配置变更同步 `config/config.example.yaml`，容器默认配置受影响时同步对应示例。
+- 接口、数据、推荐与运行行为分别核对 doc 下对应文档；脚本参数写入脚本说明和 [scripts/README.md](scripts/README.md)，测试入口维护于 [tests/README.md](tests/README.md)。
 
-## 编写代码时
+## 接口与职责
 
-- 模块业务的责任应保持最小且互不耦合
-- 模块业务必须具有一个抽象基类，负责提供各种模板方法让子类实现
-- 子类不应被外部调用基类未声明的方法
-- 注意保持代码的**高可用**、**可扩展**、**易阅读**性
+- workflow 编排业务，HTTP 负责权限/输入/响应，Celery 负责任务上下文/重试，Adapter 负责 ORM、文件、Redis、CLI 等实现；生产默认依赖仅在 composition 装配。
+- 核心不导入 views、Celery task 对象或 composition 默认实例；新核心直接消费独立 workflow/contract，既有 facade 保留消费者兼容。
+- 消费能力以 canonical contracts 为唯一入口，必要的可替换业务能力使用现有 ABC；数据类、纯函数、简单框架入口不强制继承。调用公开接口，不调用未声明的子类方法或遍历实现私有容器。
+- 新来源/列表能力、推荐器与因子按模块边界中的注册、工厂及 hook 扩展；不在通用流程加入源名分支，不复制推荐主流水线，不让算法直接读取全局 ORM。
+- 持久化消费已解析的数据输入，不接收 HTML 或来源对象，不修改调用方输入；存在性查询按候选集合批量处理，避免逐项 ORM 请求。
 
-## 编写代码后
+## 状态与行为兼容
 
-- 运行单元测试和集成测试
-- 更新上述所说文档
+- 结构调整保留 URL/字段、任务名/路由/重试、Redis key/TTL、文件路径、关系规则和副作用顺序；行为修复须说明新旧差异并提供回归，契约快照不因失败自动重建。
+- 下载锁按 owner 原子续租和释放，不能无条件删锁；失租中止执行与 CLI 后代进程，抑制成功副作用。混合版本 worker 的切换按[部署说明](doc/compose-deployment.md#下载-worker-版本切换)执行。
+- 批量翻译按实际标题字段选择，本批失败仅收尾本批仍 translating 的记录，保留已完成结果和旧译文；禁止全局重置异常状态。
+- 保留已记录的部分失败行为：文件与数据库不具统一补偿事务，正常下载通知与 DB 持久化存在固定顺序；不能通过结构重构擅自更改成功语义。
+- 外部搜索显式拒绝不支持能力，保留版本快照、部分结果与后台取消契约；来源会话与代理策略保持已有验证边界。
+
+## 验证与文档
+
+从后端目录执行离线集成门槛：
+
+```bash
+uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
+```
+
+默认 pytest 配置使用实例设置，不能省略 `--ds` 后声称隔离验证。复用能力替身和临时 SQLite/Redis fixture，覆盖异常、失租、幂等、终态和调用次数；在线测试显式 opt-in，不连接正式数据验证重构。根目录执行 `pre-commit run -a`，失败项修复后再提交/合并。
+
+按变更更新接口、数据、模块边界或运行说明；纯文档变更检查链接与命令并执行 pre-commit。报告提交、命令、通过/跳过及范围，目标环境验收按[验证状态](doc/validation-status.md)维护。

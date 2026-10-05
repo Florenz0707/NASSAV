@@ -30,6 +30,7 @@
 - 在进行后端开发之前，先阅读 `django_backend/AGENT.md`
 - 在进行前端开发之前，先阅读 `vue_frontend/AGENT.md`
 - 修改前先阅读相关代码和文档，避免直接跳到实现
+- 阅读[重构原则与持续开发约束](docs/development-principles.md)，核对目标模块的公开契约与状态所有者
 - 如涉及接口、数据结构、脚本、配置或架构变更，评估是否需要同步更新文档
 
 ## 开发时
@@ -41,6 +42,10 @@
   - 抽象边界是否清晰
   - 后续是否容易替换或扩展
 - 不要在未确认上下文的情况下重构无关代码
+- 面向消费者能力定义接口，核心接受显式依赖，生产默认实现由装配层提供；不为纯函数、数据对象和简单框架入口强制增加抽象基类
+- 按单一职责划分状态与副作用，通过注册、工厂、策略或 hook 扩展；不在通用流程堆叠来源/实体分支，也不为假想需求创建框架
+- 结构重构保持 URL、任务名、数据字段、缓存与副作用顺序；行为修复单独说明新旧差异并覆盖失败、取消、部分成功及终态
+- 异步操作检查结果归属；旧响应、迟到事件和失租执行不得覆盖新状态或发布成功副作用
 
 ## 前端页面设计规范
 
@@ -48,7 +53,7 @@
 
 ### 1. 颜色的统一与语义一致性
 
-- **禁止硬编码颜色**：严禁在独立组件中随意手写或硬编码未在规范内的十六进制颜色值。必须统一使用 `tailwind.config.js` 中配置的设计系统变量。
+- **禁止硬编码颜色**：独立组件不得新增十六进制、rgb/rgba 等颜色字面量；主题值集中定义于 `src/styles/main.css`，使用 `tailwind.config.js` 映射的语义工具类或已有 CSS token。新增 token 同时覆盖深浅主题，保留入口的显式 `@config` 并验证生成样式。
 - **背景与文本**：
   - 背景统一使用 `bg-primary`（应用主背景）与 `bg-secondary`（侧边栏、卡片、浮层背景）。
   - 文本统一根据权重使用 `text-primary`（常用于正文/标题）、`text-secondary`（副文本）与 `text-muted`（提示/占位文本）。
@@ -63,28 +68,33 @@
 
 ### 3. 组件一致性（按钮、下拉菜单等）
 
-- **公共组件首选**：凡遇到下拉菜单（Select）、二次确认弹窗（ConfirmDialog）或搜索框、分页等场景，必须优先复用 `vue_frontend/src/components/` 下的已有组件（如 `CustomSelect.vue`, `ConfirmDialog.vue`），杜绝在单一页面中重新手写一套相同逻辑。
+- **公共组件首选**：优先复用 `AppButton`、`CustomSelect`、`ConfirmDialog`、`SearchInput`、`ResourcePagination` 等已有组件；目录与演员/类别详情复用公共模块，不复制同语义的查询和任务生命周期。
 - **交互状态一致**：
-  - 按钮样式（Button）：必须保持全局统一的 Padding、圆角大小（如 `rounded-lg`）、一致的背景与悬浮反馈（常用 `hover:bg-opacity-80` 或过渡样式 `transition-colors duration-200`）。
-  - 下拉与浮窗（Dropdown / Dialog）：统一使用 `bg-secondary`，辅以一致的淡色边框（如 `border border-white/10`）以及阴影（预设的 `shadow-md` 或 `shadow-lg`）与圆角，保证所有弹出层景深感受相同。
+  - 按钮使用公共 variant、尺寸与 loading/disabled 状态；基础样式使用合适的 CSS layer，使工具类可以覆盖显示和布局。
+  - 下拉与浮窗使用 `bg-secondary`、默认语义边框（`--border-color`）、预设阴影与圆角，保证深浅主题一致。
+  - 弹窗复用 `useDialog`，检查初始打开、嵌套、焦点循环/恢复和卸载清理；下拉支持键盘操作与禁用项跳过。
 - **结构与留白**：区块（Card）、表单内外间距必须统一使用 Tailwind 标准间距尺码（如 `p-4`, `gap-3`, `mt-6`），同一层级应保持视觉一致，避免生硬和跳跃的排版。
 
 ## 验证要求
 
 `pre-commit` 是必须项，不是可选项。
 
-完成代码修改后，至少执行：
+完成代码或文档修改后，至少执行：
 
 - `pre-commit run -a`
 
 如果任务只涉及后端，还应优先补充：
 
-- `cd django_backend && uv run pytest tests/ -v`
+- `cd django_backend && uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`
+
+前端代码修改执行 `cd vue_frontend && pnpm run check`；主题、布局、键盘和弹窗生命周期修改另执行相关浏览器检查。命令必须保留退出码，不通过输出截断掩盖失败。后端隔离设置、在线 opt-in 和测试依赖见[测试说明](django_backend/tests/README.md)。
 
 如果 `pre-commit run -a` 失败：
 
 - 必须先修复失败项，再结束任务
 - 不要在存在已知 lint、format、type check 或 compile check 错误的情况下宣称完成
+- 质量门槛无法达成时说明失败证据，暂停依赖该门槛的合并并与用户沟通
+- 分别报告已实现、隔离验证与目标环境验收，不把模拟 API、eager task 或构建通过当作真实服务联调
 
 ## 文档要求
 
@@ -92,6 +102,7 @@
 - 新增接口时，应更新接口文档
 - 新增或调整数据库相关行为时，应更新数据库文档
 - 新增脚本、推荐链路、服务编排或其他非显然行为时，应补充设计说明文档
+- 后端职责维护于[模块边界](django_backend/doc/p5-domain-boundaries.md)，前端职责与组件约束维护于[开发契约](vue_frontend/doc/development-contracts.md)；执行记录注明提交、命令和验证范围
 
 ## 提交约定
 
@@ -102,7 +113,8 @@
   - `[Enhancement]`
   - `[Doc]`
 - 一次提交应尽量聚焦一个明确目标
-- 提交时应主动询问是否需要代为提交，并给出提交信息
+- 未获提交授权时主动询问并给出提交信息；用户已授权分阶段提交和合并时直接执行，不重复询问
+- 本轮已授权流程：仅在 `/tmp/nassav-agent-worktree` 使用独立阶段分支，通过质量门槛后提交并合并 `idle`，结束保持工作树干净且位于 `idle`；默认工作树保留给用户使用
 
 ## 默认收尾清单
 

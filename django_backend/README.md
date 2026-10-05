@@ -37,6 +37,8 @@ API 默认监听 `127.0.0.1:9790`。默认 worker 不消费 `scrape` 和 `downlo
 
 ## 开发检查
 
+开发原则与扩展约束见[共同原则](../docs/development-principles.md)、[模块边界](doc/p5-domain-boundaries.md)及 [AGENT.md](AGENT.md)。
+
 `manage.py check` 使用当前实例配置，运行前确认数据库和资源目录；离线业务门槛使用专用测试设置：
 
 ```bash

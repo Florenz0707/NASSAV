@@ -2,6 +2,8 @@
 
 本文维护当前职责和依赖方向，适用于资源、下载、翻译、推荐、会话与外部搜索。文件名保留以稳定已有链接；验证范围见[验证状态](validation-status.md)，字段和运行步骤分别见[接口](interface.md)、[数据库](database.md)、[推荐](recommendation.md)和[后端 README](../README.md)。
 
+跨前后端设计原则与交付门槛见[重构原则与持续开发约束](../../docs/development-principles.md)，后端执行入口见 [AGENT.md](../AGENT.md)。后续扩展以本文能力边界为基线，不以抽象基类数量衡量设计质量。
+
 ## 核心与入口
 
 | 模块                                    | 责任                                           | 依赖与替换位置                              |

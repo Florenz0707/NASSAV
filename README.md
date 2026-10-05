@@ -8,6 +8,7 @@
 - 三个 Celery 队列分别处理默认任务、刮削和下载；任务状态由 API 与 WebSocket 提供。
 - 单用户 Django 会话保护业务 API 和任务 WebSocket；登录后使用浏览器 Cookie 与 CSRF 令牌。
 - [前端页面与本地开发](vue_frontend/README.md) · [后端本地开发](django_backend/README.md) · [后端接口](django_backend/doc/interface.md) · [数据库说明](django_backend/doc/database.md)
+- [重构原则与持续开发约束](docs/development-principles.md) · [后端模块边界](django_backend/doc/p5-domain-boundaries.md) · [前端开发契约](vue_frontend/doc/development-contracts.md) · [Agent 规范](AGENTS.md)
 
 ## 快速开始
 

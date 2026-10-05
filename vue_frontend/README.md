@@ -5,6 +5,8 @@
 
 全栈容器部署通过仓库根目录 `compose.yaml` 提供 nginx 网关，详见 [Compose 部署说明](../django_backend/doc/compose-deployment.md)。
 
+后续开发遵循[重构原则](../docs/development-principles.md)、[前端开发契约](doc/development-contracts.md)及 [AGENT.md](AGENT.md)；阶段验证证据见[执行记录](doc/refactoring-progress.md)。
+
 ## 功能概览（含页面与预览图）
 
 - 首页（概览与最近添加）
