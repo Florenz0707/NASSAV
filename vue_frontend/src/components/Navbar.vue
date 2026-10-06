@@ -183,7 +183,7 @@ watch(
             </svg>
           </button>
 
-          <div v-if="showResourcesMenu" role="menu" class="dropdown-menu">
+          <div v-if="showResourcesMenu" class="dropdown-menu">
             <RouterLink
               v-for="item in resourcesMenuItems"
               :key="item.path"

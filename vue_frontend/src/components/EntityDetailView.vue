@@ -776,9 +776,9 @@ function goBack() {
         <span v-else>{{ initialChar }}</span>
       </div>
       <div class="flex-1">
-        <div class="font-semibold text-primary" :class="isActor ? 'text-xl' : 'text-2xl'">
+        <h1 class="font-semibold text-primary" :class="isActor ? 'text-xl' : 'text-2xl'">
           {{ entity.name }}
-        </div>
+        </h1>
         <div class="text-sm text-[var(--text-muted)]">共有 {{ displayedCount }} 部作品</div>
       </div>
     </div>
@@ -792,6 +792,7 @@ function goBack() {
             ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
             : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]',
         ]"
+        :aria-pressed="currentTab === 'local'"
         @click="currentTab = 'local'"
       >
         本地资源
@@ -803,6 +804,7 @@ function goBack() {
             ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
             : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]',
         ]"
+        :aria-pressed="currentTab === 'external'"
         @click="currentTab = 'external'"
       >
         外部搜索
@@ -893,8 +895,9 @@ function goBack() {
     </div>
 
     <SettingsModal :show="showSearchSettings" title="搜索设置" @close="showSearchSettings = false">
-      <label class="block text-secondary mb-3">搜索源</label>
+      <label for="entity-search-source" class="block text-secondary mb-3">搜索源</label>
       <CustomSelect
+        id="entity-search-source"
         :model-value="externalSource"
         :options="sourceOptions"
         aria-label="搜索源"

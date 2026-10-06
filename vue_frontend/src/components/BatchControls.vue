@@ -11,7 +11,7 @@
     </div>
 
     <div v-if="batchMode" class="flex items-center gap-2 flex-wrap">
-      <label class="inline-flex items-center gap-3 text-sm" style="color: var(--text-secondary)">
+      <div class="inline-flex items-center gap-3 text-sm" style="color: var(--text-secondary)">
         <label class="inline-flex items-center cursor-pointer">
           <input
             type="checkbox"
@@ -42,7 +42,7 @@
           </span>
         </label>
         <span>已选择 {{ selectedCount }} 项</span>
-      </label>
+      </div>
       <button
         class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-surface-subtle/[0.06] text-sm hover:bg-[var(--bg-white-10)] disabled:opacity-60 transition-colors duration-200"
         style="color: var(--text-primary)"

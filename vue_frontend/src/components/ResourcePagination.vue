@@ -1,5 +1,5 @@
 <template>
-  <div class="mt-8 w-full">
+  <nav aria-label="分页" class="mt-8 w-full">
     <div class="flex flex-wrap items-center justify-center gap-2 mb-3">
       <AppButton :disabled="page === 1" class="hidden sm:inline-flex" @click="goFirst">
         跳转开头
@@ -17,6 +17,8 @@
       <div class="flex items-center gap-2">
         <AppButton size="sm" @click="emitGoTo(localPage)"> 跳转至第 </AppButton>
         <input
+          :id="inputId + '-page'"
+          aria-label="跳转页码"
           v-model.number="localPage"
           type="number"
           min="1"
@@ -24,26 +26,27 @@
           class="page-input w-16 px-2 py-1 rounded-md border focus:outline-none text-center text-sm"
           @keydown.enter="emitGoTo(localPage)"
         />
-        <label class="text-sm" style="color: var(--text-secondary)">页</label>
+        <span class="text-sm text-secondary">页</span>
       </div>
       <div class="flex items-center gap-2">
-        <label class="text-sm" style="color: var(--text-secondary)">每页</label>
+        <label :for="inputId + '-size'" class="text-sm text-secondary">每页条数</label>
         <input
+          :id="inputId + '-size'"
           v-model.number="localPageSize"
           type="number"
           min="1"
           class="page-input w-16 px-2 py-1 rounded-md border focus:outline-none text-center text-sm"
           @change="emitPageSizeChange"
         />
-        <label class="text-sm" style="color: var(--text-secondary)">条</label>
+        <span class="text-sm text-secondary">条</span>
       </div>
     </div>
-  </div>
+  </nav>
 </template>
 
 <script>
 import AppButton from './AppButton.vue'
-import { defineComponent, ref, watch } from 'vue'
+import { defineComponent, ref, watch, useId } from 'vue'
 
 export default defineComponent({
   name: 'ResourcePagination',
@@ -56,6 +59,7 @@ export default defineComponent({
   },
   emits: ['change-page', 'change-page-size'],
   setup(props, { emit }) {
+    const inputId = useId()
     const localPage = ref(props.page)
     const localPageSize = ref(props.pageSize)
 
@@ -99,6 +103,7 @@ export default defineComponent({
     }
 
     return {
+      inputId,
       localPage,
       localPageSize,
       goFirst,

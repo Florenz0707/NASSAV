@@ -172,13 +172,15 @@ function viewResource() {
     <div class="add-form-card">
       <form class="add-form" @submit.prevent="handleSubmit">
         <div class="form-group">
-          <label class="form-label">
+          <label for="add-avids" class="form-label">
             视频编号 (AVID)
             <span v-if="parseAvids().length > 0" class="count-badge">
               已识别 {{ parseAvids().length }} 个
             </span>
           </label>
           <textarea
+            id="add-avids"
+            aria-describedby="add-avids-hint"
             v-model="avid"
             placeholder="支持多种格式：&#10;单个: SSIS-469&#10;多个: ABC-001, DEF-002&#10;或换行/空格分隔"
             class="form-textarea"
@@ -186,19 +188,22 @@ function viewResource() {
             rows="5"
             @input="avid = avid.toUpperCase()"
           />
-          <p class="form-hint">支持换行、逗号、空格分隔，自动去重</p>
+          <p id="add-avids-hint" class="form-hint">支持换行、逗号、空格分隔，自动去重</p>
         </div>
 
         <div class="form-group">
-          <label class="form-label">下载源</label>
+          <label for="add-source" class="form-label">下载源</label>
           <CustomSelect
+            id="add-source"
+            aria-label="下载源"
+            aria-describedby="add-source-hint"
             v-model="source"
             :options="sourceOptions"
             :disabled="submitting"
             class="form-select"
             full-width
           />
-          <p class="form-hint">选择自动将依次尝试所有可用源</p>
+          <p id="add-source-hint" class="form-hint">选择自动将依次尝试所有可用源</p>
         </div>
 
         <div class="flex items-stretch gap-3">
@@ -286,7 +291,7 @@ function viewResource() {
               ></path>
             </svg>
           </div>
-          <h3 class="result-title">
+          <h2 class="result-title">
             {{
               result.success.length > 0
                 ? '添加成功'
@@ -294,7 +299,7 @@ function viewResource() {
                   ? '资源已存在'
                   : '添加失败'
             }}
-          </h3>
+          </h2>
         </div>
 
         <div class="result-details">
@@ -417,9 +422,9 @@ function viewResource() {
     <Transition name="result">
       <div v-if="result && (result.total > 1 || !result.data)" class="batch-result-card">
         <div class="batch-result-header">
-          <h3 class="batch-result-title">
+          <h2 class="batch-result-title">
             {{ result.total > 1 ? '批量提交结果' : '提交结果' }}
-          </h3>
+          </h2>
           <div class="batch-result-stats">
             <div class="stat-item success">
               <span class="stat-icon"
@@ -485,7 +490,7 @@ function viewResource() {
 
         <div class="batch-result-details">
           <div v-if="result.queued?.length > 0" class="result-group">
-            <h4 class="result-group-title success">已排队 ({{ result.queued.length }})</h4>
+            <h3 class="result-group-title success">已排队 ({{ result.queued.length }})</h3>
             <div class="result-group-list">
               <span
                 v-for="successAvid in result.queued"
@@ -497,7 +502,7 @@ function viewResource() {
           </div>
 
           <div v-if="result.success.length > 0" class="result-group">
-            <h4 class="result-group-title success">已完成 ({{ result.success.length }})</h4>
+            <h3 class="result-group-title success">已完成 ({{ result.success.length }})</h3>
             <div class="result-group-list">
               <span
                 v-for="successAvid in result.success"
@@ -509,7 +514,7 @@ function viewResource() {
           </div>
 
           <div v-if="result.exists.length > 0" class="result-group">
-            <h4 class="result-group-title exists">ℹ 已存在 ({{ result.exists.length }})</h4>
+            <h3 class="result-group-title exists">ℹ 已存在 ({{ result.exists.length }})</h3>
             <div class="result-group-list">
               <span
                 v-for="existsAvid in result.exists"
@@ -521,9 +526,9 @@ function viewResource() {
           </div>
 
           <div v-if="result.failed.length > 0" class="result-group">
-            <h4 class="result-group-title failed flex items-center gap-2">
+            <h3 class="result-group-title failed flex items-center gap-2">
               <AppIcon name="close" /> 添加失败 ({{ result.failed.length }})
-            </h4>
+            </h3>
             <div class="result-group-list">
               <span
                 v-for="failedItem in result.failed"
@@ -550,7 +555,7 @@ function viewResource() {
     </Transition>
 
     <div class="tips-section">
-      <h3 class="tips-title">使用提示</h3>
+      <h2 class="tips-title">使用提示</h2>
       <ul class="tips-list">
         <li>封面图片和元数据会自动保存到本地</li>
         <li>添加成功后，可以在资源详情页提交下载任务</li>

@@ -41,7 +41,7 @@ async function main() {
       ['genres', 18, '类别'],
     ]) {
       await page.goto(`${origin}/resources/${entity}?page=2`)
-      await page.getByRole('button', { name: 'Page 2', exact: false }).waitFor()
+      await page.getByRole('link', { name: 'Page 2', exact: false }).waitFor()
       assert.equal(Number(requests.at(-1).searchParams.get('page_size')), size)
       assert.equal(
         await page
@@ -50,13 +50,13 @@ async function main() {
         '16px'
       )
       await page.getByRole('button', { name: '下一页', exact: true }).click()
-      await page.getByRole('button', { name: 'Page 3', exact: false }).waitFor()
+      await page.getByRole('link', { name: 'Page 3', exact: false }).waitFor()
       assert.equal(new URL(page.url()).searchParams.get('page'), '3')
       const search = page.getByRole('searchbox', { name: `搜索 ${label} 名称...` })
       await search.fill('old')
       await page.waitForTimeout(350)
       await search.fill('new')
-      await page.getByRole('button', { name: 'new', exact: false }).waitFor()
+      await page.getByRole('link', { name: 'new', exact: false }).waitFor()
       await page.waitForTimeout(1000)
       assert.equal(
         await page.locator(entity === 'actors' ? '.actor-name' : '.genre-name').innerText(),

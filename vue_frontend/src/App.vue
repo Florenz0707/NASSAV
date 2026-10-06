@@ -1,6 +1,6 @@
 <script setup>
-import { onMounted, onUnmounted, watch } from 'vue'
-import { RouterView } from 'vue-router'
+import { onMounted, onUnmounted, watch, ref } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
 import Toast from './components/Toast.vue'
@@ -10,6 +10,19 @@ import { useResourceStore } from './stores/resource'
 import { useTaskJobsStore } from './stores/taskJobs'
 import { useSessionStore } from './stores/session'
 
+const mainContent = ref(null)
+const route = useRoute()
+let focusAfterNavigation = false
+watch(
+  () => route.path,
+  () => {
+    focusAfterNavigation = true
+  }
+)
+function restorePageFocus() {
+  if (focusAfterNavigation) mainContent.value?.focus({ preventScroll: true })
+  focusAfterNavigation = false
+}
 const taskJobs = useTaskJobsStore()
 const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
@@ -90,10 +103,11 @@ watch(
     </div>
     <LoginView v-else-if="sessionStore.status !== 'authenticated'" />
     <template v-else>
+      <a href="#main-content" class="skip-link">跳转到主要内容</a>
       <Navbar />
-      <main class="main-content">
+      <main id="main-content" ref="mainContent" tabindex="-1" class="main-content">
         <RouterView v-slot="{ Component }">
-          <transition name="page" mode="out-in">
+          <transition name="page" mode="out-in" @after-enter="restorePageFocus">
             <component :is="Component" />
           </transition>
         </RouterView>
@@ -104,6 +118,20 @@ watch(
 </template>
 
 <style scoped>
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  transform: translateY(-200%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
 .app {
   min-height: 100vh;
   position: relative;

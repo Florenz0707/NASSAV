@@ -1,5 +1,5 @@
 <template>
-  <button type="button" class="genre-card" @click="$emit('click')">
+  <RouterLink :to="to" class="genre-card">
     <div class="genre-icon">
       <div class="icon-circle" :style="{ backgroundColor: bgColor }">
         <span class="icon-text">{{ iconText }}</span>
@@ -9,16 +9,18 @@
       {{ genre.name }}
     </div>
     <div class="genre-count">共有 {{ genre.resource_count }} 部作品</div>
-  </button>
+  </RouterLink>
 </template>
 
 <script>
+import { RouterLink } from 'vue-router'
 export default {
   name: 'GenreGroupCard',
+  components: { RouterLink },
   props: {
     genre: { type: Object, required: true },
+    to: { type: [String, Object], required: true },
   },
-  emits: ['click'],
   computed: {
     iconText() {
       const n = this.genre && this.genre.name ? this.genre.name.trim() : ''
@@ -33,6 +35,8 @@ export default {
 
 <style scoped>
 .genre-card {
+  text-decoration: none;
+  color: inherit;
   display: flex;
   flex-direction: column;
   align-items: center;

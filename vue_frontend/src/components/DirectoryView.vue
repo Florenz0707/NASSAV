@@ -60,11 +60,11 @@ function changePageSize(value) {
   pageSize.value = integer(value, defaultPageSize, 200)
   page.value = 1
 }
-function open(item) {
-  router.push({
+function destination(item) {
+  return {
     path: `/${actor ? 'actors' : 'genres'}/${item.id}`,
     query: { from: route.fullPath },
-  })
+  }
 }
 watch([page, pageSize, sortBy, order], load, { immediate: true })
 watch(search, () => {
@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
         v-for="item in store.groups"
         :key="item.id"
         v-bind="actor ? { actor: item } : { genre: item }"
-        @click="open(item)"
+        :to="destination(item)"
       />
     </div>
     <ResourcePagination

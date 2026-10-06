@@ -1,5 +1,5 @@
 <template>
-  <button type="button" class="actor-card" @click="$emit('click')">
+  <RouterLink :to="to" class="actor-card">
     <div class="avatar">
       <div class="avatar-circle" :style="{ backgroundColor: bgColor }">
         <img
@@ -16,20 +16,19 @@
       {{ actor.name }}
     </div>
     <div class="actor-count">共有 {{ actor.resource_count }} 部作品</div>
-  </button>
+  </RouterLink>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { actorApi } from '../api'
 import { useSettingsStore } from '../stores/settings'
 
 const props = defineProps({
   actor: { type: Object, required: true },
-  thumbs: { type: Array, default: () => [] },
+  to: { type: [String, Object], required: true },
 })
-
-defineEmits(['click'])
 
 const settingsStore = useSettingsStore()
 
@@ -46,6 +45,8 @@ const bgColor = computed(() => {
 
 <style scoped>
 .actor-card {
+  text-decoration: none;
+  color: inherit;
   display: flex;
   flex-direction: column;
   align-items: center;
