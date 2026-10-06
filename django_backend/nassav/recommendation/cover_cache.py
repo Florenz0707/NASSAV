@@ -1,17 +1,16 @@
-from abc import ABC, abstractmethod
-
 import hashlib
 import os
 import tempfile
+from abc import ABC, abstractmethod
 from pathlib import Path
 from urllib.parse import urlparse
 
+from curl_cffi import requests
 from django.conf import settings
 
-from nassav.source.SourceBase import SourceBase
 from nassav.composition import cover_policy_for
 from nassav.constants import HEADERS, IMPERSONATE
-from curl_cffi import requests
+from nassav.source.SourceBase import SourceBase
 
 
 class CoverPolicy(ABC):

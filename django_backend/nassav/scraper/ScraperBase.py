@@ -3,17 +3,17 @@ Scraper 基类 - 定义刮削器的通用接口和方法
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from curl_cffi import requests
 from loguru import logger
+
 from nassav.constants import HEADERS, IMPERSONATE
 
 
 class ScraperBase(ABC):
     """刮削器基类"""
 
-    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+    def __init__(self, proxy: str | None = None, timeout: int = 15):
         self.proxy = proxy
         self.proxies = {"http": proxy, "https": proxy} if proxy else None
         self.timeout = timeout
@@ -29,16 +29,16 @@ class ScraperBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_html(self, avid: str) -> Optional[str]:
+    def get_html(self, avid: str) -> str | None:
         """根据 avid 获取 HTML，子类必须实现"""
         raise NotImplementedError
 
     @abstractmethod
-    def parse_html(self, html: str, avid: str) -> Optional[dict]:
+    def parse_html(self, html: str, avid: str) -> dict | None:
         """解析 HTML 获取元数据，子类必须实现"""
         raise NotImplementedError
 
-    def fetch_html(self, url: str) -> Optional[str]:
+    def fetch_html(self, url: str) -> str | None:
         """获取 HTML 页面"""
         try:
             response = requests.get(
@@ -52,7 +52,7 @@ class ScraperBase(ABC):
 
             return response.text
         except Exception as e:
-            logger.error(f"Scraper 请求失败: {str(e)}")
+            logger.error(f"Scraper 请求失败: {e!s}")
             return None
 
     def download_cover(self, url: str, save_path: str) -> bool:
@@ -114,7 +114,7 @@ class ScraperBase(ABC):
         """
         raise NotImplementedError("子类必须实现 download_avatar 方法")
 
-    def scrape(self, avid: str) -> Optional[dict]:
+    def scrape(self, avid: str) -> dict | None:
         """
         刮削元数据
         返回包含元数据的字典或 None

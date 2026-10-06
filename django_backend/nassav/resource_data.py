@@ -3,7 +3,6 @@
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import List
 
 from loguru import logger
 
@@ -31,8 +30,8 @@ class AVDownloadInfo:
     studio: str = ""  # 制作商
     label: str = ""  # 发行商
     series: str = ""  # 系列
-    genres: List[str] = field(default_factory=list)  # 类别
-    actors: List[str] = field(default_factory=list)  # 演员
+    genres: list[str] = field(default_factory=list)  # 类别
+    actors: list[str] = field(default_factory=list)  # 演员
     actor_avatars: dict = field(default_factory=dict)  # 演员头像URL映射 {演员名: URL}
 
     def __post_init__(self):
@@ -50,8 +49,8 @@ class AVDownloadInfo:
             with path.open("w", encoding="utf-8") as f:
                 json.dump(asdict(self), f, ensure_ascii=False, indent=indent)
             return True
-        except (IOError, TypeError) as e:
-            logger.error(f"JSON序列化失败: {str(e)}")
+        except (OSError, TypeError) as e:
+            logger.error(f"JSON序列化失败: {e!s}")
             return False
 
     def update_from_scraper(self, scraped_data: dict) -> None:

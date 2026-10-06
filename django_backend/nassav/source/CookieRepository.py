@@ -1,11 +1,10 @@
 """Atomic, versioned SourceCookie snapshots and proxy-route identity."""
 
-from abc import ABC, abstractmethod
-
 import hashlib
 import hmac
 import json
 import time
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta

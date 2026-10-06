@@ -1,10 +1,12 @@
 """Exercise download orchestration through replaceable contracts without DB/worker."""
 
 import pytest
-
-from nassav.download_contracts import DownloadExecutor
-from nassav.download_contracts import DownloadPersistence
-from nassav.download_contracts import DownloadRuntime, DownloadRetriesExhausted
+from nassav.download_contracts import (
+    DownloadExecutor,
+    DownloadPersistence,
+    DownloadRetriesExhausted,
+    DownloadRuntime,
+)
 from nassav.download_workflow import DownloadUseCase, MockDownloadUseCase
 
 

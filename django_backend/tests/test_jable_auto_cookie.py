@@ -1,11 +1,10 @@
 """Jable automatic Cookie API uses a validated, paired browser session."""
 
-from unittest.mock import Mock
 import importlib
+from unittest.mock import Mock
 
 import pytest
 from curl_cffi.requests.exceptions import HTTPError
-
 from nassav.models import SourceCookie
 from nassav.page_fetching import PageFetchService, PageResult
 from nassav.source.CookieRepository import source_cookie_repository

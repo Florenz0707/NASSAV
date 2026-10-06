@@ -1,8 +1,8 @@
 """Recommendation coordination through injected data and recommender capabilities."""
 
 from collections.abc import Callable
-from .contracts import RecommendationContextStore, RecommendationWorkflow
 
+from .contracts import RecommendationContextStore, RecommendationWorkflow
 from .entities import RecommendationExecution, RecommendationRequest
 from .strategies import (
     RecommendationStrategy,

@@ -1,10 +1,9 @@
 """测试封面下载的优先级和回退逻辑"""
 
-from nassav.composition import build_resource_service
-
 from unittest.mock import Mock, patch
 
 import pytest
+from nassav.composition import build_resource_service
 
 
 @pytest.mark.django_db

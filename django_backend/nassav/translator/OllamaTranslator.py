@@ -4,7 +4,6 @@ Ollama Translator - 使用本地 Ollama 服务进行翻译
 
 import os
 import time
-from typing import Optional
 
 import requests
 from django.conf import settings
@@ -168,7 +167,7 @@ class OllamaTranslator(TranslatorBase):
 
     def translate(
         self, text: str, source_lang: str = "ja", target_lang: str = "zh"
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         使用 Ollama 翻译文本
 
@@ -230,7 +229,7 @@ class OllamaTranslator(TranslatorBase):
 
     def batch_translate(
         self, texts: list[str], source_lang: str = "ja", target_lang: str = "zh"
-    ) -> list[Optional[str]]:
+    ) -> list[str | None]:
         """
         批量翻译（逐个翻译，保持顺序）
 

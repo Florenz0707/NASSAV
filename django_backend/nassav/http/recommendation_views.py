@@ -8,18 +8,16 @@ from django.conf import settings
 from django.http import FileResponse
 
 from nassav.api_utils import build_response
-from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
-
-
 from nassav.http_base import SchemaAPIView
 from nassav.http_parameters import (
-    _parse_positive_int,
     _parse_bool,
-    _parse_recommendation_request_params,
-    _parse_recommendation_feedback_payload,
-    _parse_recommendation_seed_block_payload,
+    _parse_positive_int,
     _parse_recommendation_avid_block_payload,
+    _parse_recommendation_feedback_payload,
+    _parse_recommendation_request_params,
+    _parse_recommendation_seed_block_payload,
 )
+from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 
 
 class RecommendationsDemoView(SchemaAPIView):
@@ -305,6 +303,7 @@ class RecommendationCoverView(SchemaAPIView):
         from mimetypes import guess_type
 
         from django.http import HttpResponse
+
         from nassav.recommendation.cover_cache import RecommendationCoverCacheService
         from nassav.source import Jable
 

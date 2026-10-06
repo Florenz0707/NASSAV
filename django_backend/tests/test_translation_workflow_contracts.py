@@ -1,11 +1,12 @@
 """Use the same title/state rules with in-memory contracts and no DB/worker."""
 
 from copy import deepcopy
+
 import pytest
 from nassav.translation_contracts import (
-    TranslationRepository,
-    TranslationRecord,
     TextTranslator,
+    TranslationRecord,
+    TranslationRepository,
 )
 from nassav.translation_workflow import TitleTranslationUseCase
 

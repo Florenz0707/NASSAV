@@ -1,21 +1,20 @@
 import re
 from collections.abc import Callable
-from typing import Optional, Tuple
 
 from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
+
 from nassav.constants import IMPERSONATE
 from nassav.page_fetching import (
     PageFetchService,
     create_page_fetch_service,
     validate_strategy,
 )
-from nassav.source.CookieRepository import CookieRepository
 from nassav.page_fetching.coordination import SessionRefreshCoordinator
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.source.SourceBase import SourceBase
 from nassav.source.capabilities import ListingSource
+from nassav.source.CookieRepository import CookieRepository
 from nassav.source.MissAVListings import (
     listing_url,
     parse_listing,
@@ -23,6 +22,7 @@ from nassav.source.MissAVListings import (
     verify_listing_url,
 )
 from nassav.source.search_contracts import SourceSearchError
+from nassav.source.SourceBase import SourceBase
 
 
 class MissAV(SourceBase, ListingSource):
@@ -30,7 +30,7 @@ class MissAV(SourceBase, ListingSource):
 
     def __init__(
         self,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         timeout: int = 15,
         *,
         page_fetcher: PageFetchService | None = None,
@@ -89,7 +89,7 @@ class MissAV(SourceBase, ListingSource):
         verify_listing_url(url, result.final_url)
         return parse_listing(result.html, self.domain)
 
-    def get_html(self, avid: str) -> Optional[str]:
+    def get_html(self, avid: str) -> str | None:
         """Fetch candidates in their original order and validate both paths alike."""
         import time
         from uuid import uuid4
@@ -163,7 +163,7 @@ class MissAV(SourceBase, ListingSource):
             home_url, result, expected_version, write_guard=write_guard
         )
 
-    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+    def parse_html(self, html: str) -> AVDownloadInfo | None:
         """解析 HTML 获取核心下载信息（m3u8、avid、title）
 
         其他元数据（发行日期、时长、演员等）由 JavBus Scraper 提供
@@ -192,14 +192,14 @@ class MissAV(SourceBase, ListingSource):
 
         return info
 
-    def _extract_uuid(self, html: str) -> Optional[str]:
+    def _extract_uuid(self, html: str) -> str | None:
         try:
             match = re.search(r"m3u8\|([a-f0-9|]+)\|com\|surrit\|https\|video", html)
             if match:
                 return "-".join(match.group(1).split("|")[::-1])
             return None
         except Exception as e:
-            logger.error(f"UUID提取异常: {str(e)}")
+            logger.error(f"UUID提取异常: {e!s}")
             return None
 
     def _extract_metadata(self, html: str, metadata: AVDownloadInfo) -> bool:
@@ -219,10 +219,10 @@ class MissAV(SourceBase, ListingSource):
                     metadata.source_title = title_content.strip()
             return True
         except Exception as e:
-            logger.error(f"核心元数据解析异常: {str(e)}")
+            logger.error(f"核心元数据解析异常: {e!s}")
             return False
 
-    def _get_highest_quality_m3u8(self, playlist_url: str) -> Optional[Tuple[str, str]]:
+    def _get_highest_quality_m3u8(self, playlist_url: str) -> tuple[str, str] | None:
         try:
             response = requests.get(playlist_url, timeout=10, impersonate=IMPERSONATE)
             response.raise_for_status()
@@ -253,10 +253,10 @@ class MissAV(SourceBase, ListingSource):
             return None
 
         except Exception as e:
-            logger.error(f"获取最高质量流失败: {str(e)}")
+            logger.error(f"获取最高质量流失败: {e!s}")
             return None
 
-    def get_cover_url(self, html: str) -> Optional[str]:
+    def get_cover_url(self, html: str) -> str | None:
         """从HTML中提取封面URL"""
         try:
             # MissAV的封面通常在og:image标签中

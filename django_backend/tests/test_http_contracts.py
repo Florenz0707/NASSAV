@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from django.urls import get_resolver, URLPattern, URLResolver
+from django.urls import URLPattern, URLResolver, get_resolver
 from drf_spectacular.generators import SchemaGenerator
 from nassav.resource_media import FileCoverLocator
 from nassav.translation_requests import DjangoTranslationRequests

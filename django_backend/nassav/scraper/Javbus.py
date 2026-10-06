@@ -3,11 +3,11 @@ JavBus 风格刮削器 - 适用于 JavBus 及其镜像站（Busdmm, Dmmsee 等�
 """
 
 import re
-from typing import Optional
 
 from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
+
 from nassav.constants import IMPERSONATE
 
 from .ScraperBase import ScraperBase
@@ -16,7 +16,7 @@ from .ScraperBase import ScraperBase
 class Javbus(ScraperBase):
     """JavBus 刮削器"""
 
-    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+    def __init__(self, proxy: str | None = None, timeout: int = 15):
         super().__init__(proxy, timeout)
         source_config = settings.SCRAPER_CONFIG.get("javbus", {})
         self.domain = source_config.get("domain", "www.javbus.com")
@@ -24,12 +24,12 @@ class Javbus(ScraperBase):
     def get_scraper_name(self) -> str:
         return "Javbus"
 
-    def get_html(self, avid: str) -> Optional[str]:
+    def get_html(self, avid: str) -> str | None:
         avid = avid.upper()
         url = f"https://{self.domain}/{avid}"
         return self.fetch_html(url)
 
-    def parse_html(self, html: str, avid: str) -> Optional[dict]:
+    def parse_html(self, html: str, avid: str) -> dict | None:
         """解析 JavBus 风格的 HTML 获取元数据"""
         scrape_data = {
             "avid": avid.upper(),
@@ -238,7 +238,7 @@ class Javbus(ScraperBase):
 class Busdmm(Javbus):
     """Busdmm 刮削器 - JavBus 镜像站"""
 
-    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+    def __init__(self, proxy: str | None = None, timeout: int = 15):
         super().__init__(proxy, timeout)
         source_config = settings.SCRAPER_CONFIG.get("busdmm", {})
         self.domain = source_config.get("domain", "www.busdmm.ink")
@@ -250,7 +250,7 @@ class Busdmm(Javbus):
 class Dmmsee(Javbus):
     """Dmmsee 刮削器 - JavBus 镜像站"""
 
-    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+    def __init__(self, proxy: str | None = None, timeout: int = 15):
         super().__init__(proxy, timeout)
         source_config = settings.SCRAPER_CONFIG.get("dmmsee", {})
         self.domain = source_config.get("domain", "www.dmmsee.bond")

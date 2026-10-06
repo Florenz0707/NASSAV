@@ -1,10 +1,9 @@
 """测试metadata格式和title字段处理"""
 
-from nassav.composition import build_resource_service
-
 from unittest.mock import Mock
 
 import pytest
+from nassav.composition import build_resource_service
 from nassav.models import ActorSourceMapping
 
 
@@ -287,7 +286,7 @@ def test_save_all_resources_syncs_jable_actor_mapping_during_add_flow(monkeypatc
 def test_refresh_resource_preserves_existing_actor_relations_when_scrape_fails(
     monkeypatch,
 ):
-    from nassav.models import AVResource, Actor
+    from nassav.models import Actor, AVResource
     from nassav.scraper import AVDownloadInfo
     from nassav.scraper.ScraperManager import scraper_manager
     from nassav.source.SourceManager import source_manager

@@ -1,17 +1,19 @@
 """Download orchestration independent of Celery task objects and Redis clients."""
 
+from collections.abc import Callable
+from typing import NoReturn
+
+from loguru import logger
+
 from nassav.download_contracts import (
+    DownloadExecutor,
+    DownloadLeaseLost,
+    DownloadOwnership,
+    DownloadPersistence,
     DownloadRetriesExhausted,
     DownloadRuntime,
     DownloadWorkflow,
 )
-
-from collections.abc import Callable
-from typing import NoReturn
-from loguru import logger
-from nassav.download_contracts import DownloadOwnership, DownloadLeaseLost
-from nassav.download_contracts import DownloadExecutor
-from nassav.download_contracts import DownloadPersistence
 
 
 class DownloadUseCase(DownloadWorkflow):
@@ -164,7 +166,7 @@ class DownloadUseCase(DownloadWorkflow):
         except DownloadLeaseLost:
             raise
         except Exception as e:
-            logger.error(f"视频 {avid} 下载异常: {str(e)}")
+            logger.error(f"视频 {avid} 下载异常: {e!s}")
 
             # 从 Redis 队列中移除任务
             runtime.remove_from_queue(avid)
@@ -176,7 +178,7 @@ class DownloadUseCase(DownloadWorkflow):
                     "task_id": task_id,
                     "avid": avid,
                     "status": "failed",
-                    "message": f"下载异常: {str(e)}",
+                    "message": f"下载异常: {e!s}",
                 },
             )
             runtime.notify("queue_status", runtime.queue_status())
@@ -188,11 +190,11 @@ class DownloadUseCase(DownloadWorkflow):
                 try:
                     self.persistence.mark_failed(avid)
                 except Exception as e:
-                    logger.warning(f"重试出现异常：{str(e)}")
+                    logger.warning(f"重试出现异常：{e!s}")
                 return {
                     "status": "failed",
                     "avid": avid,
-                    "message": f"下载失败，已达最大重试次数: {str(e)}",
+                    "message": f"下载失败，已达最大重试次数: {e!s}",
                 }
         finally:
             # 任务完成后清理队列锁和全局下载锁（无论成功或失败）
@@ -200,20 +202,20 @@ class DownloadUseCase(DownloadWorkflow):
                 runtime.release_slot()
                 logger.info(f"已释放全局下载锁: {avid}")
             except Exception as e:
-                logger.error(f"释放全局下载锁失败 {avid}: {str(e)}")
+                logger.error(f"释放全局下载锁失败 {avid}: {e!s}")
 
             try:
                 runtime.remove_lock(avid)
                 logger.info(f"已清理任务锁: {avid}")
             except Exception as e:
-                logger.error(f"清理任务锁失败 {avid}: {str(e)}")
+                logger.error(f"清理任务锁失败 {avid}: {e!s}")
 
             # 清理进度信息
             try:
                 runtime.remove_progress(avid)
                 logger.info(f"已清理任务进度: {avid}")
             except Exception as e:
-                logger.error(f"清理任务进度失败 {avid}: {str(e)}")
+                logger.error(f"清理任务进度失败 {avid}: {e!s}")
 
             # 发送最终队列状态
             runtime.notify("queue_status", runtime.queue_status())
@@ -334,7 +336,7 @@ class MockDownloadUseCase(DownloadWorkflow):
                     "task_id": task_id,
                     "avid": avid,
                     "status": "failed",
-                    "message": f"模拟下载失败: {str(e)}",
+                    "message": f"模拟下载失败: {e!s}",
                 },
             )
 

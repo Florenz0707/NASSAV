@@ -1,12 +1,10 @@
 """R0 failure timing contracts; uv run pytest tests/test_refactoring_baseline.py -v."""
 
-from nassav.composition import build_resource_service
-
 from unittest.mock import Mock
 
 import pytest
-
-from nassav import services, tasks, download_queue
+from nassav import download_queue, services, tasks
+from nassav.composition import build_resource_service
 from nassav.download_persistence import download_persistence
 from nassav.scraper import AVDownloadInfo
 from nassav.signals import resource_added
@@ -31,7 +29,7 @@ def download_runtime(monkeypatch):
     monkeypatch.setattr(
         download_queue, "wait_for_global_download_lock", lambda **kwargs: True
     )
-    monkeypatch.setattr(download_queue, "get_full_task_queue", lambda: {})
+    monkeypatch.setattr(download_queue, "get_full_task_queue", dict)
     monkeypatch.setattr(
         download_queue, "notify_task_update", lambda name, data: trace.append(name)
     )

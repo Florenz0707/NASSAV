@@ -3,9 +3,13 @@
 """
 
 import re
+from typing import TYPE_CHECKING
 
 from django.db import models
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from django.db.models.fields.related_descriptors import RelatedManager
 
 
 class SourceCookie(models.Model):
@@ -325,6 +329,10 @@ class RecommendationSnapshot(models.Model):
 
 
 class RecommendationItem(models.Model):
+    if TYPE_CHECKING:
+        # Django installs the reverse ForeignKey manager at model construction.
+        item_seeds: RelatedManager["RecommendationItemSeed"]
+
     snapshot = models.ForeignKey(
         RecommendationSnapshot,
         on_delete=models.CASCADE,

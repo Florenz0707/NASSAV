@@ -28,7 +28,7 @@ os.environ.update(
 os.environ.pop("NASSAV_COMPOSE_DB_MODE", None)
 os.environ.pop("NASSAV_DB_MODE_FILE", None)
 
-from django_project import settings as _production  # noqa: E402
+from django_project import settings as _production
 
 for _name in dir(_production):
     if _name.isupper():

@@ -3,9 +3,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
+
 from loguru import logger
-from nassav.resource_data import AVDownloadInfo
+
 from nassav.resource_contracts import ResourceWorkflow
+from nassav.resource_data import AVDownloadInfo
 
 
 @dataclass(frozen=True)

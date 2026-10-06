@@ -1,24 +1,23 @@
 """Resource metadata persistence and actor/source relation synchronization."""
 
-from nassav.resource_contracts import (
-    ResourceSaveInput,
-    ResourcePersistence,
-)
-
-from typing import Any
 from copy import deepcopy
+from typing import Any
 
 from django.utils import timezone
 from loguru import logger
 
-from nassav.models import AVResource, Actor, Genre
-from nassav.resource_contracts import SourceRelations
-from nassav.source.jable_actor_mapping import (
-    select_best_model_candidate,
-    persist_actor_source_mapping,
+from nassav.models import Actor, AVResource, Genre
+from nassav.resource_contracts import (
+    ResourcePersistence,
+    ResourceSaveInput,
+    SourceRelations,
 )
-from nassav.utils import parse_duration
+from nassav.source.jable_actor_mapping import (
+    persist_actor_source_mapping,
+    select_best_model_candidate,
+)
 from nassav.source.titles import normalize_source_title
+from nassav.utils import parse_duration
 
 
 class DjangoResourcePersistence(ResourcePersistence):

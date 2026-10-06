@@ -15,7 +15,7 @@ from time import monotonic
 from urllib.parse import urlsplit
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
-from django.conf import settings  # noqa: E402
+from django.conf import settings
 
 if (
     str(settings.DATABASES["default"]["NAME"])
@@ -27,13 +27,18 @@ if (
     )
 settings.LOG_DIR = Path("/tmp/search-log")
 settings.LOG_DIR.mkdir(exist_ok=True)
-import django  # noqa: E402
+import django
 
 django.setup()
-from django.core.management import call_command  # noqa: E402
-from django.contrib.auth import get_user_model  # noqa: E402
-from django.test import Client  # noqa: E402
-from nassav.models import Actor, Genre, ActorSourceMapping, GenreSourceMapping  # noqa: E402
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.test import Client
+from nassav.models import (
+    Actor,
+    ActorSourceMapping,
+    Genre,
+    GenreSourceMapping,
+)
 
 
 def main():

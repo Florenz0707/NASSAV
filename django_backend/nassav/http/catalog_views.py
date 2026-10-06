@@ -6,11 +6,9 @@ API视图：实现资源管理接口
 
 from nassav.api_utils import build_response
 from nassav.external_search import external_search_service
-from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
-
-
 from nassav.http_base import SchemaAPIView
-from nassav.http_parameters import _parse_positive_int, _parse_bool
+from nassav.http_parameters import _parse_bool, _parse_positive_int
+from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 
 
 class ActorsListView(SchemaAPIView):
@@ -19,6 +17,7 @@ class ActorsListView(SchemaAPIView):
     def get(self, request):
         from django.core.paginator import Paginator
         from django.db.models import Count
+
         from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
         from nassav.models import Actor, ActorSourceMapping
         from nassav.recommendation.seed_profiles import (
@@ -197,6 +196,7 @@ class GenresListView(SchemaAPIView):
     def get(self, request):
         from django.core.paginator import Paginator
         from django.db.models import Count
+
         from nassav.models import Genre, GenreSourceMapping
         from nassav.recommendation.seed_profiles import (
             recommendation_seed_profile_repository,

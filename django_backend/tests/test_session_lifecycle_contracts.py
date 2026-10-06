@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import redis
-
 from nassav.page_fetching import PageResult
 from nassav.page_fetching.coordination import (
     RedisRefreshStore,

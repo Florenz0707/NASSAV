@@ -7,9 +7,9 @@ not exercise shared Redis coordination, API tasks, or the 24-hour gray rollout.
 
 import argparse
 import json
-from datetime import datetime, timezone
 import os
 import re
+from datetime import datetime, timezone
 from statistics import median
 from time import monotonic, sleep
 from urllib.parse import urlsplit
@@ -20,17 +20,17 @@ from bs4 import BeautifulSoup
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
-from django.conf import settings  # noqa: E402
-from nassav.page_fetching import (  # noqa: E402
+from django.conf import settings
+from nassav.page_fetching import (
     PageFetchService,
     create_page_fetch_service,
 )
-from nassav.page_fetching.session import candidate_for_page  # noqa: E402
-from nassav.source.CookieRepository import (  # noqa: E402
+from nassav.page_fetching.session import candidate_for_page
+from nassav.source.CookieRepository import (
     SourceCookieRecord,
     proxy_route_profile,
 )
-from nassav.source.Jable import Jable  # noqa: E402
+from nassav.source.Jable import Jable
 
 
 def detail_paths(html: str, host: str) -> list[str]:

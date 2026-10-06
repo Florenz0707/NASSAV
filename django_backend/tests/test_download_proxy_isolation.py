@@ -7,7 +7,6 @@ import importlib
 
 import pytest
 from django.test import override_settings
-
 from nassav.m3u8downloader.N_m3u8DL_RE import N_m3u8DL_RE
 
 

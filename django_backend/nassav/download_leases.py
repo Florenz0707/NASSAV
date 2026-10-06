@@ -1,18 +1,17 @@
 """Execution-scoped download ownership, fenced mutations and bounded renewal."""
 
-from nassav.download_contracts import (
-    DownloadLeaseLost,
-    DownloadOwnership,
-)
-
+from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
-from collections.abc import Callable
-from threading import Event, Thread, RLock
+from threading import Event, RLock, Thread
 from uuid import uuid4
 
 import redis
 
+from nassav.download_contracts import (
+    DownloadLeaseLost,
+    DownloadOwnership,
+)
 
 _OWNED = "for i=1,#KEYS do if redis.call('get',KEYS[i]) ~= ARGV[1] then return 0 end end; return 1"
 _RENEW = "for i=1,#KEYS do if redis.call('get',KEYS[i]) ~= ARGV[1] then return 0 end end; for i=1,#KEYS do redis.call('expire',KEYS[i],ARGV[2]) end; return 1"

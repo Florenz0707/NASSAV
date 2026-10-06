@@ -27,12 +27,12 @@ def main():
     import django
 
     django.setup()
+    import requests
     from django.conf import settings
     from django.contrib.auth import get_user_model
+    from loguru import logger
     from nassav.models import AVResource, SourceCookie
     from rest_framework.test import APIClient
-    from loguru import logger
-    import requests
 
     logger.remove()
     if (

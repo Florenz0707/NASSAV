@@ -1,14 +1,13 @@
 """Synchronous compatibility operations for the legacy resources/batch API."""
 
 from abc import ABC, abstractmethod
-from typing import Callable
+from collections.abc import Callable
 
 from loguru import logger
 
 from nassav.models import AVResource
-from nassav.resource_contracts import ResourceReader
 from nassav.resource_adapters import DjangoResourceReader
-from nassav.resource_contracts import ResourceWorkflow
+from nassav.resource_contracts import ResourceReader, ResourceWorkflow
 from nassav.resource_service import (
     ResourceAccessDeniedError,
     ResourceAlreadyExistsError,

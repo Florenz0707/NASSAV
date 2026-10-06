@@ -4,7 +4,8 @@
 
 import re
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 
 def parse_duration(duration_value) -> int:
@@ -60,7 +61,7 @@ class Throttler:
             min_interval: 最小时间间隔（秒），默认 1.0 秒
         """
         self.min_interval = min_interval
-        self._last_execute_time: Optional[float] = None
+        self._last_execute_time: float | None = None
 
     def should_execute(self, force: bool = False) -> bool:
         """
@@ -98,7 +99,7 @@ class Throttler:
 
     def execute_if_allowed(
         self, func: Callable[..., Any], *args, force: bool = False, **kwargs
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         如果通过节流检查，则执行函数
 
@@ -210,6 +211,7 @@ def download_avatar(url: str, dest_path, max_retries: int = 3) -> bool:
 
     from django.conf import settings
     from loguru import logger
+
     from nassav.constants import IMPERSONATE
 
     try:

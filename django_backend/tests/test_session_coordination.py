@@ -362,7 +362,7 @@ def test_busy_owner_timeout_falls_back_without_write(
         return False, "stuck"
 
     monkeypatch.setattr(fake_session_store, "acquire", permanent_owner)
-    import nassav.page_fetching.coordination as coordination
+    from nassav.page_fetching import coordination
 
     monkeypatch.setattr(coordination, "lease_seconds", lambda _timeout_ms: -5)
     assert source.get_html("JUR-466") == HTML

@@ -1,8 +1,8 @@
 """P1 session migration, versioning, cache, and request-snapshot contracts."""
 
 from concurrent.futures import ThreadPoolExecutor
-from importlib import import_module
 from datetime import timedelta
+from importlib import import_module
 from threading import Barrier, Event, Thread
 
 import pytest

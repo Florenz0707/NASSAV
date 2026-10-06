@@ -4,8 +4,6 @@ New Source code uses ``nassav.page_fetching`` directly. This wrapper keeps the
 old ``get``/``get_html``/``get_cookies_str`` methods on the shared GET adapter.
 """
 
-from typing import Optional
-
 import requests
 
 from nassav.page_fetching.browser import FlareSolverrPageClient
@@ -16,7 +14,7 @@ class FlareSolverrClient:
         self,
         base_url: str,
         timeout_ms: int = 60000,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.timeout_ms = timeout_ms
@@ -30,7 +28,7 @@ class FlareSolverrClient:
         except requests.RequestException:
             return False
 
-    def get(self, url: str) -> Optional[dict]:
+    def get(self, url: str) -> dict | None:
         result = self._client.fetch(url, timeout_ms=self.timeout_ms)
         if not result.ok:
             return None
@@ -42,11 +40,11 @@ class FlareSolverrClient:
             "userAgent": result.user_agent,
         }
 
-    def get_html(self, url: str) -> Optional[str]:
+    def get_html(self, url: str) -> str | None:
         solution = self.get(url)
         return solution["response"] if solution else None
 
-    def get_cookies_str(self, url: str) -> Optional[str]:
+    def get_cookies_str(self, url: str) -> str | None:
         solution = self.get(url)
         if not solution:
             return None

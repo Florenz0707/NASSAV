@@ -11,15 +11,16 @@ from urllib.parse import urlparse
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import HTTPError
 from loguru import logger
+
 from nassav.constants import HEADERS, IMPERSONATE
 from nassav.page_fetching import FetchFailure, PageFetchService, PageResult
+from nassav.page_fetching.contracts import BrowserSessionHandler
 from nassav.page_fetching.coordination import (
     SessionRefreshCoordinator,
     refresh_key,
     session_refresh_coordinator,
 )
 from nassav.page_fetching.session import candidate_for_page
-from nassav.page_fetching.contracts import BrowserSessionHandler
 from nassav.source.CookieRepository import (
     CookieRepository,
     SourceCookieRecord,
@@ -143,7 +144,7 @@ class SourceSessionLifecycle(BrowserSessionHandler):
             return bool(record and record.cookie)
         except Exception as e:
             logger.warning(
-                f"{self.source.get_source_name()}: 从数据库加载cookie失败: {str(e)}"
+                f"{self.source.get_source_name()}: 从数据库加载cookie失败: {e!s}"
             )
             return False
 

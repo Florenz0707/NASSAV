@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from hashlib import blake2b
 
-from copy import deepcopy
 from .contracts import CandidateInventory
-from .seed_policy import normalize_seed_value
-
 from .entities import RecommendationCandidate, RecommendationRequest, RecommendationRun
 from .factors import RecommendationFactor
+from .seed_policy import normalize_seed_value
 
 
 class AbstractRecommender(ABC):
@@ -430,7 +429,7 @@ class AbstractRecommender(ABC):
         request: RecommendationRequest,
     ) -> str:
         digest = blake2b(
-            f"{request.random_seed}:{candidate.avid}".encode("utf-8"),
+            f"{request.random_seed}:{candidate.avid}".encode(),
             digest_size=8,
         ).hexdigest()
         return digest

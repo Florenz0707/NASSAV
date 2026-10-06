@@ -1,7 +1,5 @@
-from .contracts import SeedProvider as SeedProvider
-from .seed_selection import SeedSelector, PreferenceSeedSelector
-from datetime import timedelta
 import re
+from datetime import timedelta
 from typing import cast
 
 from django.db.models import Count, Q
@@ -10,9 +8,11 @@ from django.utils import timezone
 from nassav.models import Actor, ActorSourceMapping, Genre, GenreSourceMapping
 
 from .actor_source_mapping import actor_source_mapping_service
-from .genre_source_mapping import genre_source_mapping_service
+from .contracts import SeedProvider as SeedProvider
 from .entities import RecommendationRequest, RecommendationSeed
+from .genre_source_mapping import genre_source_mapping_service
 from .seed_profiles import recommendation_seed_profile_repository
+from .seed_selection import PreferenceSeedSelector, SeedSelector
 
 USE_REQUEST_LIMIT = object()
 

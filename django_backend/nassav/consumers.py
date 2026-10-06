@@ -3,12 +3,12 @@
 import asyncio
 import json
 
+from asgiref.sync import async_to_sync
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 from django.contrib.sessions.models import Session
 from django.utils import timezone
-from asgiref.sync import async_to_sync
 from loguru import logger
 
 from .access import is_operator

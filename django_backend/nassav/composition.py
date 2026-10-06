@@ -82,11 +82,12 @@ def cover_policy_for(source_name: str):
 
 def build_video_download_service():
     from django.conf import settings
-    from nassav.services import VideoDownloadService
+
     from nassav.download_information import ResourceDownloadInfoResolver
-    from nassav.resource_service import resource_service
-    from nassav.source.SourceManager import source_manager
     from nassav.m3u8downloader import N_m3u8DL_RE
+    from nassav.resource_service import resource_service
+    from nassav.services import VideoDownloadService
+    from nassav.source.SourceManager import source_manager
 
     def domain_lookup(name: str) -> str:
         source_name = name.lower()
@@ -103,11 +104,11 @@ def build_video_download_service():
 
 
 def build_translation_workflow():
-    from nassav.translation_workflow import TitleTranslationUseCase
     from nassav.translation_adapters import (
         DjangoTranslationRepository,
         ManagerTextTranslator,
     )
+    from nassav.translation_workflow import TitleTranslationUseCase
     from nassav.translator import translator_manager
 
     return TitleTranslationUseCase(
@@ -117,13 +118,14 @@ def build_translation_workflow():
 
 def build_recommendation_manager():
     from django.conf import settings
-    from nassav.source import Jable
-    from nassav.recommendation.workflow import RecommenderManager
-    from nassav.recommendation.jable_page_lookup import JablePageLookupRecommender
+
     from nassav.recommendation.data_access import (
-        DjangoRecommendationContext,
         DjangoCandidateInventory,
+        DjangoRecommendationContext,
     )
+    from nassav.recommendation.jable_page_lookup import JablePageLookupRecommender
+    from nassav.recommendation.workflow import RecommenderManager
+    from nassav.source import Jable
 
     def jable_factory(strategy):
         return JablePageLookupRecommender(
@@ -141,9 +143,11 @@ def build_recommendation_manager():
 
 def build_cover_locator():
     from pathlib import Path
+
     from django.conf import settings
+
     from nassav.resource_media import FileCoverLocator
-    from nassav.utils import generate_thumbnail, generate_etag_for_file
+    from nassav.utils import generate_etag_for_file, generate_thumbnail
 
     return FileCoverLocator(
         Path(settings.COVER_DIR),
@@ -167,14 +171,14 @@ def build_translation_requests():
 
 
 def build_resource_service(source_manager=None, scraper_manager=None, **overrides):
-    from nassav.resource_workflow import ResourceService
-    from nassav.resource_persistence import DjangoResourcePersistence
     from nassav.resource_adapters import (
+        CeleryTranslationSubmitter,
         DjangoResourceReader,
         FileResourceAssets,
-        CeleryTranslationSubmitter,
         SignalResourceEvents,
     )
+    from nassav.resource_persistence import DjangoResourcePersistence
+    from nassav.resource_workflow import ResourceService
 
     if source_manager is None:
         from nassav.source.SourceManager import source_manager

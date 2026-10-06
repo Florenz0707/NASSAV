@@ -1,13 +1,19 @@
-from .seed_policy import normalize_seed_value
 from collections.abc import Iterable
 
 from django.db.models import F
 from django.utils import timezone
 
-from nassav.models import Actor, ActorSourceMapping, Genre, GenreSourceMapping
-from nassav.models import RecommendationItem, RecommendationSeedProfile
+from nassav.models import (
+    Actor,
+    ActorSourceMapping,
+    Genre,
+    GenreSourceMapping,
+    RecommendationItem,
+    RecommendationSeedProfile,
+)
 
 from .entities import RecommendationSeed
+from .seed_policy import normalize_seed_value
 
 
 class RecommendationSeedProfileRepository:
@@ -191,7 +197,7 @@ class RecommendationSeedProfileRepository:
         timestamp = timestamp or timezone.now()
         grouped: dict[tuple[str, str, str, str], dict] = {}
         for item in items:
-            seed_rows = getattr(item, "item_seeds").all()
+            seed_rows = item.item_seeds.all()
             for seed_row in seed_rows:
                 identity = (
                     seed_row.seed_type,
@@ -490,7 +496,7 @@ class RecommendationSeedProfileRepository:
             return
 
         seen_profiles: set[tuple[str, str, str, str]] = set()
-        seed_rows = getattr(item, "item_seeds").all()
+        seed_rows = item.item_seeds.all()
         for seed_row in seed_rows:
             identity = (
                 seed_row.seed_type,

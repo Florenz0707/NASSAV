@@ -1,10 +1,10 @@
 """Cover selection, freshness and thumbnail generation behind a single locator."""
 
+import mimetypes
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-import mimetypes
 
 
 class InvalidThumbnailSize(ValueError):

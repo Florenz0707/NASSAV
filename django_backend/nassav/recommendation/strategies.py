@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from .contracts import SeedProvider
 from .factors import (
     DiscoverySourceFactor,
     FeedbackSignalFactor,
@@ -11,7 +12,6 @@ from .factors import (
     SearchRankFactor,
     SeedWeightFactor,
 )
-from .contracts import SeedProvider
 
 
 @dataclass

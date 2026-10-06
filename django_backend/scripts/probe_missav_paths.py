@@ -15,14 +15,14 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
-from django.conf import settings  # noqa: E402
-from nassav.models import AVResource  # noqa: E402
-from nassav.page_fetching import (  # noqa: E402
+from django.conf import settings
+from nassav.models import AVResource
+from nassav.page_fetching import (
     PageFetchService,
     create_page_fetch_service,
 )
-from nassav.source.MissAV import MissAV  # noqa: E402
-from scripts.probe_p5_missav import detail_candidates  # noqa: E402
+from nassav.source.MissAV import MissAV
+from scripts.probe_p5_missav import detail_candidates
 
 
 def emit(**fields):

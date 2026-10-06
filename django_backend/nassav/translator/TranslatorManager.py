@@ -4,12 +4,12 @@ Translator 管理器 - 管理所有翻译器的注册和调用
 
 from collections.abc import Callable, Mapping
 from threading import Lock
-from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from loguru import logger
-from nassav.constants import TRANSLATION_DICT
+
 from nassav.composition import translator_factories
+from nassav.constants import TRANSLATION_DICT
 
 from .TranslatorBase import TranslatorBase
 
@@ -30,8 +30,8 @@ class TranslatorManager:
             timeout: 请求超时时间（秒）
         """
         self.timeout = timeout
-        self.translators: Dict[str, TranslatorBase] = {}
-        self.translator_priority: List[str] = []  # 翻译器优先级列表
+        self.translators: dict[str, TranslatorBase] = {}
+        self.translator_priority: list[str] = []  # 翻译器优先级列表
         self._pending: list[TranslatorBase] = []
         self._availability_checked = False
         self._availability_lock = Lock()
@@ -124,7 +124,7 @@ class TranslatorManager:
         """
         return text
 
-    def get_translators(self) -> List[Tuple[str, TranslatorBase]]:
+    def get_translators(self) -> list[tuple[str, TranslatorBase]]:
         """
         获取所有已注册的翻译器列表（按优先级排序）
 
@@ -144,7 +144,7 @@ class TranslatorManager:
         source_lang: str = "ja",
         target_lang: str = "zh",
         max_retries: int = 3,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         翻译文本，自动轮询所有可用翻译器直到成功
 
@@ -199,7 +199,7 @@ class TranslatorManager:
         source_lang: str = "ja",
         target_lang: str = "zh",
         max_retries: int = 3,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         使用指定的翻译器翻译文本
 
@@ -236,11 +236,11 @@ class TranslatorManager:
 
     def batch_translate(
         self,
-        texts: List[str],
+        texts: list[str],
         source_lang: str = "ja",
         target_lang: str = "zh",
         max_retries: int = 3,
-    ) -> List[Optional[str]]:
+    ) -> list[str | None]:
         """
         批量翻译文本列表
 
@@ -334,7 +334,7 @@ class TranslatorManager:
         self._ensure_available()
         return len(self.translators) > 0
 
-    def get_available_translators(self) -> List[str]:
+    def get_available_translators(self) -> list[str]:
         """
         获取所有可用翻译器的名称列表
 
@@ -346,7 +346,7 @@ class TranslatorManager:
 
 
 # 全局翻译器管理器实例（延迟初始化）
-_translator_manager_instance: Optional[TranslatorManager] = None
+_translator_manager_instance: TranslatorManager | None = None
 
 
 def get_translator_manager() -> TranslatorManager:

@@ -8,28 +8,29 @@ ResourceService - 资源服务层
 from __future__ import annotations
 
 import traceback as tb
+from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 if TYPE_CHECKING:
     from nassav.models import AVResource
     from nassav.source.SourceBase import SourceBase
+from nassav.resource_contracts import (
+    MetadataProvider,
+    ResourceAssets,
+    ResourceEvents,
+    ResourcePersistence,
+    ResourceReader,
+    ResourceSaveInput,
+    ResourceWorkflow,
+    SourceLookup,
+    SourceRelations,
+    TranslationSubmitter,
+)
 from nassav.resource_data import AVDownloadInfo
 from nassav.resource_presentation import serialize_resource
-from nassav.resource_contracts import (
-    ResourcePersistence,
-    ResourceSaveInput,
-    ResourceReader,
-    ResourceAssets,
-    TranslationSubmitter,
-    ResourceEvents,
-    SourceRelations,
-    SourceLookup,
-    MetadataProvider,
-    ResourceWorkflow,
-)
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 自定义异常
@@ -309,7 +310,7 @@ class ResourceService(ResourceWorkflow):
             avid, include_files=delete_files
         ).found
 
-    def load_cached_metadata(self, avid: str) -> Optional[AVDownloadInfo]:
+    def load_cached_metadata(self, avid: str) -> AVDownloadInfo | None:
         """
         从数据库加载缓存的元数据
 
@@ -345,8 +346,8 @@ class ResourceService(ResourceWorkflow):
 
     def _get_source_info(
         self, avid: str, source: str
-    ) -> Tuple[
-        AVDownloadInfo, SourceBase | None, str | None, Dict[str, int | str | None]
+    ) -> tuple[
+        AVDownloadInfo, SourceBase | None, str | None, dict[str, int | str | None]
     ]:
         """
         从源获取资源信息
@@ -484,7 +485,7 @@ class ResourceService(ResourceWorkflow):
         logger.info(f"[ResourceService] 资源 {avid} 保存完成")
         return result
 
-    def _scrape_metadata(self, avid: str) -> tuple[Optional[dict], Optional[str]]:
+    def _scrape_metadata(self, avid: str) -> tuple[dict | None, str | None]:
         """
         刮削Javbus元数据
 
@@ -513,7 +514,7 @@ class ResourceService(ResourceWorkflow):
         avid: str,
         info: AVDownloadInfo,
         source_inst: SourceBase | None,
-        scraped_data: Optional[dict],
+        scraped_data: dict | None,
         html: str | None = None,
     ) -> AVResource:
         """Retain the existing service entry point for metadata persistence."""

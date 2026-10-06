@@ -3,7 +3,6 @@
 from copy import deepcopy
 
 import pytest
-
 from scripts.assess_byparr_acceptance import assess
 
 

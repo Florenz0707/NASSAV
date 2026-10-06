@@ -4,16 +4,15 @@ import inspect
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-
 from nassav.m3u8downloader import M3u8DownloaderBase, N_m3u8DL_RE
+from nassav.scraper import AVDownloadInfo
 from nassav.scraper.Javbus import Busdmm, Dmmsee, Javbus
 from nassav.scraper.ScraperBase import ScraperBase
 from nassav.scraper.ScraperManager import ScraperManager
-from nassav.scraper import AVDownloadInfo
 from nassav.source import Jable, Memo, MissAV
+from nassav.source.capabilities import ListingSource
 from nassav.source.SourceBase import SourceBase
 from nassav.source.SourceManager import SourceManager
-from nassav.source.capabilities import ListingSource
 from nassav.translator.OllamaTranslator import OllamaTranslator
 from nassav.translator.TranslatorBase import TranslatorBase
 from nassav.translator.TranslatorManager import TranslatorManager

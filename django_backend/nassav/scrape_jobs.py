@@ -8,8 +8,8 @@ from uuid import uuid4
 
 import redis
 from celery import shared_task
-from django.core import signing
 from django.conf import settings
+from django.core import signing
 from loguru import logger
 
 from nassav.models import AVResource
@@ -243,6 +243,7 @@ def get_resource_job(task_id: str, *, store: JobStore | None = None) -> dict | N
 def run_resource_job(self, action: str, avid: str, source: str, options: dict):
     """Run existing ResourceService in the scrape worker; task args are JSON only."""
     from celery.exceptions import SoftTimeLimitExceeded
+
     from nassav.resource_service import resource_service
     from nassav.tasks import translate_title_task
 

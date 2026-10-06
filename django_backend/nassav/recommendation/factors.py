@@ -242,7 +242,7 @@ class NoveltyFactor(RecommendationFactor):
         request: RecommendationRequest,
     ) -> float:
         digest = blake2b(
-            f"{request.random_seed}:{candidate.avid}:novelty".encode("utf-8"),
+            f"{request.random_seed}:{candidate.avid}:novelty".encode(),
             digest_size=8,
         ).digest()
         value = int.from_bytes(digest, "big") / float(2**64 - 1)

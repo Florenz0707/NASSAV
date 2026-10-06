@@ -2,7 +2,6 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-
 from nassav.models import ActorSourceMapping, RecommendationItem, RecommendationSnapshot
 
 

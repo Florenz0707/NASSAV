@@ -40,7 +40,7 @@ def parse_listing(html: str, domain: str) -> list[dict]:
             r"([a-z0-9]+(?:-[a-z0-9]+)*-\d+)"
             r"(?:-(?:chinese-subtitle|english-subtitle|uncensored-leak|4k))*",
             slug,
-            re.I,
+            re.IGNORECASE,
         )
         if match is None:
             continue

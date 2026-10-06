@@ -11,9 +11,9 @@ from .TranslatorManager import (
 )
 
 __all__ = [
-    "TranslatorBase",
     "OllamaTranslator",
+    "TranslatorBase",
     "TranslatorManager",
-    "translator_manager",
     "get_translator_manager",
+    "translator_manager",
 ]

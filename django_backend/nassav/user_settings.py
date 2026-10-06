@@ -5,7 +5,7 @@
 
 import configparser
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from loguru import logger
 
@@ -150,7 +150,7 @@ class UserSettingsManager:
         self._load_config()
         self._ensure_default_values()
 
-    def get_all(self) -> Dict[str, Any]:
+    def get_all(self) -> dict[str, Any]:
         """获取所有配置（扁平化结构）"""
         # 检查文件是否被外部修改，如果是则重新加载
         if self._is_file_modified():
@@ -205,7 +205,7 @@ class UserSettingsManager:
             logger.error(f"更新配置失败: {e}")
             return False
 
-    def update_batch(self, settings: Dict[str, str]) -> Dict[str, bool]:
+    def update_batch(self, settings: dict[str, str]) -> dict[str, bool]:
         """
         批量更新配置
         返回每个配置项的更新结果

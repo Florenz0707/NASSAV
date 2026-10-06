@@ -3,8 +3,8 @@ from loguru import logger
 from nassav.models import Actor, ActorSourceMapping
 from nassav.scraper import Javbus
 from nassav.source.jable_actor_mapping import (
-    persist_actor_source_mapping,
     parse_jable_model_candidates,
+    persist_actor_source_mapping,
     select_best_model_candidate,
 )
 

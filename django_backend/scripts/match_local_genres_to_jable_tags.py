@@ -20,12 +20,12 @@
 """
 
 import argparse
-from dataclasses import asdict, dataclass
-from difflib import SequenceMatcher
 import json
 import os
 import re
 import sys
+from dataclasses import asdict, dataclass
+from difflib import SequenceMatcher
 from pathlib import Path
 
 import django

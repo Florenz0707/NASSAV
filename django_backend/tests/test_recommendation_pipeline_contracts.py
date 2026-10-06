@@ -1,9 +1,10 @@
 """Pure recommendation execution, registered extension and batched ORM inventory."""
 
-from copy import deepcopy
 import os
 import subprocess
 import sys
+from copy import deepcopy
+
 import pytest
 from nassav.recommendation.base import AbstractRecommender
 from nassav.recommendation.contracts import (
@@ -12,14 +13,14 @@ from nassav.recommendation.contracts import (
     SeedProvider,
 )
 from nassav.recommendation.entities import (
-    RecommendationRequest,
     RecommendationCandidate,
+    RecommendationRequest,
     RecommendationSeed,
 )
 from nassav.recommendation.factors import NoveltyFactor
 from nassav.recommendation.seed_selection import PreferenceSeedSelector
-from nassav.recommendation.workflow import RecommenderManager
 from nassav.recommendation.strategies import RecommendationStrategy
+from nassav.recommendation.workflow import RecommenderManager
 
 
 class Inventory(CandidateInventory):

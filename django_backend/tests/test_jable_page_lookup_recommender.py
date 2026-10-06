@@ -1,5 +1,5 @@
-from nassav.recommendation.data_access import DjangoCandidateInventory
 import pytest
+from nassav.recommendation.data_access import DjangoCandidateInventory
 
 
 @pytest.mark.django_db

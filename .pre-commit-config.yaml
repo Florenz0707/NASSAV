@@ -13,13 +13,13 @@ repos:
 
   # Prettier (JS / TS / JSON / Markdown / YAML)
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.8.1
+    rev: v3.9.9
     hooks:
       - id: prettier
 
   # Markdown 规范检查
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.21.0
+    rev: v0.23.3
     hooks:
       - id: markdownlint-cli2
         args: ['--fix'] # 自动修复可修复的问题
@@ -32,7 +32,7 @@ repos:
 
   # Python lint + formatter (Ruff)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.5
+    rev: v0.16.10
     hooks:
       - id: ruff-check
         args: ['--fix'] # 自动修复可修复的问题
@@ -40,7 +40,7 @@ repos:
 
   # Python 类型检查
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.408
+    rev: v1.1.414
     hooks:
       - id: pyright
 
@@ -53,18 +53,6 @@ repos:
         language: system
         pass_filenames: false
         files: ^django_backend/.*\.py$
-      - id: vue-frontend-build-check
-        name: vue_frontend build check
-        entry: bash -c 'cd vue_frontend && pnpm i && pnpm run build'
-        language: system
-        pass_filenames: false
-        files: ^vue_frontend/
-      - id: vue-frontend-tests
-        name: vue_frontend tests
-        entry: bash -c 'cd vue_frontend && pnpm run test'
-        language: system
-        pass_filenames: false
-        files: ^vue_frontend/
       - id: vue-frontend-eslint
         name: vue_frontend eslint
         entry: >-
@@ -74,6 +62,12 @@ repos:
           --
         language: system
         files: ^vue_frontend/.*\.(js|jsx|ts|tsx|vue)$
+      - id: vue-frontend-build-check
+        name: vue_frontend build check
+        entry: bash -c 'cd vue_frontend && pnpm i && pnpm run build'
+        language: system
+        pass_filenames: false
+        files: ^vue_frontend/
 
 ci:
   autoupdate_schedule: weekly

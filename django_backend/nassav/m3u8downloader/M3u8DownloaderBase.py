@@ -3,14 +3,14 @@ M3U8 下载器基类
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 
 class M3u8DownloaderBase(ABC):
     """M3U8 下载器基类"""
 
-    def __init__(self, proxy: Optional[str] = None):
+    def __init__(self, proxy: str | None = None):
         """
         初始化下载器
 
@@ -22,7 +22,6 @@ class M3u8DownloaderBase(ABC):
     @abstractmethod
     def get_downloader_name(self) -> str:
         """获取下载器名称"""
-        pass
 
     @abstractmethod
     def download(
@@ -34,7 +33,7 @@ class M3u8DownloaderBase(ABC):
         user_agent: str,
         thread_count: int = 32,
         retry_count: int = 5,
-        progress_callback: Optional[Callable] = None,
+        progress_callback: Callable | None = None,
         cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """
@@ -53,9 +52,8 @@ class M3u8DownloaderBase(ABC):
         Returns:
             是否下载成功
         """
-        pass
 
-    def get_output_file(self, output_dir: Path, output_name: str) -> Optional[Path]:
+    def get_output_file(self, output_dir: Path, output_name: str) -> Path | None:
         """
         获取输出文件路径，检查多种可能的扩展名
 
@@ -73,7 +71,7 @@ class M3u8DownloaderBase(ABC):
                 return file_path
         return None
 
-    def ensure_mp4(self, output_dir: Path, output_name: str) -> Optional[Path]:
+    def ensure_mp4(self, output_dir: Path, output_name: str) -> Path | None:
         """
         确保输出文件为 MP4 格式，如果是其他格式则重命名
 

@@ -3,22 +3,25 @@ Celery异步任务定义
 """
 
 from functools import wraps
-from typing import NoReturn, List
+from typing import NoReturn
 
 from celery import shared_task
 from celery.result import AsyncResult
 from loguru import logger
+
 from nassav import download_queue
-from nassav.download_queue import (
-    get_full_task_queue as get_full_task_queue,
-    get_task_queue_status as get_task_queue_status,
-)
+from nassav.download_contracts import DownloadLeaseLost
 from nassav.download_leases import (
     DownloadLease,
     current_download_ownership,
     download_ownership,
 )
-from nassav.download_contracts import DownloadLeaseLost
+from nassav.download_queue import (
+    get_full_task_queue as get_full_task_queue,
+)
+from nassav.download_queue import (
+    get_task_queue_status as get_task_queue_status,
+)
 
 
 def _owned_download(operation):
@@ -55,11 +58,12 @@ def download_video_task(self, avid: str):
     Returns:
         dict: 下载结果
     """
-    from .download_persistence import download_persistence
-    from .services import video_download_service
-    from .download_workflow import DownloadUseCase
     from nassav.download_contracts import DownloadRetriesExhausted
+
+    from .download_persistence import download_persistence
     from .download_transport import RedisDownloadRuntime
+    from .download_workflow import DownloadUseCase
+    from .services import video_download_service
 
     def retry(error: Exception) -> NoReturn:
         try:
@@ -128,7 +132,7 @@ def translate_title_task(self, avid: str):
     bind=True, name="nassav.tasks.batch_translate_titles_task", ignore_result=False
 )
 def batch_translate_titles_task(
-    self, avids: List[str] | None = None, skip_existing: bool = True
+    self, avids: list[str] | None = None, skip_existing: bool = True
 ):
     from nassav.composition import build_translation_workflow
 
@@ -149,8 +153,9 @@ def mock_download_video_task(self, avid: str, duration_seconds: int = 30):
         dict: 下载结果
     """
     from time import sleep
-    from .download_workflow import MockDownloadUseCase
+
     from .download_transport import RedisDownloadRuntime
+    from .download_workflow import MockDownloadUseCase
 
     return MockDownloadUseCase(RedisDownloadRuntime(), sleep).run(
         avid,
@@ -198,15 +203,26 @@ def submit_mock_download_task(avid: str, duration_seconds: int = 30):
 
 
 # Celery autodiscovers tasks.py; import the dedicated scrape task for registration.
-from nassav.scrape_jobs import run_resource_job  # noqa: E402, F401
-from nassav.search_jobs import run_search_job  # noqa: E402, F401
-
 from nassav.maintenance_tasks import (
-    check_videos_consistency as check_videos_consistency,
-    check_actor_avatars_consistency as check_actor_avatars_consistency,
     backup_avid_list as backup_avid_list,
+)
+from nassav.maintenance_tasks import (
     backup_database as backup_database,
-    sync_backups as sync_backups,
-    cleanup_logs as cleanup_logs,
+)
+from nassav.maintenance_tasks import (
+    check_actor_avatars_consistency as check_actor_avatars_consistency,
+)
+from nassav.maintenance_tasks import (
     check_resources_consistency as check_resources_consistency,
 )
+from nassav.maintenance_tasks import (
+    check_videos_consistency as check_videos_consistency,
+)
+from nassav.maintenance_tasks import (
+    cleanup_logs as cleanup_logs,
+)
+from nassav.maintenance_tasks import (
+    sync_backups as sync_backups,
+)
+from nassav.scrape_jobs import run_resource_job  # noqa: F401
+from nassav.search_jobs import run_search_job  # noqa: F401

@@ -12,8 +12,8 @@ from .http import (
 )
 from .search_job_views import (
     SearchJobCancelView,
-    SearchJobSubmitView,
     SearchJobStatusView,
+    SearchJobSubmitView,
 )
 
 app_name = "nassav"

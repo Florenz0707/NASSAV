@@ -5,7 +5,6 @@ import os
 import pytest
 from loguru import logger
 
-
 pytestmark = pytest.mark.external
 
 
@@ -141,9 +140,7 @@ def test_kir062_full_workflow():
         for field in optional_fields:
             if field in metadata:
                 value = metadata[field]
-                if isinstance(value, list):
-                    logger.info(f"   ✓ {field}: {len(value)} 项")
-                elif isinstance(value, dict):
+                if isinstance(value, list) or isinstance(value, dict):
                     logger.info(f"   ✓ {field}: {len(value)} 项")
                 else:
                     logger.info(f"   ✓ {field}: {str(value)[:50]}...")
@@ -173,21 +170,21 @@ def test_kir062_full_workflow():
         logger.info("\n6. 字段一致性检查:")
 
         # metadata中的title应该等于数据库的original_title
-        if "title" in metadata and metadata["title"]:
+        if metadata.get("title"):
             assert metadata["title"] == resource.original_title, (
                 f"metadata.title ({metadata['title']}) != original_title ({resource.original_title})"
             )
             logger.info("   ✓ metadata.title == original_title")
 
         # metadata中的release_date应该等于数据库的release_date
-        if "release_date" in metadata and metadata["release_date"]:
+        if metadata.get("release_date"):
             assert metadata["release_date"] == resource.release_date, (
                 "metadata.release_date != release_date"
             )
             logger.info("   ✓ metadata.release_date == release_date")
 
         # metadata中的m3u8应该等于数据库的m3u8
-        if "m3u8" in metadata and metadata["m3u8"]:
+        if metadata.get("m3u8"):
             assert metadata["m3u8"] == resource.m3u8, "metadata.m3u8 != m3u8"
             logger.info("   ✓ metadata.m3u8 == m3u8")
 

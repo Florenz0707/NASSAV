@@ -1,11 +1,12 @@
 """Django and translator-manager bindings for title translation."""
 
 from django.db.models import Q
+
 from nassav.models import AVResource
 from nassav.translation_contracts import (
-    TranslationRepository,
-    TranslationRecord,
     TextTranslator,
+    TranslationRecord,
+    TranslationRepository,
 )
 
 

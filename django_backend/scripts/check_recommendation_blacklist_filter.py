@@ -39,7 +39,6 @@ django.setup()
 
 from django.conf import settings
 from loguru import logger
-
 from nassav.models import RecommendationSeedProfile
 from nassav.recommendation.entities import (
     RecommendationCandidate,

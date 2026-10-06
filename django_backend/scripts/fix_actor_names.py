@@ -231,7 +231,7 @@ def rescrape_and_update(
 
     except Exception as e:
         logger.error(f"处理 {avid} 时出错: {e}")
-        return False, f"异常: {str(e)}"
+        return False, f"异常: {e!s}"
 
 
 def print_statistics():

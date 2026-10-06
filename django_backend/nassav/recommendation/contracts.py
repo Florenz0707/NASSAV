@@ -1,7 +1,8 @@
 """Capabilities for recommendation inventory, context and source recall."""
 
 from abc import ABC, abstractmethod
-from .entities import RecommendationRequest, RecommendationExecution, RecommendationSeed
+
+from .entities import RecommendationExecution, RecommendationRequest, RecommendationSeed
 
 
 class CandidateInventory(ABC):

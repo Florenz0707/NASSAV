@@ -2,18 +2,19 @@
 服务层：封装下载器和刮削器逻辑
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 from django.conf import settings
 from loguru import logger
 
+from nassav.composition import build_video_download_service
+
 # 导入常量（为了向后兼容，重新导出HEADERS）
 from nassav.constants import HEADERS
-from nassav.m3u8downloader import M3u8DownloaderBase
 from nassav.download_contracts import DownloadExecutor
 from nassav.download_information import DownloadInfoResolver
-from nassav.composition import build_video_download_service
+from nassav.m3u8downloader import M3u8DownloaderBase
 from nassav.utils import parse_duration
 
 
@@ -29,7 +30,7 @@ class VideoDownloadService(DownloadExecutor):
     def download_video(
         self,
         avid: str,
-        progress_callback: Optional[Callable] = None,
+        progress_callback: Callable | None = None,
         cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """
@@ -61,8 +62,8 @@ class VideoDownloadService(DownloadExecutor):
         url: str,
         avid: str,
         domain: str,
-        total_duration: Optional[int] = None,
-        progress_callback: Optional[Callable] = None,
+        total_duration: int | None = None,
+        progress_callback: Callable | None = None,
         cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """使用注入的 M3U8 下载器下载视频"""

@@ -3,7 +3,6 @@
 from unittest.mock import Mock
 
 import pytest
-
 from nassav.external_search import (
     ExternalSearchService,
     ExternalSourceAdapter,

@@ -170,6 +170,7 @@ def test_disabled_session_reuse_keeps_direct_first_order_without_session_hooks()
 
 def test_page_logs_show_direct_403_and_browser_completion_without_secrets(monkeypatch):
     from unittest.mock import Mock
+
     from nassav.page_fetching import service as service_module
 
     messages = []

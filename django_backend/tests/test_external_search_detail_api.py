@@ -1,5 +1,4 @@
 import pytest
-
 from nassav.external_search import external_search_service
 from nassav.models import ActorSourceMapping, GenreSourceMapping
 from nassav.source.capabilities import ListingSource

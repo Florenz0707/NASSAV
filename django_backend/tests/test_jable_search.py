@@ -1,7 +1,6 @@
 import pytest
 from django.conf import settings
 from django.core.cache import cache
-
 from nassav.page_fetching.factory import BrowserFetchConfig
 from nassav.source import Jable
 

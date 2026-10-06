@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-
 from nassav import resource_job_details as details
 
 

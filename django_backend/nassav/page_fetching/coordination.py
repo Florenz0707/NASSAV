@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-
 import math
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 from threading import Event, Thread
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 from uuid import uuid4
 

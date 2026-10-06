@@ -1,6 +1,5 @@
 import pytest
 from django.core.cache import cache
-
 from nassav.source.Jable import Jable
 
 

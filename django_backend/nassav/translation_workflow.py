@@ -1,10 +1,11 @@
 """Shared title selection and state transitions without ORM or Celery."""
 
 from loguru import logger
+
 from nassav.translation_contracts import (
-    TranslationRepository,
-    TranslationRecord,
     TextTranslator,
+    TranslationRecord,
+    TranslationRepository,
     TranslationWorkflow,
 )
 

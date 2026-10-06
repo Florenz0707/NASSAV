@@ -5,8 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 from nassav import search_jobs
-from nassav.scrape_jobs import JobStore
 from nassav.external_search import ExternalSearchResult
+from nassav.scrape_jobs import JobStore
 from nassav.source.search_contracts import SourceSearchError
 
 

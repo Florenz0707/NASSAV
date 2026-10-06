@@ -1,21 +1,21 @@
 """Filesystem and queue/event adapters for resource workflows."""
 
-from nassav.resource_contracts import (
-    ResourceReader,
-    AssetResult,
-    ResourceAssets,
-    TranslationSubmitter,
-    ResourceEvents,
-)
-
 from pathlib import Path
-from typing import Optional
+
 from django.conf import settings
 from loguru import logger
+
 from nassav.models import AVResource
-from nassav.resource_contracts import MetadataProvider
+from nassav.resource_contracts import (
+    AssetResult,
+    MetadataProvider,
+    ResourceAssets,
+    ResourceEvents,
+    ResourceReader,
+    TranslationSubmitter,
+)
+from nassav.signals import metadata_refreshed, resource_added
 from nassav.source.SourceBase import SourceBase
-from nassav.signals import resource_added, metadata_refreshed
 
 
 class DjangoResourceReader(ResourceReader):
@@ -36,8 +36,8 @@ class FileResourceAssets(ResourceAssets):
     def save_cover(
         self,
         avid: str,
-        scraped_data: Optional[dict],
-        scraped_by: Optional[str],
+        scraped_data: dict | None,
+        scraped_by: str | None,
         source_inst: SourceBase | None,
         html: str | None,
     ) -> bool:
@@ -124,7 +124,7 @@ class FileResourceAssets(ResourceAssets):
 
 
 class CeleryTranslationSubmitter(TranslationSubmitter):
-    def submit(self, avid: str) -> Optional[str]:
+    def submit(self, avid: str) -> str | None:
         """
         提交翻译任务
 

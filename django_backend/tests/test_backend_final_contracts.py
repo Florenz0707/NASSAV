@@ -6,9 +6,9 @@ import sys
 
 import pytest
 from nassav.recommendation.contracts import (
+    CandidateInventory,
     RecommendationSource,
     SeedProvider,
-    CandidateInventory,
 )
 from nassav.recommendation.entities import RecommendationRequest, RecommendationSeed
 from nassav.recommendation.jable_search import JableSearchRecommender
@@ -66,8 +66,8 @@ assert not ({'django', 'celery', 'redis', 'nassav.composition', 'nassav.tasks'} 
 def test_maintenance_tasks_keep_serialized_names_and_eager_arguments(
     monkeypatch, task_name, kwargs, command, args
 ):
-    from nassav import tasks
     from django_project.celery import app
+    from nassav import tasks
 
     calls = []
     monkeypatch.setattr(

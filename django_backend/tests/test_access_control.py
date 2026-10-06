@@ -11,11 +11,10 @@ from channels.testing import WebsocketCommunicator
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
-from rest_framework.test import APIClient
-
 from django_project.asgi import application
 from nassav import scrape_jobs, tasks
 from nassav.models import AVResource
+from rest_framework.test import APIClient
 
 
 @pytest.mark.django_db
@@ -158,7 +157,7 @@ def test_task_websocket_rejects_anonymous_and_cross_origin(monkeypatch, ws_heade
             (b"host", b"localhost:8443"),
             (b"origin", b"https://localhost:8443"),
             (b"x-forwarded-proto", b"https"),
-            next((header for header in ws_headers if header[0] == b"cookie")),
+            next(header for header in ws_headers if header[0] == b"cookie"),
         ]
         proxied = WebsocketCommunicator(
             application, "/nassav/ws/tasks/", headers=proxy_headers

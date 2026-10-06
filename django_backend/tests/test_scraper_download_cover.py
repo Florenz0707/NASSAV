@@ -20,9 +20,8 @@ def test_scraper_download_cover_with_referer():
         url = "https://www.javbus.com/pics/cover/test.jpg"
         save_path = "/tmp/test.jpg"
 
-        with patch("builtins.open", create=True):
-            with patch("os.makedirs"):
-                scraper.download_cover(url, save_path)
+        with patch("builtins.open", create=True), patch("os.makedirs"):
+            scraper.download_cover(url, save_path)
 
         # 验证requests.get被调用，且headers包含Referer
         assert mock_get.called

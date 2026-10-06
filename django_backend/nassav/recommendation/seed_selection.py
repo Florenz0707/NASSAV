@@ -1,6 +1,7 @@
 """Pure seed-tier selection; database-backed providers supply candidates."""
 
 from abc import ABC, abstractmethod
+
 from .entities import RecommendationRequest, RecommendationSeed
 
 

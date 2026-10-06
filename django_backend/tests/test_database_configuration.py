@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 import yaml
-
 from nassav.management.commands.backup_database import Command
 
 

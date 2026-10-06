@@ -1,8 +1,9 @@
 """External search image routing and bounded CDN downloads."""
 
 from unittest.mock import Mock
+
 from nassav.recommendation.cover_cache import RecommendationCoverCacheService
-from nassav.source import MissAV, Jable
+from nassav.source import Jable, MissAV
 
 
 def test_source_specific_image_allowlist():

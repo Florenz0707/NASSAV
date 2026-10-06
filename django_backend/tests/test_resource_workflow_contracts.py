@@ -5,20 +5,20 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-
 from nassav.resource_contracts import (
     AssetResult,
     ResourceAssets,
     ResourceEvents,
+    ResourcePersistence,
     ResourceReader,
+    ResourceSaveInput,
+    SourceRelations,
     TranslationSubmitter,
 )
 from nassav.resource_persistence import DjangoResourcePersistence
-from nassav.resource_contracts import ResourcePersistence, ResourceSaveInput
 from nassav.resource_workflow import ResourceAlreadyExistsError, ResourceService
 from nassav.scraper import AVDownloadInfo
 from nassav.source.Jable import Jable
-from nassav.resource_contracts import SourceRelations
 from nassav.source.jable_actor_mapping import JableModelCandidate
 
 

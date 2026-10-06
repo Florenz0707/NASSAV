@@ -3,7 +3,6 @@ Translator 基类 - 定义翻译器的通用接口
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from loguru import logger
 
@@ -28,7 +27,7 @@ class TranslatorBase(ABC):
     @abstractmethod
     def translate(
         self, text: str, source_lang: str = "ja", target_lang: str = "zh"
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         翻译文本
 
@@ -58,7 +57,7 @@ class TranslatorBase(ABC):
         max_retries: int = 3,
         source_lang: str = "ja",
         target_lang: str = "zh",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         带重试机制的翻译
 
@@ -98,7 +97,7 @@ class TranslatorBase(ABC):
 
     def batch_translate(
         self, texts: list[str], source_lang: str = "ja", target_lang: str = "zh"
-    ) -> list[Optional[str]]:
+    ) -> list[str | None]:
         """
         批量翻译（默认实现为逐个翻译，子类可重写以提高效率）
 

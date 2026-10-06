@@ -1,7 +1,7 @@
 """Validate direct and browser pages with the same site supplied predicate."""
 
-from collections.abc import Callable
 import re
+from collections.abc import Callable
 from dataclasses import replace
 from time import monotonic
 from urllib.parse import urlparse
@@ -240,7 +240,7 @@ class PageFetchService:
         # Valid MissAV pages can embed a challenge-platform script. The
         # marker only indicates a challenge when it appears in visible HTML.
         lowered = re.sub(
-            r"<script\b[^>]*>.*?</script>", "", html, flags=re.I | re.S
+            r"<script\b[^>]*>.*?</script>", "", html, flags=re.IGNORECASE | re.DOTALL
         ).lower()
         return any(
             marker in lowered

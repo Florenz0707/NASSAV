@@ -1,13 +1,14 @@
 """MissAV actor/genre listing contracts. Run: uv run pytest tests/test_missav_search.py -v."""
 
 from unittest.mock import Mock
+
 import pytest
+from nassav.external_search import external_search_service
+from nassav.models import ActorSourceMapping, GenreSourceMapping
 from nassav.page_fetching import FetchFailure, PageFetchService, PageResult
 from nassav.source.MissAV import MissAV
 from nassav.source.MissAVListings import listing_url, parse_listing
 from nassav.source.search_contracts import SourceSearchError
-from nassav.models import ActorSourceMapping, GenreSourceMapping
-from nassav.external_search import external_search_service
 
 HTML = """<title>MissAV</title><h1>Watch VR AV Online</h1>
 <div class="thumbnail"><img data-src="https://images.test/test-123.jpg">

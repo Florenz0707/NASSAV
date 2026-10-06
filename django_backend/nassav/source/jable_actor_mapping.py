@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
@@ -169,6 +170,7 @@ def persist_actor_source_mapping(
     is_verified: bool = False,
 ) -> tuple[bool, str]:
     from django.utils import timezone
+
     from nassav.models import ActorSourceMapping
 
     conflict = (

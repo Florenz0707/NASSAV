@@ -1,10 +1,11 @@
 """Django adapters load recommendation context in batches and persist snapshots."""
 
 from nassav.models import AVResource
+
 from .contracts import CandidateInventory, RecommendationContextStore
-from .entities import RecommendationRequest, RecommendationExecution
-from .repository import recommendation_snapshot_repository
+from .entities import RecommendationExecution, RecommendationRequest
 from .feedback import recommendation_feedback_repository
+from .repository import recommendation_snapshot_repository
 
 
 class DjangoCandidateInventory(CandidateInventory):

@@ -18,17 +18,17 @@ from bs4 import BeautifulSoup
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
-from django.conf import settings  # noqa: E402
-from nassav.page_fetching import (  # noqa: E402
+from django.conf import settings
+from nassav.page_fetching import (
     PageFetchService,
     create_page_fetch_service,
 )
-from nassav.page_fetching.session import candidate_for_page  # noqa: E402
-from nassav.source.CookieRepository import (  # noqa: E402
+from nassav.page_fetching.session import candidate_for_page
+from nassav.source.CookieRepository import (
     SourceCookieRecord,
     proxy_route_profile,
 )
-from nassav.source.MissAV import MissAV  # noqa: E402
+from nassav.source.MissAV import MissAV
 
 AVID_PREFIX = re.compile(r"(?P<avid>[a-z][a-z0-9]*(?:-[a-z]+)*-\d+)(?:-|$)")
 

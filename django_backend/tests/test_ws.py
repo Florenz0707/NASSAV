@@ -6,7 +6,6 @@ import time
 import pytest
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
-
 from django_project.asgi import application
 from nassav import tasks
 

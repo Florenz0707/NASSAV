@@ -7,23 +7,21 @@ API视图：实现资源管理接口
 from loguru import logger
 
 from nassav.api_utils import build_response
+from nassav.http_base import SchemaAPIView
 from nassav.legacy_batch import legacy_add_operation, legacy_refresh_operation
 from nassav.resource_deletion import (
     InvalidResourceIdentifier,
     ResourceDeletionFailure,
     resource_deletion_service,
 )
-from nassav.serializers import (
-    NewResourceSerializer,
-)
-from nassav.resource_queries import list_resources
-from nassav.source.SourceManager import source_manager
-
-
-from nassav.http_base import SchemaAPIView
 from nassav.resource_presentation import (
     serialize_legacy_resource as _serialize_resource_obj,
 )
+from nassav.resource_queries import list_resources
+from nassav.serializers import (
+    NewResourceSerializer,
+)
+from nassav.source.SourceManager import source_manager
 
 
 class ResourcesListView(SchemaAPIView):
@@ -157,7 +155,7 @@ class ResourceView(SchemaAPIView):
         except Exception as e:
             # 500 Internal Server Error - 未预期的错误
             logger.error(f"添加资源失败: {avid}, 错误: {e}", exc_info=True)
-            return build_response(500, f"服务器内部错误: {str(e)}", None)
+            return build_response(500, f"服务器内部错误: {e!s}", None)
 
 
 class RefreshResourceView(SchemaAPIView):
@@ -210,7 +208,7 @@ class RefreshResourceView(SchemaAPIView):
             except Exception as e:
                 # 其他错误
                 logger.error(f"刷新资源失败: {avid}, 错误: {e}", exc_info=True)
-                return build_response(500, f"刷新失败: {str(e)}", None)
+                return build_response(500, f"刷新失败: {e!s}", None)
 
         # 重新翻译（必须在元数据刷新之后执行，确保使用最新的标题）
         if retranslate:
@@ -531,18 +529,18 @@ class ResourceStatusView(SchemaAPIView):
             )
         except Exception as e:
             logger.error(f"更新资源状态失败: {e}")
-            return build_response(500, f"更新失败: {str(e)}", None)
+            return build_response(500, f"更新失败: {e!s}", None)
 
 
 class ResourceJobView(SchemaAPIView):
     """Submit one scrape job without waiting for browser or metadata requests."""
 
     def post(self, request):
-        from nassav.scrape_jobs import job_token, submit_resource_job
         from nassav.resource_service import (
             ResourceAlreadyExistsError,
             ResourceNotFoundError,
         )
+        from nassav.scrape_jobs import job_token, submit_resource_job
         from nassav.serializers import ResourceJobSerializer
 
         serializer = ResourceJobSerializer(data=request.data)

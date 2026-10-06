@@ -5,6 +5,7 @@
 
 from django.dispatch import receiver
 from loguru import logger
+
 from nassav.signals import (
     metadata_refreshed,
     resource_added,

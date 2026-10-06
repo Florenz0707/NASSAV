@@ -1,27 +1,25 @@
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
-from nassav.scraper import AVDownloadInfo
+
 from nassav.composition import source_factories
-from nassav.source.CookieRepository import (
-    SourceCookieRecord,
-    source_cookie_repository,
-)
-from nassav.source.CookieRuntimeCache import source_cookie_runtime_cache
 from nassav.page_fetching.coordination import (
     refresh_key,
     session_refresh_coordinator,
 )
-from nassav.source.CookieRepository import proxy_route_profile
-from nassav.source.SourceBase import SourceBase
 from nassav.resource_contracts import SourceLookup
-
-
+from nassav.scraper import AVDownloadInfo
+from nassav.source.CookieRepository import (
+    SourceCookieRecord,
+    proxy_route_profile,
+    source_cookie_repository,
+)
+from nassav.source.CookieRuntimeCache import source_cookie_runtime_cache
+from nassav.source.SourceBase import SourceBase
 from nassav.source.titles import normalize_source_title as normalize_source_title
 
 
@@ -37,7 +35,7 @@ class SourceManager(SourceLookup):
         config: Mapping[str, dict] | None = None,
     ):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
-        self.sources: Dict[str, SourceBase] = {}
+        self.sources: dict[str, SourceBase] = {}
 
         # 注册下载器，根据配置中的权重
         self._config = config
@@ -209,7 +207,7 @@ class SourceManager(SourceLookup):
             logger.error(f"保存 Cookie 到数据库失败: {e}")
             return False
 
-    def get_sorted_sources(self) -> List[Tuple[str, SourceBase]]:
+    def get_sorted_sources(self) -> list[tuple[str, SourceBase]]:
         """获取按权重排序的下载器列表"""
         source_config = (
             self._config if self._config is not None else settings.SOURCE_CONFIG
@@ -223,11 +221,11 @@ class SourceManager(SourceLookup):
 
     def get_info_from_any_source(
         self, avid: str
-    ) -> Tuple[
-        Optional[AVDownloadInfo],
-        Optional[SourceBase],
-        Optional[str],
-        Dict[str, int | str | None],
+    ) -> tuple[
+        AVDownloadInfo | None,
+        SourceBase | None,
+        str | None,
+        dict[str, int | str | None],
     ]:
         """
         遍历所有源获取信息
@@ -278,7 +276,7 @@ class SourceManager(SourceLookup):
                 # 缓存损坏，删除并继续正常流程
                 cache.delete(cache_key)
 
-        errors: Dict[str, int | str | None] = {}
+        errors: dict[str, int | str | None] = {}
 
         for name, source in self.get_sorted_sources():
             self.refresh_source_cookie(name)
@@ -331,17 +329,17 @@ class SourceManager(SourceLookup):
 
     def get_info_from_source(
         self, avid: str, source_str: str
-    ) -> Tuple[
-        Optional[AVDownloadInfo],
-        Optional[SourceBase],
-        Optional[str],
-        Dict[str, int | str | None],
+    ) -> tuple[
+        AVDownloadInfo | None,
+        SourceBase | None,
+        str | None,
+        dict[str, int | str | None],
     ]:
         """
         从指定源获取信息
         返回: (info, source, html, errors)
         """
-        errors: Dict[str, int | str | None] = {}
+        errors: dict[str, int | str | None] = {}
 
         # 查找对应的下载器（不区分大小写）
         source = None
@@ -390,11 +388,11 @@ class SourceManager(SourceLookup):
         video_dir.mkdir(parents=True, exist_ok=True)
         return Path(settings.RESOURCE_DIR)
 
-    def get_sources(self) -> List[Tuple[str, SourceBase]]:
+    def get_sources(self) -> list[tuple[str, SourceBase]]:
         """Return a snapshot of enabled names and adapters in registration order."""
         return list(self.sources.items())
 
-    def get_source(self, source_name: str) -> Optional[SourceBase]:
+    def get_source(self, source_name: str) -> SourceBase | None:
         for name, source in self.sources.items():
             if name.lower() == source_name.lower():
                 return source

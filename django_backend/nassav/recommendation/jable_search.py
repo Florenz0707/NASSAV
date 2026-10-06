@@ -1,10 +1,8 @@
 from loguru import logger
 
-from .contracts import RecommendationSource, CandidateInventory
-
 from .base import AbstractRecommender
+from .contracts import CandidateInventory, RecommendationSource, SeedProvider
 from .entities import RecommendationCandidate, RecommendationRequest, RecommendationSeed
-from .contracts import SeedProvider
 
 
 class JableSearchRecommender(AbstractRecommender):

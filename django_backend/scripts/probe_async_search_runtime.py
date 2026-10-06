@@ -14,12 +14,12 @@ import json
 import os
 import subprocess
 import sys
-import time
 import threading
+import time
 from urllib.parse import urlsplit
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
-from django.conf import settings  # noqa: E402
+from django.conf import settings
 
 if (
     str(settings.DATABASES["default"]["NAME"])
@@ -28,15 +28,20 @@ if (
 ):
     raise RuntimeError("This probe requires the disposable database and Redis")
 
-import django  # noqa: E402
+import django
 
 django.setup()
-from django.core.management import call_command  # noqa: E402
-from channels.layers import get_channel_layer  # noqa: E402
-from django.contrib.auth import get_user_model  # noqa: E402
-from django.test import Client  # noqa: E402
-from nassav.models import Actor, Genre, ActorSourceMapping, GenreSourceMapping  # noqa: E402
-from nassav.user_settings import clear_settings_manager_cache  # noqa: E402
+from channels.layers import get_channel_layer
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.test import Client
+from nassav.models import (
+    Actor,
+    ActorSourceMapping,
+    Genre,
+    GenreSourceMapping,
+)
+from nassav.user_settings import clear_settings_manager_cache
 
 
 def require(condition, message):

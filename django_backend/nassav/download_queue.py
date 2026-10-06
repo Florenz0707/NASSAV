@@ -1,12 +1,14 @@
 """Redis queue, progress, ownership and Channels event transport."""
 
-from typing import Any, Dict
+from typing import Any
+
 import redis
 from django.conf import settings
 from django_project.celery import app as celery_app
 from loguru import logger
-from nassav.download_leases import current_download_ownership
+
 from nassav.download_contracts import DownloadLeaseLost
+from nassav.download_leases import current_download_ownership
 
 
 def get_redis_client() -> redis.Redis:  # type: ignore
@@ -144,7 +146,7 @@ def set_task_progress(
     redis_client.setex(progress_key, 3600, __import__("json").dumps(progress_data))
 
 
-def get_task_progress(avid: str) -> Dict[str, Any] | None:
+def get_task_progress(avid: str) -> dict[str, Any] | None:
     """
     获取任务下载进度
 
@@ -178,7 +180,7 @@ def remove_task_progress(avid: str):
     redis_client.delete(progress_key)
 
 
-def get_task_queue_status() -> Dict[str, Any]:
+def get_task_queue_status() -> dict[str, Any]:
     """
     获取当前任务队列状态
 
@@ -294,7 +296,7 @@ def notify_task_update(update_type: str, data: dict):
 
         send_task_update(update_type, data)
     except Exception as e:
-        logger.error(f"发送任务更新通知失败: {str(e)}")
+        logger.error(f"发送任务更新通知失败: {e!s}")
 
 
 def create_task_lock(avid: str, task_id: str, expire_time: int = 3600):
@@ -380,7 +382,7 @@ def remove_task_from_queue(avid: str):
     redis_client.hdel(queue_key, avid.upper())
 
 
-def get_full_task_queue() -> Dict[str, Any]:
+def get_full_task_queue() -> dict[str, Any]:
     """
     从 Redis 获取完整任务队列（包括所有 pending 和 active 任务）
 

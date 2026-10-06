@@ -5,11 +5,11 @@ https://github.com/nilaoda/N_m3u8DL-RE
 
 import os
 import platform
-import subprocess
 import signal
-from threading import Event, Thread
+import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
+from threading import Event, Thread
 
 from django.conf import settings
 from loguru import logger
@@ -22,7 +22,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
 
     SPEED_PATTERN = r"([\d.]+\s*[KMGT]?i?B(?:/s|ps))"
 
-    def __init__(self, proxy: Optional[str] = None):
+    def __init__(self, proxy: str | None = None):
         super().__init__(proxy)
 
         # 工具路径
@@ -44,7 +44,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         user_agent: str,
         thread_count: int = 32,
         retry_count: int = 5,
-        progress_callback: Optional[Callable] = None,
+        progress_callback: Callable | None = None,
         cancelled: Callable[[], bool] | None = None,
     ) -> bool:
         """使用 N_m3u8DL-RE 下载 M3U8 视频

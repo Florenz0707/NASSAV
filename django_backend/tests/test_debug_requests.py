@@ -20,7 +20,6 @@ django.setup()
 import pytest
 from loguru import logger
 
-
 pytestmark = pytest.mark.external
 
 

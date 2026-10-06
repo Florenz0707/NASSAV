@@ -1,7 +1,6 @@
 """The download task's ORM boundary preserves its existing file-state semantics."""
 
 import pytest
-
 from nassav.download_persistence import DjangoDownloadPersistence
 
 
@@ -49,7 +48,7 @@ def test_failed_download_keeps_existing_size_for_retry(resource_factory):
 def test_download_task_keeps_progress_event_and_task_name(
     monkeypatch, resource_factory, settings, tmp_path
 ):
-    from nassav import tasks, download_queue
+    from nassav import download_queue, tasks
     from nassav.services import video_download_service
 
     settings.VIDEO_DIR = tmp_path
@@ -67,7 +66,7 @@ def test_download_task_keeps_progress_event_and_task_name(
     monkeypatch.setattr(download_queue, "remove_task_lock", lambda *args: None)
     monkeypatch.setattr(download_queue, "release_global_download_lock", lambda: None)
     monkeypatch.setattr(download_queue, "remove_task_progress", lambda *args: None)
-    monkeypatch.setattr(download_queue, "get_full_task_queue", lambda: [])
+    monkeypatch.setattr(download_queue, "get_full_task_queue", list)
     monkeypatch.setattr(
         download_queue,
         "notify_task_update",

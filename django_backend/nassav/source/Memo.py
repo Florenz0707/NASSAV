@@ -1,8 +1,8 @@
 import re
-from typing import Optional
 
 from django.conf import settings
 from loguru import logger
+
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.SourceBase import SourceBase
 
@@ -10,7 +10,7 @@ from nassav.source.SourceBase import SourceBase
 class Memo(SourceBase):
     """MemoJav下载器"""
 
-    def __init__(self, proxy: Optional[str] = None, timeout: int = 15):
+    def __init__(self, proxy: str | None = None, timeout: int = 15):
         super().__init__(proxy, timeout)
         source_config = settings.SOURCE_CONFIG.get("memo", {})
         self.domain = source_config.get("domain", "memojav.com")
@@ -18,7 +18,7 @@ class Memo(SourceBase):
     def get_source_name(self) -> str:
         return "Memo"
 
-    def get_html(self, avid: str) -> Optional[str]:
+    def get_html(self, avid: str) -> str | None:
         avid_upper = avid.upper()
         urls = [
             f"https://{self.domain}/video/{avid_upper}",
@@ -31,7 +31,7 @@ class Memo(SourceBase):
                 return content
         return None
 
-    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+    def parse_html(self, html: str) -> AVDownloadInfo | None:
         info = AVDownloadInfo()
         info.source = self.get_source_name()
 
@@ -58,7 +58,7 @@ class Memo(SourceBase):
             logger.error(f"Memo解析失败: {e}")
             return None
 
-    def get_cover_url(self, html: str) -> Optional[str]:
+    def get_cover_url(self, html: str) -> str | None:
         try:
             match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
             if match:

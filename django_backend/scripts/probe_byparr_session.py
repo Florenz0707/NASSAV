@@ -14,12 +14,15 @@ from curl_cffi import requests
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 django.setup()
 
-from django.conf import settings  # noqa: E402
-from nassav.constants import HEADERS, IMPERSONATE  # noqa: E402
-from nassav.page_fetching import PageFetchService, create_page_fetch_service  # noqa: E402
-from nassav.source.Jable import Jable  # noqa: E402
-from nassav.source.MissAV import MissAV  # noqa: E402
-from nassav.models import SourceCookie  # noqa: E402
+from django.conf import settings
+from nassav.constants import HEADERS, IMPERSONATE
+from nassav.models import SourceCookie
+from nassav.page_fetching import (
+    PageFetchService,
+    create_page_fetch_service,
+)
+from nassav.source.Jable import Jable
+from nassav.source.MissAV import MissAV
 
 
 def valid_page(source, kind, avid, requested, final, html):
@@ -39,7 +42,7 @@ def valid_page(source, kind, avid, requested, final, html):
         # MissAV embeds a Cloudflare challenge-platform script in genuine
         # detail pages. Preserve the production detector's mismatch explicitly.
         without_scripts = re.sub(
-            r"<script\b[^>]*>.*?</script>", "", html, flags=re.I | re.S
+            r"<script\b[^>]*>.*?</script>", "", html, flags=re.IGNORECASE | re.DOTALL
         )
         if (
             isinstance(source, MissAV)

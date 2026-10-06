@@ -1107,8 +1107,8 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationAvidBlocklist, RecommendationSeedProfile
-    from nassav.source import Jable
     from nassav.recommendation.repository import recommendation_snapshot_repository
+    from nassav.source import Jable
 
     monkeypatch.setattr(
         recommendation_snapshot_repository, "next_random_seed", lambda: 42
@@ -1225,8 +1225,11 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
 def test_recommendation_dislike_feedback_does_not_block_same_avid_from_future_results(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
-    from nassav.models import RecommendationAvidBlocklist, RecommendationFeedback
-    from nassav.models import RecommendationSeedProfile
+    from nassav.models import (
+        RecommendationAvidBlocklist,
+        RecommendationFeedback,
+        RecommendationSeedProfile,
+    )
     from nassav.source import Jable
 
     actor = actor_factory(name="Alice")

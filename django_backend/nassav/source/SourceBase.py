@@ -1,26 +1,26 @@
 import os
 from abc import abstractmethod
+from collections.abc import Callable
 from threading import local
 from time import monotonic
-from collections.abc import Callable
-from typing import Optional
 
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
 from curl_cffi.requests.exceptions import HTTPError, Timeout
 from loguru import logger
+
 from nassav.constants import HEADERS, IMPERSONATE
 from nassav.page_fetching import FetchFailure, PageResult
-from nassav.page_fetching.coordination import SessionRefreshCoordinator
-from nassav.source.session_lifecycle import SourceSessionLifecycle
-from nassav.resource_contracts import SourceRelations
 from nassav.page_fetching.contracts import BrowserSessionHandler
+from nassav.page_fetching.coordination import SessionRefreshCoordinator
+from nassav.resource_contracts import SourceRelations
 from nassav.scraper.AVDownloadInfo import AVDownloadInfo
 from nassav.source.CookieRepository import (
+    CookieRepository,
     SourceCookieRecord,
     proxy_route_profile,
-    CookieRepository,
 )
+from nassav.source.session_lifecycle import SourceSessionLifecycle
 
 
 class SourceBase(BrowserSessionHandler):
@@ -37,7 +37,7 @@ class SourceBase(BrowserSessionHandler):
 
     def __init__(
         self,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         timeout: int = 15,
         *,
         cookie_repository: CookieRepository | None = None,
@@ -118,15 +118,15 @@ class SourceBase(BrowserSessionHandler):
         return self._sessions.load_cookie_from_db()
 
     @abstractmethod
-    def get_html(self, avid: str) -> Optional[str]:
+    def get_html(self, avid: str) -> str | None:
         raise NotImplementedError
 
     @abstractmethod
-    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+    def parse_html(self, html: str) -> AVDownloadInfo | None:
         raise NotImplementedError
 
     @abstractmethod
-    def get_cover_url(self, html: str) -> Optional[str]:
+    def get_cover_url(self, html: str) -> str | None:
         raise NotImplementedError
 
     def fetch_page(
@@ -178,7 +178,7 @@ class SourceBase(BrowserSessionHandler):
             or (None if html else FetchFailure.EMPTY),
         )
 
-    def fetch_html(self, url: str, referer: str = "") -> Optional[str]:
+    def fetch_html(self, url: str, referer: str = "") -> str | None:
         self._request_state.direct_status = None
         self._request_state.direct_failure = None
         response = None

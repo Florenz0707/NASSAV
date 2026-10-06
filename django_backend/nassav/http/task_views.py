@@ -12,14 +12,12 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from nassav.api_utils import build_response
+from nassav.http_base import SchemaAPIView
 from nassav.resource_deletion import (
     InvalidResourceIdentifier,
     ResourceDeletionFailure,
     resource_deletion_service,
 )
-
-
-from nassav.http_base import SchemaAPIView
 
 
 class DownloadView(SchemaAPIView):
@@ -139,7 +137,7 @@ class TaskQueueStatusView(SchemaAPIView):
             return build_response(200, "success", queue_status)
         except Exception as e:
             logger.error(f"获取任务队列状态失败: {e}")
-            return build_response(500, f"获取队列状态失败: {str(e)}", None)
+            return build_response(500, f"获取队列状态失败: {e!s}", None)
 
 
 class DownloadsBatchSubmitView(SchemaAPIView):
@@ -253,4 +251,4 @@ class MockDownloadView(SchemaAPIView):
             )
         except Exception as e:
             logger.error(f"提交模拟下载任务失败: {e}")
-            return build_response(500, f"提交失败: {str(e)}", None)
+            return build_response(500, f"提交失败: {e!s}", None)

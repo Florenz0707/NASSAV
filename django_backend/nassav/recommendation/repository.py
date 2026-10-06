@@ -1,7 +1,7 @@
 import json
+import re
 import secrets
 from hashlib import sha256
-import re
 
 from django.db import transaction
 from django.db.models import Count, Q

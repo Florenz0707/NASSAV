@@ -50,7 +50,7 @@ class Command(BaseCommand):
             )
         if not target:
             self.stdout.write(
-                getattr(self.style, "ERROR")(
+                self.style.ERROR(
                     "错误：未指定同步目标目录。请通过 --target 参数指定，或在 config.yaml 中配置 BackupPath"
                 )
             )
@@ -62,9 +62,7 @@ class Command(BaseCommand):
         try:
             # 确保目标目录存在
             target_base.mkdir(parents=True, exist_ok=True)
-            self.stdout.write(
-                getattr(self.style, "SUCCESS")(f"目标目录: {target_base}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"目标目录: {target_base}"))
 
             # 计算时间阈值
             if days > 0:
@@ -95,7 +93,7 @@ class Command(BaseCommand):
                 total_synced += synced
                 total_size += size
                 self.stdout.write(
-                    getattr(self.style, "SUCCESS")(
+                    self.style.SUCCESS(
                         f"✓ 同步 backup/: {synced} 项，{self._format_size(size)}"
                     )
                 )
@@ -106,14 +104,10 @@ class Command(BaseCommand):
                 total_deleted += deleted
                 if deleted > 0:
                     self.stdout.write(
-                        getattr(self.style, "WARNING")(
-                            f"  已清理 backup/ 过期文件: {deleted} 项"
-                        )
+                        self.style.WARNING(f"  已清理 backup/ 过期文件: {deleted} 项")
                     )
             else:
-                self.stdout.write(
-                    getattr(self.style, "WARNING")("⚠ backup/ 目录不存在")
-                )
+                self.stdout.write(self.style.WARNING("⚠ backup/ 目录不存在"))
 
             # 同步 celery_beat/ 目录（排除 celerybeat-schedule）
             celery_beat_dir = Path(settings.BASE_DIR) / "celery_beat"
@@ -127,7 +121,7 @@ class Command(BaseCommand):
                 total_synced += synced
                 total_size += size
                 self.stdout.write(
-                    getattr(self.style, "SUCCESS")(
+                    self.style.SUCCESS(
                         f"✓ 同步 celery_beat/: {synced} 项，{self._format_size(size)}"
                     )
                 )
@@ -139,14 +133,12 @@ class Command(BaseCommand):
                 total_deleted += deleted
                 if deleted > 0:
                     self.stdout.write(
-                        getattr(self.style, "WARNING")(
+                        self.style.WARNING(
                             f"  已清理 celery_beat/ 过期文件: {deleted} 项"
                         )
                     )
             else:
-                self.stdout.write(
-                    getattr(self.style, "WARNING")("⚠ celery_beat/ 目录不存在")
-                )
+                self.stdout.write(self.style.WARNING("⚠ celery_beat/ 目录不存在"))
 
             # 同步 celerybeat-schedule（如果存在）
             celerybeat_schedule = Path(settings.BASE_DIR) / "celerybeat-schedule"
@@ -158,7 +150,7 @@ class Command(BaseCommand):
                     total_synced += 1
                     total_size += file_size
                     self.stdout.write(
-                        getattr(self.style, "SUCCESS")(
+                        self.style.SUCCESS(
                             f"✓ 同步 celerybeat-schedule: {self._format_size(file_size)}"
                         )
                     )
@@ -168,9 +160,7 @@ class Command(BaseCommand):
             total_deleted += deleted
             if deleted > 0:
                 self.stdout.write(
-                    getattr(self.style, "WARNING")(
-                        "  已清理 celerybeat-schedule 过期文件: 1 项"
-                    )
+                    self.style.WARNING("  已清理 celerybeat-schedule 过期文件: 1 项")
                 )
 
             # 同步 log/ 目录
@@ -184,7 +174,7 @@ class Command(BaseCommand):
                 total_synced += synced
                 total_size += size
                 self.stdout.write(
-                    getattr(self.style, "SUCCESS")(
+                    self.style.SUCCESS(
                         f"✓ 同步 log/: {synced} 项，{self._format_size(size)}"
                     )
                 )
@@ -195,16 +185,14 @@ class Command(BaseCommand):
                 total_deleted += deleted
                 if deleted > 0:
                     self.stdout.write(
-                        getattr(self.style, "WARNING")(
-                            f"  已清理 log/ 过期文件: {deleted} 项"
-                        )
+                        self.style.WARNING(f"  已清理 log/ 过期文件: {deleted} 项")
                     )
             else:
-                self.stdout.write(getattr(self.style, "WARNING")("⚠ log/ 目录不存在"))
+                self.stdout.write(self.style.WARNING("⚠ log/ 目录不存在"))
 
             # 总结
             self.stdout.write(
-                getattr(self.style, "SUCCESS")(
+                self.style.SUCCESS(
                     f"\n{'=' * 60}\n"
                     f"同步完成！\n"
                     f"  - 总共同步: {total_synced} 项\n"
@@ -216,7 +204,7 @@ class Command(BaseCommand):
             )
 
         except Exception as e:
-            self.stdout.write(getattr(self.style, "ERROR")(f"同步失败: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"同步失败: {e!s}"))
             raise
 
     def _sync_directory(

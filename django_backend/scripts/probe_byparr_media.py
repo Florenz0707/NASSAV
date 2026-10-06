@@ -11,10 +11,10 @@ keeps blockMedia=false in both arms; --source Jable restricts the comparison.
 
 import argparse
 import json
-from datetime import datetime, timezone
-from math import ceil
 import os
 import re
+from datetime import datetime, timezone
+from math import ceil
 from statistics import median
 from time import perf_counter, sleep
 
@@ -154,7 +154,9 @@ def main():
         def business(html):
             if isinstance(source, MissAV):
                 return source._is_detail_page_html(html, avid)
-            title = re.search(r"<title[^>]*>(.*?)</title>", html, re.I | re.S)
+            title = re.search(
+                r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL
+            )
             if args.ready_base_url:
                 parsed = source.parse_html(html)
                 if not (
@@ -169,7 +171,9 @@ def main():
                 source._is_detail_page_html(html)
                 and title
                 and re.search(
-                    rf"(?<![a-z0-9]){re.escape(avid)}(?![a-z0-9])", title[1], re.I
+                    rf"(?<![a-z0-9]){re.escape(avid)}(?![a-z0-9])",
+                    title[1],
+                    re.IGNORECASE,
                 )
             )
 

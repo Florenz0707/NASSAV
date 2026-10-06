@@ -12,12 +12,10 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from nassav.api_utils import build_response
+from nassav.http_base import SchemaAPIView
 from nassav.utils import (
     parse_http_if_modified_since,
 )
-
-
-from nassav.http_base import SchemaAPIView
 
 
 class ActorAvatarView(SchemaAPIView):
@@ -28,6 +26,7 @@ class ActorAvatarView(SchemaAPIView):
 
         from django.conf import settings
         from django.http import FileResponse, HttpResponse
+
         from nassav.models import Actor
 
         try:
@@ -146,7 +145,7 @@ class ResourcePreviewView(SchemaAPIView):
             )
         except Exception as e:
             logger.error(f"生成 preview 失败: {e}")
-            return build_response(500, f"生成 preview 失败: {str(e)}", None)
+            return build_response(500, f"生成 preview 失败: {e!s}", None)
 
 
 class DownloadAbspathView(SchemaAPIView):
@@ -300,4 +299,4 @@ class ResourceMetadataView(SchemaAPIView):
             return resp
         except Exception as e:
             logger.error(f"读取元数据失败: {e}")
-            return build_response(500, f"读取元数据失败: {str(e)}", None)
+            return build_response(500, f"读取元数据失败: {e!s}", None)

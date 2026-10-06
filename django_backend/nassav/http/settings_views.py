@@ -8,13 +8,11 @@ from loguru import logger
 from rest_framework import status
 from rest_framework.response import Response
 
+from nassav.http_base import SchemaAPIView
 from nassav.serializers import (
     UserSettingSerializer,
     UserSettingUpdateSerializer,
 )
-
-
-from nassav.http_base import SchemaAPIView
 
 
 class UserSettingView(SchemaAPIView):
@@ -40,7 +38,7 @@ class UserSettingView(SchemaAPIView):
         except Exception as e:
             logger.error(f"获取用户设置失败: {e}")
             return Response(
-                {"code": 500, "message": f"获取设置失败: {str(e)}", "data": None},
+                {"code": 500, "message": f"获取设置失败: {e!s}", "data": None},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -83,6 +81,6 @@ class UserSettingView(SchemaAPIView):
         except Exception as e:
             logger.error(f"更新用户设置失败: {e}")
             return Response(
-                {"code": 500, "message": f"更新设置失败: {str(e)}", "data": None},
+                {"code": 500, "message": f"更新设置失败: {e!s}", "data": None},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

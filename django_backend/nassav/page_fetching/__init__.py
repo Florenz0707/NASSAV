@@ -10,8 +10,8 @@ from .factory import (
 from .service import PageFetchService
 
 __all__ = [
-    "BrowserPageClient",
     "BrowserFetchConfig",
+    "BrowserPageClient",
     "FetchFailure",
     "PageFetchService",
     "PageResult",

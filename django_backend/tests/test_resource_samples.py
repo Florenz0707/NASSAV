@@ -17,7 +17,6 @@ import os
 import pytest
 from loguru import logger
 
-
 pytestmark = pytest.mark.external
 
 
@@ -157,14 +156,14 @@ def validate_resource_fields(resource, avid, should_exist=True):
     logger.info("\n6. 数据一致性检查:")
 
     # metadata.title 应该等于 original_title
-    if "title" in metadata and metadata["title"]:
+    if metadata.get("title"):
         assert metadata["title"] == resource.original_title, (
             "metadata.title != original_title"
         )
         logger.info("   ✓ metadata.title == original_title")
 
     # metadata.m3u8 应该等于 m3u8
-    if "m3u8" in metadata and metadata["m3u8"]:
+    if metadata.get("m3u8"):
         assert metadata["m3u8"] == resource.m3u8, "metadata.m3u8 != m3u8"
         logger.info("   ✓ metadata.m3u8 == m3u8")
 
@@ -206,7 +205,7 @@ def test_nonexistent_resources():
         except Exception as e:
             # 预期会失败
             logger.info(f"   ✓ 资源 {avid} 添加失败（符合预期）")
-            logger.info(f"   错误信息: {str(e)}")
+            logger.info(f"   错误信息: {e!s}")
 
         finally:
             # 清理测试数据（包括封面图等文件）
@@ -258,7 +257,7 @@ def test_real_resources():
 
         except Exception as e:
             logger.error(f"   ✗ 资源 {avid} 添加失败")
-            logger.error(f"   错误信息: {str(e)}")
+            logger.error(f"   错误信息: {e!s}")
             raise
 
         finally:

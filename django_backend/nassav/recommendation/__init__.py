@@ -71,11 +71,11 @@ _EXPORTS = {
     ),
 }
 __all__ = [
-    "JableSearchRecommender",
-    "JablePageLookupRecommender",
-    "LocalPreferenceSeedProvider",
-    "FeedbackSignalFactor",
     "DiscoverySourceFactor",
+    "FeedbackSignalFactor",
+    "JablePageLookupRecommender",
+    "JableSearchRecommender",
+    "LocalPreferenceSeedProvider",
     "MultiSeedBonusFactor",
     "NoveltyFactor",
     "PopularityFactor",

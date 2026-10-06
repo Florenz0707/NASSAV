@@ -4,10 +4,10 @@ import fcntl
 import re
 import shutil
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from django.conf import settings
 from loguru import logger

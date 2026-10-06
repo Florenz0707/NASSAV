@@ -1,6 +1,6 @@
 import re
+from collections.abc import Callable
 from copy import deepcopy
-from typing import Callable, Optional
 from urllib.parse import quote, urlencode, urljoin
 from uuid import uuid4
 
@@ -8,20 +8,21 @@ from bs4 import BeautifulSoup
 from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
+
 from nassav.page_fetching import (
     PageFetchService,
     create_page_fetch_service,
     validate_strategy,
 )
-from nassav.scraper.AVDownloadInfo import AVDownloadInfo
-from nassav.source.CookieRepository import CookieRepository
 from nassav.page_fetching.coordination import SessionRefreshCoordinator
-from nassav.source.SourceBase import SourceBase
 from nassav.recommendation.contracts import RecommendationSource
-from nassav.source.capabilities import ListingSource
 from nassav.resource_contracts import SourceRelations
+from nassav.scraper.AVDownloadInfo import AVDownloadInfo
+from nassav.source.capabilities import ListingSource
+from nassav.source.CookieRepository import CookieRepository
 from nassav.source.jable_actor_mapping import parse_jable_model_candidates
 from nassav.source.search_contracts import SourceSearchError
+from nassav.source.SourceBase import SourceBase
 
 
 class Jable(SourceBase, ListingSource, RecommendationSource):
@@ -36,7 +37,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
 
     def __init__(
         self,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         timeout: int = 15,
         *,
         page_fetcher: PageFetchService | None = None,
@@ -146,7 +147,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         )
         return SourceRelations(names, tuple(candidates))
 
-    def get_html(self, avid: str) -> Optional[str]:
+    def get_html(self, avid: str) -> str | None:
         urls = [
             f"https://{self.domain}/videos/{avid.lower()}/",
             f"https://{self.domain}/videos/{avid.lower()}v/",
@@ -168,7 +169,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
                 return result
         return None
 
-    def parse_html(self, html: str) -> Optional[AVDownloadInfo]:
+    def parse_html(self, html: str) -> AVDownloadInfo | None:
         """解析 HTML 获取核心下载信息（m3u8、avid、source_title）
 
         其他元数据（发行日期、时长、演员等）由 JavBus Scraper 提供
@@ -222,7 +223,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             logger.error(f"Jable 解析失败: {e}")
             return None
 
-    def get_cover_url(self, html: str) -> Optional[str]:
+    def get_cover_url(self, html: str) -> str | None:
         try:
             match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
             if match:
@@ -647,7 +648,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         fetcher: PageFetchService | None = None,
         candidate_index: int = 1,
         request_id: str = "",
-    ) -> Optional[str]:
+    ) -> str | None:
         active_fetcher = fetcher or self.page_fetcher.for_lookup()
         result = active_fetcher.fetch(
             url,

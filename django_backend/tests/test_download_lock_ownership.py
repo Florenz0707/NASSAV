@@ -8,9 +8,8 @@ from threading import Event, Timer
 from unittest.mock import Mock
 
 import pytest
-
-from nassav.download_leases import DownloadLease, download_ownership
 from nassav.download_contracts import DownloadLeaseLost
+from nassav.download_leases import DownloadLease, download_ownership
 from test_session_lifecycle_contracts import isolated_redis as isolated_redis
 
 
@@ -86,15 +85,15 @@ def test_heartbeat_signals_loss_without_progress_output(isolated_redis):
 def test_task_losing_global_lease_cannot_report_or_persist_success(
     isolated_redis, monkeypatch
 ):
-    from nassav import tasks, download_queue
-    from nassav.services import video_download_service
+    from nassav import download_queue, tasks
     from nassav.download_persistence import download_persistence
+    from nassav.services import video_download_service
 
     client = isolated_redis
     events = []
     completed, failed = Mock(), Mock()
     monkeypatch.setattr(download_queue, "get_redis_client", lambda: client)
-    monkeypatch.setattr(download_queue, "get_full_task_queue", lambda: [])
+    monkeypatch.setattr(download_queue, "get_full_task_queue", list)
     monkeypatch.setattr(
         download_queue, "notify_task_update", lambda name, data: events.append(name)
     )

@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from nassav.models import AVResource
-    from nassav.source.jable_actor_mapping import JableModelCandidate
     from nassav.resource_data import AVDownloadInfo
-    from nassav.source.SourceBase import SourceBase
     from nassav.scraper.ScraperBase import ScraperBase
+    from nassav.source.jable_actor_mapping import JableModelCandidate
+    from nassav.source.SourceBase import SourceBase
 
 
 class SourceLookup(ABC):
@@ -21,7 +21,7 @@ class SourceLookup(ABC):
         self, avid: str
     ) -> tuple[
         AVDownloadInfo | None,
-        "SourceBase | None",
+        SourceBase | None,
         str | None,
         dict[str, int | str | None],
     ]:
@@ -32,7 +32,7 @@ class SourceLookup(ABC):
         self, avid: str, source_str: str
     ) -> tuple[
         AVDownloadInfo | None,
-        "SourceBase | None",
+        SourceBase | None,
         str | None,
         dict[str, int | str | None],
     ]:
@@ -51,7 +51,7 @@ class MetadataProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_scrapers(self) -> list[tuple[str, "ScraperBase"]]:
+    def get_scrapers(self) -> list[tuple[str, ScraperBase]]:
         raise NotImplementedError
 
 
@@ -96,8 +96,8 @@ class ResourceAssets(ABC):
     def save_cover(
         self,
         avid: str,
-        scraped_data: Optional[dict],
-        scraped_by: Optional[str],
+        scraped_data: dict | None,
+        scraped_by: str | None,
         source_inst: SourceBase | None,
         html: str | None,
     ) -> bool:
@@ -110,7 +110,7 @@ class ResourceAssets(ABC):
 
 class TranslationSubmitter(ABC):
     @abstractmethod
-    def submit(self, avid: str) -> Optional[str]:
+    def submit(self, avid: str) -> str | None:
         raise NotImplementedError
 
 

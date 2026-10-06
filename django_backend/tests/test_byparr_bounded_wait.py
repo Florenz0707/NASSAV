@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-
 from scripts.byparr.bounded_wait import wait_bounded
 
 URL = "https://jable.tv/videos/test-001/"

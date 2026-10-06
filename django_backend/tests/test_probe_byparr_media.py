@@ -4,7 +4,6 @@ from unittest.mock import Mock
 
 import pytest
 import requests
-
 from scripts.probe_byparr_media import MediaSession, arm_order
 
 

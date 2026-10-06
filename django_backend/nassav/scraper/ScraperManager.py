@@ -5,13 +5,13 @@ Scraper 管理器 - 管理所有刮削器的注册和调用
 """
 
 from collections.abc import Callable, Mapping
-from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.core.cache import cache
 from loguru import logger
 
 from nassav.composition import scraper_factories
+
 from .ScraperBase import ScraperBase
 
 
@@ -20,13 +20,13 @@ class ScraperManager(MetadataProvider):
 
     def __init__(
         self,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         *,
         factories: Mapping[str, Callable[[], ScraperBase]] | None = None,
         config: Mapping[str, dict] | None = None,
     ):
         self.proxy = proxy
-        self.scrapers: Dict[str, ScraperBase] = {}
+        self.scrapers: dict[str, ScraperBase] = {}
 
         # 注册刮削器，根据配置
         scraper_config = config if config is not None else settings.SCRAPER_CONFIG
@@ -39,15 +39,15 @@ class ScraperManager(MetadataProvider):
                 scraper = factory()
                 self.scrapers[scraper.get_scraper_name()] = scraper
 
-    def get_scrapers(self) -> List[Tuple[str, ScraperBase]]:
+    def get_scrapers(self) -> list[tuple[str, ScraperBase]]:
         """获取所有已注册的刮削器列表"""
         return [(name, scraper) for name, scraper in self.scrapers.items()]
 
-    def scrape(self, avid: str) -> Optional[dict]:
+    def scrape(self, avid: str) -> dict | None:
         metadata, _ = self.scrape_with_source(avid)
         return metadata
 
-    def scrape_with_source(self, avid: str) -> tuple[Optional[dict], Optional[str]]:
+    def scrape_with_source(self, avid: str) -> tuple[dict | None, str | None]:
         """
         遍历所有刮削器获取元数据
         返回第一个成功获取的元数据
@@ -124,7 +124,7 @@ class ScraperManager(MetadataProvider):
         logger.warning("没有可用的刮削器来下载封面")
         return False
 
-    def scrape_from_specific(self, avid: str, scraper_name: str) -> Optional[dict]:
+    def scrape_from_specific(self, avid: str, scraper_name: str) -> dict | None:
         """
         从指定的刮削器获取元数据
         """

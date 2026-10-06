@@ -10,13 +10,11 @@ from rest_framework.response import Response
 
 from nassav.api_utils import build_response
 from nassav.external_search import external_search_service
+from nassav.http_base import SchemaAPIView
 from nassav.serializers import (
     SourceCookieListSerializer,
 )
 from nassav.source.SourceManager import source_manager
-
-
-from nassav.http_base import SchemaAPIView
 
 
 class SourceListView(SchemaAPIView):

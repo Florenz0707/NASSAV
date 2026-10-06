@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
-import re
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -11,15 +11,15 @@ from django.core.cache import cache
 from django.db.models import Count
 from loguru import logger
 
-from nassav.models import AVResource, Actor, Genre
+from nassav.composition import external_search_adapters
+from nassav.models import Actor, AVResource, Genre
 from nassav.recommendation.actor_source_mapping import actor_source_mapping_service
 from nassav.recommendation.genre_source_mapping import genre_source_mapping_service
-from nassav.source.SourceManager import source_manager
-from nassav.source.SourceBase import SourceBase
 from nassav.source.capabilities import ListingSource
-from nassav.composition import external_search_adapters
 from nassav.source.CookieRepository import proxy_route_profile
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
+from nassav.source.SourceBase import SourceBase
+from nassav.source.SourceManager import source_manager
 
 
 @dataclass
