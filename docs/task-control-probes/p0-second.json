@@ -1,0 +1,356 @@
+{
+  "binary_sha256": "d2fa5b4b79f243320c509a85835327a520d8c160c600d99921e764bfc519fec7",
+  "cases": {
+    "baseline": {
+      "exit_code": 0,
+      "requests": {
+        "/media/segment000.ts": 1,
+        "/media/segment001.ts": 1,
+        "/media/segment002.ts": 1,
+        "/media/segment003.ts": 1,
+        "/media/segment004.ts": 1,
+        "/media/segment005.ts": 1,
+        "/media/segment006.ts": 1,
+        "/media/segment007.ts": 1,
+        "/media/segment008.ts": 1,
+        "/media/segment009.ts": 1,
+        "/media/segment010.ts": 1,
+        "/media/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=93fd9f76eed9caa110ee0f3598a49503eea01343d1dc0d52595e5750698478b8",
+      "decode_error": null
+    },
+    "changed_baseline": {
+      "exit_code": 0,
+      "requests": {
+        "/variant/segment000.ts": 1,
+        "/variant/segment001.ts": 1,
+        "/variant/segment002.ts": 1,
+        "/variant/segment003.ts": 1,
+        "/variant/segment004.ts": 1,
+        "/variant/segment005.ts": 1,
+        "/variant/segment006.ts": 1,
+        "/variant/segment007.ts": 1,
+        "/variant/segment008.ts": 1,
+        "/variant/segment009.ts": 1,
+        "/variant/segment010.ts": 1,
+        "/variant/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=8d27d24064766554f8516515b0c65766c81a358db644f05696e5c5503d934eae",
+      "decode_error": null
+    },
+    "resume": {
+      "stop_ms": 1,
+      "writers_after_stop": [],
+      "files_after_stop": {
+        "P0/meta_selected.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/raw.m3u8": {
+          "size": 499,
+          "sha256": "b6b3169b67a15854c9ce51c93382d9fa7b77c370a5ad505165cbf82d54ca0184"
+        },
+        "P0/meta.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/0____/00.ts": {
+          "size": 8648,
+          "sha256": "c42a28843053299967dcfd318a22547c2bd6d9ab40f8ce9f012e66285e8e9b74"
+        },
+        "P0/0____/02.ts": {
+          "size": 8460,
+          "sha256": "50d66d851df71d5c241292bb41181ec58f5a441e6e2d480a8f86aec0facb5c6e"
+        },
+        "P0/0____/03.ts": {
+          "size": 8084,
+          "sha256": "807815fbe59fb4928109742b7354d428c2402f308892bc4bfb157d9b27069d5c"
+        },
+        "P0/0____/01.ts": {
+          "size": 8272,
+          "sha256": "30edd1f2b5aa4ac8cdbf7ddda427ea0052f891f7c123e8ab53175341592f8442"
+        }
+      },
+      "exit_code": 0,
+      "requests": {
+        "/media/segment004.ts": 2,
+        "/media/segment005.ts": 1,
+        "/media/segment006.ts": 1,
+        "/media/segment007.ts": 1,
+        "/media/segment008.ts": 1,
+        "/media/segment009.ts": 1,
+        "/media/segment010.ts": 1,
+        "/media/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=93fd9f76eed9caa110ee0f3598a49503eea01343d1dc0d52595e5750698478b8",
+      "decode_error": null,
+      "reused_segments": 4
+    },
+    "signed_url": {
+      "stop_ms": 1,
+      "writers_after_stop": [],
+      "files_after_stop": {
+        "P0/meta_selected.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/raw.m3u8": {
+          "size": 499,
+          "sha256": "b6b3169b67a15854c9ce51c93382d9fa7b77c370a5ad505165cbf82d54ca0184"
+        },
+        "P0/meta.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/0____/00.ts": {
+          "size": 8648,
+          "sha256": "c42a28843053299967dcfd318a22547c2bd6d9ab40f8ce9f012e66285e8e9b74"
+        },
+        "P0/0____/02.ts": {
+          "size": 8460,
+          "sha256": "50d66d851df71d5c241292bb41181ec58f5a441e6e2d480a8f86aec0facb5c6e"
+        },
+        "P0/0____/03.ts": {
+          "size": 8084,
+          "sha256": "807815fbe59fb4928109742b7354d428c2402f308892bc4bfb157d9b27069d5c"
+        },
+        "P0/0____/01.ts": {
+          "size": 8272,
+          "sha256": "30edd1f2b5aa4ac8cdbf7ddda427ea0052f891f7c123e8ab53175341592f8442"
+        }
+      },
+      "exit_code": 0,
+      "requests": {
+        "/media/segment004.ts": 2,
+        "/media/segment005.ts": 1,
+        "/media/segment006.ts": 1,
+        "/media/segment007.ts": 1,
+        "/media/segment008.ts": 1,
+        "/media/segment009.ts": 1,
+        "/media/segment010.ts": 1,
+        "/media/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=93fd9f76eed9caa110ee0f3598a49503eea01343d1dc0d52595e5750698478b8",
+      "decode_error": null,
+      "reused_segments": 4
+    },
+    "native_corrupt": {
+      "exit_code": 0,
+      "requests": {
+        "/media/segment004.ts": 2,
+        "/media/segment005.ts": 1,
+        "/media/segment006.ts": 1,
+        "/media/segment007.ts": 1,
+        "/media/segment008.ts": 1,
+        "/media/segment009.ts": 1,
+        "/media/segment010.ts": 1,
+        "/media/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=f9d7fa0059d533350238376b9d0d1bb3821b73805be8fdf69bd6e6526a633f2d",
+      "decode_error": null
+    },
+    "repair_corrupt": {
+      "stop_ms": 3,
+      "writers_after_stop": [],
+      "files_after_stop": {
+        "P0/meta_selected.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/raw.m3u8": {
+          "size": 499,
+          "sha256": "b6b3169b67a15854c9ce51c93382d9fa7b77c370a5ad505165cbf82d54ca0184"
+        },
+        "P0/meta.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/0____/00.ts": {
+          "size": 8648,
+          "sha256": "c42a28843053299967dcfd318a22547c2bd6d9ab40f8ce9f012e66285e8e9b74"
+        },
+        "P0/0____/02.ts": {
+          "size": 8460,
+          "sha256": "50d66d851df71d5c241292bb41181ec58f5a441e6e2d480a8f86aec0facb5c6e"
+        },
+        "P0/0____/03.ts": {
+          "size": 8084,
+          "sha256": "807815fbe59fb4928109742b7354d428c2402f308892bc4bfb157d9b27069d5c"
+        },
+        "P0/0____/01.ts": {
+          "size": 8272,
+          "sha256": "30edd1f2b5aa4ac8cdbf7ddda427ea0052f891f7c123e8ab53175341592f8442"
+        }
+      },
+      "checksum_mismatch_detected": true,
+      "exit_code": 0,
+      "requests": {
+        "/media/segment000.ts": 1,
+        "/media/segment004.ts": 1,
+        "/media/segment005.ts": 1,
+        "/media/segment006.ts": 1,
+        "/media/segment007.ts": 1,
+        "/media/segment008.ts": 1,
+        "/media/segment009.ts": 1,
+        "/media/segment010.ts": 1,
+        "/media/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=93fd9f76eed9caa110ee0f3598a49503eea01343d1dc0d52595e5750698478b8",
+      "decode_error": null
+    },
+    "native_changed": {
+      "exit_code": 0,
+      "requests": {
+        "/variant/segment004.ts": 1,
+        "/variant/segment005.ts": 1,
+        "/variant/segment006.ts": 1,
+        "/variant/segment007.ts": 1,
+        "/variant/segment008.ts": 1,
+        "/variant/segment009.ts": 1,
+        "/variant/segment010.ts": 1,
+        "/variant/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=850f9f314f585e2ba51943433b97b7e476cde0b108408043e1ac7d7fd44e031d",
+      "decode_error": null
+    },
+    "changed_content": {
+      "stop_ms": 4,
+      "writers_after_stop": [],
+      "files_after_stop": {
+        "P0/meta_selected.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/raw.m3u8": {
+          "size": 499,
+          "sha256": "b6b3169b67a15854c9ce51c93382d9fa7b77c370a5ad505165cbf82d54ca0184"
+        },
+        "P0/meta.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/0____/00.ts": {
+          "size": 8648,
+          "sha256": "c42a28843053299967dcfd318a22547c2bd6d9ab40f8ce9f012e66285e8e9b74"
+        },
+        "P0/0____/02.ts": {
+          "size": 8460,
+          "sha256": "50d66d851df71d5c241292bb41181ec58f5a441e6e2d480a8f86aec0facb5c6e"
+        },
+        "P0/0____/03.ts": {
+          "size": 8084,
+          "sha256": "807815fbe59fb4928109742b7354d428c2402f308892bc4bfb157d9b27069d5c"
+        },
+        "P0/0____/01.ts": {
+          "size": 8272,
+          "sha256": "30edd1f2b5aa4ac8cdbf7ddda427ea0052f891f7c123e8ab53175341592f8442"
+        }
+      },
+      "playlist_text_identical": true,
+      "segment_identity_changed": true,
+      "exit_code": 0,
+      "requests": {
+        "/variant/segment000.ts": 1,
+        "/variant/segment001.ts": 1,
+        "/variant/segment002.ts": 1,
+        "/variant/segment003.ts": 1,
+        "/variant/segment004.ts": 1,
+        "/variant/segment005.ts": 1,
+        "/variant/segment006.ts": 1,
+        "/variant/segment007.ts": 1,
+        "/variant/segment008.ts": 1,
+        "/variant/segment009.ts": 1,
+        "/variant/segment010.ts": 1,
+        "/variant/segment011.ts": 1
+      },
+      "decoded_hash": "SHA256=8d27d24064766554f8516515b0c65766c81a358db644f05696e5c5503d934eae",
+      "decode_error": null
+    },
+    "merge": {
+      "stop_ms": 1,
+      "writers_after_stop": [],
+      "files_after_stop": {
+        "P0/meta_selected.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/raw.m3u8": {
+          "size": 499,
+          "sha256": "b6b3169b67a15854c9ce51c93382d9fa7b77c370a5ad505165cbf82d54ca0184"
+        },
+        "P0/meta.json": {
+          "size": 3587,
+          "sha256": "cc81e728796f6d370cbfeda31c9e57aaa1bfb4ab09baf18ff925979b220523d0"
+        },
+        "P0/0____/10.ts": {
+          "size": 8460,
+          "sha256": "b124faf42ac0800ce1faaf645610d197b53ea1474d2bd23581d59c3605c0b19a"
+        },
+        "P0/0____/00.ts": {
+          "size": 8648,
+          "sha256": "c42a28843053299967dcfd318a22547c2bd6d9ab40f8ce9f012e66285e8e9b74"
+        },
+        "P0/0____/05.ts": {
+          "size": 8648,
+          "sha256": "95027bb5d3af71e4457d9084b75561defc3036460af42bbddc0ee5d67a84d2d4"
+        },
+        "P0/0____/06.ts": {
+          "size": 8272,
+          "sha256": "4c562eeb59e5649c1ef3f3ca1381d0dc47bb861f779b198358337b70af748d99"
+        },
+        "P0/0____/09.ts": {
+          "size": 8084,
+          "sha256": "5f46a73d051a5c8ccb57e03a050251481ad0d22850c3d81cd5e310e8b28fd054"
+        },
+        "P0/0____/08.ts": {
+          "size": 8648,
+          "sha256": "a5e8f2cf27c801fc8ab37e585d3e2e9591ff749c8b6fb8596c3d8214471e8528"
+        },
+        "P0/0____/11.ts": {
+          "size": 8272,
+          "sha256": "b9b491cfe04bd3ceb014ae3d66050464eb3e838923faef1a4c2b607a991716a5"
+        },
+        "P0/0____/02.ts": {
+          "size": 8460,
+          "sha256": "50d66d851df71d5c241292bb41181ec58f5a441e6e2d480a8f86aec0facb5c6e"
+        },
+        "P0/0____/07.ts": {
+          "size": 8272,
+          "sha256": "2de1d03b7c823c3cbdfb7e3eef3818ee52468221867344c081c1b2a9fd1e796a"
+        },
+        "P0/0____/04.ts": {
+          "size": 8272,
+          "sha256": "5e854c1f9b260eca3aed298fbcb0ff231478acac742013edfc705e8cc7c0588e"
+        },
+        "P0/0____/03.ts": {
+          "size": 8084,
+          "sha256": "807815fbe59fb4928109742b7354d428c2402f308892bc4bfb157d9b27069d5c"
+        },
+        "P0/0____/01.ts": {
+          "size": 8272,
+          "sha256": "30edd1f2b5aa4ac8cdbf7ddda427ea0052f891f7c123e8ab53175341592f8442"
+        }
+      },
+      "discarded_partial_output": true,
+      "exit_code": 0,
+      "requests": {},
+      "decoded_hash": "SHA256=93fd9f76eed9caa110ee0f3598a49503eea01343d1dc0d52595e5750698478b8",
+      "decode_error": null
+    }
+  },
+  "checks": {
+    "baseline_outputs_valid": true,
+    "fixed_binary": true,
+    "negative_cases_detect_unsafe_native_reuse": true,
+    "all_process_groups_stopped": true,
+    "warm_resume_reuses_valid_segments": true,
+    "changed_url_same_content": true,
+    "corrupt_cache_repaired": true,
+    "changed_content_restarted": true,
+    "merge_restart": true
+  },
+  "passed": true,
+  "binary_version": "0.5.1+c1f6db5639397dde362c31b31eebd88c796c90da",
+  "binary_source_image": "sha256:5c7465f935a6081d808efd318ab7380241706c185f05196d91cb55de0d473185"
+}

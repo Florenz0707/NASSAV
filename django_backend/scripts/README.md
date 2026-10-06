@@ -2,6 +2,10 @@
 
 本目录包含维护、数据重建和验证脚本；参数与用法按下文分类维护。历史一次性脚本处置通过 Git 追溯，当前验证边界见[验证状态](../doc/validation-status.md)。
 
+## 任务下载停止与恢复探针
+
+`probe_task_download_control.py` 只使用 ffmpeg 合成媒体及回环 HTTP，拒绝未知版本二进制和已存在的工作目录，不连接 Django/DB/Redis。运行参数为 `--binary <固定二进制绝对路径>` 和 `--workspace <不存在的目录>`；工作区保留日志、媒体和 report.json，退出码非零表示能力门槛失败。依赖 Linux `/proc`、ffmpeg、libx264 与固定 N_m3u8DL-RE。实验结束后可删除该新建工作区；不得指定正式资源目录。详细命令、二进制 SHA256、两轮证据和验证限制见[任务控制 P0 记录](../../docs/task-control-p0-results.md)。
+
 ## Byparr 会话复用 P0 探测
 
 `probe_byparr_session.py` 在运行中的 Django 容器内使用有效配置，对单个已知页面执行只读对照；不写 Cookie 表。先阅读[验证边界与历史记录](../doc/validation-status.md)。参数为 `source`（`jable`/`missav`）、`kind`（`detail`/`listing`）、HTTPS 页面 URL；详情页还需 `--avid`。URL 必须属于已配置源域名且不带凭据；只允许 Jable 分页查询 `from=02`。可用 `--reuse-url` 指定同站另一详情页，MissAV 同时传 `--reuse-avid`，在同一次浏览器会话中测试跨页复用。默认不把存储或浏览器 Cookie 发送到目标站；完整会话对照必须在获准的试验窗口显式加 `--allow-session-replay`。只保存脚本输出的脱敏 JSON，不保存原始 Byparr 响应。
