@@ -116,3 +116,29 @@ test('translation remains part of the workflow until its terminal result, and fi
     assert.equal(task.timeline[0].at, 1700000000)
   }
 })
+
+test('persistent task state owns parent translation, resume identity and saved-resource link', () => {
+  const raw = {
+    job_id: 'stable',
+    task_id: 'new-attempt',
+    job_type: 'scrape',
+    avid: 'AV-9',
+    state: 'paused',
+    stage: 'translation_translating',
+    version: 8,
+    resource_saved: false,
+    resource: { avid: 'AV-9', source_title: '已获取标题' },
+    translation: { state: 'paused' },
+    allowed_actions: ['resume', 'cancel'],
+    cleanup_state: 'not_required',
+    timeline: [{ stage: 'paused', at: 1 }],
+  }
+  const tasks = build({ jobs: [raw], scrapeJobs: [raw] })
+  assert.equal(tasks.length, 1)
+  assert.equal(tasks[0].id, 'scrape:stable')
+  assert.equal(tasks[0].state, 'paused')
+  assert.equal(tasks[0].hasResource, false)
+  assert.equal(tasks[0].title, '已获取标题')
+  assert.equal(tasks[0].timeline[0].label, '已暂停')
+  assert.equal(isFinishedTask({ state: 'cancelled' }), true)
+})

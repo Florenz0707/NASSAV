@@ -21,6 +21,16 @@ app_name = "nassav"
 
 urlpatterns = [
     path(
+        "api/tasks/jobs",
+        task_control_views.TaskJobListView.as_view(),
+        name="task-job-list",
+    ),
+    path(
+        "api/tasks/jobs/actions",
+        task_control_views.TaskBatchControlView.as_view(),
+        name="task-job-batch-control",
+    ),
+    path(
         "api/tasks/jobs/<uuid:job_id>/cleanup/retry",
         task_control_views.TaskCleanupRetryView.as_view(),
         name="task-job-cleanup-retry",

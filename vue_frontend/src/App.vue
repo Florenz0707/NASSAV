@@ -7,8 +7,10 @@ import Toast from './components/Toast.vue'
 import { useWebSocketStore } from './stores/websocket'
 import { useSettingsStore } from './stores/settings'
 import { useResourceStore } from './stores/resource'
+import { useTaskJobsStore } from './stores/taskJobs'
 import { useSessionStore } from './stores/session'
 
+const taskJobs = useTaskJobsStore()
 const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
 const resourceStore = useResourceStore()
@@ -17,6 +19,7 @@ const sessionStore = useSessionStore()
 function refreshVisibleJobs() {
   if (sessionStore.status === 'authenticated' && document.visibilityState === 'visible') {
     resourceStore.refreshPendingScrapeJobs()
+    taskJobs.poll(true)
   }
 }
 
@@ -29,12 +32,14 @@ watch(
   () => sessionStore.status,
   (status) => {
     if (status === 'authenticated') {
+      taskJobs.start(sessionStore.username)
       wsStore.connect()
       settingsStore.loadSettings()
       resourceStore.restoreScrapeJobs()
     } else {
       wsStore.disconnect()
       resourceStore.stopScrapeTracking()
+      taskJobs.reset()
     }
   }
 )
@@ -42,6 +47,7 @@ watch(
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', refreshVisibleJobs)
   resourceStore.stopScrapeTracking()
+  taskJobs.reset()
   wsStore.disconnect()
 })
 

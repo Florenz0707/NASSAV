@@ -1,7 +1,32 @@
 import { resolveResourceTitle } from './resourceTitle.js'
 import { scrapeWorkflowStatus, SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
 
-export const isFinishedTask = (task) => ['succeeded', 'failed'].includes(task.state)
+export const isFinishedTask = (task) => ['succeeded', 'failed', 'cancelled'].includes(task.state)
+export const TASK_STAGE_LABELS = {
+  ...SCRAPE_STAGE_LABELS,
+  video_download: '下载视频',
+  video_merge: '合并视频',
+  video_verify: '校验视频',
+  resource_save: '保存资源',
+  waiting_slot: '等待下载槽位',
+  resume_validation: '校验暂停产物',
+  source: '查询来源',
+  source_done: '来源已获取',
+  metadata_done: '元数据已获取',
+  cover_done: '封面已获取',
+  avatars: '获取演员头像',
+  avatars_done: '头像已获取',
+  resource_committed: '资源已保存',
+  downloading: '下载中',
+  merging: '合并视频',
+  video_committed: '视频已保存',
+  paused: '已暂停',
+  pausing: '请求暂停',
+  cancelling: '请求终止',
+  cancelled: '已终止',
+  succeeded: '已完成',
+  failed: '失败',
+}
 const timelineLabels = {
   queued: '任务已排队',
   running: '开始刮削',
@@ -56,9 +81,10 @@ export function taskTime(value) {
 
 // Unify display fields only; queue/job stores retain ownership of raw snapshots.
 export function buildTaskDetails({
-  active,
-  pending,
-  scrapeJobs,
+  active = [],
+  pending = [],
+  scrapeJobs = [],
+  jobs = [],
   resources,
   metadataCache,
   preferredTitle,
@@ -123,31 +149,78 @@ export function buildTaskDetails({
       ],
     }
   }
+  const persistent = jobs.map((task) => ({
+    id: `${task.job_type}:${task.job_id}`,
+    jobId: task.job_id,
+    taskId: task.task_id,
+    type: task.job_type,
+    avid: task.avid,
+    action: task.action,
+    ...resourceFields(task, task.job_type),
+    hasResource: Boolean(task.resource_avid || task.resource_saved),
+    coverUrl: task.resource_avid || task.resource_saved ? coverUrlFor(task.avid) : '',
+    state: task.state,
+    stage: task.stage,
+    version: task.version,
+    allowedActions: task.allowed_actions || [],
+    cleanupState: task.cleanup_state,
+    cleanupMessage: task.cleanup_message,
+    errorCode: task.error_code,
+    percent: Number.isFinite(task.progress?.percent) ? task.progress.percent : null,
+    speed: task.progress?.speed,
+    downloaded: task.progress?.downloaded,
+    total: task.progress?.total,
+    translation: task.translation,
+    error: task.message || '',
+    updated: taskTime(task.updated_at),
+    timeline: (task.timeline || []).map((event) => ({
+      ...event,
+      label:
+        event.stage === 'running'
+          ? task.job_type === 'download'
+            ? '开始下载'
+            : '开始刮削'
+          : TASK_STAGE_LABELS[event.stage] || timelineLabels[event.stage] || event.stage,
+    })),
+  }))
+  const legacy = (task, type) =>
+    !task.job_id &&
+    !jobs.some(
+      (job) =>
+        job.task_id === task.task_id ||
+        (type === 'download' &&
+          job.job_type === 'download' &&
+          job.avid === task.avid &&
+          !isFinishedTask(job))
+    )
   return [
-    ...active.map((task) => download(task, 'running')),
-    ...pending.map((task) => download(task, 'queued')),
-    ...scrapeJobs.map((task) => {
-      const workflow = scrapeWorkflowStatus(task)
-      return {
-        id: `scrape:${task.task_id}`,
-        taskId: task.task_id,
-        type: 'scrape',
-        taskType: 'scrape',
-        avid: task.avid,
-        ...resourceFields(task, 'scrape'),
-        state: workflow.state,
-        action: task.action,
-        stage: workflow.stage,
-        timeline: scrapeTimeline(task, workflow),
-        translation: task.translation,
-        error:
-          task.state === 'failed'
-            ? task.message || '刮削失败'
-            : task.translation?.state === 'failed'
-              ? task.translation.message || '资源已保存，但标题翻译失败'
-              : '',
-        updated: taskTime(task.updated_at),
-      }
-    }),
+    ...persistent,
+    ...active.filter((task) => legacy(task, 'download')).map((task) => download(task, 'running')),
+    ...pending.filter((task) => legacy(task, 'download')).map((task) => download(task, 'queued')),
+    ...scrapeJobs
+      .filter((task) => legacy(task, 'scrape'))
+      .map((task) => {
+        const workflow = scrapeWorkflowStatus(task)
+        return {
+          id: `scrape:${task.task_id}`,
+          taskId: task.task_id,
+          type: 'scrape',
+          taskType: 'scrape',
+          avid: task.avid,
+          ...resourceFields(task, 'scrape'),
+          state: workflow.state,
+          action: task.action,
+          stage: workflow.stage,
+          timeline: scrapeTimeline(task, workflow),
+          translation: task.translation,
+          error:
+            task.state === 'failed'
+              ? task.message || '刮削失败'
+              : task.translation?.state === 'failed'
+                ? task.translation.message || '资源已保存，但标题翻译失败'
+                : '',
+          updated: taskTime(task.updated_at),
+        }
+      }),
   ]
 }

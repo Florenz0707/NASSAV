@@ -1,6 +1,6 @@
 # 下载与刮削任务：暂停、恢复、终止设计与执行计划
 
-日期：2026-10-06。设计基线：`idle` 的 `aa14a27`。P0–P4 已完成，见 [P0](task-control-p0-results.md)、[P1](task-control-p1-results.md)、[P2](task-control-p2-results.md)、[P3](task-control-p3-results.md)和 [P4](task-control-p4-results.md)。P5 的持久刮削及翻译归属见[执行记录](task-control-p5-results.md)；前端和真实 worker 联调归 P6/P7。生产库未运行本轮迁移。
+日期：2026-10-06。设计基线：`idle` 的 `aa14a27`。P0–P4 已完成，见 [P0](task-control-p0-results.md)、[P1](task-control-p1-results.md)、[P2](task-control-p2-results.md)、[P3](task-control-p3-results.md)和 [P4](task-control-p4-results.md)。P5 的持久刮削及翻译归属见[执行记录](task-control-p5-results.md)；前端控制见 [P6 执行记录](task-control-p6-results.md)，真实 worker 联调与恢复归 P7。生产库未运行本轮迁移。
 
 ## 1. 目标与推荐决策
 

@@ -39,6 +39,12 @@ def test_url_and_openapi_contract_remains_identical():
     )
     schema = SchemaGenerator().get_schema(request=None, public=True)
     control_routes = [
+        ["nassav/api/tasks/jobs", "task-job-list", "TaskJobListView"],
+        [
+            "nassav/api/tasks/jobs/actions",
+            "task-job-batch-control",
+            "TaskBatchControlView",
+        ],
         [
             "nassav/api/tasks/jobs/<uuid:job_id>/cleanup/retry",
             "task-job-cleanup-retry",
@@ -54,6 +60,8 @@ def test_url_and_openapi_contract_remains_identical():
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [*control_routes, *baseline["routes"]]
     control_paths = {
+        "/nassav/api/tasks/jobs": {"get"},
+        "/nassav/api/tasks/jobs/actions": {"post"},
         "/nassav/api/tasks/jobs/{job_id}": {"get"},
         "/nassav/api/tasks/jobs/{job_id}/{action}": {"post"},
         "/nassav/api/tasks/jobs/{job_id}/cleanup/retry": {"post"},

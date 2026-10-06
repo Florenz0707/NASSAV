@@ -119,3 +119,66 @@ def test_submission_keeps_attempt_pending_when_broker_fails(
     attempt = job.attempts.get()
     assert attempt.state == "pending"
     assert attempt.dispatch_error == "broker unavailable"
+
+
+def test_list_is_owner_filtered_and_batch_returns_partial_results(
+    api_client, task, operator_user
+):
+    records, job = task
+    other = get_user_model().objects.create_user(username="batch-other")
+    foreign, _ = records.create("scrape", "PRIVATE-1", owner_id=other.pk, action="add")
+    second, _ = records.create(
+        "scrape", "OWN-2", owner_id=operator_user.pk, action="add"
+    )
+    response = api_client.get("/nassav/api/tasks/jobs?page_size=1")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["pagination"] == {
+        "page": 1,
+        "page_size": 1,
+        "total": 2,
+        "has_more": True,
+    }
+    assert "PRIVATE-1" not in response.content.decode()
+    request_id = str(uuid4())
+    payload = {
+        "action": "pause",
+        "request_id": request_id,
+        "items": [
+            {"job_id": job["job_id"], "expected_version": job["version"]},
+            {"job_id": second["job_id"], "expected_version": second["version"] + 1},
+            {"job_id": foreign["job_id"], "expected_version": foreign["version"]},
+        ],
+    }
+    response = api_client.post("/nassav/api/tasks/jobs/actions", payload, format="json")
+    results = response.json()["data"]["results"]
+    assert [r["code"] for r in results] == [202, 409, 403]
+    assert results[0]["job"]["state"] == "paused"
+    assert results[2]["job"] is None
+    retried = api_client.post("/nassav/api/tasks/jobs/actions", payload, format="json")
+    assert (
+        retried.json()["data"]["results"][0]["job"]["version"]
+        == results[0]["job"]["version"]
+    )
+    assert records.get(second["job_id"])["state"] == "queued"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"action": "cancel", "request_id": str(uuid4()), "items": []},
+        {
+            "action": "pause",
+            "request_id": str(uuid4()),
+            "items": [{"job_id": "invalid"}],
+        },
+    ],
+)
+def test_invalid_batches_are_rejected(api_client, payload):
+    assert (
+        api_client.post(
+            "/nassav/api/tasks/jobs/actions", payload, format="json"
+        ).status_code
+        == 400
+    )

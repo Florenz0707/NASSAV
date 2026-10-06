@@ -1419,6 +1419,8 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 
 `POST /nassav/api/downloads/{avid}` 和批量提交新增 `job_id`，保留原 `task_id`；先保存待派发 attempt，broker 不可用仍接受为 202 并保留 pending，不伪造已经开始。TaskJob 是控制/历史所有者，Redis 只投影运行队列和进度；暂停保留同类型 AVID 去重名额，恢复产生新 task_id。
 
+- `GET /nassav/api/tasks/jobs?page=1&page_size=50`：只读取本人任务，管理员可读全部；page_size 1–100、page 正整数。返回 `{jobs, pagination: {page, page_size, total, has_more}}`，未结束任务先于终态，各组按创建时间倒序，私有字段裁剪与详情相同。
+- `POST /nassav/api/tasks/jobs/actions`：`{action: pause|resume|cancel|cleanup_retry, request_id: UUID, items: [{job_id: UUID, expected_version: 正整数}]}`，1–100 项且不重复。HTTP 202 返回 `{results: [{job_id, code, message, job}]}`；逐项权限、版本和控制结果，403/404 不含快照；409 附授权的当前快照。沿用单条命令幂等，部分失败不回滚其他项，500 的确认未知可用原 request_id 重试。
 - `GET /nassav/api/tasks/jobs/{job_id}`：操作人自身或管理员读取，返回 state/stage/version/generation、timeline、allowed_actions、progress 和 cleanup_state/message；不返回 checkpoint、URL、AES key 或私有路径。
 - `POST /nassav/api/tasks/jobs/{job_id}/{pause|resume|cancel}`：operator session 和 CSRF，携带 `{expected_version: 正整数, request_id: UUID}`。返回 202 的已登记快照，不把 pausing/cancelling 当作停止确认。重复 request_id 不重复派发；版本/状态冲突 409 并附当前快照，越权 403，任务不存在 404，输入无效 400。
 - `POST /nassav/api/tasks/jobs/{job_id}/cleanup/retry`：相同请求字段，只重试终态 failed 清理，不能复活任务。
