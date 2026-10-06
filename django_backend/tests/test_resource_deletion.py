@@ -353,3 +353,72 @@ def test_delete_uses_default_thumbnail_directory_when_setting_absent(
     assert response.status_code == 200
     assert not thumbnail.exists()
     assert not AVResource.objects.filter(avid=avid).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("lock_failure", ["directory", "file"])
+@pytest.mark.parametrize(
+    "endpoint", ["resource", "video", "batch-resource", "batch-video"]
+)
+def test_lock_permission_failure_is_reported_before_deletion(
+    api_client, resource_factory, settings, tmp_path, lock_failure, endpoint
+):
+    isolate_paths(settings, tmp_path)
+    avid = "F1-LOCK-PERMISSION"
+    resource_factory(avid=avid, file_exists=True, file_size=13)
+    paths = make_files(settings, avid)
+    lock_dir = tmp_path / ".nassav-delete-locks"
+    lock_dir.mkdir()
+    lock_file = lock_dir / f"{avid}.lock"
+    blocked_path = lock_dir
+    if lock_failure == "file":
+        lock_file.touch()
+        blocked_path = lock_file
+    blocked_path.chmod(0o555 if lock_failure == "directory" else 0o444)
+
+    def request():
+        if endpoint.startswith("batch"):
+            return api_client.post(
+                "/nassav/api/resources/batch",
+                {
+                    "actions": [
+                        {
+                            "action": "delete-video"
+                            if endpoint == "batch-video"
+                            else "delete-all",
+                            "avid": avid,
+                        }
+                    ]
+                },
+                format="json",
+            )
+        return api_client.delete(
+            f"/nassav/api/{'downloads' if endpoint == 'video' else 'resource'}/{avid}"
+        )
+
+    try:
+        response = request()
+        payload = response.json()
+        result = (
+            payload["data"]["results"][0]
+            if endpoint.startswith("batch")
+            else payload["data"]
+        )
+        assert response.status_code == (200 if endpoint.startswith("batch") else 500)
+        assert result["failed_stage"] == "lock"
+        assert result["deleted_files"] == []
+        assert result["retryable"] is True
+        message = (
+            result["message"] if endpoint.startswith("batch") else payload["message"]
+        )
+        assert "权限" in message
+        assert str(tmp_path) not in message
+        assert all(path.exists() for path in paths.values())
+        assert AVResource.objects.get(avid=avid).file_exists is True
+    finally:
+        blocked_path.chmod(0o755 if lock_failure == "directory" else 0o644)
+    retry = request()
+    assert retry.status_code == 200
+    if endpoint.startswith("batch"):
+        assert retry.json()["data"]["results"][0]["code"] == 200
+    assert not paths["video"].exists()
