@@ -164,8 +164,8 @@ const progress = (task) =>
         aria-label="任务排序"
         class="min-w-[12rem] shrink-0"
         :options="[
-          { value: '-created_at', label: '创建时间 · 最新优先' },
-          { value: '-updated_at', label: '最近更新 · 最新优先' },
+          { value: '-created_at', label: '最近创建' },
+          { value: '-updated_at', label: '最近更新' },
         ]"
       />
     </div>
@@ -185,7 +185,7 @@ const progress = (task) =>
             visible.filter((task) => hideFinished(task)).map((task) => task.id)
           )
         "
-        >不再跟踪当前列表已结束任务</AppButton
+        >不再跟踪已结束任务</AppButton
       >
       <AppButton
         variant="neutral"
@@ -204,9 +204,6 @@ const progress = (task) =>
         :disabled="!selectedFor('cancel').length"
         @click="emit('control', 'cancel', selectedFor('cancel'))"
         >结束所选任务</AppButton
-      >
-      <span class="text-muted text-xs"
-        >已结束包含已完成、失败与已终止；清理未完成的任务保留跟踪。</span
       >
     </div>
     <div
