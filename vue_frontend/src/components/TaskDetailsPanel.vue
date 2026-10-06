@@ -160,7 +160,7 @@ const progress = (task) =>
       class="flex-1 flex items-center justify-center"
       aria-label="任务列表空白区域"
     >
-      <EmptyState compact title="暂无此类任务" />
+      <EmptyState compact title="暂无任务" />
     </div>
     <div v-else class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
       <div
