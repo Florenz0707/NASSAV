@@ -84,3 +84,11 @@ P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属
 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：726 通过、28 跳过。专项恢复/超时测试 23 通过；真实 curl loopback 超时探针通过。真实 CLI 来自当前 Docker worker 的 0.5.1 二进制，`NASSAV_LOCAL_DOWNLOAD_BINARY=... uv run pytest tests/test_local_cli_task_control.py --ds=django_project.refactoring_test_settings -q`：明文/AES、12/240 分片四项通过（84.85s）；240 分片用例暂停时保留至少 151 个完整分片，恢复后这些分片 HTTP 请求数不增加，最终全量解码 hash 等于原视频。较大样例先暴露共享内存 SQLite 并发表锁，专项改用临时文件 SQLite 后通过。根目录 `pre-commit run -a` 全通过，未修改钩子配置。
 
 CLI 和网络均仅访问临时 loopback fixture，数据库/输出临时隔离。未重建镜像、切换正式服务或操作原正式任务；真实外站、实际代理和 Docker 正式任务的恢复仍需更新镜像后验收。新旧检查点兼容，已暂停任务可直接恢复；同 URL 且清单/密钥不变时服务器替换分片内容无法检出。
+
+## 后端运行身份与取消任务清理修复（2026-10-06）
+
+分支 `fix/backend-volume-ownership`，基线 `6d5fe89`，提交标题 `[Fix] Align backend runtime ownership and recover cancelled task cleanup`。Compose 所有七个后端入口统一使用非 root 的 NASSAV_UID:NASSAV_GID（默认 1000:1000），Beat PID 移至其运行卷；新增只读预览/显式停止断言的权限准备工具，保留缓存、锁 inode 和正式媒体文件。
+
+专项 15 项通过，真实 Docker UID1000 探针通过全部运行目录、SQLite、flock、缓存删除和本地 HLS 原生下载/清理；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 736 通过、28 跳过（80.79s），根目录 `pre-commit run -a` 全通过，钩子配置未改。详细命令与范围见[执行记录](../../docs/backend-volume-permissions-results.md)。
+
+实际实例在全部服务停止时修复 205 个条目的属主为 1000:1000，六个已有锁 inode 不变。PostgreSQL 只读核对发现 HMN-606 取消请求卡在 RECOVERY_UNCONFIRMED，核实旧容器/后代退出后，通过已有 fenced 管理命令收尾该指定 attempt：cancelled / cleanup_state=completed，私有目录删除，正式视频保留。Redis 仅临时启动支持 owner 锁释放，随后恢复停止；没有迁移数据库或启动其他正式服务。现场权限与指定取消收尾已验收，更新后端 Compose 身份后的完整服务运行仍需用户合并代码并重新创建容器验收。

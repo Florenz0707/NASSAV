@@ -5,6 +5,7 @@ x-backend: &backend
     context: ./django_backend
   image: nassav-backend:${NASSAV_IMAGE_TAG:-local}
   init: true
+  user: '${NASSAV_UID:-1000}:${NASSAV_GID:-1000}'
   environment: &backend-environment
     SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
     DEBUG: 'false'
@@ -196,7 +197,18 @@ services:
     <<: *backend
     profiles: ['scheduler']
     command:
-      ['celery', '-A', 'django_project', 'beat', '-l', 'INFO', '-s', '/app/celery_beat/schedule']
+      [
+        'celery',
+        '-A',
+        'django_project',
+        'beat',
+        '-l',
+        'INFO',
+        '-s',
+        '/app/celery_beat/schedule',
+        '--pidfile',
+        '/app/celery_beat/beat.pid',
+      ]
     depends_on: *backend-dependencies
     restart: unless-stopped
     mem_limit: 512m

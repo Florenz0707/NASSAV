@@ -10,9 +10,12 @@
 
 ```sh
 cp .env.example .env
+# 将 .env 的 NASSAV_UID/NASSAV_GID 设置为 id -u / id -g 的结果
 # 将 .env 中 SECRET_KEY 替换为 openssl rand -hex 32 的输出
 mkdir -p deploy-data/{config,db,resource,resource_backup,backup,backup_sync,log,celery_beat,redis,ollama}
 cp django_backend/config/compose-config.example.yaml deploy-data/config/config.yaml
+# 所有后端使用同一非 root 身份；首次部署以该宿主机用户准备目录
+python3 scripts/prepare_backend_permissions.py --data-dir "$PWD/deploy-data" --resource-dir "$PWD/deploy-data/resource" --uid "$(id -u)" --gid "$(id -g)" --repair --writers-stopped
 # 将 realpath deploy-data/resource/video 的结果填入 .env 的 NASSAV_VIDEO_HOST_DIR
 # 在 deploy-data/config/config.yaml 中设置实际的站点、翻译及代理配置
 # 基础文件固定 SQLite；只读渲染，不启动容器
@@ -172,6 +175,24 @@ uv run python manage.py recover_tasks --confirm-stopped-attempt ATTEMPT_UUID --a
 
 回滚代码前先停止新提交，暂停/终止新任务，等待清理和 promoting 日志完成；确认没有运行/待派发/暂停占名额的新任务及子翻译，停下全部新消费者，再切换整套旧版本。不能只回滚 worker、让旧任务绕过控制；也不能回滚后自动删除 `.tasks`。新增表/字段可先保留；反向迁移是独立数据库维护操作，须另行备份与演练，不作为代码回滚自动步骤。
 
+## 后端运行身份与任务目录权限
+
+Compose 的 API、migrate、三个 worker、Beat、ollama-model 统一使用 `NASSAV_UID:NASSAV_GID`，默认 `1000:1000`。在 `.env` 设置为宿主机实际账号的 `id -u` / `id -g`；不支持 root 或各服务不同身份，compose_stack 渲染护栏会拒绝。Redis、Byparr、Ollama、前端保留各自镜像身份，不改变它们的卷属主。Beat 的 PID 文件和 schedule 都在 `/app/celery_beat/`。变更 user 后必须重新创建容器，restart 不会应用新身份。
+
+已有 root 目录不能只改 user 就启动。先暂停/终止任务，确认所有旧 API/worker、Beat 及下载器后代停止，再预览限定范围：
+
+```bash
+python3 scripts/prepare_backend_permissions.py --data-dir /实际/deploy-data --resource-dir /实际/resource --uid 1000 --gid 1000
+# 仅在确认上述所有写入者停止后执行；需要现有文件的 chown 权限
+sudo python3 scripts/prepare_backend_permissions.py --data-dir /实际/deploy-data --resource-dir /实际/resource --uid 1000 --gid 1000 --repair --writers-stopped
+```
+
+脚本只递归检查/修复后端 config、db、log、resource_backup、backup、backup_sync、celery_beat，以及资源 `.tasks`、三类 `.nassav-*-locks`；正式媒体只修改资源根与 cover/avatar/video/recommendation_cover 目录本身，不遍历媒体文件。修复保留内容、锁 inode、缓存及已有 group/other 权限，补足 owner 读写和目录执行权限，不使用 777。默认只读检查，不创建路径；需修复时退出 1。显式 repair 创建缺失运行目录，先拒绝符号链接、硬链接与特殊文件再修改。`--writers-stopped` 是操作者对停止事实的断言，不是脚本自动检测。
+
+数据目录的 resource 若是符号链接，核实实际目标后显式将 `--resource-dir` 设为真实路径；脚本不会自动跟随链接。`POSTGRES_PASSWORD_FILE` 不在修复范围，须自行保证所选 UID 能读取，保留凭证文件最小权限。配置在其他路径或自定义写入目录时也需单独核对，不让此脚本猜测范围。
+
+`.tasks` 残留不生成任务，任务来自 DB；删缓存不等于取消。paused 的工作区保留；succeeded/failed/cancelled 且 writer 退出证明成立后才清理，权限失败显示 cleanup_state=failed，由 worker 恢复 Loop 重试。所有 worker 停止时不执行自动重试。取消卡在 RECOVERY_UNCONFIRMED 时，核实旧实例及后代退出后使用上文 `recover_tasks --confirm-stopped-attempt ... --all-writers-stopped`；该命令保留 generation/fencing，只处理指定旧 attempt，不能用手动删除或清空 Redis 绕过。
+
 ## 资源文件锁的写入权限
 
 发布和删除共同使用 `COVER_DIR` 父目录下的 `.nassav-delete-locks/{AVID}.lock`。API、scrape/download worker 必须共享同一路径，并能创建和打开锁文件。容器以 root 写入宿主机资源卷后切回本机用户运行时，可能遗留 root 属主的 `755` 锁目录或 `644` 锁文件，导致 PermissionError。此时删除返回 `failed_stage: lock`，没有执行文件或数据库删除。
@@ -185,4 +206,4 @@ sudo chown 1000:1000 "$lock_dir"
 sudo find "$lock_dir" -maxdepth 1 -type f -name '*.lock' -exec chown 1000:1000 {} +
 ```
 
-不要删除锁文件或替换锁目录：其他进程可能持有旧 inode 上的锁，重建文件会破坏互斥。也不要递归修改整个资源目录或设置 `777`。多用户/容器并行写入应统一运行身份，或预先配置共享组和目录/文件写权限；避免再次由不同身份创建不可写的锁。修复后先验证取锁，再手动重试原请求，不能用真实资源删除作为权限探针。
+锁文件目前不自动删除；操作结束释放 flock、进程退出也释放锁，文件存在不代表占锁。需要回收时只能在所有相关写入进程完全停止后另行维护。不要在服务运行时删除锁文件或替换锁目录：其他进程可能持有旧 inode 上的锁，重建文件会破坏互斥。也不要递归修改整个资源目录或设置 `777`。多用户/容器并行写入应统一运行身份，或预先配置共享组和目录/文件写权限；避免再次由不同身份创建不可写的锁。修复后先验证取锁，再手动重试原请求，不能用真实资源删除作为权限探针。

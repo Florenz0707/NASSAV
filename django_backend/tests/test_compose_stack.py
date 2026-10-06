@@ -93,6 +93,7 @@ def test_rendered_postgres_requires_secret_file(stack_module, tmp_path, monkeypa
         "services": {
             name: {
                 "environment": environment,
+                "user": "1000:1000",
                 "volumes": [{"target": "/app/data/db", "source": str(tmp_path / "db")}],
             }
             for name in stack_module.BACKEND_SERVICES
@@ -138,3 +139,33 @@ def test_init_unwritable_parent_explains_one_directory_repair(
     with pytest.raises(RuntimeError, match="sudo install -d.*deploy-data/db"):
         stack_module.main()
     assert not directory.exists()
+
+
+@pytest.mark.parametrize(
+    "users", [("0:0", "0:0"), ("1000:1000", "1001:1001"), ("", "")]
+)
+def test_render_rejects_root_or_inconsistent_backend_identity(
+    stack_module, tmp_path, monkeypatch, users
+):
+    import json
+    from subprocess import CompletedProcess
+
+    config = {
+        "services": {
+            name: {
+                "user": user,
+                "environment": {
+                    "NASSAV_COMPOSE_DB_MODE": "sqlite",
+                    "NASSAV_DB_MODE_FILE": "/app/data/db/.nassav-db-mode",
+                },
+            }
+            for name, user in zip(("api", "download-worker"), users, strict=True)
+        }
+    }
+    monkeypatch.setattr(
+        stack_module,
+        "run",
+        lambda command, capture: CompletedProcess(command, 0, json.dumps(config), ""),
+    )
+    with pytest.raises(RuntimeError, match="non-root|same UID"):
+        stack_module.rendered_backend(["docker", "compose"], "sqlite")

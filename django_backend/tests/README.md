@@ -98,3 +98,5 @@ uv run coverage report
 真实 worker/本地 HTTP/CLI 验收脚本是显式入口，不包含在普通离线 gate，见[脚本说明](../scripts/README.md#持久任务恢复与真实-worker-验收)。它采用 APIClient、临时资源和新 Redis，不能替代生产网关/真实来源/容器接受。明文/AES-128 原生恢复 smoke 保留 `NASSAV_LOCAL_DOWNLOAD_BINARY` opt-in，实际内容经解码 hash 校验。
 
 `test_hls_validation_timeout.py` 与 controlled_download 专项覆盖部分响应超时后重试不拼接残缺内容、60 秒预算、尝试上限、暂停优先级，以及持续超时保留暂停状态和恢复动作。容器真实 curl 探针见 scripts/accept_hls_validation_timeout.py 和[脚本说明](../scripts/README.md)。
+
+`test_backend_permissions.py` 验证运行目录预览不写入、停止断言、限定范围、锁 inode/缓存内容保留及符号链接/硬链接拒绝；`test_compose_stack.py` 包含后端运行 UID/GID 一致与非 root 的渲染护栏。

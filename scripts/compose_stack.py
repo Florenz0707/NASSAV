@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -45,7 +46,14 @@ def rendered_backend(command: list[str], mode: str) -> tuple[Path, str, str]:
     config = json.loads(
         run(command + ["config", "--format", "json"], capture=True).stdout
     )
+    identities = set()
     for service in BACKEND_SERVICES & config["services"].keys():
+        identity = config["services"][service].get("user", "")
+        if not re.fullmatch(r"[1-9][0-9]*:[1-9][0-9]*", identity):
+            raise RuntimeError(
+                f"{service} must use numeric non-root NASSAV_UID:NASSAV_GID"
+            )
+        identities.add(identity)
         environment = config["services"][service]["environment"]
         if (
             environment.get("NASSAV_COMPOSE_DB_MODE") != mode
@@ -54,6 +62,8 @@ def rendered_backend(command: list[str], mode: str) -> tuple[Path, str, str]:
             raise RuntimeError(
                 f"{service} has inconsistent database mode configuration"
             )
+    if len(identities) != 1:
+        raise RuntimeError("All backend services must use the same UID:GID")
     if mode == "postgres":
         secret = config.get("secrets", {}).get("postgres_password", {}).get("file")
         if not secret or not Path(secret).is_file():

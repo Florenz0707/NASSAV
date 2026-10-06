@@ -591,3 +591,7 @@ uv run python scripts/accept_task_control_workers.py \
 ## HLS 恢复校验超时验收
 
 `uv run python scripts/accept_hls_validation_timeout.py` 只启动临时 loopback HTTP 服务及私有目录，使用真实 curl 注入首次部分响应超时，直接测试网络 fetch 的有界重试、随后本地缓存校验不增加请求，以及暂停优先级；恢复流程自身仅请求清单与密钥，不请求缓存分片。注入请求期限缩短为 0.25s，正常实现请求预算仍为 60s；输出 JSON，非通过退出非零。可以在后端镜像中只读挂载此后端目录后执行，容器使用 `--network none`、临时文件系统，Python 入口为 `/opt/venv/bin/python`，不会连接正式 DB/Redis、外站或真实资源卷。这是容器网络/校验回归，不是完整真实视频来源验收。
+
+## Compose 后端运行目录权限
+
+仓库根目录的 `scripts/prepare_backend_permissions.py` 是不连接 DB/Redis 的宿主机工具。`--data-dir`、`--resource-dir`、正整数 `--uid`、`--gid` 必填；默认只读检查，输出 JSON，需修复或不安全路径退出非零。`--repair --writers-stopped` 在确认所有写入者停止后准备目录/修复属主，需 chown 权限。它不删除缓存/锁、不取消任务、不迁移数据库，不遍历正式媒体文件，也不处理 Redis/Ollama 卷和 PostgreSQL 密码文件。链接目标须先人工核对并传真实路径；硬链接、符号链接与特殊文件拒绝。范围及首次部署、旧实例迁移见[部署说明](../doc/compose-deployment.md#后端运行身份与任务目录权限)。
