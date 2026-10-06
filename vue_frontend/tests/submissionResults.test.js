@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { summarizeSubmissionJobs } from '../src/utils/submissionResults.js'
+import { summarizeSubmissionJobs } from '../src/features/resources/lib/submissionResults.js'
 test('batch results follow stable jobs across translation handoff and resume', () => {
   const accepted = [
     { avid: 'A', job_id: 'job-a', task_id: 'old' },

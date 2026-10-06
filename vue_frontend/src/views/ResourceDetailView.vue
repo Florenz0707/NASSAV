@@ -1,16 +1,19 @@
 <script setup>
-import { resolveResourceTitle } from '../utils/resourceTitle.js'
+import { resolveResourceTitle } from '../features/resources/lib/resourceTitle.js'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { actorApi, downloadApi, genreApi, resourceApi } from '../api'
-import { useResourceStore } from '../stores/resource'
-import { useToastStore } from '../stores/toast'
-import { useSettingsStore } from '../stores/settings'
-import LoadingSpinner from '../components/LoadingSpinner.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
-import ActionMenu from '../components/ActionMenu.vue'
-import { resourceRefreshOptions, resourceDeleteOptions } from '../utils/resourceActions.js'
-import TaskResourceCover from '../components/TaskResourceCover.vue'
+import { actorApi, downloadApi, genreApi, resourceApi } from '../api/index.js'
+import { useResourceStore } from '../features/resources/stores/resource.js'
+import { useToastStore } from '../shared/stores/toast.js'
+import { useSettingsStore } from '../features/settings/stores/settings.js'
+import LoadingSpinner from '../shared/ui/LoadingSpinner.vue'
+import ConfirmDialog from '../shared/ui/ConfirmDialog.vue'
+import ActionMenu from '../shared/ui/ActionMenu.vue'
+import {
+  resourceRefreshOptions,
+  resourceDeleteOptions,
+} from '../features/resources/lib/resourceActions.js'
+import ResourceCover from '../shared/ui/ResourceCover.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -293,7 +296,7 @@ async function navigateToGenre(genreName) {
           <div
             class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_color-mix(in_srgb,_var(--shadow-color)_10%,_transparent)] flex justify-center items-center"
           >
-            <TaskResourceCover
+            <ResourceCover
               :url="coverUrl"
               :title="displayedTitle"
               image-class="object-contain"

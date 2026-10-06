@@ -1,14 +1,14 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useResourceStore } from '../stores/resource'
-import { useToastStore } from '../stores/toast'
-import ResourcePagination from '../components/ResourcePagination.vue'
-import ResourceCard from '../components/ResourceCard.vue'
-import EmptyState from '../components/EmptyState.vue'
-import BatchControls from '../components/BatchControls.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
-import ResourceSearchBar from '../components/ResourceSearchBar.vue'
+import { useResourceStore } from '../features/resources/stores/resource.js'
+import { useToastStore } from '../shared/stores/toast.js'
+import ResourcePagination from '../shared/ui/ResourcePagination.vue'
+import ResourceCard from '../features/resources/components/ResourceCard.vue'
+import EmptyState from '../shared/ui/EmptyState.vue'
+import BatchControls from '../features/resources/components/BatchControls.vue'
+import ConfirmDialog from '../shared/ui/ConfirmDialog.vue'
+import ResourceSearchBar from '../features/resources/components/ResourceSearchBar.vue'
 
 const resourceStore = useResourceStore()
 const toastStore = useToastStore()

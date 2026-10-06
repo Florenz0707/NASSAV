@@ -46,7 +46,7 @@ axios.defaults.adapter = async (config) => {
   throw new Error(`Unexpected request ${config.url}`)
 }
 
-const { useSessionStore } = await import('../src/stores/session.js')
+const { useSessionStore } = await import('../src/features/auth/stores/session.js')
 const { settingsApi } = await import('../src/api/index.js')
 
 test('login, expiry and logout update the session gate', async () => {

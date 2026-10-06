@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { resolveResourceTitle } from '../src/utils/resourceTitle.js'
+import { resolveResourceTitle } from '../src/features/resources/lib/resourceTitle.js'
 import { resourceApi } from '../src/api/index.js'
-import { useDownloadQueueStore } from '../src/stores/downloadQueue.js'
-import { useSettingsStore } from '../src/stores/settings.js'
+import { useDownloadQueueStore } from '../src/features/resources/stores/downloadQueue.js'
+import { useSettingsStore } from '../src/features/settings/stores/settings.js'
 
 test('title preference and missing-field fallbacks are consistent for local and external records', () => {
   const metadata = {

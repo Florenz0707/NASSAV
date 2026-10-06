@@ -1,0 +1,632 @@
+<script setup>
+import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
+import { useSettingsStore } from '../../settings/stores/settings.js'
+import { computed } from 'vue'
+import { recommendationApi } from '../../../api/index.js'
+
+const props = defineProps({
+  item: {
+    type: Object,
+    required: true,
+  },
+  adding: {
+    type: Boolean,
+    default: false,
+  },
+  added: {
+    type: Boolean,
+    default: false,
+  },
+  layoutStyle: {
+    type: String,
+    default: 'grid',
+  },
+  reasonsOpen: {
+    type: Boolean,
+    default: false,
+  },
+  feedback: {
+    type: String,
+    default: '',
+  },
+  feedbackSubmitting: {
+    type: Boolean,
+    default: false,
+  },
+  blocked: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const emit = defineEmits(['add', 'open', 'view', 'reasons', 'feedback', 'block'])
+
+const isLiked = computed(() => props.feedback === 'like')
+const isDisliked = computed(() => props.feedback === 'dislike')
+const isBlocked = computed(() => props.blocked)
+const hasReasons = computed(
+  () => Array.isArray(props.item?.reasons) && props.item.reasons.length > 0
+)
+const settingsStore = useSettingsStore()
+const displayTitle = computed(() => resolveResourceTitle(props.item, settingsStore.displayTitle))
+const reasonsCount = computed(() => (hasReasons.value ? props.item.reasons.length : 0))
+const formattedScore = computed(() => Number(props.item?.score || 0).toFixed(1))
+const proxiedCoverUrl = computed(() =>
+  props.item?.cover_url ? recommendationApi.getCoverUrl(props.item.cover_url) : ''
+)
+
+function formatCompactMetric(value) {
+  const parsed = Number(value || 0)
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  if (parsed >= 1000000) return `${Math.floor(parsed / 1000000)}M+`
+  if (parsed >= 1000) return `${Math.floor(parsed / 1000)}K+`
+  return `${parsed}`
+}
+
+const metrics = computed(() => {
+  const raw = props.item?.raw_metrics || {}
+  return {
+    duration: raw.duration || '',
+    views: formatCompactMetric(raw.views),
+    likes: formatCompactMetric(raw.likes),
+  }
+})
+
+function handleReasonsClick(event) {
+  if (!hasReasons.value) return
+  emit('reasons', event)
+}
+</script>
+
+<template>
+  <article
+    class="recommendation-card"
+    :class="{
+      masonry: layoutStyle === 'masonry',
+      blocked: isBlocked,
+    }"
+  >
+    <div class="cover-shell">
+      <img
+        v-if="item.cover_url"
+        :src="proxiedCoverUrl"
+        :alt="displayTitle"
+        class="cover-image"
+        :class="{ blocked: isBlocked }"
+        loading="lazy"
+      />
+      <div v-else class="cover-fallback">
+        <span>{{ item.avid }}</span>
+      </div>
+      <div class="feedback-overlay">
+        <button
+          type="button"
+          class="feedback-overlay-button danger"
+          :class="{ active: isBlocked }"
+          :disabled="feedbackSubmitting"
+          :aria-label="isBlocked ? '取消屏蔽' : '屏蔽'"
+          :title="isBlocked ? '取消屏蔽' : '屏蔽'"
+          @click="emit('block')"
+        >
+          <span v-if="isBlocked" class="feedback-overlay-label">已屏蔽</span>
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="card-meta">
+        <span class="avid-chip">{{ item.avid }}</span>
+        <span v-if="item.source" class="source-chip">{{ item.source }}</span>
+      </div>
+
+      <h3 class="card-title">
+        {{ displayTitle }}
+      </h3>
+
+      <div v-if="item.raw_metrics" class="metrics-row">
+        <span v-if="metrics.duration">时长 {{ metrics.duration }}</span>
+        <span v-if="metrics.views">浏览 {{ metrics.views }}</span>
+        <span v-if="metrics.likes">收藏 {{ metrics.likes }}</span>
+      </div>
+
+      <div v-if="item.score !== undefined || item.reasons?.length" class="reasons-wrap">
+        <button
+          type="button"
+          class="reason-toggle"
+          :data-reason-anchor="item.avid"
+          :disabled="!hasReasons"
+          :class="{ active: reasonsOpen }"
+          @click="handleReasonsClick"
+        >
+          {{ `推荐分：${formattedScore}（${reasonsCount}）` }}
+        </button>
+        <div class="inline-feedback-actions">
+          <button
+            type="button"
+            class="inline-feedback-btn"
+            :class="{ active: isLiked }"
+            :disabled="feedbackSubmitting"
+            aria-label="喜欢"
+            title="喜欢"
+            @click="emit('feedback', 'like')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M14 9V5a3 3 0 0 0-6 0v4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10.28a2 2 0 0 0 1.9-1.37l2.44-7.32A2 2 0 0 0 17.72 9H14Z"
+              ></path>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="inline-feedback-btn danger"
+            :class="{ active: isDisliked }"
+            :disabled="feedbackSubmitting"
+            aria-label="不喜欢"
+            title="不喜欢"
+            @click="emit('feedback', 'dislike')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 15v4a3 3 0 1 0 6 0v-4h3a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8.72a2 2 0 0 0-1.9 1.37L4.38 11.7A2 2 0 0 0 6.28 15H10Z"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <button
+          v-if="!added"
+          type="button"
+          class="action-btn primary"
+          :disabled="adding"
+          @click="emit('add')"
+        >
+          {{ adding ? '添加中...' : '加入资源库' }}
+        </button>
+        <button v-else type="button" class="action-btn success" disabled>已添加</button>
+
+        <button
+          type="button"
+          class="action-btn secondary"
+          @click="added ? emit('view') : emit('open')"
+        >
+          {{ added ? '查看详情' : '跳转来源' }}
+        </button>
+      </div>
+    </div>
+  </article>
+</template>
+
+<style scoped>
+.recommendation-card {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--neutral-color) 4%, transparent),
+    color-mix(in srgb, var(--neutral-color) 2%, transparent)
+  );
+  border: 1px solid;
+  border-color: color-mix(in srgb, var(--neutral-color) 16%, transparent);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.recommendation-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent);
+  box-shadow: 0 22px 48px color-mix(in srgb, var(--shadow-color) 28%, transparent);
+}
+
+.recommendation-card.blocked {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-primary) 3%, transparent),
+    color-mix(in srgb, var(--neutral-color) 1%, transparent)
+  );
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+}
+
+.cover-shell {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--accent-primary) 28%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--bg-secondary) 92%, transparent),
+      color-mix(in srgb, var(--bg-secondary) 86%, transparent)
+    );
+}
+
+.feedback-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--shadow-ink) 12%, transparent),
+    color-mix(in srgb, var(--shadow-ink) 42%, transparent)
+  );
+  pointer-events: none;
+}
+
+.feedback-overlay-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.95rem;
+  padding: 0.28rem 0.72rem;
+  border-radius: 999px;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: auto;
+}
+
+.feedback-overlay-badge.blocked {
+  background: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 28%, transparent);
+}
+
+.feedback-overlay-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
+  padding: 0.28rem 0.72rem;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-tertiary) 24%, transparent);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-tertiary) 18%, transparent);
+  pointer-events: auto;
+  cursor: pointer;
+  gap: 0.35rem;
+}
+
+.feedback-overlay-button.danger {
+  background: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.feedback-overlay-button.active {
+  background: var(--accent-tertiary);
+}
+
+.feedback-overlay-button.danger.active {
+  background: var(--accent-primary);
+  color: var(--on-accent);
+}
+
+.feedback-overlay-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.feedback-overlay-button:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: brightness(1.05);
+}
+
+.cover-image.blocked {
+  filter: brightness(0.5) grayscale(0.4);
+}
+
+.cover-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1rem;
+  text-align: center;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem 1rem 1.1rem;
+  flex: 1;
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.avid-chip,
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.avid-chip {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+}
+
+.source-chip {
+  background: color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
+  color: var(--accent-tertiary);
+}
+
+.card-title {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin: 0;
+  min-height: calc(1rem * 1.45 * 3);
+  max-height: calc(1rem * 1.45 * 3);
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.metrics-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  min-height: 1.2rem;
+}
+
+.reasons-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reason-toggle {
+  align-self: flex-start;
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
+  border-radius: 999px;
+  padding: 0.38rem 0.72rem;
+  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.reason-toggle:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.reason-toggle.active {
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  color: var(--text-primary);
+}
+
+.inline-feedback-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.inline-feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-tertiary) 10%, transparent);
+  color: var(--accent-tertiary);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.inline-feedback-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent-tertiary) 25%, transparent);
+  background: color-mix(in srgb, var(--accent-tertiary) 16%, transparent);
+}
+
+.inline-feedback-btn.danger {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: var(--accent-primary);
+}
+
+.inline-feedback-btn.danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+}
+
+.inline-feedback-btn.active {
+  border-color: color-mix(in srgb, var(--accent-tertiary) 36%, transparent);
+  background: var(--accent-tertiary);
+  color: white;
+}
+
+.inline-feedback-btn.danger.active {
+  border-color: color-mix(in srgb, var(--accent-primary) 36%, transparent);
+  background: var(--accent-primary);
+  color: var(--on-accent);
+}
+
+.inline-feedback-btn:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.65rem;
+  margin-top: auto;
+}
+
+.action-btn {
+  border: none;
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: var(--on-accent);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.action-btn.secondary {
+  background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
+  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
+}
+
+.action-btn.success {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-success) 90%, transparent),
+    color-mix(in srgb, var(--accent-tertiary) 90%, transparent)
+  );
+  color: white;
+}
+
+.recommendation-card.masonry .card-title {
+  display: block;
+  min-height: auto;
+  max-height: none;
+  line-clamp: unset;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+}
+
+.recommendation-card.masonry .card-body {
+  gap: 0.65rem;
+  padding: 0.72rem 0.72rem 0.82rem;
+}
+
+.recommendation-card.masonry .card-meta {
+  gap: 0.36rem;
+}
+
+.recommendation-card.masonry .avid-chip,
+.recommendation-card.masonry .source-chip {
+  padding: 0.22rem 0.48rem;
+  font-size: 0.64rem;
+}
+
+.recommendation-card.masonry .card-title {
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.recommendation-card.masonry .metrics-row {
+  gap: 0.48rem;
+  font-size: 0.72rem;
+}
+
+.recommendation-card.masonry .reason-toggle {
+  padding: 0.32rem 0.55rem;
+  font-size: 0.68rem;
+}
+
+.recommendation-card.masonry .inline-feedback-btn {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.recommendation-card.masonry .card-actions {
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.recommendation-card.masonry .action-btn {
+  padding: 0.62rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 640px) {
+  .card-actions {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -20,7 +20,7 @@ async function main() {
 import {createApp,h} from '/node_modules/.vite/deps/vue.js?v=${browserHash}';
 import {createPinia} from '/node_modules/.vite/deps/pinia.js?v=${browserHash}';
 import {createRouter,createWebHistory} from '/node_modules/.vite/deps/vue-router.js?v=${browserHash}';
-import Card from '/src/components/ResourceCard.vue';
+import Card from '/src/features/resources/components/ResourceCard.vue';
 import '/src/styles/main.css';
 const router=createRouter({history:createWebHistory(),routes:[{path:'/:pathMatch(.*)*',component:{render:()=>null}}]});
 createApp({render:()=>h('div',{style:'padding:240px 40px;display:flex;gap:24px'},[1,2].map(i=>h('div',{'data-card':i,style:'width:400px'},[h(Card,{resource:{avid:'SAME-1',has_video:true,original_title:'Same resource'}})])))}).use(createPinia()).use(router).mount('#app');

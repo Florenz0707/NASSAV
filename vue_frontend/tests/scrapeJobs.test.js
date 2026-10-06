@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import axios from 'axios'
 import { createPinia, setActivePinia } from 'pinia'
-import { mergeScrapeJob } from '../src/stores/scrapeJobState.js'
+import { mergeScrapeJob } from '../src/features/tasks/stores/scrapeJobState.js'
 
 const calls = []
 let remoteState = 'queued'
@@ -75,8 +75,8 @@ function storage() {
   }
 }
 
-const { useResourceStore } = await import('../src/stores/resource.js')
-const { useToastStore } = await import('../src/stores/toast.js')
+const { useResourceStore } = await import('../src/features/resources/stores/resource.js')
+const { useToastStore } = await import('../src/shared/stores/toast.js')
 
 test('202 remains queued until a terminal snapshot; older events cannot regress it', async () => {
   globalThis.localStorage = storage()
@@ -289,7 +289,7 @@ test('dismissed in-flight job cannot be restored by its delayed snapshot', async
 })
 
 test('translation polling and terminal result cannot regress after scrape succeeds', async () => {
-  const { scrapeJobNeedsPolling } = await import('../src/stores/scrapeJobState.js')
+  const { scrapeJobNeedsPolling } = await import('../src/features/tasks/stores/scrapeJobState.js')
   const current = {
     task_id: 'parent',
     state: 'succeeded',

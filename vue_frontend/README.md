@@ -126,10 +126,12 @@ pnpm preview
   - `resolve.alias['@'] = '/src'`
 - 主要代码结构：
   - 视图：`src/views/`（首页、资源库、演员/类别详情、添加、下载、推荐、设置）
-  - 组件：`src/components/`（包括资源卡片、演员卡片、类别卡片、批处理控件等）
-  - 路由：`src/router/index.js`
-  - 状态：`src/stores/`（资源、演员、类别等状态管理）
-  - 接口封装：`src/api/`
+  - 业务模块：`src/features/`（resources、catalog、external-search、tasks、recommendations、cookies、settings、auth；组件与状态就近放置）
+  - 公共能力：`src/shared/`（ui、composables、lib、stores，无业务依赖）
+  - 应用装配：`src/app/`（路由、导航、WebSocket 连接）
+  - 接口封装：`src/api/`（client.js 唯一客户端，按领域分文件，index.js 保留公开导出）
+
+目录规则与状态所有者见[模块布局](doc/module-layout.md)，本轮证据见[语义与模块重构记录](doc/semantic-refactoring-progress.md)。
 
 ## 常见问题（FAQ）
 
@@ -173,7 +175,7 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 浏览器套件还检查深浅主题映射、目录分页/错误/竞态及移动布局、演员与类别的手动外部搜索/部分结果/取消、黑名单读写隔离和设置保存。必须使用 Vite 开发服务以编译组件样例；真实接口由 Playwright 拦截并模拟。
 
-前端职责约定：路由页装配目录或实体详情模块；统一 HTTP 客户端处理 envelope、CSRF 和登录失效；资源列表查询由 resourceList 管理，下载队列和标题元数据由 downloadQueue 管理，WebSocket store 保持连接与事件分发。主题类由 tailwind.config.js 显式映射；公共按钮、搜索输入、下拉和弹窗供页面复用，标题选择集中在 utils/resourceTitle.js。
+前端职责约定：路由页装配目录或实体详情模块；统一 HTTP 客户端处理 envelope、CSRF 和登录失效；资源列表查询由 resourceList 管理，下载队列和标题元数据由 downloadQueue 管理，WebSocket store 保持连接与事件分发。主题类由 tailwind.config.js 显式映射；公共按钮、搜索输入、下拉和弹窗供页面复用，标题选择集中在 features/resources/lib/resourceTitle.js。
 
 目录和实体详情模块的实体类型在各自生命周期中保持固定；同一实体类型的 ID 变化由路由监听处理。浏览器套件同时截断 WebSocket 到真实后端的连接。
 

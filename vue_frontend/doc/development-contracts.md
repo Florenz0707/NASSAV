@@ -8,12 +8,12 @@
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | views、DirectoryView、EntityDetailView                            | 路由装配与页面展示；演员/类别复用目录和详情模块，以实体适配保留差异                   |
 | directoryStore、resourceList                                      | 查询、分页、加载和错误；页面取消或卸载时使旧查询失效                                  |
-| api/index.js                                                      | 统一 HTTP 客户端、响应 envelope、CSRF 和登录失效；页面不重复创建客户端                |
+| api/client.js、api/index.js                                       | client 唯一 HTTP 实例及 envelope/CSRF/登录失效；index 保留领域 API 导出               |
 | downloadQueue、resource store                                     | 下载队列状态和原始标题元数据；resource 保留消费者 facade，新增列表状态归 resourceList |
 | websocket、scrapeJobState、scrapeJobFeedback                      | 分别管理连接/事件、资源任务快照、短时提示；不向连接模块添加展示规则                   |
 | useExternalSearchTask、useExternalSearchSources                   | 外部搜索生命周期、来源能力与选择；页面复用既有任务协议                                |
 | recommendations、RecommendationBlacklist、recommendationViewState | 推荐数据、黑名单自身读写/缓存/生命周期、视图偏好；黑名单操作不散落到父页              |
-| utils/resourceTitle.js                                            | 唯一标题选择规则；消费者使用 resolveResourceTitle，队列保留原始字段以响应标题偏好变化 |
+| features/resources/lib/resourceTitle.js                           | 唯一标题选择规则；消费者使用 resolveResourceTitle，队列保留原始字段以响应标题偏好变化 |
 
 目录/详情公共模块的实体类型在生命周期内固定，同类型 ID 变化由路由监听处理。新增实体优先检查适配能力；不能仅为少数展示差异复制查询和任务流程，也不能用单一组件吞并所有无关页面。
 
@@ -63,7 +63,7 @@ HTTP 202 表示入队，成功由终态快照确认；WebSocket 是通知渠道�
 
 任务状态筛选最小宽度为 8rem，切换短标签不收缩。批量操作按钮不显示选择数，计数统一放在全选复选框右侧，表头与行保持对齐。空列表使用 EmptyState 的 compact 模式（不添加内部留白），在首屏扣除应用主容器上下留白后的剩余区域居中；无 action 插槽时不保留空操作间距。阶段列仅显示统一阶段，不再附加独立翻译状态行，详情和整体任务状态继续保留翻译结果。
 
-资源卡片、资源详情及任务详情复用 TaskResourceCover 的空 URL/加载失败占位，卡片懒加载观察本组件根元素，避免同 AVID 的多个卡片共用全局 DOM 查询。任务明细按稳定 job/task ID 选择，缺少深链参数时不主动选择任务；同 AVID 的历史任务可分别查看。任务列表支持创建时间和最近更新时间降序，store 管理排序及分页，旧排序响应不能覆盖新列表；展示层保留原始时间字段排序。
+资源卡片、资源详情及任务详情复用 ResourceCover 的空 URL/加载失败占位，卡片懒加载观察本组件根元素，避免同 AVID 的多个卡片共用全局 DOM 查询。任务明细按稳定 job/task ID 选择，缺少深链参数时不主动选择任务；同 AVID 的历史任务可分别查看。任务列表支持创建时间和最近更新时间降序，store 管理排序及分页，旧排序响应不能覆盖新列表；展示层保留原始时间字段排序。
 
 持久任务协议与后端状态所有权见[任务控制架构](../../django_backend/doc/task-control-architecture.md)。列表选择以 job_id 为准，task_id 仅标识当前执行；排序先由服务器执行再分页，不按已加载页面冒充全量排序。新增控制不得以浏览器隐藏、取消 HTTP 请求或 WebSocket 断开代替后台停止确认。
 
@@ -78,3 +78,7 @@ ActionMenu 按实例 ref 管理菜单、方向键、Escape、外部关闭和触�
 ## 页面模块装配
 
 EntityDetailView 管理实体信息与本地资源；ExternalSearchPanel 独占外部展示页缓存、签名任务生命周期与来源选择，通过 initialize/restoreCache/reset/syncLibraryStatus 及 detail/resource-saved 事件协调，隐藏不销毁后台控制语义。useResourceSubmission 接受显式资源/API/toast 依赖并拥有添加批次状态，SubmissionResults 只展示快照并发出 view。RecommendationPreferences 使用四个模型，Metrics/Seeds 消费展示输入，不发送业务请求。提取的添加/推荐样式分别以 .add-view/.recommendations-view 限定，公共主题仍在 main.css，不跨域污染；不因文件长度继续拆纯展示样式。
+
+## 模块归档与依赖
+
+代码位置遵循[模块布局](module-layout.md)。资源封面占位使用 shared/ui/ResourceCover；TaskCheckbox 是 AppCheckbox 的任务兼容包装。不要恢复 components/stores/utils 大杂烩目录；跨模块通过明确的组件、store 或纯函数入口协作，不穿透子组件 DOM 或内部状态。领域 API 文件复用 api/client.js，禁止自行创建第二个 Axios 实例。目录迁移保持 URL、请求方法/字段、任务协议和存储键。

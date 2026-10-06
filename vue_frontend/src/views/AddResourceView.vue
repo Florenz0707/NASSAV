@@ -1,17 +1,17 @@
 <script setup>
-import CookieManagementDialog from '../components/settings/CookieManagementDialog.vue'
-import AppButton from '../components/AppButton.vue'
-import AppIcon from '../components/AppIcon.vue'
+import CookieManagementDialog from '../features/cookies/components/CookieManagementDialog.vue'
+import AppButton from '../shared/ui/AppButton.vue'
+import AppIcon from '../shared/ui/AppIcon.vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useResourceStore } from '../stores/resource'
-import { useToastStore } from '../stores/toast'
-import { useSettingsStore } from '../stores/settings'
-import { resourceApi } from '../api'
-import { useResourceSubmission } from '../composables/useResourceSubmission.js'
-import SubmissionResults from '../components/SubmissionResults.vue'
-import CustomSelect from '../components/CustomSelect.vue'
-import LoadingSpinner from '../components/LoadingSpinner.vue'
+import { useResourceStore } from '../features/resources/stores/resource.js'
+import { useToastStore } from '../shared/stores/toast.js'
+import { useSettingsStore } from '../features/settings/stores/settings.js'
+import { resourceApi } from '../api/index.js'
+import { useResourceSubmission } from '../features/resources/composables/useResourceSubmission.js'
+import SubmissionResults from '../features/resources/components/SubmissionResults.vue'
+import CustomSelect from '../shared/ui/CustomSelect.vue'
+import LoadingSpinner from '../shared/ui/LoadingSpinner.vue'
 
 const router = useRouter()
 const resourceStore = useResourceStore()
@@ -125,4 +125,4 @@ function viewResource() {
   </div>
 </template>
 
-<style src="../styles/resourceSubmission.css"></style>
+<style src="../features/resources/styles/resourceSubmission.css"></style>

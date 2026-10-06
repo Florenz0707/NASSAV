@@ -1,10 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { sourceApi } from '../api'
-import { useToastStore } from '../stores/toast'
-import { useSettingsStore } from '../stores/settings'
-import { AVAILABLE_FONTS } from '../config/fonts'
-import GeneralSettingsPanel from '../components/settings/GeneralSettingsPanel.vue'
+import { sourceApi } from '../api/index.js'
+import { useToastStore } from '../shared/stores/toast.js'
+import { useSettingsStore } from '../features/settings/stores/settings.js'
+import { AVAILABLE_FONTS } from '../features/settings/config/fonts.js'
+import GeneralSettingsPanel from '../features/settings/components/GeneralSettingsPanel.vue'
 const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 // 字体预览（临时变量，用于预览效果）

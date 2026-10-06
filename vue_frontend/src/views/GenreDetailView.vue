@@ -1,4 +1,4 @@
 <script setup>
-import EntityDetailView from '../components/EntityDetailView.vue'
+import EntityDetailView from '../features/catalog/components/EntityDetailView.vue'
 </script>
 <template><EntityDetailView entity-type="genre" /></template>

@@ -4,7 +4,7 @@ import {
   pollExternalSearch,
   useExternalSearchTask,
   waitForSearchPoll,
-} from '../src/composables/useExternalSearchTask.js'
+} from '../src/features/external-search/composables/useExternalSearchTask.js'
 import { externalSearchApi } from '../src/api/index.js'
 
 test('queued submission polls through running to a completed result', async () => {

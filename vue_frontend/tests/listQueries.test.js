@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { actorApi, genreApi, resourceApi } from '../src/api/index.js'
-import { useActorGroupsStore } from '../src/stores/actorGroups.js'
-import { useGenreGroupsStore } from '../src/stores/genreGroups.js'
-import { useResourceStore } from '../src/stores/resource.js'
+import { useActorGroupsStore } from '../src/features/catalog/stores/actorGroups.js'
+import { useGenreGroupsStore } from '../src/features/catalog/stores/genreGroups.js'
+import { useResourceStore } from '../src/features/resources/stores/resource.js'
 
 function deferred() {
   let resolve, reject

@@ -29,7 +29,8 @@ axios.defaults.adapter = async (config) => {
   return { config, status: 200, statusText: 'OK', headers: {}, data: { code: 200, data } }
 }
 
-const { useRecommendationsStore } = await import('../src/stores/recommendations.js')
+const { useRecommendationsStore } =
+  await import('../src/features/recommendations/stores/recommendations.js')
 
 test('recommendation batches merge by avid and feedback persists in store state', async () => {
   setActivePinia(createPinia())
@@ -73,7 +74,7 @@ const {
   saveRecommendationViewState,
   restoreRecommendationViewState,
   clearRecommendationViewState,
-} = await import('../src/stores/recommendationViewState.js')
+} = await import('../src/features/recommendations/stores/recommendationViewState.js')
 
 test('recommendation view state survives reload and corrupt data is discarded', () => {
   const values = new Map()

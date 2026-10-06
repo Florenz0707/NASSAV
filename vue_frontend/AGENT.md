@@ -7,11 +7,13 @@
 
 ## 开发时
 
+- 文件按[模块布局](doc/module-layout.md)归入 features、shared、app；views 只保留路由装配。shared 不依赖业务模块，统一 HTTP 客户端位于 api/client.js，api/index.js 保留公开导出。
+
 - 遵循单一职责、面向消费者能力及开闭原则，优先复用同语义的公共能力；不为文件行数机械拆组件。
 - 路由页装配公共目录/详情模块；查询归对应 store，HTTP 归统一 API 客户端，WebSocket 保持连接与事件职责，黑名单自身管理读写/缓存/清理。
 - 可重入异步操作使用请求版本/令牌检查结果归属；错误、loading、缓存同样受保护。路由变化、实体切换和卸载使旧操作失效。
 - 外部搜索保持按钮手动触发，来源/排序变化不自动启动；取消调用后端接口，partial/失败/取消明确展示，不缓存为完整成功。
-- 标题选择复用 `utils/resourceTitle.js`，下载队列保存原始字段，保持偏好变化后的重新解析；设置面板通过事件更新父状态。
+- 标题选择复用 `features/resources/lib/resourceTitle.js`，下载队列保存原始字段，保持偏好变化后的重新解析；设置面板通过事件更新父状态。
 - 颜色使用 main.css 的主题 token 及 Tailwind 语义映射，禁止组件新增颜色字面量；新增 token 检查深浅主题和生成样式，保留显式 `@config`。
 - 优先使用 AppButton、SearchInput、ResourcePagination、CustomSelect、ConfirmDialog、AppIcon 与 useDialog；组件样式使用合适的 CSS layer，不覆盖工具类的布局/显示效果。
 - 核心图标使用有明确尺寸的 currentColor SVG；弹窗/下拉检查键盘、焦点、禁用项、嵌套和卸载清理，移动端布局一并验证。

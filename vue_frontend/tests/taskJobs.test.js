@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { taskApi } from '../src/api/index.js'
-import { useTaskJobsStore } from '../src/stores/taskJobs.js'
+import { useTaskJobsStore } from '../src/features/tasks/stores/taskJobs.js'
 const job = (changes = {}) => ({
   job_id: 'stable',
   task_id: 'attempt-1',

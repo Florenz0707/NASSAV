@@ -16,9 +16,9 @@ async function main() {
         contentType: 'text/html',
         body: `<html><body style="overflow:scroll"><div id="app"></div><script type="module">
 import {createApp,h,ref} from '/node_modules/.vite/deps/vue.js';
-import Select from '/src/components/CustomSelect.vue';
-import Confirm from '/src/components/ConfirmDialog.vue';
-import Modal from '/src/components/settings/SettingsModal.vue';
+import Select from '/src/shared/ui/CustomSelect.vue';
+import Confirm from '/src/shared/ui/ConfirmDialog.vue';
+import Modal from '/src/shared/ui/SettingsModal.vue';
 import '/src/styles/main.css';
 const show=ref(true),mount=ref(true),modal=ref(false),value=ref('a');
 window.audit={show,mount,modal,value};

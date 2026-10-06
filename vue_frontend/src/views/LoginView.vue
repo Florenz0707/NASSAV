@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { useSessionStore } from '../stores/session'
+import { useSessionStore } from '../features/auth/stores/session.js'
 
 const sessionStore = useSessionStore()
 const username = ref('')

@@ -2,22 +2,22 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import RecommendationPreferences from '../components/RecommendationPreferences.vue'
-import RecommendationMetrics from '../components/RecommendationMetrics.vue'
-import RecommendationSeeds from '../components/RecommendationSeeds.vue'
-import RecommendationCard from '../components/RecommendationCard.vue'
-import EmptyState from '../components/EmptyState.vue'
-import LoadingSpinner from '../components/LoadingSpinner.vue'
-import RecommendationBlacklist from '../components/RecommendationBlacklist.vue'
-import { useRecommendationsStore } from '../stores/recommendations'
+import RecommendationPreferences from '../features/recommendations/components/RecommendationPreferences.vue'
+import RecommendationMetrics from '../features/recommendations/components/RecommendationMetrics.vue'
+import RecommendationSeeds from '../features/recommendations/components/RecommendationSeeds.vue'
+import RecommendationCard from '../features/recommendations/components/RecommendationCard.vue'
+import EmptyState from '../shared/ui/EmptyState.vue'
+import LoadingSpinner from '../shared/ui/LoadingSpinner.vue'
+import RecommendationBlacklist from '../features/recommendations/components/RecommendationBlacklist.vue'
+import { useRecommendationsStore } from '../features/recommendations/stores/recommendations.js'
 import {
   saveRecommendationViewState,
   restoreRecommendationViewState,
   clearRecommendationViewState,
-} from '../stores/recommendationViewState'
-import { useResourceStore } from '../stores/resource'
-import { useSettingsStore } from '../stores/settings'
-import { useToastStore } from '../stores/toast'
+} from '../features/recommendations/stores/recommendationViewState.js'
+import { useResourceStore } from '../features/resources/stores/resource.js'
+import { useSettingsStore } from '../features/settings/stores/settings.js'
+import { useToastStore } from '../shared/stores/toast.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -663,4 +663,4 @@ onBeforeUnmount(() => {
   </div>
 </template>
 
-<style src="../styles/recommendationPage.css"></style>
+<style src="../features/recommendations/styles/recommendationPage.css"></style>

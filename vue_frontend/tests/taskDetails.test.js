@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildTaskDetails, isFinishedTask } from '../src/utils/taskDetails.js'
+import { buildTaskDetails, isFinishedTask } from '../src/features/tasks/lib/taskDetails.js'
 
 const build = (changes = {}) =>
   buildTaskDetails({
@@ -171,7 +171,8 @@ test('controlled scrape checkpoint stages have readable timeline labels', () => 
 })
 
 test('same AVID jobs retain distinct identities and absent query never forces a detail', async () => {
-  const { resolveTaskFocus, sortTaskDetails } = await import('../src/utils/taskDetails.js')
+  const { resolveTaskFocus, sortTaskDetails } =
+    await import('../src/features/tasks/lib/taskDetails.js')
   const tasks = build({
     jobs: [
       { job_id: 'old', job_type: 'download', avid: 'SAME', created_at: 100, updated_at: 500 },

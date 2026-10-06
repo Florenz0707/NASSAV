@@ -24,9 +24,9 @@ axios.defaults.adapter = async (config) => {
   }
 }
 
-const { taskWebSocketUrl, useWebSocketStore } = await import('../src/stores/websocket.js')
-const { useSessionStore } = await import('../src/stores/session.js')
-const { useResourceStore } = await import('../src/stores/resource.js')
+const { taskWebSocketUrl, useWebSocketStore } = await import('../src/app/stores/websocket.js')
+const { useSessionStore } = await import('../src/features/auth/stores/session.js')
+const { useResourceStore } = await import('../src/features/resources/stores/resource.js')
 
 class FakeWebSocket {
   static CONNECTING = 0
@@ -201,7 +201,8 @@ test('origin rejection closes without retry', async () => {
 })
 
 test('search WebSocket events reach active search subscribers', async () => {
-  const { subscribeSearchJobUpdates } = await import('../src/composables/searchJobEvents.js')
+  const { subscribeSearchJobUpdates } =
+    await import('../src/features/external-search/composables/searchJobEvents.js')
   const events = []
   const unsubscribe = subscribeSearchJobUpdates((event) => events.push(event))
   const state = setup()

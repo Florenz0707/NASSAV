@@ -1,14 +1,14 @@
 <script setup>
 import { onMounted, onUnmounted, watch, ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
-import Navbar from './components/Navbar.vue'
+import Navbar from './app/components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
-import Toast from './components/Toast.vue'
-import { useWebSocketStore } from './stores/websocket'
-import { useSettingsStore } from './stores/settings'
-import { useResourceStore } from './stores/resource'
-import { useTaskJobsStore } from './stores/taskJobs'
-import { useSessionStore } from './stores/session'
+import Toast from './shared/ui/Toast.vue'
+import { useWebSocketStore } from './app/stores/websocket.js'
+import { useSettingsStore } from './features/settings/stores/settings.js'
+import { useResourceStore } from './features/resources/stores/resource.js'
+import { useTaskJobsStore } from './features/tasks/stores/taskJobs.js'
+import { useSessionStore } from './features/auth/stores/session.js'
 
 const mainContent = ref(null)
 const route = useRoute()

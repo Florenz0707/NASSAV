@@ -1,5 +1,5 @@
 <script setup>
-import AppIcon from '../components/AppIcon.vue'
+import AppIcon from '../shared/ui/AppIcon.vue'
 import { RouterLink } from 'vue-router'
 </script>
 

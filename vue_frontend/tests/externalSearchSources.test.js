@@ -4,7 +4,7 @@ import { sourceApi } from '../src/api/index.js'
 import {
   useExternalSearchSources,
   createSearchRequestGuard,
-} from '../src/composables/useExternalSearchSources.js'
+} from '../src/features/external-search/composables/useExternalSearchSources.js'
 
 function storageWith(value) {
   return {
@@ -84,15 +84,15 @@ test('a slow old-source response cannot overwrite a newer selection or unmounted
 })
 
 test('actor and genre search allow multi-page browser time; ordinary list requests retain their timeout', async () => {
-  const { default: axios } = await import('axios')
-  const original = axios.defaults.adapter
+  const { default: client } = await import('../src/api/client.js')
+  const original = client.defaults.adapter
   const requests = []
-  axios.defaults.adapter = async (config) => {
+  client.defaults.adapter = async (config) => {
     requests.push(config)
     return { config, status: 200, statusText: 'OK', headers: {}, data: { code: 200, data: [] } }
   }
   try {
-    const { actorApi, genreApi, resourceApi } = await import('../src/api/index.js?timeout-test')
+    const { actorApi, genreApi, resourceApi } = await import('../src/api/index.js')
     await actorApi.getDetail(1, { source: 'missav' })
     await genreApi.getDetail(2, { source: 'jable' })
     await resourceApi.getList()
@@ -102,6 +102,6 @@ test('actor and genre search allow multi-page browser time; ordinary list reques
     assert.equal(requests[0].params.source, 'missav')
     assert.equal(requests[1].params.source, 'jable')
   } finally {
-    axios.defaults.adapter = original
+    client.defaults.adapter = original
   }
 })

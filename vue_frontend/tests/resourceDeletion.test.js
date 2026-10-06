@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { resourceApi } from '../src/api/index.js'
-import { useResourceStore } from '../src/stores/resource.js'
+import { useResourceStore } from '../src/features/resources/stores/resource.js'
 
 test('batch delete removes only confirmed successes and retains missing results', async () => {
   setActivePinia(createPinia())

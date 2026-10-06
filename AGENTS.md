@@ -20,8 +20,9 @@
 - `vue_frontend/`
   - Vue 3 + Vite 前端
   - 页面位于 `vue_frontend/src/views/`
-  - 组件位于 `vue_frontend/src/components/`
-  - store 位于 `vue_frontend/src/stores/`
+  - 业务组件与状态位于 `vue_frontend/src/features/<业务>/`
+  - 无业务依赖的 UI、组合函数及工具位于 `vue_frontend/src/shared/`
+  - 路由、导航及全局事件连接位于 `vue_frontend/src/app/`
   - API 封装位于 `vue_frontend/src/api/`
 
 ## 开发前
@@ -102,7 +103,7 @@
 - 新增接口时，应更新接口文档
 - 新增或调整数据库相关行为时，应更新数据库文档
 - 新增脚本、推荐链路、服务编排或其他非显然行为时，应补充设计说明文档
-- 后端职责维护于[模块边界](django_backend/doc/p5-domain-boundaries.md)，前端职责与组件约束维护于[开发契约](vue_frontend/doc/development-contracts.md)；执行记录注明提交、命令和验证范围
+- 后端职责维护于[模块边界](django_backend/doc/p5-domain-boundaries.md)，前端职责与组件约束维护于[开发契约](vue_frontend/doc/development-contracts.md)与[模块布局](vue_frontend/doc/module-layout.md)；执行记录注明提交、命令和验证范围
 
 ## 提交约定
 
