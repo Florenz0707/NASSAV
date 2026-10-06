@@ -139,7 +139,7 @@ const progress = (task) =>
         variant="neutral"
         :disabled="checkedIds.size === 0"
         @click="emit('dismiss', [...checkedIds])"
-        ><AppIcon name="eye-off" />不再跟踪所选 ({{ checkedIds.size }})</AppButton
+        >不再跟踪所选 ({{ checkedIds.size }})</AppButton
       >
       <AppButton
         variant="neutral"
@@ -150,10 +150,10 @@ const progress = (task) =>
             visible.filter((task) => isFinishedTask(task)).map((task) => task.id)
           )
         "
-        ><AppIcon name="eye-off" />不再跟踪当前列表已结束任务</AppButton
+        >不再跟踪当前列表已结束任务</AppButton
       >
       <AppButton variant="danger" disabled title="示意功能，暂未接入结束任务操作"
-        ><AppIcon name="close" />结束所选任务 ({{ checkedIds.size }}) · 示意</AppButton
+        >结束所选任务 ({{ checkedIds.size }}) · 示意</AppButton
       >
       <span class="text-muted text-xs">“已结束”包含已完成与失败；结束任务暂仅作示意。</span>
     </div>
@@ -180,7 +180,7 @@ const progress = (task) =>
                 />
               </th>
               <th class="p-4 text-left">任务</th>
-              <th v-if="type === 'all'" class="p-4 text-left">类型</th>
+              <th v-if="type === 'all'" class="p-4 text-center">类型</th>
               <th class="p-4 text-left">状态</th>
               <th class="p-4 text-left">阶段</th>
               <th class="p-4 text-center whitespace-nowrap">不再跟踪</th>
@@ -203,7 +203,7 @@ const progress = (task) =>
               </td>
               <td class="p-4">
                 <button
-                  class="flex items-center gap-3 w-full text-primary text-left min-w-[100px]"
+                  class="flex items-center gap-3 w-full text-primary text-left min-w-[50px]"
                   :aria-label="resourceName(task) + '，查看任务明细'"
                   :aria-pressed="selected?.id === task.id"
                   @click="selectedId = task.id"
@@ -213,7 +213,7 @@ const progress = (task) =>
                   </span>
                 </button>
               </td>
-              <td v-if="type === 'all'" class="p-4">
+              <td v-if="type === 'all'" class="p-4 text-center">
                 <span
                   class="inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-medium text-primary"
                   :class="
