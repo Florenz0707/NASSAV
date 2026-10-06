@@ -1,0 +1,550 @@
+.add-view {
+  max-width: 640px;
+  margin: 0 auto;
+  animation: add-view-fadeIn 0.5s ease;
+}
+
+@keyframes add-view-fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.add-view .page-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.add-view .page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.add-view .page-subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+/* 模式切换按钮 */
+.add-view .mode-switch {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.add-view .mode-btn {
+  flex: 1;
+  max-width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: 2px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-view .mode-btn:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+.add-view .mode-btn.active {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--on-accent);
+}
+
+.add-view .mode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-view .mode-icon {
+  font-size: 1.2rem;
+}
+
+.add-view .add-form-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.add-view .add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.add-view .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.add-view .form-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.add-view .count-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  color: var(--accent-primary);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.add-view .form-input,
+.add-view .form-select,
+.add-view .form-textarea {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.add-view .form-textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.add-view .form-input:focus,
+.add-view .form-select:focus,
+.add-view .form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+.add-view .form-input::placeholder,
+.add-view .form-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.add-view .form-select {
+  cursor: pointer;
+  min-height: 3.25rem;
+}
+
+.add-view .form-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.add-view .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-view .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-view .btn-large {
+  padding: 1.1rem 2rem;
+  font-size: 1.05rem;
+}
+
+.add-view .btn-full {
+  width: 100%;
+}
+
+.add-view .btn-primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
+  color: var(--on-accent);
+}
+
+.add-view .btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.add-view .btn-secondary {
+  background: color-mix(in srgb, var(--neutral-color) 8%, transparent);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.add-view .btn-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--neutral-color) 12%, transparent);
+}
+
+.add-view .btn-icon {
+  font-size: 1.2rem;
+}
+
+.add-view .result-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.add-view .result-card.success {
+  border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);
+}
+
+.add-view .result-card.exists {
+  border-color: color-mix(in srgb, var(--accent-tertiary) 30%, transparent);
+}
+
+.add-view .result-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.add-view .result-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  color: var(--accent-primary);
+}
+
+.add-view .result-card.success .result-icon {
+  background: color-mix(in srgb, var(--accent-success) 15%, transparent);
+  color: var(--accent-success);
+}
+
+.add-view .result-card.exists .result-icon {
+  background: color-mix(in srgb, var(--accent-tertiary) 15%, transparent);
+  color: var(--accent-tertiary);
+}
+
+.add-view .result-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.add-view .result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.add-view .result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.add-view .result-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.add-view .result-value {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.add-view .result-value.avid {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.add-view .result-value.source {
+  color: var(--accent-secondary);
+}
+
+.add-view .result-checks {
+  display: flex;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.add-view .check-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.add-view .check-item.done {
+  color: var(--accent-success);
+}
+
+.add-view .check-icon {
+  font-size: 0.9rem;
+}
+
+.add-view .result-message {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.add-view .result-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* 批量添加结果样式 */
+.add-view .batch-result-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.add-view .batch-result-header {
+  margin-bottom: 1.5rem;
+}
+
+.add-view .batch-result-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.add-view .batch-result-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.add-view .stat-item {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, var(--shadow-color) 20%, transparent);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.add-view .stat-item.success {
+  border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-success) 5%, transparent);
+}
+
+.add-view .stat-item.exists {
+  border-color: color-mix(in srgb, var(--accent-info) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-info) 5%, transparent);
+}
+
+.add-view .stat-item.failed {
+  border-color: color-mix(in srgb, var(--accent-danger) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-danger) 5%, transparent);
+}
+
+.add-view .stat-icon {
+  font-size: 1.5rem;
+}
+
+.add-view .stat-item.success .stat-icon {
+  color: var(--accent-success);
+}
+
+.add-view .stat-item.exists .stat-icon {
+  color: var(--accent-tertiary);
+}
+
+.add-view .stat-item.failed .stat-icon {
+  color: var(--accent-danger);
+}
+
+.add-view .stat-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.add-view .stat-value {
+  margin-left: auto;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.add-view .batch-result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.add-view .result-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.add-view .result-group-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.add-view .result-group-title.success {
+  color: var(--accent-success);
+}
+
+.add-view .result-group-title.exists {
+  color: var(--accent-tertiary);
+}
+
+.add-view .result-group-title.failed {
+  color: var(--accent-danger);
+}
+
+.add-view .result-group-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.add-view .result-tag {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+}
+
+.add-view .result-tag.success {
+  background: color-mix(in srgb, var(--accent-success) 15%, transparent);
+  color: var(--accent-success);
+  border: 1px solid color-mix(in srgb, var(--accent-success) 30%, transparent);
+}
+
+.add-view .result-tag.exists {
+  background: color-mix(in srgb, var(--accent-info) 15%, transparent);
+  color: var(--accent-tertiary);
+  border: 1px solid color-mix(in srgb, var(--accent-info) 30%, transparent);
+}
+
+.add-view .result-tag.failed {
+  background: color-mix(in srgb, var(--accent-danger) 15%, transparent);
+  color: var(--accent-danger);
+  border: 1px solid color-mix(in srgb, var(--accent-danger) 30%, transparent);
+}
+
+/* 不同错误类型的颜色 */
+.add-view .result-tag.error-404 {
+  background: color-mix(in srgb, var(--accent-secondary) 15%, transparent);
+  color: var(--accent-secondary);
+  border: 1px solid color-mix(in srgb, var(--accent-secondary) 30%, transparent);
+}
+
+.add-view .result-tag.error-403 {
+  background: color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  color: var(--accent-purple);
+  border: 1px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
+}
+
+.add-view .result-tag.error-502 {
+  background: color-mix(in srgb, var(--accent-warning) 15%, transparent);
+  color: var(--accent-warning);
+  border: 1px solid color-mix(in srgb, var(--accent-warning) 30%, transparent);
+}
+
+.add-view .result-tag.error-500 {
+  background: color-mix(in srgb, var(--accent-danger) 15%, transparent);
+  color: var(--accent-danger);
+  border: 1px solid color-mix(in srgb, var(--accent-danger) 30%, transparent);
+}
+
+.add-view .result-enter-active {
+  animation: add-view-slideUp 0.4s ease;
+}
+
+.add-view .result-leave-active {
+  animation: add-view-slideUp 0.3s ease reverse;
+}
+
+@keyframes add-view-slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.add-view .tips-section {
+  background: color-mix(in srgb, var(--accent-tertiary) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-tertiary) 10%, transparent);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.add-view .tips-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-tertiary);
+  margin-bottom: 1rem;
+}
+
+.add-view .tips-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.add-view .tips-list li {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.add-view .tips-list li::marker {
+  color: var(--accent-tertiary);
+}

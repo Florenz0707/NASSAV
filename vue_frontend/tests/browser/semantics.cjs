@@ -43,6 +43,17 @@ async function main() {
     await page.getByRole('spinbutton', { name: '跳转页码' }).waitFor()
     await page.getByRole('spinbutton', { name: '每页条数' }).waitFor()
     assert.equal(await page.locator('label label').count(), 0)
+    await page.goto(origin + '/recommendations')
+    for (const name of ['种子偏好', '演员偏好', '类别偏好', '返回数量']) {
+      await page.getByRole('button', { name, exact: true }).waitFor()
+    }
+    assert.equal(
+      await page
+        .locator('.meta-card')
+        .first()
+        .evaluate((el) => getComputedStyle(el).paddingTop),
+      '15.2px'
+    )
     assert.deepEqual(errors, [])
     console.log(
       'PASS: associated labels, skip link, route focus, directory links and pagination names'

@@ -127,7 +127,7 @@ const assert = require('node:assert/strict')
       )
       await detail.getByRole('button', { name: '重试清理', exact: true }).waitFor()
       assert.equal(
-        await page.getByRole('button', { name: '不再跟踪当前列表已结束任务' }).isDisabled(),
+        await page.getByRole('button', { name: '不再跟踪已结束任务' }).isDisabled(),
         true
       )
       await detail.getByRole('button', { name: '重试清理', exact: true }).click()

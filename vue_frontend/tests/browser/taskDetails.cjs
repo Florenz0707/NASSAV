@@ -283,7 +283,7 @@ const assert = require('node:assert/strict')
         })
       )
       await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 3)
-      await page.getByRole('button', { name: '不再跟踪当前列表已结束任务' }).click()
+      await page.getByRole('button', { name: '不再跟踪已结束任务' }).click()
       await page
         .getByRole('dialog', { name: '不再跟踪任务' })
         .getByText(/所选 2 个任务/)
@@ -295,7 +295,7 @@ const assert = require('node:assert/strict')
       await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 1)
       await page.getByRole('button', { name: 'AV-5，查看任务明细' }).waitFor()
       assert.equal(
-        await page.getByRole('button', { name: '不再跟踪当前列表已结束任务' }).isDisabled(),
+        await page.getByRole('button', { name: '不再跟踪已结束任务' }).isDisabled(),
         true
       )
       // Per-row operation also requires confirmation and does not touch the API.
@@ -310,7 +310,7 @@ const assert = require('node:assert/strict')
         .getByRole('dialog', { name: '不再跟踪任务' })
         .getByRole('button', { name: '不再跟踪', exact: true })
         .click()
-      await page.getByText('暂无此类任务', { exact: true }).waitFor()
+      await page.getByText('暂无任务', { exact: true }).waitFor()
       console.log(theme, 'legacy empty')
       await page.evaluate(() => window.scrollTo(0, 0))
       const empty = page.getByLabel('任务列表空白区域', { exact: true })

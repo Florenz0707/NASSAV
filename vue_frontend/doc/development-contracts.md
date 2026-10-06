@@ -74,3 +74,7 @@ HTTP 202 表示入队，成功由终态快照确认；WebSocket 是通知渠道�
 ## 资源交互与查询归属
 
 ActionMenu 按实例 ref 管理菜单、方向键、Escape、外部关闭和触发器焦点恢复；不得以 AVID 全局查询 DOM。AppCheckbox 是资源/批量/任务复选框的共同基础，TaskCheckbox 保留兼容入口。资源删除由 resource.removeAsset 执行，卡片 delete/deleteFile 事件表示请求成功后的事实；父列表仅刷新/同步，不重复删除。刷新/删除选项来自 resourceActions。添加批次按 job_id 匹配当前快照，旧任务才按 task_id；推荐查询 loading/error/结果归 recommendations，旧响应及页面清空、卸载后的结果失效。
+
+## 页面模块装配
+
+EntityDetailView 管理实体信息与本地资源；ExternalSearchPanel 独占外部展示页缓存、签名任务生命周期与来源选择，通过 initialize/restoreCache/reset/syncLibraryStatus 及 detail/resource-saved 事件协调，隐藏不销毁后台控制语义。useResourceSubmission 接受显式资源/API/toast 依赖并拥有添加批次状态，SubmissionResults 只展示快照并发出 view。RecommendationPreferences 使用四个模型，Metrics/Seeds 消费展示输入，不发送业务请求。提取的添加/推荐样式分别以 .add-view/.recommendations-view 限定，公共主题仍在 main.css，不跨域污染；不因文件长度继续拆纯展示样式。
