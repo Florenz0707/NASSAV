@@ -103,7 +103,7 @@ def build_video_download_service():
     )
 
 
-def build_translation_workflow():
+def build_translation_workflow(expected_generations=None):
     from nassav.translation_adapters import (
         DjangoTranslationRepository,
         ManagerTextTranslator,
@@ -112,7 +112,8 @@ def build_translation_workflow():
     from nassav.translator import translator_manager
 
     return TitleTranslationUseCase(
-        DjangoTranslationRepository(), ManagerTextTranslator(translator_manager)
+        DjangoTranslationRepository(expected_generations),
+        ManagerTextTranslator(translator_manager),
     )
 
 
@@ -162,10 +163,10 @@ def build_cover_locator():
 def build_translation_requests():
     from nassav.translation_requests import DjangoTranslationRequests
 
-    def dispatch(avid):
+    def dispatch(avid, generation):
         from nassav.tasks import translate_title_task
 
-        return translate_title_task.delay(avid)
+        return translate_title_task.delay(avid, expected_generation=generation)
 
     return DjangoTranslationRequests(dispatch)
 
@@ -294,6 +295,29 @@ def build_controlled_scrape(*, continuation=None):
             {key: snapshot[key] for key in ("job_id", "job_type", "version")},
         )
 
+    def continue_translation(token):
+        from nassav.task_dispatch import dispatch_scrapes
+
+        snapshot = records.get(token.job_id)
+        if snapshot["translation"].get("state") in {"completed", "skipped"}:
+            return records.finish(token, "succeeded")
+        options = records.configuration(token.job_id)
+        requested = (
+            snapshot["action"] == "add"
+            and bool(snapshot["checkpoint"].get("prepared", {}).get("metadata"))
+        ) or (snapshot["action"] == "refresh" and options.get("retranslate", False))
+        if not requested:
+            records.translation_transaction(token, "not_requested", lambda: None)
+            return records.finish(token, "succeeded")
+        snapshot = records.handoff_translation(token)
+        dispatch_scrapes(records)
+        return records.get(token.job_id)
+
+    def existing(avid):
+        from nassav.models import AVResource
+
+        return AVResource.objects.select_for_update().get(avid=avid)
+
     return ControlledScrape(
         records,
         assets,
@@ -303,8 +327,33 @@ def build_controlled_scrape(*, continuation=None):
         TaskResourceEvents(
             Path(settings.COVER_DIR).parent / ".nassav-task-events", publish
         ),
-        continuation=continuation,
+        continuation=continuation if continuation is not None else continue_translation,
         project=project,
+        existing=existing,
+    )
+
+
+def build_controlled_translation():
+    from nassav.controlled_translation import ControlledTranslation
+    from nassav.owned_translation import OwnedTranslation
+    from nassav.translator.TranslatorManager import TranslatorManager
+
+    records = build_task_records()
+
+    def project(snapshot):
+        from nassav.consumers import send_task_update
+
+        send_task_update(
+            "task_job_update",
+            {key: snapshot[key] for key in ("job_id", "job_type", "version")},
+        )
+
+    return ControlledTranslation(
+        records,
+        build_task_assets(records),
+        OwnedTranslation(),
+        lambda control: TranslatorManager(task_control=control),
+        project,
     )
 
 

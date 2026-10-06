@@ -1281,19 +1281,19 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 
 ---
 
-## 异步资源抓取任务（P1）
+## 异步资源抓取任务
 
 旧 `POST /nassav/api/resource`、`POST /nassav/api/resource/refresh/{avid}`、`POST /nassav/api/resources/batch` 保持同步响应结构。新接口不会在 HTTP 请求中等待 Byparr。
 
-- `POST /nassav/api/resource/jobs`：提交一条 `add` 或 `refresh` 任务。请求示例：`{"action":"add","avid":"ABC-123","source":"any"}`。刷新可传 `refresh_m3u8`、`refresh_metadata`、`retranslate` 布尔值；重新翻译在刷新后提交。提交成功或重复提交均返回 HTTP 202，`data` 含 `task_id`、`status_url`、`status_token`、`job` 和 `duplicate`。添加已存在资源为 409；刷新不存在资源为 404；参数错误为 400；队列不可用为 503。
-- `POST /nassav/api/resource/jobs/batch`：请求 `{"actions":[{"action":"add","avid":"ABC-123"},...]}`，一次 1–100 项，仅接受添加/刷新。HTTP 202 的 `data.results` 按输入顺序逐项给出 202、400、404、409 或 503；某项失败不阻止其他项入队。每个成功项有独立的 `task_id`、`status_url`、`status_token` 和 `duplicate`。
-- `GET /nassav/api/resource/jobs/{task_id}`：请求头 `X-Resource-Job-Token: <status_token>` 必填。返回最新快照；令牌无效为 403，未知或过期任务为 404，Redis 不可用为 503。令牌有效期覆盖最长排队、运行和终态快照保留时间，不要写入公开日志或分享链接。
+- `POST /nassav/api/resource/jobs`：提交一条 `add` 或 `refresh` 任务。请求示例：`{"action":"add","avid":"ABC-123","source":"any"}`。刷新可传 `refresh_m3u8`、`refresh_metadata`、`retranslate` 布尔值；重新翻译在刷新后提交。提交成功或重复提交均返回 HTTP 202，`data` 含稳定 `job_id`、当前 `task_id`、`status_url`、`status_token`、`job` 和 `duplicate`。存在自身活动任务时返回 duplicate，其他已有资源的 add 为 409；越权为 403；刷新不存在资源为 404；参数错误为 400；broker 发布失败保留 pending 并接受为 202；状态存储不可用为 503。
+- `POST /nassav/api/resource/jobs/batch`：请求 `{"actions":[{"action":"add","avid":"ABC-123"},...]}`，一次 1–100 项，仅接受添加/刷新。HTTP 202 的 `data.results` 按输入顺序逐项给出 202、400、403、404、409 或 503；某项失败不阻止其他项入队。每个成功项有独立的 `job_id`、`task_id`、`status_url`、`status_token` 和 `duplicate`。
+- `GET /nassav/api/resource/jobs/{task_id}`：请求头 `X-Resource-Job-Token: <status_token>` 必填。返回最新快照；令牌无效为 403，未知或过期任务为 404，状态存储不可用为 503。令牌有效期覆盖最长排队、运行和终态快照保留时间，不要写入公开日志或分享链接。
 
-快照字段为 `task_id`、`job_type=scrape`、`action`、`avid`、`state`、`stage`、`version`、`updated_at`、`resource_avid`、`error_code`、`message`。状态顺序为 `queued → running → succeeded|failed`；运行阶段按实际执行进入 `source_lookup`、`metadata`、`cover`、`saving`、`translation_queued`。无总工作量时不提供百分比。前端应在入队后先查快照，按 `version` 忽略旧事件；成功后再重新查询资源。`scrape_job_update` WebSocket 事件仅含任务 ID、类型、状态、阶段、版本和更新时间；完整快照需凭令牌查询。
+历史 Redis 任务的快照字段为 `task_id`、`job_type=scrape`、`action`、`avid`、`state`、`stage`、`version`、`updated_at`、`resource_avid`、`error_code`、`message`。状态顺序为 `queued → running → succeeded|failed`；运行阶段按实际执行进入 `source_lookup`、`metadata`、`cover`、`saving`、`translation_queued`。无总工作量时不提供百分比。前端应在入队后先查快照，按 `version` 忽略旧事件；成功后再重新查询资源。`scrape_job_update` WebSocket 事件仅含任务 ID、类型、状态、阶段、版本和更新时间；完整快照需凭令牌查询。
 
-快照查询额外返回 `resource`（可为空，含 AVID 和原始 / 来源 / 译后标题）及 `translation`。后者含 `state`，已提交时含翻译子任务 `task_id`；状态为 `not_requested`、`queued`、`translating`、`completed`、`failed`、`skipped`、`unknown` 或 `unavailable`。`unknown` 表示暂时无法读取结果，可重试；旧任务未记录子任务为 `unavailable`。Celery `SUCCESS` 必须结合业务返回的 `success` 和 `translation_status` 判定，不能当作翻译成功。刮削保存成功仍保持父任务 `succeeded`，翻译结果参与下述整体状态展示；子任务状态通过签名快照查询读取，不修改父任务终态和版本，也不在公开 WebSocket 广播标题或子任务结果。入队失败单独返回翻译 `failed`。结果和快照保留期限届满后停止轮询；客户端保留此前已取得的翻译终态及时间，尚未取得结果时明确显示未记录或已过期，不推断翻译成功。
+历史 Redis 快照查询额外返回 `resource`（可为空，含 AVID 和原始 / 来源 / 译后标题）及 `translation`。后者含 `state`，已提交时含翻译子任务 `task_id`；状态为 `not_requested`、`queued`、`translating`、`completed`、`failed`、`skipped`、`unknown` 或 `unavailable`。`unknown` 表示暂时无法读取结果，可重试；旧任务未记录子任务为 `unavailable`。Celery `SUCCESS` 必须结合业务返回的 `success` 和 `translation_status` 判定，不能当作翻译成功。刮削保存成功仍保持父任务 `succeeded`，翻译结果参与下述整体状态展示；子任务状态通过签名快照查询读取，不修改父任务终态和版本，也不在公开 WebSocket 广播标题或子任务结果。入队失败单独返回翻译 `failed`。结果和快照保留期限届满后停止轮询；客户端保留此前已取得的翻译终态及时间，尚未取得结果时明确显示未记录或已过期，不推断翻译成功。
 
-资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前业务接口和任务 WebSocket 均要求 operator session；任务快照还要求独立签名令牌。远程部署必须使用同源 HTTPS 代理。
+历史 Redis 任务的资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前业务接口和任务 WebSocket 均要求 operator session；任务快照还要求独立签名令牌。远程部署必须使用同源 HTTPS 代理。
 
 ## P4 Cookie 管理兼容扩展
 
@@ -1411,7 +1411,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 
 ### 刮削整体状态与活动时间线
 
-资源任务快照查询新增 `workflow_state` 和 `workflow_stage`，用于包含翻译子任务的整体展示：原始 `state=succeeded` 仍只表示资源已保存；翻译 queued / translating / unknown 时整体 running，completed 时 succeeded，failed 时 failed，skipped / not_requested 时允许结束。旧任务 unavailable 保留保存结果并明确标注翻译未记录或已过期。前端统计、筛选及“已结束任务”清理按整体状态执行，失败包含翻译失败。
+资源任务快照查询新增 `workflow_state` 和 `workflow_stage`，用于包含翻译子任务的整体展示：历史 Redis 任务的原始 `state=succeeded` 仍只表示资源已保存；翻译 queued / translating / unknown 时整体 running，completed 时 succeeded，failed 时 failed，skipped / not_requested 时允许结束。旧任务 unavailable 保留保存结果并明确标注翻译未记录或已过期。前端统计、筛选及“已结束任务”清理按整体状态执行，失败包含翻译失败。
 
 新增 `timeline` 数组，元素为 `{stage, state, at}`，记录实际状态 / 阶段进入时间；`at` 为 Unix 秒或翻译完成的 ISO 时间。资源保存事件为 resource_saved，翻译终态为 translation_completed / translation_failed / translation_skipped。翻译详情可返回 `completed_at`（Celery date_done；提交失败使用失败发生时间）。未记录的历史时间为空，不根据资源的其他翻译结果或当前读取时间推断。字段只在持有签名令牌的完整快照接口返回，不扩大全局 WebSocket 数据。
 
@@ -1423,4 +1423,14 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 - `POST /nassav/api/tasks/jobs/{job_id}/{pause|resume|cancel}`：operator session 和 CSRF，携带 `{expected_version: 正整数, request_id: UUID}`。返回 202 的已登记快照，不把 pausing/cancelling 当作停止确认。重复 request_id 不重复派发；版本/状态冲突 409 并附当前快照，越权 403，任务不存在 404，输入无效 400。
 - `POST /nassav/api/tasks/jobs/{job_id}/cleanup/retry`：相同请求字段，只重试终态 failed 清理，不能复活任务。
 
-RESTART_REQUIRED 的 paused 任务不能 resume，需终止后重新下载；它表示轨道/内容无法确认，不是下载成功。终止只清理本任务未提交文件，保留正式视频和共享资产。全部控制目前仅开放 download；整条 scrape 含翻译须等待 P4/P5。Channels 的 task_job_update 只含 job_id/job_type/version，前端应授权取快照后按版本合并，不能按 AVID 把旧事件覆盖新任务。
+RESTART_REQUIRED 的 paused 任务不能 resume，需终止后重新下载；它表示轨道/内容无法确认，不是下载成功。终止只清理本任务私有目录，保留正式视频和共享资产。控制适用于新增 download 及包含关联翻译的 scrape；旧无 job_id 的任务不具控制契约。Channels 的 task_job_update 只含 job_id/job_type/version，前端应授权取快照后按版本合并，不能按 AVID 把旧事件覆盖新任务。
+
+### 持久刮削与翻译控制（任务控制 P5）
+
+登录资源提交改为持久 TaskJob/Attempt，绑定操作者；响应新增稳定 job_id，当前 task_id 随恢复及父子交接变化。保留 status_url/status_token，原签名查询 URL 可以定位原 attempt 所属 job，返回最新整体快照。恢复使用新的登录控制入口，不依赖旧 token 有效期。旧令牌只授予读取能力，不能控制他人任务。
+
+broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故障才返回 503。重复自身活动任务返回 duplicate，即使资源已经保存；其他操作者提交同 AVID 返回 403。批量成功项新增 job_id，失败独立报告，状态集合增加 403。暂停持有同类型 AVID 名额且没有 Redis 的 24 小时 TTL。
+
+新快照 state/workflow_state 表示包含所属翻译的整体状态，resource_saved 单独表示已有保存结果；翻译失败整体 failed，已保存资源保留。resource 返回裁剪的原始/来源/译后标题，未保存时可从已解析检查点获取标题，不暴露 HTML/URL。所属翻译的排队、执行、暂停、终止、完成/失败写入 DB 及 timeline，当前 stage 独立记录；翻译被新请求替代为 TRANSLATION_SUPERSEDED，不覆盖新译文。旧任务继续上文 Redis/Celery 结果合成，不具暂停/终止契约。
+
+恢复不重做已保存资源；仅重翻译 refresh 不抓取来源或图片。add 维持取得元数据才自动翻译的规则，refresh 仅 retranslate=true 请求翻译。受控任务保留原译文到新结果提交；同步重新翻译仍先清空并重置 pending。新单条派发携带 expected_generation；批量 task 可携带 expected_generations，旧消息必须按部署说明排空。结果和异常收尾都校验资源 generation/owner，不能伤及较新的手动/批量翻译。见[P5 执行记录](../../docs/task-control-p5-results.md)。

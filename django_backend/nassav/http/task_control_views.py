@@ -15,14 +15,7 @@ from nassav.task_control_rules import (
 from nassav.task_models import TaskJob
 
 
-def public_snapshot(snapshot: dict) -> dict:
-    result = {key: value for key, value in snapshot.items() if key != "checkpoint"}
-    result["progress"] = snapshot["checkpoint"].get("progress")
-    if result["error_code"] == "DOWNLOAD_FAILED":
-        result["message"] = "下载失败，请查看后端日志"
-    if result["cleanup_state"] == "failed":
-        result["cleanup_message"] = "清理失败，请检查目录权限或文件提交日志"
-    return result
+from nassav.task_presentation import public_snapshot as public_snapshot
 
 
 def authorized_job(request, job_id):
@@ -57,8 +50,6 @@ class TaskControlView(SchemaAPIView):
         records = build_task_records()
         try:
             job = authorized_job(request, job_id)
-            if job.kind != "download":
-                return build_response(409, "此任务的整体控制尚未开放", None)
             data = request.data or {}
             version = data.get("expected_version")
             if type(version) is not int or version < 1:
@@ -73,9 +64,11 @@ class TaskControlView(SchemaAPIView):
                 allow_all=request.user.is_superuser,
             )
             if action == "resume":
-                from nassav.task_dispatch import dispatch_downloads
+                from nassav.task_dispatch import dispatch_downloads, dispatch_scrapes
 
-                dispatch_downloads(records)
+                (dispatch_downloads if job.kind == "download" else dispatch_scrapes)(
+                    records
+                )
             # Stopped queued jobs have no writer; private cleanup is safe and retryable.
             if (
                 snapshot["state"] in TERMINAL_STATES

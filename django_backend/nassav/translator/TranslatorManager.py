@@ -22,6 +22,7 @@ class TranslatorManager:
         timeout: int = 30,
         *,
         factories: Mapping[str, Callable[[int, str], TranslatorBase]] | None = None,
+        task_control=None,
     ):
         """
         初始化翻译器管理器
@@ -30,6 +31,7 @@ class TranslatorManager:
             timeout: 请求超时时间（秒）
         """
         self.timeout = timeout
+        self.task_control = task_control
         self.translators: dict[str, TranslatorBase] = {}
         self.translator_priority: list[str] = []  # 翻译器优先级列表
         self._pending: list[TranslatorBase] = []
@@ -55,7 +57,10 @@ class TranslatorManager:
             try:
                 # 提取超时配置（如果有）
                 timeout_val = config.get("timeout", self.timeout)
-                self._pending.append(factory(timeout_val, active_translator))
+                translator = factory(timeout_val, active_translator)
+                if task_control is not None:
+                    translator.set_task_control(task_control)
+                self._pending.append(translator)
             except Exception as e:
                 logger.error(f"注册翻译器 {active_translator} 失败: {e}")
         else:
@@ -67,6 +72,7 @@ class TranslatorManager:
             if self._availability_checked:
                 return
             for translator in self._pending:
+                self.check_task()
                 try:
                     if translator.is_available():
                         name = translator.get_translator_name()
@@ -77,9 +83,14 @@ class TranslatorManager:
                             "翻译器 {} 不可用", translator.get_translator_name()
                         )
                 except Exception as error:
+                    self.check_task()
                     logger.warning("翻译器可用性检查失败: {}", type(error).__name__)
             self._pending.clear()
             self._availability_checked = True
+
+    def check_task(self) -> None:
+        if self.task_control is not None:
+            self.task_control.check()
 
     def _preprocess_fixed_terms(self, text: str) -> tuple[str, list]:
         """
@@ -170,6 +181,7 @@ class TranslatorManager:
 
         # 轮询所有翻译器
         for name, translator in self.get_translators():
+            self.check_task()
             try:
                 result = translator.translate_with_retry(
                     processed_text,
@@ -186,6 +198,7 @@ class TranslatorManager:
                     logger.warning(f"{name} 翻译失败，尝试下一个翻译器")
 
             except Exception as e:
+                self.check_task()
                 logger.error(f"{name} 翻译异常: {e}，尝试下一个翻译器")
                 continue
 

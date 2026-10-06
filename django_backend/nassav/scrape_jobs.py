@@ -171,6 +171,7 @@ def submit_resource_job(
     options: dict | None = None,
     *,
     store: JobStore | None = None,
+    owner_id: int | None = None,
 ) -> tuple[dict, bool]:
     """Validate and queue one resource operation; returns (snapshot, duplicate)."""
     action = action.lower()
@@ -178,6 +179,30 @@ def submit_resource_job(
     source = source.strip().lower()
     if action not in {"add", "refresh"} or not avid or len(avid) > 50:
         raise ValueError("无效的操作或资源编号")
+    if owner_id is not None and store is None:
+        from nassav.composition import build_task_records
+        from nassav.task_dispatch import dispatch_scrapes
+        from nassav.task_presentation import public_snapshot
+
+        records = build_task_records()
+        active = records.active("scrape", avid, owner_id)
+        if active is not None:
+            return public_snapshot(active), True
+        resource = AVResource.objects.filter(avid=avid).first()
+        if action == "add" and resource is not None:
+            raise ResourceAlreadyExistsError(avid, {"avid": avid})
+        if action == "refresh" and resource is None:
+            raise ResourceNotFoundError(avid, {"database": 404})
+        configured = {
+            **(options or {}),
+            "source": resource.source if action == "refresh" and resource else source,
+        }
+        snapshot, duplicate = records.create(
+            "scrape", avid, owner_id=owner_id, action=action, options=configured
+        )
+        if not duplicate:
+            dispatch_scrapes(records)
+        return public_snapshot(snapshot), duplicate
     store = store or RedisJobStore()
     task_id = str(uuid4())
     owner = store.acquire(avid, task_id)
@@ -224,6 +249,21 @@ def submit_resource_job(
 
 
 def get_resource_job(task_id: str, *, store: JobStore | None = None) -> dict | None:
+    if store is None:
+        from nassav.task_models import TaskAttempt
+
+        attempt = TaskAttempt.objects.filter(pk=task_id, job__kind="scrape").first()
+        if attempt:
+            from nassav.composition import build_task_records
+            from nassav.task_presentation import public_snapshot
+
+            snapshot = public_snapshot(build_task_records().get(str(attempt.job_id)))
+            snapshot.update(
+                workflow_state=snapshot["state"],
+                workflow_stage=snapshot["stage"],
+                resource_avid=snapshot["avid"] if snapshot["resource_saved"] else None,
+            )
+            return snapshot
     store = store or RedisJobStore()
     snapshot = store.get(task_id)
     if snapshot and snapshot["state"] in {"queued", "running"}:
@@ -318,13 +358,27 @@ def run_resource_job(
             else:
                 result = {"resource": {"avid": avid}}
             if options.get("retranslate", False):
-                resource = AVResource.objects.get(avid=avid)
-                resource.translation_status = "pending"
-                resource.translated_title = None
-                resource.save(update_fields=["translation_status", "translated_title"])
+                from django.db import transaction
+
+                with transaction.atomic():
+                    resource = AVResource.objects.select_for_update().get(avid=avid)
+                    resource.translation_status = "pending"
+                    resource.translated_title = None
+                    resource.translation_generation += 1
+                    resource.translation_owner = None
+                    resource.save(
+                        update_fields=[
+                            "translation_status",
+                            "translated_title",
+                            "translation_generation",
+                            "translation_owner",
+                        ]
+                    )
                 progress("translation_queued")
                 try:
-                    result["translate_task_id"] = translate_title_task.delay(avid).id
+                    result["translate_task_id"] = translate_title_task.delay(
+                        avid, expected_generation=resource.translation_generation
+                    ).id
                 except Exception:
                     logger.exception("资源已保存，但翻译任务未能入队: {}", avid)
         translation_id = result.get("translate_task_id")

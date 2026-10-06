@@ -18,6 +18,14 @@ class TranslatorBase(ABC):
             timeout: 请求超时时间（秒）
         """
         self.timeout = timeout
+        self.task_control = None
+
+    def set_task_control(self, control) -> None:
+        self.task_control = control
+
+    def check_task(self) -> None:
+        if self.task_control is not None:
+            self.task_control.check()
 
     @abstractmethod
     def get_translator_name(self) -> str:
@@ -77,8 +85,10 @@ class TranslatorBase(ABC):
         translator_name = self.get_translator_name()
 
         for attempt in range(max_retries):
+            self.check_task()
             try:
                 result = self.translate(text, source_lang, target_lang)
+                self.check_task()
 
                 if result:
                     return result
@@ -86,6 +96,7 @@ class TranslatorBase(ABC):
                     logger.warning(f"{translator_name}: 翻译返回空结果")
 
             except Exception as e:
+                self.check_task()
                 logger.error(
                     f"{translator_name}: 翻译失败（第 {attempt + 1}/{max_retries} 次）: {e}"
                 )

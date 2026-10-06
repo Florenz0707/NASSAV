@@ -25,3 +25,5 @@ BrowserFetch.session_reuse_enabled 只接受 YAML 布尔值，省略为 false。
 当前采用实现默认值，尚无新增 YAML 开关：CLI watchdog 100ms、心跳/进度约 1s、等槽位 200ms 且最长 1800s；HLS 校验请求总预算 20s（连接 5s + 15s），最大 64 MiB；TERM 等待 2s，再 KILL 和退出核查。均为配置/实现期限，不能视为实际来源停止 SLA。校验和 CLI 只使用 DOWNLOAD_PROXY_URL，显式禁用环境代理及 NO_PROXY 绕过。
 
 私有输出位于 COVER_DIR/AVATAR_DIR/VIDEO_DIR 各自 `.tasks/<job_id>/`，根不能重叠。正常租约 TTL 仍为 3600s；writer 退出无法确认时，仅仍属本 owner 的 key 会持久保留而不自动过期，须身份核查恢复。暂停没有自动过期清理。待派发和执行恢复扫描在 P7 接入，不把 Redis/Beat 可用性当作已完成恢复能力。见[P3 验证](../../docs/task-control-p3-results.md)。
+
+受控刮削默认来源阶段 180s、元数据 60s、封面/单头像 45s，任务请求内容最多 20MiB、图片/HTML 写入最多 16MiB；浏览器 maxTimeout 限为 60s，控制请求总传输最多 75s。TaskNetworkControl 不修改来源策略及显式代理；只安装到任务新建的实例。翻译整体预算 180s、可用性 5s、单请求最多配置 timeout 与 60s 的较小值；仍使用原活动配置、模型和固定词逻辑。quiet 网络请求在期限内退出前仍是 pausing/cancelling，参数不是来源停止 SLA。暂无新增 YAML 参数，见[P4](../../docs/task-control-p4-results.md)与[P5](../../docs/task-control-p5-results.md)。

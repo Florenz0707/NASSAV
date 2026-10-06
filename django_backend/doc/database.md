@@ -336,3 +336,5 @@ P2 迁移 `0023_taskassettarget` 新增正式资产发布标记表，按 `(root,
 SQLite/PostgreSQL 均通过版本条件更新和事务保证并发控制；SQLite 的瞬时锁竞争可有限重试，不忽略其他数据库错误。暂停处理中禁止恢复，终止优先于暂停；确认执行停止后才进入 paused/cancelled。`cancelled` 与 `cleanup_state` 独立，DB 控制记录不证明文件已经清理。
 
 P4 迁移 `0024_taskevent_taskeventreceipt_and_more` 新增资源提交事件出箱及收件去重记录：TaskEvent 按 `(job, event)` 唯一，稳定 UUID 跨派发重试不变；TaskEventReceipt 按 `(event, consumer)` 唯一。资源与事件登记在同一个受控事务内，派发在事务外，失败保留 pending。现有日志消费者去重，新增具有业务副作用的消费者仍需自己的幂等收件。生产库未执行 0024；验证和限制见[P4 执行记录](../../docs/task-control-p4-results.md)。
+
+P5 迁移 `0025_avresource_translation_generation_and_more` 新增私有翻译 generation/owner 字段，不作为资源 API 字段展示。元数据保存与归属失效在同一 ORM 事务内；请求和领取递增 generation，结果及异常仅更新本 owner/version。TaskAttempt.role=translation 表示所属子派发，父执行交接为 stopped，整体 queued 等待子执行；恢复新 generation/main，已保存资源直接交接新 child。TaskJob.translation 与整体状态/时间线共同持久化，不将资源 pending 状态解释为父任务恢复。生产库未运行 0025，见[P5](../../docs/task-control-p5-results.md)。

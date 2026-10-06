@@ -78,6 +78,8 @@ Ruff 的规则范围在根目录 `ruff.toml` 显式固定为 `E4`、`E7`、`E9`�
 
 ## 覆盖率与排查
 
+P5 的 `test_controlled_translation.py` 覆盖父子交接、排队/运行/完成竞争、暂停恢复、翻译版本替代、旧单条/批量 success/error 及旧排队消息；`test_persistent_scrape_http.py` 检查实际资源入口的持久身份、操作者和 broker 故障。两者与既有回归在 SQLite/PostgreSQL 执行。主动 response.close 并发出 request_finished 的 HTTP 文件响应测试使用 transaction=True，使连接关闭后下一请求能重新连接；不可用 pytest 原回滚事务模拟真实响应生命周期。范围和命令见[P5](../../docs/task-control-p5-results.md)。
+
 任务控制 P4 的 `test_controlled_scrape.py` 使用真实隔离 DB/文件和可控来源响应覆盖分阶段停止、恢复、版本冲突、部分图片失败和提交补偿；`test_task_network.py` 覆盖阶段预算与内容回调停止。两者连同 `test_task_records.py`、`test_task_assets.py` 在临时 PostgreSQL 验证，环境和命令见[P4 执行记录](../../docs/task-control-p4-results.md)。网络替身验证控制边界，不代表真实来源停止延迟；非 eager worker 和本地网络联调归 P7。
 
 ```bash

@@ -15,6 +15,8 @@ from nassav.task_control_rules import (
 from nassav.task_network import TaskNetworkControl, TaskNetworkTimeout
 from nassav.task_processes import process_identity
 
+from nassav.translation_contracts import translation_identity
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,10 +32,12 @@ class ControlledScrape:
         *,
         continuation=None,
         project=None,
+        existing=None,
     ):
         self.records, self.assets, self.preparation = records, assets, preparation
         self.revision, self.persist, self.events = revision, persist, events
         self.continuation, self.project = continuation, project
+        self.existing = existing
 
     def _project(self, snapshot):
         if self.project is not None:
@@ -45,7 +49,7 @@ class ControlledScrape:
     def run(self, job_id: str, attempt_id: str) -> dict:
         records, assets = self.records, self.assets
         try:
-            token = records.claim(job_id, attempt_id)
+            token = records.claim(job_id, attempt_id, kind="scrape", role="main")
         except TaskExecutionInvalid:
             return {"status": "ignored", "job_id": job_id}
         snapshot = records.get(job_id)
@@ -74,6 +78,27 @@ class ControlledScrape:
                     for key, value in process_identity(os.getpid()).items()
                 },
             )
+            if (
+                not snapshot["resource_saved"]
+                and snapshot["action"] == "refresh"
+                and not options.get("refresh_metadata", True)
+                and not options.get("refresh_m3u8", True)
+            ):
+                stage("saving")
+                if self.existing is None:
+                    raise ValueError("未配置已有资源准备能力")
+                existing = self.existing
+                assets.commit(
+                    token,
+                    [],
+                    lambda: existing(snapshot["avid"]),
+                    resource_saved=True,
+                    checkpoint=lambda resource: {
+                        "resource_committed": True,
+                        "translation_base": translation_identity(resource),
+                    },
+                )
+                snapshot = records.get(job_id)
             if not snapshot["resource_saved"]:
                 if "base_revision" not in checkpoint:
                     base = self.revision(snapshot["avid"])
@@ -181,7 +206,10 @@ class ControlledScrape:
                         token, data, checkpoint["base_revision"], snapshot["action"]
                     ),
                     resource_saved=True,
-                    checkpoint={"resource_committed": True},
+                    checkpoint=lambda resource: {
+                        "resource_committed": True,
+                        "translation_base": translation_identity(resource),
+                    },
                 )
                 stage("saved")
             # Committed events survive stop/dispatch failure; they are independent of an attempt.

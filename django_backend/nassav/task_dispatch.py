@@ -45,3 +45,33 @@ def submit_download(avid: str, owner_id: int | None) -> tuple[SubmittedTask, boo
     if not duplicate:
         dispatch_downloads(records)
     return SubmittedTask(snapshot["task_id"], snapshot["job_id"]), duplicate
+
+
+def dispatch_scrapes(records=None) -> dict:
+    from nassav.composition import build_task_records
+    from nassav.scrape_jobs import run_resource_job
+    from nassav.tasks import translate_title_task
+
+    records = records if records is not None else build_task_records()
+
+    def send(ticket):
+        if ticket["role"] == "translation":
+            translate_title_task.apply_async(
+                args=(ticket["avid"],),
+                kwargs={"job_id": ticket["job_id"]},
+                task_id=ticket["task_id"],
+            )
+        else:
+            run_resource_job.apply_async(
+                args=(
+                    ticket["action"],
+                    ticket["avid"],
+                    ticket["options"].get("source", "any"),
+                    ticket["options"],
+                ),
+                kwargs={"job_id": ticket["job_id"]},
+                task_id=ticket["task_id"],
+                queue="scrape",
+            )
+
+    return records.dispatch_pending(send, kind="scrape")

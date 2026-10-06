@@ -233,7 +233,7 @@ class TaskAssets:
         persist: Callable,
         *,
         resource_saved: bool = False,
-        checkpoint: dict | None = None,
+        checkpoint: dict | Callable | None = None,
     ):
         """Journal then fence a short file/ORM commit; no HTTP or dispatch in persist."""
         ids = [promotion.artifact_id for promotion in promotions]
@@ -348,10 +348,13 @@ class TaskAssets:
                 return self.records.controlled_transaction(
                     token,
                     publish,
-                    checkpoint={
+                    checkpoint=lambda result: {
                         "last_commit": commit_id,
                         "preparing_commit": None,
-                        **(checkpoint or {}),
+                        **(
+                            (checkpoint(result) if callable(checkpoint) else checkpoint)
+                            or {}
+                        ),
                     },
                     resource_saved=resource_saved,
                 )

@@ -3,6 +3,7 @@
 import pytest
 from nassav import tasks
 from nassav.models import AVResource
+from nassav.translation_adapters import DjangoTranslationRepository
 from nassav.translator import translator_manager
 
 
@@ -97,16 +98,16 @@ def test_batch_partial_save_failure_preserves_completed_row(
     monkeypatch.setattr(
         translator_manager, "batch_translate", lambda texts: ["译文"] * len(texts)
     )
-    original_save = AVResource.save
+    original_save = DjangoTranslationRepository.save
     saved = []
 
-    def save(row, *args, **kwargs):
+    def save(repository, record, *args, **kwargs):
         if saved:
             raise RuntimeError("second result save failed")
-        saved.append(row.pk)
-        return original_save(row, *args, **kwargs)
+        saved.append(record.pk)
+        return original_save(repository, record, *args, **kwargs)
 
-    monkeypatch.setattr(AVResource, "save", save)
+    monkeypatch.setattr(DjangoTranslationRepository, "save", save)
     result = tasks.batch_translate_titles_task.apply(
         args=([row.avid for row in resources],)
     ).get()

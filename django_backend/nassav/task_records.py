@@ -63,7 +63,9 @@ class DjangoTaskRecords:
 
     @staticmethod
     def _snapshot(row: TaskJob) -> dict:
-        attempt = row.attempts.filter(generation=row.generation, role="main").first()
+        attempt = (
+            row.attempts.filter(generation=row.generation).order_by("-role").first()
+        )
         actions = allowed_actions(row.state, row.cleanup_state)
         if row.error_code == "RESTART_REQUIRED":
             actions = [action for action in actions if action != "resume"]
@@ -98,6 +100,69 @@ class DjangoTaskRecords:
     def configuration(self, job_id: str) -> dict:
         """Internal worker configuration; never included in public snapshots."""
         return dict(self._row(job_id).options)
+
+    def active(self, kind: str, avid: str, owner_id: int | None) -> dict | None:
+        row = TaskJob.objects.filter(
+            active_key=f"{kind}:{normalize_avid(avid)}"
+        ).first()
+        if row is None:
+            return None
+        if row.owner_id != owner_id:
+            raise TaskForbidden("该资源任务属于其他操作者")
+        return self._snapshot(row)
+
+    def handoff_translation(self, token: ExecutionToken) -> dict:
+        """Persist the child dispatch before releasing the main execution."""
+        with transaction.atomic():
+            row = self._row(token.job_id)
+            attempt = self._execution(row, token)
+            self._continue(row)
+            if not row.resource_saved:
+                raise TaskExecutionInvalid("资源保存前不能提交翻译")
+            child = TaskAttempt.objects.create(
+                job=row, generation=row.generation, role="translation"
+            )
+            row = self._update(
+                row,
+                state="queued",
+                stage="translation_queued",
+                translation={"task_id": str(child.id), "state": "queued"},
+                timeline=self._event(row, "queued", "translation_queued"),
+            )
+            TaskAttempt.objects.filter(
+                pk=attempt.pk, execution_owner=token.owner
+            ).update(state="stopped", stopped_at=timezone.now())
+            return self._snapshot(row)
+
+    def translation_transaction(
+        self,
+        token: ExecutionToken,
+        state: str,
+        operation: Callable,
+        *,
+        checkpoint: dict | Callable | None = None,
+    ):
+        """Fence resource translation ownership and parent stage in one transaction."""
+        with transaction.atomic():
+            row = self._row(token.job_id)
+            self._execution(row, token)
+            self._continue(row)
+            row = self._update(row)
+            result = operation()
+            stage = f"translation_{state}"
+            checkpoint_data = checkpoint(result) if callable(checkpoint) else checkpoint
+            row = self._update(
+                row,
+                stage=stage,
+                translation={
+                    "task_id": token.attempt_id,
+                    "state": state,
+                    "updated_at": timezone.now().timestamp(),
+                },
+                checkpoint={**row.checkpoint, **(checkpoint_data or {})},
+                timeline=self._event(row, "running", stage),
+            )
+            return result, self._snapshot(row)
 
     @staticmethod
     def _event(row: TaskJob, state: str, stage: str | None = None) -> list:
@@ -195,6 +260,16 @@ class DjangoTaskRecords:
                 changes.update(cleanup_state="pending", cleanup_message="")
             if state != row.state:
                 changes.update(state=state, timeline=self._event(row, state))
+                if row.translation.get("state") in {
+                    "queued",
+                    "translating",
+                    "paused",
+                } and state in {"paused", "cancelled"}:
+                    changes["translation"] = {
+                        **row.translation,
+                        "state": state,
+                        "updated_at": timezone.now().timestamp(),
+                    }
             if action == "resume":
                 changes.update(
                     generation=row.generation + 1,
@@ -226,7 +301,13 @@ class DjangoTaskRecords:
 
     @_retry_sqlite_contention
     def claim(
-        self, job_id: str, attempt_id: str, *, owner: str | None = None
+        self,
+        job_id: str,
+        attempt_id: str,
+        *,
+        owner: str | None = None,
+        kind: str | None = None,
+        role: str | None = None,
     ) -> ExecutionToken:
         owner_uuid = UUID(owner) if owner else uuid4()
         with transaction.atomic():
@@ -237,6 +318,8 @@ class DjangoTaskRecords:
             if (
                 attempt is None
                 or row.state != "queued"
+                or (kind is not None and row.kind != kind)
+                or (role is not None and attempt.role != role)
                 or row.artifacts.filter(state="promoting").exists()
             ):
                 raise TaskExecutionInvalid("执行已失效或已经领取")
@@ -317,7 +400,7 @@ class DjangoTaskRecords:
         token: ExecutionToken,
         operation: Callable,
         *,
-        checkpoint: dict | None = None,
+        checkpoint: dict | Callable | None = None,
         resource_saved: bool = False,
         allow_stopping: bool = False,
     ):
@@ -330,9 +413,10 @@ class DjangoTaskRecords:
             # Obtain the DB write fence before the callback can publish files.
             row = self._update(row)
             result = operation()
+            checkpoint_data = checkpoint(result) if callable(checkpoint) else checkpoint
             self._update(
                 row,
-                checkpoint={**row.checkpoint, **(checkpoint or {})},
+                checkpoint={**row.checkpoint, **(checkpoint_data or {})},
                 resource_saved=row.resource_saved or resource_saved,
             )
             return result
@@ -394,6 +478,12 @@ class DjangoTaskRecords:
                 "timeline": self._event(row, state),
                 "checkpoint": {**row.checkpoint, **(checkpoint or {})},
             }
+            if row.translation.get("state") in {"queued", "translating"}:
+                changes["translation"] = {
+                    **row.translation,
+                    "state": state,
+                    "updated_at": timezone.now().timestamp(),
+                }
             if error_code:
                 changes.update(error_code=error_code, message=message)
             if state == "cancelled":

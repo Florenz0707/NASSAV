@@ -133,7 +133,7 @@ class ControlledDownload:
     def run(self, job_id: str, attempt_id: str) -> dict:
         records, lease = self.records, self.lease
         try:
-            token = records.claim(job_id, attempt_id)
+            token = records.claim(job_id, attempt_id, kind="download", role="main")
         except TaskExecutionInvalid:
             return {"status": "ignored", "job_id": job_id}
         job = records.get(job_id)

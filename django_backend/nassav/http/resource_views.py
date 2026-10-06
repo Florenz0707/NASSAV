@@ -23,6 +23,7 @@ from nassav.serializers import (
     NewResourceSerializer,
 )
 from nassav.source.SourceManager import source_manager
+from nassav.task_control_rules import TaskForbidden
 
 
 class ResourcesListView(SchemaAPIView):
@@ -583,8 +584,10 @@ class ResourceJobView(SchemaAPIView):
         }
         try:
             snapshot, duplicate = submit_resource_job(
-                action, item["avid"], source, options
+                action, item["avid"], source, options, owner_id=request.user.pk
             )
+        except TaskForbidden as exc:
+            return build_response(403, str(exc), None)
         except ResourceAlreadyExistsError:
             return build_response(409, "资源已存在", None)
         except ResourceNotFoundError:
@@ -595,6 +598,7 @@ class ResourceJobView(SchemaAPIView):
             logger.exception("提交资源任务失败")
             return build_response(503, "任务队列暂不可用", None)
         data = {
+            "job_id": snapshot.get("job_id"),
             "task_id": snapshot["task_id"],
             "status_url": f"/nassav/api/resource/jobs/{snapshot['task_id']}",
             "status_token": job_token(snapshot["task_id"]),
@@ -680,13 +684,16 @@ class ResourceJobBatchView(SchemaAPIView):
                 for name in ("refresh_m3u8", "refresh_metadata", "retranslate")
             }
             try:
-                snapshot, duplicate = submit_resource_job(action, avid, source, options)
+                snapshot, duplicate = submit_resource_job(
+                    action, avid, source, options, owner_id=request.user.pk
+                )
                 results.append(
                     {
                         "avid": avid,
                         "action": action,
                         "code": 202,
                         "task_id": snapshot["task_id"],
+                        "job_id": snapshot.get("job_id"),
                         "status_url": f"/nassav/api/resource/jobs/{snapshot['task_id']}",
                         "status_token": job_token(snapshot["task_id"]),
                         "duplicate": duplicate,
@@ -709,6 +716,10 @@ class ResourceJobBatchView(SchemaAPIView):
                         "code": 404,
                         "message": "资源不存在",
                     }
+                )
+            except TaskForbidden as error:
+                results.append(
+                    {"avid": avid, "action": action, "code": 403, "message": str(error)}
                 )
             except Exception:
                 logger.exception("批量提交资源任务失败: {}", avid)

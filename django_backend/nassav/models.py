@@ -305,6 +305,8 @@ class AVResource(models.Model):
     metadata_updated_at = models.DateTimeField(
         auto_now=True, help_text="元数据最后更新时间"
     )
+    translation_generation = models.PositiveBigIntegerField(default=0)
+    translation_owner = models.UUIDField(null=True)
     video_saved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 

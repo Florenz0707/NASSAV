@@ -67,7 +67,7 @@ def test_url_and_openapi_contract_remains_identical():
     assert schema.get("components", {}) == baseline["components"]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_cover_original_fresh_thumbnail_and_fallback_headers(
     api_client, settings, tmp_path
 ):
@@ -145,7 +145,7 @@ def test_retranslation_reset_precedes_dispatch_and_preserves_submission_failure(
     )
     observed = []
 
-    def dispatch(avid):
+    def dispatch(avid, generation):
         resource.refresh_from_db()
         observed.append((avid, resource.translation_status, resource.translated_title))
         raise RuntimeError("queue unavailable")
@@ -168,7 +168,9 @@ def test_refresh_retranslation_uses_shared_dispatch(
     monkeypatch.setattr(
         translate_title_task,
         "delay",
-        lambda avid: submitted.append(avid) or SimpleNamespace(id="translation"),
+        lambda avid, **kwargs: (
+            submitted.append(avid) or SimpleNamespace(id="translation")
+        ),
     )
     response = api_client.post(
         f"/nassav/api/resource/refresh/{resource.avid}",

@@ -109,21 +109,35 @@ def submit_download_task(
     ignore_result=False,
     track_started=True,
 )
-def translate_title_task(self, avid: str):
+def translate_title_task(
+    self, avid: str, job_id: str | None = None, expected_generation: int | None = None
+):
+    if job_id is not None:
+        from nassav.composition import build_controlled_translation
+
+        return build_controlled_translation().run(job_id, self.request.id)
     from nassav.composition import build_translation_workflow
 
-    return build_translation_workflow().translate(avid)
+    versions = (
+        {avid.upper(): expected_generation} if expected_generation is not None else None
+    )
+    return build_translation_workflow(versions).translate(avid)
 
 
 @shared_task(
     bind=True, name="nassav.tasks.batch_translate_titles_task", ignore_result=False
 )
 def batch_translate_titles_task(
-    self, avids: list[str] | None = None, skip_existing: bool = True
+    self,
+    avids: list[str] | None = None,
+    skip_existing: bool = True,
+    expected_generations: dict[str, int] | None = None,
 ):
     from nassav.composition import build_translation_workflow
 
-    return build_translation_workflow().translate_batch(avids, skip_existing)
+    return build_translation_workflow(expected_generations).translate_batch(
+        avids, skip_existing
+    )
 
 
 @shared_task(bind=True)
