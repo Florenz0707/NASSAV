@@ -57,7 +57,7 @@ P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属
 
 ## 持久刮削任务代理修复（2026-10-06）
 
-分支 `fix/task-network-configured-proxy`，基线 `3abb4d1`，提交标题 `[Fix] Honor configured proxies in controlled scraper requests`。原 TaskNetworkControl 的底层 `CurlOpt.PROXY: ""` 在 curl_cffi 设置显式代理之后执行，导致 scraper 实际直连。本地目标/代理服务先复现返回 direct 而非 proxied；改为请求层的无代理默认值后，显式全局代理正常应用，未配置及 Byparr 控制请求仍明确直连。没有新增代理配置键或修改实例配置。
+分支 `fix/task-network-configured-proxy`，基线 `4bf4ab1`，提交 `d879796`（`[Fix] Honor configured proxies in controlled scraper requests`）。原 TaskNetworkControl 的底层 `CurlOpt.PROXY: ""` 在 curl_cffi 设置显式代理之后执行，导致 scraper 实际直连。本地目标/代理服务先复现返回 direct 而非 proxied；改为请求层的无代理默认值后，显式全局代理正常应用，未配置及 Byparr 控制请求仍明确直连。没有新增代理配置键或修改实例配置。
 
 `uv run pytest tests/test_task_network_proxy.py tests/test_task_network.py --ds=django_project.refactoring_test_settings -q` 21 项通过：包含 15 项真实 loopback curl 回归，覆盖三个 scraper 的 HTML/封面/头像、HTTPS CONNECT、显式代理与环境代理/NO_PROXY 的优先级、浏览器控制直连，以及原任务预算/暂停终止检查。完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 720 通过、26 跳过，`pre-commit run -a` 全通过，钩子配置未改。
 
