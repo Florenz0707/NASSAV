@@ -6,12 +6,18 @@ Other input may download, but requires explicit restart after interruption.
 
 import hashlib
 import re
+import time
 from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from curl_cffi import requests, CurlOpt
 from curl_cffi.curl import CURL_WRITEFUNC_ERROR
+from curl_cffi.requests.exceptions import Timeout
+
+
+class DownloadValidationTimeout(RuntimeError):
+    """Temporary validation IO failure; cached bytes remain untrusted and private."""
 
 
 class DownloadRestartRequired(RuntimeError):
@@ -46,41 +52,53 @@ class HLSResumeGuard:
         self.fetch = fetch or self._fetch
 
     def _fetch(self, url: str, headers: dict, check: Callable) -> bytes:
-        check()
-        chunks, size, errors = [], 0, []
+        # Slow segments need more than the old 20s total deadline. Retry once,
+        # discarding every partial response; callbacks retain stop responsiveness.
+        for attempt in range(2):
+            check()
+            chunks, size, errors = [], 0, []
 
-        def receive(chunk):
-            nonlocal size
+            def receive(chunk):
+                nonlocal size
+                try:
+                    check()
+                    size += len(chunk)
+                    if size > 64 * 1024 * 1024:
+                        raise DownloadRestartRequired("分片超出校验上限，不能安全续传")
+                    chunks.append(chunk)
+                    return len(chunk)
+                except Exception as error:
+                    errors.append(error)
+                    return CURL_WRITEFUNC_ERROR
+
             try:
-                check()
-                size += len(chunk)
-                if size > 64 * 1024 * 1024:
-                    raise DownloadRestartRequired("分片超出校验上限，不能安全续传")
-                chunks.append(chunk)
-                return len(chunk)
+                with requests.Session(
+                    curl_options={
+                        CurlOpt.PROXY: self.proxy or "",
+                        CurlOpt.NOPROXY: "" if self.proxy else "*",
+                    }
+                ) as session:
+                    session.trust_env = False
+                    response = session.get(
+                        url, headers=headers, timeout=(5, 55), content_callback=receive
+                    )
+                    response.raise_for_status()
             except Exception as error:
-                errors.append(error)
-                return CURL_WRITEFUNC_ERROR
-
-        with requests.Session(
-            curl_options={
-                CurlOpt.PROXY: self.proxy or "",
-                CurlOpt.NOPROXY: "" if self.proxy else "*",
-            }
-        ) as session:
-            session.trust_env = False
-            try:
-                # Non-stream curl applies a 20s total deadline, including slow trickle.
-                response = session.get(
-                    url, headers=headers, timeout=(5, 15), content_callback=receive
-                )
-                response.raise_for_status()
-            except Exception:
                 if errors:
                     raise errors[0]
-                raise
-        check()
-        return b"".join(chunks)
+                check()
+                if not isinstance(error, Timeout):
+                    raise
+                if attempt == 1:
+                    raise DownloadValidationTimeout(
+                        "下载恢复校验网络超时，已保留暂停产物，请检查下载代理或网络后恢复重试"
+                    ) from error
+                time.sleep(0.5)
+                check()
+                continue
+            check()
+            return b"".join(chunks)
+        raise AssertionError("validation retry loop exhausted")
 
     def describe(
         self, url: str, headers: dict, check: Callable, depth: int = 0

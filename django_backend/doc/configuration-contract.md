@@ -22,7 +22,7 @@ BrowserFetch.session_reuse_enabled 只接受 YAML 布尔值，省略为 false。
 
 ## 任务下载控制（P3）
 
-当前采用实现默认值，尚无新增 YAML 开关：CLI watchdog 100ms、心跳/进度约 1s、等槽位 200ms 且最长 1800s；HLS 校验请求总预算 20s（连接 5s + 15s），最大 64 MiB；TERM 等待 2s，再 KILL 和退出核查。均为配置/实现期限，不能视为实际来源停止 SLA。校验和 CLI 只使用 DOWNLOAD_PROXY_URL，显式禁用环境代理及 NO_PROXY 绕过。
+当前采用实现默认值，尚无新增 YAML 开关：CLI watchdog 100ms、心跳/进度约 1s、等槽位 200ms 且最长 1800s；HLS 每个校验请求总预算 60s（连接 5s + 55s），超时最多尝试两次，间隔 0.5s，最大 64 MiB；TERM 等待 2s，再 KILL 和退出核查。均为配置/实现期限，不能视为实际来源停止 SLA。恢复校验持续超时保留私有产物并回到 paused（RESUME_VALIDATION_TIMEOUT），允许恢复重试；内容不一致仍要求终止并重新下载。校验和 CLI 只使用 DOWNLOAD_PROXY_URL，显式禁用环境代理及 NO_PROXY 绕过。
 
 私有输出位于 COVER_DIR/AVATAR_DIR/VIDEO_DIR 各自 `.tasks/<job_id>/`，根不能重叠。正常租约 TTL 仍为 3600s；writer 退出无法确认时，仅仍属本 owner 的 key 会持久保留而不自动过期，须身份核查恢复。暂停没有自动过期清理。P7 已接入每个真实 worker 的后台恢复扫描，不依赖可选 Beat。见[P3 验证](../../docs/task-control-p3-results.md)。
 

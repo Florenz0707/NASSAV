@@ -443,5 +443,24 @@ def test_manifest_transport_aborts_callback_and_enforces_total_timeout(monkeypat
     monkeypatch.setattr("nassav.download_resume.requests.Session", Session)
     with pytest.raises(TaskPauseRequested):
         HLSResumeGuard()._fetch("https://offline.invalid/index.m3u8", {}, check)
-    assert captured["timeout"] == (5, 15)
+    assert captured["timeout"] == (5, 55)
     assert captured["curl_options"][CurlOpt.PROXY] == ""
+
+
+def test_validation_timeout_retains_workspace_and_allows_resume(context):
+    from nassav.download_resume import DownloadValidationTimeout
+
+    ctx = context
+
+    def timeout(*args):
+        raise DownloadValidationTimeout("temporary network timeout")
+
+    ctx.guard.prepare = timeout
+    result = ctx.runner.run(ctx.job["job_id"], ctx.job["task_id"])
+    assert result["status"] == "paused"
+    assert result["snapshot"]["error_code"] == "RESUME_VALIDATION_TIMEOUT"
+    assert "resume" in result["snapshot"]["allowed_actions"]
+    assert ctx.lease.closed and not ctx.lease.slot
+    assert not ctx.saved
+    resumed = request(ctx, "resume")
+    assert resumed["generation"] == 2

@@ -66,3 +66,13 @@ P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属
 ## 封面与任务列表交互修复（2026-10-06）
 
 分支 `fix/resource-covers-task-selection-order`，基线 `bdb29a4`，提交标题 `[Fix] Unify cover fallback and stabilize task selection and ordering`。资源卡片、资源详情与任务详情共享无封面占位；无任务深链时不误匹配缺少 taskId 的任务，同 AVID 的任务保持独立 ID。排序由任务 API 在分页前完成，前端切换排序使旧请求失效。完整隔离后端回归 722 通过、26 跳过，前端 check 通过；resourceTaskFixes 浏览器验收覆盖深浅主题、同 AVID 同类型及跨类型详情、两种时间降序、卡片与详情封面 404 占位。质量门槛为根目录 pre-commit run -a。模拟 API 浏览器验收不代表真实服务联调。
+
+## Docker 下载恢复校验超时修复（2026-10-06）
+
+分支 `fix/download-resume-validation-timeouts`，基线 `2dd02ea`，提交标题 `[Fix] Retain paused downloads after bounded validation timeouts`。只读核查实际 Docker 任务发现恢复执行停在 resume_validation：320 个缓存分片、播放列表 2214 个分片，某分片 20.321s 仅接收 786360/920272 字节后 cURL 28 超时；不是 CLI 启动超时。未修改该正式任务、实际配置或运行服务。
+
+每次 HLS 校验请求期限改为 60s，超时最多尝试两次、间隔 0.5s，失败尝试的部分响应完全丢弃。回调与重试间仍检查暂停/终止，保留所有缓存与当前源字节核对；持续超时回到 paused，错误码 RESUME_VALIDATION_TIMEOUT，允许用户恢复重试，释放执行槽位。内容或轨道不一致仍要求终止后重新下载。
+
+超时与受控下载专项 22 项通过；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 725 通过、26 跳过，根目录 `pre-commit run -a` 全通过。临时 Docker 容器使用本地 nassav-backend:dev 镜像、只读挂载修改源码、`--network none`，真实 curl 请求仅访问其临时 loopback 服务，注入 0.25s 的部分响应超时后校验重试成功、缓存保留及暂停优先级；验收报告见[Docker 探针](../../docs/task-control-probes/resume-timeout-docker.json)。临时目录与容器已清理。
+
+该 probe 不证明真实外站、完整 CLI 下载及生产切换已验收；未重新构建部署镜像或恢复原正式任务。更新镜像后需在目标网络复查恢复校验、暂停/终止及视频完整性。参数与探针入口见[配置契约](configuration-contract.md)和[脚本说明](../scripts/README.md)。

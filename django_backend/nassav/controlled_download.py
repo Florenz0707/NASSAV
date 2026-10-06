@@ -12,7 +12,11 @@ from loguru import logger
 
 from nassav.constants import HEADERS
 from nassav.download_contracts import DownloadLeaseLost, DownloadOwnership
-from nassav.download_resume import DownloadRestartRequired, HLSResumeGuard
+from nassav.download_resume import (
+    DownloadRestartRequired,
+    DownloadValidationTimeout,
+    HLSResumeGuard,
+)
 from nassav.task_assets import AssetPromotion, TaskAssets
 from nassav.task_control_rules import (
     TaskCancelRequested,
@@ -326,10 +330,17 @@ class ControlledDownload:
                 error_code="RESTART_REQUIRED" if resume_error else "",
                 message=str(resume_error) if resume_error else "",
             )
-        elif isinstance(error, DownloadRestartRequired):
-            snapshot = records.suspend(
-                token, error_code="RESTART_REQUIRED", message=str(error)
-            )
+        elif isinstance(error, (DownloadRestartRequired, DownloadValidationTimeout)):
+            try:
+                snapshot = records.suspend(
+                    token,
+                    error_code="RESUME_VALIDATION_TIMEOUT"
+                    if isinstance(error, DownloadValidationTimeout)
+                    else "RESTART_REQUIRED",
+                    message=str(error),
+                )
+            except (TaskPauseRequested, TaskCancelRequested):
+                snapshot = records.acknowledge_stop(token)
         elif error:
             # A concurrent stop wins over a failure result.
             try:

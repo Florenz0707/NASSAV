@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "network": "loopback only",
+  "partial_timeout_retry": true,
+  "cache_preserved": true,
+  "pause_priority": true,
+  "request_budget_seconds": 60,
+  "maximum_attempts": 2,
+  "injected_timeout_seconds": 0.25
+}

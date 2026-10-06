@@ -96,3 +96,5 @@ uv run coverage report
 `test_task_recovery.py` 使用真实本地进程和临时 Redis Unix socket，检查：活进程/未知身份不清理；登记前的 orphan writer 退出；仅释放本 owner 的 key；停止 fencing 复核心跳；相同 task_id 重派；管理命令人工确认参数；暂停的 promoting 日志重试。`test_task_assets.py` 另检查已终止但日志未恢复时正式删除返回冲突。
 
 真实 worker/本地 HTTP/CLI 验收脚本是显式入口，不包含在普通离线 gate，见[脚本说明](../scripts/README.md#持久任务恢复与真实-worker-验收)。它采用 APIClient、临时资源和新 Redis，不能替代生产网关/真实来源/容器接受。明文/AES-128 原生恢复 smoke 保留 `NASSAV_LOCAL_DOWNLOAD_BINARY` opt-in，实际内容经解码 hash 校验。
+
+`test_hls_validation_timeout.py` 与 controlled_download 专项覆盖部分响应超时后重试不拼接残缺内容、60 秒预算、尝试上限、暂停优先级，以及持续超时保留暂停状态和恢复动作。容器真实 curl 探针见 scripts/accept_hls_validation_timeout.py 和[脚本说明](../scripts/README.md)。

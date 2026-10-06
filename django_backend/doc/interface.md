@@ -1440,3 +1440,5 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 任务停止异常的恢复提示：WORKER_INTERRUPTED 表示原执行器退出已确认并保留 paused 检查点，可按 allowed_actions 恢复；RECOVERY_UNCONFIRMED 表示身份未知，不能声称已停止或清理。ASSET_RECOVERY_PENDING 表示已停止，但文件提升日志尚未恢复，暂时禁止恢复；后台重试。清理失败仍独立使用 cleanup_state/cleanup_message，不改变 succeeded/failed/cancelled。维护命令的人工退出确认不对 HTTP 开放。
 
 任务列表 `GET /api/tasks/jobs` 可选 `ordering=-created_at|-updated_at`，均为全列表降序并在数据库排序后分页，禁止升序或其他字段（400）。省略时保留活动任务优先、创建时间降序的旧行为；权限过滤保持。
+
+下载恢复校验持续网络超时返回持久任务 `state: paused`、`error_code: RESUME_VALIDATION_TIMEOUT`，保留未提交产物及 resume/cancel 动作。它不表示下载器已经启动或视频已完成；同 job/new attempt 重试仍逐个核对缓存与当前源内容。
