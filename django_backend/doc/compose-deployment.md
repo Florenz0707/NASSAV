@@ -171,3 +171,18 @@ uv run python manage.py recover_tasks --confirm-stopped-attempt ATTEMPT_UUID --a
 这是操作人的退出断言，不是额外的自动证明；命令仍拒绝已知活着的本地 worker、近期心跳及旧 generation。重复确认不再次恢复执行。取消意图进入 cancelled 并清理私有文件，否则进入 paused；随后通过页面决定恢复或终止。普通 HTTP 终止始终等待 writer 确认。
 
 回滚代码前先停止新提交，暂停/终止新任务，等待清理和 promoting 日志完成；确认没有运行/待派发/暂停占名额的新任务及子翻译，停下全部新消费者，再切换整套旧版本。不能只回滚 worker、让旧任务绕过控制；也不能回滚后自动删除 `.tasks`。新增表/字段可先保留；反向迁移是独立数据库维护操作，须另行备份与演练，不作为代码回滚自动步骤。
+
+## 资源文件锁的写入权限
+
+发布和删除共同使用 `COVER_DIR` 父目录下的 `.nassav-delete-locks/{AVID}.lock`。API、scrape/download worker 必须共享同一路径，并能创建和打开锁文件。容器以 root 写入宿主机资源卷后切回本机用户运行时，可能遗留 root 属主的 `755` 锁目录或 `644` 锁文件，导致 PermissionError。此时删除返回 `failed_stage: lock`，没有执行文件或数据库删除。
+
+先使用 `id`、`stat` 核对实际服务用户和锁目录/锁文件属主。若所有 API/worker 都使用同一宿主机 UID/GID，只修复该锁目录和其中普通 `.lock` 文件的属主；例如本机服务 UID/GID 为 1000:1000 时：
+
+```bash
+# 替换为实例中 COVER_DIR 的父目录；先核实路径、服务身份及其中没有符号链接。
+lock_dir=/home/florenz/NASSAV/django_backend/resource/.nassav-delete-locks
+sudo chown 1000:1000 "$lock_dir"
+sudo find "$lock_dir" -maxdepth 1 -type f -name '*.lock' -exec chown 1000:1000 {} +
+```
+
+不要删除锁文件或替换锁目录：其他进程可能持有旧 inode 上的锁，重建文件会破坏互斥。也不要递归修改整个资源目录或设置 `777`。多用户/容器并行写入应统一运行身份，或预先配置共享组和目录/文件写权限；避免再次由不同身份创建不可写的锁。修复后先验证取锁，再手动重试原请求，不能用真实资源删除作为权限探针。

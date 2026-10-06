@@ -48,3 +48,9 @@ API 字段在 interface，持久化行为在 database，算法与参数在 recom
 P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属翻译）的暂停、恢复、终止和归属清理，执行记录见[P7](../../docs/task-control-p7-results.md)。SQLite/PostgreSQL 16 各运行九项真实 prefork Celery + 临时 Redis + 固定 CLI + 本地 HLS/图片/翻译 HTTP fixture 用例；实际注入 worker 崩溃、Redis 断线及目录权限错误，确认停止后才清理、正式文件与共享头像保留。前端为真实 Vue/模拟 API/WS 的浏览器验收；后端控制请求通过已授权 APIClient，未验证真实 HTTPS/WSS 会话网关。
 
 该证据替换“本轮完全未做 worker/PG 联调”的范围限制，仅限本地隔离实例。生产库迁移 0022–0025、Docker 中新旧 worker 切换、真实站点、真实翻译模型和目标网关仍待目标环境接受，不因隔离通过自动上线；步骤见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。
+
+## 资源删除锁权限修复（2026-10-06）
+
+分支 `fix/resource-delete-lock-permissions`，基线 `ff25555`，提交标题 `[Fix] Report resource lock permission failures before deletion`。真实只读锁目录/锁文件回归先复现未经处理的 PermissionError，修复后单条/批量资源及视频删除共 8 项权限用例通过，删除用例合计 25 项通过。`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 完整隔离回归 705 通过、26 跳过，根目录 `pre-commit run -a` 全通过，未修改钩子配置。
+
+本机资源锁目录及现有普通 `.lock` 文件原属主 root，已限定修复为实际后端用户 1000:1000，目录和文件模式保持，锁 inode 保留。原 SNOS-317 与两个现有锁文件均验证可获取；没有对正式资源执行删除、数据库迁移或重启服务。代码变更在辅助工作树合并 `idle`，默认 `dev` 保留，原 DELETE 请求由用户重试验收。

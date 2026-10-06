@@ -265,7 +265,7 @@ class DeleteResourceView(SchemaAPIView):
         except ResourceDeletionFailure as exc:
             return build_response(
                 500,
-                "删除未完成，请重试",
+                exc.public_message,
                 {
                     "avid": avid.upper(),
                     "deleted_files": list(exc.deleted_files),
@@ -372,7 +372,7 @@ class ResourcesBatchView(SchemaAPIView):
                                 "action": action,
                                 "avid": avid,
                                 "code": 500,
-                                "message": "删除未完成，请重试",
+                                "message": exc.public_message,
                                 "resource": None,
                                 "failed_stage": exc.stage,
                                 "retryable": True,
@@ -437,7 +437,7 @@ class ResourcesBatchView(SchemaAPIView):
                                 "action": action,
                                 "avid": avid,
                                 "code": 500,
-                                "message": "删除未完成，请重试",
+                                "message": exc.public_message,
                                 "resource": None,
                                 "failed_stage": exc.stage,
                                 "retryable": True,

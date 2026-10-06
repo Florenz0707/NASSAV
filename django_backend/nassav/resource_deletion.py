@@ -4,6 +4,7 @@ import re
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,6 +39,12 @@ class ResourceDeletionFailure(Exception):
         self.stage = stage
         self.deleted_files = tuple(deleted_files)
         super().__init__(f"resource deletion failed during {stage}")
+
+    @property
+    def public_message(self) -> str:
+        if self.stage == "lock":
+            return "无法获取资源文件锁，请检查锁目录及锁文件的写入权限后重试"
+        return "删除未完成，请重试"
 
 
 class ResourceDeletionRepository(ABC):
@@ -90,8 +97,15 @@ class ResourceDeletionService:
         return normalized
 
     @staticmethod
+    @contextmanager
     def _lock(avid: str):
-        return resource_file_lock(avid, Path(settings.COVER_DIR))
+        with ExitStack() as stack:
+            try:
+                stack.enter_context(resource_file_lock(avid, Path(settings.COVER_DIR)))
+            except OSError as exc:
+                logger.exception("Resource {} lock acquisition failed", avid)
+                raise ResourceDeletionFailure("lock", []) from exc
+            yield
 
     @staticmethod
     def _file_candidates(avid: str) -> list[tuple[Path, str]]:

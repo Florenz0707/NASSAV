@@ -104,7 +104,7 @@ class DownloadView(SchemaAPIView):
         except ResourceDeletionFailure as exc:
             return build_response(
                 500,
-                "删除未完成，请重试",
+                exc.public_message,
                 {
                     "avid": avid.upper(),
                     "failed_stage": exc.stage,

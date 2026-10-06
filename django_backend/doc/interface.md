@@ -1087,7 +1087,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
   - 持久任务记录仍持有该 AVID 活动名额或存在未恢复 promoting 文件日志时，单条删除返回 HTTP 409，批量 `delete` / `delete-all` / `delete-video` 返回该项 `code: 409`；运行/暂停任务须先终止，未恢复日志须先重试清理；之后才能删除。暂停也持有名额。下载删除 `DELETE /nassav/api/downloads/{avid}` 遵循同一规则。
   - 返回 `data.resource`（删除前序列化对象，纯文件资源为 `null`）和 `deleted_files`；数据库行或任一文件存在即可删除，无记录无文件返回 404
   - 与批量 `delete` / `delete-all` 共用删除操作：清理封面、small/medium/large 缩略图、MP4、备份目录和数据库行。`deleted_files` 只列出已确认删除的文件名
-  - 文件或数据库步骤失败返回 HTTP 500、`message: "删除未完成，请重试"`，`data` 包含 `failed_stage`（`files` 或 `database`）、`retryable: true` 和已删除文件名。重试会继续清理剩余状态；错误响应不包含本地路径
+  - 文件或数据库步骤失败返回 HTTP 500、`message: "删除未完成，请重试"`，`data` 包含 `failed_stage`（`lock`、`files` 或 `database`）、`retryable: true` 和已删除文件名。取锁失败时 `failed_stage: lock`、`deleted_files: []`，message 明确提示检查锁目录及锁文件写入权限，修复后重试；未取锁不会执行文件或数据库删除。其他失败重试会继续清理剩余状态；错误响应不包含本地路径
 
 - 下载视频：`POST /nassav/api/downloads/{avid}`
   - 功能：提交视频下载任务（异步，使用 Celery）
@@ -1207,7 +1207,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     }
     ```
 
-批量删除的 HTTP 响应保持 200；每个 `data.results[]` 独立报告结果。删除步骤失败时该项 `code: 500`、`message: "删除未完成，请重试"`，附 `failed_stage`、`retryable: true` 和已确认删除的 `deleted_files`，其余项继续执行；非法编号为单项 400。前端只对 `code: 200` 的项目更新本地列表，失败项保留以便重试。旧 `add` / `refresh` 仍为同步兼容入口，当前前端新增和刷新走 `/resource/jobs/batch`；旧入口移除了无来源限流依据的固定 2 秒等待，后续退役须单独核对外部调用方。
+批量删除的 HTTP 响应保持 200；每个 `data.results[]` 独立报告结果。删除步骤失败时该项 `code: 500`、`message: "删除未完成，请重试"`，附 `failed_stage`、`retryable: true` 和已确认删除的 `deleted_files`，取锁失败同样使用 `failed_stage: lock`、空 `deleted_files` 和写入权限提示；其余项继续执行；非法编号为单项 400。前端只对 `code: 200` 的项目更新本地列表，失败项保留以便重试。旧 `add` / `refresh` 仍为同步兼容入口，当前前端新增和刷新走 `/resource/jobs/batch`；旧入口移除了无来源限流依据的固定 2 秒等待，后续退役须单独核对外部调用方。
 
 1. 批量下载提交
 
