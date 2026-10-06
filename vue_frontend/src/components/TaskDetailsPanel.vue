@@ -150,9 +150,6 @@ const progress = (task) =>
         >不再跟踪当前列表已结束任务</AppButton
       >
     </div>
-    <p class="text-muted text-sm mb-4">
-      下载显示当前队列；刮削显示本浏览器追踪的任务，非服务器完整历史。
-    </p>
     <EmptyState v-if="!visible.length" title="暂无此类任务" />
     <div v-else class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
       <div
@@ -288,12 +285,6 @@ const progress = (task) =>
             {{ selected.stage === key ? '→ ' : '' }}{{ label }}
           </li>
         </ol>
-        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm mt-5">
-          <dt class="text-muted">任务编号</dt>
-          <dd class="text-secondary break-all">{{ selected.taskId || selected.id }}</dd>
-          <dt class="text-muted">最近更新</dt>
-          <dd class="text-secondary">{{ selected.updated || '—' }}</dd>
-        </dl>
         <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
           {{ selected.error }}
         </p>
