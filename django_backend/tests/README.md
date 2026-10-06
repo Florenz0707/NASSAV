@@ -45,7 +45,7 @@ fixture resource_factory、api_client、ws_headers、settings、tmp_path 等在 
 
 `test_task_assets.py` 使用真实临时文件与测试 DB 验证私有产物、已有文件/共享头像保护、相同内容回滚、DB 保存失败、多文件提交补偿、停止后崩溃恢复、后续发布 fencing、路径/符号链接拒绝、清理权限失败重试及正式删除 409。与 task_records 的 41 项专项在 SQLite/PostgreSQL 16 验证，见[P2 执行记录](../../docs/task-control-p2-results.md)。测试故障注入不证明真实 worker 崩溃恢复或 CLI 已接入。
 
-`test_controlled_download.py` 与 `test_task_control_http.py` 验证下载停止/提交竞争、暂停释放真实 Redis 槽位、未知 writer 保留归属、分片/AES 身份、推送和 broker 失败、权限与版本输入；`test_local_cli_task_control.py` 默认跳过，设置 NASSAV_LOCAL_DOWNLOAD_BINARY 为固定 P0 二进制绝对路径后，使用本地生成 HLS 和 loopback 做真实 CLI 明文/AES 暂停恢复与全量解码对比。所有文件/DB 临时隔离；来源解析/校验 HTTP 为本地替身，此项不是非 eager Celery 或来源网站验收。见[P3 执行记录](../../docs/task-control-p3-results.md)。
+`test_controlled_download.py` 与 `test_task_control_http.py` 验证下载停止/提交竞争、暂停释放真实 Redis 槽位、未知 writer 保留归属、分片/AES 身份、推送和 broker 失败、权限与版本输入；`test_local_cli_task_control.py` 默认跳过，设置 NASSAV_LOCAL_DOWNLOAD_BINARY 为固定 P0 二进制绝对路径后，使用本地生成 HLS 和 loopback 做真实 CLI 明文/AES 暂停恢复与全量解码对比（12/240 分片，较大样例暂停时至少 151 个完整分片），核对恢复时完整缓存分片的 HTTP 请求数不增加。所有文件/DB 临时隔离；来源解析/校验 HTTP 为本地替身，此项不是非 eager Celery 或来源网站验收。见[P3 执行记录](../../docs/task-control-p3-results.md)。
 
 test_refactoring_baseline 保留“正常下载先通知成功、DB 写入失败仍成功”以及“资源写库失败保留 HTML、不发布新增事件”的现有顺序。独立下载 owner 回归确认失租不能更新成功；批量翻译错误只收尾本批 translating，保留旧译文和部分完成。语义修复要有明确的新旧对照，不能为了结构迁移改变此类断言。
 

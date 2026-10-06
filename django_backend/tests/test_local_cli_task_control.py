@@ -11,13 +11,29 @@ import pytest
 from django.db import close_old_connections
 
 
+@pytest.fixture(scope="session")
+def django_db_modify_db_settings(
+    django_db_modify_db_settings_parallel_suffix, tmp_path_factory
+):
+    # Shared in-memory SQLite fails immediately on cross-thread table locks.
+    # Real CLI callbacks/watchdog use separate connections, so use a temporary file.
+    from django.conf import settings
+
+    settings.DATABASES["default"].setdefault("TEST", {})["NAME"] = str(
+        tmp_path_factory.mktemp("cli-database") / "test.sqlite3"
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.skipif(
     not os.environ.get("NASSAV_LOCAL_DOWNLOAD_BINARY"),
     reason="Fixed local CLI integration opt-in",
 )
 @pytest.mark.parametrize("encrypted", [False, True])
-def test_real_cli_pause_resume_produces_complete_video(tmp_path, encrypted):
+@pytest.mark.parametrize("segment_count", [12, 240])
+def test_real_cli_pause_resume_produces_complete_video(
+    tmp_path, encrypted, segment_count
+):
     from scripts.probe_task_download_control import (
         generate_media,
         media_server,
@@ -35,7 +51,7 @@ def test_real_cli_pause_resume_produces_complete_video(tmp_path, encrypted):
     from pathlib import Path
 
     media = tmp_path / "media"
-    generate_media(media)
+    generate_media(media, segment_time=24 / segment_count)
     expected = decoded_hash(media / "index.m3u8")
     if encrypted:
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -72,7 +88,7 @@ def test_real_cli_pause_resume_produces_complete_video(tmp_path, encrypted):
         ensure_mp4=native.ensure_mp4,
     )
     outcomes, failures, saved = [], [], []
-    with media_server(tmp_path) as (base, _):
+    with media_server(tmp_path) as (base, counts):
         resolver = SimpleNamespace(
             resolve=lambda avid: SimpleNamespace(
                 info=SimpleNamespace(m3u8=f"{base}/media/index.m3u8"),
@@ -82,6 +98,7 @@ def test_real_cli_pause_resume_produces_complete_video(tmp_path, encrypted):
 
         def local_fetch(url, headers, check):
             check()
+            assert not urlsplit(url).path.endswith(".ts"), "guard refetched a segment"
             return (tmp_path / urlsplit(url).path.lstrip("/")).read_bytes()
 
         guard = HLSResumeGuard(fetch=local_fetch)
@@ -101,9 +118,10 @@ def test_real_cli_pause_resume_produces_complete_video(tmp_path, encrypted):
         thread = Thread(target=execute)
         thread.start()
         directory = assets.roots["video"] / ".tasks" / job["job_id"] / "download"
-        deadline = time.monotonic() + 20
+        pause_count = 151 if segment_count == 240 else 4
+        deadline = time.monotonic() + 45
         try:
-            while len(list(directory.glob("temp/LOCAL-1/*/*.ts"))) < 4:
+            while len(list(directory.glob("temp/LOCAL-1/*/*.ts"))) < pause_count:
                 if not thread.is_alive() or time.monotonic() >= deadline:
                     pytest.fail(
                         f"CLI did not reach pause checkpoint: {failures}, {outcomes}"
@@ -126,7 +144,12 @@ def test_real_cli_pause_resume_produces_complete_video(tmp_path, encrypted):
         identity = TaskAttempt.objects.get(pk=job["task_id"]).execution_identity
         assert not group_writers(identity["pgid"])
         paused = records.get(job["job_id"])
-        assert len(paused["checkpoint"]["download"]["segments"]) >= 4
+        assert len(paused["checkpoint"]["download"]["segments"]) >= pause_count
+        cached_indices = {
+            int(Path(relative).stem)
+            for relative in paused["checkpoint"]["download"]["segments"]
+        }
+        before_resume = counts.copy()
         resumed = records.request(
             job["job_id"],
             "resume",
@@ -139,5 +162,8 @@ def test_real_cli_pause_resume_produces_complete_video(tmp_path, encrypted):
         result = runner.run(job["job_id"], resumed["task_id"])
         assert result["status"] == "succeeded", result
         assert saved == ["LOCAL-1"]
+        for index in cached_indices:
+            path = f"/media/segment{index:03d}.ts"
+            assert counts[path] == before_resume[path], "CLI refetched complete cache"
         assert decoded_hash(assets.roots["video"] / "LOCAL-1.mp4") == expected
         assert not (assets.roots["video"] / ".tasks" / job["job_id"]).exists()

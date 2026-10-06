@@ -1,4 +1,7 @@
-"""Validate cached HLS bytes against fresh media before native CLI reuse.
+"""Validate current HLS identity and local cache before native CLI reuse.
+
+Cached segments are not fetched again. Same-URL remote byte replacement cannot
+be detected when the playlist, track mapping and encryption key stay unchanged.
 
 Only closed, single-track MPEG-TS VOD has a verified cache index contract.
 Other input may download, but requires explicit restart after interruption.
@@ -52,7 +55,7 @@ class HLSResumeGuard:
         self.fetch = fetch or self._fetch
 
     def _fetch(self, url: str, headers: dict, check: Callable) -> bytes:
-        # Slow segments need more than the old 20s total deadline. Retry once,
+        # Playlist/key IO uses a bounded deadline. Retry once,
         # discarding every partial response; callbacks retain stop responsiveness.
         for attempt in range(2):
             check()
@@ -227,45 +230,23 @@ class HLSResumeGuard:
                 )
             expected = checkpoint.get("segments", {})
             for relative, digest in expected.items():
+                check()
                 file = checked_cache_path(workspace, output_name, relative)
                 if not file.exists():
                     continue
-                if file.is_symlink() or file not in workspace.glob(
-                    f"temp/{output_name}/*/*.ts"
-                ):
+                if file.suffix != ".ts":
                     raise DownloadRestartRequired("分片路径不再属于工作区")
                 index = int(file.stem)
                 if index >= len(manifest["urls"]):
                     raise DownloadRestartRequired("分片编号超出轨道范围")
-                remote = self.fetch(manifest["urls"][index], headers, check)
-                key = manifest.get("keys", [None] * len(manifest["urls"]))[index]
-                if key:
-                    from cryptography.hazmat.primitives.ciphers import (
-                        Cipher,
-                        algorithms,
-                        modes,
-                    )
-                    from cryptography.hazmat.primitives.padding import PKCS7
-
-                    iv = (
-                        int(key["iv"], 16).to_bytes(16, "big")
-                        if key["iv"]
-                        else key["sequence"].to_bytes(16, "big")
-                    )
-                    decryptor = Cipher(
-                        algorithms.AES(bytes.fromhex(key["key"])), modes.CBC(iv)
-                    ).decryptor()
-                    padded = decryptor.update(remote) + decryptor.finalize()
-                    unpadder = PKCS7(128).unpadder()
-                    remote = unpadder.update(padded) + unpadder.finalize()
-                if hashlib.sha256(remote).hexdigest() != digest:
-                    raise DownloadRestartRequired(
-                        "缓存分片与当前源内容不一致，请终止后重新下载"
-                    )
+                if file.stat().st_size > 64 * 1024 * 1024:
+                    raise DownloadRestartRequired("分片超出校验上限，请终止后重新下载")
                 if hashlib.sha256(file.read_bytes()).hexdigest() != digest:
-                    file.unlink()  # Only verified source bytes may be downloaded again.
+                    file.unlink()  # Native CLI must download damaged local cache again.
+                check()
             # Unknown/unrecorded cache is never reused; .tmp files are incomplete.
             for file in workspace.glob(f"temp/{output_name}/*/*"):
+                check()
                 if file.is_symlink():
                     raise DownloadRestartRequired("缓存包含符号链接")
                 if (
@@ -278,6 +259,7 @@ class HLSResumeGuard:
             raise DownloadRestartRequired("缓存没有可信检查点，请终止后重新下载")
         # An interrupted merge/output is private and must not be mistaken for success.
         for suffix in (".mp4", ".mkv", ".ts"):
+            check()
             path = workspace / f"{output_name}{suffix}"
             if path.is_symlink():
                 raise DownloadRestartRequired("输出路径包含符号链接")

@@ -71,6 +71,7 @@ def main():
                 "segments": {relative: hashlib.sha256(payload).hexdigest()},
             }
             with patch.object(requests.Session, "get", get):
+                assert HLSResumeGuard()._fetch(url, {}, lambda: None) == payload
                 HLSResumeGuard().prepare(
                     workspace, "DL-1", manifest, checkpoint, {}, lambda: None
                 )

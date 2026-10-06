@@ -32,7 +32,7 @@ def run(command, **kwargs):
     return subprocess.run(command, check=True, timeout=60, **kwargs)
 
 
-def generate_media(directory, source="testsrc"):
+def generate_media(directory, source="testsrc", *, segment_time=2):
     directory.mkdir()
     run(
         [
@@ -51,11 +51,11 @@ def generate_media(directory, source="testsrc"):
             "-pix_fmt",
             "yuv420p",
             "-g",
-            "20",
+            str(max(1, round(10 * segment_time))),
             "-sc_threshold",
             "0",
             "-hls_time",
-            "2",
+            str(segment_time),
             "-hls_playlist_type",
             "vod",
             "-hls_segment_filename",

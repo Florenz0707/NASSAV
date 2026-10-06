@@ -10,7 +10,9 @@ ControlledDownload 在来源获取前后、等槽位、分片复用校验、CLI�
 
 CLI 的 100ms watchdog 在无 stdout 时检查控制；记录 host、boot_id、PID/PGID、启动 ticks、worker 身份及 lease owner。无法证明 writer 退出时拒绝确认停止及清理，仍归属本执行的 Redis key 变为不自动过期的恢复保留；不碰后继 owner。此异常须由 P7 的身份验证恢复或人工核查解除，不能无条件 DEL 全局锁。
 
-受控 CLI 显式保留分片到正式提交后的私有清理，防止完成与暂停竞争时提前删缓存；旧调用仍自动清理。重启前校验播放列表身份及每个已有分片的远端内容，签名 query 变化不改变内容身份。AES-128 按 key/IV/sequence 解密后核对缓存，密钥内容也属于身份。损坏本地缓存仅在远端匹配原记录时删除重下；内容变化返回 paused/RESTART_REQUIRED，仅允许终止后重建，不静默拼接。
+受控 CLI 显式保留分片到正式提交后的私有清理，防止完成与暂停竞争时提前删缓存；旧调用仍自动清理。P3 原始实现重启前校验播放列表身份及每个已有分片的远端内容，签名 query 变化不改变内容身份。AES-128 按 key/IV/sequence 解密后核对缓存，密钥内容也属于身份。损坏本地缓存仅在远端匹配原记录时删除重下；内容变化返回 paused/RESTART_REQUIRED，仅允许终止后重建，不静默拼接。
+
+当前恢复策略见[原生续传修复](task-control-native-resume-results.md)，取代上述逐片远端重下载；P3 验证结果为当时实现的历史证据。
 
 实测续传范围为闭合单轨 MPEG-TS VOD（明文/AES-128）。独立音轨、fMP4/byterange、不连续轨道或未知加密不承诺复用；首次可由 CLI 下载，暂停后的未知缓存须明确终止后重建。不能把受限证据推广到所有来源。
 

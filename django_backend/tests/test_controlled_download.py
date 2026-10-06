@@ -267,63 +267,82 @@ def test_persist_failure_restores_existing_video(context):
     assert TaskArtifact.objects.get(kind="video").state == "deleted"
 
 
-def test_resume_uses_fresh_remote_hash_and_discards_only_corrupt_local_cache(tmp_path):
-    import hashlib
+def test_resume_many_segments_uses_local_hash_and_cleans_incomplete_cache(tmp_path):
+    def forbidden_fetch(*args):
+        pytest.fail("resume must not download cached segment bytes")
 
-    file = tmp_path / "temp/DL-1/video/0.ts"
-    file.parent.mkdir(parents=True)
-    file.write_bytes(b"valid")
-    guard = HLSResumeGuard(fetch=lambda *args: b"valid")
+    guard = HLSResumeGuard(fetch=forbidden_fetch)
+    directory = tmp_path / "temp/DL-1/track"
+    directory.mkdir(parents=True)
+    for index in range(320):
+        (directory / f"{index}.ts").write_bytes(f"valid-{index}".encode())
     manifest = {
         "safe": True,
         "identity": "same",
-        "urls": ["https://offline.invalid/segment.ts"],
+        "urls": [f"https://offline.invalid/{i}.ts" for i in range(321)],
     }
     checkpoint = {"manifest": manifest, "segments": guard.snapshot(tmp_path, "DL-1")}
-    file.write_bytes(b"damaged")
-    guard.prepare(tmp_path, "DL-1", manifest, checkpoint, {}, lambda: None)
-    assert not file.exists()
-    file.write_bytes(b"valid")
-    guard.fetch = lambda *args: b"changed"
-    with pytest.raises(DownloadRestartRequired, match="内容不一致"):
-        guard.prepare(tmp_path, "DL-1", manifest, checkpoint, {}, lambda: None)
-    assert (
-        hashlib.sha256(file.read_bytes()).hexdigest()
-        == checkpoint["segments"][str(file.relative_to(tmp_path))]
-    )
+    (directory / "2.ts").write_bytes(b"damaged")
+    (directory / "3.ts").unlink()
+    (directory / "320.ts").write_bytes(b"unrecorded")
+    (directory / "321.ts.tmp").write_bytes(b"partial")
+    checks = []
+    guard.prepare(tmp_path, "DL-1", manifest, checkpoint, {}, lambda: checks.append(1))
+    assert len(list(directory.glob("*"))) == 318
+    assert (directory / "0.ts").read_bytes() == b"valid-0"
+    assert not (directory / "2.ts").exists()
+    assert not (directory / "320.ts").exists()
+    assert not (directory / "321.ts.tmp").exists()
+    assert len(checks) >= 320
 
 
-def test_aes128_resume_compares_decrypted_remote_content(tmp_path):
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    from cryptography.hazmat.primitives.padding import PKCS7
-
+def test_aes_resume_checks_current_key_identity_without_segment_download(tmp_path):
     key = b"0123456789abcdef"
-    plain = b"complete transport stream"
-    padder = PKCS7(128).padder()
-    padded = padder.update(plain) + padder.finalize()
-    encryptor = Cipher(algorithms.AES(key), modes.CBC(bytes(16))).encryptor()
-    encrypted = encryptor.update(padded) + encryptor.finalize()
     playlist = b'#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key"\n#EXTINF:2,\nsegment.ts\n#EXT-X-ENDLIST\n'
     data = {
         "https://offline.invalid/index.m3u8": playlist,
         "https://offline.invalid/key": key,
-        "https://offline.invalid/segment.ts": encrypted,
     }
-    guard = HLSResumeGuard(fetch=lambda url, *_: data[url])
+    calls = []
+
+    def fetch(url, *_):
+        calls.append(url)
+        return data[url]
+
+    guard = HLSResumeGuard(fetch=fetch)
     manifest = guard.describe("https://offline.invalid/index.m3u8", {}, lambda: None)
-    assert manifest["safe"]
     file = tmp_path / "temp/DL-1/track/0.ts"
     file.parent.mkdir(parents=True)
-    file.write_bytes(plain)
-    guard.prepare(
-        tmp_path,
-        "DL-1",
-        manifest,
-        {"manifest": manifest, "segments": guard.snapshot(tmp_path, "DL-1")},
-        {},
-        lambda: None,
-    )
-    assert file.read_bytes() == plain
+    file.write_bytes(b"decrypted complete transport stream")
+    checkpoint = {"manifest": manifest, "segments": guard.snapshot(tmp_path, "DL-1")}
+    current = guard.describe("https://offline.invalid/index.m3u8", {}, lambda: None)
+    guard.prepare(tmp_path, "DL-1", current, checkpoint, {}, lambda: None)
+    assert file.exists()
+    assert all(not url.endswith(".ts") for url in calls)
+    data["https://offline.invalid/key"] = b"fedcba9876543210"
+    changed = guard.describe("https://offline.invalid/index.m3u8", {}, lambda: None)
+    with pytest.raises(DownloadRestartRequired):
+        guard.prepare(tmp_path, "DL-1", changed, checkpoint, {}, lambda: None)
+    assert file.exists()
+
+
+def test_local_resume_validation_obeys_pause_before_touching_cache(tmp_path):
+    from nassav.task_control_rules import TaskPauseRequested
+
+    guard = HLSResumeGuard()
+    file = tmp_path / "temp/DL-1/track/0.ts"
+    file.parent.mkdir(parents=True)
+    file.write_bytes(b"complete")
+    manifest = {"safe": True, "identity": "same", "urls": ["unused"]}
+    checkpoint = {"manifest": manifest, "segments": guard.snapshot(tmp_path, "DL-1")}
+    file.write_bytes(b"damaged")
+
+    def stop():
+        raise TaskPauseRequested("pause")
+
+    with pytest.raises(TaskPauseRequested):
+        guard.prepare(tmp_path, "DL-1", manifest, checkpoint, {}, stop)
+    assert file.read_bytes() == b"damaged"
 
 
 def test_manifest_query_refresh_and_content_identity(context):

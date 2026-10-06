@@ -76,3 +76,11 @@ P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属
 超时与受控下载专项 22 项通过；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 725 通过、26 跳过，根目录 `pre-commit run -a` 全通过。临时 Docker 容器使用本地 nassav-backend:dev 镜像、只读挂载修改源码、`--network none`，真实 curl 请求仅访问其临时 loopback 服务，注入 0.25s 的部分响应超时后校验重试成功、缓存保留及暂停优先级；验收报告见[Docker 探针](../../docs/task-control-probes/resume-timeout-docker.json)。临时目录与容器已清理。
 
 该 probe 不证明真实外站、完整 CLI 下载及生产切换已验收；未重新构建部署镜像或恢复原正式任务。更新镜像后需在目标网络复查恢复校验、暂停/终止及视频完整性。参数与探针入口见[配置契约](configuration-contract.md)和[脚本说明](../scripts/README.md)。
+
+## 原生下载续传修复（2026-10-06）
+
+分支 `fix/native-download-resume`，基线 `53d0e92`，提交标题 `[Fix] Reuse verified local segments for native download resume`。原恢复准备串行重新下载所有已缓存分片，重新部署后仍停在 resume_validation。现改为当前清单/轨道/密钥身份加本地哈希校验，损坏/未知/未完成缓存删除后交由原生 CLI 重下，完整缓存不再请求远程字节。安全边界与兼容部署见[执行记录](../../docs/task-control-native-resume-results.md)。
+
+`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：726 通过、28 跳过。专项恢复/超时测试 23 通过；真实 curl loopback 超时探针通过。真实 CLI 来自当前 Docker worker 的 0.5.1 二进制，`NASSAV_LOCAL_DOWNLOAD_BINARY=... uv run pytest tests/test_local_cli_task_control.py --ds=django_project.refactoring_test_settings -q`：明文/AES、12/240 分片四项通过（84.85s）；240 分片用例暂停时保留至少 151 个完整分片，恢复后这些分片 HTTP 请求数不增加，最终全量解码 hash 等于原视频。较大样例先暴露共享内存 SQLite 并发表锁，专项改用临时文件 SQLite 后通过。根目录 `pre-commit run -a` 全通过，未修改钩子配置。
+
+CLI 和网络均仅访问临时 loopback fixture，数据库/输出临时隔离。未重建镜像、切换正式服务或操作原正式任务；真实外站、实际代理和 Docker 正式任务的恢复仍需更新镜像后验收。新旧检查点兼容，已暂停任务可直接恢复；同 URL 且清单/密钥不变时服务器替换分片内容无法检出。
