@@ -78,6 +78,8 @@ Ruff 的规则范围在根目录 `ruff.toml` 显式固定为 `E4`、`E7`、`E9`�
 
 ## 覆盖率与排查
 
+任务控制 P4 的 `test_controlled_scrape.py` 使用真实隔离 DB/文件和可控来源响应覆盖分阶段停止、恢复、版本冲突、部分图片失败和提交补偿；`test_task_network.py` 覆盖阶段预算与内容回调停止。两者连同 `test_task_records.py`、`test_task_assets.py` 在临时 PostgreSQL 验证，环境和命令见[P4 执行记录](../../docs/task-control-p4-results.md)。网络替身验证控制边界，不代表真实来源停止延迟；非 eager worker 和本地网络联调归 P7。
+
 ```bash
 uv run coverage run -m pytest tests/ --ds=django_project.refactoring_test_settings
 uv run coverage report

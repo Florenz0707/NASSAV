@@ -18,6 +18,19 @@ class ScraperBase(ABC):
         self.proxies = {"http": proxy, "https": proxy} if proxy else None
         self.timeout = timeout
         self.domain = ""
+        self.task_control = None
+
+    def set_task_control(self, control) -> None:
+        self.task_control = control
+
+    def _fetch(self, url, **kwargs):
+        if self.task_control is not None:
+            return self.task_control.request("GET", url, **kwargs)
+        return requests.get(url, **kwargs)
+
+    def _check_task(self) -> None:
+        if self.task_control is not None:
+            self.task_control.check()
 
     def set_domain(self, domain: str):
         """设置域名"""
@@ -40,8 +53,9 @@ class ScraperBase(ABC):
 
     def fetch_html(self, url: str) -> str | None:
         """获取 HTML 页面"""
+        self._check_task()
         try:
-            response = requests.get(
+            response = self._fetch(
                 url,
                 proxies=self.proxies,  # type: ignore
                 headers=HEADERS,
@@ -49,9 +63,11 @@ class ScraperBase(ABC):
                 impersonate=IMPERSONATE,
             )
             response.raise_for_status()
+            self._check_task()
 
             return response.text
         except Exception as e:
+            self._check_task()
             logger.error(f"Scraper 请求失败: {e!s}")
             return None
 
@@ -67,23 +83,30 @@ class ScraperBase(ABC):
         """
         import os
 
+        self._check_task()
         try:
             # 设置请求头（包含Referer）
             headers = HEADERS.copy()
             headers["Referer"] = f"https://{self.domain}/"
 
-            response = requests.get(
+            response = self._fetch(
                 url,
                 headers=headers,
                 proxies=self.proxies,  # type: ignore
                 timeout=self.timeout,
                 impersonate=IMPERSONATE,
-                stream=True,
+                stream=self.task_control is None,
             )
             response.raise_for_status()
 
             # 确保目录存在
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+            if self.task_control is not None:
+                from pathlib import Path
+
+                self.task_control.write(Path(save_path), response.content)
+                return True
 
             # 写入文件 (curl_cffi 不支持 chunk_size 参数)
             with open(save_path, "wb") as f:
@@ -97,6 +120,7 @@ class ScraperBase(ABC):
             return True
 
         except Exception as e:
+            self._check_task()
             logger.warning(f"封面下载失败: {e}")
             return False
 

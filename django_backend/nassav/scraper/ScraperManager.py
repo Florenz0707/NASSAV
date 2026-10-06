@@ -24,9 +24,11 @@ class ScraperManager(MetadataProvider):
         *,
         factories: Mapping[str, Callable[[], ScraperBase]] | None = None,
         config: Mapping[str, dict] | None = None,
+        check: Callable[[], None] | None = None,
     ):
         self.proxy = proxy
         self.scrapers: dict[str, ScraperBase] = {}
+        self.check = check or (lambda: None)
 
         # 注册刮削器，根据配置
         scraper_config = config if config is not None else settings.SCRAPER_CONFIG
@@ -54,6 +56,7 @@ class ScraperManager(MetadataProvider):
 
         使用缓存提高性能，减少外部请求
         """
+        self.check()
         avid = avid.upper()
         cache_key = f"scraper_metadata:{avid}"
 
@@ -69,7 +72,9 @@ class ScraperManager(MetadataProvider):
 
         # 缓存未命中，遍历刮削器
         for name, scraper in self.get_scrapers():
+            self.check()
             metadata = scraper.scrape(avid)
+            self.check()
             if metadata:
                 # 缓存元数据
                 try:

@@ -127,3 +127,31 @@ class TaskAssetTarget(models.Model):
                 fields=["root", "relative_path"], name="task_asset_target_path"
             )
         ]
+
+
+class TaskEvent(models.Model):
+    """Resource commit outbox; delivery retries carry a stable consumer dedupe ID."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    job = models.ForeignKey(TaskJob, on_delete=models.CASCADE)
+    event = models.CharField(max_length=32)
+    state = models.CharField(max_length=16, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+    delivered_at = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["job", "event"], name="task_event_job_kind")
+        ]
+
+
+class TaskEventReceipt(models.Model):
+    event = models.ForeignKey(TaskEvent, on_delete=models.CASCADE)
+    consumer = models.CharField(max_length=80)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["event", "consumer"], name="task_event_consumer"
+            )
+        ]

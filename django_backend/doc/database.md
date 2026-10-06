@@ -334,3 +334,5 @@ P2 迁移 `0023_taskassettarget` 新增正式资产发布标记表，按 `(root,
 存在 promoting 日志时禁止恢复任务，须先收尾日志。终态 cleanup_state 独立于业务状态，清理失败的 `cleanup_retry` 只重新置为 pending，不创建 attempt 或复活执行。成功任务也可清理剩余私有备份；正式资产保留。生产库尚未执行迁移 0022/0023。
 
 SQLite/PostgreSQL 均通过版本条件更新和事务保证并发控制；SQLite 的瞬时锁竞争可有限重试，不忽略其他数据库错误。暂停处理中禁止恢复，终止优先于暂停；确认执行停止后才进入 paused/cancelled。`cancelled` 与 `cleanup_state` 独立，DB 控制记录不证明文件已经清理。
+
+P4 迁移 `0024_taskevent_taskeventreceipt_and_more` 新增资源提交事件出箱及收件去重记录：TaskEvent 按 `(job, event)` 唯一，稳定 UUID 跨派发重试不变；TaskEventReceipt 按 `(event, consumer)` 唯一。资源与事件登记在同一个受控事务内，派发在事务外，失败保留 pending。现有日志消费者去重，新增具有业务副作用的消费者仍需自己的幂等收件。生产库未执行 0024；验证和限制见[P4 执行记录](../../docs/task-control-p4-results.md)。

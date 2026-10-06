@@ -241,6 +241,73 @@ def build_controlled_download(lease):
     )
 
 
+def build_controlled_scrape(*, continuation=None):
+    from pathlib import Path
+    from django.conf import settings
+    from nassav.controlled_scrape import ControlledScrape
+    from nassav.resource_adapters import SignalResourceEvents
+    from nassav.resource_persistence import DjangoResourcePersistence
+    from nassav.scrape_preparation import ScrapePreparation
+    from nassav.scraper.ScraperManager import ScraperManager
+    from nassav.source.SourceManager import SourceManager
+    from nassav.task_network import TaskBrowserSession
+    from nassav.task_resource_events import TaskResourceEvents
+    from nassav.task_resource_persistence import (
+        TaskResourcePersistence,
+        resource_revision,
+    )
+
+    records = build_task_records()
+    assets = build_task_assets(records)
+
+    def preparation(control):
+        # No control state is installed on the application's shared singletons.
+        sources = SourceManager(check=control.check)
+        proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
+        metadata = ScraperManager(proxy, check=control.check)
+        for _, source in sources.get_sources():
+            source.set_task_control(control)
+            fetcher = getattr(source, "page_fetcher", None)
+            if fetcher is not None:
+                fetcher.timeout_ms = min(fetcher.timeout_ms, 60000)
+                fetcher.set_task_control(control)
+                if fetcher.browser is not None:
+                    fetcher.browser.set_task_transport(TaskBrowserSession(control))
+        for _, scraper in metadata.get_scrapers():
+            scraper.set_task_control(control)
+        return ScrapePreparation(sources, metadata, control)
+
+    def publish(event, avid, event_id):
+        SignalResourceEvents().publish(
+            event,
+            ControlledScrape,
+            avid,
+            {"event_id": event_id, "resource": {"avid": avid}},
+        )
+
+    def project(snapshot):
+        from nassav.consumers import send_task_update
+
+        # A version hint carries no private checkpoint or credentials.
+        send_task_update(
+            "task_job_update",
+            {key: snapshot[key] for key in ("job_id", "job_type", "version")},
+        )
+
+    return ControlledScrape(
+        records,
+        assets,
+        preparation,
+        resource_revision,
+        TaskResourcePersistence(DjangoResourcePersistence()).save,
+        TaskResourceEvents(
+            Path(settings.COVER_DIR).parent / ".nassav-task-events", publish
+        ),
+        continuation=continuation,
+        project=project,
+    )
+
+
 def build_resource_service(source_manager=None, scraper_manager=None, **overrides):
     from nassav.resource_adapters import (
         CeleryTranslationSubmitter,

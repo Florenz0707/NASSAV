@@ -95,6 +95,10 @@ class DjangoTaskRecords:
     def get(self, job_id: str) -> dict:
         return self._snapshot(self._row(job_id))
 
+    def configuration(self, job_id: str) -> dict:
+        """Internal worker configuration; never included in public snapshots."""
+        return dict(self._row(job_id).options)
+
     @staticmethod
     def _event(row: TaskJob, state: str, stage: str | None = None) -> list:
         return [
@@ -201,9 +205,7 @@ class DjangoTaskRecords:
             elif state not in TERMINAL_STATES:
                 changes["requested_action"] = action
             if state == "cancelled" and action != "cleanup_retry":
-                pending_files = row.artifacts.exclude(
-                    state__in=["committed", "deleted"]
-                ).exists()
+                pending_files = row.artifacts.exclude(state="deleted").exists()
                 changes.update(
                     active_key=None,
                     requested_action="cancel",
@@ -395,9 +397,7 @@ class DjangoTaskRecords:
             if error_code:
                 changes.update(error_code=error_code, message=message)
             if state == "cancelled":
-                pending_files = row.artifacts.exclude(
-                    state__in=["committed", "deleted"]
-                ).exists()
+                pending_files = row.artifacts.exclude(state="deleted").exists()
                 changes.update(
                     active_key=None,
                     finished_at=timezone.now(),

@@ -260,8 +260,14 @@ def get_resource_job(task_id: str, *, store: JobStore | None = None) -> dict | N
     soft_time_limit=1800,
     time_limit=1860,
 )
-def run_resource_job(self, action: str, avid: str, source: str, options: dict):
+def run_resource_job(
+    self, action: str, avid: str, source: str, options: dict, job_id: str | None = None
+):
     """Run existing ResourceService in the scrape worker; task args are JSON only."""
+    if job_id is not None:
+        from nassav.composition import build_controlled_scrape
+
+        return build_controlled_scrape().run(job_id, self.request.id)
     from celery.exceptions import SoftTimeLimitExceeded
 
     from nassav.resource_service import resource_service

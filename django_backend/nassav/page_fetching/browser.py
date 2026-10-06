@@ -20,6 +20,11 @@ class _V1BrowserClient(BrowserPageClient):
     def _request_headers(self) -> dict[str, str]:
         return {}
 
+    def set_task_transport(self, session) -> None:
+        """Install transport only on a newly constructed task-local adapter."""
+        self._session.close()
+        self._session = session
+
     def fetch(self, url: str, *, timeout_ms: int) -> PageResult:
         started = monotonic()
 

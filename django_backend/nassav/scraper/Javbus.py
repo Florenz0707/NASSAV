@@ -4,7 +4,6 @@ JavBus 风格刮削器 - 适用于 JavBus 及其镜像站（Busdmm, Dmmsee 等�
 
 import re
 
-from curl_cffi import requests
 from django.conf import settings
 from loguru import logger
 
@@ -212,8 +211,9 @@ class Javbus(ScraperBase):
         headers["Referer"] = f"https://{self.domain}/"
 
         for attempt in range(max_retries):
+            self._check_task()
             try:
-                response = requests.get(
+                response = self._fetch(
                     url,
                     headers=headers,
                     proxies=self.proxies,  # type: ignore
@@ -221,11 +221,15 @@ class Javbus(ScraperBase):
                     impersonate=IMPERSONATE,
                 )
                 if response.status_code == 200:
-                    dest.write_bytes(response.content)
+                    if self.task_control is not None:
+                        self.task_control.write(dest, response.content)
+                    else:
+                        dest.write_bytes(response.content)
                     return True
                 else:
                     logger.warning(f"头像下载失败 (HTTP {response.status_code}): {url}")
             except Exception as e:
+                self._check_task()
                 logger.warning(f"头像下载失败 (尝试 {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     import time

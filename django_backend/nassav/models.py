@@ -14,6 +14,8 @@ from nassav.task_models import (
     TaskAssetTarget as TaskAssetTarget,
     TaskAttempt as TaskAttempt,
     TaskCommand as TaskCommand,
+    TaskEvent as TaskEvent,
+    TaskEventReceipt as TaskEventReceipt,
     TaskJob as TaskJob,
 )
 

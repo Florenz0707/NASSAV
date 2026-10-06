@@ -32,6 +32,7 @@ class AssetPromotion:
     artifact_id: int
     target_path: str
     reuse_existing: bool = False
+    reuse_if: Callable[[Path], bool] | None = None
 
 
 def _relative(value: str) -> str:
@@ -184,6 +185,40 @@ class TaskAssets:
             parents=True,
         )
 
+    def completed(self, token: ExecutionToken, root: str, relative: str) -> int | None:
+        """Reuse only an owned, complete private file with the recorded checksum."""
+        self.records.check(token)
+        artifact = TaskArtifact.objects.filter(
+            job_id=token.job_id,
+            root=root,
+            relative_path=_relative(relative),
+            state="staged",
+        ).first()
+        if artifact is None or not artifact.details.get("complete"):
+            return None
+        path = self._source(artifact)
+        if (
+            not path.is_file()
+            or _sha(path, lambda: self.records.check(token)) != artifact.sha256
+        ):
+            raise TaskAssetError("检查点文件损坏，不能复用")
+        return artifact.pk
+
+    def read(self, token: ExecutionToken, root: str, relative: str) -> bytes:
+        artifact_id = self.completed(token, root, relative)
+        if artifact_id is None:
+            raise TaskAssetError("检查点文件尚未完成")
+        artifact = TaskArtifact.objects.get(pk=artifact_id)
+        if artifact.size is None or artifact.size > 16 * 1024 * 1024:
+            raise TaskAssetError("检查点文件超出读取上限")
+        return self._source(artifact).read_bytes()
+
+    def valid_existing(
+        self, root: str, relative: str, validate: Callable[[Path], bool]
+    ) -> bool:
+        path = self._path(root, relative)
+        return path.is_file() and validate(path)
+
     def _backup(self, artifact: TaskArtifact) -> Path:
         return self._path(
             artifact.root,
@@ -267,7 +302,9 @@ class TaskAssets:
                         "new_marker": str(uuid4()),
                         "old_sha256": old_hash,
                         "backup": f"rollback/{commit_id}/{artifact.pk}",
-                        "reuse": promotion.reuse_existing and target.is_file(),
+                        "reuse": promotion.reuse_existing
+                        and target.is_file()
+                        and (promotion.reuse_if is None or promotion.reuse_if(target)),
                     }
                     artifact.save(
                         update_fields=["target_path", "state", "details", "updated_at"]

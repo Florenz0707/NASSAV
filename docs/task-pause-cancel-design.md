@@ -1,6 +1,6 @@
 # 下载与刮削任务：暂停、恢复、终止设计与执行计划
 
-日期：2026-10-06。设计基线：`idle` 的 `aa14a27`。P0 隔离能力探针与 P1 内部持久控制已完成，见 [P0](task-control-p0-results.md)和 [P1](task-control-p1-results.md)；P2–P7 尚未实施，生产任务控制或文件补偿尚未开放。
+日期：2026-10-06。设计基线：`idle` 的 `aa14a27`。P0–P3 已完成，见 [P0](task-control-p0-results.md)、[P1](task-control-p1-results.md)、[P2](task-control-p2-results.md)和 [P3](task-control-p3-results.md)；P4 内部刮削控制见[执行记录](task-control-p4-results.md)。下载已接入持久控制；整条刮削需完成 P5 翻译归属后开放，前端和真实 worker 联调归 P6/P7。生产库未运行本轮迁移。
 
 ## 1. 目标与推荐决策
 
