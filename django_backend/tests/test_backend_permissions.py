@@ -94,3 +94,49 @@ def test_parent_traversal_cannot_bypass_root_guard(permissions, tmp_path):
         permissions.prepare(
             tmp_path / "..", tmp_path / "media", os.getuid(), os.getgid()
         )
+
+
+def test_published_media_requires_explicit_migration_opt_in(permissions, tmp_path):
+    data, resource = tmp_path / "data", tmp_path / "media"
+    media = resource / "cover/old.html"
+    media.parent.mkdir(parents=True)
+    media.write_bytes(b"old metadata")
+    media.chmod(0o400)
+    permissions.prepare(
+        data, resource, os.getuid(), os.getgid(), repair=True, writers_stopped=True
+    )
+    assert media.stat().st_mode & 0o777 == 0o400
+    inode = media.stat().st_ino
+    permissions.prepare(
+        data,
+        resource,
+        os.getuid(),
+        os.getgid(),
+        repair=True,
+        writers_stopped=True,
+        include_published=True,
+    )
+    assert media.stat().st_mode & 0o600 == 0o600
+    assert media.stat().st_ino == inode and media.read_bytes() == b"old metadata"
+
+
+def test_published_migration_rejects_link_before_runtime_mutation(
+    permissions, tmp_path
+):
+    data, resource = tmp_path / "data", tmp_path / "media"
+    media = resource / "video/linked.mp4"
+    media.parent.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"unchanged")
+    media.symlink_to(outside)
+    with pytest.raises(ValueError, match="symlink"):
+        permissions.prepare(
+            data,
+            resource,
+            os.getuid(),
+            os.getgid(),
+            repair=True,
+            writers_stopped=True,
+            include_published=True,
+        )
+    assert not data.exists()

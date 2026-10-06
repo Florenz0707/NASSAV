@@ -412,3 +412,132 @@ def test_terminal_unresolved_publication_blocks_deletion_until_recovery(context)
     artifact.state = "staged"
     artifact.save(update_fields=["state"])
     assert repository.get(job["avid"]).pk == resource.pk
+
+
+@pytest.mark.parametrize("fail_persist", [False, True])
+def test_legacy_read_only_target_can_be_backed_up_and_rolled_back(
+    context, monkeypatch, fail_persist
+):
+    import errno
+
+    assets, records, _, _, token = context
+    target = assets.roots["cover"] / "ASSET-1.html"
+    target.parent.mkdir()
+    target.write_bytes(b"legacy metadata")
+    asset_id = assets.stage(
+        token, "cover", "new.html", "html", produce(b"new metadata")
+    )
+    inside_transaction = []
+    original = records.controlled_transaction
+
+    def fenced(*args, **kwargs):
+        inside_transaction.append(True)
+        try:
+            return original(*args, **kwargs)
+        finally:
+            inside_transaction.pop()
+
+    def denied(*args, **kwargs):
+        assert not inside_transaction, "backup IO must stay outside DB fence"
+        raise PermissionError(errno.EPERM, "protected_hardlinks")
+
+    monkeypatch.setattr(records, "controlled_transaction", fenced)
+    monkeypatch.setattr("nassav.task_assets.os.link", denied)
+
+    def persist():
+        if fail_persist:
+            raise RuntimeError("metadata write failed")
+
+    if fail_persist:
+        with pytest.raises(RuntimeError, match="metadata write failed"):
+            assets.commit(token, [AssetPromotion(asset_id, "ASSET-1.html")], persist)
+        assert target.read_bytes() == b"legacy metadata"
+        assert TaskArtifact.objects.get(pk=asset_id).state == "staged"
+    else:
+        assets.commit(token, [AssetPromotion(asset_id, "ASSET-1.html")], persist)
+        assert target.read_bytes() == b"new metadata"
+        assert TaskArtifact.objects.get(pk=asset_id).state == "committed"
+
+
+def test_pause_during_legacy_copy_keeps_old_file_and_removes_partial(
+    context, monkeypatch
+):
+    import errno
+
+    assets, _, _, _, token = context
+    target = assets.roots["cover"] / "ASSET-1.html"
+    target.parent.mkdir()
+    target.write_bytes(b"old metadata")
+    asset = assets.stage(token, "cover", "new.html", "html", produce(b"new"))
+
+    def deny_after_pause(*args, **kwargs):
+        command(context, "pause")
+        raise PermissionError(errno.EPERM, "protected_hardlinks")
+
+    monkeypatch.setattr("nassav.task_assets.os.link", deny_after_pause)
+    with pytest.raises(TaskPauseRequested):
+        assets.commit(
+            token,
+            [AssetPromotion(asset, "ASSET-1.html")],
+            lambda: pytest.fail("published"),
+        )
+    assert target.read_bytes() == b"old metadata"
+    assert not list(assets.roots["cover"].rglob("*.copy"))
+    assert TaskArtifact.objects.get(pk=asset).state == "staged"
+
+
+def test_backup_disk_error_is_not_hidden_by_copy_fallback(context, monkeypatch):
+    import errno
+
+    assets, _, _, _, token = context
+    target = assets.roots["cover"] / "ASSET-1.html"
+    target.parent.mkdir()
+    target.write_bytes(b"old metadata")
+    asset = assets.stage(token, "cover", "new.html", "html", produce(b"new"))
+
+    def full(*args, **kwargs):
+        raise OSError(errno.ENOSPC, "fixture disk full")
+
+    monkeypatch.setattr("nassav.task_assets.os.link", full)
+    with pytest.raises(OSError, match="fixture disk full"):
+        assets.commit(
+            token,
+            [AssetPromotion(asset, "ASSET-1.html")],
+            lambda: pytest.fail("published"),
+        )
+    assert target.read_bytes() == b"old metadata"
+    assert TaskArtifact.objects.get(pk=asset).state == "staged"
+
+
+def test_pause_after_copied_backup_preserves_original_formal_inode(
+    context, monkeypatch
+):
+    import errno
+    import nassav.task_assets as module
+
+    assets, _, _, _, token = context
+    target = assets.roots["cover"] / "ASSET-1.html"
+    target.parent.mkdir()
+    target.write_bytes(b"old metadata")
+    inode = target.stat().st_ino
+    asset = assets.stage(token, "cover", "new.html", "html", produce(b"new"))
+    snapshot = module._snapshot_existing
+
+    def deny(*args, **kwargs):
+        raise PermissionError(errno.EPERM, "protected_hardlinks")
+
+    def pause_after_backup(*args, **kwargs):
+        snapshot(*args, **kwargs)
+        command(context, "pause")
+
+    monkeypatch.setattr(module.os, "link", deny)
+    monkeypatch.setattr(module, "_snapshot_existing", pause_after_backup)
+    with pytest.raises(TaskPauseRequested):
+        assets.commit(
+            token,
+            [AssetPromotion(asset, "ASSET-1.html")],
+            lambda: pytest.fail("published"),
+        )
+    assert target.read_bytes() == b"old metadata"
+    assert target.stat().st_ino == inode
+    assert TaskArtifact.objects.get(pk=asset).state == "staged"

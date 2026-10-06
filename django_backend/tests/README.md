@@ -100,3 +100,5 @@ uv run coverage report
 `test_hls_validation_timeout.py` 与 controlled_download 专项覆盖部分响应超时后重试不拼接残缺内容、60 秒预算、尝试上限、暂停优先级，以及持续超时保留暂停状态和恢复动作。容器真实 curl 探针见 scripts/accept_hls_validation_timeout.py 和[脚本说明](../scripts/README.md)。
 
 `test_backend_permissions.py` 验证运行目录预览不写入、停止断言、限定范围、锁 inode/缓存内容保留及符号链接/硬链接拒绝；`test_compose_stack.py` 包含后端运行 UID/GID 一致与非 root 的渲染护栏。
+
+`test_task_assets.py` 还验证旧文件硬链接 EPERM 的备份回退、提交成功、元数据失败回滚、复制中的暂停和磁盘失败不被吞掉；`test_backend_permissions.py` 的正式媒体迁移须显式 include-published，保留 inode/内容且拒绝链接。

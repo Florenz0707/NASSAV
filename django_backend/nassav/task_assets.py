@@ -1,8 +1,10 @@
 """Owned task workspaces, journaled publication and retryable private cleanup."""
 
+import errno
 import hashlib
 import os
 import shutil
+import stat
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
@@ -56,6 +58,57 @@ def _sha(path: Path, check: Callable | None = None) -> str:
                 check()
             hasher.update(chunk)
     return hasher.hexdigest()
+
+
+def _snapshot_existing(target: Path, backup: Path, expected_hash: str, check: Callable):
+    """Prefer cheap links; copy readable legacy files when linking is prohibited."""
+    check()
+    try:
+        os.link(target, backup, follow_symlinks=False)
+    except OSError as error:
+        if error.errno not in {
+            errno.EPERM,
+            errno.EACCES,
+            errno.EXDEV,
+            errno.EOPNOTSUPP,
+        }:
+            raise
+        partial = backup.with_name(backup.name + ".copy")
+        try:
+            with os.fdopen(
+                os.open(target, os.O_RDONLY | os.O_NOFOLLOW), "rb"
+            ) as source:
+                info = os.fstat(source.fileno())
+                if not stat.S_ISREG(info.st_mode):
+                    raise TaskAssetError("旧资产不是普通文件")
+                with os.fdopen(
+                    os.open(
+                        partial,
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                        0o600,
+                    ),
+                    "wb",
+                ) as destination:
+                    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                        check()
+                        destination.write(chunk)
+                    destination.flush()
+                    os.fsync(destination.fileno())
+                    os.fchmod(destination.fileno(), stat.S_IMODE(info.st_mode) & 0o777)
+                os.utime(
+                    partial,
+                    ns=(info.st_atime_ns, info.st_mtime_ns),
+                    follow_symlinks=False,
+                )
+            if _sha(partial, check) != expected_hash:
+                raise TaskAssetRecoveryRequired("旧文件备份校验不一致")
+            check()
+            os.replace(partial, backup)
+            return
+        finally:
+            partial.unlink(missing_ok=True)
+    if _sha(backup, check) != expected_hash:
+        raise TaskAssetRecoveryRequired("旧文件备份校验不一致")
 
 
 def _fingerprint(path: Path) -> tuple:
@@ -314,6 +367,28 @@ class TaskAssets:
                 token, prepare, checkpoint={"preparing_commit": commit_id}
             )
             try:
+                # Backup IO stays outside the DB fence, including legacy-file copies.
+                # Durable preparation already names the backup for crash recovery.
+                for artifact in artifacts:
+                    artifact.refresh_from_db()
+                    if artifact.details["reuse"] or not artifact.details["old_sha256"]:
+                        continue
+                    self.records.check(token)
+                    target = self._path(artifact.root, artifact.target_path)
+                    previous = checked[artifact.pk]
+                    if _fingerprint(target) != previous[3]:
+                        raise TaskAssetRecoveryRequired("正式文件在备份前变化")
+                    _snapshot_existing(
+                        target,
+                        self._backup(artifact),
+                        previous[1],
+                        lambda: self.records.check(token),
+                    )
+                    current = _fingerprint(target)
+                    if not current or current[:3] != previous[3][:3]:
+                        raise TaskAssetRecoveryRequired("正式文件在备份期间变化")
+                    # A hard link changes ctime; subsequent publication uses this snapshot.
+                    checked[artifact.pk] = (*previous[:3], current)
 
                 def publish():
                     for artifact in artifacts:
@@ -335,8 +410,6 @@ class TaskAssets:
                                 "正式或暂存文件在提交期间变化"
                             )
                         if not artifact.details["reuse"]:
-                            if target.exists():
-                                os.link(target, self._backup(artifact))
                             os.replace(source, target)
                             epoch.marker = UUID(artifact.details["new_marker"])
                             epoch.sha256 = artifact.sha256
@@ -390,7 +463,8 @@ class TaskAssets:
                 if _sha(backup) != old_hash:
                     raise TaskAssetRecoveryRequired("旧文件备份校验不一致")
             # Source presence tells whether replace happened, including identical bytes.
-            if not source.exists():
+            published = not source.exists()
+            if published:
                 if current_hash != artifact.sha256 or (
                     old_hash and not backup.exists()
                 ):
@@ -399,7 +473,11 @@ class TaskAssets:
             elif _sha(source) != artifact.sha256 or current_hash not in {old_hash, ""}:
                 raise TaskAssetRecoveryRequired("文件变化不属于此提交")
             if backup.exists():
-                os.replace(backup, target)
+                if published or not target.exists():
+                    os.replace(backup, target)
+                else:
+                    # Backup completed but publication never started: preserve old inode.
+                    backup.unlink()
             elif old_hash and not target.exists():
                 raise TaskAssetRecoveryRequired("旧文件备份缺失")
             artifact.state = "staged"

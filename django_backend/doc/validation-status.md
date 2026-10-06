@@ -92,3 +92,13 @@ CLI 和网络均仅访问临时 loopback fixture，数据库/输出临时隔离�
 专项 15 项通过，真实 Docker UID1000 探针通过全部运行目录、SQLite、flock、缓存删除和本地 HLS 原生下载/清理；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 736 通过、28 跳过（80.79s），根目录 `pre-commit run -a` 全通过，钩子配置未改。详细命令与范围见[执行记录](../../docs/backend-volume-permissions-results.md)。
 
 实际实例在全部服务停止时修复 205 个条目的属主为 1000:1000，六个已有锁 inode 不变。PostgreSQL 只读核对发现 HMN-606 取消请求卡在 RECOVERY_UNCONFIRMED，核实旧容器/后代退出后，通过已有 fenced 管理命令收尾该指定 attempt：cancelled / cleanup_state=completed，私有目录删除，正式视频保留。Redis 仅临时启动支持 owner 锁释放，随后恢复停止；没有迁移数据库或启动其他正式服务。现场权限与指定取消收尾已验收，更新后端 Compose 身份后的完整服务运行仍需用户合并代码并重新创建容器验收。
+
+## 旧正式文件权限与覆盖备份修复（2026-10-06）
+
+分支 `fix/legacy-resource-publication-permissions`，基线 `346d758`，提交标题 `[Fix] Back up legacy read-only assets before publication`。实际 scraper UID1000，但 SNOS-317.html 为 root:root 644，os.link 回滚备份触发 Linux protected_hardlinks EPERM；符号链接绑定资源根不是此次原因。上次运行目录修复未覆盖旧正式文件，本次补齐正式文件迁移 opt-in 及发布回退。
+
+TaskAssets 先持久记录 journal，再在 DB fence 外建立旧备份，硬链接受限时分块复制、检查控制/归属、验证 SHA 并原子发布。复制失败/暂停保留正式文件；完成复制但未发布时回滚保留原正式 inode，不以备份副本替换未动过的目标。磁盘错误不隐藏，journal/fencing 与正式提升流程保持。权限脚本默认范围不变，增加 include-published 离线迁移选项。
+
+专项资产/权限 40 项通过；真实 Docker UID1000、network none、临时 SQLite/root:root 644 文件，先实际复现内核 EPERM，再用完整 TaskAssets 验证发布与 DB 失败回滚通过；最终符号链接绑定源复验还覆盖复制完成后的暂停保留原 inode，三个真实内核 EPERM 场景均通过。完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 743 通过、28 跳过（85.14s），根目录 `pre-commit run -a` 全通过；命令/范围见[执行记录](../../docs/legacy-resource-permissions-results.md)。钩子配置未修改。
+
+现场在共享资源锁和目标锁内逐个修复 110 个旧正式文件的属主为 1000:1000，保留 inode/内容/大小/mtime；真实 scraper 对 SNOS-317.html 的 read/write access 均为 true，正式根目录剩余 root 文件为零。当前服务全程运行，未重启或自动重新抓取失败任务；用户的符号链接挂载可以保留。权限现场已验收，兼容发布代码需更新后端镜像，失败任务仍需重新提交；未宣称真实站点刮削发布通过。

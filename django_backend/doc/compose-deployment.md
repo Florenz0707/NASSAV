@@ -187,9 +187,21 @@ python3 scripts/prepare_backend_permissions.py --data-dir /实际/deploy-data --
 sudo python3 scripts/prepare_backend_permissions.py --data-dir /实际/deploy-data --resource-dir /实际/resource --uid 1000 --gid 1000 --repair --writers-stopped
 ```
 
-脚本只递归检查/修复后端 config、db、log、resource_backup、backup、backup_sync、celery_beat，以及资源 `.tasks`、三类 `.nassav-*-locks`；正式媒体只修改资源根与 cover/avatar/video/recommendation_cover 目录本身，不遍历媒体文件。修复保留内容、锁 inode、缓存及已有 group/other 权限，补足 owner 读写和目录执行权限，不使用 777。默认只读检查，不创建路径；需修复时退出 1。显式 repair 创建缺失运行目录，先拒绝符号链接、硬链接与特殊文件再修改。`--writers-stopped` 是操作者对停止事实的断言，不是脚本自动检测。
+脚本只递归检查/修复后端 config、db、log、resource_backup、backup、backup_sync、celery_beat，以及资源 `.tasks`、三类 `.nassav-*-locks`；默认正式媒体只修改资源根与 cover/avatar/video/recommendation_cover 目录本身，不遍历媒体文件。旧 root 部署迁移时，增加 `--include-published` 才检查/修复这些目录中的正式文件（同样需停止写入者，保持内容与 inode）。修复保留内容、锁 inode、缓存及已有 group/other 权限，补足 owner 读写和目录执行权限，不使用 777。默认只读检查，不创建路径；需修复时退出 1。显式 repair 创建缺失运行目录，先拒绝符号链接、硬链接与特殊文件再修改。`--writers-stopped` 是操作者对停止事实的断言，不是脚本自动检测。
 
-数据目录的 resource 若是符号链接，核实实际目标后显式将 `--resource-dir` 设为真实路径；脚本不会自动跟随链接。`POSTGRES_PASSWORD_FILE` 不在修复范围，须自行保证所选 UID 能读取，保留凭证文件最小权限。配置在其他路径或自定义写入目录时也需单独核对，不让此脚本猜测范围。
+`deploy-data/resource -> django_backend/resource` 的挂载方式可以保留：Docker 绑定其实际目录，链接自身的属主不决定目标文件权限。数据目录的 resource 若是符号链接，核实实际目标后显式将 `--resource-dir` 设为真实路径；脚本不会自动跟随链接。旧正式文件为 root:root 644 时，仅修复目录不足以完成迁移；原生文件覆盖的备份会受 Linux protected_hardlinks 限制，旧同步写入也可能缺少写权限。停写后执行：
+
+```bash
+resource_path=$(realpath deploy-data/resource)
+# 先检查；需要修复时退出非零，不写入数据
+python3 scripts/prepare_backend_permissions.py --data-dir "$PWD/deploy-data" --resource-dir "$resource_path" --uid 1000 --gid 1000 --include-published
+# 确认所有写入者停止后，限定于这些运行目录和正式文件修复；不改变内容
+sudo python3 scripts/prepare_backend_permissions.py --data-dir "$PWD/deploy-data" --resource-dir "$resource_path" --uid 1000 --gid 1000 --include-published --repair --writers-stopped
+```
+
+TaskAssets 在已持久记录的提交日志之后、DB 写入 fence 之外准备旧文件备份。可用时仍使用硬链接；仅在 EPERM/EACCES/EXDEV/EOPNOTSUPP 时尝试不跟随链接的有界分块复制，期间检查控制和归属，验证完整 checksum 后才发布。临时复制不充当有效备份；原文件在备份校验通过前不替换。无法读旧文件、磁盘/目录权限错误等仍显式失败，不改成 root 服务或关闭内核保护。
+
+`POSTGRES_PASSWORD_FILE` 不在修复范围，须自行保证所选 UID 能读取，保留凭证文件最小权限。配置在其他路径或自定义写入目录时也需单独核对，不让此脚本猜测范围。
 
 `.tasks` 残留不生成任务，任务来自 DB；删缓存不等于取消。paused 的工作区保留；succeeded/failed/cancelled 且 writer 退出证明成立后才清理，权限失败显示 cleanup_state=failed，由 worker 恢复 Loop 重试。所有 worker 停止时不执行自动重试。取消卡在 RECOVERY_UNCONFIRMED 时，核实旧实例及后代退出后使用上文 `recover_tasks --confirm-stopped-attempt ... --all-writers-stopped`；该命令保留 generation/fencing，只处理指定旧 attempt，不能用手动删除或清空 Redis 绕过。
 

@@ -34,8 +34,10 @@ def checked(path: Path):
     return info
 
 
-def plan(data_dir: Path, resource_dir: Path) -> dict[Path, bool]:
-    """Directories are True, regular files False; published media is not traversed."""
+def plan(
+    data_dir: Path, resource_dir: Path, *, include_published=False
+) -> dict[Path, bool]:
+    """Directories are True, files False; media migration requires explicit opt-in."""
     entries = {data_dir: True, resource_dir: True}
     trees = [data_dir / name for name in RUNTIME_DIRS]
     for name in MEDIA_DIRS:
@@ -58,6 +60,21 @@ def plan(data_dir: Path, resource_dir: Path) -> dict[Path, bool]:
                 if info is None:
                     raise FileNotFoundError(path)
                 entries[path] = stat.S_ISDIR(info.st_mode)
+    if include_published:
+        for name in MEDIA_DIRS:
+            root = resource_dir / name
+            if checked(root) is None:
+                continue
+            for current, directories, files in os.walk(
+                root, followlinks=False, onerror=raise_error
+            ):
+                directories[:] = [item for item in directories if item != ".tasks"]
+                for item in directories + files:
+                    path = Path(current) / item
+                    info = checked(path)
+                    if info is None:
+                        raise FileNotFoundError(path)
+                    entries[path] = stat.S_ISDIR(info.st_mode)
     for path, directory in entries.items():
         info = checked(path)
         if info and directory != stat.S_ISDIR(info.st_mode):
@@ -69,7 +86,16 @@ def raise_error(error):
     raise error
 
 
-def prepare(data_dir, resource_dir, uid, gid, *, repair=False, writers_stopped=False):
+def prepare(
+    data_dir,
+    resource_dir,
+    uid,
+    gid,
+    *,
+    repair=False,
+    writers_stopped=False,
+    include_published=False,
+):
     if uid <= 0 or gid <= 0:
         raise ValueError("Use a non-root UID and GID")
     if repair and not writers_stopped:
@@ -81,7 +107,7 @@ def prepare(data_dir, resource_dir, uid, gid, *, repair=False, writers_stopped=F
     data_dir, resource_dir = Path(data_dir).absolute(), Path(resource_dir).absolute()
     if data_dir == Path("/") or resource_dir == Path("/"):
         raise ValueError("Refusing filesystem root")
-    entries = plan(data_dir, resource_dir)
+    entries = plan(data_dir, resource_dir, include_published=include_published)
     problems = []
     for path, directory in entries.items():
         info = checked(path)
@@ -121,6 +147,11 @@ def main():
     parser.add_argument("--resource-dir", required=True, type=Path)
     parser.add_argument("--uid", required=True, type=int)
     parser.add_argument("--gid", required=True, type=int)
+    parser.add_argument(
+        "--include-published",
+        action="store_true",
+        help="Also inspect/repair existing published media ownership (offline migration)",
+    )
     parser.add_argument("--repair", action="store_true")
     parser.add_argument("--writers-stopped", action="store_true")
     args = parser.parse_args()
@@ -132,6 +163,7 @@ def main():
             args.gid,
             repair=args.repair,
             writers_stopped=args.writers_stopped,
+            include_published=args.include_published,
         )
         print(json.dumps(result))
         return 1 if result["status"] == "needs_repair" else 0
