@@ -54,3 +54,11 @@ P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属
 分支 `fix/resource-delete-lock-permissions`，基线 `ff25555`，提交标题 `[Fix] Report resource lock permission failures before deletion`。真实只读锁目录/锁文件回归先复现未经处理的 PermissionError，修复后单条/批量资源及视频删除共 8 项权限用例通过，删除用例合计 25 项通过。`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 完整隔离回归 705 通过、26 跳过，根目录 `pre-commit run -a` 全通过，未修改钩子配置。
 
 本机资源锁目录及现有普通 `.lock` 文件原属主 root，已限定修复为实际后端用户 1000:1000，目录和文件模式保持，锁 inode 保留。原 SNOS-317 与两个现有锁文件均验证可获取；没有对正式资源执行删除、数据库迁移或重启服务。代码变更在辅助工作树合并 `idle`，默认 `dev` 保留，原 DELETE 请求由用户重试验收。
+
+## 持久刮削任务代理修复（2026-10-06）
+
+分支 `fix/task-network-configured-proxy`，基线 `3abb4d1`，提交标题 `[Fix] Honor configured proxies in controlled scraper requests`。原 TaskNetworkControl 的底层 `CurlOpt.PROXY: ""` 在 curl_cffi 设置显式代理之后执行，导致 scraper 实际直连。本地目标/代理服务先复现返回 direct 而非 proxied；改为请求层的无代理默认值后，显式全局代理正常应用，未配置及 Byparr 控制请求仍明确直连。没有新增代理配置键或修改实例配置。
+
+`uv run pytest tests/test_task_network_proxy.py tests/test_task_network.py --ds=django_project.refactoring_test_settings -q` 21 项通过：包含 15 项真实 loopback curl 回归，覆盖三个 scraper 的 HTML/封面/头像、HTTPS CONNECT、显式代理与环境代理/NO_PROXY 的优先级、浏览器控制直连，以及原任务预算/暂停终止检查。完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 720 通过、26 跳过，`pre-commit run -a` 全通过，钩子配置未改。
+
+全部服务和图片文件为本地临时 fixture，结束关闭/清理。未访问 JavBus 等真实站点，未变更实际代理地址或重启正式 API/worker；目标环境需更新代码、启用已有 `Proxy.Enable/url` 并重启 API/scrape worker 后验收。配置位置及本机/容器地址区别见[代理路由](proxy-routing.md)。

@@ -2,13 +2,24 @@
 
 项目按请求用途选择代理，避免宿主机的系统代理改变下载器的出口。
 
-| 请求               | 配置                                                  | 未配置时 |
-| ------------------ | ----------------------------------------------------- | -------- |
-| Django 直接抓取    | `config/config.yaml` 的 `Proxy.Enable` 与 `Proxy.url` | 直连     |
-| Byparr 浏览器请求  | `config/config.yaml` 的 `Proxy.Enable` 与 `Proxy.url` | 直连     |
-| `N_m3u8DL-RE` 下载 | `config/config.yaml` 的 `Proxy.download_url`          | 直连     |
+| 请求                                              | 配置                                                  | 未配置时 |
+| ------------------------------------------------- | ----------------------------------------------------- | -------- |
+| 视频来源页面直接抓取                              | `config/config.yaml` 的 `Proxy.Enable` 与 `Proxy.url` | 直连     |
+| 元数据 scraper（JavBus/Busdmm/Dmmsee、封面/头像） | `config/config.yaml` 的 `Proxy.Enable` 与 `Proxy.url` | 直连     |
+| Byparr 浏览器请求                                 | `config/config.yaml` 的 `Proxy.Enable` 与 `Proxy.url` | 直连     |
+| `N_m3u8DL-RE` 下载                                | `config/config.yaml` 的 `Proxy.download_url`          | 直连     |
 
 下载器不会回退使用 `Proxy.url`，启动下载器子进程时会清除继承的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 及其小写形式。若显式设置 `DOWNLOAD_PROXY_URL` 环境变量，它会覆盖配置文件中的 `Proxy.download_url`；空字符串强制直连。`Proxy.Enable` 同时控制 Django 直接抓取与 Byparr 浏览器出口，不控制下载代理。Django 抓取进程及其他任务的环境变量不受此处理影响。
+
+JavBus 等 scraper 共用全局代理，没有独立的 scraper 代理键。包括同步刮削与持久刮削任务的 HTML、封面、头像请求：启用时使用同一 `Proxy.url`，关闭时持久任务请求明确直连。持久任务的请求层不会再用空的底层 cURL PROXY 覆盖显式代理，也不会被系统 `HTTP_PROXY` 或 `NO_PROXY` 改写路线。Byparr 控制请求继续直连，浏览器访问目标站的代理仍由请求头传入。
+
+```yaml
+Proxy:
+  Enable: true
+  # 本机 Django 使用本机可达地址；容器 Django 应改为 host.docker.internal。
+  url: http://127.0.0.1:7077
+  download_url: null
+```
 
 本地开发时可以保持 `Proxy.Enable: true` 用于页面抓取，并单独启动直连下载 worker：
 

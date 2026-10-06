@@ -26,7 +26,7 @@ BrowserFetch.session_reuse_enabled 只接受 YAML 布尔值，省略为 false。
 
 私有输出位于 COVER_DIR/AVATAR_DIR/VIDEO_DIR 各自 `.tasks/<job_id>/`，根不能重叠。正常租约 TTL 仍为 3600s；writer 退出无法确认时，仅仍属本 owner 的 key 会持久保留而不自动过期，须身份核查恢复。暂停没有自动过期清理。P7 已接入每个真实 worker 的后台恢复扫描，不依赖可选 Beat。见[P3 验证](../../docs/task-control-p3-results.md)。
 
-受控刮削默认来源阶段 180s、元数据 60s、封面/单头像 45s，任务请求内容最多 20MiB、图片/HTML 写入最多 16MiB；浏览器 maxTimeout 限为 60s，控制请求总传输最多 75s。TaskNetworkControl 不修改来源策略及显式代理；只安装到任务新建的实例。翻译整体预算 180s、可用性 5s、单请求最多配置 timeout 与 60s 的较小值；仍使用原活动配置、模型和固定词逻辑。quiet 网络请求在期限内退出前仍是 pausing/cancelling，参数不是来源停止 SLA。暂无新增 YAML 参数，见[P4](../../docs/task-control-p4-results.md)与[P5](../../docs/task-control-p5-results.md)。
+受控刮削默认来源阶段 180s、元数据 60s、封面/单头像 45s，任务请求内容最多 20MiB、图片/HTML 写入最多 16MiB；浏览器 maxTimeout 限为 60s，控制请求总传输最多 75s。TaskNetworkControl 不修改来源策略；来源页面和元数据 scraper 共用 `Proxy.Enable/url`，显式代理由请求层正常应用，未配置时明确禁用环境代理；Byparr 控制请求保持直连。只安装到任务新建的实例。翻译整体预算 180s、可用性 5s、单请求最多配置 timeout 与 60s 的较小值；仍使用原活动配置、模型和固定词逻辑。quiet 网络请求在期限内退出前仍是 pausing/cancelling，参数不是来源停止 SLA。暂无新增 YAML 参数，见[P4](../../docs/task-control-p4-results.md)与[P5](../../docs/task-control-p5-results.md)。
 
 ## 后台任务恢复默认值
 

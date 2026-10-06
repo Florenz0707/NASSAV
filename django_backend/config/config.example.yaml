@@ -13,7 +13,8 @@ Database:
   PasswordFile: null
   ConnectionMaxAge: 60
 
-# Proxy.Enable/url 同时用于 Django 直接抓取和 Byparr 浏览器；download_url 为空时下载器直连
+# Proxy.Enable/url 共用于视频来源页面、JavBus 等元数据 scraper（含封面/头像）和 Byparr 浏览器
+# download_url 为空时视频下载器直连，不回退使用 url
 # Byparr 在容器中运行时，url 的 localhost/127.0.0.1 会映射为 host.docker.internal
 Proxy:
   Enable: false

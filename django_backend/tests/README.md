@@ -11,7 +11,7 @@ uv sync
 uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 ```
 
-专用设置强制无凭证 config.example.yaml、临时 SQLite/资源/用户设置、内存缓存/Channels，不读取实际 .env，不使用正式数据库模式声明。未模拟的 HTTP/curl/TCP 请求即使被业务吞掉，也在 fixture 收尾时报错。临时 Redis 只监听 Unix socket、不开 TCP/持久化，退出时清理；需要系统可启动子进程及本地套接字。当前缺项和历史数量见[验证状态](../doc/validation-status.md)，通过数量须对应提交与日期。
+专用设置强制无凭证 config.example.yaml、临时 SQLite/资源/用户设置、内存缓存/Channels，不读取实际 .env，不使用正式数据库模式声明。未模拟的 HTTP/curl/TCP 请求即使被业务吞掉，也在 fixture 收尾时报错。`test_task_network_proxy.py` 单文件使用仅限 loopback 的真实 curl 替身传输护栏，临时 HTTP 服务分别充当目标/代理，校验 HTML、封面、头像、HTTPS CONNECT、环境变量优先级和 Byparr 控制直连；不访问外站，服务结束关闭。临时 Redis 只监听 Unix socket、不开 TCP/持久化，退出时清理；需要系统可启动子进程及本地套接字。当前缺项和历史数量见[验证状态](../doc/validation-status.md)，通过数量须对应提交与日期。
 
 ## 按链路定位
 

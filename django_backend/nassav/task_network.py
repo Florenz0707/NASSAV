@@ -74,9 +74,12 @@ class TaskNetworkControl:
 
         self.check()
         try:
-            with requests.Session(
-                curl_options={CurlOpt.PROXY: "", CurlOpt.NOPROXY: ""}
-            ) as session:
+            # A late CurlOpt.PROXY override would erase the caller's explicit
+            # scraper/source proxy. Disable inherited proxies through the request
+            # defaults instead, letting curl_cffi apply configured routes normally.
+            if not kwargs.get("proxy") and not kwargs.get("proxies"):
+                kwargs["proxies"] = {"all": ""}
+            with requests.Session(curl_options={CurlOpt.NOPROXY: ""}) as session:
                 response = session.request(
                     method,
                     url,
