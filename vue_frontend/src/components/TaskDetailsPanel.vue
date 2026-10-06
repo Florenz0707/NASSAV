@@ -8,11 +8,12 @@ import EmptyState from './EmptyState.vue'
 import TaskResourceCover from './TaskResourceCover.vue'
 import TaskCheckbox from './TaskCheckbox.vue'
 import TaskTimeline from './TaskTimeline.vue'
-import { TASK_STAGE_LABELS, isFinishedTask } from '../utils/taskDetails.js'
-const emit = defineEmits(['dismiss', 'control'])
+import { TASK_STAGE_LABELS, isFinishedTask, sortTaskDetails } from '../utils/taskDetails.js'
+const emit = defineEmits(['dismiss', 'control', 'sort'])
 const props = defineProps({
   tasks: { type: Array, required: true },
   debug: Boolean,
+  ordering: { type: String, default: '-created_at' },
   busy: { type: Set, default: () => new Set() },
   focusTaskId: { type: String, default: '' },
 })
@@ -60,7 +61,10 @@ const typeTasks = computed(() =>
   props.tasks.filter((t) => type.value === 'all' || t.type === type.value)
 )
 const visible = computed(() =>
-  typeTasks.value.filter((t) => state.value === 'all' || t.state === state.value)
+  sortTaskDetails(
+    typeTasks.value.filter((t) => state.value === 'all' || t.state === state.value),
+    props.ordering
+  )
 )
 const checkedIds = ref(new Set())
 watch(
@@ -152,6 +156,16 @@ const progress = (task) =>
         :options="[
           { value: 'all', label: '全部状态' },
           ...Object.entries(labels).map(([value, label]) => ({ value, label })),
+        ]"
+      />
+      <CustomSelect
+        :model-value="ordering"
+        @update:model-value="emit('sort', $event)"
+        aria-label="任务排序"
+        class="min-w-[12rem] shrink-0"
+        :options="[
+          { value: '-created_at', label: '创建时间 · 最新优先' },
+          { value: '-updated_at', label: '最近更新 · 最新优先' },
         ]"
       />
     </div>

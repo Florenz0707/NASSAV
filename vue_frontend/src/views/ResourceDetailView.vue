@@ -8,6 +8,7 @@ import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import TaskResourceCover from '../components/TaskResourceCover.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -343,10 +344,11 @@ async function navigateToGenre(genreName) {
           <div
             class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_color-mix(in_srgb,_var(--shadow-color)_10%,_transparent)] flex justify-center items-center"
           >
-            <img
-              :src="coverUrl"
-              :alt="displayedTitle"
-              class="h-full aspect-auto object-cover block"
+            <TaskResourceCover
+              :url="coverUrl"
+              :title="displayedTitle"
+              image-class="object-contain"
+              class="w-full h-full"
             />
           </div>
 

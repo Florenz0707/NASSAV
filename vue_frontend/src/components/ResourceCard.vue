@@ -7,6 +7,7 @@ import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import { RouterLink, useRoute } from 'vue-router'
 import ConfirmDialog from './ConfirmDialog.vue'
+import TaskResourceCover from './TaskResourceCover.vue'
 
 const props = defineProps({
   resource: {
@@ -37,8 +38,8 @@ if (typeof emit === 'function') {
 const route = useRoute()
 const resourceStore = useResourceStore()
 const settingsStore = useSettingsStore()
-const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
-const coverUrl = ref(placeholder)
+const coverUrl = ref('')
+const coverImage = ref(null)
 let observer = null
 let imgEl = null
 
@@ -247,7 +248,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
   // wait for DOM
   nextTick(() => {
-    imgEl = document.querySelector(`img[data-avid="${props.resource.avid}"]`)
+    imgEl = coverImage.value?.$el
     if (imgEl) ensureObserver().observe(imgEl)
   })
 })
@@ -323,12 +324,12 @@ onUnmounted(() => {
           </span>
         </label>
       </template>
-      <img
+      <TaskResourceCover
+        ref="coverImage"
         :data-avid="resource.avid"
-        :src="coverUrl"
-        :alt="displayedTitle"
-        loading="lazy"
-        class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+        :url="coverUrl"
+        :title="displayedTitle"
+        class="w-full h-full transition-transform duration-200 group-hover:scale-105"
       />
       <div
         class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"

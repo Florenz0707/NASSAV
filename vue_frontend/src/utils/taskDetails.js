@@ -139,6 +139,8 @@ export function buildTaskDetails({
       downloaded: task.progress?.downloaded,
       total: task.progress?.total,
       error: task.error || '',
+      createdAt: task.created_at || task.time_start,
+      updatedAt: task.updated_at || task.progress?.updated_at || task.time_start || task.created_at,
       updated: taskTime(task.updated_at || task.time_start || task.created_at),
       timeline: [
         ...(task.created_at ? [{ label: '任务已排队', at: task.created_at }] : []),
@@ -178,6 +180,8 @@ export function buildTaskDetails({
     total: task.progress?.total,
     translation: task.translation,
     error: task.message || '',
+    createdAt: task.created_at,
+    updatedAt: task.updated_at,
     updated: taskTime(task.updated_at),
     timeline: (task.timeline || []).map((event) => ({
       ...event,
@@ -225,8 +229,26 @@ export function buildTaskDetails({
               : task.translation?.state === 'failed'
                 ? task.translation.message || '资源已保存，但标题翻译失败'
                 : '',
+          createdAt: task.created_at,
+          updatedAt: task.updated_at,
           updated: taskTime(task.updated_at),
         }
       }),
   ]
+}
+
+export function resolveTaskFocus(tasks, query) {
+  if (typeof query !== 'string' || !query) return ''
+  return tasks.find((task) => task.jobId === query || task.taskId === query)?.id || ''
+}
+
+export function sortTaskDetails(tasks, ordering) {
+  const field = ordering === '-updated_at' ? 'updatedAt' : 'createdAt'
+  const timestamp = (value) => {
+    const time = new Date(typeof value === 'number' ? value * 1000 : value).getTime()
+    return Number.isFinite(time) ? time : 0
+  }
+  return [...tasks].sort(
+    (a, b) => timestamp(b[field]) - timestamp(a[field]) || a.id.localeCompare(b.id)
+  )
 }

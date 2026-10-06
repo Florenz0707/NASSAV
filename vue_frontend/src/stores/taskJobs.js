@@ -8,6 +8,8 @@ export const useTaskJobsStore = defineStore('taskJobs', () => {
   const jobs = ref(new Map()),
     hidden = ref(new Set()),
     busy = ref(new Set())
+  const ordering = ref('-created_at')
+  let listRevision = 0
   const error = ref(''),
     listError = ref(''),
     total = ref(0),
@@ -31,12 +33,13 @@ export const useTaskJobsStore = defineStore('taskJobs', () => {
   }
   async function load(more = false) {
     if (loading.value) return
+    const revision = listRevision
     const current = epoch,
       target = more ? page + 1 : 1
     loading.value = true
     try {
-      const response = await taskApi.listJobs({ page: target })
-      if (current !== epoch) return
+      const response = await taskApi.listJobs({ page: target, ordering: ordering.value })
+      if (current !== epoch || revision !== listRevision) return
       if (!Array.isArray(response.data?.jobs)) throw new Error('任务列表格式无效')
       response.data.jobs.forEach(apply)
       page = more ? target : Math.max(page, target)
@@ -47,10 +50,21 @@ export const useTaskJobsStore = defineStore('taskJobs', () => {
           : page * response.data.pagination.page_size < total.value
       listError.value = ''
     } catch (e) {
-      if (current === epoch) listError.value = e.message || '无法读取任务列表'
+      if (current === epoch && revision === listRevision)
+        listError.value = e.message || '无法读取任务列表'
     } finally {
-      if (current === epoch) loading.value = false
+      if (current === epoch && revision === listRevision) loading.value = false
     }
+  }
+  function setOrdering(value) {
+    if (!['-created_at', '-updated_at'].includes(value) || ordering.value === value) return
+    ordering.value = value
+    listRevision++
+    page = 0
+    jobs.value = new Map()
+    hasMore.value = false
+    loading.value = false
+    return load()
   }
   async function refresh(id, quiet = false) {
     if (pending.has(id)) return pending.get(id)
@@ -132,6 +146,8 @@ export const useTaskJobsStore = defineStore('taskJobs', () => {
   }
   function reset() {
     epoch++
+    listRevision++
+    ordering.value = '-created_at'
     if (timer) clearInterval(timer)
     timer = null
     page = 0
@@ -165,6 +181,8 @@ export const useTaskJobsStore = defineStore('taskJobs', () => {
     }, 2000)
   }
   return {
+    ordering,
+    setOrdering,
     jobs,
     visible,
     busy,

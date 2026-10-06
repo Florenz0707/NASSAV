@@ -103,6 +103,9 @@ class TaskJobListView(SchemaAPIView):
             size = int(request.query_params.get("page_size", 50))
             if page < 1 or not 1 <= size <= 100:
                 raise ValueError("分页参数超出范围")
+            ordering = request.query_params.get("ordering")
+            if ordering is not None and ordering not in {"-created_at", "-updated_at"}:
+                raise ValueError("排序仅支持创建时间或更新时间降序")
             jobs = TaskJob.objects.all()
             if not request.user.is_superuser:
                 jobs = jobs.filter(owner_id=request.user.pk)
@@ -113,7 +116,9 @@ class TaskJobListView(SchemaAPIView):
                     default=0,
                     output_field=IntegerField(),
                 )
-            ).order_by("ended", "-created_at", "id")
+            ).order_by(
+                *([ordering, "id"] if ordering else ["ended", "-created_at", "id"])
+            )
             total = jobs.count()
             records = build_task_records()
             snapshots = [

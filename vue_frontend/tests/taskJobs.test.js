@@ -125,3 +125,43 @@ test('uncertain network commands retry with the same request UUID', async () => 
     store.reset()
   }
 })
+
+test('switching order resets paging and rejects late old-order response', async () => {
+  setActivePinia(createPinia())
+  const store = useTaskJobsStore(),
+    original = taskApi.listJobs
+  let resolveOld
+  const calls = []
+  taskApi.listJobs = (params) => {
+    calls.push(params)
+    if (params.ordering === '-created_at')
+      return new Promise((resolve) => {
+        resolveOld = resolve
+      })
+    return Promise.resolve(
+      response({
+        jobs: [job({ job_id: 'updated' })],
+        pagination: { total: 1, page_size: 50, has_more: false },
+      })
+    )
+  }
+  try {
+    const old = store.load()
+    await store.setOrdering('-updated_at')
+    resolveOld(
+      response({
+        jobs: [job({ job_id: 'old' })],
+        pagination: { total: 1, page_size: 50, has_more: false },
+      })
+    )
+    await old
+    assert.deepEqual(
+      store.visible.map((j) => j.job_id),
+      ['updated']
+    )
+    assert.equal(calls[1].page, 1)
+    store.reset()
+  } finally {
+    taskApi.listJobs = original
+  }
+})

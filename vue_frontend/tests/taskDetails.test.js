@@ -169,3 +169,25 @@ test('controlled scrape checkpoint stages have readable timeline labels', () => 
     ['来源已获取', '元数据已获取', '封面已获取', '资源已保存', '无需翻译']
   )
 })
+
+test('same AVID jobs retain distinct identities and absent query never forces a detail', async () => {
+  const { resolveTaskFocus, sortTaskDetails } = await import('../src/utils/taskDetails.js')
+  const tasks = build({
+    jobs: [
+      { job_id: 'old', job_type: 'download', avid: 'SAME', created_at: 100, updated_at: 500 },
+      { job_id: 'new', job_type: 'download', avid: 'SAME', created_at: 300, updated_at: 400 },
+      { job_id: 'scrape', job_type: 'scrape', avid: 'SAME', created_at: 200, updated_at: 600 },
+    ],
+  })
+  assert.equal(new Set(tasks.map((t) => t.id)).size, 3)
+  assert.equal(resolveTaskFocus(tasks, undefined), '')
+  assert.equal(resolveTaskFocus(tasks, 'old'), 'download:old')
+  assert.deepEqual(
+    sortTaskDetails(tasks, '-created_at').map((t) => t.jobId),
+    ['new', 'scrape', 'old']
+  )
+  assert.deepEqual(
+    sortTaskDetails(tasks, '-updated_at').map((t) => t.jobId),
+    ['scrape', 'old', 'new']
+  )
+})

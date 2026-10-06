@@ -11,7 +11,7 @@ import { useWebSocketStore } from '../stores/websocket'
 import { useDownloadQueueStore } from '../stores/downloadQueue'
 import { useSettingsStore } from '../stores/settings'
 import { resourceApi, taskApi } from '../api'
-import { buildTaskDetails } from '../utils/taskDetails.js'
+import { buildTaskDetails, resolveTaskFocus } from '../utils/taskDetails.js'
 import { createTaskDebugData } from '../utils/taskDebugData.js'
 import { SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
 
@@ -279,12 +279,11 @@ function stopPolling() {
     <TaskDetailsPanel
       :tasks="tasks"
       :debug="DEBUG_MODE"
+      :ordering="taskJobs.ordering"
+      @sort="taskJobs.setOrdering"
       :busy="DEBUG_MODE ? debugBusy : taskJobs.busy"
       @control="requestControl"
-      :focus-task-id="
-        tasks.find((task) => task.taskId === route.query.task || task.jobId === route.query.task)
-          ?.id || ''
-      "
+      :focus-task-id="resolveTaskFocus(tasks, route.query.task)"
       @dismiss="requestDismiss"
     >
       <template #details="{ task }">

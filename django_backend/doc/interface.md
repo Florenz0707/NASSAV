@@ -1438,3 +1438,5 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 恢复不重做已保存资源；仅重翻译 refresh 不抓取来源或图片。add 维持取得元数据才自动翻译的规则，refresh 仅 retranslate=true 请求翻译。受控任务保留原译文到新结果提交；同步重新翻译仍先清空并重置 pending。新单条派发携带 expected_generation；批量 task 可携带 expected_generations，旧消息必须按部署说明排空。结果和异常收尾都校验资源 generation/owner，不能伤及较新的手动/批量翻译。见[P5 执行记录](../../docs/task-control-p5-results.md)。
 
 任务停止异常的恢复提示：WORKER_INTERRUPTED 表示原执行器退出已确认并保留 paused 检查点，可按 allowed_actions 恢复；RECOVERY_UNCONFIRMED 表示身份未知，不能声称已停止或清理。ASSET_RECOVERY_PENDING 表示已停止，但文件提升日志尚未恢复，暂时禁止恢复；后台重试。清理失败仍独立使用 cleanup_state/cleanup_message，不改变 succeeded/failed/cancelled。维护命令的人工退出确认不对 HTTP 开放。
+
+任务列表 `GET /api/tasks/jobs` 可选 `ordering=-created_at|-updated_at`，均为全列表降序并在数据库排序后分页，禁止升序或其他字段（400）。省略时保留活动任务优先、创建时间降序的旧行为；权限过滤保持。

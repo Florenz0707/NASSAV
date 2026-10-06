@@ -6,6 +6,7 @@ const props = defineProps({
   url: { type: String, default: '' },
   scene: { type: String, default: '' },
   title: { type: String, default: '' },
+  imageClass: { type: String, default: 'object-cover' },
 })
 const failed = ref(false)
 watch(
@@ -22,7 +23,8 @@ watch(
       :src="url"
       :alt="title + ' · 资源封面'"
       loading="lazy"
-      class="w-full h-full object-cover"
+      class="w-full h-full"
+      :class="imageClass"
       @error="failed = true"
     />
     <svg

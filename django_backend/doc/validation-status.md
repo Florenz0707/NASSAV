@@ -62,3 +62,7 @@ P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属
 `uv run pytest tests/test_task_network_proxy.py tests/test_task_network.py --ds=django_project.refactoring_test_settings -q` 21 项通过：包含 15 项真实 loopback curl 回归，覆盖三个 scraper 的 HTML/封面/头像、HTTPS CONNECT、显式代理与环境代理/NO_PROXY 的优先级、浏览器控制直连，以及原任务预算/暂停终止检查。完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 720 通过、26 跳过，`pre-commit run -a` 全通过，钩子配置未改。
 
 全部服务和图片文件为本地临时 fixture，结束关闭/清理。未访问 JavBus 等真实站点，未变更实际代理地址或重启正式 API/worker；目标环境需更新代码、启用已有 `Proxy.Enable/url` 并重启 API/scrape worker 后验收。配置位置及本机/容器地址区别见[代理路由](proxy-routing.md)。
+
+## 封面与任务列表交互修复（2026-10-06）
+
+分支 `fix/resource-covers-task-selection-order`，基线 `bdb29a4`，提交标题 `[Fix] Unify cover fallback and stabilize task selection and ordering`。资源卡片、资源详情与任务详情共享无封面占位；无任务深链时不误匹配缺少 taskId 的任务，同 AVID 的任务保持独立 ID。排序由任务 API 在分页前完成，前端切换排序使旧请求失效。完整隔离后端回归 722 通过、26 跳过，前端 check 通过；resourceTaskFixes 浏览器验收覆盖深浅主题、同 AVID 同类型及跨类型详情、两种时间降序、卡片与详情封面 404 占位。质量门槛为根目录 pre-commit run -a。模拟 API 浏览器验收不代表真实服务联调。

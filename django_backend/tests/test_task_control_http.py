@@ -182,3 +182,37 @@ def test_invalid_batches_are_rejected(api_client, payload):
         ).status_code
         == 400
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ordering", ["-created_at", "-updated_at"])
+def test_time_ordering_is_global_descending_and_paginated(
+    api_client, operator_user, ordering
+):
+    from datetime import timedelta
+    from django.utils import timezone
+
+    records = DjangoTaskRecords()
+    jobs = [
+        records.create(
+            "download", f"ORDER-{i}", owner_id=operator_user.pk, action="download"
+        )[0]
+        for i in range(3)
+    ]
+    now = timezone.now()
+    for i, job in enumerate(jobs):
+        TaskJob.objects.filter(pk=job["job_id"]).update(
+            created_at=now + timedelta(seconds=i),
+            updated_at=now - timedelta(seconds=i),
+            state="succeeded" if i == 2 else "queued",
+        )
+    response = api_client.get(
+        "/nassav/api/tasks/jobs", {"ordering": ordering, "page_size": 1}
+    )
+    assert response.status_code == 200
+    expected = jobs[2 if ordering == "-created_at" else 0]["job_id"]
+    assert response.json()["data"]["jobs"][0]["job_id"] == expected
+    assert (
+        api_client.get("/nassav/api/tasks/jobs", {"ordering": "created_at"}).status_code
+        == 400
+    )
