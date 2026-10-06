@@ -9,7 +9,7 @@ import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../stores/resource'
 import { useSettingsStore } from '../stores/settings'
-import { actorApi, genreApi, resourceApi, downloadApi } from '../api'
+import { actorApi, genreApi } from '../api'
 import ResourceCard from '../components/ResourceCard.vue'
 
 import ExternalSearchCard from '../components/ExternalSearchCard.vue'
@@ -588,9 +588,9 @@ async function handleDownload(avid) {
   }
 }
 
-async function handleRefresh(avid) {
+async function handleRefresh(avid, params) {
   try {
-    await resourceStore.refreshResource(avid)
+    await resourceStore.refreshResource(avid, params)
   } catch (err) {
     toastStore.error(err.message || '刷新失败')
   }
@@ -598,9 +598,7 @@ async function handleRefresh(avid) {
 
 async function handleDeleteResource(avid) {
   try {
-    await resourceApi.delete(avid)
     await handleManualRefresh()
-    toastStore.success(`${avid} 已被完全删除`)
     // 同步到外部搜索列表
     syncExternalResourceStatus(avid, false)
     loadEntityInfo(entityId.value)
@@ -609,11 +607,9 @@ async function handleDeleteResource(avid) {
   }
 }
 
-async function handleDeleteFile(avid) {
+async function handleDeleteFile(_avid) {
   try {
-    await downloadApi.deleteFile(avid)
     await handleManualRefresh()
-    toastStore.success(`${avid} 已删除视频`)
   } catch (err) {
     toastStore.error(err.message || '删除失败')
   }

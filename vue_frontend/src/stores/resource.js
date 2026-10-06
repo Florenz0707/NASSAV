@@ -294,6 +294,12 @@ export const useResourceStore = defineStore('resource', () => {
     return { succeeded, failed }
   }
 
+  async function removeAsset(avid, action) {
+    if (action === 'deleteFile') return downloadApi.deleteFile(avid)
+    if (action === 'delete') return resourceApi.delete(avid)
+    throw new Error('不支持的资源删除操作')
+  }
+
   // 提交下载
   async function submitDownload(avid) {
     if (!avid) return null
@@ -479,6 +485,7 @@ export const useResourceStore = defineStore('resource', () => {
     refreshPendingScrapeJobs,
     handleScrapeJobEvent,
     registerScrapeBatch,
+    removeAsset,
     getScrapeJobForAvid,
     dismissScrapeJob,
     stopScrapeTracking,

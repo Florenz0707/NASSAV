@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { createRequestGuard } from '../utils/requestGuard.js'
 import { actorApi, genreApi, recommendationApi } from '../api/index.js'
 
 function mergeItems(existingItems, nextItems) {
@@ -14,6 +15,10 @@ function mergeItems(existingItems, nextItems) {
 }
 
 export const useRecommendationsStore = defineStore('recommendations', () => {
+  const guard = createRequestGuard()
+  const metricsGuard = createRequestGuard()
+  const loading = ref(false),
+    error = ref('')
   const items = ref([])
   const seeds = ref([])
   const meta = ref(null)
@@ -22,16 +27,38 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
   const blockedAvids = ref(new Set())
 
   async function fetchRecommendations(params, { append = false } = {}) {
-    const response = await recommendationApi.getList(params)
-    const payload = response.data || {}
-    items.value = append ? mergeItems(items.value, payload.items) : payload.items || []
-    seeds.value = [...(payload.seeds || [])]
-    meta.value = payload.meta || null
-    return payload
+    const request = guard.begin()
+    loading.value = true
+    error.value = ''
+    try {
+      const response = await recommendationApi.getList(params)
+      if (!guard.current(request)) return null
+      const payload = response.data || {}
+      items.value = append ? mergeItems(items.value, payload.items) : payload.items || []
+      seeds.value = [...(payload.seeds || [])]
+      meta.value = payload.meta || null
+      return payload
+    } catch (err) {
+      if (!guard.current(request)) return null
+      error.value = err.message || '获取推荐失败'
+      if (!append) {
+        items.value = []
+        seeds.value = []
+      }
+      throw err
+    } finally {
+      if (guard.current(request)) loading.value = false
+    }
   }
-
+  function cancelQuery() {
+    guard.invalidate()
+    metricsGuard.invalidate()
+    loading.value = false
+  }
   async function loadMetrics() {
+    const request = metricsGuard.begin()
     const response = await recommendationApi.getMetrics()
+    if (!metricsGuard.current(request)) return null
     metrics.value = response.data || null
     return metrics.value
   }
@@ -84,6 +111,7 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
   }
 
   function clearResults() {
+    cancelQuery()
     items.value = []
     seeds.value = []
     meta.value = null
@@ -92,6 +120,9 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
   }
 
   return {
+    loading,
+    error,
+    cancelQuery,
     items,
     seeds,
     meta,

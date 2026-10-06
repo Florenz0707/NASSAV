@@ -1,6 +1,6 @@
 <script setup>
 import { resolveResourceTitle } from '../utils/resourceTitle.js'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { actorApi, downloadApi, genreApi, resourceApi } from '../api'
 import { useResourceStore } from '../stores/resource'
@@ -8,6 +8,8 @@ import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import ActionMenu from '../components/ActionMenu.vue'
+import { resourceRefreshOptions, resourceDeleteOptions } from '../utils/resourceActions.js'
 import TaskResourceCover from '../components/TaskResourceCover.vue'
 
 const route = useRoute()
@@ -21,51 +23,14 @@ const metadata = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const refreshing = ref(false)
-const showRefreshMenu = ref(false)
-const showDeleteMenu = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteAction = ref(null)
 
 // 刷新菜单选项
-const refreshOptions = [
-  { text: '全部刷新', params: { refresh_m3u8: true, refresh_metadata: true, retranslate: false } },
-  { text: 'M3U8', params: { refresh_m3u8: true, refresh_metadata: false, retranslate: false } },
-  { text: '元数据', params: { refresh_m3u8: false, refresh_metadata: true, retranslate: false } },
-  { text: '翻译', params: { refresh_m3u8: false, refresh_metadata: false, retranslate: true } },
-  {
-    text: '元数据+翻译',
-    params: { refresh_m3u8: false, refresh_metadata: true, retranslate: true },
-  },
-]
+const refreshOptions = resourceRefreshOptions(true)
 
 // 删除菜单选项（根据文件是否存在动态计算）
-const deleteOptions = computed(() => {
-  if (metadata.value?.file_exists) {
-    return [
-      {
-        text: '删除视频',
-        action: 'deleteFile',
-        title: '删除视频文件',
-        message: '确定要删除视频文件吗？元数据和封面将保留。',
-      },
-      {
-        text: '删除全部',
-        action: 'delete',
-        title: '删除全部数据',
-        message: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？此操作不可恢复！',
-      },
-    ]
-  } else {
-    return [
-      {
-        text: '删除数据',
-        action: 'delete',
-        title: '删除数据',
-        message: '确定要删除该资源的元数据和封面吗？此操作不可恢复！',
-      },
-    ]
-  }
-})
+const deleteOptions = computed(() => resourceDeleteOptions(metadata.value?.file_exists, true))
 
 const coverUrl = ref(null)
 const downloadState = computed(() => resourceStore.getDownloadState(avid.value))
@@ -132,22 +97,8 @@ async function toggleWatched() {
   }
 }
 
-// 点击外部关闭菜单
-function closeMenuOnOutsideClick(event) {
-  const menu = event.target.closest('.relative')
-  if (!menu || !menu.querySelector('button:disabled')) {
-    showRefreshMenu.value = false
-    showDeleteMenu.value = false
-  }
-}
-
 onMounted(async () => {
   await fetchMetadata()
-  document.addEventListener('click', closeMenuOnOutsideClick)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', closeMenuOnOutsideClick)
 })
 
 async function fetchMetadata(bypassCache = false) {
@@ -179,7 +130,6 @@ async function handleDownload() {
 }
 
 async function handleRefresh(params = null) {
-  showRefreshMenu.value = false
   refreshing.value = true
   try {
     await resourceStore.refreshResource(avid.value, params)
@@ -225,7 +175,6 @@ async function jumpPlay() {
 
 // 处理删除菜单选项
 function handleDeleteOption(option) {
-  showDeleteMenu.value = false
   pendingDeleteAction.value = option
   showConfirmDialog.value = true
 }
@@ -237,11 +186,11 @@ async function confirmDelete() {
 
   try {
     if (action.action === 'deleteFile') {
-      await downloadApi.deleteFile(avid.value)
+      await resourceStore.removeAsset(avid.value, 'deleteFile')
       toastStore.success('视频文件已删除')
       await fetchMetadata() // 刷新元数据以更新状态
     } else {
-      await resourceApi.delete(avid.value)
+      await resourceStore.removeAsset(avid.value, 'delete')
       toastStore.success('资源已删除')
       // 删除后返回上一页
       setTimeout(() => router.back(), 500)
@@ -510,33 +459,12 @@ async function navigateToGenre(genreName) {
 
           <!-- 操作按钮 -->
           <div class="flex flex-wrap gap-4">
-            <!-- 刷新按钮容器 -->
-            <div class="relative" @click.stop>
-              <button
-                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-medium cursor-pointer transition-all duration-200 bg-[var(--bg-white-8)] text-[var(--text-primary)] hover:bg-[var(--bg-white-12)] min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
-                style="border: 1px solid var(--border-color)"
-                :disabled="refreshing"
-                @click="showRefreshMenu = !showRefreshMenu"
-              >
-                {{ refreshing ? '刷新中' : '刷新信息' }}
-              </button>
-
-              <!-- 刷新下拉菜单 -->
-              <div
-                v-if="showRefreshMenu && !refreshing"
-                class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_color-mix(in_srgb,_var(--shadow-color)_20%,_transparent)] min-w-[120px] z-[80] overflow-hidden"
-                style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
-              >
-                <button
-                  v-for="option in refreshOptions"
-                  :key="option.text"
-                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-[var(--text-muted)] text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-[var(--bg-white-8)] hover:text-[var(--text-primary)]"
-                  @click="handleRefreshOption(option)"
-                >
-                  {{ option.text }}
-                </button>
-              </div>
-            </div>
+            <ActionMenu
+              :label="refreshing ? '刷新中' : '刷新信息'"
+              :options="refreshOptions"
+              :disabled="refreshing"
+              @select="handleRefreshOption"
+            />
 
             <button
               v-if="!metadata.file_exists"
@@ -568,32 +496,13 @@ async function navigateToGenre(genreName) {
               点击播放
             </button>
 
-            <!-- 删除按钮容器 -->
-            <div class="relative" @click.stop>
-              <button
-                class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-danger)_30%,_transparent)] min-w-[120px]"
-                style="background: var(--accent-danger)"
-                @click="showDeleteMenu = !showDeleteMenu"
-              >
-                删除数据
-              </button>
-
-              <!-- 删除下拉菜单 -->
-              <div
-                v-if="showDeleteMenu"
-                class="absolute bottom-[calc(100%+0.3rem)] left-0 rounded-lg shadow-[0_4px_12px_color-mix(in_srgb,_var(--shadow-color)_20%,_transparent)] min-w-[120px] z-[80] overflow-hidden"
-                style="background: var(--bg-overlay); border: 1px solid var(--border-color)"
-              >
-                <button
-                  v-for="option in deleteOptions"
-                  :key="option.text"
-                  class="w-full px-4 py-2.5 text-center bg-transparent border-none text-accent-danger text-[0.8rem] cursor-pointer transition-colors duration-200 hover:bg-accent-danger/10 min-w-[120px]"
-                  @click="handleDeleteOption(option)"
-                >
-                  {{ option.text }}
-                </button>
-              </div>
-            </div>
+            <ActionMenu
+              label="删除数据"
+              :options="deleteOptions"
+              danger
+              align="right"
+              @select="handleDeleteOption"
+            />
           </div>
         </div>
       </div>

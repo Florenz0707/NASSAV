@@ -74,7 +74,7 @@ const assert = require('node:assert/strict')
         await page.getByRole('heading', { name: label.split('，')[0], exact: true }).waitFor()
       }
       await page.getByRole('button', { name: '任务排序' }).click()
-      await page.getByRole('option', { name: '最近更新 · 最新优先' }).click()
+      await page.getByRole('option', { name: '最近更新', exact: true }).click()
       await page.waitForFunction(() =>
         document
           .querySelector('tbody tr button[aria-pressed]')

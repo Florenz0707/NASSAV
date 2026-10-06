@@ -21,13 +21,11 @@ const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
 const recommendationStore = useRecommendationsStore()
-const { items, seeds, meta, metrics, blockedAvids, feedbackByAvid } =
+const { items, seeds, meta, metrics, blockedAvids, feedbackByAvid, loading, error } =
   storeToRefs(recommendationStore)
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 
-const loading = ref(false)
-const error = ref('')
 const metricsLoading = ref(false)
 const typePreference = ref(route.query.type_preference || 'balanced')
 const actorPreference = ref(route.query.actor_preference || 'balanced')
@@ -261,14 +259,11 @@ function syncQuery() {
 async function loadRecommendations(options = {}) {
   const forceRefreshExternal = Boolean(options.forceRefreshExternal)
   const append = Boolean(options.append)
-  loading.value = true
-  error.value = ''
   hasRequested.value = true
   const requestConfigKey = buildConfigKey()
   const shouldMerge = append && !forceRefreshExternal && items.value.length > 0
-
   try {
-    await recommendationStore.fetchRecommendations(
+    const payload = await recommendationStore.fetchRecommendations(
       {
         type_preference: typePreference.value,
         actor_preference: actorPreference.value,
@@ -279,17 +274,12 @@ async function loadRecommendations(options = {}) {
       },
       { append: shouldMerge }
     )
+    if (!payload) return
     lastLoadedConfigKey.value = requestConfigKey
     loadRecommendationMetrics()
     syncActiveReasonItem()
-  } catch (err) {
-    error.value = err.message || '获取推荐失败'
-    if (!shouldMerge) {
-      items.value = []
-      seeds.value = []
-    }
-  } finally {
-    loading.value = false
+  } catch {
+    /* Store owns current query errors and results. */
   }
 }
 
@@ -499,6 +489,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  recommendationStore.cancelQuery()
   saveViewState()
   window.removeEventListener('scroll', updateScrollState)
   window.removeEventListener('resize', handleViewportResize)

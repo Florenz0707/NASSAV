@@ -70,3 +70,7 @@ HTTP 202 表示入队，成功由终态快照确认；WebSocket 是通知渠道�
 ## HTML 语义与页面焦点
 
 表单标签关联控件 id，CustomSelect 的 id/ARIA 传到内部按钮；分页提供导航名称和唯一输入 id。目录卡片使用 RouterLink 和 to，保留来源查询，动作继续使用按钮。页面实体名称是 h1，子区块按层级组织标题；展开导航使用普通链接列表，不冒用 ARIA menu。App 提供跳过导航入口，路径导航完成后恢复 main 焦点，查询参数变化不抢焦点；弹窗继续由 useDialog 管理。
+
+## 资源交互与查询归属
+
+ActionMenu 按实例 ref 管理菜单、方向键、Escape、外部关闭和触发器焦点恢复；不得以 AVID 全局查询 DOM。AppCheckbox 是资源/批量/任务复选框的共同基础，TaskCheckbox 保留兼容入口。资源删除由 resource.removeAsset 执行，卡片 delete/deleteFile 事件表示请求成功后的事实；父列表仅刷新/同步，不重复删除。刷新/删除选项来自 resourceActions。添加批次按 job_id 匹配当前快照，旧任务才按 task_id；推荐查询 loading/error/结果归 recommendations，旧响应及页面清空、卸载后的结果失效。

@@ -106,3 +106,31 @@ test('resource blocklist mutation updates the store only after the API succeeds'
   assert.equal(mutations.at(-1).method, 'delete')
   assert.equal(JSON.parse(mutations.at(-2).data).reason, 'manual')
 })
+
+test('late recommendation success and failure cannot replace a newer query or cleared results', async () => {
+  const { recommendationApi } = await import('../src/api/index.js')
+  const original = recommendationApi.getList
+  const pending = []
+  recommendationApi.getList = () =>
+    new Promise((resolve, reject) => pending.push({ resolve, reject }))
+  try {
+    setActivePinia(createPinia())
+    const store = useRecommendationsStore()
+    const old = store.fetchRecommendations({ limit: 1 })
+    const latest = store.fetchRecommendations({ limit: 2 })
+    pending[1].resolve({ data: { items: [{ avid: 'NEW' }] } })
+    await latest
+    pending[0].resolve({ data: { items: [{ avid: 'OLD' }] } })
+    assert.equal(await old, null)
+    assert.deepEqual(store.items, [{ avid: 'NEW' }])
+    const failing = store.fetchRecommendations({ limit: 3 })
+    store.clearResults()
+    pending[2].reject(new Error('late failure'))
+    assert.equal(await failing, null)
+    assert.deepEqual(store.items, [])
+    assert.equal(store.loading, false)
+    assert.equal(store.error, '')
+  } finally {
+    recommendationApi.getList = original
+  }
+})

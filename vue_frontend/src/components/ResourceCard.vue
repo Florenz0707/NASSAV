@@ -1,12 +1,15 @@
 <script setup>
 import { resolveResourceTitle } from '../utils/resourceTitle.js'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { downloadApi, resourceApi } from '../api'
+import { resourceApi } from '../api'
 import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import { RouterLink, useRoute } from 'vue-router'
 import ConfirmDialog from './ConfirmDialog.vue'
+import ActionMenu from './ActionMenu.vue'
+import AppCheckbox from './AppCheckbox.vue'
+import { resourceRefreshOptions, resourceDeleteOptions } from '../utils/resourceActions.js'
 import TaskResourceCover from './TaskResourceCover.vue'
 
 const props = defineProps({
@@ -97,91 +100,31 @@ const displayedTitle = computed(() =>
 )
 
 const toastStore = useToastStore()
-const showDeleteMenu = ref(false)
-const showRefreshMenu = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteOption = ref(null)
-const refreshMenuFlip = ref(false)
-const deleteMenuFlip = ref(false)
 const downloadState = computed(() => resourceStore.getDownloadState(props.resource.avid))
 const isSubmittingDownload = computed(() => downloadState.value === 'submitting')
 const isDownloading = computed(() => downloadState.value === 'downloading')
 const isDownloadBusy = computed(() => isSubmittingDownload.value || isDownloading.value)
 
 // 生成刷新菜单选项
-const refreshOptions = [
-  { text: '全部刷新', params: { refresh_m3u8: true, refresh_metadata: true, retranslate: false } },
-  {
-    text: '仅M3U8',
-    params: { refresh_m3u8: true, refresh_metadata: false, retranslate: false },
-  },
-  {
-    text: '仅元数据',
-    params: { refresh_m3u8: false, refresh_metadata: true, retranslate: false },
-  },
-  { text: '仅翻译', params: { refresh_m3u8: false, refresh_metadata: false, retranslate: true } },
-  {
-    text: '元数据+翻译',
-    params: { refresh_m3u8: false, refresh_metadata: true, retranslate: true },
-  },
-]
+const refreshOptions = resourceRefreshOptions()
 
 function handleDownloadClick() {
   if (isDownloadBusy.value || props.resource.has_video) return
   emit('download', props.resource.avid)
 }
 
-function openDeleteMenu(event) {
-  const rect = event.currentTarget.getBoundingClientRect()
-  deleteMenuFlip.value = rect.top < 140
-  showRefreshMenu.value = false
-  showDeleteMenu.value = !showDeleteMenu.value
-}
-
-function openRefreshMenu(event) {
-  const rect = event.currentTarget.getBoundingClientRect()
-  refreshMenuFlip.value = rect.top < 140
-  showDeleteMenu.value = false
-  showRefreshMenu.value = !showRefreshMenu.value
-}
-
 function handleRefreshOption(option) {
-  showRefreshMenu.value = false
   emit('refresh', props.resource.avid, option.params)
 }
 
 // 生成删除菜单选项
-const deleteOptions = computed(() => {
-  const isDownloaded = props.resource.has_video
-  const baseOptions = []
-
-  if (isDownloaded) {
-    baseOptions.push(
-      {
-        text: '删除视频',
-        action: 'deleteFile',
-        confirm: '确定要删除视频文件吗？元数据和封面将保留',
-      },
-      {
-        text: '全部删除',
-        action: 'delete',
-        confirm: '确定要删除该资源的所有数据（包括视频、元数据、封面）吗？',
-      }
-    )
-  } else {
-    baseOptions.push({
-      text: '删除数据',
-      action: 'delete',
-      confirm: '确定要删除该资源的元数据和封面吗？',
-    })
-  }
-  return baseOptions
-})
+const deleteOptions = computed(() => resourceDeleteOptions(props.resource.has_video))
 
 function handleDeleteOption(option) {
   pendingDeleteOption.value = option
   showConfirmDialog.value = true
-  showDeleteMenu.value = false
 }
 
 // 确认删除操作
@@ -191,11 +134,11 @@ async function confirmDelete() {
 
   try {
     if (option.action === 'deleteFile') {
-      await downloadApi.deleteFile(props.resource.avid)
+      await resourceStore.removeAsset(props.resource.avid, 'deleteFile')
       toastStore.success('视频文件已删除')
       emit('deleteFile', props.resource.avid)
     } else {
-      await resourceApi.delete(props.resource.avid)
+      await resourceStore.removeAsset(props.resource.avid, 'delete')
       toastStore.success('资源已删除')
       emit('delete', props.resource.avid)
     }
@@ -211,41 +154,7 @@ function cancelDelete() {
   pendingDeleteOption.value = null
 }
 
-// 点击外部关闭菜单
-function handleKeydown(e) {
-  if (e.key === 'Escape') {
-    showDeleteMenu.value = false
-    showRefreshMenu.value = false
-  }
-}
-
-function closeMenuOnOutsideClick(event) {
-  const deleteMenu = document.querySelector(`.delete-menu[data-avid="${props.resource.avid}"]`)
-  const deleteBtn = document.querySelector(`.delete-btn[data-avid="${props.resource.avid}"]`)
-  if (
-    deleteMenu &&
-    deleteBtn &&
-    !deleteMenu.contains(event.target) &&
-    !deleteBtn.contains(event.target)
-  ) {
-    showDeleteMenu.value = false
-  }
-
-  const refreshMenu = document.querySelector(`.refresh-menu[data-avid="${props.resource.avid}"]`)
-  const refreshBtn = document.querySelector(`.refresh-btn[data-avid="${props.resource.avid}"]`)
-  if (
-    refreshMenu &&
-    refreshBtn &&
-    !refreshMenu.contains(event.target) &&
-    !refreshBtn.contains(event.target)
-  ) {
-    showRefreshMenu.value = false
-  }
-}
-
 onMounted(() => {
-  document.addEventListener('click', closeMenuOnOutsideClick)
-  document.addEventListener('keydown', handleKeydown)
   // wait for DOM
   nextTick(() => {
     imgEl = coverImage.value?.$el
@@ -253,8 +162,6 @@ onMounted(() => {
   })
 })
 onUnmounted(() => {
-  document.removeEventListener('click', closeMenuOnOutsideClick)
-  document.removeEventListener('keydown', handleKeydown)
   if (observer && imgEl) observer.unobserve(imgEl)
 })
 </script>
@@ -285,44 +192,12 @@ onUnmounted(() => {
     <div class="relative aspect-video overflow-hidden bg-black/30 group">
       <!-- checkbox placed over cover for visibility -->
       <template v-if="selectable">
-        <label
-          class="absolute z-30 top-3 left-3 inline-flex items-center cursor-pointer"
-          aria-label="选择资源"
-        >
-          <input
-            type="checkbox"
-            class="sr-only"
-            :checked="selected"
-            @change.stop="$emit('toggle-select', resource.avid, $event.target.checked)"
-          />
-          <span
-            :class="[
-              'w-6 h-6 flex items-center justify-center rounded-md transition border-2',
-              selected
-                ? 'border-surface-subtle shadow-lg'
-                : 'bg-[color-mix(in_srgb,_var(--text-muted)_60%,_transparent)] border-surface-subtle text-white',
-            ]"
-            :style="
-              selected
-                ? 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
-                : ''
-            "
-          >
-            <svg
-              v-if="selected"
-              class="w-3 h-3 text-white"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fill-rule="evenodd"
-                clip-rule="evenodd"
-                d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z"
-              />
-            </svg>
-          </span>
-        </label>
+        <AppCheckbox
+          class="absolute z-30 top-3 left-3"
+          :checked="selected"
+          :label="'选择资源 ' + resource.avid"
+          @change="$emit('toggle-select', resource.avid, $event)"
+        />
       </template>
       <TaskResourceCover
         ref="coverImage"
@@ -405,43 +280,7 @@ onUnmounted(() => {
 
       <!-- 操作按钮 -->
       <div class="flex gap-2 justify-between items-center relative">
-        <!-- 刷新按钮容器 -->
-        <div class="relative" @click.stop>
-          <button
-            class="refresh-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--text-secondary)] border border-[var(--border-white-10)] bg-[var(--bg-white-8)] hover:bg-surface-subtle/[0.14]"
-            :data-avid="resource.avid"
-            title="刷新资源"
-            aria-label="刷新资源"
-            aria-haspopup="menu"
-            :aria-expanded="showRefreshMenu"
-            @click="openRefreshMenu($event)"
-          >
-            刷新
-          </button>
-
-          <!-- 刷新下拉菜单 -->
-          <div
-            v-if="showRefreshMenu"
-            :data-avid="resource.avid"
-            role="menu"
-            :class="
-              refreshMenuFlip
-                ? 'absolute top-[calc(100%+0.5rem)] left-0'
-                : 'absolute bottom-[calc(100%+0.5rem)] left-0'
-            "
-            class="refresh-menu tw-card-menu-popover min-w-[110px] max-h-[calc(110vh-20px)] overflow-y-auto"
-          >
-            <button
-              v-for="option in refreshOptions"
-              :key="option.text"
-              role="menuitem"
-              class="w-full px-4 py-2.5 text-center border-none text-[0.75rem] cursor-pointer transition-colors duration-200 text-[var(--text-secondary)] bg-[var(--bg-white-8)] hover:bg-surface-subtle/[0.14] hover:text-[var(--text-primary)]"
-              @click="handleRefreshOption(option)"
-            >
-              {{ option.text }}
-            </button>
-          </div>
-        </div>
+        <ActionMenu :label="'刷新资源'" :options="refreshOptions" @select="handleRefreshOption" />
 
         <button
           :class="[
@@ -486,43 +325,13 @@ onUnmounted(() => {
           }}
         </button>
 
-        <!-- 删除按钮容器 -->
-        <div class="relative" @click.stop>
-          <button
-            class="delete-btn inline-flex items-center justify-center px-3.5 py-2 rounded-lg text-[0.9rem] font-medium cursor-pointer transition-all duration-200 text-[var(--accent-danger)] border border-[var(--accent-danger)]/20 bg-[var(--accent-danger)]/10 hover:bg-[var(--accent-danger)]/20"
-            :data-avid="resource.avid"
-            title="删除"
-            aria-label="删除"
-            aria-haspopup="menu"
-            :aria-expanded="showDeleteMenu"
-            @click="openDeleteMenu($event)"
-          >
-            删除
-          </button>
-
-          <!-- 删除下拉菜单 -->
-          <div
-            v-if="showDeleteMenu"
-            :data-avid="resource.avid"
-            role="menu"
-            :class="
-              deleteMenuFlip
-                ? 'absolute top-[calc(100%+0.5rem)] right-0'
-                : 'absolute bottom-[calc(100%+0.5rem)] right-0'
-            "
-            class="delete-menu tw-card-menu-popover min-w-[85px] max-h-[calc(100vh-20px)] overflow-y-auto"
-          >
-            <button
-              v-for="option in deleteOptions"
-              :key="option.action"
-              role="menuitem"
-              class="w-full px-4 py-2.5 text-center border-none text-[0.8rem] cursor-pointer transition-colors duration-200 text-[var(--accent-danger)] bg-[var(--accent-danger)]/20 hover:bg-[var(--accent-danger)]/10"
-              @click="handleDeleteOption(option)"
-            >
-              {{ option.text }}
-            </button>
-          </div>
-        </div>
+        <ActionMenu
+          label="删除"
+          :options="deleteOptions"
+          danger
+          align="right"
+          @select="handleDeleteOption"
+        />
       </div>
     </div>
 

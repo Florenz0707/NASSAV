@@ -12,35 +12,12 @@
 
     <div v-if="batchMode" class="flex items-center gap-2 flex-wrap">
       <div class="inline-flex items-center gap-3 text-sm" style="color: var(--text-secondary)">
-        <label class="inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            class="sr-only"
-            :checked="selectedCount === totalCount && totalCount > 0"
-            @change="$emit('toggle-select-all', $event.target.checked)"
-          />
-          <span
-            class="w-5 h-5 flex items-center justify-center rounded-md transition border-2"
-            :style="
-              selectedCount === totalCount && totalCount > 0
-                ? 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary)); color: var(--on-accent); border-color: white;'
-                : 'background: color-mix(in srgb, var(--text-muted) 60%, transparent); border-color: white;'
-            "
-          >
-            <svg
-              v-if="selectedCount === totalCount && totalCount > 0"
-              class="w-3 h-3 text-white"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fill-rule="evenodd"
-                clip-rule="evenodd"
-                d="M16.707 5.293a1 1 0 00-1.414-1.414L7 12.172l-2.293-2.293A1 1 0 003.293 11.293l3 3a1 1 0 001.414 0l9-9z"
-              />
-            </svg>
-          </span>
-        </label>
+        <AppCheckbox
+          :checked="selectedCount === totalCount && totalCount > 0"
+          :indeterminate="selectedCount > 0 && selectedCount < totalCount"
+          label="选择当前列表全部资源"
+          @change="$emit('toggle-select-all', $event)"
+        />
         <span>已选择 {{ selectedCount }} 项</span>
       </div>
       <button
@@ -72,6 +49,7 @@
 </template>
 
 <script setup>
+import AppCheckbox from './AppCheckbox.vue'
 defineProps({
   batchMode: {
     type: Boolean,

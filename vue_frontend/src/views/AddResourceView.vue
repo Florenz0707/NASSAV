@@ -8,6 +8,8 @@ import { useResourceStore } from '../stores/resource'
 import { useToastStore } from '../stores/toast'
 import { useSettingsStore } from '../stores/settings'
 import { resourceApi } from '../api'
+import { resolveResourceTitle } from '../utils/resourceTitle.js'
+import { summarizeSubmissionJobs } from '../utils/submissionResults.js'
 import CustomSelect from '../components/CustomSelect.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 
@@ -25,18 +27,10 @@ watch(
   () => resourceStore.visibleScrapeJobs,
   (jobs) => {
     if (!result.value?.jobs) return
-    const byId = new Map(jobs.map((job) => [job.task_id, job]))
-    const queued = []
-    const success = []
-    const failed = [...result.value.submissionFailed]
-    for (const accepted of result.value.jobs) {
-      const job = byId.get(accepted.task_id)
-      if (job?.state === 'succeeded') success.push(accepted.avid)
-      else if (job?.state === 'failed')
-        failed.push({ avid: accepted.avid, code: job.error_code || 500, message: job.message })
-      else queued.push(accepted.avid)
+    result.value = {
+      ...result.value,
+      ...summarizeSubmissionJobs(result.value.jobs, jobs, result.value.submissionFailed),
     }
-    result.value = { ...result.value, queued, success, failed }
   }
 )
 const sourceOptions = computed(() => [
@@ -48,31 +42,9 @@ const sourceOptions = computed(() => [
 ])
 
 // 根据设置选择显示的标题
-const displayedTitle = computed(() => {
-  if (!result.value?.data) return ''
-
-  const titleField = settingsStore.displayTitle
-  const resource = result.value.data
-
-  if (titleField === 'original_title' && resource.original_title) {
-    return resource.original_title
-  }
-  if (titleField === 'source_title' && resource.source_title) {
-    return resource.source_title
-  }
-  if (titleField === 'translated_title' && resource.translated_title) {
-    return resource.translated_title
-  }
-
-  // 降级逻辑：如果首选字段不存在，按优先级返回可用的标题
-  return (
-    resource.translated_title ||
-    resource.source_title ||
-    resource.original_title ||
-    resource.title ||
-    resource.avid
-  )
-})
+const displayedTitle = computed(() =>
+  resolveResourceTitle(result.value?.data, settingsStore.displayTitle)
+)
 
 onMounted(async () => {
   await resourceStore.fetchSources()
@@ -117,7 +89,7 @@ async function handleSubmit() {
       total: avids.length,
       jobs: results
         .filter((item) => item.code === 202)
-        .map((item) => ({ avid: item.avid, task_id: item.task_id })),
+        .map((item) => ({ avid: item.avid, job_id: item.job_id, task_id: item.task_id })),
       submissionFailed: failed,
     }
     if (exists.length) toastStore.info(`${exists.length} 个资源已存在`)
