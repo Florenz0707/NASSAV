@@ -75,6 +75,9 @@ class TaskAttempt(models.Model):
 
 
 class TaskArtifact(models.Model):
+    if TYPE_CHECKING:
+        job_id: UUID
+
     job = models.ForeignKey(TaskJob, related_name="artifacts", on_delete=models.CASCADE)
     root = models.CharField(max_length=16)
     relative_path = models.CharField(max_length=512)
@@ -105,5 +108,22 @@ class TaskCommand(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["job", "request_id"], name="task_command_request_id"
+            )
+        ]
+
+
+class TaskAssetTarget(models.Model):
+    """A publication epoch protects recovery from overwriting a later commit."""
+
+    root = models.CharField(max_length=16)
+    relative_path = models.CharField(max_length=512)
+    marker = models.UUIDField(default=uuid4)
+    sha256 = models.CharField(max_length=64, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["root", "relative_path"], name="task_asset_target_path"
             )
         ]

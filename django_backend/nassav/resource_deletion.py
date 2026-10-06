@@ -1,11 +1,9 @@
 """Shared file and ORM boundary for resource and video deletion."""
 
-import fcntl
 import re
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,6 +12,7 @@ from loguru import logger
 
 from nassav.models import AVResource
 from nassav.signals import resource_deleted
+from nassav.resource_file_locks import resource_file_lock
 
 
 @dataclass(frozen=True)
@@ -26,6 +25,10 @@ class DeletionResult:
 
 class InvalidResourceIdentifier(ValueError):
     """An AVID cannot safely be used as a resource path component."""
+
+
+class ResourceTaskConflict(RuntimeError):
+    """A reserved task must be terminated before deleting its resource."""
 
 
 class ResourceDeletionFailure(Exception):
@@ -52,6 +55,10 @@ class ResourceDeletionRepository(ABC):
 
 class DjangoResourceDeletionRepository(ResourceDeletionRepository):
     def get(self, avid: str) -> AVResource | None:
+        from nassav.task_models import TaskJob
+
+        if TaskJob.objects.filter(avid=avid, active_key__isnull=False).exists():
+            raise ResourceTaskConflict("资源有运行或暂停的任务，请先终止任务")
         return AVResource.objects.filter(avid=avid).first()
 
     def delete(self, resource: AVResource) -> None:
@@ -79,17 +86,8 @@ class ResourceDeletionService:
         return normalized
 
     @staticmethod
-    @contextmanager
     def _lock(avid: str):
-        # A bind-mounted cover directory gives every API worker the same lock files.
-        lock_dir = Path(settings.COVER_DIR).parent / ".nassav-delete-locks"
-        lock_dir.mkdir(parents=True, exist_ok=True)
-        with (lock_dir / f"{avid}.lock").open("a+b") as handle:
-            fcntl.flock(handle, fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(handle, fcntl.LOCK_UN)
+        return resource_file_lock(avid, Path(settings.COVER_DIR))
 
     @staticmethod
     def _file_candidates(avid: str) -> list[tuple[Path, str]]:

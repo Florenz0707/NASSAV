@@ -16,6 +16,7 @@ from nassav.http_base import SchemaAPIView
 from nassav.resource_deletion import (
     InvalidResourceIdentifier,
     ResourceDeletionFailure,
+    ResourceTaskConflict,
     resource_deletion_service,
 )
 
@@ -82,6 +83,8 @@ class DownloadView(SchemaAPIView):
         _ = request
         try:
             result = resource_deletion_service.delete_video(avid)
+        except ResourceTaskConflict as exc:
+            return build_response(409, str(exc), None)
         except InvalidResourceIdentifier:
             return build_response(400, "avid 无效", None)
         except ResourceDeletionFailure as exc:

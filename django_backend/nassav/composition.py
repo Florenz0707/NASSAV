@@ -170,6 +170,24 @@ def build_translation_requests():
     return DjangoTranslationRequests(dispatch)
 
 
+def build_task_assets(records=None):
+    from pathlib import Path
+
+    from django.conf import settings
+
+    from nassav.task_assets import TaskAssets
+    from nassav.task_records import DjangoTaskRecords
+
+    return TaskAssets(
+        {
+            "cover": Path(settings.COVER_DIR),
+            "avatar": Path(settings.AVATAR_DIR),
+            "video": Path(settings.VIDEO_DIR),
+        },
+        records if records is not None else DjangoTaskRecords(),
+    )
+
+
 def build_resource_service(source_manager=None, scraper_manager=None, **overrides):
     from nassav.resource_adapters import (
         CeleryTranslationSubmitter,

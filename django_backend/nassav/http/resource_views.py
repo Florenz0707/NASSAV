@@ -12,6 +12,7 @@ from nassav.legacy_batch import legacy_add_operation, legacy_refresh_operation
 from nassav.resource_deletion import (
     InvalidResourceIdentifier,
     ResourceDeletionFailure,
+    ResourceTaskConflict,
     resource_deletion_service,
 )
 from nassav.resource_presentation import (
@@ -256,6 +257,8 @@ class DeleteResourceView(SchemaAPIView):
             result = resource_deletion_service.delete_resource(
                 avid, serialize=_serialize_resource_obj
             )
+        except ResourceTaskConflict as exc:
+            return build_response(409, str(exc), None)
         except InvalidResourceIdentifier:
             return build_response(400, "avid 无效", None)
         except ResourceDeletionFailure as exc:
@@ -340,6 +343,17 @@ class ResourcesBatchView(SchemaAPIView):
                 elif action == "delete-video":
                     try:
                         deletion = resource_deletion_service.delete_video(avid)
+                    except ResourceTaskConflict as exc:
+                        results.append(
+                            {
+                                "action": action,
+                                "avid": avid,
+                                "code": 409,
+                                "message": str(exc),
+                                "resource": None,
+                            }
+                        )
+                        continue
                     except InvalidResourceIdentifier:
                         results.append(
                             {
@@ -394,6 +408,17 @@ class ResourcesBatchView(SchemaAPIView):
                         deletion = resource_deletion_service.delete_resource(
                             avid, serialize=_serialize_resource_obj
                         )
+                    except ResourceTaskConflict as exc:
+                        results.append(
+                            {
+                                "action": action,
+                                "avid": avid,
+                                "code": 409,
+                                "message": str(exc),
+                                "resource": None,
+                            }
+                        )
+                        continue
                     except InvalidResourceIdentifier:
                         results.append(
                             {

@@ -1084,6 +1084,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     - `cover_downloaded`, `metadata_saved`, `scraped`: 保存结果
 
 - 删除资源：`DELETE /nassav/api/resource/{avid}`
+  - 持久任务记录仍持有该 AVID 活动名额时，单条删除返回 HTTP 409，批量 `delete` / `delete-all` / `delete-video` 返回该项 `code: 409`；先终止任务再删除。暂停也持有名额。下载删除 `DELETE /nassav/api/downloads/{avid}` 遵循同一规则。
   - 返回 `data.resource`（删除前序列化对象，纯文件资源为 `null`）和 `deleted_files`；数据库行或任一文件存在即可删除，无记录无文件返回 404
   - 与批量 `delete` / `delete-all` 共用删除操作：清理封面、small/medium/large 缩略图、MP4、备份目录和数据库行。`deleted_files` 只列出已确认删除的文件名
   - 文件或数据库步骤失败返回 HTTP 500、`message: "删除未完成，请重试"`，`data` 包含 `failed_stage`（`files` 或 `database`）、`retryable: true` 和已删除文件名。重试会继续清理剩余状态；错误响应不包含本地路径

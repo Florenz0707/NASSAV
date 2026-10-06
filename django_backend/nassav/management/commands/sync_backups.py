@@ -236,6 +236,9 @@ class Command(BaseCommand):
 
         # 遍历源目录
         for item in source_dir.rglob("*"):
+            # Private task outputs and rollback files are not published assets.
+            if ".tasks" in item.relative_to(source_dir).parts:
+                continue
             # 跳过目录本身
             if item.is_dir():
                 continue

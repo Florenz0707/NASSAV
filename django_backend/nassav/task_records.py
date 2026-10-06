@@ -152,7 +152,7 @@ class DjangoTaskRecords:
         allow_all: bool = False,
     ) -> dict:
         request_uuid = UUID(request_id)
-        if action not in {"pause", "resume", "cancel"}:
+        if action not in {"pause", "resume", "cancel", "cleanup_retry"}:
             raise ValueError("无效的任务控制动作")
         with transaction.atomic():
             row = self._row(job_id)
@@ -167,10 +167,19 @@ class DjangoTaskRecords:
                 raise TaskConflict("任务版本已变化", self._snapshot(row))
             has_writer = row.attempts.filter(state="running").exists()
             try:
-                state = command_state(row.state, action, has_writer)
+                if action == "cleanup_retry":
+                    if action not in allowed_actions(row.state, row.cleanup_state):
+                        raise ValueError("当前状态不允许重试清理")
+                    state = row.state
+                else:
+                    state = command_state(row.state, action, has_writer)
             except ValueError as error:
                 raise TaskConflict(str(error), self._snapshot(row)) from error
             changes: dict = {}
+            if action == "resume" and row.artifacts.filter(state="promoting").exists():
+                raise TaskConflict("需要先恢复未完成文件提交", self._snapshot(row))
+            if action == "cleanup_retry":
+                changes.update(cleanup_state="pending", cleanup_message="")
             if state != row.state:
                 changes.update(state=state, timeline=self._event(row, state))
             if action == "resume":
@@ -182,7 +191,7 @@ class DjangoTaskRecords:
                 )
             elif state not in TERMINAL_STATES:
                 changes["requested_action"] = action
-            if state == "cancelled":
+            if state == "cancelled" and action != "cleanup_retry":
                 pending_files = row.artifacts.exclude(
                     state__in=["committed", "deleted"]
                 ).exists()
@@ -214,7 +223,11 @@ class DjangoTaskRecords:
             attempt = row.attempts.filter(
                 pk=attempt_id, generation=row.generation, state__in=["pending", "sent"]
             ).first()
-            if attempt is None or row.state != "queued":
+            if (
+                attempt is None
+                or row.state != "queued"
+                or row.artifacts.filter(state="promoting").exists()
+            ):
                 raise TaskExecutionInvalid("执行已失效或已经领取")
             self._update(row, state="running", timeline=self._event(row, "running"))
             now = timezone.now()
@@ -257,6 +270,58 @@ class DjangoTaskRecords:
         row = self._row(token.job_id)
         self._execution(row, token)
         self._continue(row)
+
+    def owned(self, token: ExecutionToken) -> None:
+        """Permit private checkpoint recording while a stop request is pending."""
+        self._execution(self._row(token.job_id), token)
+
+    def controlled_transaction(
+        self,
+        token: ExecutionToken,
+        operation: Callable,
+        *,
+        checkpoint: dict | None = None,
+        resource_saved: bool = False,
+        allow_stopping: bool = False,
+    ):
+        """Fence a short commit callback; filesystem compensation belongs to its caller."""
+        with transaction.atomic():
+            row = self._row(token.job_id)
+            self._execution(row, token)
+            if not allow_stopping:
+                self._continue(row)
+            # Obtain the DB write fence before the callback can publish files.
+            row = self._update(row)
+            result = operation()
+            self._update(
+                row,
+                checkpoint={**row.checkpoint, **(checkpoint or {})},
+                resource_saved=row.resource_saved or resource_saved,
+            )
+            return result
+
+    def stopped_transaction(self, job_id: str, operation: Callable):
+        """Fence recovery against resume/claim without inventing an execution owner."""
+        with transaction.atomic():
+            row = self._row(job_id)
+            if row.attempts.filter(state="running").exists():
+                raise TaskExecutionInvalid("执行未确认退出")
+            self._update(row)
+            return operation()
+
+    def set_cleanup(self, job_id: str, state: str, message: str = "") -> dict:
+        if state not in {"not_required", "pending", "running", "completed", "failed"}:
+            raise ValueError("无效的清理状态")
+        with transaction.atomic():
+            row = self._row(job_id)
+            if (
+                row.state not in TERMINAL_STATES
+                or row.attempts.filter(state="running").exists()
+            ):
+                raise TaskExecutionInvalid("执行停止前不能清理")
+            return self._snapshot(
+                self._update(row, cleanup_state=state, cleanup_message=message)
+            )
 
     @_retry_sqlite_contention
     def checkpoint(
@@ -325,6 +390,7 @@ class DjangoTaskRecords:
                 timeline=self._event(row, state),
                 error_code=error_code,
                 message=message,
+                cleanup_state="pending" if row.artifacts.exists() else "not_required",
             )
             TaskAttempt.objects.filter(
                 pk=attempt.pk, execution_owner=token.owner, state="running"

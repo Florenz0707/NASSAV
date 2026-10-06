@@ -8,7 +8,15 @@ from typing import TYPE_CHECKING
 from django.db import models
 from django.utils import timezone
 
-from nassav.task_models import TaskArtifact, TaskAttempt, TaskCommand, TaskJob  # noqa: F401
+# Explicit re-exports also register split task models with Django.
+from nassav.task_models import (
+    TaskArtifact as TaskArtifact,
+    TaskAssetTarget as TaskAssetTarget,
+    TaskAttempt as TaskAttempt,
+    TaskCommand as TaskCommand,
+    TaskJob as TaskJob,
+)
+
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import RelatedManager
