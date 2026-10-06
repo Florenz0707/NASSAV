@@ -59,6 +59,7 @@ class DownloadLease(DownloadOwnership):
         self._lost = Event()
         self._stop = Event()
         self._thread: Thread | None = None
+        self._recovery_hold = False
 
     def start(self, ttl: int | None = None) -> None:
         if ttl is not None:
@@ -179,7 +180,7 @@ class DownloadLease(DownloadOwnership):
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=2)
-        if not self.started:
+        if not self.started or self._recovery_hold:
             return
         # Each cleanup is fenced and independent; a failed release cannot skip
         # task/progress cleanup or delete another execution's state.
@@ -188,6 +189,25 @@ class DownloadLease(DownloadOwnership):
                 cleanup()
             except redis.RedisError:
                 pass
+
+    def recovery_identity(self) -> dict:
+        return {
+            "lease_owner": self.owner,
+            "lease_task_key": self.task_key,
+            "lease_global_key": self.GLOBAL_KEY,
+        }
+
+    def retain_for_recovery(self) -> None:
+        self._recovery_hold = True
+        self._stop.set()
+        # Persist each key only if it still belongs to us; never touch a successor.
+        keys = self._keys()
+        self.client_factory().eval(
+            "for i=1,#KEYS do if redis.call('get',KEYS[i]) == ARGV[1] then redis.call('persist',KEYS[i]) end end; return 1",
+            len(keys),
+            *keys,
+            self.owner,
+        )
 
 
 _current: ContextVar[DownloadOwnership | None] = ContextVar(

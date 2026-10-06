@@ -55,4 +55,6 @@ HTTP 字段、URL、任务名、Redis key/TTL、文件路径、metadata 与关�
 
 P2 的 `task_assets.TaskAssets` 独占任务私有文件的登记、校验、提升、回滚和清理；通过 `controlled_transaction` 与 DB 状态所有者协调，不调用记录 Adapter 的私有方法。producer/图像或视频 validator 由消费者传入；提交 persist 回调仅做短 ORM 操作，不含网络、Celery 派发或成功事件。`TaskAssetTarget` 的发布 marker 防止旧恢复覆盖后来的同内容提交。`resource_file_locks` 提供与既有删除相同的资源锁及短目标锁；装配根目录由 composition 提供。已有活动任务阻止正式删除，完整提交入口与新任务创建的并发协调在 P3/P4 接入时完成。资产准备仍未替换旧刮削/下载的文件行为，见[P2 执行记录](../../docs/task-control-p2-results.md)。
 
+P3 `controlled_download` 编排持久控制、下载槽位、私有输出、媒体验证和提交，消费者显式提供 resolver/downloader/lease/persist/guard/project；`ReadOnlyDownloadInfoResolver` 不调用保存工作流。`download_resume` 独占 HLS 身份/分片复用校验，`task_processes` 负责进程身份与退出证明。`task_dispatch` 持久发布 Adapter 仅把待派发记录送 Celery，`task_download_projection` 按 owner 投影 Redis 并发送版本提示，HTTP 层鉴权/校验/裁剪快照。composition 装配资源锁和路径；业务终态及去重由 DB 管理，旧消息暂保留原执行兼容。下载提交回调额外允许有界 Redis owner 验证，不允许 HTTP 抓取、派发或成功事件；大文件 checksum 在 DB fence 外。见[P3 执行记录](../../docs/task-control-p3-results.md)。
+
 [测试说明](../tests/README.md)按链路列出纯用例、Django/临时 Redis Adapter、URL/OpenAPI、任务注册与导入方向回归。无 Django 配置导入、完整能力替身、批量查询次数和原消费者行为共同证明可替换性；不按 ABC 数量或代码移动量判断质量。备份当前没有第三引擎共享需求，保留现有实现，不创建假想插件框架。

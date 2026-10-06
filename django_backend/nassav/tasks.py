@@ -6,8 +6,8 @@ from functools import wraps
 from typing import NoReturn
 
 from celery import shared_task
-from celery.result import AsyncResult
 from loguru import logger
+from nassav.task_dispatch import SubmittedTask
 
 from nassav import download_queue
 from nassav.download_contracts import DownloadLeaseLost
@@ -48,7 +48,7 @@ def _owned_download(operation):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 @_owned_download
-def download_video_task(self, avid: str):
+def download_video_task(self, avid: str, job_id: str | None = None):
     """
     异步下载视频任务
 
@@ -59,6 +59,13 @@ def download_video_task(self, avid: str):
         dict: 下载结果
     """
     from nassav.download_contracts import DownloadRetriesExhausted
+
+    if job_id is not None:
+        from nassav.composition import build_controlled_download
+
+        return build_controlled_download(current_download_ownership()).run(
+            job_id, self.request.id
+        )
 
     from .download_persistence import download_persistence
     from .download_transport import RedisDownloadRuntime
@@ -78,37 +85,17 @@ def download_video_task(self, avid: str):
     ).run(avid, self.request.id, retry=retry, ownership=current_download_ownership())
 
 
-def submit_download_task(avid: str) -> tuple[AsyncResult | None, bool]:
+def submit_download_task(
+    avid: str, *, owner_id: int | None = None
+) -> tuple[SubmittedTask, bool]:
+    """Persist before publishing; paused jobs retain their dedupe reservation.
+
+    owner_id=None is an internal submission, controllable only by an administrator.
+    The legacy download task signature remains valid for already published messages.
     """
-    提交下载任务（带去重检查）
+    from nassav.task_dispatch import submit_download
 
-    Args:
-        avid: 视频ID
-
-    Returns:
-        tuple: (task_result, is_duplicate)
-            task_result: 任务结果或None
-            is_duplicate: 是否为重复任务
-    """
-    avid = avid.upper()
-
-    # 检查任务是否已存在
-    if download_queue.is_task_existed(avid):
-        logger.warning(f"任务 {avid} 已存在于队列中，跳过提交")
-        return None, True
-
-    # 提交任务
-    task_result = download_video_task.delay(avid)
-
-    # 添加到 Redis 队列记录
-    download_queue.add_task_to_queue(avid, task_result.id, task_type="download")
-
-    # 发送队列状态更新（使用完整队列）
-    download_queue.notify_task_update(
-        "queue_status", download_queue.get_full_task_queue()
-    )
-
-    return task_result, False
+    return submit_download(avid, owner_id)
 
 
 # ============================================================

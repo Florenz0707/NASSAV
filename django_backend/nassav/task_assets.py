@@ -47,12 +47,21 @@ def _relative(value: str) -> str:
     return str(path)
 
 
-def _sha(path: Path) -> str:
+def _sha(path: Path, check: Callable | None = None) -> str:
     hasher = hashlib.sha256()
     with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), "rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            if check:
+                check()
             hasher.update(chunk)
     return hasher.hexdigest()
+
+
+def _fingerprint(path: Path) -> tuple:
+    if not path.exists():
+        return ()
+    info = path.stat(follow_symlinks=False)
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
 class TaskAssets:
@@ -135,6 +144,7 @@ class TaskAssets:
         producer: Callable[[Path], bool],
         *,
         validate: Callable[[Path], bool] | None = None,
+        check: Callable | None = None,
     ) -> int:
         self.records.check(token)
         path = self._path(root, self._private(token.job_id, relative), parents=True)
@@ -156,7 +166,7 @@ class TaskAssets:
         if validate and not validate(path):
             raise TaskAssetError("资产内容校验失败")
         # A completed private file can be recorded before acknowledging a pending stop.
-        size, checksum = path.stat().st_size, _sha(path)
+        size, checksum = path.stat().st_size, _sha(path, check)
         self.records.controlled_transaction(
             token,
             lambda: TaskArtifact.objects.filter(pk=artifact.pk, state="staged").update(
@@ -188,8 +198,9 @@ class TaskAssets:
         persist: Callable,
         *,
         resource_saved: bool = False,
+        checkpoint: dict | None = None,
     ):
-        """Journal first, then fence a short file/ORM commit; no network in persist."""
+        """Journal then fence a short file/ORM commit; no HTTP or dispatch in persist."""
         ids = [promotion.artifact_id for promotion in promotions]
         artifacts = list(TaskArtifact.objects.filter(job_id=token.job_id, pk__in=ids))
         if len(set(ids)) != len(ids) or len(artifacts) != len(ids):
@@ -205,6 +216,24 @@ class TaskAssets:
             raise TaskAssetError("正式目标重复")
         commit_id = str(uuid4())
         with self._locks(token.job_id, targets):
+            # Hash large videos outside the DB write fence so commands stay responsive.
+            checked = {}
+            for promotion in promotions:
+                artifact = by_id[promotion.artifact_id]
+                source = self._source(artifact)
+                target = self._path(artifact.root, promotion.target_path, parents=True)
+                source_stat, target_stat = _fingerprint(source), _fingerprint(target)
+                checksum = _sha(source, lambda: self.records.check(token))
+                old_hash = (
+                    _sha(target, lambda: self.records.check(token))
+                    if target.is_file()
+                    else ""
+                )
+                if source_stat != _fingerprint(source) or target_stat != _fingerprint(
+                    target
+                ):
+                    raise TaskAssetError("提交校验期间文件变化")
+                checked[artifact.pk] = (checksum, old_hash, source_stat, target_stat)
 
             def prepare():
                 for promotion in promotions:
@@ -214,13 +243,16 @@ class TaskAssets:
                     if (
                         artifact.state != "staged"
                         or not artifact.sha256
-                        or _sha(source) != artifact.sha256
+                        or checked[artifact.pk][0] != artifact.sha256
+                        or _fingerprint(source) != checked[artifact.pk][2]
                     ):
                         raise TaskAssetError("提交前资产校验不一致")
                     target = self._path(
                         artifact.root, promotion.target_path, parents=True
                     )
-                    old_hash = _sha(target) if target.is_file() else ""
+                    old_hash = checked[artifact.pk][1]
+                    if _fingerprint(target) != checked[artifact.pk][3]:
+                        raise TaskAssetError("正式文件在提交前变化")
                     epoch, _ = TaskAssetTarget.objects.get_or_create(
                         root=artifact.root,
                         relative_path=promotion.target_path,
@@ -259,9 +291,8 @@ class TaskAssets:
                         if str(epoch.marker) != artifact.details["old_marker"]:
                             raise TaskAssetRecoveryRequired("正式资产归属已经变化")
                         if (
-                            _sha(source) != artifact.sha256
-                            or (_sha(target) if target.is_file() else "")
-                            != artifact.details["old_sha256"]
+                            _fingerprint(source) != checked[artifact.pk][2]
+                            or _fingerprint(target) != checked[artifact.pk][3]
                         ):
                             raise TaskAssetRecoveryRequired(
                                 "正式或暂存文件在提交期间变化"
@@ -280,7 +311,11 @@ class TaskAssets:
                 return self.records.controlled_transaction(
                     token,
                     publish,
-                    checkpoint={"last_commit": commit_id, "preparing_commit": None},
+                    checkpoint={
+                        "last_commit": commit_id,
+                        "preparing_commit": None,
+                        **(checkpoint or {}),
+                    },
                     resource_saved=resource_saved,
                 )
             except BaseException:

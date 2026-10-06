@@ -188,6 +188,59 @@ def build_task_assets(records=None):
     )
 
 
+def build_task_records():
+    from pathlib import Path
+    from django.conf import settings
+    from nassav.resource_file_locks import resource_file_lock
+    from nassav.task_records import DjangoTaskRecords
+
+    return DjangoTaskRecords(
+        lambda avid: resource_file_lock(avid, Path(settings.COVER_DIR))
+    )
+
+
+def build_controlled_download(lease):
+    from django.conf import settings
+    from django.utils import timezone
+
+    from nassav.controlled_download import ControlledDownload
+    from nassav.download_information import ReadOnlyDownloadInfoResolver
+    from nassav.download_resume import HLSResumeGuard
+    from nassav.m3u8downloader import N_m3u8DL_RE
+    from nassav.models import AVResource
+    from nassav.resource_service import resource_service
+    from nassav.source.SourceManager import source_manager
+    from nassav.task_download_projection import DownloadTaskProjection
+
+    def persist(resource_avid):
+        path = settings.VIDEO_DIR / f"{resource_avid}.mp4"
+        if not AVResource.objects.filter(avid=resource_avid).update(
+            file_exists=True,
+            file_size=path.stat().st_size,
+            video_saved_at=timezone.now(),
+        ):
+            raise RuntimeError("下载资源元数据不存在，拒绝提交")
+
+    records = build_task_records()
+    resolver = ReadOnlyDownloadInfoResolver(
+        resource_service.load_cached_metadata,
+        source_manager.get_info_from_any_source,
+        lambda name: settings.SOURCE_CONFIG.get(name.lower(), {}).get(
+            "domain", f"{name.lower()}.com"
+        ),
+    )
+    return ControlledDownload(
+        records,
+        build_task_assets(records),
+        resolver,
+        N_m3u8DL_RE(proxy=settings.DOWNLOAD_PROXY_URL or None),
+        lease,
+        persist,
+        guard=HLSResumeGuard(proxy=settings.DOWNLOAD_PROXY_URL or None),
+        project=DownloadTaskProjection(lease),
+    )
+
+
 def build_resource_service(source_manager=None, scraper_manager=None, **overrides):
     from nassav.resource_adapters import (
         CeleryTranslationSubmitter,

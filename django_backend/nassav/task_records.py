@@ -7,6 +7,7 @@ this module does not import Celery or publish inside a database transaction.
 import time
 from collections.abc import Callable
 from functools import wraps
+from contextlib import nullcontext
 from uuid import UUID, uuid4
 
 from django.db import IntegrityError, OperationalError, connection, transaction
@@ -50,6 +51,9 @@ def _retry_sqlite_contention(method):
 class DjangoTaskRecords:
     """Control/read interface plus an execution interface using ExecutionToken."""
 
+    def __init__(self, reservation_lock: Callable | None = None):
+        self.reservation_lock = reservation_lock or (lambda avid: nullcontext())
+
     @staticmethod
     def _row(job_id: str) -> TaskJob:
         try:
@@ -60,6 +64,9 @@ class DjangoTaskRecords:
     @staticmethod
     def _snapshot(row: TaskJob) -> dict:
         attempt = row.attempts.filter(generation=row.generation, role="main").first()
+        actions = allowed_actions(row.state, row.cleanup_state)
+        if row.error_code == "RESTART_REQUIRED":
+            actions = [action for action in actions if action != "resume"]
         return {
             "job_id": str(row.id),
             "task_id": str(attempt.id) if attempt else None,
@@ -82,7 +89,7 @@ class DjangoTaskRecords:
             "created_at": row.created_at.timestamp(),
             "updated_at": row.updated_at.timestamp(),
             "finished_at": row.finished_at.timestamp() if row.finished_at else None,
-            "allowed_actions": allowed_actions(row.state, row.cleanup_state),
+            "allowed_actions": actions,
         }
 
     def get(self, job_id: str) -> dict:
@@ -118,7 +125,7 @@ class DjangoTaskRecords:
             raise ValueError("任务类型或操作无效")
         active_key = f"{kind}:{avid}"
         try:
-            with transaction.atomic():
+            with self.reservation_lock(avid), transaction.atomic():
                 now = timezone.now().timestamp()
                 row = TaskJob.objects.create(
                     kind=kind,
@@ -176,6 +183,8 @@ class DjangoTaskRecords:
             except ValueError as error:
                 raise TaskConflict(str(error), self._snapshot(row)) from error
             changes: dict = {}
+            if action == "resume" and row.error_code == "RESTART_REQUIRED":
+                raise TaskConflict("需要先终止并重新提交下载", self._snapshot(row))
             if action == "resume" and row.artifacts.filter(state="promoting").exists():
                 raise TaskConflict("需要先恢复未完成文件提交", self._snapshot(row))
             if action == "cleanup_retry":
@@ -275,6 +284,32 @@ class DjangoTaskRecords:
         """Permit private checkpoint recording while a stop request is pending."""
         self._execution(self._row(token.job_id), token)
 
+    def execution_identity(self, token: ExecutionToken, identity: dict) -> None:
+        def save():
+            TaskAttempt.objects.filter(
+                pk=token.attempt_id, execution_owner=token.owner
+            ).update(execution_identity=identity)
+
+        self.controlled_transaction(token, save)
+
+    def suspend(self, token: ExecutionToken, *, error_code: str, message: str) -> dict:
+        """Executor-confirmed stop requiring human restart rather than unsafe reuse."""
+        with transaction.atomic():
+            row = self._row(token.job_id)
+            attempt = self._execution(row, token)
+            self._continue(row)
+            row = self._update(
+                row,
+                state="paused",
+                error_code=error_code,
+                message=message,
+                timeline=self._event(row, "paused"),
+            )
+            TaskAttempt.objects.filter(
+                pk=attempt.pk, execution_owner=token.owner
+            ).update(state="stopped", stopped_at=timezone.now())
+            return self._snapshot(row)
+
     def controlled_transaction(
         self,
         token: ExecutionToken,
@@ -338,7 +373,12 @@ class DjangoTaskRecords:
 
     @_retry_sqlite_contention
     def acknowledge_stop(
-        self, token: ExecutionToken, *, checkpoint: dict | None = None
+        self,
+        token: ExecutionToken,
+        *,
+        checkpoint: dict | None = None,
+        error_code: str = "",
+        message: str = "",
     ) -> dict:
         """Caller must first confirm its process/network writers have exited."""
         with transaction.atomic():
@@ -352,6 +392,8 @@ class DjangoTaskRecords:
                 "timeline": self._event(row, state),
                 "checkpoint": {**row.checkpoint, **(checkpoint or {})},
             }
+            if error_code:
+                changes.update(error_code=error_code, message=message)
             if state == "cancelled":
                 pending_files = row.artifacts.exclude(
                     state__in=["committed", "deleted"]
@@ -410,15 +452,14 @@ class DjangoTaskRecords:
         )
 
     def dispatch_pending(
-        self, send: Callable[[dict], None], *, limit: int = 100
+        self, send: Callable[[dict], None], *, limit: int = 100, kind: str | None = None
     ) -> dict:
         """Outbox-like attempts persist before publish; duplicate publish is safe at claim."""
         sent, failed = 0, 0
-        attempts = (
-            TaskAttempt.objects.filter(state="pending", job__state="queued")
-            .select_related("job")
-            .order_by("job__created_at")[:limit]
-        )
+        query = TaskAttempt.objects.filter(state="pending", job__state="queued")
+        if kind is not None:
+            query = query.filter(job__kind=kind)
+        attempts = query.select_related("job").order_by("job__created_at")[:limit]
         for attempt in attempts:
             if attempt.generation != attempt.job.generation:
                 continue

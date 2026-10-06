@@ -1414,3 +1414,13 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 资源任务快照查询新增 `workflow_state` 和 `workflow_stage`，用于包含翻译子任务的整体展示：原始 `state=succeeded` 仍只表示资源已保存；翻译 queued / translating / unknown 时整体 running，completed 时 succeeded，failed 时 failed，skipped / not_requested 时允许结束。旧任务 unavailable 保留保存结果并明确标注翻译未记录或已过期。前端统计、筛选及“已结束任务”清理按整体状态执行，失败包含翻译失败。
 
 新增 `timeline` 数组，元素为 `{stage, state, at}`，记录实际状态 / 阶段进入时间；`at` 为 Unix 秒或翻译完成的 ISO 时间。资源保存事件为 resource_saved，翻译终态为 translation_completed / translation_failed / translation_skipped。翻译详情可返回 `completed_at`（Celery date_done；提交失败使用失败发生时间）。未记录的历史时间为空，不根据资源的其他翻译结果或当前读取时间推断。字段只在持有签名令牌的完整快照接口返回，不扩大全局 WebSocket 数据。
+
+### 持久下载任务控制（P3）
+
+`POST /nassav/api/downloads/{avid}` 和批量提交新增 `job_id`，保留原 `task_id`；先保存待派发 attempt，broker 不可用仍接受为 202 并保留 pending，不伪造已经开始。TaskJob 是控制/历史所有者，Redis 只投影运行队列和进度；暂停保留同类型 AVID 去重名额，恢复产生新 task_id。
+
+- `GET /nassav/api/tasks/jobs/{job_id}`：操作人自身或管理员读取，返回 state/stage/version/generation、timeline、allowed_actions、progress 和 cleanup_state/message；不返回 checkpoint、URL、AES key 或私有路径。
+- `POST /nassav/api/tasks/jobs/{job_id}/{pause|resume|cancel}`：operator session 和 CSRF，携带 `{expected_version: 正整数, request_id: UUID}`。返回 202 的已登记快照，不把 pausing/cancelling 当作停止确认。重复 request_id 不重复派发；版本/状态冲突 409 并附当前快照，越权 403，任务不存在 404，输入无效 400。
+- `POST /nassav/api/tasks/jobs/{job_id}/cleanup/retry`：相同请求字段，只重试终态 failed 清理，不能复活任务。
+
+RESTART_REQUIRED 的 paused 任务不能 resume，需终止后重新下载；它表示轨道/内容无法确认，不是下载成功。终止只清理本任务未提交文件，保留正式视频和共享资产。全部控制目前仅开放 download；整条 scrape 含翻译须等待 P4/P5。Channels 的 task_job_update 只含 job_id/job_type/version，前端应授权取快照后按版本合并，不能按 AVID 把旧事件覆盖新任务。

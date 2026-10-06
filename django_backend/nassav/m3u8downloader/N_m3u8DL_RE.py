@@ -46,6 +46,8 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         retry_count: int = 5,
         progress_callback: Callable | None = None,
         cancelled: Callable[[], bool] | None = None,
+        process_started: Callable[[int], None] | None = None,
+        stage_callback: Callable[[str], None] | None = None,
     ) -> bool:
         """使用 N_m3u8DL-RE 下载 M3U8 视频
 
@@ -77,8 +79,10 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 "--download-retry-count",
                 str(retry_count),
                 "--del-after-done",  # 下载完成后删除临时文件
+                "false" if process_started is not None else "true",
                 "--auto-select",  # 自动选择最佳质量
                 "--no-log",  # 禁用日志文件
+                "--disable-update-check",
                 "-H",
                 f"Referer: {referer}",
                 "-H",
@@ -87,6 +91,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
 
             # Only the dedicated download proxy may affect the downloader.
             env = os.environ.copy()
+            env.update(COLUMNS="120", LINES="40", TERM="xterm")
             for key in (
                 "http_proxy",
                 "https_proxy",
@@ -94,6 +99,8 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 "HTTPS_PROXY",
                 "ALL_PROXY",
                 "all_proxy",
+                "NO_PROXY",
+                "no_proxy",
             ):
                 env.pop(key, None)
             if self.proxy:
@@ -112,6 +119,8 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 bufsize=1,
                 start_new_session=(os.name == "posix"),
             )
+            if process_started:
+                process_started(process.pid)
 
             if cancelled is not None:
 
@@ -136,6 +145,11 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 for line in process.stdout:
                     # 解析进度信息（示例格式: "已下载: 45.2% | 速度: 5.2MB/s"）
                     line = line.strip()
+                    if stage_callback and any(
+                        word in line.lower()
+                        for word in ("merging", "muxing", "合并", "混流")
+                    ):
+                        stage_callback("merging")
                     if progress_callback:
                         # 尝试匹配百分比
                         percent_match = re.search(r"(\d+\.?\d*)%", line)
@@ -179,6 +193,8 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
             return False
         except Exception as e:
             logger.error(f"下载失败: {e}")
+            if process_started is not None:
+                raise
             return False
 
         finally:
@@ -187,6 +203,12 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 watchdog.join(timeout=3)
             if process is not None and cancelled_run.is_set():
                 self._terminate_process(process)
+            if process is not None and process_started is not None:
+                # Controlled calls confirm all descendants, including quiet CLI paths.
+                self._terminate_process(process)
+                from nassav.task_processes import ensure_group_stopped
+
+                ensure_group_stopped(process.pid)
             if process is not None and process.stdout is not None:
                 close = getattr(process.stdout, "close", None)
                 if close:

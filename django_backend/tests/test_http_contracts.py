@@ -38,8 +38,32 @@ def test_url_and_openapi_contract_remains_identical():
         (Path(__file__).parent / "fixtures/backend_http_contract.json").read_text()
     )
     schema = SchemaGenerator().get_schema(request=None, public=True)
-    assert routes(get_resolver().url_patterns) == baseline["routes"]
-    assert schema["paths"] == baseline["paths"]
+    control_routes = [
+        [
+            "nassav/api/tasks/jobs/<uuid:job_id>/cleanup/retry",
+            "task-job-cleanup-retry",
+            "TaskCleanupRetryView",
+        ],
+        ["nassav/api/tasks/jobs/<uuid:job_id>", "task-job-status", "TaskJobStatusView"],
+        [
+            "nassav/api/tasks/jobs/<uuid:job_id>/<str:action>",
+            "task-job-control",
+            "TaskControlView",
+        ],
+    ]
+    # Authorized additions are explicit; the legacy snapshot is not regenerated.
+    assert routes(get_resolver().url_patterns) == [*control_routes, *baseline["routes"]]
+    control_paths = {
+        "/nassav/api/tasks/jobs/{job_id}": {"get"},
+        "/nassav/api/tasks/jobs/{job_id}/{action}": {"post"},
+        "/nassav/api/tasks/jobs/{job_id}/cleanup/retry": {"post"},
+    }
+    assert {path: set(schema["paths"][path]) for path in control_paths} == control_paths
+    assert {
+        path: value
+        for path, value in schema["paths"].items()
+        if path not in control_paths
+    } == baseline["paths"]
     assert schema.get("components", {}) == baseline["components"]
 
 
