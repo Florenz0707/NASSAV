@@ -2,6 +2,10 @@
 
 本目录包含维护、数据重建和验证脚本；参数与用法按下文分类维护。历史一次性脚本处置通过 Git 追溯，当前验证边界见[验证状态](../doc/validation-status.md)。
 
+## 任务下载停止与恢复探针
+
+`probe_task_download_control.py` 只使用 ffmpeg 合成媒体及回环 HTTP，拒绝未知版本二进制和已存在的工作目录，不连接 Django/DB/Redis。运行参数为 `--binary <固定二进制绝对路径>` 和 `--workspace <不存在的目录>`；工作区保留日志、媒体和 report.json，退出码非零表示能力门槛失败。依赖 Linux `/proc`、ffmpeg、libx264 与固定 N_m3u8DL-RE。实验结束后可删除该新建工作区；不得指定正式资源目录。详细命令、二进制 SHA256、两轮证据和验证限制见[任务控制 P0 记录](../../docs/task-control-p0-results.md)。
+
 ## Byparr 会话复用 P0 探测
 
 `probe_byparr_session.py` 在运行中的 Django 容器内使用有效配置，对单个已知页面执行只读对照；不写 Cookie 表。先阅读[验证边界与历史记录](../doc/validation-status.md)。参数为 `source`（`jable`/`missav`）、`kind`（`detail`/`listing`）、HTTPS 页面 URL；详情页还需 `--avid`。URL 必须属于已配置源域名且不带凭据；只允许 Jable 分页查询 `from=02`。可用 `--reuse-url` 指定同站另一详情页，MissAV 同时传 `--reuse-avid`，在同一次浏览器会话中测试跨页复用。默认不把存储或浏览器 Cookie 发送到目标站；完整会话对照必须在获准的试验窗口显式加 `--allow-session-replay`。只保存脚本输出的脱敏 JSON，不保存原始 Byparr 响应。
@@ -563,3 +567,23 @@ docker exec -e PYTHONPATH=/tmp/nassav-media-probe:/app nassav-api-1 \
 另外输出首批结果耗时、观察到的阶段版本及 Redis 通知版本；通知必须覆盖已观察阶段和终态，且不含卡片和签名 token。脚本自身订阅 Channels Redis 群组，登录 WebSocket 的权限与透传由 `test_access_control.py` 验证。
 
 仅允许 `DATABASE_PATH=/tmp/nassav-external-search-acceptance.sqlite3` 和 Redis 主机 `nassav-external-search-test-redis`。准备隔离配置，使用真实 Byparr 和源代理；运行目录必须可写入独立配置、日志与资源缓存。会创建临时用户、演员、类别及映射，并启动/关闭并发 1 的真实 Celery worker。默认使用单页抓取窗口，可通过参数调整；依次验证 MissAV 类别、演员、关键词和 Jable 类别、演员，输出计数、提交耗时、总耗时及图片字节数。验收完成后删除临时容器和存储。
+
+## 持久任务恢复与真实 worker 验收
+
+`recover_tasks` 管理命令使用与 worker 相同的恢复用例，参数和旧实例退出确认见[部署说明](../doc/compose-deployment.md#持久任务控制版本切换与回滚)。命令不是心跳超时清理器，身份未知保留现场。
+
+`accept_task_control_workers.py` 生成 `/tmp/nassav-task-control-p7-*` 内的媒体、配置、DB 和资源，启动临时 loopback Redis、本地来源/图片/翻译 HTTP fixture 和真实 prefork Celery worker；API 命令经已授权的 DRF APIClient 执行，非 eager。要求 redis-server、ffmpeg/ffprobe、Pillow 及已校验的 P0 CLI；CLI 不打包进仓库。它会对自己创建的 worker 注入崩溃、Redis 断线、目录权限失败，结束时停止这些实例并删除临时目录，不触碰正式服务。
+
+```bash
+# 从 django_backend 执行；binary 必须匹配 P0 SHA。
+uv run python scripts/accept_task_control_workers.py \
+  --binary /tmp/nassav-task-control-p0/tools/N_m3u8DL-RE \
+  --report /tmp/nassav-p7-sqlite-report.json
+# PostgreSQL 必须是独立容器、空测试库 nassav_task_control，Unix socket 仅在 /tmp。
+uv run python scripts/accept_task_control_workers.py \
+  --binary /tmp/nassav-task-control-p0/tools/N_m3u8DL-RE \
+  --postgres-socket /tmp/nassav-task-control-p1-pg \
+  --report /tmp/nassav-p7-postgres-report.json
+```
+
+固定 SHA 为 `d2fa5b4b79f243320c509a85835327a520d8c160c600d99921e764bfc519fec7`。脚本不是线上探针；本地来源和翻译替身不代表 Jable/MissAV/JavBus/Ollama 已验收。结果与范围见[P7](../../docs/task-control-p7-results.md)。

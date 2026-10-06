@@ -53,6 +53,14 @@ class OllamaTranslator(TranslatorBase):
     def get_translator_name(self) -> str:
         return "Ollama"
 
+    def _request(self, method, url, *, timeout, **kwargs):
+        self.check_task()
+        if self.task_control is not None:
+            return self.task_control.request(
+                method, url, timeout=min(timeout, 60), **kwargs
+            )
+        return getattr(requests, method.lower())(url, timeout=timeout, **kwargs)
+
     def _clean_translation(self, text: str) -> str:
         """
         清理翻译结果中的多余说明文字
@@ -144,7 +152,7 @@ class OllamaTranslator(TranslatorBase):
         """
         try:
             # 尝试访问 Ollama API 的 /api/tags 端点
-            response = requests.get(f"{self.url}/api/tags", timeout=5)
+            response = self._request("GET", f"{self.url}/api/tags", timeout=5)
             if response.status_code == 200:
                 # 检查模型是否存在
                 data = response.json()
@@ -162,6 +170,7 @@ class OllamaTranslator(TranslatorBase):
                 logger.warning(f"Ollama 服务返回异常状态码: {response.status_code}")
                 return False
         except Exception as e:
+            self.check_task()
             logger.error(f"检查 Ollama 服务可用性失败: {e}")
             return False
 
@@ -187,7 +196,8 @@ class OllamaTranslator(TranslatorBase):
             prompt = self.prompt_template.format(text=text)
 
             # 调用 Ollama API
-            response = requests.post(
+            response = self._request(
+                "POST",
                 f"{self.url}/api/generate",
                 json={
                     "model": self.model,
@@ -218,12 +228,15 @@ class OllamaTranslator(TranslatorBase):
                 return None
 
         except requests.exceptions.Timeout:
+            self.check_task()
             logger.error(f"Ollama 翻译超时（{self.timeout}秒）")
             return None
         except requests.exceptions.RequestException as e:
+            self.check_task()
             logger.error(f"Ollama 请求失败: {e}")
             return None
         except Exception as e:
+            self.check_task()
             logger.error(f"Ollama 翻译异常: {e}")
             return None
 

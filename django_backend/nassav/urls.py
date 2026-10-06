@@ -1,4 +1,5 @@
 from django.urls import path
+from nassav.http import task_control_views
 
 from . import auth_views
 from .http import (
@@ -19,6 +20,31 @@ from .search_job_views import (
 app_name = "nassav"
 
 urlpatterns = [
+    path(
+        "api/tasks/jobs",
+        task_control_views.TaskJobListView.as_view(),
+        name="task-job-list",
+    ),
+    path(
+        "api/tasks/jobs/actions",
+        task_control_views.TaskBatchControlView.as_view(),
+        name="task-job-batch-control",
+    ),
+    path(
+        "api/tasks/jobs/<uuid:job_id>/cleanup/retry",
+        task_control_views.TaskCleanupRetryView.as_view(),
+        name="task-job-cleanup-retry",
+    ),
+    path(
+        "api/tasks/jobs/<uuid:job_id>",
+        task_control_views.TaskJobStatusView.as_view(),
+        name="task-job-status",
+    ),
+    path(
+        "api/tasks/jobs/<uuid:job_id>/<str:action>",
+        task_control_views.TaskControlView.as_view(),
+        name="task-job-control",
+    ),
     path("api/search/jobs", SearchJobSubmitView.as_view(), name="search-job-submit"),
     path(
         "api/search/jobs/<uuid:task_id>",

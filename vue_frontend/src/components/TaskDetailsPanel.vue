@@ -8,12 +8,12 @@ import EmptyState from './EmptyState.vue'
 import TaskResourceCover from './TaskResourceCover.vue'
 import TaskCheckbox from './TaskCheckbox.vue'
 import TaskTimeline from './TaskTimeline.vue'
-import { isFinishedTask } from '../utils/taskDetails.js'
-import { SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
-const emit = defineEmits(['dismiss'])
+import { TASK_STAGE_LABELS, isFinishedTask } from '../utils/taskDetails.js'
+const emit = defineEmits(['dismiss', 'control'])
 const props = defineProps({
   tasks: { type: Array, required: true },
   debug: Boolean,
+  busy: { type: Set, default: () => new Set() },
   focusTaskId: { type: String, default: '' },
 })
 const type = ref('all'),
@@ -30,8 +30,32 @@ watch(
   },
   { immediate: true }
 )
-const labels = { queued: '等待中', running: '执行中', succeeded: '已完成', failed: '失败' }
-const stageLabels = SCRAPE_STAGE_LABELS
+const labels = {
+  queued: '等待中',
+  running: '执行中',
+  pausing: '暂停中',
+  paused: '已暂停',
+  cancelling: '终止中',
+  cancelled: '已终止',
+  succeeded: '已完成',
+  failed: '失败',
+}
+const canControl = (task, action) =>
+  task.allowedActions?.includes(action) && !props.busy.has(task.jobId || task.id)
+const selectedFor = (action) =>
+  props.tasks
+    .filter((task) => checkedIds.value.has(task.id) && canControl(task, action))
+    .map((task) => task.id)
+const hideFinished = (task) =>
+  isFinishedTask(task) && !['pending', 'running', 'failed'].includes(task.cleanupState)
+const cleanupLabels = {
+  pending: '等待清理',
+  running: '正在清理',
+  completed: '清理完成',
+  failed: '清理失败',
+  not_required: '无需清理',
+}
+const stageLabels = TASK_STAGE_LABELS
 const typeTasks = computed(() =>
   props.tasks.filter((t) => type.value === 'all' || t.type === type.value)
 )
@@ -65,29 +89,24 @@ const resourceName = (task) => task.title || task.avid
 const taskType = (task) =>
   task.type === 'download' ? '下载' : task.action === 'refresh' ? '刷新资源' : '新增资源'
 const progress = (task) =>
-  task.state === 'failed'
-    ? task.stage === 'translation_failed'
-      ? '翻译失败'
-      : '失败'
-    : task.state === 'queued'
-      ? '尚未开始'
-      : task.type === 'download'
-        ? task.percent === null
-          ? '等待进度'
-          : `${task.percent}%`
-        : task.state === 'succeeded'
-          ? stageLabels[task.stage] || '已完成'
-          : stageLabels[task.stage] || '阶段待获取'
+  ['paused', 'pausing', 'cancelling', 'cancelled'].includes(task.state)
+    ? labels[task.state]
+    : task.state === 'failed'
+      ? task.stage === 'translation_failed'
+        ? '翻译失败'
+        : '失败'
+      : task.state === 'queued'
+        ? '尚未开始'
+        : task.type === 'download'
+          ? task.percent === null
+            ? '等待进度'
+            : `${task.percent}%`
+          : task.state === 'succeeded'
+            ? stageLabels[task.stage] || '已完成'
+            : stageLabels[task.stage] || '阶段待获取'
 </script>
 <template>
-  <div
-    class="min-w-0"
-    :class="
-      visible.length
-        ? 'pb-24'
-        : 'flex flex-col min-h-[calc(100dvh-6rem)] min-[641px]:min-h-[calc(100dvh-8rem)]'
-    "
-  >
+  <div class="min-w-0" :class="visible.length ? 'pb-24' : 'flex flex-col flex-1'">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-3xl font-bold text-primary">任务详情</h1>
@@ -101,7 +120,11 @@ const progress = (task) =>
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
       <div
-        v-for="(label, key) in labels"
+        v-for="(label, key) in Object.fromEntries(
+          Object.entries(labels).filter(([key]) =>
+            ['queued', 'running', 'succeeded', 'failed'].includes(key)
+          )
+        )"
         :key="key"
         class="bg-secondary border rounded-xl p-4 border-[var(--border-color)]"
       >
@@ -141,19 +164,36 @@ const progress = (task) =>
       >
       <AppButton
         variant="neutral"
-        :disabled="!visible.some((task) => isFinishedTask(task))"
+        :disabled="!visible.some((task) => hideFinished(task))"
         @click="
           emit(
             'dismiss',
-            visible.filter((task) => isFinishedTask(task)).map((task) => task.id)
+            visible.filter((task) => hideFinished(task)).map((task) => task.id)
           )
         "
         >不再跟踪当前列表已结束任务</AppButton
       >
-      <AppButton variant="danger" disabled title="示意功能，暂未接入结束任务操作"
-        >结束所选任务 · 示意</AppButton
+      <AppButton
+        variant="neutral"
+        :disabled="!selectedFor('pause').length"
+        @click="emit('control', 'pause', selectedFor('pause'))"
+        >暂停所选</AppButton
       >
-      <span class="text-muted text-xs">“已结束”包含已完成与失败；结束任务暂仅作示意。</span>
+      <AppButton
+        variant="neutral"
+        :disabled="!selectedFor('resume').length"
+        @click="emit('control', 'resume', selectedFor('resume'))"
+        >恢复所选</AppButton
+      >
+      <AppButton
+        variant="danger"
+        :disabled="!selectedFor('cancel').length"
+        @click="emit('control', 'cancel', selectedFor('cancel'))"
+        >结束所选任务</AppButton
+      >
+      <span class="text-muted text-xs"
+        >已结束包含已完成、失败与已终止；清理未完成的任务保留跟踪。</span
+      >
     </div>
     <div
       v-if="!visible.length"
@@ -196,6 +236,7 @@ const progress = (task) =>
               <th class="p-4 text-left">状态</th>
               <th class="p-4 text-left">阶段</th>
               <th class="p-4 text-center whitespace-nowrap">不再跟踪</th>
+              <th class="p-4 text-center whitespace-nowrap">暂停/恢复</th>
               <th class="p-4 text-center whitespace-nowrap">结束任务</th>
             </tr>
           </thead>
@@ -264,11 +305,24 @@ const progress = (task) =>
               <td class="p-4 text-center">
                 <AppButton
                   size="sm"
+                  variant="neutral"
+                  class="w-9 h-9 p-0"
+                  :disabled="!canControl(task, task.state === 'paused' ? 'resume' : 'pause')"
+                  :aria-label="(task.state === 'paused' ? '恢复任务 ' : '暂停任务 ') + task.avid"
+                  :title="task.jobId || debug ? '暂停保留文件，恢复继续执行' : '历史任务不支持控制'"
+                  @click="emit('control', task.state === 'paused' ? 'resume' : 'pause', [task.id])"
+                  ><AppIcon :name="task.state === 'paused' ? 'play' : 'pause'"
+                /></AppButton>
+              </td>
+              <td class="p-4 text-center">
+                <AppButton
+                  size="sm"
                   variant="danger"
                   class="w-9 h-9 p-0"
-                  disabled
-                  :aria-label="'结束任务 ' + task.avid + '（示意）'"
-                  title="示意功能，暂未接入结束任务操作"
+                  :disabled="!canControl(task, 'cancel')"
+                  :aria-label="'结束任务 ' + task.avid"
+                  :title="task.jobId || debug ? '终止执行并清理未提交文件' : '历史任务不支持控制'"
+                  @click="emit('control', 'cancel', [task.id])"
                   ><AppIcon name="close"
                 /></AppButton>
               </td>
@@ -314,6 +368,32 @@ const progress = (task) =>
         <TaskTimeline :events="selected.timeline || []" />
         <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
           {{ selected.error }}
+        </p>
+        <div v-if="selected.cleanupState" class="mt-4 text-sm text-secondary" role="status">
+          {{ cleanupLabels[selected.cleanupState] || '清理状态未知' }}
+          <p v-if="selected.cleanupMessage" class="text-accent-danger mt-2">
+            {{ selected.cleanupMessage }}
+          </p>
+          <AppButton
+            v-if="selected.allowedActions?.includes('cleanup_retry')"
+            class="mt-3"
+            size="sm"
+            :disabled="!canControl(selected, 'cleanup_retry')"
+            @click="emit('control', 'cleanup_retry', [selected.id])"
+            >重试清理</AppButton
+          >
+        </div>
+        <p
+          v-if="['pausing', 'cancelling'].includes(selected.state)"
+          class="text-muted text-sm mt-4"
+        >
+          正在等待执行器确认停止，文件暂不删除。
+        </p>
+        <p
+          v-if="selected.errorCode === 'RESTART_REQUIRED'"
+          class="text-accent-warning text-sm mt-4"
+        >
+          临时文件无法安全复用，请终止后重新创建任务。
         </p>
         <slot name="details" :task="selected" />
       </aside>

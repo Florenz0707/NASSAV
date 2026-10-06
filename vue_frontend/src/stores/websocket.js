@@ -3,6 +3,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { useDownloadQueueStore } from './downloadQueue.js'
 import { ref, shallowRef } from 'vue'
 import { useToastStore } from './toast.js'
+import { useTaskJobsStore } from './taskJobs.js'
 import { useResourceStore } from './resource.js'
 import { useSessionStore } from './session.js'
 import { notifySearchJobUpdate } from '../composables/searchJobEvents.js'
@@ -71,6 +72,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
         connected.value = true
         connectionFailed.value = false
         useResourceStore().refreshPendingScrapeJobs()
+        useTaskJobsStore().poll(true)
+        useTaskJobsStore().load()
         // 清除连接超时定时器
         if (connectionTimer.value) {
           clearTimeout(connectionTimer.value)
@@ -178,6 +181,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
     switch (message.type) {
       case 'external_search_update':
         notifySearchJobUpdate(message.data)
+        break
+      case 'task_job_update':
+        useTaskJobsStore().hint(message.data)
         break
       case 'scrape_job_update':
         resourceStore.handleScrapeJobEvent(message.data)

@@ -50,6 +50,7 @@ class SourceBase(BrowserSessionHandler):
         self.cookie_retry_times = 5
         self.timeout = timeout
         self.domain = ""
+        self.task_control = None
         # 最近一次 fetch_html 请求的响应状态码（成功时为 None）
         self.last_error_code = None
         self._request_state = local()
@@ -84,6 +85,18 @@ class SourceBase(BrowserSessionHandler):
 
     def set_domain(self, domain: str):
         self.domain = domain
+
+    def set_task_control(self, control) -> None:
+        self.task_control = control
+
+    def _fetch(self, url, **kwargs):
+        if self.task_control is not None:
+            return self.task_control.request("GET", url, **kwargs)
+        return requests.get(url, **kwargs)
+
+    def _check_task(self) -> None:
+        if self.task_control is not None:
+            self.task_control.check()
 
     def set_cookie(self, cookie: str):
         self.cookie = cookie
@@ -179,6 +192,7 @@ class SourceBase(BrowserSessionHandler):
         )
 
     def fetch_html(self, url: str, referer: str = "") -> str | None:
+        self._check_task()
         self._request_state.direct_status = None
         self._request_state.direct_failure = None
         response = None
@@ -195,7 +209,7 @@ class SourceBase(BrowserSessionHandler):
             elif self.cookie:
                 headers["Cookie"] = self.cookie
 
-            response = requests.get(
+            response = self._fetch(
                 url,
                 proxies=self.proxies,  # type: ignore
                 headers=headers,
@@ -206,9 +220,11 @@ class SourceBase(BrowserSessionHandler):
             self._request_state.direct_status = getattr(response, "status_code", 200)
             self.last_final_url = str(response.url)
             response.raise_for_status()
+            self._check_task()
             self.last_error_code = None
             return response.text
         except Exception as error:
+            self._check_task()
             code = getattr(response, "status_code", None)
             if code is None and isinstance(error, HTTPError):
                 code = getattr(error.response, "status_code", None)
@@ -242,12 +258,19 @@ class SourceBase(BrowserSessionHandler):
         write_guard: Callable[[], bool] | None = None,
         refresh_key_value: str | None = None,
     ) -> bool:
+        self._check_task()
+        original_guard = write_guard
+
+        def guarded():
+            self._check_task()
+            return original_guard() if original_guard else True
+
         return self._sessions.accept_browser_session(
             url,
             result,
             validator,
             expected_version,
-            write_guard=write_guard,
+            write_guard=guarded if self.task_control is not None else write_guard,
             refresh_key_value=refresh_key_value,
         )
 
@@ -266,6 +289,7 @@ class SourceBase(BrowserSessionHandler):
 
     def download_file(self, url: str, save_path: str, referer: str = "") -> bool:
         """下载文件到指定路径"""
+        self._check_task()
         try:
             headers = HEADERS.copy()
             if referer:
@@ -273,9 +297,9 @@ class SourceBase(BrowserSessionHandler):
             if self.cookie:
                 headers["Cookie"] = self.cookie
 
-            response = requests.get(
+            response = self._fetch(
                 url,
-                stream=True,
+                stream=self.task_control is None,
                 impersonate=IMPERSONATE,
                 proxies=self.proxies,  # type: ignore
                 headers=headers,
@@ -285,6 +309,11 @@ class SourceBase(BrowserSessionHandler):
             response.raise_for_status()
 
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            if self.task_control is not None:
+                from pathlib import Path
+
+                self.task_control.write(Path(save_path), response.content)
+                return True
             with open(save_path, "wb") as f:
                 # curl_cffi 不支持 chunk_size 参数,直接使用 iter_content()
                 for chunk in response.iter_content():
@@ -293,5 +322,6 @@ class SourceBase(BrowserSessionHandler):
 
             return True
         except Exception as e:
+            self._check_task()
             logger.error(f"下载失败: {e}")
             return False

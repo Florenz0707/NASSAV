@@ -38,12 +38,44 @@ def test_url_and_openapi_contract_remains_identical():
         (Path(__file__).parent / "fixtures/backend_http_contract.json").read_text()
     )
     schema = SchemaGenerator().get_schema(request=None, public=True)
-    assert routes(get_resolver().url_patterns) == baseline["routes"]
-    assert schema["paths"] == baseline["paths"]
+    control_routes = [
+        ["nassav/api/tasks/jobs", "task-job-list", "TaskJobListView"],
+        [
+            "nassav/api/tasks/jobs/actions",
+            "task-job-batch-control",
+            "TaskBatchControlView",
+        ],
+        [
+            "nassav/api/tasks/jobs/<uuid:job_id>/cleanup/retry",
+            "task-job-cleanup-retry",
+            "TaskCleanupRetryView",
+        ],
+        ["nassav/api/tasks/jobs/<uuid:job_id>", "task-job-status", "TaskJobStatusView"],
+        [
+            "nassav/api/tasks/jobs/<uuid:job_id>/<str:action>",
+            "task-job-control",
+            "TaskControlView",
+        ],
+    ]
+    # Authorized additions are explicit; the legacy snapshot is not regenerated.
+    assert routes(get_resolver().url_patterns) == [*control_routes, *baseline["routes"]]
+    control_paths = {
+        "/nassav/api/tasks/jobs": {"get"},
+        "/nassav/api/tasks/jobs/actions": {"post"},
+        "/nassav/api/tasks/jobs/{job_id}": {"get"},
+        "/nassav/api/tasks/jobs/{job_id}/{action}": {"post"},
+        "/nassav/api/tasks/jobs/{job_id}/cleanup/retry": {"post"},
+    }
+    assert {path: set(schema["paths"][path]) for path in control_paths} == control_paths
+    assert {
+        path: value
+        for path, value in schema["paths"].items()
+        if path not in control_paths
+    } == baseline["paths"]
     assert schema.get("components", {}) == baseline["components"]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_cover_original_fresh_thumbnail_and_fallback_headers(
     api_client, settings, tmp_path
 ):
@@ -121,7 +153,7 @@ def test_retranslation_reset_precedes_dispatch_and_preserves_submission_failure(
     )
     observed = []
 
-    def dispatch(avid):
+    def dispatch(avid, generation):
         resource.refresh_from_db()
         observed.append((avid, resource.translation_status, resource.translated_title))
         raise RuntimeError("queue unavailable")
@@ -144,7 +176,9 @@ def test_refresh_retranslation_uses_shared_dispatch(
     monkeypatch.setattr(
         translate_title_task,
         "delay",
-        lambda avid: submitted.append(avid) or SimpleNamespace(id="translation"),
+        lambda avid, **kwargs: (
+            submitted.append(avid) or SimpleNamespace(id="translation")
+        ),
     )
     response = api_client.post(
         f"/nassav/api/resource/refresh/{resource.avid}",

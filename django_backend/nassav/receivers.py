@@ -23,7 +23,10 @@ def on_resource_added(sender, avid, resource, result, **kwargs):
     - 记录日志
     - 可扩展：触发其他异步任务（如生成缩略图）
     """
-    logger.info(f"[Event] 资源添加事件触发: {avid}")
+    from nassav.task_resource_events import receive_once
+
+    if receive_once(result.get("event_id"), "resource_added_log"):
+        logger.info(f"[Event] 资源添加事件触发: {avid}")
 
     # 注意：翻译任务已在 ResourceService 中直接提交
     # 这里可以添加其他需要异步处理的任务
@@ -42,7 +45,10 @@ def on_metadata_refreshed(sender, avid, resource, result, **kwargs):
     - 记录日志
     - 可扩展：触发相关更新任务
     """
-    logger.info(f"[Event] 元数据刷新事件触发: {avid}")
+    from nassav.task_resource_events import receive_once
+
+    if receive_once(result.get("event_id"), "metadata_refreshed_log"):
+        logger.info(f"[Event] 元数据刷新事件触发: {avid}")
 
     # 可以在这里添加元数据刷新后的后续处理
     # 例如：更新搜索索引、清除缓存等

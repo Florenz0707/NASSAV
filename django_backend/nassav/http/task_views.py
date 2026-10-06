@@ -13,9 +13,11 @@ from rest_framework.response import Response
 
 from nassav.api_utils import build_response
 from nassav.http_base import SchemaAPIView
+from nassav.task_control_rules import TaskForbidden
 from nassav.resource_deletion import (
     InvalidResourceIdentifier,
     ResourceDeletionFailure,
+    ResourceTaskConflict,
     resource_deletion_service,
 )
 
@@ -61,7 +63,14 @@ class DownloadView(SchemaAPIView):
         # 使用Celery异步下载（带去重检查）
         from nassav.tasks import submit_download_task
 
-        task_result, is_duplicate = submit_download_task(avid)
+        try:
+            task_result, is_duplicate = submit_download_task(
+                avid, owner_id=request.user.pk
+            )
+        except TaskForbidden as error:
+            return build_response(403, str(error), None)
+        except ValueError:
+            return build_response(400, "avid 无效", None)
 
         if is_duplicate:
             return build_response(409, "下载任务已存在", None)
@@ -74,7 +83,13 @@ class DownloadView(SchemaAPIView):
         return build_response(
             202,
             "下载任务已提交",
-            {"avid": avid, "task_id": task.id, "status": "pending", "file_size": None},
+            {
+                "avid": avid,
+                "task_id": task.id,
+                "job_id": getattr(task, "job_id", None),
+                "status": "pending",
+                "file_size": None,
+            },
         )
 
     def delete(self, request, avid):
@@ -82,6 +97,8 @@ class DownloadView(SchemaAPIView):
         _ = request
         try:
             result = resource_deletion_service.delete_video(avid)
+        except ResourceTaskConflict as exc:
+            return build_response(409, str(exc), None)
         except InvalidResourceIdentifier:
             return build_response(400, "avid 无效", None)
         except ResourceDeletionFailure as exc:
@@ -156,7 +173,9 @@ class DownloadsBatchSubmitView(SchemaAPIView):
         for a in avids:
             avid = str(a).upper()
             try:
-                task_result, is_duplicate = submit_download_task(avid)
+                task_result, is_duplicate = submit_download_task(
+                    avid, owner_id=request.user.pk
+                )
                 if is_duplicate:
                     results.append(
                         {
@@ -174,12 +193,22 @@ class DownloadsBatchSubmitView(SchemaAPIView):
                             "code": 202,
                             "message": "submitted",
                             "task_id": task_result.id,
+                            "job_id": getattr(task_result, "job_id", None),
                         }
                     )
             except Exception as e:
                 logger.exception(f"批量提交下载失败: {e}")
                 results.append(
-                    {"avid": avid, "code": 500, "message": str(e), "task_id": None}
+                    {
+                        "avid": avid,
+                        "code": 403
+                        if isinstance(e, TaskForbidden)
+                        else 400
+                        if isinstance(e, ValueError)
+                        else 500,
+                        "message": str(e),
+                        "task_id": None,
+                    }
                 )
 
         return build_response(200, "success", {"results": results})

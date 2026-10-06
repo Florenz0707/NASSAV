@@ -41,6 +41,12 @@ fixture resource_factory、api_client、ws_headers、settings、tmp_path 等在 
 
 ## 冻结与故障行为
 
+`test_task_records.py` 验证持久任务的排队/运行暂停、恢复新 attempt、终止确认、幂等命令、操作者权限、派发失败恢复及真实线程并发；专项也在隔离 PostgreSQL 16 上执行，记录见[任务控制 P1](../../docs/task-control-p1-results.md)。迁移测试必须在 finally 恢复执行前迁移图的叶节点，不能只恢复到所测旧迁移，以免删除后来新增表并污染后续测试。
+
+`test_task_assets.py` 使用真实临时文件与测试 DB 验证私有产物、已有文件/共享头像保护、相同内容回滚、DB 保存失败、多文件提交补偿、停止后崩溃恢复、后续发布 fencing、路径/符号链接拒绝、清理权限失败重试及正式删除 409。与 task_records 的 41 项专项在 SQLite/PostgreSQL 16 验证，见[P2 执行记录](../../docs/task-control-p2-results.md)。测试故障注入不证明真实 worker 崩溃恢复或 CLI 已接入。
+
+`test_controlled_download.py` 与 `test_task_control_http.py` 验证下载停止/提交竞争、暂停释放真实 Redis 槽位、未知 writer 保留归属、分片/AES 身份、推送和 broker 失败、权限与版本输入；`test_local_cli_task_control.py` 默认跳过，设置 NASSAV_LOCAL_DOWNLOAD_BINARY 为固定 P0 二进制绝对路径后，使用本地生成 HLS 和 loopback 做真实 CLI 明文/AES 暂停恢复与全量解码对比。所有文件/DB 临时隔离；来源解析/校验 HTTP 为本地替身，此项不是非 eager Celery 或来源网站验收。见[P3 执行记录](../../docs/task-control-p3-results.md)。
+
 test_refactoring_baseline 保留“正常下载先通知成功、DB 写入失败仍成功”以及“资源写库失败保留 HTML、不发布新增事件”的现有顺序。独立下载 owner 回归确认失租不能更新成功；批量翻译错误只收尾本批 translating，保留旧译文和部分完成。语义修复要有明确的新旧对照，不能为了结构迁移改变此类断言。
 
 fixtures/backend_http_contract.json 是迁移前 URL/OpenAPI 消费者快照，不因测试失败自动重建。新增/修改消费者契约时先核对影响，更新说明及快照；仅移动模块不应改变 paths/components。Task registry 和 eager command 样本不等于真实 worker 接受。
@@ -72,6 +78,10 @@ Ruff 的规则范围在根目录 `ruff.toml` 显式固定为 `E4`、`E7`、`E9`�
 
 ## 覆盖率与排查
 
+P5 的 `test_controlled_translation.py` 覆盖父子交接、排队/运行/完成竞争、暂停恢复、翻译版本替代、旧单条/批量 success/error 及旧排队消息；`test_persistent_scrape_http.py` 检查实际资源入口的持久身份、操作者和 broker 故障。两者与既有回归在 SQLite/PostgreSQL 执行。主动 response.close 并发出 request_finished 的 HTTP 文件响应测试使用 transaction=True，使连接关闭后下一请求能重新连接；不可用 pytest 原回滚事务模拟真实响应生命周期。范围和命令见[P5](../../docs/task-control-p5-results.md)。
+
+任务控制 P4 的 `test_controlled_scrape.py` 使用真实隔离 DB/文件和可控来源响应覆盖分阶段停止、恢复、版本冲突、部分图片失败和提交补偿；`test_task_network.py` 覆盖阶段预算与内容回调停止。两者连同 `test_task_records.py`、`test_task_assets.py` 在临时 PostgreSQL 验证，环境和命令见[P4 执行记录](../../docs/task-control-p4-results.md)。网络替身验证控制边界，不代表真实来源停止延迟；非 eager worker 和本地网络联调归 P7。
+
 ```bash
 uv run coverage run -m pytest tests/ --ds=django_project.refactoring_test_settings
 uv run coverage report
@@ -80,3 +90,9 @@ uv run coverage report
 数据库连接或未模拟网络失败时先确认 --ds，而不是修改正式库或放开网络；Redis socket 启动失败检查系统 redis-server 和本地进程权限。WebSocket 超时先核对隔离 channel layer、本地 IPC、登录与 Origin fixture；真实场景再核对代理 Upgrade。翻译服务失败区分 mock/真实地址，不以本地跳过判断生产模型就绪。
 
 维护命令应先在临时副本运行；tests 下遗留 Shell 脚本不是离线 pytest 门槛，需人工核对当前认证、数据目标和依赖后再执行。编写新的行为测试时复用能力与 fixture，覆盖故障/终态/调用次数等真实契约，不断言纯实现细节。文档中的示例和测试文件清单按当前目录核对，不保留历史 Phase 数量作为当前总数。
+
+### P7 任务恢复
+
+`test_task_recovery.py` 使用真实本地进程和临时 Redis Unix socket，检查：活进程/未知身份不清理；登记前的 orphan writer 退出；仅释放本 owner 的 key；停止 fencing 复核心跳；相同 task_id 重派；管理命令人工确认参数；暂停的 promoting 日志重试。`test_task_assets.py` 另检查已终止但日志未恢复时正式删除返回冲突。
+
+真实 worker/本地 HTTP/CLI 验收脚本是显式入口，不包含在普通离线 gate，见[脚本说明](../scripts/README.md#持久任务恢复与真实-worker-验收)。它采用 APIClient、临时资源和新 Redis，不能替代生产网关/真实来源/容器接受。明文/AES-128 原生恢复 smoke 保留 `NASSAV_LOCAL_DOWNLOAD_BINARY` opt-in，实际内容经解码 hash 校验。

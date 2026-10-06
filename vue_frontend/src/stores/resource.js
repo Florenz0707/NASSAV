@@ -1,20 +1,34 @@
 import { logger } from '../utils/logger.js'
+import { useTaskJobsStore } from './taskJobs.js'
 import { createResourceList } from './resourceList.js'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { downloadApi, resourceApi, sourceApi } from '../api/index.js'
 import { notifyScrapeBatch, notifyScrapeJobTransition } from './scrapeJobFeedback.js'
 import { mergeScrapeJob, scrapeJobNeedsPolling, TERMINAL_JOB_STATES } from './scrapeJobState.js'
 
 export const useResourceStore = defineStore('resource', () => {
+  const taskJobs = useTaskJobsStore()
   const list = createResourceList(resourceApi)
+  watch(
+    () => taskJobs.visible,
+    (jobs, previous = []) => {
+      for (const job of jobs.filter((j) => j.job_type === 'scrape')) {
+        const old = previous.find((j) => j.job_id === job.job_id)
+        if (old && notifyScrapeJobTransition(old, job, false)) list.refresh().catch(() => {})
+        else if (old && !old.resource_saved && job.resource_saved) list.refresh().catch(() => {})
+      }
+    }
+  )
   const { resources, loading, error, pagination, fetchResources, cancelResourceQuery } = list
   const sources = ref([])
   const downloads = ref([])
   const downloadStates = ref(new Map())
   const scrapeJobs = ref(new Map())
   const visibleScrapeJobs = computed(() =>
-    [...scrapeJobs.value.values()].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+    [...scrapeJobs.value.values(), ...taskJobs.visible.filter((j) => j.job_type === 'scrape')].sort(
+      (a, b) => (b.updated_at || 0) - (a.updated_at || 0)
+    )
   )
   const pendingJobRequests = new Set()
   const pendingJobEventVersions = new Map()
@@ -63,6 +77,10 @@ export const useResourceStore = defineStore('resource', () => {
       const saved = JSON.parse(localStorage.getItem(SCRAPE_STORAGE_KEY) || '[]')
       if (Array.isArray(saved)) {
         for (const job of saved) {
+          if (job?.job_id) {
+            taskJobs.refresh(job.job_id)
+            continue
+          }
           if (job?.task_id && job?.status_token) setScrapeJob(job, { notify: false })
         }
       }
@@ -141,6 +159,12 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   function registerScrapeSubmission(data, { notify = true } = {}) {
+    const id = data.job_id || data.job?.job_id
+    if (id) {
+      if (data.job?.job_id) taskJobs.apply(data.job)
+      taskJobs.refresh(id)
+      return data.job
+    }
     const job = setScrapeJob({ ...data.job, status_token: data.status_token }, { notify })
     refreshScrapeJob(job.task_id)
     return job
@@ -156,6 +180,7 @@ export const useResourceStore = defineStore('resource', () => {
           {
             job: {
               task_id: item.task_id,
+              job_id: item.job_id,
               job_type: 'scrape',
               action: item.action,
               avid: item.avid,

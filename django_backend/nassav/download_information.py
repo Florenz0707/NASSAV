@@ -48,3 +48,16 @@ class ResourceDownloadInfoResolver(DownloadInfoResolver):
                 logger.error("无法获取 {} 的下载信息", avid)
                 return None
         return ResolvedDownload(info, self.domain_lookup(info.source))
+
+
+class ReadOnlyDownloadInfoResolver(DownloadInfoResolver):
+    """Resolve links without calling a save/refresh workflow or writing assets."""
+
+    def __init__(self, cached: Callable, lookup: Callable, domain_lookup: Callable):
+        self.cached, self.lookup, self.domain_lookup = cached, lookup, domain_lookup
+
+    def resolve(self, avid: str) -> ResolvedDownload | None:
+        info = self.cached(avid)
+        if not info or not info.m3u8:
+            info, _, _, _ = self.lookup(avid)
+        return ResolvedDownload(info, self.domain_lookup(info.source)) if info else None

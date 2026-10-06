@@ -9,6 +9,13 @@ class DownloadLeaseLost(RuntimeError):
 
 
 class DownloadOwnership(ABC):
+    def retain_for_recovery(self) -> None:
+        """Hold only owned reservations when a writer cannot be confirmed stopped."""
+        raise NotImplementedError
+
+    def recovery_identity(self) -> dict:
+        return {}
+
     @abstractmethod
     def start(self, ttl: int | None = None) -> None: ...
 

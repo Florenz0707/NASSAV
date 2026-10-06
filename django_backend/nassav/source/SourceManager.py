@@ -33,9 +33,11 @@ class SourceManager(SourceLookup):
         *,
         factories: Mapping[str, Callable[[], SourceBase]] | None = None,
         config: Mapping[str, dict] | None = None,
+        check: Callable[[], None] | None = None,
     ):
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         self.sources: dict[str, SourceBase] = {}
+        self.check = check or (lambda: None)
 
         # 注册下载器，根据配置中的权重
         self._config = config
@@ -234,6 +236,7 @@ class SourceManager(SourceLookup):
 
         使用缓存提高性能，减少外部请求
         """
+        self.check()
         import time
 
         avid_upper = avid.upper()
@@ -279,6 +282,7 @@ class SourceManager(SourceLookup):
         errors: dict[str, int | str | None] = {}
 
         for name, source in self.get_sorted_sources():
+            self.check()
             self.refresh_source_cookie(name)
             logger.info(f"尝试从 {name} 获取 {avid}")
             # 重置源上的上次错误码
@@ -288,6 +292,7 @@ class SourceManager(SourceLookup):
                 pass
 
             html = source.get_html(avid)
+            self.check()
             time.sleep(0.5)
 
             # 如果 fetch_html 记录了错误码且未获取到 html，则把错误码记录下来
@@ -304,6 +309,7 @@ class SourceManager(SourceLookup):
                     info.avid = avid_upper
 
                     # 缓存成功获取的信息
+                    self.check()
                     try:
                         cache_data = {
                             "info": {
@@ -340,6 +346,7 @@ class SourceManager(SourceLookup):
         返回: (info, source, html, errors)
         """
         errors: dict[str, int | str | None] = {}
+        self.check()
 
         # 查找对应的下载器（不区分大小写）
         source = None
@@ -360,6 +367,7 @@ class SourceManager(SourceLookup):
             pass
 
         html = source.get_html(avid)
+        self.check()
         try:
             err = getattr(source, "last_error_code", None)
             if not html and err is not None:

@@ -29,17 +29,27 @@ class PageFetchService:
         self.timeout_ms = timeout_ms
         self.session_reuse_enabled = session_reuse_enabled
         self.browser_unavailable = False
+        self.task_control = None
+
+    def set_task_control(self, control) -> None:
+        self.task_control = control
+
+    def _check(self):
+        if self.task_control is not None:
+            self.task_control.check()
 
     def reset_lookup(self) -> None:
         self.browser_unavailable = False
 
     def for_lookup(self) -> "PageFetchService":
         """Give each lookup its own transient browser failure state."""
-        return PageFetchService(
+        service = PageFetchService(
             self.browser,
             self.timeout_ms,
             session_reuse_enabled=self.session_reuse_enabled,
         )
+        service.task_control = self.task_control
+        return service
 
     def fetch(
         self,
@@ -63,6 +73,7 @@ class PageFetchService:
         browser_calls = 0
 
         def report(result: PageResult) -> PageResult:
+            self._check()
             logger.info(
                 "page_fetch source={} path={} request_id={} candidate={} provider={} "
                 "status={} failure={} browser_calls={} version={} lock_wait_ms={} "
@@ -97,6 +108,7 @@ class PageFetchService:
         last = PageResult(final_url=url, failure=FetchFailure.EMPTY)
         allow_session_save = True
         for path in paths:
+            self._check()
             if path == "browser":
                 if self.browser is None or self.browser_unavailable:
                     continue
@@ -131,6 +143,7 @@ class PageFetchService:
                         provider="direct",
                         failure=None if direct_result else FetchFailure.EMPTY,
                     )
+            self._check()
             if (
                 path == "direct"
                 and result.failure is None

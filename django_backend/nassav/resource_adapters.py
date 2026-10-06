@@ -138,7 +138,10 @@ class CeleryTranslationSubmitter(TranslationSubmitter):
             from nassav.tasks import translate_title_task
 
             # 提交异步任务
-            task = translate_title_task.delay(avid)
+            generation = AVResource.objects.values_list(
+                "translation_generation", flat=True
+            ).get(avid=avid)
+            task = translate_title_task.delay(avid, expected_generation=generation)
             logger.info(f"[ResourceService] 翻译任务已提交: {avid}, task_id={task.id}")
             return task.id
         except Exception as e:

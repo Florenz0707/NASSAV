@@ -76,6 +76,12 @@ export function createTaskDebugData() {
   return tasks.map((task, index) => ({
     ...task,
     taskType: task.type,
+    cleanupState: task.state === 'failed' ? 'failed' : 'not_required',
+    allowedActions: ['queued', 'running'].includes(task.state)
+      ? ['pause', 'cancel']
+      : task.state === 'failed'
+        ? ['cleanup_retry']
+        : [],
     hasResource:
       task.type === 'download' || task.state === 'succeeded' || task.action === 'refresh',
     timeline: [

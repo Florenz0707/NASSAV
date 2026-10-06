@@ -4,6 +4,21 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 
+class TranslationSuperseded(RuntimeError):
+    """A newer translation request or metadata revision owns this resource."""
+
+
+def translation_identity(resource) -> dict:
+    return {
+        "resource_id": resource.pk,
+        "generation": resource.translation_generation,
+        "owner": str(resource.translation_owner)
+        if resource.translation_owner
+        else None,
+        "title": resource.original_title or resource.source_title or "",
+    }
+
+
 @dataclass
 class TranslationRecord:
     pk: int
@@ -12,6 +27,8 @@ class TranslationRecord:
     source_title: str | None
     translated_title: str | None
     translation_status: str
+    translation_generation: int = 0
+    translation_owner: object = None
 
 
 class TranslationRepository(ABC):

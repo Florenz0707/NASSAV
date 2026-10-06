@@ -7,6 +7,7 @@ from nassav.translation_contracts import (
     TranslationRecord,
     TranslationRepository,
     TranslationWorkflow,
+    TranslationSuperseded,
 )
 
 
@@ -41,6 +42,7 @@ class TitleTranslationUseCase(TranslationWorkflow):
 
     def translate(self, avid: str) -> dict:
         avid = avid.upper()
+        record = None
         try:
             record = self.repository.get(avid)
             if record is None:
@@ -79,10 +81,16 @@ class TitleTranslationUseCase(TranslationWorkflow):
                 "avid": avid,
                 "translation_status": state,
             }
+        except TranslationSuperseded:
+            return {
+                "success": False,
+                "avid": avid,
+                "translation_status": "superseded",
+                "error": "翻译已被更新操作替代",
+            }
         except Exception as error:
             # Preserve the single-task failure envelope, including failures before start.
             try:
-                record = self.repository.get(avid)
                 if record:
                     self._save_status(record, "failed")
             except Exception as cleanup_error:

@@ -116,3 +116,56 @@ test('translation remains part of the workflow until its terminal result, and fi
     assert.equal(task.timeline[0].at, 1700000000)
   }
 })
+
+test('persistent task state owns parent translation, resume identity and saved-resource link', () => {
+  const raw = {
+    job_id: 'stable',
+    task_id: 'new-attempt',
+    job_type: 'scrape',
+    avid: 'AV-9',
+    state: 'paused',
+    stage: 'translation_translating',
+    version: 8,
+    resource_saved: false,
+    resource: { avid: 'AV-9', source_title: '已获取标题' },
+    translation: { state: 'paused' },
+    allowed_actions: ['resume', 'cancel'],
+    cleanup_state: 'not_required',
+    timeline: [{ stage: 'paused', at: 1 }],
+  }
+  const tasks = build({ jobs: [raw], scrapeJobs: [raw] })
+  assert.equal(tasks.length, 1)
+  assert.equal(tasks[0].id, 'scrape:stable')
+  assert.equal(tasks[0].state, 'paused')
+  assert.equal(tasks[0].hasResource, false)
+  assert.equal(tasks[0].title, '已获取标题')
+  assert.equal(tasks[0].timeline[0].label, '已暂停')
+  assert.equal(isFinishedTask({ state: 'cancelled' }), true)
+})
+
+test('controlled scrape checkpoint stages have readable timeline labels', () => {
+  const stages = [
+    'source_complete',
+    'metadata_complete',
+    'cover_complete',
+    'saved',
+    'translation_not_requested',
+  ]
+  const task = build({
+    jobs: [
+      {
+        job_id: 'stages',
+        job_type: 'scrape',
+        avid: 'AV-1',
+        state: 'succeeded',
+        stage: 'translation_not_requested',
+        resource_saved: true,
+        timeline: stages.map((stage) => ({ stage, at: 1 })),
+      },
+    ],
+  })[0]
+  assert.deepEqual(
+    task.timeline.map((event) => event.label),
+    ['来源已获取', '元数据已获取', '封面已获取', '资源已保存', '无需翻译']
+  )
+})

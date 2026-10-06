@@ -223,9 +223,18 @@ class MissAV(SourceBase, ListingSource):
             return False
 
     def _get_highest_quality_m3u8(self, playlist_url: str) -> tuple[str, str] | None:
+        self._check_task()
         try:
-            response = requests.get(playlist_url, timeout=10, impersonate=IMPERSONATE)
+            if self.task_control is None:
+                response = requests.get(
+                    playlist_url, timeout=10, impersonate=IMPERSONATE
+                )
+            else:
+                response = self.task_control.request(
+                    "GET", playlist_url, timeout=10, impersonate=IMPERSONATE
+                )
             response.raise_for_status()
+            self._check_task()
             playlist_content = response.text
 
             streams = []

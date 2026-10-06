@@ -4,6 +4,8 @@ from copy import deepcopy
 from typing import Any
 
 from django.utils import timezone
+from django.db.models import F
+from django.db import transaction
 from loguru import logger
 
 from nassav.models import Actor, AVResource, Genre
@@ -23,6 +25,7 @@ from nassav.utils import parse_duration
 class DjangoResourcePersistence(ResourcePersistence):
     """Django ORM implementation of resource metadata persistence."""
 
+    @transaction.atomic
     def save(self, data: ResourceSaveInput) -> AVResource:
         avid = data.avid
         info = deepcopy(data.info)
@@ -92,6 +95,12 @@ class DjangoResourcePersistence(ResourcePersistence):
         resource, created = AVResource.objects.update_or_create(
             avid=avid, defaults=defaults
         )
+        # Metadata replacement invalidates any in-flight translation result.
+        AVResource.objects.filter(pk=resource.pk).update(
+            translation_generation=F("translation_generation") + 1,
+            translation_owner=None,
+        )
+        resource.refresh_from_db()
 
         if created:
             resource.metadata_created_at = timezone.now()

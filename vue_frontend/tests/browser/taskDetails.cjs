@@ -5,6 +5,7 @@ const assert = require('node:assert/strict')
   try {
     for (const theme of ['light', 'dark']) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+      page.setDefaultTimeout(15000)
       const errors = [],
         writes = []
       let socket,
@@ -65,6 +66,8 @@ const assert = require('node:assert/strict')
         if (req.method() !== 'GET') writes.push(path)
         let data = []
         if (path.endsWith('/auth/session')) data = { authenticated: true, username: 'audit' }
+        if (path.endsWith('/tasks/jobs'))
+          data = { jobs: [], pagination: { total: 0, has_more: false } }
         if (path.endsWith('/setting')) data = { color_mode: theme }
         if (path.includes('/resource/jobs/')) {
           data = jobs.find((job) => path.endsWith(job.task_id))
@@ -145,7 +148,7 @@ const assert = require('node:assert/strict')
       assert.equal((await hideButton.textContent()).trim(), '')
       assert.equal(
         await page
-          .getByRole('button', { name: '结束任务 AV-1（示意）', exact: true })
+          .getByRole('button', { name: '结束任务 AV-1', exact: true })
           .locator('svg')
           .count(),
         1
@@ -206,12 +209,9 @@ const assert = require('node:assert/strict')
       assert.equal(await firstBox.isChecked(), true)
       await page.keyboard.press('Space')
       assert.equal(await firstBox.isChecked(), false)
+      assert.equal(await page.getByRole('button', { name: '结束所选任务' }).isDisabled(), true)
       assert.equal(
-        await page.getByRole('button', { name: '结束所选任务 · 示意' }).isDisabled(),
-        true
-      )
-      assert.equal(
-        await page.getByRole('button', { name: '结束任务 AV-1（示意）', exact: true }).isDisabled(),
+        await page.getByRole('button', { name: '结束任务 AV-1', exact: true }).isDisabled(),
         true
       )
       assert.equal(await detail.getByRole('button', { name: '不再跟踪此任务' }).count(), 0)
@@ -311,6 +311,7 @@ const assert = require('node:assert/strict')
         .getByRole('button', { name: '不再跟踪', exact: true })
         .click()
       await page.getByText('暂无此类任务', { exact: true }).waitFor()
+      console.log(theme, 'legacy empty')
       await page.evaluate(() => window.scrollTo(0, 0))
       const empty = page.getByLabel('任务列表空白区域', { exact: true })
       const region = await empty.boundingBox()
@@ -359,6 +360,8 @@ const assert = require('node:assert/strict')
       await page.close()
     }
     const demo = await browser.newPage()
+    demo.setDefaultTimeout(15000)
+    console.log('legacy DEBUG loading')
     let demoQueueReads = 0
     const demoErrors = []
     demo.on('pageerror', (e) => demoErrors.push(e.message))

@@ -1,4 +1,5 @@
 <script setup>
+import { useTaskJobsStore } from '../stores/taskJobs'
 import { logger } from '../utils/logger.js'
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -22,11 +23,13 @@ const resourceStore = useResourceStore(),
   wsStore = useWebSocketStore()
 const queue = useDownloadQueueStore(),
   settings = useSettingsStore()
+const taskJobs = useTaskJobsStore()
 const queueError = ref('')
 const tasks = computed(() =>
   DEBUG_MODE
     ? debugTasks.value
     : buildTaskDetails({
+        jobs: taskJobs.visible,
         active: queue.activeTasks.filter(queue.isTracked),
         pending: queue.pendingTasks.filter(queue.isTracked),
         scrapeJobs: resourceStore.visibleScrapeJobs,
@@ -47,19 +50,88 @@ function dismiss() {
     debugTasks.value = debugTasks.value.filter((task) => !dismissIds.value.includes(task.id))
   else {
     for (const task of tasks.value.filter((task) => dismissIds.value.includes(task.id))) {
-      if (task.type === 'scrape') resourceStore.dismissScrapeJob(task.taskId)
+      if (task.jobId) taskJobs.hide([task.jobId])
+      else if (task.type === 'scrape') resourceStore.dismissScrapeJob(task.taskId)
       else queue.dismissTasks([task.taskId || task.avid])
     }
   }
   dismissIds.value = []
 }
+const controlAction = ref(''),
+  controlIds = ref([]),
+  showCancel = ref(false)
+const debugBusy = ref(new Set()),
+  debugTimers = new Set()
+function requestControl(action, ids) {
+  controlAction.value = action
+  controlIds.value = ids
+  if (action === 'cancel') showCancel.value = true
+  else executeControl()
+}
+async function executeControl() {
+  const action = controlAction.value
+  const selected = tasks.value.filter((task) => controlIds.value.includes(task.id))
+  if (!DEBUG_MODE) {
+    for (let start = 0; start < selected.length; start += 100)
+      await taskJobs.control(
+        action,
+        selected.slice(start, start + 100).map((task) => task.jobId)
+      )
+    return
+  }
+  for (const task of selected) {
+    debugBusy.value = new Set([...debugBusy.value, task.id])
+    task.state =
+      action === 'pause'
+        ? 'pausing'
+        : action === 'cancel'
+          ? 'cancelling'
+          : action === 'resume'
+            ? 'queued'
+            : task.state
+    const timer = setTimeout(() => {
+      debugTimers.delete(timer)
+      if (action === 'pause') task.state = 'paused'
+      if (action === 'cancel') {
+        task.state = 'cancelled'
+        task.cleanupState = 'completed'
+      }
+      if (action === 'cleanup_retry') task.cleanupState = 'completed'
+      task.allowedActions =
+        task.state === 'paused'
+          ? ['resume', 'cancel']
+          : ['queued', 'running'].includes(task.state)
+            ? ['pause', 'cancel']
+            : []
+      task.timeline.push({
+        label:
+          action === 'cleanup_retry'
+            ? '清理完成'
+            : task.state === 'paused'
+              ? '已暂停'
+              : task.state === 'cancelled'
+                ? '已终止'
+                : '任务已排队',
+        at: Date.now() / 1000,
+      })
+      debugBusy.value = new Set([...debugBusy.value].filter((id) => id !== task.id))
+    }, 600)
+    debugTimers.add(timer)
+  }
+}
+onBeforeUnmount(() => {
+  for (const timer of debugTimers) clearTimeout(timer)
+})
 const pollingTimer = ref(null)
 let pollingGeneration = 0,
   pendingQueueGeneration = null
 const POLLING_INTERVAL = 1000
 onBeforeUnmount(stopPolling)
 onMounted(() => {
-  if (!DEBUG_MODE) fetchQueueStatus()
+  if (!DEBUG_MODE) {
+    fetchQueueStatus()
+    taskJobs.load()
+  }
 })
 watch(
   [() => wsStore.connected, () => wsStore.connectionFailed],
@@ -169,21 +241,49 @@ function stopPolling() {
 }
 </script>
 <template>
-  <div>
+  <div class="flex flex-col min-h-[calc(100dvh-6rem)] min-[641px]:min-h-[calc(100dvh-8rem)]">
     <p
-      v-if="route.query.task && !tasks.some((task) => task.taskId === route.query.task)"
+      v-if="
+        route.query.task &&
+        !tasks.some((task) => task.taskId === route.query.task || task.jobId === route.query.task)
+      "
       class="text-muted mb-4"
     >
       该任务未被本浏览器跟踪，或已移出当前队列。
     </p>
     <p v-if="queueError" class="text-accent-danger mb-4" role="alert">{{ queueError }}</p>
+    <p
+      v-if="!DEBUG_MODE && (taskJobs.error || taskJobs.listError)"
+      class="text-accent-danger mb-4"
+      role="alert"
+    >
+      {{ taskJobs.error || taskJobs.listError }}
+    </p>
+    <div v-if="!DEBUG_MODE" class="flex items-center gap-3 mb-4 text-muted text-sm">
+      <span
+        >已加载 {{ taskJobs.jobs.size }} /
+        {{ taskJobs.total }} 个持久任务（筛选及批量操作针对已加载列表）</span
+      >
+      <AppButton
+        v-if="taskJobs.hasMore"
+        variant="neutral"
+        size="sm"
+        :disabled="taskJobs.loading"
+        @click="taskJobs.load(true)"
+        >加载更多</AppButton
+      >
+      <AppButton variant="neutral" size="sm" :disabled="taskJobs.loading" @click="taskJobs.load()"
+        >刷新列表</AppButton
+      >
+    </div>
     <TaskDetailsPanel
       :tasks="tasks"
       :debug="DEBUG_MODE"
+      :busy="DEBUG_MODE ? debugBusy : taskJobs.busy"
+      @control="requestControl"
       :focus-task-id="
-        route.query.task
-          ? `${route.query.kind === 'scrape' ? 'scrape' : 'download'}:${route.query.task}`
-          : ''
+        tasks.find((task) => task.taskId === route.query.task || task.jobId === route.query.task)
+          ?.id || ''
       "
       @dismiss="requestDismiss"
     >
@@ -202,6 +302,13 @@ function stopPolling() {
         >
       </template>
     </TaskDetailsPanel>
+    <ConfirmDialog
+      v-model:show="showCancel"
+      title="结束任务"
+      :message="`终止所选 ${controlIds.length} 个任务？执行器确认停止后删除未提交的分片、封面和头像；已保存资源、正式视频和共享头像保留。`"
+      confirm-text="结束任务"
+      @confirm="executeControl"
+    />
     <ConfirmDialog
       v-model:show="showDismiss"
       title="不再跟踪任务"

@@ -136,7 +136,7 @@ def test_worker_reports_real_stages_and_terminal_result(monkeypatch):
 
 @pytest.mark.django_db
 def test_api_batch_keeps_partial_results(api_client, monkeypatch):
-    def submit(action, avid, source, options):
+    def submit(action, avid, source, options, **kwargs):
         if avid == "BAD-1":
             raise RuntimeError("broker down")
         return {"task_id": "00000000-0000-0000-0000-000000000001"}, False
@@ -227,7 +227,9 @@ def test_lost_worker_snapshot_becomes_failed(monkeypatch):
 @pytest.mark.django_db
 def test_batch_invalid_item_does_not_block_valid_item(api_client, monkeypatch):
     monkeypatch.setattr(
-        scrape_jobs, "submit_resource_job", lambda *args: ({"task_id": "job-1"}, False)
+        scrape_jobs,
+        "submit_resource_job",
+        lambda *args, **kwargs: ({"task_id": "job-1"}, False),
     )
     response = api_client.post(
         "/nassav/api/resource/jobs/batch",
@@ -249,7 +251,10 @@ def test_single_api_returns_202_with_status_capability(api_client, monkeypatch):
     monkeypatch.setattr(
         scrape_jobs,
         "submit_resource_job",
-        lambda *args: ({"task_id": task_id, "state": "queued", "avid": "ABC-7"}, False),
+        lambda *args, **kwargs: (
+            {"task_id": task_id, "state": "queued", "avid": "ABC-7"},
+            False,
+        ),
     )
     response = api_client.post(
         "/nassav/api/resource/jobs", {"action": "add", "avid": "abc-7"}, format="json"
