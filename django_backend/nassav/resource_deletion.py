@@ -55,10 +55,14 @@ class ResourceDeletionRepository(ABC):
 
 class DjangoResourceDeletionRepository(ResourceDeletionRepository):
     def get(self, avid: str) -> AVResource | None:
-        from nassav.task_models import TaskJob
+        from nassav.task_models import TaskJob, TaskArtifact
 
         if TaskJob.objects.filter(avid=avid, active_key__isnull=False).exists():
             raise ResourceTaskConflict("资源有运行或暂停的任务，请先终止任务")
+        if TaskArtifact.objects.filter(job__avid=avid, state="promoting").exists():
+            raise ResourceTaskConflict(
+                "文件提交日志尚未恢复，请先完成任务清理再删除资源"
+            )
         return AVResource.objects.filter(avid=avid).first()
 
     def delete(self, resource: AVResource) -> None:

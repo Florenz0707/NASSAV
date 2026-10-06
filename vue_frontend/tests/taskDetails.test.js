@@ -142,3 +142,30 @@ test('persistent task state owns parent translation, resume identity and saved-r
   assert.equal(tasks[0].timeline[0].label, '已暂停')
   assert.equal(isFinishedTask({ state: 'cancelled' }), true)
 })
+
+test('controlled scrape checkpoint stages have readable timeline labels', () => {
+  const stages = [
+    'source_complete',
+    'metadata_complete',
+    'cover_complete',
+    'saved',
+    'translation_not_requested',
+  ]
+  const task = build({
+    jobs: [
+      {
+        job_id: 'stages',
+        job_type: 'scrape',
+        avid: 'AV-1',
+        state: 'succeeded',
+        stage: 'translation_not_requested',
+        resource_saved: true,
+        timeline: stages.map((stage) => ({ stage, at: 1 })),
+      },
+    ],
+  })[0]
+  assert.deepEqual(
+    task.timeline.map((event) => event.label),
+    ['来源已获取', '元数据已获取', '封面已获取', '资源已保存', '无需翻译']
+  )
+})

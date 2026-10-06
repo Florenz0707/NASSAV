@@ -1084,7 +1084,7 @@ If-Modified-Since: Wed, 21 Oct 2015 07:28:00 GMT
     - `cover_downloaded`, `metadata_saved`, `scraped`: 保存结果
 
 - 删除资源：`DELETE /nassav/api/resource/{avid}`
-  - 持久任务记录仍持有该 AVID 活动名额时，单条删除返回 HTTP 409，批量 `delete` / `delete-all` / `delete-video` 返回该项 `code: 409`；先终止任务再删除。暂停也持有名额。下载删除 `DELETE /nassav/api/downloads/{avid}` 遵循同一规则。
+  - 持久任务记录仍持有该 AVID 活动名额或存在未恢复 promoting 文件日志时，单条删除返回 HTTP 409，批量 `delete` / `delete-all` / `delete-video` 返回该项 `code: 409`；运行/暂停任务须先终止，未恢复日志须先重试清理；之后才能删除。暂停也持有名额。下载删除 `DELETE /nassav/api/downloads/{avid}` 遵循同一规则。
   - 返回 `data.resource`（删除前序列化对象，纯文件资源为 `null`）和 `deleted_files`；数据库行或任一文件存在即可删除，无记录无文件返回 404
   - 与批量 `delete` / `delete-all` 共用删除操作：清理封面、small/medium/large 缩略图、MP4、备份目录和数据库行。`deleted_files` 只列出已确认删除的文件名
   - 文件或数据库步骤失败返回 HTTP 500、`message: "删除未完成，请重试"`，`data` 包含 `failed_stage`（`files` 或 `database`）、`retryable: true` 和已删除文件名。重试会继续清理剩余状态；错误响应不包含本地路径
@@ -1436,3 +1436,5 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 新快照 state/workflow_state 表示包含所属翻译的整体状态，resource_saved 单独表示已有保存结果；翻译失败整体 failed，已保存资源保留。resource 返回裁剪的原始/来源/译后标题，未保存时可从已解析检查点获取标题，不暴露 HTML/URL。所属翻译的排队、执行、暂停、终止、完成/失败写入 DB 及 timeline，当前 stage 独立记录；翻译被新请求替代为 TRANSLATION_SUPERSEDED，不覆盖新译文。旧任务继续上文 Redis/Celery 结果合成，不具暂停/终止契约。
 
 恢复不重做已保存资源；仅重翻译 refresh 不抓取来源或图片。add 维持取得元数据才自动翻译的规则，refresh 仅 retranslate=true 请求翻译。受控任务保留原译文到新结果提交；同步重新翻译仍先清空并重置 pending。新单条派发携带 expected_generation；批量 task 可携带 expected_generations，旧消息必须按部署说明排空。结果和异常收尾都校验资源 generation/owner，不能伤及较新的手动/批量翻译。见[P5 执行记录](../../docs/task-control-p5-results.md)。
+
+任务停止异常的恢复提示：WORKER_INTERRUPTED 表示原执行器退出已确认并保留 paused 检查点，可按 allowed_actions 恢复；RECOVERY_UNCONFIRMED 表示身份未知，不能声称已停止或清理。ASSET_RECOVERY_PENDING 表示已停止，但文件提升日志尚未恢复，暂时禁止恢复；后台重试。清理失败仍独立使用 cleanup_state/cleanup_message，不改变 succeeded/failed/cancelled。维护命令的人工退出确认不对 HTTP 开放。

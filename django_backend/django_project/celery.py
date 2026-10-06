@@ -24,6 +24,9 @@ app.conf.worker_redirect_stdouts = False
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
+# Signals only; ORM/file/Redis work starts after the worker is ready.
+import nassav.task_recovery_worker  # noqa: E402,F401
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

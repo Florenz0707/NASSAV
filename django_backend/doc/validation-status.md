@@ -42,3 +42,9 @@
 部分迁移计划、Byparr 现场记录、质量阶段说明已不在当前文件树中；2026-10-05 的 `415550e` 另清理了五份抽象重构过程文档。现有导航引用长期维护文档，不把缺失历史报告重新包装成当前实测结果。需要追溯时使用 `git log --all -- <旧路径>`，仅在对应文件实际存在的提交中读取。
 
 API 字段在 interface，持久化行为在 database，算法与参数在 recommendation，模块职责在 p5-domain-boundaries，默认配置在 configuration-contract，操作入口在两个 README/Compose/脚本说明，复验命令在 tests/README。改动正文对应章节，避免在文件末尾持续追加互相矛盾的阶段说明。
+
+## 2026-10-06 持久任务控制隔离验收
+
+P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属翻译）的暂停、恢复、终止和归属清理，执行记录见[P7](../../docs/task-control-p7-results.md)。SQLite/PostgreSQL 16 各运行九项真实 prefork Celery + 临时 Redis + 固定 CLI + 本地 HLS/图片/翻译 HTTP fixture 用例；实际注入 worker 崩溃、Redis 断线及目录权限错误，确认停止后才清理、正式文件与共享头像保留。前端为真实 Vue/模拟 API/WS 的浏览器验收；后端控制请求通过已授权 APIClient，未验证真实 HTTPS/WSS 会话网关。
+
+该证据替换“本轮完全未做 worker/PG 联调”的范围限制，仅限本地隔离实例。生产库迁移 0022–0025、Docker 中新旧 worker 切换、真实站点、真实翻译模型和目标网关仍待目标环境接受，不因隔离通过自动上线；步骤见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。

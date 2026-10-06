@@ -144,3 +144,30 @@ PostgreSQL 数据库恢复不搬移视频和资源目录。执行前先停止所
 任务控制 P1–P5 增加 DB 迁移 0022–0025、下载/刮削 job_id 和翻译 expected_generation。先停止旧发布者/消费者、排空旧任务并备份，在隔离副本验证迁移后统一更新 API/worker。旧 worker 不能接收新 kwargs，未带版本的旧翻译消息也不能推断派发时归属。部署前等待 P6/P7 全流程门槛，包括前端持久快照与自动恢复；本轮只实施隔离验证，未授权正式迁移或服务切换。
 
 存在 paused 工作区、promoting 日志或未知 writer 保留租约时，不能直接回滚到不认识这些记录的版本。终止/核查新活动任务并完成清理后再回滚；不要清空 Redis 或无条件删除保留锁。默认备份排除 `.tasks`，保留暂停任务需另行保全其 DB 与私有目录，不能认为普通媒体备份已包含续传检查点。
+
+## 持久任务控制版本切换与回滚
+
+本轮 P0–P7 的隔离验收已完成，正式库迁移和目标环境切换未执行。生产上线应在明确维护窗口按如下顺序进行：
+
+1. 备份数据库及正式资源，记录当前镜像、CLI SHA、配置与活动任务；迁移涉及 0022–0025。
+2. 暂停新增提交，排空旧 download/scrape/default 队列并确认旧 worker 停止消费。旧消息没有 job_id，不能由新前端承诺可暂停/终止；旧 worker 不认识 TaskJob，不允许混用。
+3. 使用现有 DB 模式护栏和 `migrate` 服务迁移，再同时替换 API、三个 worker 与前端；保留原任务名和队列。P3 的固定 CLI/ffmpeg 及私有 `.tasks` 写入权限必须满足。若未部署 worker，仅 API 接受的 pending 任务不会自动执行。
+4. 检查任务 GET/控制鉴权、CSRF、WS 提示、目录权限和恢复 Loop 日志。先用可删除样例完成下载/刮削暂停恢复及终止，确认正式视频/共享头像保留，再开放提交。P7 的本地网络 fixture 不证明真实站点、Ollama、容器或 HTTPS/WSS 网关已接受。
+
+每个 worker ready 启动恢复 Loop，不要求 scheduler profile。必要时从相同配置的后端运行一次：
+
+```bash
+uv run python manage.py recover_tasks --stale-seconds 30 --retry-seconds 300 --limit 100
+```
+
+输出 recovered/unconfirmed/alive/cleaned/events/failed 和派发汇总，不含私有检查点。alive 保留执行，unconfirmed 保留控制状态与文件；看到心跳过期不能直接删工作区或 Redis 锁。扫描确认本地 writer 退出后只释放其 owner 的 Redis key，不删除新 owner 的锁。
+
+容器重建、主机重启或进程命名空间变化后，自动扫描可能无法确认旧实例。管理员须根据旧容器身份/启动记录，确认它已经停止且所有后代均退出；无需且不可向新容器中同号 PID 发信号。**只有完成该核查后**，对快照当前 task_id（翻译中为 child attempt）执行：
+
+```bash
+uv run python manage.py recover_tasks --confirm-stopped-attempt ATTEMPT_UUID --all-writers-stopped
+```
+
+这是操作人的退出断言，不是额外的自动证明；命令仍拒绝已知活着的本地 worker、近期心跳及旧 generation。重复确认不再次恢复执行。取消意图进入 cancelled 并清理私有文件，否则进入 paused；随后通过页面决定恢复或终止。普通 HTTP 终止始终等待 writer 确认。
+
+回滚代码前先停止新提交，暂停/终止新任务，等待清理和 promoting 日志完成；确认没有运行/待派发/暂停占名额的新任务及子翻译，停下全部新消费者，再切换整套旧版本。不能只回滚 worker、让旧任务绕过控制；也不能回滚后自动删除 `.tasks`。新增表/字段可先保留；反向迁移是独立数据库维护操作，须另行备份与演练，不作为代码回滚自动步骤。

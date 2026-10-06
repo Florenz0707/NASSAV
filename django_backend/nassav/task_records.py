@@ -10,6 +10,7 @@ from functools import wraps
 from contextlib import nullcontext
 from uuid import UUID, uuid4
 
+from django.db import models
 from django.db import IntegrityError, OperationalError, connection, transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -67,7 +68,10 @@ class DjangoTaskRecords:
             row.attempts.filter(generation=row.generation).order_by("-role").first()
         )
         actions = allowed_actions(row.state, row.cleanup_state)
-        if row.error_code == "RESTART_REQUIRED":
+        if (
+            row.error_code == "RESTART_REQUIRED"
+            or row.artifacts.filter(state="promoting").exists()
+        ):
             actions = [action for action in actions if action != "resume"]
         return {
             "job_id": str(row.id),
@@ -540,6 +544,89 @@ class DjangoTaskRecords:
                 state="running",
             ).update(heartbeat_at=timezone.now())
         )
+
+    def recover_execution(
+        self,
+        token: ExecutionToken,
+        *,
+        identity: dict,
+        stale_before,
+        interrupt: Callable | None = None,
+    ) -> dict:
+        """Called only after external proof of worker and descendant exit."""
+        with transaction.atomic():
+            row = self._row(token.job_id)
+            attempt = self._execution(row, token)
+            if attempt.execution_identity != identity or (
+                attempt.heartbeat_at and attempt.heartbeat_at > stale_before
+            ):
+                raise TaskExecutionInvalid("恢复核查期间执行身份或心跳已变化")
+            cancelled = row.requested_action == "cancel" or row.state == "cancelling"
+            state = "cancelled" if cancelled else "paused"
+            row = self._update(row)
+            if interrupt:
+                interrupt(row.checkpoint, cancelled)
+            translation = row.translation
+            if translation.get("state") in {"queued", "translating", "paused"}:
+                translation = {
+                    **translation,
+                    "state": state,
+                    "updated_at": timezone.now().timestamp(),
+                }
+            changes = dict(
+                state=state,
+                translation=translation,
+                timeline=self._event(row, state),
+                error_code="WORKER_INTERRUPTED",
+                message="执行器退出已确认；未提交产物已保留，可恢复或终止",
+            )
+            if cancelled:
+                changes.update(
+                    active_key=None,
+                    finished_at=timezone.now(),
+                    message="执行器退出已确认，任务已终止",
+                    cleanup_state="pending"
+                    if row.artifacts.exclude(state="deleted").exists()
+                    else "not_required",
+                )
+            row = self._update(row, **changes)
+            TaskAttempt.objects.filter(
+                pk=attempt.pk, execution_owner=token.owner, state="running"
+            ).update(state="stopped", stopped_at=timezone.now())
+            return self._snapshot(row)
+
+    def recovery_warning(self, token: ExecutionToken, message: str) -> None:
+        with transaction.atomic():
+            row = self._row(token.job_id)
+            self._execution(row, token)
+            if row.error_code != "RECOVERY_UNCONFIRMED":
+                self._update(row, error_code="RECOVERY_UNCONFIRMED", message=message)
+
+    def publication_recovery_status(self, job_id: str, *, failed: bool) -> None:
+        with transaction.atomic():
+            row = self._row(job_id)
+            if (
+                row.state not in {"paused", *TERMINAL_STATES}
+                or row.attempts.filter(state="running").exists()
+            ):
+                raise TaskExecutionInvalid("执行尚未停止")
+            if failed and row.error_code != "ASSET_RECOVERY_PENDING":
+                self._update(
+                    row,
+                    error_code="ASSET_RECOVERY_PENDING",
+                    message="文件提交恢复尚未完成，工作区已保留，后台将重试",
+                )
+            elif not failed and row.error_code == "ASSET_RECOVERY_PENDING":
+                self._update(row, error_code="", message="文件提交恢复已完成")
+
+    def retry_unclaimed(self, *, sent_before) -> int:
+        """A lost broker message may be republished; duplicate deliveries still claim once."""
+        return TaskAttempt.objects.filter(
+            state="sent",
+            dispatched_at__lt=sent_before,
+            job__state="queued",
+            generation=models.F("job__generation"),
+        ).update(state="pending", dispatched_at=None)
 
     def dispatch_pending(
         self, send: Callable[[dict], None], *, limit: int = 100, kind: str | None = None

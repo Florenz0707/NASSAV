@@ -19,7 +19,12 @@ from nassav.task_control_rules import (
     TaskExecutionInvalid,
     TaskPauseRequested,
 )
-from nassav.task_processes import TaskWritersAlive, process_identity, run_media_command
+from nassav.task_processes import (
+    TaskWritersAlive,
+    process_identity,
+    run_media_command,
+    task_process_scope,
+)
 from nassav.task_records import DjangoTaskRecords
 
 
@@ -200,7 +205,9 @@ class ControlledDownload:
                 self._project(snapshot, progress=progress_data)
 
         try:
-            records.execution_identity(token, worker_identity)
+            records.execution_identity(
+                token, {**worker_identity, **lease.recovery_identity()}
+            )
             lease.start()
             check()
             if job["checkpoint"].get("video_committed"):
@@ -239,17 +246,18 @@ class ControlledDownload:
                     "video_download",
                     {"download": {"manifest": manifest, "segments": {}}},
                 )
-                completed = self.downloader.download(
-                    url=manifest["url"] if manifest["safe"] else resolved.info.m3u8,
-                    output_dir=workspace,
-                    output_name=avid,
-                    referer=headers["Referer"],
-                    user_agent=headers["User-Agent"],
-                    cancelled=cancelled,
-                    progress_callback=progress,
-                    process_started=started,
-                    stage_callback=lambda stage: records.checkpoint(token, stage),
-                )
+                with task_process_scope(token):
+                    completed = self.downloader.download(
+                        url=manifest["url"] if manifest["safe"] else resolved.info.m3u8,
+                        output_dir=workspace,
+                        output_name=avid,
+                        referer=headers["Referer"],
+                        user_agent=headers["User-Agent"],
+                        cancelled=cancelled,
+                        progress_callback=progress,
+                        process_started=started,
+                        stage_callback=lambda stage: records.checkpoint(token, stage),
+                    )
                 if watchdog_error:
                     raise watchdog_error[0]
                 check()
@@ -260,17 +268,18 @@ class ControlledDownload:
                     raise RuntimeError("下载输出不存在")
                 records.checkpoint(token, "video_verify")
                 expected_duration = manifest["duration"]
-                asset_id = self.assets.stage(
-                    token,
-                    "video",
-                    f"download/{avid}.mp4",
-                    "video",
-                    lambda path: path == output,
-                    validate=lambda path: self.validate(
-                        path, expected_duration, check, started
-                    ),
-                    check=check,
-                )
+                with task_process_scope(token):
+                    asset_id = self.assets.stage(
+                        token,
+                        "video",
+                        f"download/{avid}.mp4",
+                        "video",
+                        lambda path: path == output,
+                        validate=lambda path: self.validate(
+                            path, expected_duration, check, started
+                        ),
+                        check=check,
+                    )
                 records.checkpoint(token, "resource_save")
 
                 def persist():

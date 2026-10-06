@@ -14,6 +14,8 @@ from threading import Event, Thread
 from django.conf import settings
 from loguru import logger
 
+from nassav.task_processes import writer_environment
+
 from .M3u8DownloaderBase import M3u8DownloaderBase
 
 
@@ -109,6 +111,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 env["HTTP_PROXY"] = self.proxy
                 env["HTTPS_PROXY"] = self.proxy
 
+            env.update(writer_environment())
             # 使用 Popen 实时读取输出
             process = subprocess.Popen(
                 cmd,

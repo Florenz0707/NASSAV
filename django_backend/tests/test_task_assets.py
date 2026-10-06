@@ -386,3 +386,29 @@ def test_backup_ignores_task_workspace(tmp_path):
     target = tmp_path / "target"
     assert Command()._sync_directory(source, target, None) == (1, 6)
     assert not (target / ".tasks").exists()
+
+
+def test_terminal_unresolved_publication_blocks_deletion_until_recovery(context):
+    from nassav.models import AVResource
+    from nassav.resource_deletion import (
+        DjangoResourceDeletionRepository,
+        ResourceTaskConflict,
+    )
+
+    _, records, _, job, token = context
+    resource = AVResource.objects.create(avid=job["avid"])
+    command(context, "cancel")
+    records.acknowledge_stop(token)
+    artifact = TaskArtifact.objects.create(
+        job_id=job["job_id"],
+        root="cover",
+        relative_path="cover.jpg",
+        state="promoting",
+        target_path=job["avid"] + ".jpg",
+    )
+    repository = DjangoResourceDeletionRepository()
+    with pytest.raises(ResourceTaskConflict):
+        repository.get(job["avid"])
+    artifact.state = "staged"
+    artifact.save(update_fields=["state"])
+    assert repository.get(job["avid"]).pk == resource.pk

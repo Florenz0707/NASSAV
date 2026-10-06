@@ -243,16 +243,13 @@ def build_controlled_download(lease):
 
 
 def build_controlled_scrape(*, continuation=None):
-    from pathlib import Path
     from django.conf import settings
     from nassav.controlled_scrape import ControlledScrape
-    from nassav.resource_adapters import SignalResourceEvents
     from nassav.resource_persistence import DjangoResourcePersistence
     from nassav.scrape_preparation import ScrapePreparation
     from nassav.scraper.ScraperManager import ScraperManager
     from nassav.source.SourceManager import SourceManager
     from nassav.task_network import TaskBrowserSession
-    from nassav.task_resource_events import TaskResourceEvents
     from nassav.task_resource_persistence import (
         TaskResourcePersistence,
         resource_revision,
@@ -277,14 +274,6 @@ def build_controlled_scrape(*, continuation=None):
         for _, scraper in metadata.get_scrapers():
             scraper.set_task_control(control)
         return ScrapePreparation(sources, metadata, control)
-
-    def publish(event, avid, event_id):
-        SignalResourceEvents().publish(
-            event,
-            ControlledScrape,
-            avid,
-            {"event_id": event_id, "resource": {"avid": avid}},
-        )
 
     def project(snapshot):
         from nassav.consumers import send_task_update
@@ -324,9 +313,7 @@ def build_controlled_scrape(*, continuation=None):
         preparation,
         resource_revision,
         TaskResourcePersistence(DjangoResourcePersistence()).save,
-        TaskResourceEvents(
-            Path(settings.COVER_DIR).parent / ".nassav-task-events", publish
-        ),
+        build_task_resource_events(),
         continuation=continuation if continuation is not None else continue_translation,
         project=project,
         existing=existing,
@@ -383,3 +370,52 @@ def build_resource_service(source_manager=None, scraper_manager=None, **override
         for key, factory in defaults.items()
     }
     return ResourceService(source_manager, scraper_manager, **dependencies)
+
+
+def build_task_resource_events():
+    from pathlib import Path
+    from django.conf import settings
+    from nassav.controlled_scrape import ControlledScrape
+    from nassav.resource_adapters import SignalResourceEvents
+    from nassav.task_resource_events import TaskResourceEvents
+
+    def publish(event, avid, event_id):
+        SignalResourceEvents().publish(
+            event,
+            ControlledScrape,
+            avid,
+            {"event_id": event_id, "resource": {"avid": avid}},
+        )
+
+    return TaskResourceEvents(
+        Path(settings.COVER_DIR).parent / ".nassav-task-events", publish
+    )
+
+
+def build_task_recovery():
+    from nassav.download_queue import get_redis_client
+    from nassav.owned_translation import OwnedTranslation
+    from nassav.task_dispatch import dispatch_downloads, dispatch_scrapes
+    from nassav.task_recovery import TaskRecovery
+
+    records = build_task_records()
+
+    def dispatch(records):
+        return {
+            "download": dispatch_downloads(records),
+            "scrape": dispatch_scrapes(records),
+        }
+
+    def interrupt(checkpoint, cancelled):
+        claim = checkpoint.get("translation_claim")
+        if claim:
+            OwnedTranslation.interrupt(claim, cancel=cancelled)
+
+    return TaskRecovery(
+        records,
+        build_task_assets(records),
+        dispatch=dispatch,
+        events=build_task_resource_events(),
+        redis_client=get_redis_client,
+        interrupt=interrupt,
+    )
