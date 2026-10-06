@@ -5,7 +5,7 @@
 ## 功能与入口
 
 - 资源浏览、搜索、添加、刷新、下载与批量操作；按演员和类别聚合。
-- 三个 Celery 队列分别处理默认任务、刮削和下载；任务状态由 API 与 WebSocket 提供。
+- 三个 Celery 队列分别处理默认任务、刮削和下载；持久任务支持单条/批量暂停、恢复、终止与停止后的私有产物清理。
 - 单用户 Django 会话保护业务 API 和任务 WebSocket；登录后使用浏览器 Cookie 与 CSRF 令牌。
 - [前端页面与本地开发](vue_frontend/README.md) · [后端本地开发](django_backend/README.md) · [后端接口](django_backend/doc/interface.md) · [数据库说明](django_backend/doc/database.md)
 - [重构原则与持续开发约束](docs/development-principles.md) · [后端模块边界](django_backend/doc/p5-domain-boundaries.md) · [前端开发契约](vue_frontend/doc/development-contracts.md) · [Agent 规范](AGENTS.md)
@@ -31,16 +31,43 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 资源添加/刷新通过异步任务执行；演员和类别外部搜索支持来源选择、渐进结果、取消和终态补查。下载和批量翻译的 owner/异常收尾修复、资源/下载/翻译/推荐用例分层已实现；消费者 URL、响应字段和 Celery 任务名保持。
 
-隔离测试、目标环境接受和正式发布分别记录。重构基线的历史离线门槛为 539 passed、24 skipped；真实 PostgreSQL 恢复、另一设备 HTTPS/WSS、外站抓取/下载及混合版本 worker 不由这个结果覆盖。当前边界和待验收证据见[验证状态](django_backend/doc/validation-status.md)。
+用户已确认本轮改进验收完成。最新资产权限修复提交 `bbe3288` 的历史隔离门槛为 743 passed、28 skipped；本次文档修订不重新执行部署或业务验收。独立 PostgreSQL 备份恢复、另一设备 HTTPS/WSS 等专项不由本轮确认自动覆盖，具体范围见[验证状态](django_backend/doc/validation-status.md)。
 
 ## 文档导航
 
 - 本地开发：[后端](django_backend/README.md)、[前端](vue_frontend/README.md)
 - 消费者与数据：[接口与权限](django_backend/doc/interface.md)、[数据库与备份](django_backend/doc/database.md)、[推荐系统](django_backend/doc/recommendation.md)
-- 架构与配置：[模块边界](django_backend/doc/p5-domain-boundaries.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
+- 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[模块边界](django_backend/doc/p5-domain-boundaries.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
 - 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[验证状态](django_backend/doc/validation-status.md)
 
 ## 版本更新
+
+### v2.4.3（2026-10-06）
+
+#### 🆕 新增
+
+- **持久任务控制**：下载及刮削（含所属翻译）支持单条/批量暂停、恢复和终止；稳定任务 ID、版本条件更新、幂等命令和执行代次保护贯穿 API、worker 与前端。
+- **检查点与安全收尾**：暂停保留缓存及业务去重名额；终止在确认写入者退出后清理未提交产物，保留正式视频、已保存资源和共享头像。worker 支持派发补偿、异常退出恢复及清理重试。
+
+#### 🔧 优化
+
+- **任务详情**：统一展示下载/刮削状态、翻译结果、资源名称/封面和活动时间线；提供类型徽标、时间降序、批量操作与本地“不再跟踪”，同 AVID 的不同任务可分别查看。
+- **下载续传**：核对当前 HLS 清单、轨道、密钥及本地缓存哈希，复用原生下载器完整分片；暂时校验超时保留暂停状态，提交前验证媒体。支持范围与内容身份限制见[架构说明](django_backend/doc/task-control-architecture.md#下载续传边界)。
+- **页面与主题**：统一强调色文字和无封面占位；资源每行三项，演员/类别每行五项。Cookie 设置移至添加资源按钮旁；外部搜索手动启动，来源设置收进弹窗，渐进结果可按展示分页浏览。
+
+#### 🐛 修复
+
+- 修复 scraper 显式全局代理被底层空代理覆盖的问题；页面、元数据、封面和头像共用 `Proxy.url`，下载出口继续独立配置。
+- 修复容器与宿主机属主不一致导致的锁、缓存及旧正式文件权限错误；后端统一非 root UID/GID，提供限定范围权限迁移。旧资产硬链接备份受限时采用校验后的独立副本。
+- 修复恢复下载前重复抓取全部缓存分片、同 AVID 任务详情误选、旧排序响应覆盖、任务失败阶段及复选框/空列表布局问题。
+
+#### 🧹 清理
+
+- 移除全局通知模块及其预览入口；活动时间线保留在任务详情，导航恢复原有布局。
+
+#### 📚 文档
+
+- 更新当前功能、前后端开发契约和验证边界，补充[任务控制架构与扩展约束](django_backend/doc/task-control-architecture.md)。本版汇总上次综合文档更新 `6801ea6` 至 `7a3d7f1` 的改进；阶段记录保留对应提交的历史证据。
 
 ### v2.4.0（2026-09-28）
 

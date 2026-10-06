@@ -1442,3 +1442,5 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 任务列表 `GET /api/tasks/jobs` 可选 `ordering=-created_at|-updated_at`，均为全列表降序并在数据库排序后分页，禁止升序或其他字段（400）。省略时保留活动任务优先、创建时间降序的旧行为；权限过滤保持。
 
 下载恢复校验持续网络超时返回持久任务 `state: paused`、`error_code: RESUME_VALIDATION_TIMEOUT`，保留未提交产物及 resume/cancel 动作。它不表示下载器已经启动或视频已完成；同 job/new attempt 重试核对当前播放列表/轨道/密钥身份及本地缓存哈希，不重新下载已缓存分片。校验通过后由 CLI 复用完整分片，仅下载缺失或损坏分片。相同 URL 下服务器替换字节而播放列表及密钥不变的情况无法检出；身份变化或不支持的轨道仍返回 RESTART_REQUIRED。
+
+持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](validation-status.md)为准。

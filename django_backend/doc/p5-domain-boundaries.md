@@ -45,15 +45,17 @@ canonical contracts 是 ABC/数据输入唯一入口，测试替身实现相同�
 
 ## 保留的行为
 
-HTML/封面先于 DB，头像和翻译提交在保存后，事件在完整结果后；文件/DB 没有统一补偿事务。真实下载正常成功通知先于 DB 持久化，DB 失败只告警；失租则抑制成功副作用。翻译批量失败只收尾本批仍 translating 项。HTTP 与旧 batch 共用重翻译请求，提交失败保留显式错误。旧同步资源入口继续存在。
+旧同步资源路径保持 HTML/封面先于 DB、头像和翻译提交在保存后、事件在完整结果后；旧下载路径保持正常成功通知先于 DB 持久化、DB 失败只告警。新增受控任务使用资产日志补偿、执行 fencing 与资源事件出箱，不能沿用旧成功语义；文件/DB 仍不构成全局原子事务。两类下载失租均抑制成功副作用。翻译批量失败只收尾本批仍 translating 项。HTTP 与旧 batch 共用重翻译请求，提交失败保留显式错误。旧同步资源入口继续存在。
 
 HTTP 字段、URL、任务名、Redis key/TTL、文件路径、metadata 与关系规则由行为测试约束。改变上述语义须单独说明和验证；不能用结构迁移顺便更改。版本切换和目标环境验收见[部署说明](compose-deployment.md)与[验证状态](validation-status.md)。
 
-## 验证入口
+## 持久任务模块
 
-任务控制新增 `task_control_rules` 与 `task_records`：前者维护无框架依赖的状态迁移、允许动作和 ExecutionToken；后者是持久任务记录 Adapter，集中处理版本条件更新、操作者归属、执行 fencing、幂等命令和待派发记录。`task_models` 定义记录模型，由 models 注册。派发消费显式 callable，DB 事务内不导入或调用 Celery；旧任务入口暂未接入。详细契约见[任务控制计划](../../docs/task-pause-cancel-design.md)与[P1 执行记录](../../docs/task-control-p1-results.md)。
+当前实现及必须遵守的约束见[任务控制架构](task-control-architecture.md)。以下 P 编号用于追溯实施记录，不表示功能尚待接入。
 
-P2 的 `task_assets.TaskAssets` 独占任务私有文件的登记、校验、提升、回滚和清理；通过 `controlled_transaction` 与 DB 状态所有者协调，不调用记录 Adapter 的私有方法。producer/图像或视频 validator 由消费者传入；旧文件备份在持久准备日志之后、DB fence 之外建立，硬链接因属主/文件系统限制被拒绝时改用带控制检查、O_NOFOLLOW 和 checksum 的独立快照；提交 persist 回调仅做短 ORM 操作，不含网络、Celery 派发或成功事件。`TaskAssetTarget` 的发布 marker 防止旧恢复覆盖后来的同内容提交。`resource_file_locks` 提供与既有删除相同的资源锁及短目标锁；装配根目录由 composition 提供。已有活动任务阻止正式删除，完整提交入口与新任务创建的并发协调在 P3/P4 接入时完成。资产准备仍未替换旧刮削/下载的文件行为，见[P2 执行记录](../../docs/task-control-p2-results.md)。
+任务控制新增 `task_control_rules` 与 `task_records`：前者维护无框架依赖的状态迁移、允许动作和 ExecutionToken；后者是持久任务记录 Adapter，集中处理版本条件更新、操作者归属、执行 fencing、幂等命令和待派发记录。`task_models` 定义记录模型，由 models 注册。派发消费显式 callable，DB 事务内不导入或调用 Celery；新增下载和 HTTP 刮削入口已接入；历史无 job_id 的消息保留兼容执行。详细契约见[任务控制计划](../../docs/task-pause-cancel-design.md)与[P1 执行记录](../../docs/task-control-p1-results.md)。
+
+P2 的 `task_assets.TaskAssets` 独占任务私有文件的登记、校验、提升、回滚和清理；通过 `controlled_transaction` 与 DB 状态所有者协调，不调用记录 Adapter 的私有方法。producer/图像或视频 validator 由消费者传入；旧文件备份在持久准备日志之后、DB fence 之外建立，硬链接因属主/文件系统限制被拒绝时改用带控制检查、O_NOFOLLOW 和 checksum 的独立快照；提交 persist 回调仅做短 ORM 操作，不含网络、Celery 派发或成功事件。`TaskAssetTarget` 的发布 marker 防止旧恢复覆盖后来的同内容提交。`resource_file_locks` 提供与既有删除相同的资源锁及短目标锁；装配根目录由 composition 提供。已有活动任务及未恢复的提升日志阻止正式删除；新任务创建、发布和删除共享资源锁。新增受控刮削/下载已使用资产提交，旧同步路径保留兼容行为，见[P2 执行记录](../../docs/task-control-p2-results.md)。
 
 P3 `controlled_download` 编排持久控制、下载槽位、私有输出、媒体验证和提交，消费者显式提供 resolver/downloader/lease/persist/guard/project；`ReadOnlyDownloadInfoResolver` 不调用保存工作流。`download_resume` 独占当前 HLS 身份及本地分片哈希校验，不逐片重新抓取缓存内容；同 URL 且清单/密钥不变时的服务器内容替换不在检测范围。`task_processes` 负责进程身份与退出证明。`task_dispatch` 持久发布 Adapter 仅把待派发记录送 Celery，`task_download_projection` 按 owner 投影 Redis 并发送版本提示，HTTP 层鉴权/校验/裁剪快照。composition 装配资源锁和路径；业务终态及去重由 DB 管理，旧消息暂保留原执行兼容。下载提交回调额外允许有界 Redis owner 验证，不允许 HTTP 抓取、派发或成功事件；大文件 checksum 在 DB fence 外。见[P3 执行记录](../../docs/task-control-p3-results.md)。
 
@@ -64,3 +66,7 @@ P4 `controlled_scrape` 编排分阶段检查点和受控资源提交；`scrape_p
 P5 `controlled_translation` 编排父任务 fencing、翻译请求、结果及停止确认；`owned_translation` 独占资源翻译 CAS 与中断收尾。`translation_contracts.translation_identity` 定义私有检查点身份，版本/owner 不通过资源 API 展示。主执行由 TaskRecords 持久交接独立 child，task_dispatch 按 role 发布，HTTP 继续处理登录/CSRF/版本输入；task_presentation 裁剪快照和资源标题，框架入口不互相导入。同步/批量 TranslationRepository 同样按本执行 owner 校验结果及异常，生产单条派发带 expected_generation。composition 创建任务专属翻译实例，原共享 TranslatorManager 不携带任务控制。元数据与翻译失效改为单个 ORM 事务，这是 P5 的显式行为变化，文件/DB 仍按 P2 提交日志协调。见[P5 执行记录](../../docs/task-control-p5-results.md)。
 
 P7 `task_recovery` 编排派发补偿、停止身份核查、日志恢复、清理与事件重试，依赖显式 records/assets/dispatch/events/redis/inspect/stop_writers/interrupt；`task_processes` 独占本地进程归属与有界退出证明。TaskRecords 公开恢复 fencing、近期心跳复核及 stopped 日志状态，核心不遍历 Adapter 私有容器。`task_recovery_worker` 只管理 worker 生命周期线程，维护命令调用同一装配用例，扫描不依赖 Beat 或浏览器。CLI/媒体验证子进程继承稳定 job/attempt/owner 标记，覆盖 PID 登记前的父进程崩溃。人工旧实例确认仅是管理命令的运维断言，普通 HTTP 终止不能跳过 writer 退出证明。见[P7](../../docs/task-control-p7-results.md)。
+
+## 验证与维护
+
+离线门槛与真实 CLI/worker 分类见[测试说明](../tests/README.md)，本轮用户接受及历史证据见[验证状态](validation-status.md)。新增任务能力同时维护架构、接口和前端契约。

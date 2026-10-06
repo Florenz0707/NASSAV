@@ -322,7 +322,7 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 
 ## 持久任务记录（任务控制 P1）
 
-迁移 `0022_taskjob_taskcommand_taskattempt_taskartifact_and_more` 新增 TaskJob、TaskAttempt、TaskArtifact 与 TaskCommand，不修改现有资源数据。新下载及 HTTP 刮削提交已接入持久记录，Redis 仅作兼容投影；旧消息仍兼容但不支持控制。生产库未执行本轮迁移。实施全流程见[任务控制计划](../../docs/task-pause-cancel-design.md)。
+迁移 `0022_taskjob_taskcommand_taskattempt_taskartifact_and_more` 新增 TaskJob、TaskAttempt、TaskArtifact 与 TaskCommand，不修改现有资源数据。新下载及 HTTP 刮削提交已接入持久记录，Redis 仅作兼容投影；旧消息仍兼容但不支持控制。迁移执行情况按目标实例核对，不能从本文推断。实施全流程见[任务控制计划](../../docs/task-pause-cancel-design.md)。
 
 - TaskJob 保存稳定 UUID、类型/AVID、操作人、整体状态、version/generation、输入选项、检查点、时间线与清理汇总。`active_key` 唯一约束保留运行/等待/暂停任务的同类型同 AVID 名额，终态置空；任务没有 Redis 的 24 小时过期规则。
 - TaskAttempt 保存每次 Celery 派发 UUID、generation/role、执行 owner/identity、心跳与起止时间。恢复新建 attempt，旧消息不重新激活；pending 是可重试派发记录，发布失败保留，领取时原子拒绝重复执行。
@@ -331,14 +331,16 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 
 P2 迁移 `0023_taskassettarget` 新增正式资产发布标记表，按 `(root, relative_path)` 唯一；marker 表示本次发布归属，不以内容相同作为同一发布的证据。TaskArtifact 的 staged → promoting → committed 日志记录旧 checksum/marker、私有旧文件备份与新 marker。先持久化准备，再在短 DB 写入 fence 下提升文件和保存业务记录；失败回滚 DB 后按日志补偿文件。恢复仅在 writer 停止后执行；缺失备份、后续发布或未知文件变化保留现场并报告失败，不承诺 DB/文件系统全局原子性。
 
-存在 promoting 日志时禁止恢复任务，须先收尾日志。终态 cleanup_state 独立于业务状态，清理失败的 `cleanup_retry` 只重新置为 pending，不创建 attempt 或复活执行。成功任务也可清理剩余私有备份；正式资产保留。生产库尚未执行迁移 0022/0023。
+存在 promoting 日志时禁止恢复任务，须先收尾日志。终态 cleanup_state 独立于业务状态，清理失败的 `cleanup_retry` 只重新置为 pending，不创建 attempt 或复活执行。成功任务也可清理剩余私有备份；正式资产保留。部署必须核对迁移 0022/0023 已应用。
 
 SQLite/PostgreSQL 均通过版本条件更新和事务保证并发控制；SQLite 的瞬时锁竞争可有限重试，不忽略其他数据库错误。暂停处理中禁止恢复，终止优先于暂停；确认执行停止后才进入 paused/cancelled。`cancelled` 与 `cleanup_state` 独立，DB 控制记录不证明文件已经清理。
 
-P4 迁移 `0024_taskevent_taskeventreceipt_and_more` 新增资源提交事件出箱及收件去重记录：TaskEvent 按 `(job, event)` 唯一，稳定 UUID 跨派发重试不变；TaskEventReceipt 按 `(event, consumer)` 唯一。资源与事件登记在同一个受控事务内，派发在事务外，失败保留 pending。现有日志消费者去重，新增具有业务副作用的消费者仍需自己的幂等收件。生产库未执行 0024；验证和限制见[P4 执行记录](../../docs/task-control-p4-results.md)。
+P4 迁移 `0024_taskevent_taskeventreceipt_and_more` 新增资源提交事件出箱及收件去重记录：TaskEvent 按 `(job, event)` 唯一，稳定 UUID 跨派发重试不变；TaskEventReceipt 按 `(event, consumer)` 唯一。资源与事件登记在同一个受控事务内，派发在事务外，失败保留 pending。现有日志消费者去重，新增具有业务副作用的消费者仍需自己的幂等收件。部署须核对 0024；验证和限制见[P4 执行记录](../../docs/task-control-p4-results.md)。
 
-P5 迁移 `0025_avresource_translation_generation_and_more` 新增私有翻译 generation/owner 字段，不作为资源 API 字段展示。元数据保存与归属失效在同一 ORM 事务内；请求和领取递增 generation，结果及异常仅更新本 owner/version。TaskAttempt.role=translation 表示所属子派发，父执行交接为 stopped，整体 queued 等待子执行；恢复新 generation/main，已保存资源直接交接新 child。TaskJob.translation 与整体状态/时间线共同持久化，不将资源 pending 状态解释为父任务恢复。生产库未运行 0025，见[P5](../../docs/task-control-p5-results.md)。
+P5 迁移 `0025_avresource_translation_generation_and_more` 新增私有翻译 generation/owner 字段，不作为资源 API 字段展示。元数据保存与归属失效在同一 ORM 事务内；请求和领取递增 generation，结果及异常仅更新本 owner/version。TaskAttempt.role=translation 表示所属子派发，父执行交接为 stopped，整体 queued 等待子执行；恢复新 generation/main，已保存资源直接交接新 child。TaskJob.translation 与整体状态/时间线共同持久化，不将资源 pending 状态解释为父任务恢复。部署须核对 0025，见[P5](../../docs/task-control-p5-results.md)。
 
 P7 不增加 schema。恢复扫描依据 TaskAttempt 的 worker host/boot_id/PID namespace/PID/start_ticks，心跳超时只触发核查；身份未知保持原控制状态并记 RECOVERY_UNCONFIRMED。原 writer 确认退出后 stopped attempt，按取消意图进入 cancelled 或保留 paused，翻译归属仅收尾该子执行。未恢复的 promoting 日志禁止恢复和正式资源删除，避免删除后旧补偿恢复文件；后台重试日志和清理，失败不复活任务。
 
 迁移顺序为 0022 → 0023 → 0024 → 0025；实施前备份并停用旧消费者，生产迁移及回滚操作见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。SQLite/PostgreSQL 隔离证据见[P7](../../docs/task-control-p7-results.md)，不代表生产切换验收。
+
+持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](validation-status.md)为准。

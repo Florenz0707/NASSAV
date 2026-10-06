@@ -50,3 +50,9 @@ pnpm run check
 交付报告区分已实现、隔离验证和目标环境验收，记录对应提交及验证范围。模拟 HTTP/WebSocket、临时 Redis、Celery eager 和构建通过各自证明其覆盖范围；真实抓取、下载、worker、数据库恢复和网关联调按[验证状态](../django_backend/doc/validation-status.md)执行。
 
 本轮沿用用户已授权的工作流：在 `/tmp/nassav-agent-worktree` 的独立阶段分支提交，质量门槛通过后合并 `idle`，结束时保持该工作树干净且位于 `idle`；默认工作树由用户使用。后续任务遵循其明确授权，未获得提交授权时先询问。
+
+## 持久任务与资产提交
+
+新增下载、刮削及所属翻译以 TaskJob 为状态所有者；Celery 派发、Redis 租约/投影和 WebSocket 提示分别承担运输、互斥与刷新职责。恢复新建 attempt/generation；所有检查点、翻译和正式文件提交检查执行归属。暂停与终止以写入者退出证明收尾，清理状态独立于任务终态。不再跟踪只改变浏览器列表。
+
+TaskAssets 用持久准备日志、目标发布 marker 和共享文件锁协调文件/DB 补偿；复制、网络、媒体校验与大文件哈希在短写入 fence 外执行。旧同步路径的副作用顺序与新受控提交分别维护，不能互相套用。续传能力和跨容器恢复有明确限制，扩展时须先补归属、崩溃、取消和部分成功回归。完整职责、限制和检查清单见[任务控制架构](../django_backend/doc/task-control-architecture.md)。

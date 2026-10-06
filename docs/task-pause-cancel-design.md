@@ -1,6 +1,6 @@
 # 下载与刮削任务：暂停、恢复、终止设计与执行计划
 
-日期：2026-10-06。设计基线：`idle` 的 `aa14a27`。P0–P4 已完成，见 [P0](task-control-p0-results.md)、[P1](task-control-p1-results.md)、[P2](task-control-p2-results.md)、[P3](task-control-p3-results.md)和 [P4](task-control-p4-results.md)。P5 的持久刮削及翻译归属见[执行记录](task-control-p5-results.md)；前端控制见 [P6 执行记录](task-control-p6-results.md)，真实 worker 联调与恢复见 [P7 执行记录](task-control-p7-results.md)，P0–P7 均已完成隔离实施及验收。生产库未运行本轮迁移。
+日期：2026-10-06。设计基线：`idle` 的 `aa14a27`。P0–P4 已完成，见 [P0](task-control-p0-results.md)、[P1](task-control-p1-results.md)、[P2](task-control-p2-results.md)、[P3](task-control-p3-results.md)和 [P4](task-control-p4-results.md)。P5 的持久刮削及翻译归属见[执行记录](task-control-p5-results.md)；前端控制见 [P6 执行记录](task-control-p6-results.md)，真实 worker 联调与恢复见 [P7 执行记录](task-control-p7-results.md)，P0–P7 均已完成隔离实施及验收。本文保留最初设计和实施时的上下文（包括“建议”项），不作为当前部署状态。当前规则以[任务控制架构](../django_backend/doc/task-control-architecture.md)为准，验收范围见[验证状态](../django_backend/doc/validation-status.md)。
 
 ## 1. 目标与推荐决策
 

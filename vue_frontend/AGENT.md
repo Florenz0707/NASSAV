@@ -27,3 +27,7 @@ pnpm run check
 该入口包含 lint、单元测试和构建；根目录另执行 `pre-commit run -a`。不使用 `build | tail` 掩盖退出码；修复检查失败后再提交/合并。
 
 主题、布局和公共交互改动执行相关 Playwright 浏览器检查，异步改动覆盖乱序、失败、取消和迟到事件；环境准备见 README。纯文档改动检查链接/命令并执行 pre-commit。同步开发契约中的新增 props/事件/状态/缓存行为；执行记录注明提交与范围，模拟验收与真实 API/worker 联调分开报告。
+
+## 持久任务开发约束
+
+涉及下载、刮削、所属翻译、任务控制或文件清理时，先阅读[任务控制架构](../django_backend/doc/task-control-architecture.md)。DB 是持久业务状态所有者；恢复使用新 attempt/generation，旧执行不得提交。暂停/终止须确认写入者停止，终态不等于清理完成；不得在线删除锁文件、手动清空 `.tasks` 或以 Celery revoke 代替控制协议。发布、回滚与删除复用共享资源/目标锁及资产日志；网络、复制和大文件哈希不得放入短 DB 提交回调。前端按 job_id/version 合并授权快照，以 allowed_actions 决定操作。

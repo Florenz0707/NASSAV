@@ -60,10 +60,13 @@ HTTP 在 `nassav/http/` 按业务分组，URL 在 `nassav/urls.py`。核心编�
 - [数据库模型、模式与备份](doc/database.md)
 - [配置校验与覆盖顺序](doc/configuration-contract.md)
 - [资源、下载、推荐模块边界](doc/p5-domain-boundaries.md)
+- [持久任务控制、资产提交与扩展约束](doc/task-control-architecture.md)
 - [Compose 部署和外部 PostgreSQL](doc/compose-deployment.md)
 - [维护与现场验证脚本](scripts/README.md)
 - [测试分类与隔离门槛](tests/README.md)
 - [当前验证状态与环境接受](doc/validation-status.md)
+
+持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](doc/task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](doc/validation-status.md)为准。
 
 ## License
 
