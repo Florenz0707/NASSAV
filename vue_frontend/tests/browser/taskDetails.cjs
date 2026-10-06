@@ -118,6 +118,62 @@ const assert = require('node:assert/strict')
       assert.equal(await page.locator('tbody tr').count(), 5)
       assert.equal(await page.getByRole('button', { name: '打开通知' }).count(), 0)
       assert.equal(await page.locator('tbody img').count(), 0)
+      assert.equal(await page.getByRole('columnheader', { name: '类型', exact: true }).count(), 1)
+      const downloadRow = page
+        .getByRole('button', { name: '正在下载的资源，查看任务明细' })
+        .locator('xpath=ancestor::tr')
+      const scrapeRow = page
+        .getByRole('button', { name: 'AV-3，查看任务明细' })
+        .locator('xpath=ancestor::tr')
+      assert.equal((await downloadRow.locator('td').nth(1).textContent()).trim(), 'AV-1')
+      assert.equal((await downloadRow.locator('td').nth(2).textContent()).trim(), 'download')
+      assert.equal((await scrapeRow.locator('td').nth(2).textContent()).trim(), 'scrape')
+      const downloadBadge = await downloadRow
+        .locator('td')
+        .nth(2)
+        .locator('span')
+        .evaluate((node) => getComputedStyle(node).backgroundColor)
+      const scrapeBadge = await scrapeRow
+        .locator('td')
+        .nth(2)
+        .locator('span')
+        .evaluate((node) => getComputedStyle(node).backgroundColor)
+      assert.notEqual(downloadBadge, scrapeBadge)
+      const hideButton = page.getByRole('button', { name: '不再跟踪任务 AV-1', exact: true })
+      assert.equal(await hideButton.locator('svg').count(), 1)
+      assert.equal((await hideButton.textContent()).trim(), '')
+      assert.equal(
+        await page
+          .getByRole('button', { name: '结束任务 AV-1（示意）', exact: true })
+          .locator('svg')
+          .count(),
+        1
+      )
+      const checkboxVisual = page
+        .getByRole('checkbox', { name: '选择任务 AV-1', exact: true })
+        .locator('xpath=following-sibling::span')
+      const outline = await checkboxVisual.evaluate((node) => {
+        const style = getComputedStyle(node)
+        return {
+          width: style.borderTopWidth,
+          border: style.borderTopColor,
+          token: getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),
+        }
+      })
+      assert.equal(outline.width, '2px')
+      assert.equal(
+        await checkboxVisual.evaluate((node) => {
+          const reference = document.createElement('span')
+          reference.style.color = 'var(--text-secondary)'
+          document.body.append(reference)
+          const expected = getComputedStyle(reference).color
+          reference.remove()
+          return getComputedStyle(node).borderTopColor === expected
+        }),
+        true
+      )
+      await page.screenshot({ path: '/tmp/nassav-task-badges-' + theme + '.png', fullPage: true })
+
       const firstBox = page.getByRole('checkbox', { name: '选择任务 AV-1', exact: true })
       await firstBox.check()
       const selectAll = page.getByRole('checkbox', { name: '选择当前列表全部任务' })
@@ -159,6 +215,7 @@ const assert = require('node:assert/strict')
       await page.getByRole('button', { name: '等待下载的资源，查看任务明细' }).click()
       await detail.getByRole('heading', { name: '等待下载的资源' }).waitFor()
       await page.getByRole('button', { name: '刮削任务', exact: true }).click()
+      assert.equal(await page.getByRole('columnheader', { name: '类型', exact: true }).count(), 0)
       await page.getByRole('button', { name: '已保存的资源，查看任务明细' }).click()
       await detail.getByText('翻译完成', { exact: true }).first().waitFor()
       assert.ok((await detail.locator('time').count()) >= 3)

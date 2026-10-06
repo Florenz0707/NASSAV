@@ -139,7 +139,7 @@ const progress = (task) =>
         variant="neutral"
         :disabled="checkedIds.size === 0"
         @click="emit('dismiss', [...checkedIds])"
-        >不再跟踪所选 ({{ checkedIds.size }})</AppButton
+        ><AppIcon name="eye-off" />不再跟踪所选 ({{ checkedIds.size }})</AppButton
       >
       <AppButton
         variant="neutral"
@@ -150,10 +150,10 @@ const progress = (task) =>
             visible.filter((task) => isFinishedTask(task)).map((task) => task.id)
           )
         "
-        >不再跟踪当前列表已结束任务</AppButton
+        ><AppIcon name="eye-off" />不再跟踪当前列表已结束任务</AppButton
       >
       <AppButton variant="danger" disabled title="示意功能，暂未接入结束任务操作"
-        >结束所选任务 ({{ checkedIds.size }}) · 示意</AppButton
+        ><AppIcon name="close" />结束所选任务 ({{ checkedIds.size }}) · 示意</AppButton
       >
       <span class="text-muted text-xs">“已结束”包含已完成与失败；结束任务暂仅作示意。</span>
     </div>
@@ -180,6 +180,7 @@ const progress = (task) =>
                 />
               </th>
               <th class="p-4 text-left">任务</th>
+              <th v-if="type === 'all'" class="p-4 text-left">类型</th>
               <th class="p-4 text-left">状态</th>
               <th class="p-4 text-left">阶段</th>
               <th class="p-4 text-center whitespace-nowrap">不再跟踪</th>
@@ -209,11 +210,19 @@ const progress = (task) =>
                 >
                   <span class="min-w-0">
                     <span class="block font-medium">{{ task.avid }}</span>
-                    <span class="block text-muted text-xs mt-1">{{
-                      task.taskType || task.type
-                    }}</span>
                   </span>
                 </button>
+              </td>
+              <td v-if="type === 'all'" class="p-4">
+                <span
+                  class="inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-medium text-primary"
+                  :class="
+                    task.type === 'scrape'
+                      ? 'bg-accent-purple/20 border-accent-purple/50'
+                      : 'bg-accent-info/20 border-accent-info/50'
+                  "
+                  >{{ task.type }}</span
+                >
               </td>
               <td
                 class="p-4 whitespace-nowrap"
@@ -239,20 +248,23 @@ const progress = (task) =>
                 <AppButton
                   size="sm"
                   variant="neutral"
+                  class="w-9 h-9 p-0"
                   :aria-label="'不再跟踪任务 ' + task.avid"
+                  title="不再跟踪此任务"
                   @click="emit('dismiss', [task.id])"
-                  >不再跟踪</AppButton
-                >
+                  ><AppIcon name="eye-off"
+                /></AppButton>
               </td>
               <td class="p-4 text-center">
                 <AppButton
                   size="sm"
                   variant="danger"
+                  class="w-9 h-9 p-0"
                   disabled
                   :aria-label="'结束任务 ' + task.avid + '（示意）'"
                   title="示意功能，暂未接入结束任务操作"
-                  >结束任务</AppButton
-                >
+                  ><AppIcon name="close"
+                /></AppButton>
               </td>
             </tr>
           </tbody>
