@@ -297,16 +297,6 @@ const progress = (task) =>
         <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
           {{ selected.error }}
         </p>
-        <div
-          v-if="selected.translation"
-          class="mt-4 text-sm"
-          :class="selected.translation.state === 'failed' ? 'text-accent-danger' : 'text-secondary'"
-        >
-          <p>{{ translationLabels[selected.translation.state] }}</p>
-          <p v-if="selected.translation.message" class="text-xs mt-1">
-            {{ selected.translation.message }}
-          </p>
-        </div>
         <slot name="details" :task="selected" />
       </aside>
     </div>
