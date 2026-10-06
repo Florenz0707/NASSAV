@@ -305,3 +305,33 @@ test('translation polling and terminal result cannot regress after scrape succee
     'completed'
   )
 })
+
+test('expired signed snapshots preserve already known translation failures', async () => {
+  const adapter = axios.defaults.adapter
+  globalThis.localStorage = storage()
+  localStorage.setItem(
+    'nassav:scrape-jobs:v1',
+    JSON.stringify([
+      {
+        task_id: 'past',
+        avid: 'AV-1',
+        state: 'succeeded',
+        status_token: 'old',
+        translation: { task_id: 'child', state: 'failed', completed_at: 100 },
+      },
+    ])
+  )
+  setActivePinia(createPinia())
+  axios.defaults.adapter = async (config) => response(config, 404, null)
+  const store = useResourceStore()
+  try {
+    store.restoreScrapeJobs()
+    await new Promise(setImmediate)
+    await new Promise(setImmediate)
+    assert.equal(store.visibleScrapeJobs[0].translation.state, 'failed')
+    assert.equal(store.visibleScrapeJobs[0].translation.completed_at, 100)
+  } finally {
+    store.stopScrapeTracking()
+    axios.defaults.adapter = adapter
+  }
+})

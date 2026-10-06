@@ -59,3 +59,60 @@ def test_job_details_include_saved_names_without_changing_parent(
     assert result["resource"]["source_title"] == "Source"
     assert result["translation"]["state"] == "failed"
     assert snapshot["translation"]["state"] == "queued"
+
+
+@pytest.mark.parametrize(
+    "child,expected_state,expected_stage",
+    [
+        ("queued", "running", "translation_queued"),
+        ("translating", "running", "translation_translating"),
+        ("completed", "succeeded", "translation_completed"),
+        ("failed", "failed", "translation_failed"),
+        ("skipped", "succeeded", "translation_skipped"),
+    ],
+)
+@pytest.mark.django_db
+def test_workflow_includes_translation_without_changing_persistence_state(
+    monkeypatch, child, expected_state, expected_stage
+):
+    monkeypatch.setattr(
+        details,
+        "translation_details",
+        lambda _: {
+            "task_id": "child",
+            "state": child,
+            "completed_at": "2026-10-06T10:00:00+00:00",
+        },
+    )
+    snapshot = {
+        "avid": "ABSENT",
+        "state": "succeeded",
+        "version": 5,
+        "translation": {"task_id": "child"},
+        "timeline": [{"stage": "saving", "at": 10}],
+    }
+    result = details.resource_job_details(snapshot)
+    assert (result["workflow_state"], result["workflow_stage"]) == (
+        expected_state,
+        expected_stage,
+    )
+    assert result["state"] == "succeeded" and result["version"] == 5
+    assert snapshot["timeline"] == [{"stage": "saving", "at": 10}]
+    if child in {"completed", "failed", "skipped"}:
+        assert result["timeline"][-1]["at"] == "2026-10-06T10:00:00+00:00"
+
+
+def test_translation_completion_uses_celery_completion_time(monkeypatch):
+    from datetime import datetime, timezone
+
+    completed = datetime(2026, 10, 6, 10, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        details,
+        "AsyncResult",
+        lambda _: SimpleNamespace(
+            state="SUCCESS",
+            result={"success": True, "translation_status": "completed"},
+            date_done=completed,
+        ),
+    )
+    assert details.translation_details("child")["completed_at"] == completed.isoformat()

@@ -3,20 +3,12 @@ defineOptions({ name: 'AppNavbar' })
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../stores/session'
-import AppButton from './AppButton.vue'
-import AppIcon from './AppIcon.vue'
-import { useNotificationsStore } from '../stores/notifications.js'
 import { useToastStore } from '../stores/toast'
 
 const route = useRoute()
 const router = useRouter()
 const sessionStore = useSessionStore()
 const toastStore = useToastStore()
-const notifications = useNotificationsStore()
-function openNotifications() {
-  showMobileMenu.value = false
-  notifications.show()
-}
 const showResourcesMenu = ref(false)
 const showMobileMenu = ref(false)
 const scrolled = ref(false)
@@ -337,18 +329,6 @@ watch(
         </button>
       </div>
 
-      <AppButton
-        variant="neutral"
-        class="ml-auto shrink-0"
-        aria-label="打开通知"
-        :aria-expanded="notifications.opened"
-        @click="openNotifications"
-        ><AppIcon name="bell" /><span
-          v-if="notifications.unreadCount"
-          class="text-accent-primary text-xs"
-          >{{ notifications.unreadCount > 99 ? '99+' : notifications.unreadCount }}</span
-        ></AppButton
-      >
       <!-- Hamburger button (mobile only) -->
       <button
         class="hamburger-btn"

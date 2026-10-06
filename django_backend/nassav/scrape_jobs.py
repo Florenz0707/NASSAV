@@ -139,7 +139,26 @@ def _publish(snapshot: dict) -> None:
 
 
 def _update(store: JobStore, snapshot: dict, **changes) -> dict:
-    current = store.save({**snapshot, **changes})
+    updated = {**snapshot, **changes}
+    if (updated["state"], updated.get("stage")) != (
+        snapshot["state"],
+        snapshot.get("stage"),
+    ):
+        stage = (
+            updated["state"]
+            if updated["state"] in {"failed", "cancelled"}
+            else updated.get("stage")
+            or (
+                "resource_saved"
+                if updated["state"] == "succeeded"
+                else updated["state"]
+            )
+        )
+        updated["timeline"] = [
+            *snapshot.get("timeline", []),
+            {"stage": stage, "state": updated["state"], "at": time.time()},
+        ]
+    current = store.save(updated)
     if current["state"] == changes.get("state", snapshot["state"]):
         _publish(current)
     return current
@@ -186,6 +205,7 @@ def submit_resource_job(
         "error_code": None,
         "message": None,
         "translation": {"state": "not_requested"},
+        "timeline": [{"stage": "queued", "state": "queued", "at": time.time()}],
     }
     try:
         snapshot = store.save(snapshot)
@@ -305,7 +325,11 @@ def run_resource_job(self, action: str, avid: str, source: str, options: dict):
         translation = (
             {"task_id": translation_id, "state": "queued"}
             if translation_id
-            else {"state": "failed", "message": "翻译任务未能入队"}
+            else {
+                "state": "failed",
+                "message": "翻译任务未能入队",
+                "completed_at": time.time(),
+            }
             if translation_requested
             else {"state": "not_requested"}
         )

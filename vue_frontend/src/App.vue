@@ -1,8 +1,6 @@
 <script setup>
 import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
-import NotificationSidebar from './components/NotificationSidebar.vue'
-import { useNotificationsStore } from './stores/notifications.js'
 import Navbar from './components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
 import Toast from './components/Toast.vue'
@@ -11,7 +9,6 @@ import { useSettingsStore } from './stores/settings'
 import { useResourceStore } from './stores/resource'
 import { useSessionStore } from './stores/session'
 
-const notifications = useNotificationsStore()
 const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
 const resourceStore = useResourceStore()
@@ -38,7 +35,6 @@ watch(
     } else {
       wsStore.disconnect()
       resourceStore.stopScrapeTracking()
-      notifications.reset()
     }
   }
 )
@@ -89,7 +85,6 @@ watch(
     <LoginView v-else-if="sessionStore.status !== 'authenticated'" />
     <template v-else>
       <Navbar />
-      <NotificationSidebar />
       <main class="main-content">
         <RouterView v-slot="{ Component }">
           <transition name="page" mode="out-in">

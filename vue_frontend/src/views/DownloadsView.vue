@@ -12,6 +12,7 @@ import { useSettingsStore } from '../stores/settings'
 import { resourceApi, taskApi } from '../api'
 import { buildTaskDetails } from '../utils/taskDetails.js'
 import { createTaskDebugData } from '../utils/taskDebugData.js'
+import { SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
 
 // Set true to preview synthetic download/scrape tasks. Real queue data is never mixed in.
 const DEBUG_MODE = false
@@ -70,18 +71,46 @@ watch(
 )
 function advance(task) {
   if (!DEBUG_MODE) return
+  if (task.type === 'scrape') task.translation = undefined
   if (task.state === 'failed' || task.state === 'succeeded') {
+    task.timeline = []
     Object.assign(task, { state: 'queued', error: '', percent: 0, stage: 'source_lookup' })
   } else if (task.state === 'queued') task.state = 'running'
   else if (task.type === 'download') {
     task.percent = Math.min(100, (task.percent || 0) + 20)
     if (task.percent === 100) task.state = 'succeeded'
   } else {
-    const stages = ['source_lookup', 'metadata', 'cover', 'saving', 'translation_queued']
+    const stages = [
+      'source_lookup',
+      'metadata',
+      'cover',
+      'saving',
+      'translation_queued',
+      'translation_translating',
+      'translation_completed',
+    ]
     const index = stages.indexOf(task.stage)
-    if (index === stages.length - 1) task.state = 'succeeded'
-    else task.stage = stages[index + 1]
+    task.stage = stages[Math.min(index + 1, stages.length - 1)]
+    if (task.stage === 'translation_completed') task.state = 'succeeded'
   }
+  task.timeline = [
+    ...(task.timeline || []),
+    {
+      label:
+        task.state === 'failed'
+          ? '失败'
+          : task.state === 'succeeded'
+            ? task.type === 'scrape'
+              ? '翻译完成'
+              : '下载完成'
+            : task.state === 'queued'
+              ? '任务已排队'
+              : task.type === 'scrape'
+                ? SCRAPE_STAGE_LABELS[task.stage] || task.stage
+                : '下载状态更新',
+      at: Date.now() / 1000,
+    },
+  ]
 }
 async function fetchQueueStatus() {
   if (pendingQueueGeneration === pollingGeneration || DEBUG_MODE) return
@@ -145,7 +174,7 @@ function stopPolling() {
       v-if="route.query.task && !tasks.some((task) => task.taskId === route.query.task)"
       class="text-muted mb-4"
     >
-      该任务未被本浏览器跟踪，或已移出当前队列；通知记录保留当时结果。
+      该任务未被本浏览器跟踪，或已移出当前队列。
     </p>
     <p v-if="queueError" class="text-accent-danger mb-4" role="alert">{{ queueError }}</p>
     <TaskDetailsPanel
@@ -168,7 +197,7 @@ function stopPolling() {
         <RouterLink
           v-else-if="task.hasResource"
           :to="'/resource/' + encodeURIComponent(task.avid)"
-          class="inline-flex mt-5 text-accent-primary"
+          class="inline-flex items-center justify-center mt-5 px-4 py-2.5 rounded-xl bg-accent-primary text-on-accent font-semibold transition-colors hover:bg-accent-primary/80"
           >查看资源</RouterLink
         >
       </template>

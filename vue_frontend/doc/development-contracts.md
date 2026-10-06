@@ -10,7 +10,7 @@
 | directoryStore、resourceList                                      | 查询、分页、加载和错误；页面取消或卸载时使旧查询失效                                  |
 | api/index.js                                                      | 统一 HTTP 客户端、响应 envelope、CSRF 和登录失效；页面不重复创建客户端                |
 | downloadQueue、resource store                                     | 下载队列状态和原始标题元数据；resource 保留消费者 facade，新增列表状态归 resourceList |
-| websocket、scrapeJobState、scrapeJobNotifications                 | 分别管理连接/事件、资源任务快照、通知；不向连接模块添加展示规则                       |
+| websocket、scrapeJobState、scrapeJobFeedback                      | 分别管理连接/事件、资源任务快照、短时提示；不向连接模块添加展示规则                   |
 | useExternalSearchTask、useExternalSearchSources                   | 外部搜索生命周期、来源能力与选择；页面复用既有任务协议                                |
 | recommendations、RecommendationBlacklist、recommendationViewState | 推荐数据、黑名单自身读写/缓存/生命周期、视图偏好；黑名单操作不散落到父页              |
 | utils/resourceTitle.js                                            | 唯一标题选择规则；消费者使用 resolveResourceTitle，队列保留原始字段以响应标题偏好变化 |
@@ -35,7 +35,9 @@
 
 任务详情保留 `/downloads` 路径。DownloadsView 装配下载队列及 visibleScrapeJobs，TaskDetailsPanel 仅拥有筛选/选择状态；taskDetails 统一展示字段，不改变原始任务。刮削终态附加资源标题与翻译子任务信息；翻译 pending/unknown 继续签名快照轮询，过期只结束翻译跟踪，不覆盖资源刮削成功。停止跟踪是本浏览器的展示/轮询行为，单条与批量均确认，不调用取消接口；刮削迟到响应不得恢复已移除记录，下载隐藏按任务 ID 隔离。下载数据来自当前队列，刮削来自本浏览器追踪，不宣称完整任务历史；DEBUG_MODE 采用独立内存样例，页面不读取队列或提交真实操作。
 
-全局通知归 notifications store（会话内最多 100 条、按事件 ID 去重），下载与刮削 / 翻译结果由独立通知适配器记录；Navbar 只打开，App 装配侧栏并在退出登录时清空。进度不写通知，已读不等于失败已解决；停止跟踪后迟到响应不得新增消息。DEV 任意页面 `demo=notifications` 动态加载独立样例，生产不包含样例；通知预览不替换任务页或停止其读取。
+全局通知模块与开发预览已移除，Navbar 不提供通知入口。任务活动时间线归任务快照及 taskDetails 展示适配器，TaskTimeline 显示每次状态 / 阶段进入时间并右对齐；缺失时间明确显示未记录。普通 toast 保留既有行为。
+
+任务页以包含翻译的整体状态筛选、统计和清理：资源已保存但翻译仍排队 / 运行 / 暂不可读时继续执行中，翻译完成后已完成，翻译失败时失败，跳过或未请求翻译允许结束；原始刮削 state 仍只表示资源保存结果。列表任务列只展示 AVID 与 task_type，资源图片与名称放在详情。自定义 TaskCheckbox 保留原生键盘与半选语义，表头与行使用同一列宽和对齐方式。单条“不再跟踪”位于列表操作列，批量已结束包括已完成和失败；详情仅保留重点色“查看资源”。单条 / 批量结束任务均禁用并标注示意，不发送请求。
 
 ## 异步、缓存与失败
 

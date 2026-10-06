@@ -6,6 +6,9 @@ import AppIcon from './AppIcon.vue'
 import CustomSelect from './CustomSelect.vue'
 import EmptyState from './EmptyState.vue'
 import TaskResourceCover from './TaskResourceCover.vue'
+import TaskCheckbox from './TaskCheckbox.vue'
+import TaskTimeline from './TaskTimeline.vue'
+import { isFinishedTask } from '../utils/taskDetails.js'
 import { SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
 const emit = defineEmits(['dismiss'])
 const props = defineProps({
@@ -32,7 +35,7 @@ const stageLabels = SCRAPE_STAGE_LABELS
 const translationLabels = {
   queued: '翻译已排队',
   translating: '正在翻译',
-  completed: '翻译成功',
+  completed: '翻译完成',
   failed: '翻译失败',
   skipped: '翻译已跳过',
   not_requested: '未请求翻译',
@@ -73,7 +76,9 @@ const taskType = (task) =>
   task.type === 'download' ? '下载' : task.action === 'refresh' ? '刷新资源' : '新增资源'
 const progress = (task) =>
   task.state === 'failed'
-    ? '失败'
+    ? task.stage === 'translation_failed'
+      ? '翻译失败'
+      : '失败'
     : task.state === 'queued'
       ? '尚未开始'
       : task.type === 'download'
@@ -81,7 +86,7 @@ const progress = (task) =>
           ? '等待进度'
           : `${task.percent}%`
         : task.state === 'succeeded'
-          ? '已完成'
+          ? stageLabels[task.stage] || '已完成'
           : stageLabels[task.stage] || '阶段待获取'
 </script>
 <template>
@@ -138,17 +143,19 @@ const progress = (task) =>
       >
       <AppButton
         variant="neutral"
-        :disabled="!visible.some((task) => ['succeeded', 'failed'].includes(task.state))"
+        :disabled="!visible.some((task) => isFinishedTask(task))"
         @click="
           emit(
             'dismiss',
-            visible
-              .filter((task) => ['succeeded', 'failed'].includes(task.state))
-              .map((task) => task.id)
+            visible.filter((task) => isFinishedTask(task)).map((task) => task.id)
           )
         "
         >不再跟踪当前列表已结束任务</AppButton
       >
+      <AppButton variant="danger" disabled title="示意功能，暂未接入结束任务操作"
+        >结束所选任务 ({{ checkedIds.size }}) · 示意</AppButton
+      >
+      <span class="text-muted text-xs">“已结束”包含已完成与失败；结束任务暂仅作示意。</span>
     </div>
     <EmptyState v-if="!visible.length" title="暂无此类任务" />
     <div v-else class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
@@ -160,21 +167,23 @@ const progress = (task) =>
             {{
               visible.length
             }}
-            个任务 · 点击资源查看明细
+            个任务 · 点击任务查看明细
           </caption>
           <thead>
             <tr class="border-b text-secondary border-[var(--border-color)]">
-              <th class="p-4">
-                <input
-                  type="checkbox"
+              <th class="p-4 w-14 text-center align-middle">
+                <TaskCheckbox
                   :checked="allChecked"
-                  aria-label="选择当前列表全部任务"
-                  @change="checkAll($event.target.checked)"
+                  label="选择当前列表全部任务"
+                  :indeterminate="!allChecked && visible.some((task) => checkedIds.has(task.id))"
+                  @change="checkAll"
                 />
               </th>
               <th class="p-4 text-left">任务</th>
               <th class="p-4 text-left">状态</th>
               <th class="p-4 text-left">阶段</th>
+              <th class="p-4 text-center whitespace-nowrap">不再跟踪</th>
+              <th class="p-4 text-center whitespace-nowrap">结束任务</th>
             </tr>
           </thead>
           <tbody>
@@ -184,35 +193,25 @@ const progress = (task) =>
               class="border-b hover:bg-surface-subtle/5 border-[var(--border-color)]"
               :class="selected?.id === task.id ? 'bg-accent-primary/10' : ''"
             >
-              <td class="p-4">
-                <input
-                  type="checkbox"
+              <td class="p-4 w-14 text-center align-middle">
+                <TaskCheckbox
                   :checked="checkedIds.has(task.id)"
-                  :aria-label="'选择任务 ' + task.avid"
-                  @change="check(task.id, $event.target.checked)"
+                  :label="'选择任务 ' + task.avid"
+                  @change="check(task.id, $event)"
                 />
               </td>
               <td class="p-4">
                 <button
-                  class="flex items-center gap-3 w-full text-primary text-left min-w-[240px]"
+                  class="flex items-center gap-3 w-full text-primary text-left min-w-[100px]"
                   :aria-label="resourceName(task) + '，查看任务明细'"
                   :aria-pressed="selected?.id === task.id"
                   @click="selectedId = task.id"
                 >
-                  <TaskResourceCover
-                    :url="task.coverUrl"
-                    :scene="debug ? task.coverScene : ''"
-                    :title="resourceName(task)"
-                    class="w-24 h-16 shrink-0"
-                  />
                   <span class="min-w-0">
-                    <span class="block font-medium line-clamp-2">{{ resourceName(task) }}</span>
-                    <span class="block text-muted text-xs mt-1"
-                      >{{ task.avid }} · {{ taskType(task) }}</span
-                    >
-                    <span v-if="!task.title" class="block text-muted text-xs mt-1"
-                      >资源名称尚未获取</span
-                    >
+                    <span class="block font-medium">{{ task.avid }}</span>
+                    <span class="block text-muted text-xs mt-1">{{
+                      task.taskType || task.type
+                    }}</span>
                   </span>
                 </button>
               </td>
@@ -225,7 +224,7 @@ const progress = (task) =>
               <td class="p-4 text-secondary whitespace-nowrap">
                 <span class="block">{{ progress(task) }}</span>
                 <span
-                  v-if="task.translation"
+                  v-if="task.translation && !task.stage?.startsWith('translation_')"
                   class="block text-xs mt-1"
                   :class="task.translation.state === 'failed' ? 'text-accent-danger' : 'text-muted'"
                   >{{ translationLabels[task.translation.state] }}</span
@@ -234,6 +233,25 @@ const progress = (task) =>
                   v-if="task.type === 'download' && task.state === 'running'"
                   class="text-muted text-xs"
                   >{{ task.speed }}</span
+                >
+              </td>
+              <td class="p-4 text-center">
+                <AppButton
+                  size="sm"
+                  variant="neutral"
+                  :aria-label="'不再跟踪任务 ' + task.avid"
+                  @click="emit('dismiss', [task.id])"
+                  >不再跟踪</AppButton
+                >
+              </td>
+              <td class="p-4 text-center">
+                <AppButton
+                  size="sm"
+                  variant="danger"
+                  disabled
+                  :aria-label="'结束任务 ' + task.avid + '（示意）'"
+                  title="示意功能，暂未接入结束任务操作"
+                  >结束任务</AppButton
                 >
               </td>
             </tr>
@@ -275,16 +293,7 @@ const progress = (task) =>
             {{ selected.downloaded || '0 MB' }} / {{ selected.total || '体积待获取' }}
           </p></template
         >
-        <ol v-else class="space-y-2 mt-5">
-          <li
-            v-for="(label, key) in stageLabels"
-            :key="key"
-            class="text-sm"
-            :class="selected.stage === key ? 'text-accent-primary' : 'text-secondary'"
-          >
-            {{ selected.stage === key ? '→ ' : '' }}{{ label }}
-          </li>
-        </ol>
+        <TaskTimeline :events="selected.timeline || []" />
         <p v-if="selected.error" class="text-accent-danger text-sm mt-4" role="alert">
           {{ selected.error }}
         </p>
@@ -298,9 +307,6 @@ const progress = (task) =>
             {{ selected.translation.message }}
           </p>
         </div>
-        <AppButton variant="neutral" class="mt-5" @click="emit('dismiss', [selected.id])"
-          >不再跟踪此任务</AppButton
-        >
         <slot name="details" :task="selected" />
       </aside>
     </div>

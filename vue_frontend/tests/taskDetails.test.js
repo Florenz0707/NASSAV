@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildTaskDetails } from '../src/utils/taskDetails.js'
+import { buildTaskDetails, isFinishedTask } from '../src/utils/taskDetails.js'
 
 const build = (changes = {}) =>
   buildTaskDetails({
@@ -71,7 +71,7 @@ test('unknown states and absent metadata remain explicit; refresh failures retai
   assert.equal(tasks[2].coverUrl, '/cover/AV-3')
 })
 
-test('scrape snapshot titles follow preference and translation status is separate from saved resource', () => {
+test('scrape snapshot titles follow preference and translation failures affect workflow but preserve saved resource identity', () => {
   const input = {
     scrapeJobs: [
       {
@@ -86,6 +86,33 @@ test('scrape snapshot titles follow preference and translation status is separat
   }
   const task = build(input)[0]
   assert.equal(task.title, 'Translation')
-  assert.equal(task.state, 'succeeded')
+  assert.equal(task.state, 'failed')
+  assert.equal(task.stage, 'translation_failed')
+  assert.equal(task.hasResource, true)
   assert.equal(task.translation.state, 'failed')
+})
+
+test('translation remains part of the workflow until its terminal result, and finished includes failures', () => {
+  for (const [child, expected, finished] of [
+    ['queued', 'running', false],
+    ['translating', 'running', false],
+    ['unknown', 'running', false],
+    ['completed', 'succeeded', true],
+    ['failed', 'failed', true],
+    ['skipped', 'succeeded', true],
+  ]) {
+    const raw = {
+      task_id: 'parent',
+      avid: 'AV-1',
+      state: 'succeeded',
+      translation: { state: child },
+      timeline: [{ stage: 'saving', at: 1700000000 }],
+    }
+    const task = build({ scrapeJobs: [raw] })[0]
+    assert.equal(task.state, expected)
+    assert.equal(isFinishedTask(task), finished)
+    assert.equal(raw.state, 'succeeded')
+    assert.equal(task.timeline[0].label, '保存')
+    assert.equal(task.timeline[0].at, 1700000000)
+  }
 })

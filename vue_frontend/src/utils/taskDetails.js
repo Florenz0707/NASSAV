@@ -1,4 +1,43 @@
 import { resolveResourceTitle } from './resourceTitle.js'
+import { scrapeWorkflowStatus, SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
+
+export const isFinishedTask = (task) => ['succeeded', 'failed'].includes(task.state)
+const timelineLabels = {
+  queued: '任务已排队',
+  running: '开始刮削',
+  failed: '刮削失败',
+  ...SCRAPE_STAGE_LABELS,
+}
+
+function scrapeTimeline(task, workflow) {
+  const events = (task.timeline || []).map((event) => ({
+    ...event,
+    label: timelineLabels[event.stage] || event.stage,
+  }))
+  if (!events.length) {
+    events.push({
+      label:
+        (task.state === 'failed'
+          ? '刮削失败'
+          : task.state === 'succeeded'
+            ? '资源已保存'
+            : timelineLabels[task.stage] || timelineLabels[task.state]) || '状态未知',
+      at: task.updated_at,
+      state: task.state,
+    })
+  }
+  if (
+    workflow.stage?.startsWith('translation_') &&
+    !events.some((event) => event.stage === workflow.stage)
+  )
+    events.push({
+      stage: workflow.stage,
+      label: timelineLabels[workflow.stage] || '翻译状态未知',
+      at: task.translation?.completed_at,
+      state: workflow.state,
+    })
+  return events
+}
 
 const downloadStates = {
   PENDING: 'queued',
@@ -59,6 +98,7 @@ export function buildTaskDetails({
       id: `download:${task.task_id || task.avid}`,
       taskId: task.task_id,
       type: 'download',
+      taskType: task.task_type || 'download',
       avid: task.avid,
       ...resourceFields(task, 'download'),
       state: task.state ? downloadStates[task.state] || 'unknown' : fallbackState,
@@ -68,23 +108,46 @@ export function buildTaskDetails({
       total: task.progress?.total,
       error: task.error || '',
       updated: taskTime(task.updated_at || task.time_start || task.created_at),
+      timeline: [
+        ...(task.created_at ? [{ label: '任务已排队', at: task.created_at }] : []),
+        ...(task.time_start ? [{ label: '开始下载', at: task.time_start }] : []),
+        {
+          label:
+            task.state === 'FAILURE'
+              ? '下载失败'
+              : task.state === 'SUCCESS'
+                ? '下载完成'
+                : '当前下载状态',
+          at: task.updated_at || task.progress?.updated_at,
+        },
+      ],
     }
   }
   return [
     ...active.map((task) => download(task, 'running')),
     ...pending.map((task) => download(task, 'queued')),
-    ...scrapeJobs.map((task) => ({
-      id: `scrape:${task.task_id}`,
-      taskId: task.task_id,
-      type: 'scrape',
-      avid: task.avid,
-      ...resourceFields(task, 'scrape'),
-      state: task.state,
-      action: task.action,
-      stage: task.stage,
-      translation: task.translation,
-      error: task.state === 'failed' ? task.message || '刮削失败' : '',
-      updated: taskTime(task.updated_at),
-    })),
+    ...scrapeJobs.map((task) => {
+      const workflow = scrapeWorkflowStatus(task)
+      return {
+        id: `scrape:${task.task_id}`,
+        taskId: task.task_id,
+        type: 'scrape',
+        taskType: 'scrape',
+        avid: task.avid,
+        ...resourceFields(task, 'scrape'),
+        state: workflow.state,
+        action: task.action,
+        stage: workflow.stage,
+        timeline: scrapeTimeline(task, workflow),
+        translation: task.translation,
+        error:
+          task.state === 'failed'
+            ? task.message || '刮削失败'
+            : task.translation?.state === 'failed'
+              ? task.translation.message || '资源已保存，但标题翻译失败'
+              : '',
+        updated: taskTime(task.updated_at),
+      }
+    }),
   ]
 }

@@ -1,4 +1,3 @@
-import { recordDownloadNotification } from './downloadNotifications.js'
 import { logger } from '../utils/logger.js'
 import { defineStore, storeToRefs } from 'pinia'
 import { useDownloadQueueStore } from './downloadQueue.js'
@@ -219,7 +218,6 @@ export const useWebSocketStore = defineStore('websocket', () => {
         break
 
       case 'task_completed':
-        recordDownloadNotification(message.type, message.data)
         // 任务完成
         if (message.data) {
           const avid = message.data.avid
@@ -233,7 +231,6 @@ export const useWebSocketStore = defineStore('websocket', () => {
         break
 
       case 'task_failed':
-        recordDownloadNotification(message.type, message.data)
         // 任务失败
         if (message.data) {
           const avid = message.data.avid

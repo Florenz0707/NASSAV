@@ -1290,7 +1290,7 @@ curl -i -H 'If-None-Match: "123abc"' "http://<host>/nassav/api/resource/cover?av
 
 快照字段为 `task_id`、`job_type=scrape`、`action`、`avid`、`state`、`stage`、`version`、`updated_at`、`resource_avid`、`error_code`、`message`。状态顺序为 `queued → running → succeeded|failed`；运行阶段按实际执行进入 `source_lookup`、`metadata`、`cover`、`saving`、`translation_queued`。无总工作量时不提供百分比。前端应在入队后先查快照，按 `version` 忽略旧事件；成功后再重新查询资源。`scrape_job_update` WebSocket 事件仅含任务 ID、类型、状态、阶段、版本和更新时间；完整快照需凭令牌查询。
 
-快照查询额外返回 `resource`（可为空，含 AVID 和原始 / 来源 / 译后标题）及 `translation`。后者含 `state`，已提交时含翻译子任务 `task_id`；状态为 `not_requested`、`queued`、`translating`、`completed`、`failed`、`skipped`、`unknown` 或 `unavailable`。`unknown` 表示暂时无法读取结果，可重试；旧任务未记录子任务为 `unavailable`。Celery `SUCCESS` 必须结合业务返回的 `success` 和 `translation_status` 判定，不能当作翻译成功。刮削保存成功仍保持父任务 `succeeded`，翻译结果单独显示；子任务状态通过签名快照查询读取，不修改父任务终态和版本，也不在公开 WebSocket 广播标题或子任务结果。入队失败单独返回翻译 `failed`。结果和快照保留期限届满后停止跟踪，不能声称已有翻译成功证据。
+快照查询额外返回 `resource`（可为空，含 AVID 和原始 / 来源 / 译后标题）及 `translation`。后者含 `state`，已提交时含翻译子任务 `task_id`；状态为 `not_requested`、`queued`、`translating`、`completed`、`failed`、`skipped`、`unknown` 或 `unavailable`。`unknown` 表示暂时无法读取结果，可重试；旧任务未记录子任务为 `unavailable`。Celery `SUCCESS` 必须结合业务返回的 `success` 和 `translation_status` 判定，不能当作翻译成功。刮削保存成功仍保持父任务 `succeeded`，翻译结果参与下述整体状态展示；子任务状态通过签名快照查询读取，不修改父任务终态和版本，也不在公开 WebSocket 广播标题或子任务结果。入队失败单独返回翻译 `failed`。结果和快照保留期限届满后停止轮询；客户端保留此前已取得的翻译终态及时间，尚未取得结果时明确显示未记录或已过期，不推断翻译成功。
 
 资源编号采用大小写归一化后的单一任务锁，因此同一编号的添加与刷新互斥；重复提交返回正在处理的任务。排队任务 4 小时未开始则过期，锁最长保留 4 小时并在运行阶段续期；终态保存 24 小时；worker 丢失后待锁过期，查询会返回 `WORKER_LOST` 并允许重新提交。当前业务接口和任务 WebSocket 均要求 operator session；任务快照还要求独立签名令牌。远程部署必须使用同源 HTTPS 代理。
 
@@ -1407,3 +1407,9 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 `GET /api/search/jobs/{task_id}?token=...` 支持可选 `page`（正整数）与 `page_size`（1–100，默认 20）；省略 page 保留提交时的结果页。分页参数无效返回 400。带有效签名 token 的查询从同一任务累积去重结果切片，返回的 `result.pagination` 按展示条数计算，不提交任务、不重新抓取、不修改任务版本。运行、失败、取消和成功状态均可浏览已获取结果；总条数和可浏览页数随进度增长，fetch_pages/pages_completed 专指源站抓取页数。内部累积结果不直接出现在公开快照或 WebSocket 中。
 
 前端默认每页 15 项；搜索和浏览结果页是独立操作，翻页不停止后台搜索。已有旧 worker 生成的快照无法补出未保存的其他页，跨页读取返回 400 并提示重新搜索；发布时同步更新 API/worker。原有 URL、签名校验、取消、版本及 TTL 保持。
+
+### 刮削整体状态与活动时间线
+
+资源任务快照查询新增 `workflow_state` 和 `workflow_stage`，用于包含翻译子任务的整体展示：原始 `state=succeeded` 仍只表示资源已保存；翻译 queued / translating / unknown 时整体 running，completed 时 succeeded，failed 时 failed，skipped / not_requested 时允许结束。旧任务 unavailable 保留保存结果并明确标注翻译未记录或已过期。前端统计、筛选及“已结束任务”清理按整体状态执行，失败包含翻译失败。
+
+新增 `timeline` 数组，元素为 `{stage, state, at}`，记录实际状态 / 阶段进入时间；`at` 为 Unix 秒或翻译完成的 ISO 时间。资源保存事件为 resource_saved，翻译终态为 translation_completed / translation_failed / translation_skipped。翻译详情可返回 `completed_at`（Celery date_done；提交失败使用失败发生时间）。未记录的历史时间为空，不根据资源的其他翻译结果或当前读取时间推断。字段只在持有签名令牌的完整快照接口返回，不扩大全局 WebSocket 数据。

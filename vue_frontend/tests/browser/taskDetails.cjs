@@ -19,6 +19,10 @@ const assert = require('node:assert/strict')
           message: '来源超时',
           status_token: 'fake',
           updated_at: 1,
+          timeline: [
+            { stage: 'metadata', state: 'running', at: 1700000000 },
+            { stage: 'failed', state: 'failed', at: 1700000010 },
+          ],
         },
         {
           task_id: 'scrape-ok',
@@ -30,6 +34,19 @@ const assert = require('node:assert/strict')
           stage: 'translation_queued',
           status_token: 'fake',
           updated_at: 2,
+          timeline: [
+            { stage: 'saving', state: 'running', at: 1700000000 },
+            { stage: 'resource_saved', state: 'succeeded', at: 1700000010 },
+          ],
+        },
+        {
+          task_id: 'scrape-translating',
+          avid: 'AV-5',
+          action: 'add',
+          state: 'succeeded',
+          status_token: 'fake',
+          translation: { task_id: 'waiting-child', state: 'translating' },
+          updated_at: 3,
         },
       ]
       await page.addInitScript(
@@ -57,6 +74,7 @@ const assert = require('node:assert/strict')
               translation: {
                 task_id: 'child',
                 state: translationReads > 1 ? 'completed' : 'queued',
+                completed_at: translationReads > 1 ? '2026-10-06T10:00:00+00:00' : undefined,
               },
             }
           }
@@ -97,7 +115,34 @@ const assert = require('node:assert/strict')
       await page.goto(origin + '/downloads')
       const detail = page.getByRole('complementary', { name: '任务明细' })
       await detail.getByRole('heading', { name: '正在下载的资源' }).waitFor()
-      assert.equal(await page.locator('tbody tr').count(), 4)
+      assert.equal(await page.locator('tbody tr').count(), 5)
+      assert.equal(await page.getByRole('button', { name: '打开通知' }).count(), 0)
+      assert.equal(await page.locator('tbody img').count(), 0)
+      const firstBox = page.getByRole('checkbox', { name: '选择任务 AV-1', exact: true })
+      await firstBox.check()
+      const selectAll = page.getByRole('checkbox', { name: '选择当前列表全部任务' })
+      assert.equal(await selectAll.evaluate((node) => node.indeterminate), true)
+      const headerBox = await selectAll.boundingBox(),
+        rowBox = await firstBox.boundingBox()
+      assert.ok(
+        Math.abs(headerBox.x - rowBox.x) < 1,
+        'Header and row checkbox must share x position'
+      )
+      await firstBox.uncheck()
+      await firstBox.focus()
+      await page.keyboard.press('Space')
+      assert.equal(await firstBox.isChecked(), true)
+      await page.keyboard.press('Space')
+      assert.equal(await firstBox.isChecked(), false)
+      assert.equal(
+        await page.getByRole('button', { name: '结束所选任务 (0) · 示意' }).isDisabled(),
+        true
+      )
+      assert.equal(
+        await page.getByRole('button', { name: '结束任务 AV-1（示意）', exact: true }).isDisabled(),
+        true
+      )
+      assert.equal(await detail.getByRole('button', { name: '不再跟踪此任务' }).count(), 0)
       assert.equal(await detail.getByRole('progressbar').getAttribute('value'), '45')
       assert.equal(
         await detail.locator('img').evaluate((img) => img.complete && img.naturalWidth > 0),
@@ -115,7 +160,14 @@ const assert = require('node:assert/strict')
       await detail.getByRole('heading', { name: '等待下载的资源' }).waitFor()
       await page.getByRole('button', { name: '刮削任务', exact: true }).click()
       await page.getByRole('button', { name: '已保存的资源，查看任务明细' }).click()
-      await detail.getByText('翻译成功', { exact: true }).waitFor()
+      await detail.getByText('翻译完成', { exact: true }).first().waitFor()
+      assert.ok((await detail.locator('time').count()) >= 3)
+      const timeEnds = await detail
+        .locator('time')
+        .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right))
+      assert.ok(timeEnds.every((end) => Math.abs(end - timeEnds[0]) < 1))
+      await page.getByRole('button', { name: 'AV-5，查看任务明细' }).click()
+      assert.ok((await detail.textContent()).includes('执行中'))
       await page.getByRole('button', { name: 'AV-3，查看任务明细' }).click()
       assert.equal(await detail.getByRole('alert').textContent(), '来源超时')
       assert.equal(await detail.getByRole('progressbar').count(), 0)
@@ -125,7 +177,7 @@ const assert = require('node:assert/strict')
             .getByRole('button', { name: 'AV-3，查看任务明细' })
             .locator('xpath=ancestor::tr')
             .locator('td')
-            .last()
+            .nth(3)
             .textContent()
         ).trim(),
         '失败'
@@ -134,6 +186,15 @@ const assert = require('node:assert/strict')
         await detail.getByRole('link', { name: '查看资源' }).getAttribute('href'),
         '/resource/AV-3'
       )
+      const resourceLink = detail.getByRole('link', { name: '查看资源' })
+      assert.ok(
+        await resourceLink.evaluate(
+          (node) =>
+            parseFloat(getComputedStyle(node).borderRadius) > 0 &&
+            getComputedStyle(node).backgroundColor !== 'rgba(0, 0, 0, 0)'
+        )
+      )
+      await page.screenshot({ path: '/tmp/nassav-task-timeline-' + theme + '.png', fullPage: true })
       assert.equal(await page.getByRole('button', { name: '演示重试' }).count(), 0)
       await page.getByRole('button', { name: '全部任务', exact: true }).click()
       socket.send(
@@ -148,9 +209,30 @@ const assert = require('node:assert/strict')
           },
         })
       )
-      await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 2)
+      await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 3)
+      await page.getByRole('button', { name: '不再跟踪当前列表已结束任务' }).click()
+      await page
+        .getByRole('dialog', { name: '不再跟踪任务' })
+        .getByText(/所选 2 个任务/)
+        .waitFor()
+      await page
+        .getByRole('dialog', { name: '不再跟踪任务' })
+        .getByRole('button', { name: '不再跟踪', exact: true })
+        .click()
+      await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 1)
+      await page.getByRole('button', { name: 'AV-5，查看任务明细' }).waitFor()
+      assert.equal(
+        await page.getByRole('button', { name: '不再跟踪当前列表已结束任务' }).isDisabled(),
+        true
+      )
+      // Per-row operation also requires confirmation and does not touch the API.
+      await page.getByRole('button', { name: '不再跟踪任务 AV-5', exact: true }).click()
+      await page
+        .getByRole('dialog', { name: '不再跟踪任务' })
+        .getByRole('button', { name: '取消', exact: true })
+        .click()
       await page.getByRole('checkbox', { name: '选择当前列表全部任务' }).check()
-      await page.getByRole('button', { name: '不再跟踪所选 (2)' }).click()
+      await page.getByRole('button', { name: '不再跟踪所选 (1)' }).click()
       await page
         .getByRole('dialog', { name: '不再跟踪任务' })
         .getByRole('button', { name: '不再跟踪', exact: true })
@@ -173,6 +255,43 @@ const assert = require('node:assert/strict')
       assert.deepEqual(errors, [])
       await page.close()
     }
+    const demo = await browser.newPage()
+    let demoQueueReads = 0
+    const demoErrors = []
+    demo.on('pageerror', (e) => demoErrors.push(e.message))
+    await demo.routeWebSocket('**/nassav/ws/**', () => {})
+    await demo.route('**/src/views/DownloadsView.vue*', async (route) => {
+      const response = await route.fetch()
+      const source = await response.text()
+      assert.ok(source.includes('const DEBUG_MODE = false'))
+      await route.fulfill({
+        response,
+        body: source.replace('const DEBUG_MODE = false', 'const DEBUG_MODE = true'),
+      })
+    })
+    await demo.route('**/nassav/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      assert.equal(route.request().method(), 'GET')
+      if (path.endsWith('/tasks/queue/status')) demoQueueReads++
+      const data = path.endsWith('/auth/session')
+        ? { authenticated: true }
+        : path.endsWith('/setting')
+          ? { color_mode: 'dark' }
+          : []
+      return route.fulfill({ json: { code: 200, data } })
+    })
+    await demo.goto((process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178') + '/downloads')
+    await demo.getByText('DEBUG · 模拟数据', { exact: true }).waitFor()
+    await demo.getByRole('button', { name: '海边的一日，查看任务明细' }).click()
+    const demoDetail = demo.getByRole('complementary', { name: '任务明细' })
+    await demoDetail.getByText('翻译完成', { exact: true }).first().waitFor()
+    await demo.getByRole('button', { name: '演示下一阶段' }).click()
+    for (let i = 0; i < 7; i++) await demo.getByRole('button', { name: '演示下一阶段' }).click()
+    await demoDetail.getByText('翻译完成', { exact: true }).first().waitFor()
+    assert.ok((await demoDetail.textContent()).includes('已完成'))
+    assert.equal(demoQueueReads, 0)
+    assert.deepEqual(demoErrors, [])
+    await demo.close()
     console.log(
       'PASS: production download/scrape details, covers, WebSocket progress/removal, filters and mobile; no synthetic actions'
     )

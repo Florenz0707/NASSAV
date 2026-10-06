@@ -6,11 +6,32 @@ export const SCRAPE_STAGE_LABELS = {
   cover: '下载封面',
   saving: '保存',
   translation_queued: '提交翻译',
+  translation_translating: '正在翻译',
+  translation_completed: '翻译完成',
+  translation_failed: '翻译失败',
+  translation_skipped: '翻译跳过',
+  translation_unknown: '翻译状态暂不可用',
+  translation_unavailable: '翻译结果未记录或已过期',
+  resource_saved: '资源已保存',
+}
+
+export function scrapeWorkflowStatus(job) {
+  if (job.state !== 'succeeded')
+    return { state: job.state, stage: job.state === 'failed' ? 'failed' : job.stage }
+  const child = job.translation?.state
+  if (['queued', 'translating', 'unknown'].includes(child))
+    return { state: 'running', stage: `translation_${child}` }
+  if (child === 'failed') return { state: 'failed', stage: 'translation_failed' }
+  return {
+    state: 'succeeded',
+    stage: child && child !== 'not_requested' ? `translation_${child}` : 'resource_saved',
+  }
 }
 
 export function scrapeJobLabel(job) {
   if (job.state === 'queued') return '已排队'
-  if (job.state === 'succeeded') return '已完成'
+  if (job.state === 'succeeded')
+    return SCRAPE_STAGE_LABELS[scrapeWorkflowStatus(job).stage] || '已完成'
   if (job.state === 'failed') return '失败'
   return SCRAPE_STAGE_LABELS[job.stage] || '正在处理'
 }

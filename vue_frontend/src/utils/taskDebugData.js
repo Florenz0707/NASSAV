@@ -1,6 +1,6 @@
 // Samples belong only to DownloadsView DEBUG_MODE, never to a real queue.
 export function createTaskDebugData() {
-  return [
+  const tasks = [
     {
       id: 'd1',
       type: 'download',
@@ -67,9 +67,25 @@ export function createTaskDebugData() {
       coverScene: 'coast',
       state: 'succeeded',
       action: 'add',
-      stage: 'translation_queued',
+      stage: 'translation_completed',
       translation: { state: 'completed' },
       updated: '14:28:51',
     },
   ]
+  const now = Date.now() / 1000
+  return tasks.map((task, index) => ({
+    ...task,
+    taskType: task.type,
+    hasResource:
+      task.type === 'download' || task.state === 'succeeded' || task.action === 'refresh',
+    timeline: [
+      { label: '任务已排队', at: now - 300 - index * 30 },
+      { label: task.type === 'download' ? '下载' : '获取元数据', at: now - 180 - index * 30 },
+      ...(task.state === 'succeeded'
+        ? [{ label: task.type === 'scrape' ? '翻译完成' : '下载完成', at: now - 60 - index * 30 }]
+        : task.state === 'failed'
+          ? [{ label: '刮削失败', state: 'failed', at: now - 60 - index * 30 }]
+          : []),
+    ],
+  }))
 }

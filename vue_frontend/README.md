@@ -181,6 +181,4 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 正式 `/downloads` 使用列表与详情布局，支持下载与刮削筛选。模拟效果由 `DownloadsView.vue` 的 `DEBUG_MODE` 开关启用，见[任务详情与调试说明](doc/task-details-demo.md)。
 
-## 通知设计预览
-
-正式通知由导航栏铃铛打开，任意页面可用，记录当前登录会话事件。开发环境运行 `pnpm demo:notifications` 查看独立侧栏样例；入口、消息保留范围与边界见[通知侧栏与预览](doc/notifications-demo.md)。
+全局通知模块已移除，任务的阶段时间在任务详情中查看；导航栏恢复原有布局。

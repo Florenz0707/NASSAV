@@ -300,3 +300,20 @@ def test_translation_enqueue_failure_preserves_saved_resource(
     assert store.get("translation-parent")["state"] == "succeeded"
     assert store.get("translation-parent")["translation"]["state"] == "failed"
     assert search_jobs.RedisSearchJobStore is not None
+
+
+def test_timeline_records_stage_transitions_and_failure_time(monkeypatch):
+    store = MemoryJobStore()
+    snapshot = store.save({"task_id": "timeline", "state": "queued", "stage": None})
+    monkeypatch.setattr(scrape_jobs, "_publish", Mock())
+    monkeypatch.setattr(scrape_jobs.time, "time", lambda: 100)
+    running = scrape_jobs._update(store, snapshot, state="running", stage="metadata")
+    unchanged = scrape_jobs._update(store, running, state="running", stage="metadata")
+    assert unchanged["timeline"] == [
+        {"stage": "metadata", "state": "running", "at": 100}
+    ]
+    monkeypatch.setattr(scrape_jobs.time, "time", lambda: 200)
+    failed = scrape_jobs._update(store, unchanged, state="failed")
+    assert failed["timeline"][-1] == {"stage": "failed", "state": "failed", "at": 200}
+    late = scrape_jobs._update(store, running, state="running", stage="saving")
+    assert late == failed

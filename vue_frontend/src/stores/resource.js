@@ -3,7 +3,7 @@ import { createResourceList } from './resourceList.js'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { downloadApi, resourceApi, sourceApi } from '../api/index.js'
-import { notifyScrapeBatch, notifyScrapeJobTransition } from './scrapeJobNotifications.js'
+import { notifyScrapeBatch, notifyScrapeJobTransition } from './scrapeJobFeedback.js'
 import { mergeScrapeJob, scrapeJobNeedsPolling, TERMINAL_JOB_STATES } from './scrapeJobState.js'
 
 export const useResourceStore = defineStore('resource', () => {
@@ -85,6 +85,11 @@ export const useResourceStore = defineStore('resource', () => {
       if (generation !== trackingGeneration || !scrapeJobs.value.has(taskId)) return null
       if (err.code === 404 || err.code === 403) {
         if (current.state === 'failed') return current
+        if (
+          current.state === 'succeeded' &&
+          ['completed', 'failed', 'skipped'].includes(current.translation?.state)
+        )
+          return current
         if (current.state === 'succeeded')
           return setScrapeJob({
             ...current,
