@@ -1,6 +1,7 @@
 <script setup>
 import AppIcon from './AppIcon.vue'
 defineProps({
+  compact: Boolean,
   icon: {
     type: String,
     default: 'empty',
@@ -17,7 +18,10 @@ defineProps({
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center py-16 px-8 text-center">
+  <div
+    class="flex flex-col items-center justify-center text-center"
+    :class="compact ? 'p-0' : 'py-16 px-8'"
+  >
     <div class="text-6xl opacity-30 mb-6 animate-[float_3s_ease-in-out_infinite]">
       <slot name="icon"><AppIcon :name="icon" class="w-14 h-14" /></slot>
     </div>
@@ -27,7 +31,7 @@ defineProps({
     <p v-if="description" class="text-[0.95rem] text-muted max-w-[400px] leading-relaxed">
       {{ description }}
     </p>
-    <div class="mt-6">
+    <div v-if="$slots.action" class="mt-6">
       <slot name="action" />
     </div>
   </div>

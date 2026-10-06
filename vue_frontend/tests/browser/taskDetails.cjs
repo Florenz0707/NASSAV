@@ -19,6 +19,7 @@ const assert = require('node:assert/strict')
           message: '来源超时',
           status_token: 'fake',
           updated_at: 1,
+          translation: { state: 'not_requested' },
           timeline: [
             { stage: 'metadata', state: 'running', at: 1700000000 },
             { stage: 'failed', state: 'failed', at: 1700000010 },
@@ -175,7 +176,22 @@ const assert = require('node:assert/strict')
       await page.screenshot({ path: '/tmp/nassav-task-badges-' + theme + '.png', fullPage: true })
 
       const firstBox = page.getByRole('checkbox', { name: '选择任务 AV-1', exact: true })
+      const filter = page.getByRole('button', { name: '任务状态', exact: true })
+      const filterWidth = (await filter.boundingBox()).width
+      assert.ok(filterWidth >= 128)
+      await filter.click()
+      await page.getByRole('option', { name: '失败', exact: true }).click()
+      assert.ok(Math.abs((await filter.boundingBox()).width - filterWidth) < 1)
+      await filter.click()
+      await page.getByRole('option', { name: '全部状态', exact: true }).click()
       await firstBox.check()
+      await page.getByRole('status', { name: '已选择 1 个任务', exact: true }).waitFor()
+      assert.equal(
+        (
+          await page.getByRole('button', { name: '不再跟踪所选', exact: true }).textContent()
+        ).trim(),
+        '不再跟踪所选'
+      )
       const selectAll = page.getByRole('checkbox', { name: '选择当前列表全部任务' })
       assert.equal(await selectAll.evaluate((node) => node.indeterminate), true)
       const headerBox = await selectAll.boundingBox(),
@@ -191,7 +207,7 @@ const assert = require('node:assert/strict')
       await page.keyboard.press('Space')
       assert.equal(await firstBox.isChecked(), false)
       assert.equal(
-        await page.getByRole('button', { name: '结束所选任务 (0) · 示意' }).isDisabled(),
+        await page.getByRole('button', { name: '结束所选任务 · 示意' }).isDisabled(),
         true
       )
       assert.equal(
@@ -289,23 +305,53 @@ const assert = require('node:assert/strict')
         .getByRole('button', { name: '取消', exact: true })
         .click()
       await page.getByRole('checkbox', { name: '选择当前列表全部任务' }).check()
-      await page.getByRole('button', { name: '不再跟踪所选 (1)' }).click()
+      await page.getByRole('button', { name: '不再跟踪所选' }).click()
       await page
         .getByRole('dialog', { name: '不再跟踪任务' })
         .getByRole('button', { name: '不再跟踪', exact: true })
         .click()
       await page.getByText('暂无此类任务', { exact: true }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+      const empty = page.getByLabel('任务列表空白区域', { exact: true })
+      const region = await empty.boundingBox()
+      const content = await empty.locator(':scope > div').boundingBox()
+      assert.ok(Math.abs(content.y + content.height / 2 - (region.y + region.height / 2)) < 1)
+      assert.ok(region.y + region.height <= 1100, 'Empty region stays within the first viewport')
+      assert.ok(
+        await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight),
+        'Empty list does not add desktop scrolling'
+      )
       assert.equal(
         await page.evaluate(() => JSON.parse(localStorage.getItem('nassav:scrape-jobs:v1')).length),
         0
       )
-      await page.setViewportSize({ width: 390, height: 844 })
-      assert.equal(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        true
-      )
+      for (const viewport of [
+        { width: 1440, height: 900 },
+        { width: 640, height: 900 },
+        { width: 390, height: 844 },
+      ]) {
+        await page.setViewportSize(viewport)
+        const emptyRegion = await empty.boundingBox()
+        const emptyContent = await empty.locator(':scope > div').boundingBox()
+        assert.ok(
+          Math.abs(
+            emptyContent.y + emptyContent.height / 2 - (emptyRegion.y + emptyRegion.height / 2)
+          ) < 1,
+          'Empty content remains centered after resizing'
+        )
+        assert.ok(emptyRegion.y + emptyRegion.height <= viewport.height)
+        assert.equal(
+          await page.evaluate(
+            () =>
+              document.documentElement.scrollWidth <= innerWidth &&
+              document.documentElement.scrollHeight <= innerHeight
+          ),
+          true,
+          'Empty list fits the first viewport without scrolling'
+        )
+      }
       await page.screenshot({
-        path: '/tmp/nassav-task-production-' + theme + '.png',
+        path: '/tmp/nassav-task-empty-' + theme + '.png',
         fullPage: true,
       })
       assert.deepEqual(writes, [])

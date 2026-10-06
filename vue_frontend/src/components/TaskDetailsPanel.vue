@@ -32,16 +32,6 @@ watch(
 )
 const labels = { queued: '等待中', running: '执行中', succeeded: '已完成', failed: '失败' }
 const stageLabels = SCRAPE_STAGE_LABELS
-const translationLabels = {
-  queued: '翻译已排队',
-  translating: '正在翻译',
-  completed: '翻译完成',
-  failed: '翻译失败',
-  skipped: '翻译已跳过',
-  not_requested: '未请求翻译',
-  unavailable: '翻译结果未记录或已过期',
-  unknown: '翻译状态暂不可用',
-}
 const typeTasks = computed(() =>
   props.tasks.filter((t) => type.value === 'all' || t.type === type.value)
 )
@@ -90,7 +80,14 @@ const progress = (task) =>
           : stageLabels[task.stage] || '阶段待获取'
 </script>
 <template>
-  <div class="pb-24 min-w-0">
+  <div
+    class="min-w-0"
+    :class="
+      visible.length
+        ? 'pb-24'
+        : 'flex flex-col min-h-[calc(100dvh-6rem)] min-[641px]:min-h-[calc(100dvh-8rem)]'
+    "
+  >
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-3xl font-bold text-primary">任务详情</h1>
@@ -127,6 +124,7 @@ const progress = (task) =>
       >
       <CustomSelect
         v-model="state"
+        class="min-w-[8rem] shrink-0"
         aria-label="任务状态"
         :options="[
           { value: 'all', label: '全部状态' },
@@ -139,7 +137,7 @@ const progress = (task) =>
         variant="neutral"
         :disabled="checkedIds.size === 0"
         @click="emit('dismiss', [...checkedIds])"
-        >不再跟踪所选 ({{ checkedIds.size }})</AppButton
+        >不再跟踪所选</AppButton
       >
       <AppButton
         variant="neutral"
@@ -153,11 +151,17 @@ const progress = (task) =>
         >不再跟踪当前列表已结束任务</AppButton
       >
       <AppButton variant="danger" disabled title="示意功能，暂未接入结束任务操作"
-        >结束所选任务 ({{ checkedIds.size }}) · 示意</AppButton
+        >结束所选任务 · 示意</AppButton
       >
       <span class="text-muted text-xs">“已结束”包含已完成与失败；结束任务暂仅作示意。</span>
     </div>
-    <EmptyState v-if="!visible.length" title="暂无此类任务" />
+    <div
+      v-if="!visible.length"
+      class="flex-1 flex items-center justify-center"
+      aria-label="任务列表空白区域"
+    >
+      <EmptyState compact title="暂无此类任务" />
+    </div>
     <div v-else class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
       <div
         class="overflow-x-auto bg-secondary border rounded-xl min-w-0 border-[var(--border-color)]"
@@ -171,13 +175,21 @@ const progress = (task) =>
           </caption>
           <thead>
             <tr class="border-b text-secondary border-[var(--border-color)]">
-              <th class="p-4 w-14 text-center align-middle">
-                <TaskCheckbox
-                  :checked="allChecked"
-                  label="选择当前列表全部任务"
-                  :indeterminate="!allChecked && visible.some((task) => checkedIds.has(task.id))"
-                  @change="checkAll"
-                />
+              <th class="p-4 w-24 text-left align-middle">
+                <div class="flex items-center gap-2">
+                  <TaskCheckbox
+                    :checked="allChecked"
+                    label="选择当前列表全部任务"
+                    :indeterminate="!allChecked && visible.some((task) => checkedIds.has(task.id))"
+                    @change="checkAll"
+                  />
+                  <span
+                    role="status"
+                    :aria-label="'已选择 ' + checkedIds.size + ' 个任务'"
+                    class="w-6 shrink-0 text-muted text-xs font-medium tabular-nums"
+                    >{{ checkedIds.size }}</span
+                  >
+                </div>
               </th>
               <th class="p-4 text-left">任务</th>
               <th v-if="type === 'all'" class="p-4 text-center">类型</th>
@@ -194,7 +206,7 @@ const progress = (task) =>
               class="border-b hover:bg-surface-subtle/5 border-[var(--border-color)]"
               :class="selected?.id === task.id ? 'bg-accent-primary/10' : ''"
             >
-              <td class="p-4 w-14 text-center align-middle">
+              <td class="p-4 w-24 text-left align-middle">
                 <TaskCheckbox
                   :checked="checkedIds.has(task.id)"
                   :label="'选择任务 ' + task.avid"
@@ -232,12 +244,6 @@ const progress = (task) =>
               </td>
               <td class="p-4 text-secondary whitespace-nowrap">
                 <span class="block">{{ progress(task) }}</span>
-                <span
-                  v-if="task.translation && !task.stage?.startsWith('translation_')"
-                  class="block text-xs mt-1"
-                  :class="task.translation.state === 'failed' ? 'text-accent-danger' : 'text-muted'"
-                  >{{ translationLabels[task.translation.state] }}</span
-                >
                 <span
                   v-if="task.type === 'download' && task.state === 'running'"
                   class="text-muted text-xs"
