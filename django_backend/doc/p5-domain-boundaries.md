@@ -51,4 +51,6 @@ HTTP 字段、URL、任务名、Redis key/TTL、文件路径、metadata 与关�
 
 ## 验证入口
 
+任务控制 P1 新增 `task_control_rules` 与 `task_records`：前者维护无框架依赖的状态迁移、允许动作和 ExecutionToken；后者是持久任务记录 Adapter，集中处理版本条件更新、操作者归属、执行 fencing、幂等命令和待派发记录。`task_models` 定义记录模型，由 models 注册。派发消费显式 callable，DB 事务内不导入或调用 Celery；旧任务入口暂未接入，资产提交/清理仍待 P2。详细契约见[任务控制计划](../../docs/task-pause-cancel-design.md)与[执行记录](../../docs/task-control-p1-results.md)。
+
 [测试说明](../tests/README.md)按链路列出纯用例、Django/临时 Redis Adapter、URL/OpenAPI、任务注册与导入方向回归。无 Django 配置导入、完整能力替身、批量查询次数和原消费者行为共同证明可替换性；不按 ABC 数量或代码移动量判断质量。备份当前没有第三引擎共享需求，保留现有实现，不创建假想插件框架。

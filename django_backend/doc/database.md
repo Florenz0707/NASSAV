@@ -319,3 +319,14 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 会话读写由 `CookieRepository` ABC 约束，生产实现仍为 `SourceCookieRepository`。Source 的会话获取、验证和刷新协调位于 `SourceSessionLifecycle`，可注入独立存储与协调器。完整快照字段、数据库版本校验、人工写入优先、CAS 和缓存格式保持现有行为；本轮迁移没有 schema 或迁移文件变化。
 
 核心能力与 ORM Adapter 的分工见[模块边界](p5-domain-boundaries.md)，复验命令见[测试说明](../tests/README.md)。本轮职责整理未引入 schema 或数据库迁移。
+
+## 持久任务记录（任务控制 P1）
+
+迁移 `0022_taskjob_taskcommand_taskattempt_taskartifact_and_more` 新增 TaskJob、TaskAttempt、TaskArtifact 与 TaskCommand，不修改现有资源数据。当前只提供内部控制契约，旧下载/刮削提交和 Redis 快照尚未接入；生产库未执行本轮迁移。实施全流程见[任务控制计划](../../docs/task-pause-cancel-design.md)。
+
+- TaskJob 保存稳定 UUID、类型/AVID、操作人、整体状态、version/generation、输入选项、检查点、时间线与清理汇总。`active_key` 唯一约束保留运行/等待/暂停任务的同类型同 AVID 名额，终态置空；任务没有 Redis 的 24 小时过期规则。
+- TaskAttempt 保存每次 Celery 派发 UUID、generation/role、执行 owner/identity、心跳与起止时间。恢复新建 attempt，旧消息不重新激活；pending 是可重试派发记录，发布失败保留，领取时原子拒绝重复执行。
+- TaskArtifact 预留工作区相对路径、资产类型、checksum、提交/删除状态与目标清单。P1 不执行文件写入、提升或删除，实际资产协议在 P2 实施。
+- TaskCommand 的 `(job, request_id)` 唯一约束记录控制幂等键及动作，重复请求即使跨越后续状态变化也不得再次恢复或派发；同一键用于不同动作返回冲突。
+
+SQLite/PostgreSQL 均通过版本条件更新和事务保证并发控制；SQLite 的瞬时锁竞争可有限重试，不忽略其他数据库错误。暂停处理中禁止恢复，终止优先于暂停；确认执行停止后才进入 paused/cancelled。`cancelled` 与 `cleanup_state` 独立，DB 控制记录不证明文件已经清理。

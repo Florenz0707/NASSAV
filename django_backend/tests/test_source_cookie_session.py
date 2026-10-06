@@ -301,6 +301,7 @@ def test_legacy_cookie_survives_additive_session_migration():
     old_target = [("nassav", "0020_increase_translated_title_length")]
     new_target = [("nassav", "0021_sourcecookie_session_metadata")]
     executor = MigrationExecutor(connection)
+    restore_targets = executor.loader.graph.leaf_nodes()
     try:
         executor.migrate(old_target)
         legacy_model = executor.loader.project_state(old_target).apps.get_model(
@@ -317,4 +318,6 @@ def test_legacy_cookie_survives_additive_session_migration():
         assert row.expires_at is None
         assert row.egress_profile is None
     finally:
-        MigrationExecutor(connection).migrate(new_target)
+        # Leave the shared test database at its original schema, including
+        # migrations added after the migration under test.
+        MigrationExecutor(connection).migrate(restore_targets)

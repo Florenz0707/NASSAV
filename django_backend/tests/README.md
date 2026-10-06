@@ -41,6 +41,8 @@ fixture resource_factory、api_client、ws_headers、settings、tmp_path 等在 
 
 ## 冻结与故障行为
 
+`test_task_records.py` 验证持久任务的排队/运行暂停、恢复新 attempt、终止确认、幂等命令、操作者权限、派发失败恢复及真实线程并发；专项也在隔离 PostgreSQL 16 上执行，记录见[任务控制 P1](../../docs/task-control-p1-results.md)。迁移测试必须在 finally 恢复执行前迁移图的叶节点，不能只恢复到所测旧迁移，以免删除后来新增表并污染后续测试。
+
 test_refactoring_baseline 保留“正常下载先通知成功、DB 写入失败仍成功”以及“资源写库失败保留 HTML、不发布新增事件”的现有顺序。独立下载 owner 回归确认失租不能更新成功；批量翻译错误只收尾本批 translating，保留旧译文和部分完成。语义修复要有明确的新旧对照，不能为了结构迁移改变此类断言。
 
 fixtures/backend_http_contract.json 是迁移前 URL/OpenAPI 消费者快照，不因测试失败自动重建。新增/修改消费者契约时先核对影响，更新说明及快照；仅移动模块不应改变 paths/components。Task registry 和 eager command 样本不等于真实 worker 接受。
