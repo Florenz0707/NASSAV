@@ -80,7 +80,6 @@ function viewResource() {
             v-model="source"
             :options="sourceOptions"
             :disabled="submitting"
-            class="form-select"
             full-width
           />
           <p id="add-source-hint" class="form-hint">选择自动将依次尝试所有可用源</p>
@@ -106,6 +105,7 @@ function viewResource() {
           </AppButton>
           <AppButton
             variant="neutral"
+            tone="warm"
             class="rounded-lg px-4 shrink-0"
             aria-label="Cookie 设置"
             title="Cookie 设置"

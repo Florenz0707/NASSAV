@@ -159,18 +159,18 @@ body.light-mode {
   --detail-badge-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
-/* Neutral-card theme: geometry stays identical across themes. */
+/* Warm surfaces: geometry stays identical across themes. */
 :root,
 body.dark-mode {
-  --bg-primary: #101217;
-  --bg-secondary: #1b1f27;
-  --card-bg: #1b1f27;
-  --bg-overlay: #1b1f27;
-  --bg-input: #1b1f27;
-  --surface-raised: #272d38;
-  --text-secondary: #b3bbc8;
-  --text-muted: #9ba5b5;
-  --border-color: #3a4353;
+  --bg-primary: #17120f;
+  --bg-secondary: #241c18;
+  --card-bg: #241c18;
+  --bg-overlay: #241c18;
+  --bg-input: #241c18;
+  --surface-raised: #342820;
+  --text-secondary: #c1b3a8;
+  --text-muted: #ad9d91;
+  --border-color: #514035;
   --accent-primary: #b53e50;
   --accent-primary-hover: #b94052;
   --accent-primary-pressed: #9d3344;
@@ -178,22 +178,41 @@ body.dark-mode {
   --danger-surface: #3b202b;
   --danger-hover: #4d2936;
   --danger-pressed: #612f42;
-  --neutral-hover: #272d38;
-  --neutral-pressed: #333c4b;
+  --neutral-hover: #342820;
+  --neutral-pressed: #433327;
   --focus-ring: color-mix(in srgb, var(--accent-primary-text) 25%, transparent);
-  --disabled-surface: #272d38;
+  --disabled-surface: #342820;
+  --app-background:
+    radial-gradient(
+      ellipse at 12% 8%,
+      color-mix(in srgb, var(--accent-secondary) 18%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 90% 85%,
+      color-mix(in srgb, var(--accent-secondary) 12%, transparent),
+      transparent 62%
+    ),
+    var(--bg-primary);
+  --warm-fill: #a8451b;
+  --warm-fill-hover: #b24b1e;
+  --warm-fill-pressed: #923712;
+  --warm-surface: #422c1c;
+  --warm-surface-hover: #523621;
+  --warm-surface-pressed: #633e23;
+  --warm-text: #ffd19a;
   --button-shadow: none;
 }
 body.light-mode {
-  --bg-primary: #f5f5f7;
-  --bg-secondary: #ffffff;
-  --card-bg: #ffffff;
-  --bg-overlay: #ffffff;
-  --bg-input: #ffffff;
-  --surface-raised: #eceef1;
-  --text-secondary: #626875;
-  --text-muted: #737985;
-  --border-color: #d6dae0;
+  --bg-primary: #fff8f1;
+  --bg-secondary: #fffdfb;
+  --card-bg: #fffdfb;
+  --bg-overlay: #fffdfb;
+  --bg-input: #fffdfb;
+  --surface-raised: #f4e9de;
+  --text-secondary: #75665c;
+  --text-muted: #786a60;
+  --border-color: #e3d5c9;
   --accent-primary: #bd3e50;
   --accent-primary-hover: #ae3547;
   --accent-primary-pressed: #952a3b;
@@ -201,10 +220,29 @@ body.light-mode {
   --danger-surface: #fff2f4;
   --danger-hover: #fde5eb;
   --danger-pressed: #f9d3df;
-  --neutral-hover: #eceef1;
-  --neutral-pressed: #dce1e8;
+  --neutral-hover: #f4e9de;
+  --neutral-pressed: #ebdbce;
   --focus-ring: color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  --disabled-surface: #eceef1;
+  --disabled-surface: #f4e9de;
+  --app-background:
+    radial-gradient(
+      ellipse at 12% 8%,
+      color-mix(in srgb, var(--accent-secondary) 24%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 90% 85%,
+      color-mix(in srgb, var(--accent-secondary) 16%, transparent),
+      transparent 62%
+    ),
+    var(--bg-primary);
+  --warm-fill: #a8451b;
+  --warm-fill-hover: #993b15;
+  --warm-fill-pressed: #84300e;
+  --warm-surface: #fff0d9;
+  --warm-surface-hover: #ffe5ba;
+  --warm-surface-pressed: #ffdaa3;
+  --warm-text: #873c12;
   --button-shadow: 0 3px 10px color-mix(in srgb, var(--accent-primary) 12%, transparent);
 }
 

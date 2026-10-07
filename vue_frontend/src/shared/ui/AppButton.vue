@@ -6,6 +6,7 @@ defineProps({
     default: 'primary',
     validator: (value) => ['primary', 'neutral', 'danger'].includes(value),
   },
+  tone: { type: String, default: '', validator: (value) => ['', 'warm'].includes(value) },
   size: { type: String, default: 'md', validator: (value) => ['sm', 'md'].includes(value) },
   disabled: Boolean,
   loading: Boolean,
@@ -16,7 +17,7 @@ defineProps({
   <button
     type="button"
     class="ui-button"
-    :class="[`ui-button--${variant}`, `ui-button--${size}`]"
+    :class="[`ui-button--${variant}`, `ui-button--${size}`, tone ? `ui-button--tone-${tone}` : '']"
     :disabled="disabled || loading"
     :aria-busy="loading"
     :aria-label="loading ? loadingText || '正在处理' : undefined"
@@ -73,27 +74,42 @@ defineProps({
     padding: 0.375rem 0.75rem;
     font-size: 0.85rem;
   }
+  .ui-button--tone-warm {
+    --button-fill: var(--warm-fill);
+    --button-fill-hover: var(--warm-fill-hover);
+    --button-fill-pressed: var(--warm-fill-pressed);
+    --button-surface: var(--warm-surface);
+    --button-surface-hover: var(--warm-surface-hover);
+    --button-surface-pressed: var(--warm-surface-pressed);
+    --button-ink: var(--warm-text);
+  }
+  .ui-button--tone-warm.ui-button--neutral {
+    border-color: color-mix(in srgb, var(--warm-text) 25%, transparent);
+  }
+  .ui-button--tone-warm:focus-visible {
+    outline-color: color-mix(in srgb, var(--warm-text) 35%, transparent);
+  }
   .ui-button--primary {
-    background: var(--accent-primary);
+    background: var(--button-fill, var(--accent-primary));
     color: var(--on-accent);
   }
   .ui-button--primary:hover:not(:disabled) {
-    background: var(--accent-primary-hover);
+    background: var(--button-fill-hover, var(--accent-primary-hover));
     box-shadow: var(--button-shadow);
   }
   .ui-button--primary:active:not(:disabled) {
-    background: var(--accent-primary-pressed);
+    background: var(--button-fill-pressed, var(--accent-primary-pressed));
   }
   .ui-button--neutral {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    background: var(--button-surface, var(--bg-secondary));
+    color: var(--button-ink, var(--text-primary));
     border-color: var(--border-color);
   }
   .ui-button--neutral:hover:not(:disabled) {
-    background: var(--neutral-hover);
+    background: var(--button-surface-hover, var(--neutral-hover));
   }
   .ui-button--neutral:active:not(:disabled) {
-    background: var(--neutral-pressed);
+    background: var(--button-surface-pressed, var(--neutral-pressed));
   }
   .ui-button--danger {
     background: var(--danger-surface);

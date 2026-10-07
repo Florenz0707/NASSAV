@@ -440,6 +440,7 @@ function onPageSizeChange(newSize) {
     <!-- Floating Refresh Button -->
     <AppButton
       class="floating-refresh-btn fixed bottom-8 right-8 z-[1000] rounded-full p-0"
+      tone="warm"
       :loading="refreshing"
       :title="refreshing ? '刷新中...' : '刷新资源列表'"
       @click="handleManualRefresh"

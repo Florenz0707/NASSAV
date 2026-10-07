@@ -15,6 +15,7 @@ import Input from '/src/shared/ui/AppInput.vue';
 
 const busy=ref(false),value=ref(''),error=ref('');window.audit={busy,value,error};
 createApp({setup:()=>()=>h('div',[
+...['warm-primary','warm-neutral'].map(id=>h(Button,{id,variant:id.slice(5),tone:'warm',loading:busy.value},()=>id)),
 ...['primary','neutral','danger'].map(variant=>h(Button,{id:variant,variant,loading:busy.value},()=>variant)),
 h(Button,{disabled:true},()=> 'disabled'),
 h(Input,{label:'视频编号',placeholder:'例如 SNOS-317',class:'audit-field',modelValue:value.value,error:error.value,'onUpdate:modelValue':v=>value.value=v})
@@ -29,7 +30,7 @@ h(Input,{label:'视频编号',placeholder:'例如 SNOS-317',class:'audit-field',
       await page.evaluate((mode) => {
         document.body.className = mode + '-mode'
       }, mode)
-      for (const variant of ['primary', 'neutral', 'danger']) {
+      for (const variant of ['primary', 'neutral', 'danger', 'warm-primary', 'warm-neutral']) {
         const button = page.locator('#' + variant)
         for (const state of ['default', 'hover', 'pressed']) {
           if (state === 'default') await page.mouse.move(900, 700)

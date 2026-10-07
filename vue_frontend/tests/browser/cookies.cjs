@@ -42,6 +42,14 @@ const assert = require('node:assert/strict')
     const submitBox = await page
       .getByRole('button', { name: '添加资源', exact: true })
       .boundingBox()
+    const sourceBorders = await page
+      .getByRole('button', { name: '下载源', exact: true })
+      .evaluate((button) => ({
+        outer: Number.parseFloat(getComputedStyle(button.parentElement).borderTopWidth),
+        inner: Number.parseFloat(getComputedStyle(button).borderTopWidth),
+      }))
+    assert.equal(sourceBorders.outer, 0, 'download source must not have a nested wrapper border')
+    assert.ok(sourceBorders.inner > 0)
     const entryBox = await entry.boundingBox()
     assert.ok(entryBox.x >= submitBox.x + submitBox.width)
     assert.ok(Math.abs(entryBox.y + entryBox.height / 2 - submitBox.y - submitBox.height / 2) < 2)
