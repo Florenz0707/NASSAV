@@ -190,3 +190,7 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 ## 控件与页面反馈
 
 按钮统一五态，加载时保留尺寸且阻止重复提交。输入框提供占位、聚焦、就地错误与清空；空列表使用图标与短文案，失败显示简短原因和重试。请求超过一秒后显示骨架或 loading，刷新保留已有内容；动画使用平缓呼吸和单层旋转，支持减少动态效果偏好。深浅主题、公共组件和状态归属见[开发契约](doc/development-contracts.md)，目录职责见[模块布局](doc/module-layout.md)。
+
+推荐异步任务浏览器验收入口：`tests/browser/recommendationJobs.cjs`。
+它使用模拟任务 API 验证手动启动、轮询成功、失败、真实 cancel 请求、移动端布局和
+离开页面清理；不能替代真实 Celery/代理部署验收。
