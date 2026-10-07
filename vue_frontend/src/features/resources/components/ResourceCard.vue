@@ -290,7 +290,7 @@ onUnmounted(() => {
 
         <AppButton
           class="h-10 px-3.5 py-2 rounded-lg font-medium"
-          tone="teal"
+          tone="coral"
           :loading="isSubmittingDownload"
           :disabled="resource.has_video || isDownloading"
           :title="

@@ -491,9 +491,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="recommendations-view">
-    <p v-if="loading" role="status" class="text-secondary mb-3">
-      {{ recommendationStore.jobState === 'queued' ? '推荐任务排队中' : '正在生成推荐' }}
-    </p>
     <section class="page-header">
       <div>
         <div class="eyebrow">Discover</div>

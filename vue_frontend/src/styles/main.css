@@ -165,10 +165,10 @@ body.light-mode {
 :root,
 body.dark-mode {
   --bg-primary: #0d0d14;
-  --bg-secondary: #202630;
-  --card-bg: #202630;
-  --bg-overlay: #202630;
-  --bg-input: #202630;
+  --bg-secondary: #13141d3b;
+  --card-bg: #13141d;
+  --bg-overlay: #13141d;
+  --bg-input: #13141d;
   --surface-raised: #2c3441;
   --text-secondary: #b3bbc8;
   --text-muted: #9ba5b5;

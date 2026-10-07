@@ -43,7 +43,7 @@ defineProps({
     justify-content: center;
     gap: 0.5rem;
     padding: 0.625rem 1rem;
-    border: 1px solid transparent;
+    border: 0.8px solid transparent;
     border-radius: 0.75rem;
     font: inherit;
     font-size: 0.9rem;
