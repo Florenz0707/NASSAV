@@ -63,10 +63,6 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 - 修复实体详情重复删除、恢复后的添加批次匹配、推荐迟到响应和旧查询结果覆盖；资源操作使用明确事件与请求归属。
 - 修复推荐页窄屏按钮文案折叠及首页浅色主题重点按钮文字被链接基础样式覆盖的问题。
 
-#### 🧹 清理
-
-- 清理已合并的本地阶段分支，仅保留 main、dev、idle；清理旧临时日志、截图、原型和测试缓存，保留开发 worktree 与浏览器验收环境。
-
 #### 📚 文档
 
 - 更新前端功能说明、控件与状态契约、模块布局及验证边界；阶段证据见[语义重构记录](vue_frontend/doc/semantic-refactoring-progress.md)和[UX 改进记录](vue_frontend/doc/ux-neutral-progress.md)。本版汇总 `1ded0f6..6dc0450` 的改进，历史版本记录保留。
