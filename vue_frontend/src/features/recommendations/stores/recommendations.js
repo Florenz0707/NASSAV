@@ -18,6 +18,7 @@ function mergeItems(existingItems, nextItems) {
 export const useRecommendationsStore = defineStore('recommendations', () => {
   const activeJobId = ref('')
   const jobState = ref('')
+  const progress = ref(null)
   let controller = null
   const guard = createRequestGuard()
   const metricsGuard = createRequestGuard()
@@ -36,6 +37,7 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
     const currentController = new AbortController()
     controller = currentController
     jobState.value = 'queued'
+    progress.value = null
     loading.value = true
     error.value = ''
     try {
@@ -45,7 +47,10 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
           if (guard.current(request)) activeJobId.value = id
         },
         onSnapshot: (snapshot) => {
-          if (guard.current(request)) jobState.value = snapshot.state
+          if (guard.current(request)) {
+            jobState.value = snapshot.state
+            progress.value = snapshot.progress || null
+          }
         },
       })
       if (!guard.current(request) || !response) return null
@@ -56,7 +61,9 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
       return payload
     } catch (err) {
       if (!guard.current(request)) return null
-      if (activeJobId.value) recommendationApi.cancelJob(activeJobId.value).catch(() => {})
+      if (activeJobId.value && !['failed', 'succeeded', 'cancelled'].includes(jobState.value)) {
+        recommendationApi.cancelJob(activeJobId.value).catch(() => {})
+      }
       error.value = err.message || '获取推荐失败'
       if (!append) {
         items.value = []
@@ -80,6 +87,7 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
     guard.invalidate()
     metricsGuard.invalidate()
     loading.value = false
+    progress.value = null
   }
   async function cancelRecommendation() {
     const id = activeJobId.value
@@ -162,6 +170,7 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
     loading,
     activeJobId,
     jobState,
+    progress,
     cancelRecommendation,
     error,
     cancelQuery,

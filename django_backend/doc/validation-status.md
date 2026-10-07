@@ -170,3 +170,11 @@ for external search and recommendations` 提交，按本文档的 Git 历史可�
 
 这是隔离算法/DB/代理回归，不代表已部署的 Docker 推荐任务验收；未重启在线容器，
 未提交真实推荐或改变正式数据。提前约 27 秒失败的历史原因仍待新诊断日志确认。
+
+前端阶段 `fix/recommendation-progress-ui` 基于后端提交 `ef8ca31`，提交标题
+`[Fix] Show recommendation progress and avoid cancelling failed jobs`。
+`cd vue_frontend && pnpm run check`（lint、单元测试、构建）通过；
+`NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_CHROMIUM_PATH=/usr/bin/google-chrome NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4189 node tests/browser/recommendationJobs.cjs`
+通过。浏览器仅使用模拟 API，覆盖进度、部分成功、失败不重复取消、主动取消、路由清理及
+390px 移动布局；资源列表在成功后展示，运行阶段只展示进度计数。根目录全量
+`pre-commit run -a` 为最终门槛，无钩子配置更改。仍需部署后完整真实任务验收。

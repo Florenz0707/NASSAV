@@ -31,6 +31,12 @@ async function main() {
           version: 2,
           state: mode,
           message: '来源暂不可用',
+          progress: {
+            stage: 'details',
+            candidate_count: 24,
+            verified_count: 4,
+            elapsed_seconds: 120,
+          },
           result: {
             items: [
               {
@@ -43,7 +49,12 @@ async function main() {
               },
             ],
             seeds: [],
-            meta: { verification_context: { excluded_unverified_count: 2 } },
+            meta: {
+              partial: true,
+              returned_count: 1,
+              requested_count: 12,
+              verification_context: { excluded_unverified_count: 2 },
+            },
           },
         }
       }
@@ -56,13 +67,20 @@ async function main() {
     await page.getByRole('button', { name: '取消推荐', exact: true }).click()
     await page.getByRole('button', { name: '取消推荐', exact: true }).waitFor({ state: 'hidden' })
     assert.ok(cancelled.includes('1'))
+    mode = 'running'
+    await page.locator('.header-actions .ui-button').first().click()
+    await page.getByRole('status').filter({ hasText: '已核验通过 4 条' }).waitFor()
+    await page.getByRole('button', { name: '取消推荐', exact: true }).click()
     mode = 'succeeded'
     await page.locator('.header-actions .ui-button').first().click()
     await page.getByText('异步推荐验收', { exact: true }).waitFor()
     await page.getByRole('status').filter({ hasText: '2 条候选因详情未核验' }).waitFor()
+    await page.getByRole('status').filter({ hasText: '已为你保留 1 / 12' }).waitFor()
+    const cancelCount = cancelled.length
     mode = 'failed'
     await page.locator('.header-actions .ui-button').first().click()
     await page.getByRole('alert').filter({ hasText: '来源暂不可用' }).waitFor()
+    assert.equal(cancelled.length, cancelCount)
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true

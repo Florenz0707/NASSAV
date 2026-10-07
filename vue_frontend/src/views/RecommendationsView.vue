@@ -25,7 +25,7 @@ const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
 const recommendationStore = useRecommendationsStore()
-const { items, seeds, meta, metrics, blockedAvids, feedbackByAvid, loading, error } =
+const { items, seeds, meta, metrics, blockedAvids, feedbackByAvid, loading, error, progress } =
   storeToRefs(recommendationStore)
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
@@ -543,6 +543,16 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <p v-if="loading && progress" role="status" class="text-secondary mb-4">
+      {{ progress.stage === 'details' ? '正在核验详情' : '正在召回候选' }}： 已召回
+      {{ progress.candidate_count }} 条，已核验通过 {{ progress.verified_count }} 条， 已用时
+      {{ Math.round(progress.elapsed_seconds) }} 秒。
+    </p>
+    <p v-if="!loading && meta?.partial" role="status" class="text-secondary mb-4">
+      本次达到搜索时间预算，已为你保留 {{ meta.returned_count }} / {{ meta.requested_count }}
+      条核验通过的推荐，可再次推荐获取更多。
+    </p>
+
     <p
       v-if="meta?.verification_context?.excluded_unverified_count"
       role="status"
@@ -550,7 +560,7 @@ onBeforeUnmount(() => {
     >
       有
       {{ meta.verification_context.excluded_unverified_count }}
-      条候选因详情未核验而被过滤，以遵守黑名单设置。
+      条候选因详情未核验而被过滤，以遵守核验要求。
     </p>
 
     <RecommendationPreferences

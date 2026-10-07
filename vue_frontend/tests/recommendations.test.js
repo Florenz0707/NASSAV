@@ -176,3 +176,51 @@ test('failed cancellation keeps the current job tracked and allows retry', async
     Object.assign(recommendationApi, original)
   }
 })
+
+test('known failed terminal snapshots do not send a redundant cancel request', async () => {
+  const { recommendationApi } = await import('../src/api/index.js')
+  const original = { startJob: recommendationApi.startJob, cancelJob: recommendationApi.cancelJob }
+  let cancels = 0
+  recommendationApi.startJob = async () => ({
+    data: { job_id: 'failed', version: 3, state: 'failed', message: '推荐超时' },
+  })
+  recommendationApi.cancelJob = async () => {
+    cancels++
+  }
+  try {
+    setActivePinia(createPinia())
+    const store = useRecommendationsStore()
+    await assert.rejects(store.fetchRecommendations({}), /推荐超时/)
+    assert.equal(store.jobState, 'failed')
+    assert.equal(cancels, 0)
+    assert.equal(store.loading, false)
+  } finally {
+    Object.assign(recommendationApi, original)
+  }
+})
+
+test('progress is owned by the current query and cleared on cancellation', async () => {
+  const { recommendationApi } = await import('../src/api/index.js')
+  const original = { startJob: recommendationApi.startJob, cancelJob: recommendationApi.cancelJob }
+  recommendationApi.startJob = async () => ({
+    data: {
+      job_id: 'progress',
+      version: 2,
+      state: 'running',
+      progress: { stage: 'details', verified_count: 4 },
+    },
+  })
+  recommendationApi.cancelJob = async () => ({ data: { state: 'cancelled' } })
+  try {
+    setActivePinia(createPinia())
+    const store = useRecommendationsStore()
+    const pending = store.fetchRecommendations({})
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.equal(store.progress.verified_count, 4)
+    store.cancelQuery()
+    assert.equal(await pending, null)
+    assert.equal(store.progress, null)
+  } finally {
+    Object.assign(recommendationApi, original)
+  }
+})
