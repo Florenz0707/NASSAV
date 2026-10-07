@@ -123,3 +123,8 @@ store 拥有当前 job ID、AbortController、查询版本和结果。只合并�
 通过 meta.partial/returned_count/requested_count 明确提示，保留合格资源。
 已确认 failed/succeeded/cancelled 时不再发送防御性取消；断网或协议异常仍尝试取消，
 保持主动取消、离开页面和迟到提交的后台清理语义。
+
+推荐核验统计由 RecommendationVerification 统一展示运行 progress 与成功结果
+verification_context，分别标记详情获取成功、黑名单排除、未核验和合格候选，
+详情尝试数独立说明。缺失旧字段显示“—”，不把缺失数据当作零；旧未核验字段保留回退。
+召回数量不能作为通过率分母，未核验不能展示为失败，合格候选与最终返回数分开。

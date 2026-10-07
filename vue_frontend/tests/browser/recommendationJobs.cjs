@@ -8,7 +8,8 @@ async function main() {
     const errors = [],
       cancelled = []
     let sequence = 0,
-      mode = 'queued'
+      mode = 'queued',
+      legacy = false
     page.on('pageerror', (error) => errors.push(error.message))
     await page.routeWebSocket('**/nassav/ws/**', () => {})
     await page.route('**/nassav/api/**', async (route) => {
@@ -36,6 +37,12 @@ async function main() {
             candidate_count: 24,
             verified_count: 4,
             elapsed_seconds: 120,
+            recalled_count: 24,
+            detail_success_count: 6,
+            blacklist_excluded_count: 2,
+            unverified_count: 18,
+            qualified_count: 4,
+            detail_attempt_count: 8,
           },
           result: {
             items: [
@@ -53,11 +60,20 @@ async function main() {
               partial: true,
               returned_count: 1,
               requested_count: 12,
-              verification_context: { excluded_unverified_count: 2 },
+              verification_context: {
+                excluded_unverified_count: 2,
+                detail_success_count: 2,
+                blacklist_excluded_count: 1,
+                unverified_count: 2,
+                qualified_count: 1,
+                detail_attempt_count: 2,
+              },
             },
           },
         }
       }
+      if (legacy && data.result)
+        data.result.meta.verification_context = { excluded_unverified_count: 2 }
       await route.fulfill({ status: code, json: { code, data } })
     })
     const origin = process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178'
@@ -69,13 +85,41 @@ async function main() {
     assert.ok(cancelled.includes('1'))
     mode = 'running'
     await page.locator('.header-actions .ui-button').first().click()
-    await page.getByRole('status').filter({ hasText: '已核验通过 4 条' }).waitFor()
+    const stats = page.getByRole('status').filter({ hasText: '详情获取成功' })
+    await stats.waitFor()
+    assert.equal(await stats.locator('dd').nth(0).innerText(), '6')
+    assert.equal(await stats.locator('dd').nth(1).innerText(), '2')
+    assert.equal(await stats.locator('dd').nth(2).innerText(), '18')
+    assert.equal(await stats.locator('dd').nth(3).innerText(), '4')
     await page.getByRole('button', { name: '取消推荐', exact: true }).click()
     mode = 'succeeded'
     await page.locator('.header-actions .ui-button').first().click()
     await page.getByText('异步推荐验收', { exact: true }).waitFor()
-    await page.getByRole('status').filter({ hasText: '2 条候选因详情未核验' }).waitFor()
+    await page.getByRole('status').filter({ hasText: '未核验不代表失败' }).waitFor()
+    assert.equal(await stats.locator('dd').nth(2).innerText(), '2')
+    assert.equal(await stats.locator('dd').nth(3).innerText(), '1')
     await page.getByRole('status').filter({ hasText: '已为你保留 1 / 12' }).waitFor()
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.evaluate(() => {
+      document.body.classList.remove('dark-mode')
+      document.body.classList.add('light-mode')
+    })
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true
+    )
+    legacy = true
+    await page.locator('.header-actions .ui-button').first().click()
+    await page.waitForFunction(
+      () => document.querySelector('[aria-label="推荐核验统计"] dd')?.textContent.trim() === '—'
+    )
+    assert.equal(await stats.locator('dd').nth(2).innerText(), '2')
+    assert.equal(await stats.locator('dd').nth(3).innerText(), '—')
+    legacy = false
     const cancelCount = cancelled.length
     mode = 'failed'
     await page.locator('.header-actions .ui-button').first().click()
@@ -96,7 +140,7 @@ async function main() {
     assert.ok(cancelled.includes(String(sequence)))
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: async success, explicit backend cancellation, worker failure, mobile layout and route cleanup'
+      'PASS: async success, explicit backend cancellation, worker failure, verification counts, legacy fallback, mobile/desktop layout and route cleanup'
     )
   } finally {
     await browser.close()

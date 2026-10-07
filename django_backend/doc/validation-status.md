@@ -202,3 +202,11 @@ for external search and recommendations` 提交，按本文档的 Git 历史可�
 完整算法在 50% 黑名单命中条件下仅调用两个 seed 即返回 12 条，不调用发现来源。
 根目录 `pre-commit run -a` 全通过，钩子配置未改。这是隔离验证，未重启部署容器，
 未提交真实推荐任务；速度与返回数量仍需真实 API/Celery/代理验收。
+
+前端阶段 `enhancement/recommendation-verification-ui` 基于后端 `b5e79f0`，提交标题
+`[Enhancement] Separate recommendation verification statistics in the UI`。
+`cd vue_frontend && pnpm run check`：lint、67 项单元测试、构建通过。
+使用回环 preview 与模拟 API 运行 `tests/browser/recommendationJobs.cjs`，分别断言
+运行与成功结果的四类数量、旧字段回退、缺失值“—”、取消/失败/路由清理，
+并检查深色 390px 和浅色 1280px 布局无横向溢出。新增显示组件使用现有主题 token。
+最终 `pre-commit run -a` 为合并门槛；模拟浏览器不代替真实后端推荐联调。

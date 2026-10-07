@@ -1,4 +1,5 @@
 <script setup>
+import RecommendationVerification from '../features/recommendations/components/RecommendationVerification.vue'
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import RequestError from '../shared/ui/RequestError.vue'
@@ -545,7 +546,7 @@ onBeforeUnmount(() => {
 
     <p v-if="loading && progress" role="status" class="text-secondary mb-4">
       {{ progress.stage === 'details' ? '正在核验详情' : '正在召回候选' }}： 已召回
-      {{ progress.candidate_count }} 条，已核验通过 {{ progress.verified_count }} 条， 已用时
+      {{ progress.recalled_count ?? progress.candidate_count }} 条，已用时
       {{ Math.round(progress.elapsed_seconds) }} 秒。
     </p>
     <p v-if="!loading && meta?.partial" role="status" class="text-secondary mb-4">
@@ -553,15 +554,10 @@ onBeforeUnmount(() => {
       条核验通过的推荐，可再次推荐获取更多。
     </p>
 
-    <p
-      v-if="meta?.verification_context?.excluded_unverified_count"
-      role="status"
-      class="text-secondary mb-4"
-    >
-      有
-      {{ meta.verification_context.excluded_unverified_count }}
-      条候选因详情未核验而被过滤，以遵守核验要求。
-    </p>
+    <RecommendationVerification
+      v-if="loading ? progress : meta?.verification_context"
+      :statistics="loading ? progress : meta.verification_context"
+    />
 
     <RecommendationPreferences
       v-model:type-preference="typePreference"
