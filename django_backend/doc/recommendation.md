@@ -744,3 +744,23 @@ Jable `weight=0` 时明确拒绝推荐，不绕过来源启用配置。
 `detail_enrichment_limit` 按尝试的 AVID 计数，详情失败也消耗预算；
 同一轮补候选与重入共用预算，不重复请求已尝试的 AVID。
 响应 `meta.effective_request.detail_attempt_count` 可核对实际尝试数。
+
+## 推荐异步任务
+
+推荐任务独立于下载/刮削 TaskJob，DB `RecommendationJob` 为状态所有者。
+HTTP 仅提交；Celery `nassav.tasks.recommendation_job_task` 在 `scrape` 队列
+执行完整召回、详情和评分。旧 GET 接口暂保留同步兼容。
+任务状态为 queued/running/succeeded/failed/cancelled，快照按 job_id/version 合并。
+只允许创建者查询和取消。取消幂等，禁止旧执行保存推荐 snapshot；
+它表示停止业务提交，网络检查点协作退出，不承诺立刻停止所有 IO。
+推荐不写正式封面、视频或头像，无需下载任务的资产回滚；共享来源缓存仍可保留。
+
+端到端预算固定 300 秒，包含排队。来源及 Byparr 控制请求复用 TaskNetworkControl；
+不改变来源抓取策略或 Cookie 会话策略。worker 主进程现有恢复循环补派 queued
+任务并收尾过期执行，不依赖 Beat。broker 失败保留 queued，30 秒后可重试派发。
+重复 Celery 消息通过 DB 条件领取拒绝。终态 job 保留一天后清理，推荐历史仍单独保留。
+
+清空历史原子递增 `RecommendationState.generation`、取消未结束 job、删除 snapshot；
+同步兼容请求也检查准备时的 generation。成功保存 snapshot 和任务结果位于同一短
+事务内，先取得历史 fence 再取得任务 fence，不包含网络请求。
+部署需先应用迁移 0026，再重启 API 与各 worker；本文只证明隔离验证，尚未做真实部署验收。

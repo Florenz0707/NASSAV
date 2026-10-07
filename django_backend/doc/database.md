@@ -344,3 +344,11 @@ P7 不增加 schema。恢复扫描依据 TaskAttempt 的 worker host/boot_id/PID
 迁移顺序为 0022 → 0023 → 0024 → 0025；实施前备份并停用旧消费者，生产迁移及回滚操作见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。SQLite/PostgreSQL 隔离证据见[P7](../../docs/task-control-p7-results.md)，不代表生产切换验收。
 
 持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](validation-status.md)为准。
+
+## 推荐任务与历史代次（0026）
+
+`RecommendationJob` 保存创建者、参数、执行 UUID、state/version、结果、绝对 deadline
+及补派时间；与下载/刮削 TaskJob 独立。任务 ID 是公开身份，执行 UUID 不对外暴露。
+`RecommendationState` 使用 pk=1 保存历史 generation，清空历史递增；
+成功提交检查 generation 和任务执行归属，snapshot 与成功结果原子保存。
+部署先应用迁移 0026，重启 API/worker。迁移不更改已有推荐 snapshot 内容。

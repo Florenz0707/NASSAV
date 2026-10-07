@@ -18,6 +18,7 @@ from nassav.http_parameters import (
     _parse_recommendation_seed_block_payload,
 )
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
+from nassav.recommendation.jobs import RecommendationStopped
 
 
 class RecommendationsDemoView(SchemaAPIView):
@@ -38,6 +39,8 @@ class RecommendationsDemoView(SchemaAPIView):
             return build_response(200, "success", execution.to_dict())
         except RecommendationManagerError as e:
             return build_response(400, str(e), None)
+        except RecommendationStopped:
+            return build_response(409, "推荐历史已重置，请重试", None)
         except SourceSearchUnavailable:
             return build_response(503, "推荐来源未启用", None)
         except SourceSearchError:
@@ -65,6 +68,8 @@ class RecommendationsView(SchemaAPIView):
             return build_response(200, "success", execution.to_dict())
         except RecommendationManagerError as e:
             return build_response(400, str(e), None)
+        except RecommendationStopped:
+            return build_response(409, "推荐历史已重置，请重试", None)
         except SourceSearchUnavailable:
             return build_response(503, "推荐来源未启用", None)
         except SourceSearchError:

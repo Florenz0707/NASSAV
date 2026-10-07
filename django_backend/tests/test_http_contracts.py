@@ -38,6 +38,23 @@ def test_url_and_openapi_contract_remains_identical():
         (Path(__file__).parent / "fixtures/backend_http_contract.json").read_text()
     )
     schema = SchemaGenerator().get_schema(request=None, public=True)
+    recommendation_routes = [
+        [
+            "nassav/api/recommendations/jobs",
+            "recommendation-job-submit",
+            "RecommendationJobSubmitView",
+        ],
+        [
+            "nassav/api/recommendations/jobs/<uuid:job_id>",
+            "recommendation-job-status",
+            "RecommendationJobStatusView",
+        ],
+        [
+            "nassav/api/recommendations/jobs/<uuid:job_id>/cancel",
+            "recommendation-job-cancel",
+            "RecommendationJobCancelView",
+        ],
+    ]
     control_routes = [
         ["nassav/api/tasks/jobs", "task-job-list", "TaskJobListView"],
         [
@@ -58,8 +75,15 @@ def test_url_and_openapi_contract_remains_identical():
         ],
     ]
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
-    assert routes(get_resolver().url_patterns) == [*control_routes, *baseline["routes"]]
+    assert routes(get_resolver().url_patterns) == [
+        *recommendation_routes,
+        *control_routes,
+        *baseline["routes"],
+    ]
     control_paths = {
+        "/nassav/api/recommendations/jobs": {"post"},
+        "/nassav/api/recommendations/jobs/{job_id}": {"get"},
+        "/nassav/api/recommendations/jobs/{job_id}/cancel": {"post"},
         "/nassav/api/tasks/jobs": {"get"},
         "/nassav/api/tasks/jobs/actions": {"post"},
         "/nassav/api/tasks/jobs/{job_id}": {"get"},
@@ -72,7 +96,26 @@ def test_url_and_openapi_contract_remains_identical():
         for path, value in schema["paths"].items()
         if path not in control_paths
     } == baseline["paths"]
-    assert schema.get("components", {}) == baseline["components"]
+    added_schemas = {
+        "ActorPreferenceEnum",
+        "GenrePreferenceEnum",
+        "RecommendationQuery",
+        "StrategyEnum",
+        "TypePreferenceEnum",
+    }
+    components = schema.get("components", {})
+    assert (
+        set(components["schemas"]) - set(baseline["components"]["schemas"])
+        == added_schemas
+    )
+    assert {
+        **components,
+        "schemas": {
+            key: value
+            for key, value in components["schemas"].items()
+            if key not in added_schemas
+        },
+    } == baseline["components"]
 
 
 @pytest.mark.django_db(transaction=True)

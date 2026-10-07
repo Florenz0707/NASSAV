@@ -104,6 +104,7 @@ class RecommendationRequest:
     type_preference: str = "balanced"
     actor_preference: str = "balanced"
     genre_preference: str = "balanced"
+    history_generation: int | None = field(default=None, repr=False)
     force_refresh_external: bool = False
     detail_attempted_avids: set[str] = field(default_factory=set, repr=False)
 

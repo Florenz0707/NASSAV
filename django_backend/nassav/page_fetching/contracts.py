@@ -40,6 +40,10 @@ class PageResult:
 class BrowserPageClient(ABC):
     """Fetch a raw browser page without deciding whether it is a business page."""
 
+    def set_task_transport(self, session) -> None:
+        """Controlled consumers require a task-local bounded transport."""
+        raise NotImplementedError("Browser provider does not support task transport")
+
     @abstractmethod
     def fetch(self, url: str, *, timeout_ms: int) -> PageResult:
         raise NotImplementedError
