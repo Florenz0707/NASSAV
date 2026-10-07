@@ -29,6 +29,12 @@ class TaskNetworkControl:
             else maximum
         )
 
+    def fork(self, check: Callable[[], None]):
+        """Copy the current deadline without sharing mutable phase state."""
+        control = TaskNetworkControl(check, clock=self.clock)
+        control.deadline = self.deadline
+        return control
+
     @contextmanager
     def phase(self, seconds: float):
         previous = self.deadline

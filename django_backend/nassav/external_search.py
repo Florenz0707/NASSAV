@@ -4,6 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from contextlib import contextmanager
 from typing import Any, cast
 
 from django.conf import settings
@@ -20,6 +21,7 @@ from nassav.source.CookieRepository import proxy_route_profile
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 from nassav.source.SourceBase import SourceBase
 from nassav.source.SourceManager import source_manager
+from nassav.page_fetching.proxy_server import ProxyServer, OrderedProxyServer
 
 
 @dataclass
@@ -106,11 +108,27 @@ class ExternalSourceAdapter(ABC):
     implemented: bool = False
 
     def __init__(
-        self, *, source_lookup: Callable[[str], SourceBase | None] | None = None
+        self,
+        *,
+        source_lookup: Callable[[str], SourceBase | None] | None = None,
+        source_scope=None,
     ):
         self.source_lookup = (
             source_lookup if source_lookup is not None else source_manager.get_source
         )
+        self.source_scope = source_scope
+        self._isolated = False
+
+    @contextmanager
+    def operation(self, check):
+        scope = getattr(self, "source_scope", None)
+        if scope is None:
+            yield self
+            return
+        with scope(check) as source:
+            adapter = type(self)(source_lookup=lambda name: source)
+            adapter._isolated = True
+            yield adapter
 
     def capability(self) -> SearchCapability:
         return SearchCapability(self.source_name, self.source_name)
@@ -353,7 +371,7 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
             return None
         if not isinstance(source, ListingSource):
             raise SourceSearchUnavailable("source_adapter_not_implemented")
-        if isinstance(source, SourceBase):
+        if isinstance(source, SourceBase) and not self._isolated:
             source_manager.refresh_source_session(source.get_source_name())
         return source
 
@@ -430,7 +448,7 @@ class MissAVExternalSourceAdapter(ExternalSourceAdapter):
         source = self.source_lookup(self.source_name)
         if source is None:
             raise SourceSearchUnavailable("source_disabled")
-        if isinstance(source, SourceBase):
+        if isinstance(source, SourceBase) and not self._isolated:
             source_manager.refresh_source_session(source.get_source_name())
         items = cast(SourceBase, source).search_listing(
             kind,
@@ -465,10 +483,35 @@ class ExternalSearchService:
             else (enabled[0] if enabled else preferred)
         )
 
-    def __init__(self, *, adapters: Mapping[str, ExternalSourceAdapter] | None = None):
+    def __init__(
+        self,
+        *,
+        adapters: Mapping[str, ExternalSourceAdapter] | None = None,
+        proxy_server: ProxyServer | None = None,
+    ):
+        if proxy_server is None and adapters is None:
+            from nassav.page_fetching.factory import create_proxy_server
+
+            proxy_server = create_proxy_server(settings.BROWSER_FETCH_CONFIG)
+        self.proxy_server = proxy_server or OrderedProxyServer()
         self.adapters = (
-            dict(adapters) if adapters is not None else external_search_adapters()
+            dict(adapters)
+            if adapters is not None
+            else external_search_adapters(proxy_server=self.proxy_server)
         )
+
+    def _fetch_entity_page(
+        self, entity_type, entity, source_name, page, ordering, force_refresh, check
+    ):
+        adapter = self.adapters[self._normalize_source(source_name)]
+        with adapter.operation(check) as isolated:
+            method = getattr(isolated, f"search_{entity_type}_items")
+            return method(
+                **{entity_type: entity},
+                page=page,
+                ordering=ordering,
+                force_refresh=force_refresh,
+            )
 
     def capabilities(self) -> list[dict]:
         return [
@@ -511,13 +554,16 @@ class ExternalSearchService:
             page=page,
             page_size=page_size,
             ordering=ordering,
-            fetch_page=lambda target_page, requested_ordering: self.adapters[
-                self._normalize_source(source_name)
-            ].search_actor_items(
-                actor=actor,
-                page=target_page,
-                ordering=requested_ordering,
-                force_refresh=force_refresh,
+            fetch_page=lambda target_page, requested_ordering, check: (
+                self._fetch_entity_page(
+                    "actor",
+                    actor,
+                    source_name,
+                    target_page,
+                    requested_ordering,
+                    force_refresh,
+                    check,
+                )
             ),
             force_refresh=force_refresh,
             on_progress=on_progress,
@@ -560,13 +606,16 @@ class ExternalSearchService:
             page=page,
             page_size=page_size,
             ordering=ordering,
-            fetch_page=lambda target_page, requested_ordering: self.adapters[
-                self._normalize_source(source_name)
-            ].search_genre_items(
-                genre=genre,
-                page=target_page,
-                ordering=requested_ordering,
-                force_refresh=force_refresh,
+            fetch_page=lambda target_page, requested_ordering, check: (
+                self._fetch_entity_page(
+                    "genre",
+                    genre,
+                    source_name,
+                    target_page,
+                    requested_ordering,
+                    force_refresh,
+                    check,
+                )
             ),
             force_refresh=force_refresh,
             on_progress=on_progress,
@@ -734,11 +783,10 @@ class ExternalSearchService:
         merged: list[dict] = []
         seen: set[str] = set()
 
-        for target_page in range(1, fetch_pages + 1):
-            if should_cancel is not None:
-                should_cancel()
+        def fetch(target_page, check):
+            check()
             try:
-                page_items = fetch_page(target_page, ordering)
+                page_items = fetch_page(target_page, ordering, check)
             except Exception as error:
                 logger.warning(
                     "External search page {} failed: {} reason={}",
@@ -752,24 +800,43 @@ class ExternalSearchService:
                 if isinstance(error, (SourceSearchError, ValueError)):
                     raise
                 raise SourceSearchError("source_fetch_failed") from error
-            if should_cancel is not None:
-                should_cancel()
-            if not page_items:
-                break
+            check()
+            return target_page, page_items
 
-            new_count = 0
-            for item in page_items:
-                avid = str(item.get("avid", "")).strip().upper()
-                if not avid or avid in seen:
-                    continue
-                seen.add(avid)
-                merged.append(item)
-                new_count += 1
+        check = should_cancel or (lambda: None)
+        if fetch_pages < 1:
+            return merged
+        first = fetch(1, check)
 
-            if on_progress is not None:
-                on_progress(list(merged), target_page)
-            if new_count == 0:
-                break
+        def ordered_pages():
+            yield first
+            with self.proxy_server.ordered(
+                fetch, range(2, fetch_pages + 1), check=check
+            ) as results:
+                yield from results
+
+        pages = ordered_pages()
+        try:
+            for target_page, page_items in pages:
+                if not page_items:
+                    break
+
+                new_count = 0
+                for item in page_items:
+                    avid = str(item.get("avid", "")).strip().upper()
+                    if not avid or avid in seen:
+                        continue
+                    seen.add(avid)
+                    merged.append(item)
+                    new_count += 1
+
+                if on_progress is not None:
+                    on_progress(list(merged), target_page)
+                if new_count == 0:
+                    break
+
+        finally:
+            pages.close()
 
         return merged
 

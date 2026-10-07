@@ -67,3 +67,20 @@ def test_session_reuse_defaults_off_and_requires_boolean():
     raw["BrowserFetch"]["session_reuse_enabled"] = "true"
     with pytest.raises(ValueError, match="session_reuse_enabled"):
         normalize_config(raw)
+
+
+@pytest.mark.parametrize("value", [True, False, 0, 9, "2", 2.5])
+def test_proxy_capacity_rejects_invalid_values(value):
+    with pytest.raises(ValueError, match="max_concurrency"):
+        normalize_config({"BrowserFetch": {"max_concurrency": value}})
+
+
+def test_proxy_capacity_is_configured_without_provider_policy():
+    assert normalize_config({"BrowserFetch": {}}).max_concurrency == 2
+    assert normalize_config({"FlareSolverr": {}}).max_concurrency == 1
+    assert (
+        normalize_config(
+            {"BrowserFetch": {"provider": "flaresolverr", "max_concurrency": 3}}
+        ).max_concurrency
+        == 3
+    )

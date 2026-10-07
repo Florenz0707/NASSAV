@@ -1,12 +1,14 @@
 """Normalize browser configuration and create one page service per Source."""
 
 from dataclasses import dataclass
+from contextlib import contextmanager
 from urllib.parse import urlparse
 
 from loguru import logger
 
 from .browser import ByparrPageClient, FlareSolverrPageClient
 from .service import PageFetchService
+from .proxy_server import OrderedProxyServer, ProxyServer
 
 
 @dataclass(frozen=True)
@@ -16,6 +18,7 @@ class BrowserFetchConfig:
     url: str
     timeout_ms: int
     session_reuse_enabled: bool = False
+    max_concurrency: int = 2
 
 
 def normalize_config(config: dict) -> BrowserFetchConfig:
@@ -73,8 +76,20 @@ def normalize_config(config: dict) -> BrowserFetchConfig:
     session_reuse_enabled = raw.get("session_reuse_enabled", False)
     if not isinstance(session_reuse_enabled, bool):
         raise ValueError("BrowserFetch.session_reuse_enabled must be a boolean")
+    max_concurrency = raw.get("max_concurrency", 2 if "BrowserFetch" in config else 1)
+    if (
+        isinstance(max_concurrency, bool)
+        or not isinstance(max_concurrency, int)
+        or not 1 <= max_concurrency <= 8
+    ):
+        raise ValueError("BrowserFetch.max_concurrency must be an integer from 1 to 8")
     return BrowserFetchConfig(
-        enabled, provider, url.rstrip("/"), timeout_ms, session_reuse_enabled
+        enabled,
+        provider,
+        url.rstrip("/"),
+        timeout_ms,
+        session_reuse_enabled,
+        max_concurrency,
     )
 
 
@@ -91,7 +106,10 @@ def validate_strategy(value: str) -> str:
 
 
 def create_page_fetch_service(
-    config: BrowserFetchConfig, *, proxy_url: str | None = None
+    config: BrowserFetchConfig,
+    *,
+    proxy_url: str | None = None,
+    proxy_server: ProxyServer | None = None,
 ) -> PageFetchService:
     browser = None
     if config.enabled:
@@ -99,6 +117,39 @@ def create_page_fetch_service(
             browser = ByparrPageClient(config.url, proxy_url=proxy_url)
         else:
             browser = FlareSolverrPageClient(config.url)
+        from .proxy_client import ProxyPageClient
+
+        browser = ProxyPageClient(browser, proxy_server or create_proxy_server(config))
     return PageFetchService(
         browser, config.timeout_ms, session_reuse_enabled=config.session_reuse_enabled
     )
+
+
+def create_proxy_server(config: BrowserFetchConfig) -> ProxyServer:
+    """Production capacity is shared across processes, never provider-specific."""
+    if not config.enabled:
+        return OrderedProxyServer()
+    import redis
+    from django.conf import settings
+    from .proxy_capacity import RedisProxyCapacity
+
+    client = redis.from_url(
+        settings.CELERY_BROKER_URL, socket_timeout=2, socket_connect_timeout=2
+    )
+    return OrderedProxyServer(
+        config.max_concurrency,
+        capacity=RedisProxyCapacity(client, config.url, config.max_concurrency),
+        worker_scope=_worker_connections,
+    )
+
+
+@contextmanager
+def _worker_connections():
+    """Django connections are thread-local, including ownership check queries."""
+    from django.db import close_old_connections, connections
+
+    close_old_connections()
+    try:
+        yield
+    finally:
+        connections.close_all()

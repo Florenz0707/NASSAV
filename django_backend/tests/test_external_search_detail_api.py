@@ -329,3 +329,11 @@ def test_genre_detail_api_returns_404_for_missing_genre(api_client):
     assert resp.status_code == 404
     body = resp.json()
     assert body["code"] == 404
+
+
+@pytest.fixture(autouse=True)
+def isolated_adapter_test_seam(monkeypatch):
+    """These serial protocol tests inject shared source doubles explicitly."""
+    for adapter in external_search_service.adapters.values():
+        if hasattr(adapter, "source_scope"):
+            monkeypatch.setattr(adapter, "source_scope", None)

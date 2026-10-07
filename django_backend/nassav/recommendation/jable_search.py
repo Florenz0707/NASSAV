@@ -1,4 +1,7 @@
 from loguru import logger
+from copy import copy
+
+from nassav.page_fetching.proxy_server import ProxyServer, OrderedProxyServer
 
 from .base import AbstractRecommender
 from .contracts import CandidateInventory, RecommendationSource, SeedProvider
@@ -17,6 +20,9 @@ class JableSearchRecommender(AbstractRecommender):
         actor_diversity_weight: float = 1.0,
         genre_diversity_weight: float = 0.5,
         max_pages_per_query: int = 5,
+        proxy_server: ProxyServer | None = None,
+        source_scope=None,
+        check=None,
     ):
         super().__init__(factors=factors, candidate_inventory=candidate_inventory)
         self.jable = jable
@@ -25,6 +31,18 @@ class JableSearchRecommender(AbstractRecommender):
         self.actor_diversity_weight = actor_diversity_weight
         self.genre_diversity_weight = genre_diversity_weight
         self.max_pages_per_query = max(max_pages_per_query, 1)
+        self.proxy_server = proxy_server or OrderedProxyServer()
+        self.source_scope = source_scope
+        self.check = check
+
+    def _source_operation(self, operation, check):
+        if self.source_scope is None:
+            return operation(self)
+        with self.source_scope(check) as source:
+            # Keep subclass hooks while isolating its only IO dependency.
+            worker = copy(self)
+            worker.jable = source
+            return operation(worker)
 
     def _prepare_seed_context(self, request, seeds) -> None:
         self._hydrate_seed_occurrence_tiers(request, seeds)
@@ -59,10 +77,16 @@ class JableSearchRecommender(AbstractRecommender):
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
         merged: dict[str, RecommendationCandidate] = {}
-        for seed in seeds:
-            candidates = self.recall_by_seed(seed, request)
-            for candidate in candidates:
-                self._merge_candidate(merged, candidate)
+
+        def recall(seed, check):
+            return self._source_operation(
+                lambda worker: worker.recall_by_seed(seed, request), check
+            )
+
+        with self.proxy_server.ordered(recall, seeds, check=self.check) as batches:
+            for candidates in batches:
+                for candidate in candidates:
+                    self._merge_candidate(merged, candidate)
 
         for candidate in self.recall_discovery_candidates(request):
             self._merge_candidate(merged, candidate)
@@ -161,20 +185,23 @@ class JableSearchRecommender(AbstractRecommender):
             return []
 
         raw_results: list[dict] = []
+        methods = []
         if request.include_hot_board:
-            raw_results.extend(
-                self._recall_discovery_pages(
-                    request=request,
-                    fetch_page=self.jable.discover_hot_items,
-                )
-            )
+            methods.append("discover_hot_items")
         if request.include_latest_updates:
-            raw_results.extend(
-                self._recall_discovery_pages(
-                    request=request,
-                    fetch_page=self.jable.discover_latest_updates,
-                )
+            methods.append("discover_latest_updates")
+
+        def discover(method, check):
+            return self._source_operation(
+                lambda worker: worker._recall_discovery_pages(
+                    request=request, fetch_page=getattr(worker.jable, method)
+                ),
+                check,
             )
+
+        with self.proxy_server.ordered(discover, methods, check=self.check) as batches:
+            for batch in batches:
+                raw_results.extend(batch)
 
         candidates: list[RecommendationCandidate] = []
         seen_avids: set[str] = set()
@@ -210,6 +237,7 @@ class JableSearchRecommender(AbstractRecommender):
             int(request.detail_enrichment_limit) - len(request.detail_attempted_avids),
             0,
         )
+        selected = []
         for candidate in candidates:
             if remaining <= 0:
                 break
@@ -219,10 +247,17 @@ class JableSearchRecommender(AbstractRecommender):
                 continue
             request.detail_attempted_avids.add(candidate.avid)
             remaining -= 1
-            detail = self._call_video_detail(candidate, request)
-            if not detail:
-                continue
-            self._apply_video_detail(candidate, detail, request)
+            selected.append(candidate)
+
+        def fetch(candidate, check):
+            return candidate, self._source_operation(
+                lambda worker: worker._call_video_detail(candidate, request), check
+            )
+
+        with self.proxy_server.ordered(fetch, selected, check=self.check) as results:
+            for candidate, detail in results:
+                if detail:
+                    self._apply_video_detail(candidate, detail, request)
         return candidates
 
     def _recall_keyword_items(

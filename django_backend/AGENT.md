@@ -43,3 +43,11 @@ uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 推荐变更遵循[推荐架构](doc/recommendation-architecture.md)。生产前端走 DB 推荐 job 与
 Celery scrape 队列；同步 GET 仅兼容。任务网络控制注入独立来源，保留全局代理，
 来源失败不得保存空成功，补候选不得重置详情预算。反馈、重置和 snapshot 共用历史 fence。
+
+## 代理并发
+
+外部搜索和推荐通过公共 `ProxyServer` 使用有序有界并发，不面向 Byparr 或其他 provider
+实现调度。来源/会话/网络控制按操作隔离，deadline 从父任务继承；协调线程管理候选、
+详情尝试预算、快照顺序与业务提交。浏览器请求使用同 endpoint 的 Redis 容量限制，
+不得以局部线程池替代跨 worker 限流。新消费者先阅读[代理并发架构](doc/proxy-concurrency.md)，
+覆盖乱序、短路、失败、取消与迟到结果，并验证不同 provider 替换和连接回收。

@@ -40,6 +40,12 @@ class PageResult:
 class BrowserPageClient(ABC):
     """Fetch a raw browser page without deciding whether it is a business page."""
 
+    def close(self) -> None:
+        """Release a request-local transport, if this adapter owns one."""
+
+    def set_task_control(self, control) -> None:
+        """Optional control for capacity waits and result ownership checks."""
+
     def set_task_transport(self, session) -> None:
         """Controlled consumers require a task-local bounded transport."""
         raise NotImplementedError("Browser provider does not support task transport")

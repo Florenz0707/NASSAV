@@ -5,10 +5,12 @@ cycles. Builders construct dependencies without performing network requests.
 """
 
 from collections.abc import Callable
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from nassav.page_fetching.factory import BrowserFetchConfig
+    from nassav.page_fetching.proxy_server import ProxyServer
     from nassav.scraper.ScraperBase import ScraperBase
     from nassav.source.SourceBase import SourceBase
     from nassav.translator.TranslatorBase import TranslatorBase
@@ -18,6 +20,8 @@ def source_factories(
     proxy: str | None,
     browser_config: "BrowserFetchConfig",
     save_cookie: Callable[[str, str], bool],
+    *,
+    proxy_server: "ProxyServer | None" = None,
 ) -> dict[str, Callable[[], "SourceBase"]]:
     from nassav.page_fetching import create_page_fetch_service
     from nassav.source.Jable import Jable
@@ -27,12 +31,16 @@ def source_factories(
     return {
         "missav": lambda: MissAV(
             proxy,
-            page_fetcher=create_page_fetch_service(browser_config, proxy_url=proxy),
+            page_fetcher=create_page_fetch_service(
+                browser_config, proxy_url=proxy, proxy_server=proxy_server
+            ),
             cookie_saver=lambda cookie: save_cookie("MissAV", cookie),
         ),
         "jable": lambda: Jable(
             proxy,
-            page_fetcher=create_page_fetch_service(browser_config, proxy_url=proxy),
+            page_fetcher=create_page_fetch_service(
+                browser_config, proxy_url=proxy, proxy_server=proxy_server
+            ),
         ),
         "memo": lambda: Memo(proxy),
     }
@@ -58,18 +66,57 @@ def translator_factories() -> dict[str, Callable[[int, str], "TranslatorBase"]]:
     }
 
 
-def external_search_adapters():
+def external_search_adapters(*, proxy_server: "ProxyServer | None" = None):
     from nassav.external_search import (
         JableExternalSourceAdapter,
         MissAVExternalSourceAdapter,
         PlaceholderExternalSourceAdapter,
     )
+    from django.conf import settings
+    from nassav.source.SourceManager import source_manager
+    from nassav.page_fetching.factory import create_proxy_server
+
+    factories = source_factories(
+        settings.PROXY_URL if settings.PROXY_ENABLED else None,
+        settings.BROWSER_FETCH_CONFIG,
+        source_manager.set_source_cookie,
+        proxy_server=proxy_server or create_proxy_server(settings.BROWSER_FETCH_CONFIG),
+    )
+
+    def scope(name):
+        return lambda check: _controlled_source_scope(factories[name], check)
 
     return {
-        "jable": JableExternalSourceAdapter(),
-        "missav": MissAVExternalSourceAdapter(),
+        "jable": JableExternalSourceAdapter(source_scope=scope("jable")),
+        "missav": MissAVExternalSourceAdapter(source_scope=scope("missav")),
         "memo": PlaceholderExternalSourceAdapter("memo"),
     }
+
+
+@contextmanager
+def _controlled_source_scope(factory, check, parent_control=None):
+    """Own a fresh source, session and phase budget for one concurrent operation."""
+    from nassav.task_network import TaskBrowserSession, TaskNetworkControl
+
+    check()
+    control = (
+        parent_control.fork(check) if parent_control else TaskNetworkControl(check)
+    )
+    source = factory()
+    source.set_task_control(control)
+    fetcher = getattr(source, "page_fetcher", None)
+    try:
+        if fetcher is not None:
+            fetcher.set_task_control(control)
+            if fetcher.browser is not None:
+                fetcher.browser.set_task_transport(TaskBrowserSession(control))
+        source.load_cookie_from_db()
+        check()
+        yield source
+        check()
+    finally:
+        if fetcher is not None and fetcher.browser is not None:
+            fetcher.browser.close()
 
 
 def cover_policy_for(source_name: str):
@@ -127,16 +174,30 @@ def build_recommendation_manager(*, context=None, control=None):
     from nassav.recommendation.jable_page_lookup import JablePageLookupRecommender
     from nassav.recommendation.workflow import RecommenderManager
     from nassav.source import Jable
+    from nassav.page_fetching.factory import (
+        create_proxy_server,
+        create_page_fetch_service,
+    )
+
+    proxy_server = create_proxy_server(settings.BROWSER_FETCH_CONFIG)
+
+    def source_factory():
+        return Jable(
+            proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None,
+            strict_failures=True,
+            page_fetcher=create_page_fetch_service(
+                settings.BROWSER_FETCH_CONFIG,
+                proxy_url=settings.PROXY_URL if settings.PROXY_ENABLED else None,
+                proxy_server=proxy_server,
+            ),
+        )
 
     def jable_factory(strategy):
         from nassav.source.search_contracts import SourceSearchUnavailable
 
         if not settings.SOURCE_CONFIG.get("jable", {}).get("weight", 0):
             raise SourceSearchUnavailable("jable_disabled")
-        source = Jable(
-            proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None,
-            strict_failures=True,
-        )
+        source = source_factory()
         if control is not None:
             from nassav.task_network import TaskBrowserSession
 
@@ -151,6 +212,11 @@ def build_recommendation_manager(*, context=None, control=None):
             candidate_inventory=DjangoCandidateInventory(),
             seed_provider=strategy.seed_provider_builder(),
             factors=[builder() for builder in strategy.factor_builders],
+            proxy_server=proxy_server,
+            source_scope=lambda check: _controlled_source_scope(
+                source_factory, check, control
+            ),
+            check=control.check if control is not None else None,
             **strategy.recommender_kwargs,
         )
 
