@@ -20,7 +20,7 @@ const props = defineProps({
 })
 const actor = props.entity === 'actor'
 const label = actor ? '演员' : '类别'
-const defaultPageSize = actor ? 15 : 18
+const defaultPageSize = 15
 const store = actor ? useActorGroupsStore() : useGenreGroupsStore()
 const route = useRoute(),
   router = useRouter()
