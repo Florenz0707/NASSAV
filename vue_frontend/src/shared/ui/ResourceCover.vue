@@ -7,6 +7,7 @@ const props = defineProps({
   scene: { type: String, default: '' },
   title: { type: String, default: '' },
   imageClass: { type: String, default: 'object-cover' },
+  naturalSize: Boolean,
 })
 const failed = ref(false)
 watch(
@@ -17,14 +18,16 @@ watch(
 )
 </script>
 <template>
-  <div class="rounded-lg overflow-hidden bg-primary">
+  <div
+    class="rounded-lg overflow-hidden"
+    :class="naturalSize && url && !failed ? 'flex items-center justify-center' : 'bg-primary'"
+  >
     <img
       v-if="url && !failed"
       :src="url"
       :alt="title + ' · 资源封面'"
       loading="lazy"
-      class="w-full h-full"
-      :class="imageClass"
+      :class="[naturalSize ? 'max-w-full max-h-full w-auto h-auto' : 'w-full h-full', imageClass]"
       @error="failed = true"
     />
     <svg

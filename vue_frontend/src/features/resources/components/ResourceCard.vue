@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../settings/stores/settings.js'
 import { RouterLink, useRoute } from 'vue-router'
 import ConfirmDialog from '../../../shared/ui/ConfirmDialog.vue'
 import ActionMenu from '../../../shared/ui/ActionMenu.vue'
+import AppButton from '../../../shared/ui/AppButton.vue'
 import AppCheckbox from '../../../shared/ui/AppCheckbox.vue'
 import { resourceRefreshOptions, resourceDeleteOptions } from '../lib/resourceActions.js'
 import ResourceCover from '../../../shared/ui/ResourceCover.vue'
@@ -279,12 +280,17 @@ onUnmounted(() => {
       </div>
 
       <!-- 操作按钮 -->
-      <div class="flex gap-2 justify-between items-center relative">
-        <ActionMenu :label="'刷新资源'" :options="refreshOptions" @select="handleRefreshOption" />
+      <div class="grid grid-cols-3 gap-2 items-center relative">
+        <ActionMenu
+          :label="'刷新资源'"
+          trigger-class="w-full h-10 px-2"
+          :options="refreshOptions"
+          @select="handleRefreshOption"
+        />
 
-        <button
+        <AppButton
           :class="[
-            'inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-[0.9rem] font-medium transition-all duration-200',
+            'w-full h-10 px-2',
             resource.has_video
               ? 'cursor-not-allowed opacity-60'
               : isSubmittingDownload
@@ -323,11 +329,12 @@ onUnmounted(() => {
                   ? '下载中'
                   : '下载'
           }}
-        </button>
+        </AppButton>
 
         <ActionMenu
           label="删除"
           :options="deleteOptions"
+          trigger-class="w-full h-10 px-2"
           danger
           align="right"
           @select="handleDeleteOption"

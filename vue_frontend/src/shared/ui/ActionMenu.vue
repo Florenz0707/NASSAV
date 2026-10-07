@@ -7,6 +7,7 @@ const props = defineProps({
   disabled: Boolean,
   danger: Boolean,
   align: { type: String, default: 'left' },
+  triggerClass: { type: String, default: '' },
 })
 const emit = defineEmits(['select'])
 const root = ref(null),
@@ -74,6 +75,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside))
   <div ref="root" class="relative" @click.stop @keydown="keydown">
     <AppButton
       ref="trigger"
+      :class="triggerClass"
       :variant="danger ? 'danger' : 'neutral'"
       :disabled="disabled"
       :aria-label="label"

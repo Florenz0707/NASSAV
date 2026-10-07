@@ -82,3 +82,5 @@ EntityDetailView 管理实体信息与本地资源；ExternalSearchPanel 独占�
 ## 模块归档与依赖
 
 代码位置遵循[模块布局](module-layout.md)。资源封面占位使用 shared/ui/ResourceCover；TaskCheckbox 是 AppCheckbox 的任务兼容包装。不要恢复 components/stores/utils 大杂烩目录；跨模块通过明确的组件、store 或纯函数入口协作，不穿透子组件 DOM 或内部状态。领域 API 文件复用 api/client.js，禁止自行创建第二个 Axios 实例。目录迁移保持 URL、请求方法/字段、任务协议和存储键。
+
+资源详情的完整封面使用 ResourceCover naturalSize 模式，在最大可用尺寸内按原比例居中，图片自身有圆角，成功加载时不显示底色框；失败仍保留原占位。ActionMenu 通过 triggerClass 接收触发按钮布局类，尺寸不传给菜单容器；资源卡片三列等宽/等高操作使用 AppButton，详情操作共用固定宽高，加载/禁用状态不改变布局。
