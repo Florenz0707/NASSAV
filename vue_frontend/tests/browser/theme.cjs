@@ -47,6 +47,17 @@ const assert = require('node:assert/strict')
       for (const [cls, actual, expected] of results)
         assert.equal(actual, expected, theme + ' ' + cls)
       await page.waitForTimeout(1000)
+      const brandGradients = await page.evaluate(() =>
+        ['.logo-text', '.home-title'].map(
+          (selector) => getComputedStyle(document.querySelector(selector)).backgroundImage
+        )
+      )
+      assert.notEqual(brandGradients[0], 'none')
+      assert.equal(
+        brandGradients[0],
+        brandGradients[1],
+        theme + ' home and navigation brand gradient'
+      )
       await page.screenshot({ path: '/tmp/nassav-f2-' + theme + '.png', fullPage: true })
       assert.deepEqual(errors, [])
       await page.close()

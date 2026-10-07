@@ -563,7 +563,7 @@ watch(
 .logo-icon {
   width: 2.25rem;
   height: 2.25rem;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--brand-gradient);
   color: var(--on-accent);
   border-radius: 10px;
   display: flex;
@@ -580,7 +580,7 @@ watch(
 }
 
 .logo-text {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--brand-gradient);
   color: var(--on-accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

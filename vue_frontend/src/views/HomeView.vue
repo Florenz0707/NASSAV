@@ -122,7 +122,7 @@ import { RouterLink } from 'vue-router'
 
 <style scoped>
 .home-title {
-  background: var(--hero-gradient);
+  background: var(--brand-gradient);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
