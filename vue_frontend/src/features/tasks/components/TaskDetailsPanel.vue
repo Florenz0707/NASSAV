@@ -114,7 +114,10 @@ const progress = (task) =>
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-3xl font-bold text-primary">任务详情</h1>
-        <p class="text-secondary mt-2">统一查看下载与刮削的状态、进度和失败原因</p>
+        <div class="flex items-center gap-2 mt-2">
+          <p class="text-secondary">统一查看下载与刮削的状态、进度和失败原因</p>
+          <slot name="information" />
+        </div>
       </div>
       <span
         v-if="debug"

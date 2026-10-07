@@ -30,3 +30,15 @@ F6：推荐黑名单具有独立的 show/close/invalidate 接口，包含自身�
 ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检查。设置面板通过事件更新状态，保留即时预览与手动保存。普通前端测试从 34 项增加到 39 项；模拟浏览器脚本覆盖主题、公共组件、目录、实体详情、黑名单和设置。浏览器使用本机 Chromium 和完全模拟的 API，不能代替真实 worker、站点抓取或部署验收。
 
 本轮未调整后端 URL、数据库或任务协议。推荐主页面与实体详情模块仍包含较多布局；本轮以消除复制和划分已知职责为范围，没有按行数机械拆分所有模板。应用 UI 与外部环境联调仍需目标环境验证。
+
+## 2026-10-07 任务与推荐页面信息层级
+
+提交：`[Enhancement] Simplify task and recommendation information and unify card actions`，阶段分支 `enhancement/ui-information-and-cards`，通过检查后合并 idle。
+
+- 任务跟踪统计移入副标题旁的 info 弹窗，删除手动刷新列表，保留加载更多、自动跟踪和错误重试。
+- 推荐统计、核验明细、种子和维护操作收进信息弹窗，偏好按需打开；主区域直接呈现结果和必要运行、失败、部分结果提示。普通网格按桌面三列、中等宽度两列、移动端一列展示，少量结果不放大填满整行。
+- 推荐与外部搜索共用 RemoteResourceActions，主操作复用 AppButton 五态。InfoDialog 复用 useDialog，导航栏顶部边框透明、滚动后显示边框。
+
+验证命令：`cd vue_frontend && pnpm run check`（67 项测试、ESLint、构建），根目录 `pre-commit run -a`。浏览器使用 Chromium、完全模拟 API：`recommendationJobs.cjs`、`resourceTaskFixes.cjs`、`entityDetail.cjs`，覆盖推荐结果位置、信息/偏好弹窗、跟踪统计更新、深浅主题及移动端、导航滚动；Vite 开发服务上的 `components.cjs` 与 `uxControls.cjs` 覆盖公共按钮状态、弹窗禁用/加载、嵌套、焦点循环/恢复和卸载清理。
+
+旧 `taskDetails.cjs` 使用非持久的队列任务夹具，无法加载当前任务明细；未将它作为本轮任务页验收。当前任务协议由 `resourceTaskFixes.cjs` 验证。本轮未修改后端，也未进行真实 worker 或部署验收。

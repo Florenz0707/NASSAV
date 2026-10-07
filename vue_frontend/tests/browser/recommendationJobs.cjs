@@ -86,19 +86,28 @@ async function main() {
     mode = 'running'
     await page.locator('.header-actions .ui-button').first().click()
     const stats = page.getByRole('status').filter({ hasText: '详情获取成功' })
+    await page.getByRole('button', { name: '查看推荐信息' }).click()
     await stats.waitFor()
     assert.equal(await stats.locator('dd').nth(0).innerText(), '6')
     assert.equal(await stats.locator('dd').nth(1).innerText(), '2')
     assert.equal(await stats.locator('dd').nth(2).innerText(), '18')
     assert.equal(await stats.locator('dd').nth(3).innerText(), '4')
+    await page.keyboard.press('Escape')
     await page.getByRole('button', { name: '取消推荐', exact: true }).click()
     mode = 'succeeded'
     await page.locator('.header-actions .ui-button').first().click()
     await page.getByText('异步推荐验收', { exact: true }).waitFor()
+    assert.equal(await stats.count(), 0)
+    assert.ok((await page.getByText('异步推荐验收', { exact: true }).boundingBox()).y < 844)
+    assert.equal(await page.locator('.remote-resource-actions .ui-button').count(), 2)
+    await page.getByRole('button', { name: '查看推荐信息' }).click()
     await page.getByRole('status').filter({ hasText: '未核验不代表失败' }).waitFor()
     assert.equal(await stats.locator('dd').nth(2).innerText(), '2')
     assert.equal(await stats.locator('dd').nth(3).innerText(), '1')
+    await page.screenshot({ path: '/tmp/nassav-ui-recommendation-info-mobile.png' })
+    await page.keyboard.press('Escape')
     await page.getByRole('status').filter({ hasText: '已为你保留 1 / 12' }).waitFor()
+    await page.screenshot({ path: '/tmp/nassav-ui-recommendation-mobile.png' })
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true
@@ -112,13 +121,30 @@ async function main() {
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true
     )
+    await page.screenshot({ path: '/tmp/nassav-ui-recommendation-desktop.png' })
+    await page.getByRole('button', { name: '设置推荐偏好' }).click()
+    await page.getByRole('dialog', { name: '推荐偏好' }).waitFor()
+    await page.keyboard.press('Shift+Tab')
+    assert.equal(
+      await page.getByRole('dialog').evaluate((el) => el.contains(document.activeElement)),
+      true
+    )
+    await page.keyboard.press('Escape')
+    assert.equal(
+      await page
+        .getByRole('button', { name: '设置推荐偏好' })
+        .evaluate((el) => el === document.activeElement),
+      true
+    )
     legacy = true
     await page.locator('.header-actions .ui-button').first().click()
+    await page.getByRole('button', { name: '查看推荐信息' }).click()
     await page.waitForFunction(
       () => document.querySelector('[aria-label="推荐核验统计"] dd')?.textContent.trim() === '—'
     )
     assert.equal(await stats.locator('dd').nth(2).innerText(), '2')
     assert.equal(await stats.locator('dd').nth(3).innerText(), '—')
+    await page.keyboard.press('Escape')
     legacy = false
     const cancelCount = cancelled.length
     mode = 'failed'

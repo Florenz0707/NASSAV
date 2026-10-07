@@ -1,8 +1,8 @@
 <script setup>
-import AppButton from '../../../shared/ui/AppButton.vue'
+import RemoteResourceActions from '../../resources/components/RemoteResourceActions.vue'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { recommendationApi } from '../../../api/index.js'
 
 const props = defineProps({
@@ -48,6 +48,7 @@ const isBlocked = computed(() => props.blocked)
 const hasReasons = computed(
   () => Array.isArray(props.item?.reasons) && props.item.reasons.length > 0
 )
+const imageFailed = ref(false)
 const settingsStore = useSettingsStore()
 const displayTitle = computed(() => resolveResourceTitle(props.item, settingsStore.displayTitle))
 const reasonsCount = computed(() => (hasReasons.value ? props.item.reasons.length : 0))
@@ -55,6 +56,10 @@ const formattedScore = computed(() => Number(props.item?.score || 0).toFixed(1))
 const proxiedCoverUrl = computed(() =>
   props.item?.cover_url ? recommendationApi.getCoverUrl(props.item.cover_url) : ''
 )
+
+watch(proxiedCoverUrl, () => {
+  imageFailed.value = false
+})
 
 function formatCompactMetric(value) {
   const parsed = Number(value || 0)
@@ -89,12 +94,13 @@ function handleReasonsClick(event) {
   >
     <div class="cover-shell">
       <img
-        v-if="item.cover_url"
+        v-if="item.cover_url && !imageFailed"
         :src="proxiedCoverUrl"
         :alt="displayTitle"
         class="cover-image"
         :class="{ blocked: isBlocked }"
         loading="lazy"
+        @error="imageFailed = true"
       />
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
@@ -189,35 +195,25 @@ function handleReasonsClick(event) {
         </div>
       </div>
 
-      <div class="card-actions">
-        <AppButton
-          v-if="!added"
-          variant="neutral"
-          class="flex-1 min-w-0"
-          :loading="adding"
-          @click="emit('add')"
-          >加入资源库</AppButton
-        >
-        <AppButton v-else variant="neutral" class="flex-1 min-w-0" disabled>已添加</AppButton>
-        <AppButton
-          variant="neutral"
-          class="flex-1 min-w-0"
-          @click="added ? emit('view') : emit('open')"
-          >{{ added ? '查看详情' : '跳转来源' }}</AppButton
-        >
-      </div>
+      <RemoteResourceActions
+        :adding="adding"
+        :added="added"
+        @add="emit('add')"
+        @open="emit('open')"
+        @view="emit('view')"
+      />
     </div>
   </article>
 </template>
 
 <style scoped>
 .recommendation-card {
-  background: var(--bg-secondary);
+  background: linear-gradient(180deg, var(--bg-white-8), var(--bg-white-5));
   border: 1px solid var(--border-color);
   border-radius: 1.25rem;
   overflow: hidden;
   backdrop-filter: blur(16px);
-  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -229,8 +225,8 @@ function handleReasonsClick(event) {
 
 .recommendation-card:hover {
   transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--accent-primary) 24%, transparent);
-  box-shadow: 0 22px 48px color-mix(in srgb, var(--shadow-color) 28%, transparent);
+  border-color: var(--accent-primary-text);
+  box-shadow: var(--shadow-2xl);
 }
 
 .recommendation-card.blocked {
@@ -239,7 +235,7 @@ function handleReasonsClick(event) {
     color-mix(in srgb, var(--accent-primary) 3%, transparent),
     color-mix(in srgb, var(--neutral-color) 1%, transparent)
   );
-  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  box-shadow: var(--shadow-xl);
 }
 
 .cover-shell {
@@ -345,7 +341,7 @@ function handleReasonsClick(event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  color: var(--text-primary);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1rem;
@@ -383,7 +379,7 @@ function handleReasonsClick(event) {
 
 .source-chip {
   background: color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
-  color: var(--accent-tertiary);
+  color: var(--accent-tertiary-text);
 }
 
 .card-title {
@@ -502,56 +498,6 @@ function handleReasonsClick(event) {
   opacity: 0.72;
 }
 
-.card-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.65rem;
-  margin-top: auto;
-}
-
-.action-btn {
-  border: none;
-  border-radius: 0.9rem;
-  padding: 0.8rem 0.95rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.action-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.action-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.action-btn.primary {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: var(--on-accent);
-  box-shadow: 0 10px 20px color-mix(in srgb, var(--accent-primary) 22%, transparent);
-}
-
-.action-btn.secondary {
-  background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
-  color: var(--text-primary);
-  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
-}
-
-.action-btn.success {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--accent-success) 90%, transparent),
-    color-mix(in srgb, var(--accent-tertiary) 90%, transparent)
-  );
-  color: white;
-}
-
 .recommendation-card.masonry .card-title {
   display: block;
   min-height: auto;
@@ -595,21 +541,5 @@ function handleReasonsClick(event) {
 .recommendation-card.masonry .inline-feedback-btn {
   width: 1.8rem;
   height: 1.8rem;
-}
-
-.recommendation-card.masonry .card-actions {
-  grid-template-columns: 1fr;
-  gap: 0.45rem;
-}
-
-.recommendation-card.masonry .action-btn {
-  padding: 0.62rem 0.75rem;
-  font-size: 0.78rem;
-}
-
-@media (max-width: 640px) {
-  .card-actions {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

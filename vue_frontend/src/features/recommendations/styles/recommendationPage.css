@@ -7,44 +7,10 @@
 
   .recommendations-view .page-header {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1.5rem 1.75rem;
-    border-radius: 1.5rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .recommendations-view .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    min-height: 1.85rem;
-    padding: 0.2rem 0.7rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-    color: var(--accent-primary-text);
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .recommendations-view .page-title {
-    margin: 0.8rem 0 0.35rem;
-    color: var(--text-primary);
-    font-size: clamp(2rem, 3vw, 2.8rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-  }
-
-  .recommendations-view .page-subtitle {
-    margin: 0;
-    max-width: 52rem;
-    color: var(--text-muted);
-    font-size: 1rem;
-    line-height: 1.65;
+    flex-wrap: wrap;
   }
 
   .recommendations-view .header-actions {
@@ -78,8 +44,7 @@
   .recommendations-view .meta-strip,
   .recommendations-view .metrics-panel,
   .recommendations-view .strategy-params-panel,
-  .recommendations-view .seed-panel,
-  .recommendations-view .content-shell {
+  .recommendations-view .seed-panel {
     border-radius: 1.35rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
@@ -223,7 +188,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
-    padding: 1.15rem;
+    min-width: 0;
   }
 
   .recommendations-view .strategy-params-panel {
@@ -377,7 +342,7 @@
   }
 
   .recommendations-view .content-shell {
-    padding: 1.15rem;
+    min-width: 0;
   }
 
   .recommendations-view .loading-shell {
@@ -393,7 +358,7 @@
 
   .recommendations-view .recommendation-grid.standard-layout {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-auto-rows: 1fr;
     gap: 1rem;
     align-items: stretch;
@@ -571,6 +536,10 @@
   }
 
   @media (max-width: 960px) {
+    .recommendations-view .recommendation-grid.standard-layout {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .recommendations-view .page-header,
     .recommendations-view .meta-strip,
     .recommendations-view .metrics-panel,
@@ -613,6 +582,10 @@
   }
 
   @media (max-width: 640px) {
+    .recommendations-view .recommendation-grid.standard-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
     .recommendations-view .recommendation-grid.masonry-layout {
       column-count: 1;
     }

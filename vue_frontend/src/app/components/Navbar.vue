@@ -53,10 +53,11 @@ function handleKeydown(e) {
 }
 
 function handleScroll() {
-  scrolled.value = window.scrollY > 10
+  scrolled.value = window.scrollY > 0
 }
 
 onMounted(() => {
+  handleScroll()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('scroll', handleScroll, { passive: true })
 })
@@ -525,17 +526,20 @@ watch(
 <style scoped>
 .navbar {
   background: transparent;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid transparent;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
   backdrop-filter: blur(12px);
-  transition: box-shadow 0.3s ease;
+  transition:
+    box-shadow 0.3s ease,
+    border-color 0.2s ease;
 }
 
 .navbar.scrolled {
+  border-bottom-color: var(--border-color);
   box-shadow: 0 4px 24px color-mix(in srgb, var(--shadow-color) 35%, transparent);
 }
 

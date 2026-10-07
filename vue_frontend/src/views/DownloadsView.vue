@@ -1,4 +1,5 @@
 <script setup>
+import InfoDialog from '../shared/ui/InfoDialog.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import RequestError from '../shared/ui/RequestError.vue'
 import { useTaskJobsStore } from '../features/tasks/stores/taskJobs.js'
@@ -263,24 +264,6 @@ function stopPolling() {
     <p v-if="!DEBUG_MODE && taskJobs.error" role="alert" class="text-accent-danger mb-4">
       {{ taskJobs.error }} 请根据当前允许动作重新操作。
     </p>
-    <div v-if="!DEBUG_MODE" class="flex items-center gap-3 mb-4 text-muted text-sm">
-      <span
-        >当前跟踪 {{ taskJobs.visible.length }} 个已加载持久任务；已隐藏
-        {{ taskJobs.jobs.size - taskJobs.visible.length }} 个；服务端共
-        {{ taskJobs.total }} 个（筛选及批量操作针对当前跟踪列表）</span
-      >
-      <AppButton
-        v-if="taskJobs.hasMore"
-        variant="neutral"
-        size="sm"
-        :loading="taskJobs.loading"
-        @click="taskJobs.load(true)"
-        >加载更多</AppButton
-      >
-      <AppButton variant="neutral" size="sm" :loading="taskJobs.loading" @click="taskJobs.load()"
-        >刷新列表</AppButton
-      >
-    </div>
     <PageLoad
       v-if="!DEBUG_MODE && taskJobs.loading && !tasks.length"
       variant="spinner"
@@ -297,6 +280,16 @@ function stopPolling() {
       :focus-task-id="resolveTaskFocus(tasks, route.query.task)"
       @dismiss="requestDismiss"
     >
+      <template #information>
+        <InfoDialog title="任务跟踪说明" label="查看任务跟踪说明">
+          <p v-if="DEBUG_MODE" class="text-secondary">当前展示 {{ tasks.length }} 个演示任务。</p>
+          <p v-else class="text-secondary leading-relaxed">
+            当前跟踪 {{ taskJobs.visible.length }} 个已加载持久任务；已隐藏
+            {{ taskJobs.jobs.size - taskJobs.visible.length }} 个；服务端共
+            {{ taskJobs.total }} 个（筛选及批量操作针对当前跟踪列表）
+          </p>
+        </InfoDialog>
+      </template>
       <template #details="{ task }">
         <template v-if="DEBUG_MODE">
           <AppButton class="mt-5" @click="advance(task)">{{
@@ -312,6 +305,15 @@ function stopPolling() {
         >
       </template>
     </TaskDetailsPanel>
+    <AppButton
+      v-if="!DEBUG_MODE && taskJobs.hasMore"
+      variant="neutral"
+      size="sm"
+      class="self-center mt-4"
+      :loading="taskJobs.loading"
+      @click="taskJobs.load(true)"
+      >加载更多</AppButton
+    >
     <ConfirmDialog
       v-model:show="showCancel"
       title="结束任务"

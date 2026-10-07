@@ -87,14 +87,44 @@ const assert = require('node:assert/strict')
           ?.startsWith('任务 0')
       )
       assert(orders.includes('-updated_at'))
+      assert.equal(await page.getByRole('button', { name: '刷新列表', exact: true }).count(), 0)
+      assert.equal(await page.getByText(/当前跟踪.*个已加载持久任务/).count(), 0)
+      await page.evaluate(() => {
+        document.body.style.minHeight = '2000px'
+        window.scrollTo(0, 50)
+      })
+      await page.locator('.navbar.scrolled').waitFor()
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await page.waitForFunction(
+        () => !document.querySelector('.navbar').classList.contains('scrolled')
+      )
+      await page.waitForFunction(
+        () =>
+          getComputedStyle(document.querySelector('.navbar')).borderBottomColor ===
+          'rgba(0, 0, 0, 0)'
+      )
+      await page.evaluate(() => {
+        document.body.style.minHeight = ''
+      })
+      await page.getByRole('button', { name: '查看任务跟踪说明' }).click()
       const tracked = page.getByText(/当前跟踪.*个已加载持久任务/)
       assert.match(await tracked.innerText(), /当前跟踪 3/)
+      await page.keyboard.press('Escape')
+      assert.equal(
+        await page
+          .getByRole('button', { name: '查看任务跟踪说明' })
+          .evaluate((el) => el === document.activeElement),
+        true
+      )
       await rows.first().getByRole('button', { name: '不再跟踪任务 SAME-1', exact: true }).click()
       await page.getByRole('dialog').getByRole('button', { name: '不再跟踪', exact: true }).click()
+      await page.getByRole('button', { name: '查看任务跟踪说明' }).click()
       await page.waitForFunction(() => document.body.textContent.includes('当前跟踪 2'))
       assert.match(await tracked.innerText(), /已隐藏\s+1/)
       await page.reload()
+      await page.getByRole('button', { name: '查看任务跟踪说明' }).click()
       await page.getByText(/当前跟踪 2/).waitFor()
+      await page.keyboard.press('Escape')
       await page.goto(origin + '/resources')
       await page.getByRole('img', { name: '封面尚未获取' }).waitFor()
       async function equalActions(names) {

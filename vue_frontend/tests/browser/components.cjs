@@ -19,10 +19,12 @@ import {createApp,h,ref} from '/node_modules/.vite/deps/vue.js';
 import Select from '/src/shared/ui/CustomSelect.vue';
 import Confirm from '/src/shared/ui/ConfirmDialog.vue';
 import Modal from '/src/shared/ui/SettingsModal.vue';
+import Info from '/src/shared/ui/InfoDialog.vue';
 import '/src/styles/main.css';
-const show=ref(true),mount=ref(true),modal=ref(false),value=ref('a');
-window.audit={show,mount,modal,value};
+const show=ref(true),mount=ref(true),modal=ref(false),value=ref('a'),infoMount=ref(true),infoBusy=ref(false),infoDisabled=ref(false);
+window.audit={show,mount,modal,value,infoMount,infoBusy,infoDisabled};
 createApp({setup:()=>()=>h('div',[
+ infoMount.value?h(Info,{label:'Info audit',title:'Information',disabled:infoDisabled.value,loading:infoBusy.value},{default:()=>h(Info,{label:'Nested info',title:'Nested information'},()=>h('input',{'aria-label':'Nested field'}))}):null,
  h('button',{id:'opener',onClick:()=>show.value=true},'Open'),
  h(Select,{'aria-label':'Audit selector',id:'audit-select',options:[{value:'disabled',label:'Disabled',disabled:true},{value:'a',label:'Alpha'},{value:'b',label:'Beta'},{value:'blocked',label:'Blocked',disabled:true},{value:'c',label:'Gamma'}],modelValue:value.value,'onUpdate:modelValue':v=>value.value=v}),
  mount.value?h(Confirm,{show:show.value,title:'Confirm audit',message:'Example','onUpdate:show':v=>show.value=v}):null,
@@ -77,6 +79,41 @@ createApp({setup:()=>()=>h('div',[
     await page.keyboard.press('Enter')
     assert.equal(await page.evaluate(() => window.audit.value.value), 'a')
     assert.equal(await select.getAttribute('aria-expanded'), 'false')
+    const info = page.getByRole('button', { name: 'Info audit', exact: true })
+    await page.evaluate(() => {
+      window.audit.infoDisabled.value = true
+    })
+    assert.equal(await info.isDisabled(), true)
+    await page.evaluate(() => {
+      window.audit.infoDisabled.value = false
+      window.audit.infoBusy.value = true
+    })
+    assert.equal(await info.isDisabled(), true)
+    assert.equal(await info.getAttribute('aria-busy'), 'true')
+    await page.evaluate(() => {
+      window.audit.infoBusy.value = false
+    })
+    await info.click()
+    await page.getByRole('button', { name: 'Nested info' }).click()
+    await page.getByRole('dialog', { name: 'Nested information', exact: true }).waitFor()
+    await page.keyboard.press('Shift+Tab')
+    assert.equal(
+      await page
+        .getByRole('dialog', { name: 'Nested information', exact: true })
+        .evaluate((el) => el.contains(document.activeElement)),
+      true
+    )
+    await page.keyboard.press('Escape')
+    assert.equal(await page.getByRole('dialog').count(), 1)
+    assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden')
+    await page.keyboard.press('Escape')
+    assert.equal(await info.evaluate((el) => el === document.activeElement), true)
+    await info.click()
+    await page.evaluate(() => {
+      window.audit.infoMount.value = false
+    })
+    await page.getByRole('dialog').waitFor({ state: 'hidden' })
+    assert.equal(await page.evaluate(() => document.body.style.overflow), 'scroll')
     assert.deepEqual(errors, [])
     console.log(
       'PASS: dialog initial open, focus trap/return, nested locks, unmount, disabled select navigation and ARIA'

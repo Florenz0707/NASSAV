@@ -1,4 +1,5 @@
 <script setup>
+import RemoteResourceActions from '../../resources/components/RemoteResourceActions.vue'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { computed, ref, watch } from 'vue'
@@ -83,26 +84,13 @@ const metrics = computed(() => {
         <span v-if="metrics.likes">收藏 {{ metrics.likes }}</span>
       </div>
 
-      <div class="card-actions">
-        <button
-          v-if="!added"
-          type="button"
-          class="action-btn primary"
-          :disabled="adding"
-          @click="emit('add')"
-        >
-          {{ adding ? '添加中...' : '加入资源库' }}
-        </button>
-        <button v-else type="button" class="action-btn success" disabled>已添加</button>
-
-        <button
-          type="button"
-          class="action-btn secondary"
-          @click="added ? emit('view') : emit('open')"
-        >
-          {{ added ? '查看详情' : '跳转来源' }}
-        </button>
-      </div>
+      <RemoteResourceActions
+        :adding="adding"
+        :added="added"
+        @add="emit('add')"
+        @open="emit('open')"
+        @view="emit('view')"
+      />
     </div>
   </article>
 </template>
@@ -222,51 +210,5 @@ const metrics = computed(() => {
   color: var(--text-secondary);
   font-size: 0.82rem;
   min-height: 1.2rem;
-}
-
-.card-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.65rem;
-  margin-top: auto;
-}
-
-.action-btn {
-  border: none;
-  border-radius: 0.9rem;
-  padding: 0.8rem 0.95rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.action-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.action-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.action-btn.primary {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-  color: var(--on-accent);
-  box-shadow: var(--shadow-accent-lg);
-}
-
-.action-btn.secondary {
-  background: var(--bg-white-5);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-}
-
-.action-btn.success {
-  background: linear-gradient(135deg, var(--accent-success), var(--accent-tertiary));
-  color: var(--on-accent);
 }
 </style>

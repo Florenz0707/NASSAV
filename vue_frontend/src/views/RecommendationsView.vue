@@ -1,4 +1,5 @@
 <script setup>
+import InfoDialog from '../shared/ui/InfoDialog.vue'
 import RecommendationVerification from '../features/recommendations/components/RecommendationVerification.vue'
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
@@ -494,8 +495,41 @@ onBeforeUnmount(() => {
   <div class="recommendations-view">
     <section class="page-header">
       <div>
-        <div class="eyebrow">Discover</div>
-        <h1 class="page-title">推荐发现</h1>
+        <h1 class="text-3xl font-bold text-primary">推荐发现</h1>
+        <div class="flex items-center gap-2 mt-2">
+          <p class="text-secondary">发现符合偏好的资源</p>
+          <InfoDialog title="推荐信息" label="查看推荐信息">
+            <div class="recommendations-view">
+              <RecommendationMetrics
+                :cards="metricCards"
+                :loading="metricsLoading"
+                @refresh="loadRecommendationMetrics"
+              />
+              <RecommendationVerification
+                v-if="loading ? progress : meta?.verification_context"
+                :statistics="loading ? progress : meta.verification_context"
+              />
+              <RecommendationSeeds v-if="seeds.length" :groups="seedGroups" />
+              <div class="flex flex-wrap gap-2">
+                <AppButton
+                  variant="neutral"
+                  :disabled="loading"
+                  @click="refreshExternalRecommendations"
+                  >刷新外部结果</AppButton
+                >
+                <AppButton variant="neutral" :disabled="loading" @click="handleResetRecommendations"
+                  >清空页面</AppButton
+                >
+                <AppButton
+                  variant="danger"
+                  :disabled="loading || metricsLoading"
+                  @click="handleResetRecommendationHistory"
+                  >重置历史</AppButton
+                >
+              </div>
+            </div>
+          </InfoDialog>
+        </div>
       </div>
 
       <div class="header-actions">
@@ -517,30 +551,16 @@ onBeforeUnmount(() => {
         <AppButton variant="neutral" class="rec-action-btn" @click="openPersonalizationModal">
           个性化
         </AppButton>
-        <AppButton
-          variant="neutral"
-          class="rec-action-btn"
-          :disabled="loading"
-          @click="refreshExternalRecommendations"
-        >
-          刷新外部结果
-        </AppButton>
-        <AppButton
-          variant="neutral"
-          class="rec-action-btn"
-          :disabled="loading"
-          @click="handleResetRecommendations"
-        >
-          清空页面
-        </AppButton>
-        <AppButton
-          variant="neutral"
-          class="rec-action-btn"
-          :disabled="loading || metricsLoading"
-          @click="handleResetRecommendationHistory"
-        >
-          重置历史
-        </AppButton>
+        <InfoDialog title="推荐偏好" label="设置推荐偏好" button-text="推荐偏好">
+          <div class="recommendations-view">
+            <RecommendationPreferences
+              v-model:type-preference="typePreference"
+              v-model:actor-preference="actorPreference"
+              v-model:genre-preference="genrePreference"
+              v-model:limit="limit"
+            />
+          </div>
+        </InfoDialog>
       </div>
     </section>
 
@@ -553,26 +573,6 @@ onBeforeUnmount(() => {
       本次达到搜索时间预算，已为你保留 {{ meta.returned_count }} / {{ meta.requested_count }}
       条核验通过的推荐，可再次推荐获取更多。
     </p>
-
-    <RecommendationVerification
-      v-if="loading ? progress : meta?.verification_context"
-      :statistics="loading ? progress : meta.verification_context"
-    />
-
-    <RecommendationPreferences
-      v-model:type-preference="typePreference"
-      v-model:actor-preference="actorPreference"
-      v-model:genre-preference="genrePreference"
-      v-model:limit="limit"
-    />
-
-    <RecommendationMetrics
-      :cards="metricCards"
-      :loading="metricsLoading"
-      @refresh="loadRecommendationMetrics"
-    />
-
-    <RecommendationSeeds v-if="seeds.length" :groups="seedGroups" />
 
     <section class="content-shell">
       <PageLoad v-if="showInitialLoading" text="正在加载推荐" />
