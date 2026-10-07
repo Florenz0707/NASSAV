@@ -8,6 +8,8 @@ const props = defineProps({
   danger: Boolean,
   align: { type: String, default: 'left' },
   triggerClass: { type: String, default: '' },
+  compact: Boolean,
+  buttonText: { type: String, default: '' },
 })
 const emit = defineEmits(['select'])
 const root = ref(null),
@@ -84,16 +86,17 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside))
       :aria-controls="menuId"
       @click="toggle"
     >
-      {{ label }}
+      {{ buttonText || label }}
     </AppButton>
     <div
       v-if="open"
       :id="menuId"
       role="menu"
       :aria-label="label"
-      class="absolute z-[80] min-w-[120px] max-h-[50vh] overflow-y-auto rounded-lg bg-secondary border shadow-lg"
+      class="absolute tw-card-menu-popover max-h-[50vh] overflow-y-auto"
       :class="[
         below ? 'top-full mt-2' : 'bottom-full mb-2',
+        compact ? (danger ? 'min-w-[85px]' : 'min-w-[110px]') : 'min-w-[120px]',
         align === 'right' ? 'right-0' : 'left-0',
       ]"
     >
@@ -103,8 +106,13 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside))
         type="button"
         role="menuitem"
         :disabled="option.disabled"
-        class="block w-full px-4 py-2.5 text-left text-sm hover:bg-surface-subtle/10 focus-visible:bg-surface-subtle/10 disabled:opacity-50"
-        :class="danger ? 'text-accent-danger' : 'text-primary'"
+        class="block w-full px-4 py-2.5 text-center border-none transition-colors disabled:opacity-50"
+        :class="[
+          compact && !danger ? 'text-[0.75rem]' : 'text-[0.8rem]',
+          danger && compact
+            ? 'text-accent-danger bg-accent-danger/20 hover:bg-accent-danger/10 focus-visible:bg-accent-danger/10'
+            : 'text-secondary bg-surface-subtle/8 hover:bg-surface-subtle/[0.14] focus-visible:bg-surface-subtle/[0.14] hover:text-primary focus-visible:text-primary',
+        ]"
         @click="select(option)"
       >
         {{ option.text }}

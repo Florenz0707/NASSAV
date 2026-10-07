@@ -34,6 +34,18 @@ createApp({render:()=>h('div',{style:'padding:240px 40px;display:flex;gap:24px'}
     await second.getByRole('button', { name: '刷新资源', exact: true }).click()
     await second.getByRole('menuitem', { name: '全部刷新', exact: true }).waitFor()
     assert.equal(await first.getByRole('menu').count(), 0)
+    const menuStyle = await second
+      .getByRole('menuitem', { name: '全部刷新', exact: true })
+      .evaluate((item) => ({
+        alignment: getComputedStyle(item).textAlign,
+        size: parseFloat(getComputedStyle(item).fontSize),
+        background: getComputedStyle(item).backgroundColor,
+        shadow: getComputedStyle(item.parentElement).boxShadow,
+      }))
+    assert.equal(menuStyle.alignment, 'center')
+    assert.equal(menuStyle.size, 12)
+    assert.notEqual(menuStyle.background, 'rgba(0, 0, 0, 0)')
+    assert.notEqual(menuStyle.shadow, 'none')
     await page.keyboard.press('ArrowDown')
     assert.equal(
       await second

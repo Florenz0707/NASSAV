@@ -100,7 +100,16 @@ const assert = require('node:assert/strict')
         assert.deepEqual(sizes[0], sizes[1])
         assert.deepEqual(sizes[0], sizes[2])
       }
-      await equalActions(['刷新资源', '下载', '删除'])
+      const cardButtons = await Promise.all(
+        ['刷新资源', '下载', '删除'].map((name) =>
+          page.getByRole('button', { name, exact: true }).boundingBox()
+        )
+      )
+      assert(cardButtons.every((box) => box.width < 90 && Math.round(box.height) === 40))
+      assert.equal(
+        await page.getByRole('button', { name: '刷新资源', exact: true }).innerText(),
+        '刷新'
+      )
       await page.goto(origin + '/resource/SAME-1')
       await page.getByRole('img', { name: '封面尚未获取' }).waitFor()
       await equalActions(['刷新信息', '下载视频', '删除数据'])

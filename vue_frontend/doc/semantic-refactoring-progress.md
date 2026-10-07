@@ -19,3 +19,7 @@ S3 提交 6cfedbd；S4 分支 refactor/frontend-feature-layout。业务归 featu
 ## 资源封面与操作布局修复
 
 基线 bf9a18a；分支 fix/resource-cover-action-layout。详情完整封面按原比例显示，圆角贴合图片且去除多余深色底框；卡片/详情的刷新、下载或播放、删除按钮统一尺寸，ActionMenu 显式接收触发按钮布局。执行 pnpm run check（60 项单元测试）、resourceTaskFixes/resourceActions 浏览器检查（模拟 API，深浅主题、横竖封面、加载失败、移动端及菜单键盘/删除契约）和 pre-commit run -a。没有真实服务联调或部署验收。
+
+## 卡片与外部搜索布局调整
+
+基线 293750e；分支 fix/card-menus-external-search-layout。资源卡片恢复按内容定宽与短刷新文案，详情按钮尺寸保留；菜单恢复居中、柔和底色与主题浮层。外部搜索初始入口占首屏剩余空间，重新搜索移至分页下方，删除重复刷新入口并清理重启查询页缓存。执行 pnpm run check、resourceTaskFixes/resourceActions/entityDetail/progressivePagination 浏览器模拟及 pre-commit run -a；覆盖深浅主题、移动尺寸、菜单焦点、手动搜索、渐进分页、取消与重新搜索。模拟 API/WS，不代表真实服务联调。

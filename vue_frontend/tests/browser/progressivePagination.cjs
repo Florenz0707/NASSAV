@@ -74,7 +74,39 @@ const assert = require('node:assert/strict')
     })
     await page.goto((process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178') + '/actors/1')
     await page.getByRole('button', { name: '外部搜索', exact: true }).click()
-    await page.getByRole('button', { name: '开始搜索', exact: true }).click()
+    const initial = page.getByRole('button', { name: '开始搜索', exact: true })
+    await initial.waitFor()
+    const center = await initial.evaluate((button) => {
+      const area = button.parentElement.parentElement
+      const box = area.getBoundingClientRect(),
+        control = button.parentElement.getBoundingClientRect()
+      return {
+        center: control.top + control.height / 2,
+        expected: box.top + box.height / 2,
+        bottom: box.bottom,
+        height: window.innerHeight,
+      }
+    })
+    assert(Math.abs(center.center - center.expected) < 2)
+    assert(center.bottom <= center.height)
+    assert(center.bottom > center.height - 80)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.waitForTimeout(100)
+    const mobileCenter = await initial.evaluate((button) => {
+      const area = button.parentElement.parentElement.getBoundingClientRect(),
+        control = button.parentElement.getBoundingClientRect()
+      return {
+        delta: Math.abs(control.top + control.height / 2 - (area.top + area.height / 2)),
+        bottom: area.bottom,
+        viewport: window.innerHeight,
+      }
+    })
+    assert(mobileCenter.delta < 2)
+    assert(mobileCenter.bottom <= mobileCenter.viewport)
+    assert(mobileCenter.bottom > mobileCenter.viewport - 80)
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await initial.click()
     await page.getByText('Result 0', { exact: true }).waitFor()
     await page.getByRole('button', { name: '下一页', exact: true }).click()
     await page.getByText('Result 15', { exact: true }).waitFor()
@@ -96,6 +128,22 @@ const assert = require('node:assert/strict')
     await page.getByRole('button', { name: '上一页', exact: true }).click()
     await page.getByText('Result 30', { exact: true }).waitFor()
     assert.equal(submitted, 1)
+    assert.equal(await page.getByRole('button', { name: '刷新外部结果', exact: true }).count(), 0)
+    const restart = page.getByRole('button', { name: '重新搜索', exact: true })
+    const next = page.getByRole('button', { name: '下一页', exact: true })
+    const placement = await restart.evaluate((button) => {
+      const box = button.parentElement.getBoundingClientRect(),
+        own = button.getBoundingClientRect()
+      return {
+        centered: Math.abs(own.left + own.width / 2 - (box.left + box.width / 2)),
+        top: box.top,
+      }
+    })
+    assert(placement.centered < 30)
+    assert(placement.top > (await next.boundingBox()).y)
+    await restart.click()
+    await page.getByText('Result 0', { exact: true }).waitFor()
+    assert.equal(submitted, 2)
     assert.deepEqual(errors, [])
     console.log(
       'PASS: browse growing partial pages without restarting; 15 items per page, last item and cancellation browsing'

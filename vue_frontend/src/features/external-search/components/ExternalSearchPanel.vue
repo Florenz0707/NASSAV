@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceStore } from '../../resources/stores/resource.js'
 import { useToastStore } from '../../../shared/stores/toast.js'
@@ -112,10 +112,44 @@ function clearExternalQueryCache() {
   }
 }
 
-function refreshExternalSearch() {
+function restartExternalSearch() {
   clearExternalQueryCache()
-  startExternalSearch(externalPage.value || 1, true)
+  startExternalSearch(1, true)
 }
+
+const initialArea = ref(null)
+const remainingHeight = ref(0)
+let areaObserver
+function updateInitialHeight() {
+  const element = initialArea.value
+  if (!element?.getClientRects().length) return
+  let bottomSpace = 0
+  for (
+    let parent = element.parentElement;
+    parent && parent !== document.body;
+    parent = parent.parentElement
+  ) {
+    bottomSpace += parseFloat(getComputedStyle(parent).paddingBottom) || 0
+  }
+  remainingHeight.value = Math.max(
+    0,
+    window.innerHeight - element.getBoundingClientRect().top - window.scrollY - bottomSpace
+  )
+}
+watch(initialArea, (element, previous) => {
+  if (previous) areaObserver?.unobserve(previous)
+  if (element) areaObserver?.observe(element)
+  nextTick(updateInitialHeight)
+})
+onMounted(() => {
+  areaObserver = new ResizeObserver(updateInitialHeight)
+  if (initialArea.value) areaObserver.observe(initialArea.value)
+  window.addEventListener('resize', updateInitialHeight)
+})
+onBeforeUnmount(() => {
+  areaObserver?.disconnect()
+  window.removeEventListener('resize', updateInitialHeight)
+})
 
 const addingExternalAvids = ref(new Set())
 const handledScrapeJobs = new Set()
@@ -425,42 +459,47 @@ defineExpose({
     </SettingsModal>
     <div>
       <div
-        class="flex justify-center items-center gap-3"
-        :class="externalSearched ? 'mb-6' : 'py-20'"
+        v-if="!externalSearched && !loadingExternal"
+        ref="initialArea"
+        class="flex flex-col justify-center items-center gap-3"
+        :style="{ minHeight: `${remainingHeight}px` }"
       >
-        <AppButton
-          v-if="!loadingExternal"
-          :disabled="!sourcesReady || !externalSource"
-          @click="startExternalSearch(1, externalSearched)"
-        >
-          {{ externalSearched ? '重新搜索' : '开始搜索' }}
-        </AppButton>
-        <AppButton
-          v-else
-          variant="neutral"
-          :disabled="cancellingExternal"
-          @click="stopExternalSearch"
-        >
-          {{ cancellingExternal ? '正在取消…' : '取消搜索' }}
-        </AppButton>
-        <AppButton
-          variant="neutral"
-          size="sm"
-          aria-label="搜索设置"
-          :disabled="loadingExternal"
-          @click="showSearchSettings = true"
-          ><AppIcon name="settings"
-        /></AppButton>
-        <button
-          v-if="sourcesError"
-          class="tw-btn tw-btn-primary rounded-lg px-3 py-2"
-          @click="loadSearchSources"
-        >
-          重新加载搜索源
-        </button>
+        <div class="flex justify-center items-center gap-3">
+          <AppButton :disabled="!sourcesReady || !externalSource" @click="startExternalSearch(1)"
+            >开始搜索</AppButton
+          >
+          <AppButton
+            variant="neutral"
+            size="sm"
+            aria-label="搜索设置"
+            @click="showSearchSettings = true"
+            ><AppIcon name="settings"
+          /></AppButton>
+          <AppButton v-if="sourcesError" variant="neutral" @click="loadSearchSources"
+            >重新加载搜索源</AppButton
+          >
+        </div>
+        <p v-if="sourcesError" class="text-muted" role="alert">{{ sourcesError }}</p>
+        <p v-if="externalSource === 'missav'" class="text-muted text-sm text-center">
+          缺少演员或类别映射时按名称关键词匹配；排序沿用源站，列表不提供播放量和收藏量数值。
+        </p>
       </div>
-      <p v-if="sourcesError" class="text-muted mb-4" role="alert">{{ sourcesError }}</p>
-      <p v-if="externalSource === 'missav'" class="text-muted text-sm mb-4">
+      <div v-if="loadingExternal" class="flex justify-center items-center gap-3 mb-6">
+        <AppButton variant="neutral" :disabled="cancellingExternal" @click="stopExternalSearch">{{
+          cancellingExternal ? '正在取消…' : '取消搜索'
+        }}</AppButton>
+      </div>
+      <p
+        v-if="sourcesError && (externalSearched || loadingExternal)"
+        class="text-muted mb-4"
+        role="alert"
+      >
+        {{ sourcesError }}
+      </p>
+      <p
+        v-if="externalSource === 'missav' && (externalSearched || loadingExternal)"
+        class="text-muted text-sm mb-4"
+      >
         缺少演员或类别映射时按名称关键词匹配；排序沿用源站，列表不提供播放量和收藏量数值。
       </p>
       <p v-if="loadingExternal" class="text-muted text-sm mb-4" role="status">
@@ -478,7 +517,7 @@ defineExpose({
         v-if="!loadingExternal && externalMeta.partial && externalError"
         class="text-muted text-sm mb-4"
       >
-        已保留成功获取的结果；列表不完整，可刷新重试。
+        已保留成功获取的结果；列表不完整，可重新搜索。
       </p>
       <p v-if="externalError" class="text-accent-danger mb-4" role="alert">
         搜索失败：{{ externalError }}
@@ -514,13 +553,6 @@ defineExpose({
               class="w-24"
               @update:model-value="(v) => ((externalSortOrder = v), onExternalSortChange())"
             />
-            <button
-              class="tw-btn bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="loadingExternal"
-              @click="refreshExternalSearch"
-            >
-              刷新外部结果
-            </button>
           </div>
         </div>
 
@@ -574,6 +606,18 @@ defineExpose({
           >
             下一页
           </button>
+        </div>
+        <div v-if="!loadingExternal" class="flex justify-center items-center gap-3 mt-6">
+          <AppButton :disabled="!sourcesReady || !externalSource" @click="restartExternalSearch"
+            >重新搜索</AppButton
+          >
+          <AppButton
+            variant="neutral"
+            size="sm"
+            aria-label="搜索设置"
+            @click="showSearchSettings = true"
+            ><AppIcon name="settings"
+          /></AppButton>
         </div>
       </template>
     </div>

@@ -280,17 +280,19 @@ onUnmounted(() => {
       </div>
 
       <!-- 操作按钮 -->
-      <div class="grid grid-cols-3 gap-2 items-center relative">
+      <div class="flex gap-2 justify-between items-center relative">
         <ActionMenu
           :label="'刷新资源'"
-          trigger-class="w-full h-10 px-2"
+          button-text="刷新"
+          compact
+          trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium text-secondary bg-surface-subtle/8 border-[var(--border-white-10)] hover:bg-surface-subtle/[0.14]"
           :options="refreshOptions"
           @select="handleRefreshOption"
         />
 
         <AppButton
           :class="[
-            'w-full h-10 px-2',
+            'h-10 px-3.5 py-2 rounded-lg font-medium',
             resource.has_video
               ? 'cursor-not-allowed opacity-60'
               : isSubmittingDownload
@@ -334,7 +336,8 @@ onUnmounted(() => {
         <ActionMenu
           label="删除"
           :options="deleteOptions"
-          trigger-class="w-full h-10 px-2"
+          compact
+          trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium text-accent-danger bg-accent-danger/10 border-accent-danger/20 hover:bg-accent-danger/20"
           danger
           align="right"
           @select="handleDeleteOption"
