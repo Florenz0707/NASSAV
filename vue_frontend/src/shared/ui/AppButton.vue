@@ -6,7 +6,11 @@ defineProps({
     default: 'primary',
     validator: (value) => ['primary', 'neutral', 'danger'].includes(value),
   },
-  tone: { type: String, default: '', validator: (value) => ['', 'warm'].includes(value) },
+  tone: {
+    type: String,
+    default: '',
+    validator: (value) => ['', 'warm', 'coral', 'teal'].includes(value),
+  },
   size: { type: String, default: 'md', validator: (value) => ['sm', 'md'].includes(value) },
   disabled: Boolean,
   loading: Boolean,
@@ -73,6 +77,16 @@ defineProps({
   .ui-button--sm {
     padding: 0.375rem 0.75rem;
     font-size: 0.85rem;
+  }
+  .ui-button--tone-coral {
+    --button-fill: var(--coral-fill);
+    --button-fill-hover: var(--coral-fill-hover);
+    --button-fill-pressed: var(--coral-fill-pressed);
+  }
+  .ui-button--tone-teal {
+    --button-fill: var(--teal-fill);
+    --button-fill-hover: var(--teal-fill-hover);
+    --button-fill-pressed: var(--teal-fill-pressed);
   }
   .ui-button--tone-warm {
     --button-fill: var(--warm-fill);

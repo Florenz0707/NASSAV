@@ -192,14 +192,13 @@ onUnmounted(() => {
     <!-- 封面图 -->
     <div class="relative aspect-video overflow-hidden bg-black/30 group">
       <!-- checkbox placed over cover for visibility -->
-      <template v-if="selectable">
+      <div v-if="selectable" class="absolute z-30 top-3 left-3">
         <AppCheckbox
-          class="absolute z-30 top-3 left-3"
           :checked="selected"
           :label="'选择资源 ' + resource.avid"
           @change="$emit('toggle-select', resource.avid, $event)"
         />
-      </template>
+      </div>
       <ResourceCover
         ref="coverImage"
         :data-avid="resource.avid"
@@ -291,6 +290,7 @@ onUnmounted(() => {
 
         <AppButton
           class="h-10 px-3.5 py-2 rounded-lg font-medium"
+          tone="teal"
           :loading="isSubmittingDownload"
           :disabled="resource.has_video || isDownloading"
           :title="

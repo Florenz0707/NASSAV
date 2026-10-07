@@ -524,7 +524,7 @@ watch(
 
 <style scoped>
 .navbar {
-  background: var(--bg-overlay);
+  background: transparent;
   border-bottom: 1px solid var(--border-color);
   position: fixed;
   top: 0;

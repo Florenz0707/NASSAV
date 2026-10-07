@@ -265,8 +265,9 @@ function stopPolling() {
     </p>
     <div v-if="!DEBUG_MODE" class="flex items-center gap-3 mb-4 text-muted text-sm">
       <span
-        >已加载 {{ taskJobs.jobs.size }} /
-        {{ taskJobs.total }} 个持久任务（筛选及批量操作针对已加载列表）</span
+        >当前跟踪 {{ taskJobs.visible.length }} 个已加载持久任务；已隐藏
+        {{ taskJobs.jobs.size - taskJobs.visible.length }} 个；服务端共
+        {{ taskJobs.total }} 个（筛选及批量操作针对当前跟踪列表）</span
       >
       <AppButton
         v-if="taskJobs.hasMore"

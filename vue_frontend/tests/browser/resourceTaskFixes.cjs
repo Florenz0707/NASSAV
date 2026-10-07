@@ -87,7 +87,14 @@ const assert = require('node:assert/strict')
           ?.startsWith('任务 0')
       )
       assert(orders.includes('-updated_at'))
-      await page.getByRole('img', { name: '封面尚未获取' }).waitFor()
+      const tracked = page.getByText(/当前跟踪.*个已加载持久任务/)
+      assert.match(await tracked.innerText(), /当前跟踪 3/)
+      await rows.first().getByRole('button', { name: '不再跟踪任务 SAME-1', exact: true }).click()
+      await page.getByRole('dialog').getByRole('button', { name: '不再跟踪', exact: true }).click()
+      await page.waitForFunction(() => document.body.textContent.includes('当前跟踪 2'))
+      assert.match(await tracked.innerText(), /已隐藏\s+1/)
+      await page.reload()
+      await page.getByText(/当前跟踪 2/).waitFor()
       await page.goto(origin + '/resources')
       await page.getByRole('img', { name: '封面尚未获取' }).waitFor()
       async function equalActions(names) {
@@ -100,6 +107,21 @@ const assert = require('node:assert/strict')
         assert.deepEqual(sizes[0], sizes[1])
         assert.deepEqual(sizes[0], sizes[2])
       }
+      const cover = page.locator('[data-avid="SAME-1"]')
+      const relativeTop = () =>
+        cover.evaluate(
+          (el) => el.getBoundingClientRect().top - el.parentElement.getBoundingClientRect().top
+        )
+      const beforeBatch = await relativeTop()
+      await page.getByRole('button', { name: '批量操作', exact: true }).click()
+      await page.getByRole('checkbox', { name: '选择资源 SAME-1', exact: true }).waitFor()
+      assert(
+        Math.abs((await relativeTop()) - beforeBatch) < 1,
+        'batch checkbox must not displace cover'
+      )
+      await page.getByRole('checkbox', { name: '选择资源 SAME-1', exact: true }).check()
+      assert(Math.abs((await relativeTop()) - beforeBatch) < 1)
+      await page.getByRole('button', { name: '退出批量', exact: true }).click()
       const cardButtons = await Promise.all(
         ['刷新资源', '下载', '删除'].map((name) =>
           page.getByRole('button', { name, exact: true }).boundingBox()
@@ -147,7 +169,7 @@ const assert = require('node:assert/strict')
       await page.close()
     }
     console.log(
-      'PASS: same AVID details, descending time order, card/detail cover placeholders in both themes'
+      'PASS: hidden counts persist across reload, batch covers stay aligned, same AVID details, card/detail sizes and covers in both themes'
     )
   } finally {
     await browser.close()

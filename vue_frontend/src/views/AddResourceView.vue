@@ -105,7 +105,6 @@ function viewResource() {
           </AppButton>
           <AppButton
             variant="neutral"
-            tone="warm"
             class="rounded-lg px-4 shrink-0"
             aria-label="Cookie 设置"
             title="Cookie 设置"

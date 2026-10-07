@@ -19,7 +19,7 @@ import { RouterLink } from 'vue-router'
       <div class="relative max-w-7xl mx-auto">
         <div class="max-w-2xl">
           <h1 class="flex flex-col gap-3 mb-8">
-            <span class="text-7xl font-bold text-primary tracking-tight">NASSAV</span>
+            <span class="home-title w-fit text-7xl font-bold tracking-tight">NASSAV</span>
             <span class="text-3xl font-semibold tracking-wide" style="color: var(--text-muted)"
               >视频资源管理系统</span
             >
@@ -70,7 +70,7 @@ import { RouterLink } from 'vue-router'
           class="p-8 rounded-2xl bg-secondary border border-[var(--border-color)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-[var(--surface-raised)] text-secondary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
+            class="w-14 h-14 rounded-2xl home-icon home-icon--coral flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
           >
             <AppIcon name="bolt" class="w-8 h-8" />
           </div>
@@ -87,7 +87,7 @@ import { RouterLink } from 'vue-router'
           class="p-8 rounded-2xl bg-secondary border border-[var(--border-color)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-[var(--surface-raised)] text-secondary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
+            class="w-14 h-14 rounded-2xl home-icon home-icon--teal flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
           >
             <AppIcon name="target" class="w-8 h-8" />
           </div>
@@ -104,7 +104,7 @@ import { RouterLink } from 'vue-router'
           class="p-8 rounded-2xl bg-secondary border border-[var(--border-color)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-[var(--surface-raised)] text-secondary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
+            class="w-14 h-14 rounded-2xl home-icon home-icon--purple flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
           >
             <AppIcon name="palette" class="w-8 h-8" />
           </div>
@@ -121,6 +121,27 @@ import { RouterLink } from 'vue-router'
 </template>
 
 <style scoped>
+.home-title {
+  background: var(--hero-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.home-icon {
+  color: var(--home-icon-color);
+  background: color-mix(in srgb, var(--home-icon-color) 12%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--home-icon-color) 30%, transparent);
+}
+.home-icon--coral {
+  --home-icon-color: var(--accent-primary-text);
+}
+.home-icon--teal {
+  --home-icon-color: var(--accent-tertiary-text);
+}
+.home-icon--purple {
+  --home-icon-color: var(--genre-tag-text);
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

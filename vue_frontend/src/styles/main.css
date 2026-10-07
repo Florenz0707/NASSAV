@@ -165,14 +165,14 @@ body.light-mode {
 :root,
 body.dark-mode {
   --bg-primary: #0d0d14;
-  --bg-secondary: #1b1f27;
-  --card-bg: #1b1f27;
-  --bg-overlay: #1b1f27;
-  --bg-input: #1b1f27;
-  --surface-raised: #272d38;
+  --bg-secondary: #252b36;
+  --card-bg: #252b36;
+  --bg-overlay: #252b36;
+  --bg-input: #252b36;
+  --surface-raised: #323b49;
   --text-secondary: #b3bbc8;
   --text-muted: #9ba5b5;
-  --border-color: #3a4353;
+  --border-color: #4d596c;
   --accent-primary: #b53e50;
   --accent-primary-hover: #b94052;
   --accent-primary-pressed: #9d3344;
@@ -180,11 +180,23 @@ body.dark-mode {
   --danger-surface: #3b202b;
   --danger-hover: #4d2936;
   --danger-pressed: #612f42;
-  --neutral-hover: #272d38;
-  --neutral-pressed: #333c4b;
+  --neutral-hover: #323b49;
+  --neutral-pressed: #414c5e;
   --focus-ring: color-mix(in srgb, var(--accent-primary-text) 25%, transparent);
-  --disabled-surface: #272d38;
+  --disabled-surface: #323b49;
 
+  --coral-fill: #ce2851;
+  --coral-fill-hover: #c32248;
+  --coral-fill-pressed: #aa1d3e;
+  --teal-fill: #087980;
+  --teal-fill-hover: #066e76;
+  --teal-fill-pressed: #065d65;
+  --hero-gradient: linear-gradient(
+    110deg,
+    var(--accent-primary-text),
+    var(--genre-tag-text),
+    var(--accent-tertiary-text)
+  );
   --warm-fill: #a8451b;
   --warm-fill-hover: #b24b1e;
   --warm-fill-pressed: #923712;
@@ -216,6 +228,18 @@ body.light-mode {
   --focus-ring: color-mix(in srgb, var(--accent-primary) 20%, transparent);
   --disabled-surface: #eceef1;
 
+  --coral-fill: #ce2851;
+  --coral-fill-hover: #c32248;
+  --coral-fill-pressed: #aa1d3e;
+  --teal-fill: #087980;
+  --teal-fill-hover: #066e76;
+  --teal-fill-pressed: #065d65;
+  --hero-gradient: linear-gradient(
+    110deg,
+    var(--accent-primary-text),
+    var(--genre-tag-text),
+    var(--accent-tertiary-text)
+  );
   --warm-fill: #a8451b;
   --warm-fill-hover: #993b15;
   --warm-fill-pressed: #84300e;
