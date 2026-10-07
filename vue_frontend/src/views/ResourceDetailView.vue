@@ -9,6 +9,7 @@ import { useSettingsStore } from '../features/settings/stores/settings.js'
 import LoadingSpinner from '../shared/ui/LoadingSpinner.vue'
 import ConfirmDialog from '../shared/ui/ConfirmDialog.vue'
 import ActionMenu from '../shared/ui/ActionMenu.vue'
+import AppButton from '../shared/ui/AppButton.vue'
 import {
   resourceRefreshOptions,
   resourceDeleteOptions,
@@ -293,13 +294,12 @@ async function navigateToGenre(genreName) {
       <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-10 mb-12">
         <!-- 封面和状态按钮 -->
         <div class="flex flex-col gap-4">
-          <div
-            class="relative h-[310px] rounded-2xl overflow-hidden shadow-[0_12px_40px_color-mix(in_srgb,_var(--shadow-color)_10%,_transparent)] flex justify-center items-center"
-          >
+          <div class="relative h-[310px] flex justify-center items-center">
             <ResourceCover
               :url="coverUrl"
               :title="displayedTitle"
-              image-class="object-contain"
+              natural-size
+              image-class="object-contain rounded-2xl shadow-lg"
               class="w-full h-full"
             />
           </div>
@@ -465,13 +465,14 @@ async function navigateToGenre(genreName) {
             <ActionMenu
               :label="refreshing ? '刷新中' : '刷新信息'"
               :options="refreshOptions"
+              trigger-class="w-32 h-14"
               :disabled="refreshing"
               @select="handleRefreshOption"
             />
 
-            <button
+            <AppButton
               v-if="!metadata.file_exists"
-              class="inline-flex items-center justify-center px-6 py-3.5 border-none rounded-[10px] text-[0.95rem] font-medium cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+              class="w-32 h-14"
               :style="
                 isSubmittingDownload
                   ? 'background: linear-gradient(135deg, var(--accent-tertiary), var(--accent-tertiary-light))'
@@ -483,10 +484,10 @@ async function navigateToGenre(genreName) {
               @click="handleDownload"
             >
               {{ isSubmittingDownload ? '提交中...' : isDownloading ? '下载中...' : '下载视频' }}
-            </button>
-            <button
+            </AppButton>
+            <AppButton
               v-if="metadata.file_exists"
-              class="inline-flex items-center gap-2 px-6 py-3.5 border-none rounded-[10px] text-[1.0rem] font-normal cursor-pointer transition-all duration-200 text-white hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)]"
+              class="w-32 h-14"
               style="
                 background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
                 color: var(--on-accent);
@@ -497,11 +498,12 @@ async function navigateToGenre(genreName) {
                 <path d="M8 5v14l11-7z" />
               </svg>
               点击播放
-            </button>
+            </AppButton>
 
             <ActionMenu
               label="删除数据"
               :options="deleteOptions"
+              trigger-class="w-32 h-14"
               danger
               align="right"
               @select="handleDeleteOption"

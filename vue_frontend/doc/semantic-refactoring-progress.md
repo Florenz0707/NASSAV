@@ -15,3 +15,7 @@ S2 提交 40a1c65；S3 分支 refactor/frontend-page-modules。拆出外部搜�
 ## S4 模块布局
 
 S3 提交 6cfedbd；S4 分支 refactor/frontend-feature-layout。业务归 features，公共能力归 shared，应用装配归 app；拆分 API 领域声明，保留 index.js 导出与唯一 HTTP 实例。同步仓库/前端规范、开发契约、模块布局说明和源码链接。执行 pnpm run check、完整 pnpm run test:browser（模拟 API/WS）和 pre-commit run -a；新增 shared 依赖边界与 API 实例/包络回归检查。没有真实后端、worker 或生产部署验收。
+
+## 资源封面与操作布局修复
+
+基线 bf9a18a；分支 fix/resource-cover-action-layout。详情完整封面按原比例显示，圆角贴合图片且去除多余深色底框；卡片/详情的刷新、下载或播放、删除按钮统一尺寸，ActionMenu 显式接收触发按钮布局。执行 pnpm run check（60 项单元测试）、resourceTaskFixes/resourceActions 浏览器检查（模拟 API，深浅主题、横竖封面、加载失败、移动端及菜单键盘/删除契约）和 pre-commit run -a。没有真实服务联调或部署验收。

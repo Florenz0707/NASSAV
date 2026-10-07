@@ -5,6 +5,7 @@ const assert = require('node:assert/strict')
   try {
     for (const theme of ['light', 'dark']) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } })
+      let coverArtwork = null
       const errors = [],
         orders = []
       page.on('pageerror', (e) => errors.push(e.message))
@@ -35,7 +36,11 @@ const assert = require('node:assert/strict')
           data = { authenticated: true, username: 'resource-task-audit' }
         if (path.endsWith('/setting')) data = { color_mode: theme }
         if (path.includes('/cover')) {
-          await r.fulfill({ status: 404, body: '' })
+          await r.fulfill(
+            coverArtwork
+              ? { contentType: 'image/svg+xml', body: coverArtwork }
+              : { status: 404, body: '' }
+          )
           return
         }
         if (path.endsWith('/tasks/queue/status')) data = { active_tasks: [], pending_tasks: [] }
@@ -85,8 +90,50 @@ const assert = require('node:assert/strict')
       await page.getByRole('img', { name: '封面尚未获取' }).waitFor()
       await page.goto(origin + '/resources')
       await page.getByRole('img', { name: '封面尚未获取' }).waitFor()
+      async function equalActions(names) {
+        const sizes = await Promise.all(
+          names.map(async (name) => {
+            const box = await page.getByRole('button', { name, exact: true }).boundingBox()
+            return [Math.round(box.width), Math.round(box.height)]
+          })
+        )
+        assert.deepEqual(sizes[0], sizes[1])
+        assert.deepEqual(sizes[0], sizes[2])
+      }
+      await equalActions(['刷新资源', '下载', '删除'])
       await page.goto(origin + '/resource/SAME-1')
       await page.getByRole('img', { name: '封面尚未获取' }).waitFor()
+      await equalActions(['刷新信息', '下载视频', '删除数据'])
+      for (const [width, height] of [
+        [960, 540],
+        [360, 540],
+      ]) {
+        coverArtwork = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="steelblue" /></svg>`
+        await page.reload()
+        const image = page.getByRole('img', { name: '资源名称 · 资源封面', exact: true })
+        await image.waitFor()
+        await image.evaluate((el) => el.decode())
+        const geometry = await image.evaluate((el) => {
+          const img = el.getBoundingClientRect(),
+            frame = el.parentElement.getBoundingClientRect()
+          return {
+            width: img.width,
+            height: img.height,
+            frameWidth: frame.width,
+            frameHeight: frame.height,
+            radius: parseFloat(getComputedStyle(el).borderTopLeftRadius),
+            background: getComputedStyle(el.parentElement).backgroundColor,
+          }
+        })
+        assert(Math.abs(geometry.width / geometry.height - width / height) < 0.01)
+        assert(geometry.width <= geometry.frameWidth && geometry.height <= geometry.frameHeight)
+        assert(geometry.radius > 0)
+        assert.equal(geometry.background, 'rgba(0, 0, 0, 0)')
+        await equalActions(['刷新信息', '下载视频', '删除数据'])
+      }
+      await page.setViewportSize({ width: 390, height: 844 })
+      await equalActions(['刷新信息', '下载视频', '删除数据'])
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       assert.deepEqual(errors, [])
       await page.close()
     }
