@@ -15,7 +15,8 @@
 - 外部搜索保持按钮手动触发，来源/排序变化不自动启动；取消调用后端接口，partial/失败/取消明确展示，不缓存为完整成功。
 - 标题选择复用 `features/resources/lib/resourceTitle.js`，下载队列保存原始字段，保持偏好变化后的重新解析；设置面板通过事件更新父状态。
 - 颜色使用 main.css 的主题 token 及 Tailwind 语义映射，禁止组件新增颜色字面量；新增 token 检查深浅主题和生成样式，保留显式 `@config`。
-- 优先使用 AppButton、SearchInput、ResourcePagination、CustomSelect、ConfirmDialog、AppIcon 与 useDialog；组件样式使用合适的 CSS layer，不覆盖工具类的布局/显示效果。
+- 优先使用 AppButton、AppInput、SearchInput、PageLoad、RequestError、ResourcePagination、CustomSelect、ConfirmDialog、AppIcon 与 useDialog；组件样式使用合适的 CSS layer，不覆盖工具类的布局/显示效果。
+- 控件只覆盖布局，不用旧类或内联背景覆盖公共按钮五态；强调色文字与背景使用各自 token。页面加载超过一秒展示骨架或 loading，刷新保留内容、错误提供重试，动画平缓且尊重减少动态效果偏好。
 - 核心图标使用有明确尺寸的 currentColor SVG；弹窗/下拉检查键盘、焦点、禁用项、嵌套和卸载清理，移动端布局一并验证。
 
 ## 验证与文档

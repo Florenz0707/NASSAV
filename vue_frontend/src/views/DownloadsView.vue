@@ -255,11 +255,14 @@ function stopPolling() {
     </p>
     <RequestError v-if="queueError" :message="queueError" compact @retry="fetchQueueStatus" />
     <RequestError
-      v-if="!DEBUG_MODE && (taskJobs.error || taskJobs.listError)"
-      :message="taskJobs.error || taskJobs.listError"
+      v-if="!DEBUG_MODE && taskJobs.listError"
+      :message="taskJobs.listError"
       compact
       @retry="taskJobs.load()"
     />
+    <p v-if="!DEBUG_MODE && taskJobs.error" role="alert" class="text-accent-danger mb-4">
+      {{ taskJobs.error }} 请根据当前允许动作重新操作。
+    </p>
     <div v-if="!DEBUG_MODE" class="flex items-center gap-3 mb-4 text-muted text-sm">
       <span
         >已加载 {{ taskJobs.jobs.size }} /
@@ -303,7 +306,7 @@ function stopPolling() {
         <RouterLink
           v-else-if="task.hasResource"
           :to="'/resource/' + encodeURIComponent(task.avid)"
-          class="inline-flex items-center justify-center mt-5 px-4 py-2.5 rounded-xl bg-accent-primary text-on-accent font-semibold transition-colors hover:bg-accent-primary/80"
+          class="tw-btn-primary mt-5 px-4 py-2.5 rounded-xl"
           >查看资源</RouterLink
         >
       </template>

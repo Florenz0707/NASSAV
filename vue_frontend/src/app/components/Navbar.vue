@@ -616,7 +616,7 @@ watch(
 }
 
 .nav-item.active {
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 
@@ -682,7 +682,7 @@ watch(
 }
 
 .dropdown-item.active {
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 
@@ -729,7 +729,7 @@ watch(
 
 .mobile-nav-item:hover,
 .mobile-nav-item.active {
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 

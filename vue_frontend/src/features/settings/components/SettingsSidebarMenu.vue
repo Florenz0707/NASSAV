@@ -23,7 +23,7 @@ const emit = defineEmits(['select'])
       class="w-full flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200"
       :style="
         activeId === item.id
-          ? 'background: color-mix(in srgb, var(--accent-primary) 10%, transparent); color: var(--accent-primary);'
+          ? 'background: color-mix(in srgb, var(--accent-primary) 10%, transparent); color: var(--accent-primary-text);'
           : 'color: var(--text-muted);'
       "
       @click="emit('select', item.id)"

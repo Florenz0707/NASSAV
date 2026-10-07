@@ -143,24 +143,13 @@ watch(
   left: 0;
   right: 0;
   bottom: 0;
-  background:
-    radial-gradient(
-      ellipse at 20% 20%,
-      color-mix(in srgb, var(--accent-purple) 15%, transparent) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at 80% 80%,
-      color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at 50% 50%,
-      color-mix(in srgb, var(--accent-tertiary) 8%, transparent) 0%,
-      transparent 70%
-    );
+  background: var(--bg-primary);
   pointer-events: none;
   z-index: 0;
+}
+
+.main-content:focus {
+  outline: none;
 }
 
 .main-content {

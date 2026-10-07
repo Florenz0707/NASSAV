@@ -20,6 +20,7 @@ export default {
         secondary: 'var(--bg-secondary)',
       },
       textColor: {
+        'accent-primary': 'var(--accent-primary-text)',
         primary: 'var(--text-primary)',
         secondary: 'var(--text-secondary)',
         muted: 'var(--text-muted)',

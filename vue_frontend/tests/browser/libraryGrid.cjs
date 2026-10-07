@@ -62,7 +62,7 @@ const assert = require('node:assert/strict')
           assert.equal(
             await badge.evaluate((element) => {
               const probe = document.createElement('span')
-              probe.style.color = 'var(--accent-primary)'
+              probe.style.color = 'var(--accent-primary-text)'
               element.append(probe)
               const matches = getComputedStyle(element).color === getComputedStyle(probe).color
               probe.remove()

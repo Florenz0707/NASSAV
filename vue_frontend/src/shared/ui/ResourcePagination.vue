@@ -1,21 +1,31 @@
 <template>
   <nav aria-label="分页" class="mt-8 w-full">
     <div class="flex flex-wrap items-center justify-center gap-2 mb-3">
-      <AppButton :disabled="page === 1" class="hidden sm:inline-flex" @click="goFirst">
+      <AppButton
+        variant="neutral"
+        :disabled="page === 1"
+        class="hidden sm:inline-flex"
+        @click="goFirst"
+      >
         跳转开头
       </AppButton>
-      <AppButton :disabled="page === 1" @click="goPrev"> 上一页 </AppButton>
+      <AppButton variant="neutral" :disabled="page === 1" @click="goPrev"> 上一页 </AppButton>
       <div class="px-4 py-2 rounded-lg bg-secondary text-primary text-sm">
         第 {{ page }} 页 / 共 {{ pages }} 页
       </div>
-      <AppButton :disabled="page === pages" @click="goNext"> 下一页 </AppButton>
-      <AppButton :disabled="page === pages" class="hidden sm:inline-flex" @click="goLast">
+      <AppButton variant="neutral" :disabled="page === pages" @click="goNext"> 下一页 </AppButton>
+      <AppButton
+        variant="neutral"
+        :disabled="page === pages"
+        class="hidden sm:inline-flex"
+        @click="goLast"
+      >
         跳转末尾
       </AppButton>
     </div>
     <div class="flex flex-wrap items-center justify-center gap-3">
       <div class="flex items-center gap-2">
-        <AppButton size="sm" @click="emitGoTo(localPage)"> 跳转至第 </AppButton>
+        <AppButton variant="neutral" size="sm" @click="emitGoTo(localPage)"> 跳转至第 </AppButton>
         <input
           :id="inputId + '-page'"
           aria-label="跳转页码"
@@ -122,5 +132,13 @@ export default defineComponent({
   background: var(--bg-secondary);
   color: var(--text-primary);
   border-color: var(--border-color);
+  caret-color: var(--accent-primary-text);
+}
+.page-input:focus {
+  border-color: var(--accent-primary-text);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+.page-input::placeholder {
+  color: var(--text-muted);
 }
 </style>

@@ -1,4 +1,5 @@
 <script setup>
+import AppButton from '../../../shared/ui/AppButton.vue'
 import { computed } from 'vue'
 import { resolveResourceTitle } from '../lib/resourceTitle.js'
 const props = defineProps({
@@ -177,12 +178,7 @@ const displayedTitle = computed(() =>
       </div>
 
       <div class="result-actions">
-        <button
-          class="btn-primary rounded-lg px-6 py-3 hover:bg-opacity-80 transition-colors duration-200"
-          @click="$emit('view')"
-        >
-          查看详情
-        </button>
+        <AppButton class="rounded-lg px-6 py-3" @click="$emit('view')"> 查看详情 </AppButton>
       </div>
     </div>
   </Transition>
@@ -309,13 +305,13 @@ const displayedTitle = computed(() =>
       </div>
 
       <div class="result-actions">
-        <button
+        <AppButton
           v-if="result.success.length === 1"
-          class="btn-primary rounded-lg px-6 py-3 hover:bg-opacity-80 transition-colors duration-200"
+          class="rounded-lg px-6 py-3"
           @click="$emit('view')"
         >
           查看详情
-        </button>
+        </AppButton>
       </div>
     </div>
   </Transition>

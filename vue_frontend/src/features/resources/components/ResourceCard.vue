@@ -174,7 +174,7 @@ onUnmounted(() => {
     :style="
       selected
         ? 'background: var(--card-bg); border-color: color-mix(in srgb, var(--accent-primary) 75%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);'
-        : 'background: var(--card-bg); border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);'
+        : 'background: var(--card-bg); border-color: var(--border-color);'
     "
     @mouseenter="
       !selected &&
@@ -212,8 +212,7 @@ onUnmounted(() => {
       >
         <RouterLink
           :to="{ path: `/resource/${resource.avid}`, query: { from: route.fullPath } }"
-          class="px-6 py-3 text-white rounded-lg font-medium text-sm transition-transform hover:scale-105"
-          style="background: var(--accent-primary)"
+          class="tw-btn-primary px-6 py-3 rounded-lg text-sm"
         >
           查看详情
         </RouterLink>
@@ -227,7 +226,7 @@ onUnmounted(() => {
         <div
           class="text-[0.85rem] font-semibold rounded-md w-fit px-2 py-1"
           style="
-            color: var(--accent-primary);
+            color: var(--accent-primary-text);
             background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
           "
         >
@@ -285,32 +284,15 @@ onUnmounted(() => {
           :label="'刷新资源'"
           button-text="刷新"
           compact
-          trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium text-secondary bg-surface-subtle/8 border-[var(--border-white-10)] hover:bg-surface-subtle/[0.14]"
+          trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium "
           :options="refreshOptions"
           @select="handleRefreshOption"
         />
 
         <AppButton
-          :class="[
-            'h-10 px-3.5 py-2 rounded-lg font-medium',
-            resource.has_video
-              ? 'cursor-not-allowed opacity-60'
-              : isSubmittingDownload
-                ? 'cursor-not-allowed text-white shadow-[0_8px_20px_color-mix(in_srgb,_var(--accent-tertiary)_24%,_transparent)]'
-                : isDownloading
-                  ? 'cursor-not-allowed text-white shadow-[0_8px_20px_color-mix(in_srgb,_var(--accent-secondary)_28%,_transparent)]'
-                  : 'text-white cursor-pointer hover:shadow-lg hover:-translate-y-0.5',
-          ]"
-          :style="
-            resource.has_video
-              ? 'background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color)'
-              : isSubmittingDownload
-                ? 'background: linear-gradient(135deg, var(--accent-tertiary), var(--accent-tertiary-light))'
-                : isDownloading
-                  ? 'background: linear-gradient(135deg, var(--accent-secondary), var(--accent-secondary-light))'
-                  : 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
-          "
-          :disabled="resource.has_video || isDownloadBusy"
+          class="h-10 px-3.5 py-2 rounded-lg font-medium"
+          :loading="isSubmittingDownload"
+          :disabled="resource.has_video || isDownloading"
           :title="
             resource.has_video
               ? '视频已下载'
@@ -326,7 +308,7 @@ onUnmounted(() => {
             resource.has_video
               ? '已下载'
               : isSubmittingDownload
-                ? '提交中'
+                ? '下载'
                 : isDownloading
                   ? '下载中'
                   : '下载'
@@ -337,7 +319,7 @@ onUnmounted(() => {
           label="删除"
           :options="deleteOptions"
           compact
-          trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium text-accent-danger bg-accent-danger/10 border-accent-danger/20 hover:bg-accent-danger/20"
+          trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium "
           danger
           align="right"
           @select="handleDeleteOption"

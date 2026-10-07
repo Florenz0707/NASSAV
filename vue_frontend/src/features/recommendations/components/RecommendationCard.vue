@@ -1,4 +1,5 @@
 <script setup>
+import AppButton from '../../../shared/ui/AppButton.vue'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { computed } from 'vue'
@@ -189,24 +190,21 @@ function handleReasonsClick(event) {
       </div>
 
       <div class="card-actions">
-        <button
+        <AppButton
           v-if="!added"
-          type="button"
-          class="action-btn primary"
-          :disabled="adding"
+          variant="neutral"
+          class="flex-1 min-w-0"
+          :loading="adding"
           @click="emit('add')"
+          >加入资源库</AppButton
         >
-          {{ adding ? '添加中...' : '加入资源库' }}
-        </button>
-        <button v-else type="button" class="action-btn success" disabled>已添加</button>
-
-        <button
-          type="button"
-          class="action-btn secondary"
+        <AppButton v-else variant="neutral" class="flex-1 min-w-0" disabled>已添加</AppButton>
+        <AppButton
+          variant="neutral"
+          class="flex-1 min-w-0"
           @click="added ? emit('view') : emit('open')"
+          >{{ added ? '查看详情' : '跳转来源' }}</AppButton
         >
-          {{ added ? '查看详情' : '跳转来源' }}
-        </button>
       </div>
     </div>
   </article>
@@ -214,13 +212,8 @@ function handleReasonsClick(event) {
 
 <style scoped>
 .recommendation-card {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--neutral-color) 4%, transparent),
-    color-mix(in srgb, var(--neutral-color) 2%, transparent)
-  );
-  border: 1px solid;
-  border-color: color-mix(in srgb, var(--neutral-color) 16%, transparent);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 1.25rem;
   overflow: hidden;
   backdrop-filter: blur(16px);
@@ -253,17 +246,7 @@ function handleReasonsClick(event) {
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background:
-    radial-gradient(
-      circle at top left,
-      color-mix(in srgb, var(--accent-primary) 28%, transparent),
-      transparent 55%
-    ),
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--bg-secondary) 92%, transparent),
-      color-mix(in srgb, var(--bg-secondary) 86%, transparent)
-    );
+  background: var(--surface-raised);
 }
 
 .feedback-overlay {
@@ -395,7 +378,7 @@ function handleReasonsClick(event) {
 
 .avid-chip {
   background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
 }
 
 .source-chip {
@@ -494,7 +477,7 @@ function handleReasonsClick(event) {
 
 .inline-feedback-btn.danger {
   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
 }
 
 .inline-feedback-btn.danger:hover:not(:disabled) {

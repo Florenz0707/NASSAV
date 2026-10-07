@@ -1,4 +1,7 @@
 <script setup>
+import PageLoad from '../../../shared/ui/PageLoad.vue'
+import AppButton from '../../../shared/ui/AppButton.vue'
+import EmptyState from '../../../shared/ui/EmptyState.vue'
 import CookieStatusBadge from './CookieStatusBadge.vue'
 
 defineProps({
@@ -22,13 +25,7 @@ const emit = defineEmits(['view', 'edit', 'delete'])
       <p class="text-sm text-[var(--text-muted)]">管理各个下载源的 Cookie 配置，确保正常访问</p>
     </div>
 
-    <div v-if="loading" class="text-center py-12">
-      <div
-        class="inline-block animate-spin rounded-full h-8 w-8"
-        style="border-bottom: 2px solid var(--accent-primary)"
-      />
-      <p class="mt-3 text-[var(--text-muted)]">加载中...</p>
-    </div>
+    <PageLoad v-if="loading" variant="spinner" text="正在加载 Cookie" />
 
     <div v-else-if="sources.length > 0" class="overflow-x-auto">
       <table class="w-full">
@@ -70,19 +67,20 @@ const emit = defineEmits(['view', 'edit', 'delete'])
             </td>
             <td class="py-4 px-4">
               <div class="flex gap-2">
-                <button
-                  class="cookie-btn cookie-btn-view"
+                <AppButton
+                  variant="neutral"
+                  size="sm"
                   :disabled="!source.hasCookie"
                   @click="emit('view', source)"
                 >
                   查看
-                </button>
-                <button class="cookie-btn cookie-btn-update" @click="emit('edit', source)">
+                </AppButton>
+                <AppButton variant="neutral" size="sm" @click="emit('edit', source)">
                   更新
-                </button>
-                <button class="cookie-btn cookie-btn-delete" @click="emit('delete', source)">
+                </AppButton>
+                <AppButton variant="danger" size="sm" @click="emit('delete', source)">
                   删除
-                </button>
+                </AppButton>
               </div>
             </td>
           </tr>
@@ -90,10 +88,7 @@ const emit = defineEmits(['view', 'edit', 'delete'])
       </table>
     </div>
 
-    <div v-else class="text-center py-12 text-[var(--text-muted)]">
-      <div class="text-4xl mb-3">📭</div>
-      <p>暂无可用的下载源</p>
-    </div>
+    <EmptyState v-else icon="empty" title="暂无可用的下载源" />
 
     <div
       v-if="sources.length > 0"
@@ -132,55 +127,3 @@ const emit = defineEmits(['view', 'edit', 'delete'])
     </div>
   </div>
 </template>
-
-<style scoped>
-.cookie-btn {
-  border-radius: 0.5rem;
-  border: 1px solid transparent;
-  padding: 0.375rem 0.75rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  transition: all 0.2s ease;
-}
-
-.cookie-btn-view {
-  border-color: color-mix(in srgb, var(--neutral-color) 14%, transparent);
-  background: color-mix(in srgb, var(--neutral-color) 6%, transparent);
-  color: var(--text-secondary);
-}
-
-.cookie-btn-view:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--neutral-color) 24%, transparent);
-  background: color-mix(in srgb, var(--neutral-color) 12%, transparent);
-  color: var(--text-primary);
-}
-
-.cookie-btn-view:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.cookie-btn-update {
-  border-color: color-mix(in srgb, var(--accent-primary) 25%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
-}
-
-.cookie-btn-update:hover {
-  border-color: color-mix(in srgb, var(--accent-primary) 38%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 20%, transparent);
-  color: var(--text-primary);
-}
-
-.cookie-btn-delete {
-  border-color: color-mix(in srgb, var(--accent-danger) 25%, transparent);
-  background: color-mix(in srgb, var(--accent-danger) 11%, transparent);
-  color: var(--accent-danger);
-}
-
-.cookie-btn-delete:hover {
-  border-color: color-mix(in srgb, var(--accent-danger) 40%, transparent);
-  background: color-mix(in srgb, var(--accent-danger) 20%, transparent);
-  color: var(--text-primary);
-}
-</style>

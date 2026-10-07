@@ -15,7 +15,7 @@ onBeforeUnmount(() => clearTimeout(timer))
 <template>
   <div
     class="page-load"
-    :class="{ 'page-load--compact': variant === 'spinner' }"
+    :class="{ 'page-load--compact': variant === 'spinner', 'page-load--pending': !visible }"
     role="status"
     aria-live="polite"
     aria-busy="true"
@@ -63,9 +63,16 @@ onBeforeUnmount(() => clearTimeout(timer))
   padding-block: 1rem;
 }
 .page-load--compact {
-  min-height: 8rem;
+  min-height: 3rem;
+  padding-block: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.page-load--compact.page-load--pending {
+  min-height: 0;
+  height: 0;
+  padding-block: 0;
+  overflow: hidden;
 }
 </style>

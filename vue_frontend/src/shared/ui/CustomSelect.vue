@@ -348,7 +348,7 @@ onBeforeUnmount(() => {
 .custom-select-option.is-selected {
   background: var(--accent-primary);
   color: var(--on-accent);
-  border-color: var(--accent-primary);
+  border-color: var(--accent-primary-text);
 }
 
 .custom-select-option.is-disabled {
@@ -365,7 +365,7 @@ onBeforeUnmount(() => {
 }
 
 .custom-select-option-check {
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
   font-size: 0.84rem;
   font-weight: 700;
 }

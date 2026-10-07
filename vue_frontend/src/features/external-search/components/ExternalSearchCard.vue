@@ -127,7 +127,7 @@ const metrics = computed(() => {
 
 .external-search-card:hover {
   transform: translateY(-4px);
-  border-color: var(--accent-primary);
+  border-color: var(--accent-primary-text);
   box-shadow: var(--shadow-2xl);
 }
 

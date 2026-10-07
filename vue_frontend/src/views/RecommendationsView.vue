@@ -1,4 +1,5 @@
 <script setup>
+import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import RequestError from '../shared/ui/RequestError.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -9,7 +10,6 @@ import RecommendationMetrics from '../features/recommendations/components/Recomm
 import RecommendationSeeds from '../features/recommendations/components/RecommendationSeeds.vue'
 import RecommendationCard from '../features/recommendations/components/RecommendationCard.vue'
 import EmptyState from '../shared/ui/EmptyState.vue'
-import LoadingSpinner from '../shared/ui/LoadingSpinner.vue'
 import RecommendationBlacklist from '../features/recommendations/components/RecommendationBlacklist.vue'
 import { useRecommendationsStore } from '../features/recommendations/stores/recommendations.js'
 import {
@@ -490,38 +490,40 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="header-actions">
-        <button
-          class="rec-action-btn rec-action-btn-primary"
-          :disabled="loading"
+        <AppButton
+          class="rec-action-btn"
+          :loading="loading"
           @click="runPrimaryRecommendationAction"
         >
-          <LoadingSpinner v-if="loading" size="small" />
-          <template v-else>{{ recommendationActionLabel }}</template>
-        </button>
-        <button class="rec-action-btn rec-action-btn-secondary" @click="openPersonalizationModal">
+          {{ recommendationActionLabel }}
+        </AppButton>
+        <AppButton variant="neutral" class="rec-action-btn" @click="openPersonalizationModal">
           个性化
-        </button>
-        <button
-          class="rec-action-btn rec-action-btn-secondary"
+        </AppButton>
+        <AppButton
+          variant="neutral"
+          class="rec-action-btn"
           :disabled="loading"
           @click="refreshExternalRecommendations"
         >
           刷新外部结果
-        </button>
-        <button
-          class="rec-action-btn rec-action-btn-muted"
+        </AppButton>
+        <AppButton
+          variant="neutral"
+          class="rec-action-btn"
           :disabled="loading"
           @click="handleResetRecommendations"
         >
           清空页面
-        </button>
-        <button
-          class="rec-action-btn rec-action-btn-muted"
+        </AppButton>
+        <AppButton
+          variant="neutral"
+          class="rec-action-btn"
           :disabled="loading || metricsLoading"
           @click="handleResetRecommendationHistory"
         >
           重置历史
-        </button>
+        </AppButton>
       </div>
     </section>
 
@@ -563,9 +565,7 @@ onBeforeUnmount(() => {
         :description="error"
       >
         <template #action>
-          <button class="tw-btn-accent rec-primary-btn" @click="loadRecommendations">
-            重新加载
-          </button>
+          <AppButton variant="neutral" class=" " @click="loadRecommendations"> 重新加载 </AppButton>
         </template>
       </EmptyState>
 
@@ -576,9 +576,7 @@ onBeforeUnmount(() => {
         description="尝试添加本地资源，或者稍后重试。"
       >
         <template #action>
-          <button class="tw-btn-accent rec-primary-btn" @click="loadRecommendations">
-            再试一次
-          </button>
+          <AppButton variant="neutral" class=" " @click="loadRecommendations"> 再试一次 </AppButton>
         </template>
       </EmptyState>
 
@@ -613,7 +611,12 @@ onBeforeUnmount(() => {
                   <div>
                     <div class="reason-panel-eyebrow">Recommendation Notes</div>
                   </div>
-                  <button class="reason-panel-close" type="button" @click="closeReasonPanel">
+                  <AppButton
+                    variant="neutral"
+                    class="reason-panel-close"
+                    type="button"
+                    @click="closeReasonPanel"
+                  >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         stroke-linecap="round"
@@ -622,7 +625,7 @@ onBeforeUnmount(() => {
                         d="M6 18L18 6M6 6l12 12"
                       ></path>
                     </svg>
-                  </button>
+                  </AppButton>
                 </div>
                 <div class="reason-panel-score">
                   推荐评分 {{ Number(item.score || 0).toFixed(1) }}
@@ -639,19 +642,20 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="results-footer">
-          <button
-            class="tw-btn-footer rec-footer-btn"
-            :disabled="loading"
+          <AppButton
+            variant="neutral"
+            class="rec-footer-btn min-w-[10rem]"
+            :loading="loading"
             @click="continueRecommendations"
           >
-            <LoadingSpinner v-if="loading" size="small" />
-            <template v-else> 继续推荐 </template>
-          </button>
+            继续推荐
+          </AppButton>
         </div>
       </div>
     </section>
 
-    <button
+    <AppButton
+      variant="neutral"
       v-if="showScrollTop"
       class="scroll-top-btn"
       type="button"
@@ -659,7 +663,7 @@ onBeforeUnmount(() => {
       @click="scrollToTop"
     >
       ⩟
-    </button>
+    </AppButton>
 
     <RecommendationBlacklist
       ref="blacklistRef"

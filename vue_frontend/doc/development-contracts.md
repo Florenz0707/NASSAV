@@ -98,3 +98,5 @@ AppInput 支持 label/id、placeholder、error、multiline、disabled、clearabl
 LoadingSpinner 使用单层 1.5 秒连续旋转，避免多层动画和文字闪烁；减少动态效果偏好下停止动画。加载元素保持稳定，不通过高频重建 DOM 制造闪烁。
 
 PageLoad 只拥有挂载后一秒的展示计时器，卸载清理；资源/目录/详情使用与内容形状对应的骨架，设置与任务等场景使用单层 loading。原查询 store 继续拥有 loading/error/结果。刷新保留已有内容，空状态只在请求结束且没有错误时出现；RequestError 通过 retry 事件交回原操作，不自行请求 API。骨架使用 3.2 秒低幅度呼吸，不频繁重建节点；减少动态效果偏好下静止。详情元数据按路由与请求版本合并，旧响应不能改写新页。
+
+强调色背景与文字分别使用 --accent-primary 和 --accent-primary-text；text-accent-primary 映射前景 token，不能把深色按钮底色直接用于小字。分页与卡片的次要操作使用 neutral；全页主要动作少量使用 primary。确认删除复用 danger，不借用通用主按钮或低对比反色。

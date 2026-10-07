@@ -66,6 +66,30 @@ async function main() {
       json: { code: 200, data: [], pagination: { page: 1, pages: 1, page_size: 15, total: 0 } },
     })
     await page.getByText('暂无资源', { exact: true }).waitFor()
+    await page.goto(
+      (process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178') + '/recommendations'
+    )
+    await page.getByRole('heading', { name: '推荐发现' }).waitFor()
+    await page.setViewportSize({ width: 390, height: 844 })
+    const actions = await page.locator('.header-actions .ui-button').evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const text = button.querySelector('.ui-button__content')
+        return {
+          width: button.getBoundingClientRect().width,
+          height: text.getBoundingClientRect().height,
+          line: Number.parseFloat(getComputedStyle(text).lineHeight),
+        }
+      })
+    )
+    assert.equal(actions.length, 5)
+    assert.ok(
+      actions.every((action) => action.width > 120 && action.height <= action.line * 1.2),
+      'mobile actions must keep complete single-line labels'
+    )
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true
+    )
     assert.deepEqual(errors, [])
     console.log(
       'PASS: delayed stable skeleton, failure vs empty, retry and preserved content during refresh'

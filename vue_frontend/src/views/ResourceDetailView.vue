@@ -42,7 +42,6 @@ const coverUrl = ref(null)
 const downloadState = computed(() => resourceStore.getDownloadState(avid.value))
 const isSubmittingDownload = computed(() => downloadState.value === 'submitting')
 const isDownloading = computed(() => downloadState.value === 'downloading')
-const isDownloadBusy = computed(() => isSubmittingDownload.value || isDownloading.value)
 
 watch(
   () => resourceStore.getScrapeJobForAvid(avid.value)?.state,
@@ -468,27 +467,13 @@ async function navigateToGenre(genreName) {
             <AppButton
               v-if="!metadata.file_exists"
               class="w-32 h-14"
-              :style="
-                isSubmittingDownload
-                  ? 'background: linear-gradient(135deg, var(--accent-tertiary), var(--accent-tertiary-light))'
-                  : isDownloading
-                    ? 'background: linear-gradient(135deg, var(--accent-secondary), var(--accent-secondary-light))'
-                    : 'background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))'
-              "
-              :disabled="isDownloadBusy"
+              :loading="isSubmittingDownload"
+              :disabled="isDownloading"
               @click="handleDownload"
             >
-              {{ isSubmittingDownload ? '提交中...' : isDownloading ? '下载中...' : '下载视频' }}
+              {{ isDownloading ? '下载中...' : '下载视频' }}
             </AppButton>
-            <AppButton
-              v-if="metadata.file_exists"
-              class="w-32 h-14"
-              style="
-                background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
-                color: var(--on-accent);
-              "
-              @click="jumpPlay"
-            >
+            <AppButton v-if="metadata.file_exists" class="w-32 h-14" @click="jumpPlay">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>

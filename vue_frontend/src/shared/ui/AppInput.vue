@@ -112,7 +112,7 @@ function clear() {
   }
   .ui-input:focus {
     outline: none;
-    border-color: var(--accent-primary);
+    border-color: var(--accent-primary-text);
     box-shadow: 0 0 0 3px var(--focus-ring);
   }
   .ui-input--error {

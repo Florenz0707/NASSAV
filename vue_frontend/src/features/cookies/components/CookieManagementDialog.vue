@@ -1,30 +1,33 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { sourceApi } from '../../../api/index.js'
 import { useToastStore } from '../../../shared/stores/toast.js'
 import SettingsModal from '../../../shared/ui/SettingsModal.vue'
 import CookieManagementPanel from './CookieManagementPanel.vue'
 import ConfirmDialog from '../../../shared/ui/ConfirmDialog.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
+import AppInput from '../../../shared/ui/AppInput.vue'
+import RequestError from '../../../shared/ui/RequestError.vue'
 const emit = defineEmits(['close'])
 const toastStore = useToastStore()
 const sources = ref([])
 const loading = ref(true)
+const loadError = ref('')
 let disposed = false
 onBeforeUnmount(() => {
   disposed = true
 })
-const cookieTextareaStyle = {
-  background: 'var(--bg-secondary)',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-primary)',
-}
 // 弹窗状态
 const showViewModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteConfirm = ref(false)
 const currentSource = ref(null)
 const editCookieValue = ref('')
+const cookieError = ref(''),
+  savingCookie = ref(false)
+watch(editCookieValue, () => {
+  cookieError.value = ''
+})
 const editUserAgentValue = ref('')
 const viewCookieValue = ref('')
 
@@ -52,6 +55,7 @@ const formatTime = (isoString) => {
 // 加载数据
 const loadData = async () => {
   loading.value = true
+  loadError.value = ''
   try {
     // 1. 获取所有可用源列表
     const sourcesResponse = await sourceApi.getList()
@@ -88,7 +92,8 @@ const loadData = async () => {
     })
   } catch (err) {
     if (disposed) return
-    toastStore.error(err.message || '加载数据失败')
+    loadError.value = err.message || '加载数据失败'
+    toastStore.error(loadError.value)
   } finally {
     if (!disposed) loading.value = false
   }
@@ -111,7 +116,9 @@ const openEditModal = (source) => {
 
 // 保存 Cookie
 const saveCookie = async () => {
-  if (!currentSource.value) return
+  if (!currentSource.value || savingCookie.value) return
+  savingCookie.value = true
+  cookieError.value = ''
   try {
     await sourceApi.setCookie({
       source: currentSource.value.name,
@@ -122,7 +129,10 @@ const saveCookie = async () => {
     showEditModal.value = false
     if (!disposed) loadData()
   } catch (err) {
-    toastStore.error(err.message || '设置失败')
+    cookieError.value = err.message || '设置失败'
+    toastStore.error(cookieError.value)
+  } finally {
+    savingCookie.value = false
   }
 }
 
@@ -194,7 +204,9 @@ onMounted(loadData)
 </script>
 <template>
   <SettingsModal :show="true" title="Cookie 设置" @close="emit('close')">
+    <RequestError v-if="loadError" :message="loadError" compact @retry="loadData" />
     <CookieManagementPanel
+      v-if="loading || !loadError || sources.length"
       :loading="loading"
       :sources="sources"
       @view="viewCookie"
@@ -209,7 +221,7 @@ onMounted(loadData)
     @close="showViewModal = false"
   >
     <div
-      class="bg-[var(--bg-black-40)] rounded-xl p-4 font-mono text-sm text-white break-all max-h-[400px] overflow-y-auto border border-[var(--border-white-5)]"
+      class="bg-secondary rounded-xl p-4 font-mono text-sm text-primary break-all max-h-[400px] overflow-y-auto border border-[var(--border-color)]"
     >
       {{ viewCookieValue || '无内容' }}
     </div>
@@ -231,22 +243,24 @@ onMounted(loadData)
     <p class="text-sm text-[var(--text-muted)] mb-4">
       请输入从浏览器获取的 Cookie 字符串。通常包含 PHPSESSID 等字段。
     </p>
-    <textarea
+    <AppInput
       v-model="editCookieValue"
-      class="w-full h-48 rounded-xl p-4 font-mono text-sm focus:outline-none transition-all resize-none"
-      :style="cookieTextareaStyle"
-      placeholder="粘贴 Cookie 字符串到这里..."
+      multiline
+      :rows="7"
+      class="font-mono text-sm"
+      aria-label="Cookie 字符串"
+      :error="cookieError"
+      :disabled="savingCookie"
+      placeholder="粘贴浏览器中的 Cookie 字符串"
     />
 
     <label for="cookie-user-agent" class="block text-sm text-[var(--text-secondary)] mt-4 mb-2">
       User-Agent（可选）
     </label>
-    <input
+    <AppInput
       id="cookie-user-agent"
       v-model="editUserAgentValue"
-      type="text"
-      class="w-full rounded-lg p-3 text-sm focus:outline-none transition-colors"
-      :style="cookieTextareaStyle"
+      :disabled="savingCookie"
       placeholder="粘贴与 Cookie 配套的浏览器 User-Agent"
     />
     <p class="text-xs text-[var(--text-muted)] mt-2">
@@ -256,7 +270,9 @@ onMounted(loadData)
     <template #footer>
       <div class="flex justify-between items-center">
         <AppButton variant="neutral" @click="autoFetchCookie()"> 自动获取 </AppButton>
-        <AppButton @click="saveCookie">保存</AppButton>
+        <AppButton :loading="savingCookie" loading-text="保存中" @click="saveCookie"
+          >保存</AppButton
+        >
       </div>
     </template>
   </SettingsModal>

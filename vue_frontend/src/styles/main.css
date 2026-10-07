@@ -33,25 +33,18 @@
 :root,
 body.dark-mode {
   /* Background Colors */
-  --bg-primary: #0d0d14;
-  --bg-secondary: #12121a;
-  --card-bg: rgba(18, 18, 28, 0.8);
 
   /* Text Colors */
   --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
   --text-inverse: #ffffff;
   --text-on-primary: #f4f4f5;
   --on-accent: var(--text-on-primary);
 
   /* Accent Colors */
-  --accent-primary: #ff6b6b;
   --accent-secondary: #ff9f43;
   --accent-tertiary: #388e89;
   --accent-primary-text: #ff9f9f;
   --accent-tertiary-text: #4ecdc4;
-  --accent-danger: #ae3652;
   --accent-success: #2ed573;
   --accent-warning: #ffc107;
 
@@ -67,11 +60,8 @@ body.dark-mode {
   --muted-fill: #646464;
 
   /* Border */
-  --border-color: rgba(255, 255, 255, 0.08);
 
   /* Overlays */
-  --bg-overlay: rgba(18, 18, 28, 0.95);
-  --bg-input: rgba(18, 18, 28, 0.8);
 
   /* Utilities for subtle backgrounds */
   --bg-white-5: rgba(255, 255, 255, 0.05);
@@ -110,25 +100,18 @@ body.dark-mode {
 
 body.light-mode {
   /* Background Colors */
-  --bg-primary: #f5f5f7;
-  --bg-secondary: #ffffff;
-  --card-bg: rgba(255, 255, 255, 0.9);
 
   /* Text Colors */
   --text-primary: #1d1d1f;
-  --text-secondary: #6e6e73;
-  --text-muted: #86868b;
   --text-inverse: #ffffff;
   --text-on-primary: #f4f4f5;
   --on-accent: var(--text-on-primary);
 
   /* Accent Colors */
-  --accent-primary: #ff6b6b;
   --accent-secondary: #ff9f43;
   --accent-tertiary: #4ecdc4;
   --accent-primary-text: #a32929;
   --accent-tertiary-text: #236a66;
-  --accent-danger: #ef476f;
   --accent-success: #2ed573;
   --accent-warning: #ffc107;
 
@@ -138,11 +121,8 @@ body.light-mode {
   --decoration-color: #1d1d1f;
 
   /* Border */
-  --border-color: rgba(0, 0, 0, 0.1);
 
   /* Overlays */
-  --bg-overlay: rgba(255, 255, 255, 0.95);
-  --bg-input: rgba(255, 255, 255, 0.8);
 
   /* Utilities for subtle backgrounds inverted for light mode */
   --bg-white-5: rgba(0, 0, 0, 0.03);
@@ -359,9 +339,11 @@ select option {
 }
 
 /* ===== Focus Styles ===== */
-:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
 }
 
 /* ===== Transitions ===== */
@@ -528,58 +510,103 @@ select option {
 
 @layer components {
   .tw-back-btn {
-    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-[var(--text-muted)] transition-all duration-200 hover:bg-[var(--bg-white-5)] hover:text-[var(--text-primary)];
+    @apply mb-8 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-transparent bg-transparent px-4 py-2.5 text-sm text-secondary;
   }
-
-  .tw-btn-primary {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3 text-[0.95rem] font-medium text-on-accent no-underline transition-all duration-200 hover:-translate-y-0.5;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
-  }
-
+  .tw-btn-primary,
   .tw-btn-primary-elevated {
-    @apply inline-flex cursor-pointer items-center gap-2 rounded-lg border-none px-6 py-3.5 text-[0.95rem] font-medium text-on-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_15px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)];
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 font-semibold text-on-accent;
+    background: var(--accent-primary);
   }
-
   .tw-btn-danger {
-    @apply flex-1 cursor-pointer rounded-lg border-none px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_color-mix(in_srgb,_var(--accent-danger)_30%,_transparent)];
-    font: inherit;
-    background: var(--accent-danger);
+    @apply inline-flex flex-1 items-center justify-center rounded-lg px-6 py-3 font-semibold;
+    background: var(--danger-surface);
+    color: var(--accent-danger);
+    border: 1px solid color-mix(in srgb, var(--accent-danger) 25%, transparent);
   }
-
   .tw-fab-primary {
-    @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full border-none text-xl text-on-accent shadow-[0_4px_20px_color-mix(in_srgb,_var(--accent-primary)_30%,_transparent)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_6px_25px_color-mix(in_srgb,_var(--accent-primary)_40%,_transparent)] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
+    @apply fixed bottom-8 right-8 z-[1000] flex h-[60px] w-[60px] items-center justify-center rounded-full text-on-accent;
+    background: var(--accent-primary);
   }
-
   .tw-btn-accent {
-    @apply inline-flex min-h-[2.9rem] min-w-[8rem] cursor-pointer items-center justify-center rounded-lg border-none px-4 font-semibold text-on-accent;
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+    @apply inline-flex min-h-[2.9rem] min-w-[8rem] items-center justify-center rounded-lg px-4 font-semibold text-on-accent;
+    background: var(--accent-primary);
   }
-
-  .tw-btn-outline-muted {
-    @apply inline-flex min-h-[2.9rem] min-w-[7.6rem] cursor-pointer items-center justify-center rounded-lg border px-4 font-semibold text-[var(--text-secondary)];
-    border-color: color-mix(in srgb, var(--neutral-color) 16%, transparent);
-    background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
-  }
-
+  .tw-btn-outline-muted,
   .tw-btn-footer {
-    @apply inline-flex min-h-[2.85rem] min-w-[10rem] cursor-pointer items-center justify-center rounded-lg border px-[1.1rem] font-semibold text-[var(--text-primary)];
-    border-color: color-mix(in srgb, var(--neutral-color) 10%, transparent);
-    background: color-mix(in srgb, var(--neutral-color) 5%, transparent);
+    @apply inline-flex min-h-[2.85rem] items-center justify-center rounded-lg border px-4 font-semibold text-primary;
+    border-color: var(--border-color);
+    background: var(--bg-secondary);
   }
-
-  .tw-btn-accent:disabled,
-  .tw-btn-outline-muted:disabled,
-  .tw-btn-footer:disabled {
+  :is(
+    .tw-btn-primary,
+    .tw-btn-primary-elevated,
+    .tw-btn-danger,
+    .tw-fab-primary,
+    .tw-btn-accent,
+    .tw-btn-outline-muted,
+    .tw-btn-footer,
+    .tw-back-btn
+  ) {
+    cursor: pointer;
+    transition:
+      background-color 0.15s,
+      transform 0.1s;
+  }
+  :is(.tw-btn-primary, .tw-btn-primary-elevated, .tw-fab-primary, .tw-btn-accent):hover:not(
+      :disabled
+    ) {
+    background: var(--accent-primary-hover);
+    box-shadow: var(--button-shadow);
+  }
+  :is(.tw-btn-primary, .tw-btn-primary-elevated, .tw-fab-primary, .tw-btn-accent):active:not(
+      :disabled
+    ) {
+    background: var(--accent-primary-pressed);
+  }
+  .tw-btn-danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+  }
+  .tw-btn-danger:active:not(:disabled) {
+    background: var(--danger-pressed);
+  }
+  :is(.tw-btn-outline-muted, .tw-btn-footer, .tw-back-btn):hover:not(:disabled) {
+    background: var(--neutral-hover);
+  }
+  :is(.tw-btn-outline-muted, .tw-btn-footer, .tw-back-btn):active:not(:disabled) {
+    background: var(--neutral-pressed);
+  }
+  :is(
+    .tw-btn-primary,
+    .tw-btn-primary-elevated,
+    .tw-btn-danger,
+    .tw-fab-primary,
+    .tw-btn-accent,
+    .tw-btn-outline-muted,
+    .tw-btn-footer,
+    .tw-back-btn
+  ):focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 3px;
+  }
+  :is(
+    .tw-btn-primary,
+    .tw-btn-primary-elevated,
+    .tw-btn-danger,
+    .tw-fab-primary,
+    .tw-btn-accent,
+    .tw-btn-outline-muted,
+    .tw-btn-footer
+  ):disabled {
+    background: var(--disabled-surface);
+    color: var(--text-muted);
+    border-color: var(--border-color);
     cursor: not-allowed;
-    opacity: 0.7;
+    box-shadow: none;
   }
 
   .tw-surface-overlay {
     background: var(--bg-secondary);
-    border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
+    border: 1px solid var(--border-color);
     box-shadow:
       0 10px 15px -3px color-mix(in srgb, var(--shadow-color) 10%, transparent),
       0 4px 6px -4px color-mix(in srgb, var(--shadow-color) 10%, transparent);

@@ -101,9 +101,9 @@ const { titleId } = useDialog(toRef(props, 'show'), dialogRef, () => emit('close
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent);
   background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
   background: theme('backgroundColor.accent-primary/10');
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
   font-size: 1rem;
   line-height: 1;
   transition:

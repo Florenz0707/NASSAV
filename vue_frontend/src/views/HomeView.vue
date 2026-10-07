@@ -18,15 +18,15 @@ import { RouterLink } from 'vue-router'
     <div class="fixed inset-0 z-[-1] pointer-events-none opacity-60 overflow-hidden">
       <div
         class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] top-[-10%] right-[-5%]"
-        style="background: var(--accent-primary)"
+        style="background: var(--surface-raised)"
       />
       <div
         class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] top-[40%] right-[-10%]"
-        style="background: var(--accent-secondary)"
+        style="background: var(--surface-raised)"
       />
       <div
         class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bottom-[-10%] right-[-5%]"
-        style="background: var(--accent-tertiary)"
+        style="background: var(--surface-raised)"
       />
     </div>
 
@@ -35,17 +35,7 @@ import { RouterLink } from 'vue-router'
       <div class="relative max-w-7xl mx-auto">
         <div class="max-w-2xl">
           <h1 class="flex flex-col gap-3 mb-8">
-            <span
-              class="text-7xl font-bold bg-clip-text text-transparent tracking-tight"
-              style="
-                background-image: linear-gradient(
-                  135deg,
-                  var(--accent-primary),
-                  var(--accent-secondary)
-                );
-              "
-              >NASSAV</span
-            >
+            <span class="text-7xl font-bold text-primary tracking-tight">NASSAV</span>
             <span class="text-3xl font-semibold tracking-wide" style="color: var(--text-muted)"
               >视频资源管理系统</span
             >
@@ -56,14 +46,7 @@ import { RouterLink } from 'vue-router'
             <span class="text-xl opacity-90">高效管理 · 自动刮削 · 极速下载</span>
           </p>
           <div class="flex gap-5 flex-wrap">
-            <RouterLink
-              to="/add"
-              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 text-white shadow-[0_8px_20px_color-mix(in_srgb,_var(--accent-primary)_25%,_transparent)] hover:-translate-y-1 hover:shadow-[0_12px_25px_color-mix(in_srgb,_var(--accent-primary)_35%,_transparent)] active:translate-y-0 active:shadow-none"
-              style="
-                background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
-                color: var(--on-accent);
-              "
-            >
+            <RouterLink to="/add" class="tw-btn-primary px-8 py-4 rounded-xl text-lg">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" stroke-width="2" />
                 <path
@@ -77,8 +60,7 @@ import { RouterLink } from 'vue-router'
             </RouterLink>
             <RouterLink
               to="/resources"
-              class="inline-flex items-center gap-3 px-8 py-4 border-none rounded-xl text-lg font-medium no-underline cursor-pointer transition-all duration-300 bg-[var(--bg-white-5)] border border-[var(--border-white-10)] hover:bg-[var(--bg-white-10)] hover:border-surface-subtle/20 hover:-translate-y-1 backdrop-blur-sm"
-              style="color: var(--text-primary)"
+              class="tw-btn-outline-muted gap-3 px-8 py-4 rounded-xl text-lg"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <rect x="3" y="3" width="7" height="7" stroke-width="2" rx="1" />
@@ -98,10 +80,10 @@ import { RouterLink } from 'vue-router'
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Card 1 -->
         <div
-          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-secondary border border-[var(--border-color)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-info/10 to-accent-purple/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-info/10"
+            class="w-14 h-14 rounded-2xl bg-[var(--surface-raised)] text-secondary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
           >
             <AppIcon name="bolt" class="w-8 h-8" />
           </div>
@@ -115,10 +97,10 @@ import { RouterLink } from 'vue-router'
 
         <!-- Card 2 -->
         <div
-          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-secondary border border-[var(--border-color)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-success/10 to-accent-tertiary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-success/10"
+            class="w-14 h-14 rounded-2xl bg-[var(--surface-raised)] text-secondary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
           >
             <AppIcon name="target" class="w-8 h-8" />
           </div>
@@ -132,10 +114,10 @@ import { RouterLink } from 'vue-router'
 
         <!-- Card 3 -->
         <div
-          class="p-8 rounded-2xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
+          class="p-8 rounded-2xl bg-secondary border border-[var(--border-color)] backdrop-blur-sm hover:bg-surface-subtle/[0.04] transition-all duration-300 group hover:-translate-y-1"
         >
           <div
-            class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-secondary/10 to-accent-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-accent-secondary/10"
+            class="w-14 h-14 rounded-2xl bg-[var(--surface-raised)] text-secondary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 border border-[var(--border-color)]"
           >
             <AppIcon name="palette" class="w-8 h-8" />
           </div>

@@ -1,6 +1,7 @@
 <script setup>
 import { useDialog } from '../composables/useDialog.js'
 import { ref, watch } from 'vue'
+import AppButton from './AppButton.vue'
 
 const props = defineProps({
   show: {
@@ -143,19 +144,15 @@ const { titleId, descriptionId } = useDialog(isVisible, dialogRef, handleCancel)
 
           <!-- Footer -->
           <div class="py-4 px-6 pb-6 flex gap-3 justify-center">
-            <button
-              class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 cancel-btn"
-              @click="handleCancel"
-            >
-              {{ cancelText }}
-            </button>
-            <button
-              class="flex-1 py-3 px-6 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-200 confirm-btn"
-              :class="`is-${type}`"
+            <AppButton variant="neutral" class="flex-1 py-3 px-6" @click="handleCancel">{{
+              cancelText
+            }}</AppButton>
+            <AppButton
+              :variant="type === 'danger' ? 'danger' : 'primary'"
+              class="flex-1 py-3 px-6"
               @click="handleConfirm"
+              >{{ confirmText }}</AppButton
             >
-              {{ confirmText }}
-            </button>
             <slot name="extra-button" />
           </div>
         </div>
@@ -168,42 +165,6 @@ const { titleId, descriptionId } = useDialog(isVisible, dialogRef, handleCancel)
 .confirm-dialog-box {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-}
-
-.cancel-btn {
-  background: var(--bg-input);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-}
-
-.cancel-btn:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border-color: var(--text-secondary);
-  transform: translateY(-1px);
-}
-
-.confirm-btn {
-  border: 1px solid transparent;
-  color: var(--text-inverse);
-}
-
-.confirm-btn:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.1);
-}
-
-.confirm-btn.is-warning {
-  background: var(--accent-secondary);
-}
-
-.confirm-btn.is-danger {
-  background: var(--accent-danger);
-}
-
-.confirm-btn.is-info {
-  background: var(--accent-primary);
-  color: var(--on-accent);
 }
 
 /* 对话框动画 */

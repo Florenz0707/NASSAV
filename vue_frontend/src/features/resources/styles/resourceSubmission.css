@@ -59,13 +59,13 @@
 }
 
 .add-view .mode-btn:hover:not(:disabled) {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
+  border-color: var(--accent-primary-text);
+  color: var(--accent-primary-text);
   background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
 }
 
 .add-view .mode-btn.active {
-  border-color: var(--accent-primary);
+  border-color: var(--accent-primary-text);
   background: var(--accent-primary);
   color: var(--on-accent);
 }
@@ -112,7 +112,7 @@
   display: inline-block;
   padding: 0.125rem 0.5rem;
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -140,7 +140,7 @@
 .add-view .form-select:focus,
 .add-view .form-textarea:focus {
   outline: none;
-  border-color: var(--accent-primary);
+  border-color: var(--accent-primary-text);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 20%, transparent);
 }
 
@@ -185,16 +185,6 @@
 
 .add-view .btn-full {
   width: 100%;
-}
-
-.add-view .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary));
-  color: var(--on-accent);
-}
-
-.add-view .btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
 .add-view .btn-secondary {
@@ -243,7 +233,7 @@
   justify-content: center;
   font-size: 1.25rem;
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
 }
 
 .add-view .result-card.success .result-icon {
@@ -288,7 +278,7 @@
 .add-view .result-value.avid {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
-  color: var(--accent-primary);
+  color: var(--accent-primary-text);
 }
 
 .add-view .result-value.source {

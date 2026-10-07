@@ -1,4 +1,5 @@
 <script setup>
+import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import RequestError from '../shared/ui/RequestError.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -437,24 +438,13 @@ function onPageSizeChange(newSize) {
     />
 
     <!-- Floating Refresh Button -->
-    <button
-      class="tw-fab-primary floating-refresh-btn"
-      style="color: var(--text-inverse)"
-      :disabled="refreshing"
+    <AppButton
+      class="floating-refresh-btn fixed bottom-8 right-8 z-[1000] rounded-full p-0"
+      :loading="refreshing"
       :title="refreshing ? '刷新中...' : '刷新资源列表'"
       @click="handleManualRefresh"
     >
-      <svg
-        v-if="refreshing"
-        class="w-5 h-5 animate-spin"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <circle cx="12" cy="12" r="10" stroke-width="2" />
-        <path stroke-linecap="round" d="M12 6v6l3 3" />
-      </svg>
-      <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -462,7 +452,7 @@ function onPageSizeChange(newSize) {
           d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
         />
       </svg>
-    </button>
+    </AppButton>
   </div>
 </template>
 
