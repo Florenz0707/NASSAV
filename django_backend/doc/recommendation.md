@@ -18,7 +18,7 @@
 推荐流程概括如下：
 
 1. 从本地 `AVResource` 统计 actor / genre 偏好，生成推荐种子
-2. 优先走 Jable 映射页召回，不足时回退搜索页
+2. 优先走 Jable 映射页召回，映射缺失或映射页无结果时回退搜索页
 3. 额外引入 Jable 热榜与最近更新作为 discovery 候选
 4. 过滤本地已存在资源与 AVID 黑名单中的 `avid`
 5. 如果候选仍不足，则继续向低位种子扩展召回
@@ -357,7 +357,7 @@ actor 种子还会自动提取别名，用于搜索回退时提升召回率。
 这意味着：
 
 - actor 的映射仍可随着推荐历史逐步补全
-- 但补全动作转移到了离线脚本 / 定时任务
+- 补全动作由离线脚本执行；默认不注册 Beat 任务，需要人工运行或由部署者另行配置定时执行
 - 后续该 actor 更容易走 `model` 页召回
 - genre 当前不做类似的 lazy mapping
 
@@ -425,7 +425,7 @@ genre 种子：
 - `detail_tag_slugs`
 - `detail_category_slugs`
 
-如果详情中的 actor / genre 与本轮本地 seed 名称或 source slug 匹配，会把该 seed 补充进候选 `matched_seeds`，让热榜/最近更新候选也能获得本地偏好加分。详情抓取失败时只跳过补充，不影响候选返回。
+如果详情中的 actor / genre 与本轮本地 seed 名称或 source slug 匹配，会把该 seed 补充进候选 `matched_seeds`，让热榜/最近更新候选也能获得本地偏好加分。生产来源抓取失败明确结束本轮推荐；详情为空或预算不足时，未启用 seed 黑名单可保留候选，启用时只返回已核验详情的候选。
 
 ### 5. 候选补量
 
@@ -730,4 +730,47 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_avid_blockl
 - `nassav/recommendation/repository.py`
 - `nassav/recommendation/cover_cache.py`
 
-扩展接口与默认装配见[模块边界](p5-domain-boundaries.md)，纯算法和批量查询验证见[测试说明](../tests/README.md)。
+扩展接口与默认装配见[推荐架构与开发约束](recommendation-architecture.md)，纯算法和批量查询验证见[测试说明](../tests/README.md)。
+
+## 来源失败、代理与详情预算
+
+生产推荐使用独立的 Jable 实例，共用全局 `Proxy.Enable` / `Proxy.url`；
+列表、详情的直接请求及浏览器出口沿用该代理，视频下载代理不参与推荐。
+Jable `weight=0` 时明确拒绝推荐，不绕过来源启用配置。
+生产推荐启用 `strict_failures`：抓取/校验和解析失败不再伪装为零条结果；
+兼容同步接口分别返回 503（未启用）与 502（来源失败），失败不保存 snapshot。
+旧来源调用默认保留兼容模式。
+
+`detail_enrichment_limit` 按尝试的 AVID 计数，详情失败也消耗预算；
+同一轮补候选与重入共用预算，不重复请求已尝试的 AVID。
+响应 `meta.effective_request.detail_attempt_count` 可核对实际尝试数。
+
+## 推荐异步任务
+
+推荐任务独立于下载/刮削 TaskJob，DB `RecommendationJob` 为状态所有者。
+HTTP 仅提交；Celery `nassav.tasks.recommendation_job_task` 在 `scrape` 队列
+执行完整召回、详情和评分。旧 GET 接口暂保留同步兼容。
+任务状态为 queued/running/succeeded/failed/cancelled，快照按 job_id/version 合并。
+只允许创建者查询和取消。取消幂等，禁止旧执行保存推荐 snapshot；
+它表示停止业务提交，网络检查点协作退出，不承诺立刻停止所有 IO。
+推荐不写正式封面、视频或头像，无需下载任务的资产回滚；共享来源缓存仍可保留。
+
+端到端预算固定 300 秒，包含排队。来源及 Byparr 控制请求复用 TaskNetworkControl；
+不改变来源抓取策略或 Cookie 会话策略。worker 主进程现有恢复循环补派 queued
+任务并收尾过期执行，不依赖 Beat。broker 失败保留 queued，30 秒后可重试派发。
+重复 Celery 消息通过 DB 条件领取拒绝。终态 job 保留一天后清理，推荐历史仍单独保留。
+
+清空历史原子递增 `RecommendationState.generation`、取消未结束 job、删除 snapshot；
+同步兼容请求也检查准备时的 generation。成功保存 snapshot 和任务结果位于同一短
+事务内，先取得历史 fence 再取得任务 fence，不包含网络请求。
+部署需先应用迁移 0026，再重启 API 与各 worker；本文只证明隔离验证，尚未做真实部署验收。
+
+## 黑名单核验与反馈一致性
+
+启用 actor/genre 黑名单时，最终排名前排除没有 `detail_enriched` 的候选；
+预算不足或详情为空可能导致不足一页。`meta.verification_context.excluded_unverified_count`
+提供排除数量，前端明确展示。AVID 黑名单仍直接按编号过滤。
+
+反馈、历史重置与 snapshot 提交共用历史写入 fence；反馈在读取旧值前取得 fence，
+相同 like 的并发请求不会重复增加 accepted_count。该短事务不包含来源请求。
+临时文件 SQLite 的真实并发回归验证互斥与计数；尚未进行目标 PostgreSQL 并发验收。

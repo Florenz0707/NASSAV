@@ -40,6 +40,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         proxy: str | None = None,
         timeout: int = 15,
         *,
+        strict_failures: bool = False,
         page_fetcher: PageFetchService | None = None,
         cookie_repository: CookieRepository | None = None,
         refresh_coordinator: SessionRefreshCoordinator | None = None,
@@ -50,6 +51,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             cookie_repository=cookie_repository,
             refresh_coordinator=refresh_coordinator,
         )
+        self.strict_failures = strict_failures
         source_config = settings.SOURCE_CONFIG.get("jable", {})
         self.domain = source_config.get("domain", "jable.tv")
         self.browser_fetch_strategy = validate_strategy(
@@ -276,6 +278,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             )
         except Exception as e:
             logger.error(f"Jable.get_video_detail 解析失败: {e}")
+            if self.strict_failures:
+                raise SourceSearchError("jable_parse_failed") from e
             return {}
 
         if self.cache_enabled:
@@ -338,6 +342,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             return parsed
         except Exception as e:
             logger.error(f"Jable.search 解析失败: {e}")
+            if self.strict_failures:
+                raise SourceSearchError("jable_parse_failed") from e
             return []
 
     def get_model_videos(
@@ -385,6 +391,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             items = self._parse_search_results(html)
         except Exception as e:
             logger.error(f"Jable.get_model_videos 解析失败: {e}")
+            if self.strict_failures:
+                raise SourceSearchError("jable_parse_failed") from e
             return []
 
         for item in items:
@@ -491,6 +499,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             items = self._parse_search_results(html)
         except Exception as e:
             logger.error(f"Jable.get_tag_videos 解析失败: {e}")
+            if self.strict_failures:
+                raise SourceSearchError("jable_parse_failed") from e
             return []
 
         for item in items:
@@ -542,6 +552,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             items = self._parse_search_results(html)
         except Exception as e:
             logger.error(f"Jable.get_category_videos 解析失败: {e}")
+            if self.strict_failures:
+                raise SourceSearchError("jable_parse_failed") from e
             return []
 
         for item in items:
@@ -621,6 +633,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             items = self._parse_search_results(html)
         except Exception as e:
             logger.error(f"Jable.{source_label} 解析失败: {e}. url={url}")
+            if self.strict_failures:
+                raise SourceSearchError("jable_parse_failed") from e
             return []
 
         if not items:
@@ -673,6 +687,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         )
         if not result.ok:
             self._request_state.listing_failure = result.failure
+            if self.strict_failures:
+                raise SourceSearchError(f"jable_fetch_{result.failure}")
         return result.html if result.ok else None
 
     def _is_detail_page_html(self, html: str) -> bool:

@@ -45,7 +45,7 @@ pnpm run check
 
 ## 文档、交付与证据
 
-改动应更新其归属文档：接口字段与任务契约在 interface，持久化在 database，默认配置在 configuration-contract，后端职责在 p5-domain-boundaries，前端职责与组件约束在 development-contracts，运行步骤在 README/部署/脚本说明。长期规范记录当前契约；执行记录保存提交、命令与结果，避免把阶段历史写成当前验证结论。
+改动应更新其归属文档：接口字段与任务契约在 interface，持久化在 database，默认配置在 configuration-contract，后端职责在 task-control-architecture 与 recommendation-architecture，前端职责与组件约束在 development-contracts，运行步骤在 README/部署/脚本说明。长期规范记录当前契约；执行记录保存提交、命令与结果，避免把阶段历史写成当前验证结论。
 
 交付报告区分已实现、隔离验证和目标环境验收，记录对应提交及验证范围。模拟 HTTP/WebSocket、临时 Redis、Celery eager 和构建通过各自证明其覆盖范围；真实抓取、下载、worker、数据库恢复和网关联调按[验证状态](../django_backend/doc/validation-status.md)执行。
 

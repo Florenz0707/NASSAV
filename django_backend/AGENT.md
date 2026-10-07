@@ -37,3 +37,9 @@ uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 ## 持久任务开发约束
 
 涉及下载、刮削、所属翻译、任务控制或文件清理时，先阅读[任务控制架构](doc/task-control-architecture.md)。DB 是持久业务状态所有者；恢复使用新 attempt/generation，旧执行不得提交。暂停/终止须确认写入者停止，终态不等于清理完成；不得在线删除锁文件、手动清空 `.tasks` 或以 Celery revoke 代替控制协议。发布、回滚与删除复用共享资源/目标锁及资产日志；网络、复制和大文件哈希不得放入短 DB 提交回调。前端按 job_id/version 合并授权快照，以 allowed_actions 决定操作。
+
+## 推荐任务
+
+推荐变更遵循[推荐架构](doc/recommendation-architecture.md)。生产前端走 DB 推荐 job 与
+Celery scrape 队列；同步 GET 仅兼容。任务网络控制注入独立来源，保留全局代理，
+来源失败不得保存空成功，补候选不得重置详情预算。反馈、重置和 snapshot 共用历史 fence。

@@ -9,6 +9,10 @@ from django.db import models
 from django.utils import timezone
 
 # Explicit re-exports also register split task models with Django.
+from nassav.recommendation_models import (
+    RecommendationJob as RecommendationJob,
+    RecommendationState as RecommendationState,
+)
 from nassav.task_models import (
     TaskArtifact as TaskArtifact,
     TaskAssetTarget as TaskAssetTarget,

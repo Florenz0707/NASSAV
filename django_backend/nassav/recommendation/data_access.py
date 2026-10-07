@@ -24,6 +24,9 @@ class DjangoRecommendationContext(RecommendationContextStore):
     def prepare(
         self, request: RecommendationRequest, recommender_id: str, strategy_id: str
     ) -> str:
+        from .jobs import history_generation
+
+        request.history_generation = history_generation()
         request_fingerprint = (
             recommendation_snapshot_repository.build_request_fingerprint(
                 recommender_id=recommender_id,

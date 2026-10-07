@@ -413,6 +413,14 @@ function handleResetRecommendations() {
   toastStore.success('当前推荐列表已清空')
 }
 
+async function cancelRecommendation() {
+  try {
+    await recommendationStore.cancelRecommendation()
+  } catch (err) {
+    toastStore.error(err.message || '取消推荐失败，请重试')
+  }
+}
+
 async function handleResetRecommendationHistory() {
   if (loading.value || metricsLoading.value) return
   try {
@@ -483,6 +491,9 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="recommendations-view">
+    <p v-if="loading" role="status" class="text-secondary mb-3">
+      {{ recommendationStore.jobState === 'queued' ? '推荐任务排队中' : '正在生成推荐' }}
+    </p>
     <section class="page-header">
       <div>
         <div class="eyebrow">Discover</div>
@@ -496,6 +507,14 @@ onBeforeUnmount(() => {
           @click="runPrimaryRecommendationAction"
         >
           {{ recommendationActionLabel }}
+        </AppButton>
+        <AppButton
+          v-if="loading"
+          variant="danger"
+          class="rec-action-btn"
+          @click="cancelRecommendation"
+        >
+          取消推荐
         </AppButton>
         <AppButton variant="neutral" class="rec-action-btn" @click="openPersonalizationModal">
           个性化
@@ -526,6 +545,16 @@ onBeforeUnmount(() => {
         </AppButton>
       </div>
     </section>
+
+    <p
+      v-if="meta?.verification_context?.excluded_unverified_count"
+      role="status"
+      class="text-secondary mb-4"
+    >
+      有
+      {{ meta.verification_context.excluded_unverified_count }}
+      条候选因详情未核验而被过滤，以遵守黑名单设置。
+    </p>
 
     <RecommendationPreferences
       v-model:type-preference="typePreference"

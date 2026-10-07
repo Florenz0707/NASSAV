@@ -4,7 +4,8 @@ import secrets
 from hashlib import sha256
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F
+from django.utils import timezone
 
 from nassav.models import (
     RecommendationAvidBlocklist,
@@ -185,6 +186,10 @@ class RecommendationSnapshotRepository:
         self,
         execution: RecommendationExecution,
     ) -> RecommendationSnapshot:
+        if execution.request.history_generation is not None:
+            from .jobs import fence_history
+
+            fence_history(execution.request.history_generation)
         snapshot = RecommendationSnapshot.objects.create(
             recommender_id=execution.recommender_id,
             strategy_id=execution.strategy_id,
@@ -278,6 +283,17 @@ class RecommendationSnapshotRepository:
 
     @transaction.atomic
     def reset_state(self, *, preserve_blocklist: bool = True) -> dict[str, int | bool]:
+        from nassav.recommendation_models import RecommendationJob, RecommendationState
+        from .jobs import lock_history
+
+        lock_history()
+        RecommendationState.objects.filter(pk=1).update(generation=F("generation") + 1)
+        RecommendationJob.objects.filter(state__in=["queued", "running"]).update(
+            state="cancelled",
+            message="推荐历史已重置",
+            version=F("version") + 1,
+            updated_at=timezone.now(),
+        )
         blocklist_count = RecommendationAvidBlocklist.objects.count()
         feedback_count = RecommendationFeedback.objects.count()
         item_seed_count = RecommendationItemSeed.objects.count()

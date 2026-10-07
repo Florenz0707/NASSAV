@@ -325,6 +325,7 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # Start separate workers with -Q scrape -c 1, -Q download -c 1, and -Q default.
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ROUTES = {
+    "nassav.tasks.recommendation_job_task": {"queue": "scrape"},
     "nassav.tasks.download_video_task": {"queue": "download"},
     "nassav.tasks.mock_download_video_task": {"queue": "download"},
     "nassav.scrape_jobs.run_resource_job": {"queue": "scrape"},

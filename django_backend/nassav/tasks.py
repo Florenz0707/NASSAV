@@ -227,3 +227,15 @@ from nassav.maintenance_tasks import (
 )
 from nassav.scrape_jobs import run_resource_job  # noqa: F401
 from nassav.search_jobs import run_search_job  # noqa: F401
+
+
+@shared_task(
+    name="nassav.tasks.recommendation_job_task",
+    soft_time_limit=330,
+    time_limit=360,
+    ignore_result=True,
+)
+def recommendation_job_task(job_id):
+    from nassav.recommendation.jobs import execute
+
+    execute(job_id)

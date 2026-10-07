@@ -1,3 +1,4 @@
+import { runRecommendationJob } from '../lib/recommendationJob.js'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
@@ -15,6 +16,9 @@ function mergeItems(existingItems, nextItems) {
 }
 
 export const useRecommendationsStore = defineStore('recommendations', () => {
+  const activeJobId = ref('')
+  const jobState = ref('')
+  let controller = null
   const guard = createRequestGuard()
   const metricsGuard = createRequestGuard()
   const loading = ref(false),
@@ -27,12 +31,24 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
   const blockedAvids = ref(new Set())
 
   async function fetchRecommendations(params, { append = false } = {}) {
+    cancelQuery()
     const request = guard.begin()
+    const currentController = new AbortController()
+    controller = currentController
+    jobState.value = 'queued'
     loading.value = true
     error.value = ''
     try {
-      const response = await recommendationApi.getList(params)
-      if (!guard.current(request)) return null
+      const response = await runRecommendationJob(recommendationApi, params, {
+        signal: currentController.signal,
+        onJob: (id) => {
+          if (guard.current(request)) activeJobId.value = id
+        },
+        onSnapshot: (snapshot) => {
+          if (guard.current(request)) jobState.value = snapshot.state
+        },
+      })
+      if (!guard.current(request) || !response) return null
       const payload = response.data || {}
       items.value = append ? mergeItems(items.value, payload.items) : payload.items || []
       seeds.value = [...(payload.seeds || [])]
@@ -40,6 +56,7 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
       return payload
     } catch (err) {
       if (!guard.current(request)) return null
+      if (activeJobId.value) recommendationApi.cancelJob(activeJobId.value).catch(() => {})
       error.value = err.message || '获取推荐失败'
       if (!append) {
         items.value = []
@@ -47,13 +64,35 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
       }
       throw err
     } finally {
-      if (guard.current(request)) loading.value = false
+      if (guard.current(request)) {
+        loading.value = false
+        activeJobId.value = ''
+        controller = null
+      }
     }
   }
   function cancelQuery() {
+    const id = activeJobId.value
+    activeJobId.value = ''
+    controller?.abort()
+    controller = null
+    if (id) recommendationApi.cancelJob(id).catch(() => {})
     guard.invalidate()
     metricsGuard.invalidate()
     loading.value = false
+  }
+  async function cancelRecommendation() {
+    const id = activeJobId.value
+    if (!id) {
+      cancelQuery()
+      return
+    }
+    // Keep polling and allow retry when server cancellation could not be confirmed.
+    await recommendationApi.cancelJob(id)
+    if (activeJobId.value === id) {
+      activeJobId.value = ''
+      cancelQuery()
+    }
   }
   async function loadMetrics() {
     const request = metricsGuard.begin()
@@ -121,6 +160,9 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
 
   return {
     loading,
+    activeJobId,
+    jobState,
+    cancelRecommendation,
     error,
     cancelQuery,
     items,

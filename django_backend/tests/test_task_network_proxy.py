@@ -159,3 +159,33 @@ def test_explicit_proxy_wins_over_environment(proxy_argument, monkeypatch):
         assert response.content == b"configured"
         assert proxy_calls == [f"{origin}/"]
         assert not origin_calls and not environment_calls
+
+
+@pytest.mark.parametrize("operation", ["page", "cover"])
+def test_recommendation_worker_source_uses_global_proxy(
+    operation, settings, tmp_path, monkeypatch
+):
+    from nassav.composition import build_recommendation_manager
+
+    monkeypatch.setenv("NO_PROXY", "*")
+    with (
+        endpoint(b"direct") as (origin, origin_calls),
+        endpoint(b"proxied") as (proxy, proxy_calls),
+    ):
+        settings.PROXY_ENABLED = True
+        settings.PROXY_URL = proxy
+        settings.SOURCE_CONFIG = {"jable": {"weight": 1}}
+        control = TaskNetworkControl(lambda: None)
+        manager = build_recommendation_manager(control=control)
+        source = manager.build_recommender(
+            "jable_page_lookup", manager.get_strategy()
+        ).jable
+        target = f"{origin}/fixture"
+        if operation == "page":
+            assert source.fetch_html(target) == "proxied"
+        else:
+            dest = tmp_path / "recommendation-cover.jpg"
+            assert source.download_file(target, str(dest))
+            assert dest.read_bytes() == b"proxied"
+        assert proxy_calls == [target]
+        assert origin_calls == []

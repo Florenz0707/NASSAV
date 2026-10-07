@@ -110,3 +110,10 @@ scraper/元数据/封面/头像共用全局 Proxy.url；下载使用独立 downl
 - 覆盖暂停/终止竞争、重复派发、失租、崩溃、部分成功、清理失败及较新发布/翻译替代。
 - 文件副作用纳入资产日志与共享锁，事件消费者幂等；不在短 DB 回调执行长操作。
 - 同步接口、数据库、前端契约及运行说明；按[测试说明](../tests/README.md)选择隔离与 opt-in 门槛，根目录 pre-commit 必须通过。明确区分已实现、隔离验证和目标环境接受。
+
+## 推荐任务的独立边界
+
+推荐使用独立 `RecommendationJob`、历史 generation 和执行 UUID，不复用带资产语义的
+TaskJob。Celery 在 scrape 队列执行、DB 保存结果、HTTP 授权查询和取消；
+无正式资产提升，取消表示禁止提交并协作退出，不声称文件 writer 已退出。
+共享网络预算/代理能力可复用，状态与补偿协议不能混用，详见[推荐架构](recommendation-architecture.md)。

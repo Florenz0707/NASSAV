@@ -22,6 +22,12 @@ def recovery_loop():
             build_task_recovery().scan()
         except Exception:
             logger.exception("Persistent task recovery scan failed")
+        try:
+            from nassav.recommendation.jobs import recover
+
+            recover()
+        except Exception:
+            logger.exception("Recommendation recovery scan failed")
         finally:
             close_old_connections()
         _stop.wait(interval)

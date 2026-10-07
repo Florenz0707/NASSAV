@@ -6,6 +6,7 @@ from .http import (
     catalog_views,
     media_views,
     recommendation_views,
+    recommendation_job_views,
     resource_views,
     settings_views,
     source_views,
@@ -20,6 +21,21 @@ from .search_job_views import (
 app_name = "nassav"
 
 urlpatterns = [
+    path(
+        "api/recommendations/jobs",
+        recommendation_job_views.RecommendationJobSubmitView.as_view(),
+        name="recommendation-job-submit",
+    ),
+    path(
+        "api/recommendations/jobs/<uuid:job_id>",
+        recommendation_job_views.RecommendationJobStatusView.as_view(),
+        name="recommendation-job-status",
+    ),
+    path(
+        "api/recommendations/jobs/<uuid:job_id>/cancel",
+        recommendation_job_views.RecommendationJobCancelView.as_view(),
+        name="recommendation-job-cancel",
+    ),
     path(
         "api/tasks/jobs",
         task_control_views.TaskJobListView.as_view(),

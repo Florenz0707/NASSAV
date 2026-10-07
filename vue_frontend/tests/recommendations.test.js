@@ -8,13 +8,22 @@ let batch = 0
 axios.defaults.adapter = async (config) => {
   requests.push({ url: config.url, method: config.method, data: config.data })
   let data = null
-  if (config.url === '/recommendations') {
+  if (config.url === '/recommendations/jobs') {
     batch += 1
+    data = { job_id: String(batch), state: 'queued', version: 1 }
+  } else if (/^\/recommendations\/jobs\/[^/]+$/.test(config.url)) {
     data = {
-      items: [{ avid: 'REC-1' }, { avid: batch === 1 ? 'REC-2' : 'REC-3' }],
-      seeds: [{ seed_type: 'actor', id: 1 }],
-      meta: { batch },
+      job_id: config.url.split('/').at(-1),
+      state: 'succeeded',
+      version: 2,
+      result: {
+        items: [{ avid: 'REC-1' }, { avid: batch === 1 ? 'REC-2' : 'REC-3' }],
+        seeds: [{ seed_type: 'actor', id: 1 }],
+        meta: { batch },
+      },
     }
+  } else if (config.url.endsWith('/cancel')) {
+    data = { state: 'cancelled' }
   } else if (config.url === '/recommendations/metrics') {
     data = { snapshot_count: batch }
   } else if (config.url === '/recommendations/feedback') {
@@ -110,18 +119,22 @@ test('resource blocklist mutation updates the store only after the API succeeds'
 
 test('late recommendation success and failure cannot replace a newer query or cleared results', async () => {
   const { recommendationApi } = await import('../src/api/index.js')
-  const original = recommendationApi.getList
+  const original = recommendationApi.startJob
   const pending = []
-  recommendationApi.getList = () =>
+  recommendationApi.startJob = () =>
     new Promise((resolve, reject) => pending.push({ resolve, reject }))
   try {
     setActivePinia(createPinia())
     const store = useRecommendationsStore()
     const old = store.fetchRecommendations({ limit: 1 })
     const latest = store.fetchRecommendations({ limit: 2 })
-    pending[1].resolve({ data: { items: [{ avid: 'NEW' }] } })
+    pending[1].resolve({
+      data: { job_id: 'new', version: 1, state: 'succeeded', result: { items: [{ avid: 'NEW' }] } },
+    })
     await latest
-    pending[0].resolve({ data: { items: [{ avid: 'OLD' }] } })
+    pending[0].resolve({
+      data: { job_id: 'old', version: 1, state: 'succeeded', result: { items: [{ avid: 'OLD' }] } },
+    })
     assert.equal(await old, null)
     assert.deepEqual(store.items, [{ avid: 'NEW' }])
     const failing = store.fetchRecommendations({ limit: 3 })
@@ -132,6 +145,34 @@ test('late recommendation success and failure cannot replace a newer query or cl
     assert.equal(store.loading, false)
     assert.equal(store.error, '')
   } finally {
-    recommendationApi.getList = original
+    recommendationApi.startJob = original
+  }
+})
+
+test('failed cancellation keeps the current job tracked and allows retry', async () => {
+  const { recommendationApi } = await import('../src/api/index.js')
+  const original = { startJob: recommendationApi.startJob, cancelJob: recommendationApi.cancelJob }
+  let cancels = 0
+  recommendationApi.startJob = async () => ({
+    data: { job_id: 'running', version: 1, state: 'queued' },
+  })
+  recommendationApi.cancelJob = async () => {
+    cancels++
+    if (cancels === 1) throw new Error('取消未确认')
+    return { data: { state: 'cancelled' } }
+  }
+  try {
+    setActivePinia(createPinia())
+    const store = useRecommendationsStore()
+    const pending = store.fetchRecommendations({})
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await assert.rejects(store.cancelRecommendation(), /取消未确认/)
+    assert.equal(store.loading, true)
+    assert.equal(store.activeJobId, 'running')
+    await store.cancelRecommendation()
+    assert.equal(await pending, null)
+    assert.equal(store.loading, false)
+  } finally {
+    Object.assign(recommendationApi, original)
   }
 })

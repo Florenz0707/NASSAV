@@ -39,6 +39,17 @@ class JableSearchRecommender(AbstractRecommender):
             seeds=seeds, candidates=candidates, request=request
         )
 
+    def rank_and_trim(self, candidates, request):
+        if request.seed_blacklist_active:
+            verified = [
+                candidate
+                for candidate in candidates
+                if candidate.raw_metrics.get("detail_enriched")
+            ]
+            request.unverified_candidate_count = len(candidates) - len(verified)
+            candidates = verified
+        return super().rank_and_trim(candidates, request)
+
     def build_seeds(self, request: RecommendationRequest) -> list[RecommendationSeed]:
         return self.seed_provider.get_seeds(request)
 
@@ -195,16 +206,22 @@ class JableSearchRecommender(AbstractRecommender):
         if not candidates or request.detail_enrichment_limit <= 0:
             return candidates
 
-        remaining = max(int(request.detail_enrichment_limit), 0)
+        remaining = max(
+            int(request.detail_enrichment_limit) - len(request.detail_attempted_avids),
+            0,
+        )
         for candidate in candidates:
             if remaining <= 0:
                 break
             if not self._should_enrich_candidate_detail(candidate, request):
                 continue
+            if candidate.avid in request.detail_attempted_avids:
+                continue
+            request.detail_attempted_avids.add(candidate.avid)
+            remaining -= 1
             detail = self._call_video_detail(candidate, request)
             if not detail:
                 continue
-            remaining -= 1
             self._apply_video_detail(candidate, detail, request)
         return candidates
 

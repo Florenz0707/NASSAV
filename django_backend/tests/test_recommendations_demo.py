@@ -631,7 +631,9 @@ def test_seed_blacklist_excludes_blocked_keyword_but_allows_active_seed_fallback
 
     captured_keywords = []
     monkeypatch.setattr(
-        Jable, "get_video_detail", lambda self, avid, detail_url="", **kwargs: {}
+        Jable,
+        "get_video_detail",
+        lambda self, avid, detail_url="", **kwargs: {"actors": ["Bob"], "genres": []},
     )
     monkeypatch.setattr(
         Jable,

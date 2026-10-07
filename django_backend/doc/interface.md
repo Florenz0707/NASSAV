@@ -1444,3 +1444,15 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 下载恢复校验持续网络超时返回持久任务 `state: paused`、`error_code: RESUME_VALIDATION_TIMEOUT`，保留未提交产物及 resume/cancel 动作。它不表示下载器已经启动或视频已完成；同 job/new attempt 重试核对当前播放列表/轨道/密钥身份及本地缓存哈希，不重新下载已缓存分片。校验通过后由 CLI 复用完整分片，仅下载缺失或损坏分片。相同 URL 下服务器替换字节而播放列表及密钥不变的情况无法检出；身份变化或不支持的轨道仍返回 RESTART_REQUIRED。
 
 持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](validation-status.md)为准。
+
+## 推荐任务（异步）
+
+- `POST /api/recommendations/jobs`：参数沿用推荐接口的偏好、分页预算和刷新选项，
+  返回 202。数量参数有明确上限，无效参数返回 400。
+- `GET /api/recommendations/jobs/{job_id}`：返回创建者的任务快照；其他用户返回 404。
+- `POST /api/recommendations/jobs/{job_id}/cancel`：幂等取消；已结束任务返回原终态。
+
+响应 data 包含 `job_id`、递增 `version`、`state`、`message`、`allowed_actions`、
+`created_at`、`updated_at`。仅 succeeded 携带 `result`，内容沿用推荐 items/seeds/meta。
+任务预算 300 秒，包含排队；失败/取消不会保存推荐 snapshot。
+旧 GET 推荐接口保留同步兼容，重置历史导致迟到提交被拒绝时返回 409。

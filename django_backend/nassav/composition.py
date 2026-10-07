@@ -117,7 +117,7 @@ def build_translation_workflow(expected_generations=None):
     )
 
 
-def build_recommendation_manager():
+def build_recommendation_manager(*, context=None, control=None):
     from django.conf import settings
 
     from nassav.recommendation.data_access import (
@@ -129,8 +129,25 @@ def build_recommendation_manager():
     from nassav.source import Jable
 
     def jable_factory(strategy):
+        from nassav.source.search_contracts import SourceSearchUnavailable
+
+        if not settings.SOURCE_CONFIG.get("jable", {}).get("weight", 0):
+            raise SourceSearchUnavailable("jable_disabled")
+        source = Jable(
+            proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None,
+            strict_failures=True,
+        )
+        if control is not None:
+            from nassav.task_network import TaskBrowserSession
+
+            source.set_task_control(control)
+            source.page_fetcher.set_task_control(control)
+            if source.page_fetcher.browser is not None:
+                source.page_fetcher.browser.set_task_transport(
+                    TaskBrowserSession(control)
+                )
         return JablePageLookupRecommender(
-            jable=Jable(proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None),
+            jable=source,
             candidate_inventory=DjangoCandidateInventory(),
             seed_provider=strategy.seed_provider_builder(),
             factors=[builder() for builder in strategy.factor_builders],
@@ -138,7 +155,8 @@ def build_recommendation_manager():
         )
 
     return RecommenderManager(
-        DjangoRecommendationContext(), {"jable_page_lookup": jable_factory}
+        context if context is not None else DjangoRecommendationContext(),
+        {"jable_page_lookup": jable_factory},
     )
 
 

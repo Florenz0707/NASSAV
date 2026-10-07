@@ -50,6 +50,9 @@ class RecommendationFeedbackRepository:
         if not normalized_avid:
             raise RecommendationFeedbackError("avid 参数缺失")
 
+        from .jobs import lock_history
+
+        lock_history()
         item = (
             RecommendationItem.objects.select_related("snapshot")
             .filter(snapshot_id=snapshot_id, avid=normalized_avid)

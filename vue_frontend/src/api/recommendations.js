@@ -1,7 +1,10 @@
 import api, { RECOMMENDATION_REQUEST_TIMEOUT } from './client.js'
 
 export const recommendationApi = {
-  // 获取推荐结果
+  startJob: (params = {}) => api.post('/recommendations/jobs', params),
+  getJob: (id, options = {}) => api.get(`/recommendations/jobs/${id}`, options),
+  cancelJob: (id) => api.post(`/recommendations/jobs/${id}/cancel`, {}),
+  // 同步兼容入口
   getList: (params = {}) =>
     api.get('/recommendations', {
       params,
