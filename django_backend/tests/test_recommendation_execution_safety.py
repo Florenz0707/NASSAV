@@ -174,3 +174,149 @@ def test_blocked_details_do_not_count_towards_target():
     )
     assert len(result) == 2
     assert all("Blocked" not in item.raw_metrics["detail"]["actors"] for item in result)
+
+
+def test_adaptive_recall_interleaves_types_and_defers_unneeded_sources():
+    from nassav.recommendation.execution_budget import RecommendationExecutionBudget
+    from nassav.recommendation.entities import RecommendationSeed
+
+    budget = RecommendationExecutionBudget(300)
+    calls = []
+
+    class Algorithm(JableSearchRecommender):
+        def recall_by_seed(self, seed, request):
+            calls.append((seed.seed_type, seed.value))
+            return [
+                RecommendationCandidate(f"{seed.value}-{i}", "", "", "")
+                for i in range(12)
+            ]
+
+        def recall_discovery_candidates(self, request):
+            raise AssertionError("discovery should be deferred")
+
+    algorithm = Algorithm(
+        jable=Mock(),
+        candidate_inventory=Mock(),
+        seed_provider=Mock(),
+        execution_budget=budget,
+    )
+    seeds = [
+        RecommendationSeed(kind, f"{kind}{i}", 1, "test")
+        for kind in ["actor", "genre"]
+        for i in range(5)
+    ]
+    request = RecommendationRequest(exclude_existing=False)
+    assert len(algorithm.recall_candidates(seeds, request)) == 24
+    assert calls == [("actor", "actor0"), ("genre", "genre0")]
+    assert len(request.deferred_seeds) == 8
+    assert len(request.recalled_avids) == 24
+    assert not request.discovery_recalled
+
+
+def test_adaptive_recall_continues_when_first_batch_is_existing_or_blocked():
+    from nassav.recommendation.execution_budget import RecommendationExecutionBudget
+    from nassav.recommendation.entities import RecommendationSeed
+
+    class Algorithm(JableSearchRecommender):
+        def recall_by_seed(self, seed, request):
+            return [RecommendationCandidate(seed.value, "", "", "")]
+
+    inventory = Mock()
+    inventory.existing.side_effect = lambda avids: avids & {"existing"}
+    algorithm = Algorithm(
+        jable=Mock(),
+        candidate_inventory=inventory,
+        seed_provider=Mock(),
+        execution_budget=RecommendationExecutionBudget(300),
+    )
+    request = RecommendationRequest(
+        limit=1, detail_enrichment_limit=2, blocked_avid_blocklist={"blocked"}
+    )
+    seeds = [
+        RecommendationSeed("actor", name, 1, "test")
+        for name in ["existing", "blocked", "good1", "good2", "deferred"]
+    ]
+    recalled = algorithm.recall_candidates(seeds, request)
+    assert {x.avid for x in algorithm.filter_existing_resources(recalled, request)} == {
+        "good1",
+        "good2",
+    }
+    assert [x.value for x in request.deferred_seeds] == ["deferred"]
+
+
+def test_statistics_separate_blacklist_success_and_unverified_candidates():
+    from nassav.recommendation.entities import (
+        RecommendationExecution,
+        RecommendationRun,
+    )
+
+    algorithm, source, request, candidates = budget_algorithm([0.0], limit=2)
+    request.detail_enrichment_limit = 4
+    request.blocked_seed_name_keys = {("actor", "blocked")}
+    source.get_video_detail.side_effect = [
+        {"actors": ["Blocked"]},
+        {"actors": ["Allowed"]},
+        {"actors": ["Allowed"]},
+        {"actors": ["Allowed"]},
+    ]
+    request.recalled_avids.update(c.avid for c in candidates)
+    algorithm.enrich_candidates(candidates, request)
+    items = algorithm.rank_and_trim(
+        algorithm.filter_blocklisted_candidates(candidates, request), request
+    )
+    stats = RecommendationExecution(
+        "test", "test", request, RecommendationRun([], items)
+    ).to_dict()["meta"]["verification_context"]
+    assert stats["recalled_count"] == 24
+    assert stats["detail_attempt_count"] == stats["detail_success_count"] == 4
+    assert stats["blacklist_excluded_count"] == 1
+    assert stats["qualified_count"] == 3
+    assert stats["unverified_count"] == 20
+    assert stats["excluded_unverified_count"] == 20
+
+
+def test_whole_pipeline_reaches_goal_without_fetching_all_seed_or_discovery_pages():
+    from nassav.recommendation.execution_budget import RecommendationExecutionBudget
+    from nassav.recommendation.entities import RecommendationSeed
+
+    calls = []
+    source = Mock()
+    source.get_video_detail.side_effect = lambda avid, *args, **kwargs: {
+        "actors": ["Blocked" if int(avid.split("-")[-1]) % 2 else "Allowed"]
+    }
+
+    class Algorithm(JableSearchRecommender):
+        def build_seeds(self, request):
+            return [
+                RecommendationSeed(kind, f"{kind}{i}", 1, "test")
+                for kind in ["actor", "genre"]
+                for i in range(5)
+            ]
+
+        def recall_by_seed(self, seed, request):
+            calls.append(seed.value)
+            return [
+                RecommendationCandidate(f"{seed.value}-{i}", "", "", "")
+                for i in range(12)
+            ]
+
+        def recall_discovery_candidates(self, request):
+            raise AssertionError("goal met without discovery")
+
+    algorithm = Algorithm(
+        jable=source,
+        candidate_inventory=Mock(),
+        seed_provider=Mock(),
+        execution_budget=RecommendationExecutionBudget(300),
+    )
+    request = RecommendationRequest(
+        exclude_existing=False,
+        seed_blacklist_active=True,
+        blocked_seed_name_keys={("actor", "blocked")},
+    )
+    run = algorithm.recommend(request)
+    assert len(run.items) == 12
+    assert len(calls) == 2
+    assert source.get_video_detail.call_count == 24
+    assert len(run.execution_request.deferred_seeds) == 8
+    assert len(run.execution_request.blacklist_excluded_avids) == 12

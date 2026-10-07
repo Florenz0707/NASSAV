@@ -109,6 +109,13 @@ class RecommendationRequest:
     force_refresh_external: bool = False
     detail_attempted_avids: set[str] = field(default_factory=set, repr=False)
     completion_reason: str = "completed"
+    recalled_avids: set[str] = field(default_factory=set, repr=False)
+    detail_completed_avids: set[str] = field(default_factory=set, repr=False)
+    blacklist_excluded_avids: set[str] = field(default_factory=set, repr=False)
+    remaining_unverified_count: int = field(default=0, repr=False)
+    qualified_candidate_count: int = field(default=0, repr=False)
+    deferred_seeds: list[RecommendationSeed] = field(default_factory=list, repr=False)
+    discovery_recalled: bool = field(default=False, repr=False)
 
 
 @dataclass
@@ -179,6 +186,12 @@ class RecommendationExecution:
             },
             "verification_context": {
                 "excluded_unverified_count": self.request.unverified_candidate_count,
+                "recalled_count": len(self.request.recalled_avids),
+                "detail_attempt_count": len(self.request.detail_attempted_avids),
+                "detail_success_count": len(self.request.detail_completed_avids),
+                "blacklist_excluded_count": len(self.request.blacklist_excluded_avids),
+                "unverified_count": self.request.remaining_unverified_count,
+                "qualified_count": self.request.qualified_candidate_count,
             },
             "history_context": {
                 "recently_recommended_count": len(

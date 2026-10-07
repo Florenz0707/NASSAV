@@ -1482,3 +1482,11 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 超时日志记录 job、阶段、异常原因及 DB/网络剩余时间，用于区分硬期限和网络阶段期限；
 此前提前约 27 秒失败的确切原因尚未由现有日志证明，不能宣称已定位系统时钟问题。
 部署需同步更新 API 与 scrape worker；无需数据库迁移。未重新部署的服务仍使用旧契约。
+
+推荐进度 progress 和结果 meta.verification_context 增加分类统计：
+`recalled_count`（本轮唯一召回 AVID）、`detail_success_count`（详情获取并应用成功）、
+`blacklist_excluded_count`（召回或详情命中黑名单）、`unverified_count`（保留池未核验）、
+`qualified_count`（通过返回条件的候选）。详情尝试数在进度为 detail_attempt_count，
+结果同时放在 verification_context 和 effective_request；返回数仍以 meta.returned_count 为准。
+黑名单排除数可能包含未获取详情的候选，因此不直接与详情成功数相减求通过率。
+候选池大小不等于详情已核验数，未核验不代表失败；旧字段继续保留。

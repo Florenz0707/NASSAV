@@ -192,3 +192,13 @@ for external search and recommendations` 提交，按本文档的 Git 历史可�
 演员完整名称恢复。根目录 `pre-commit run -a` 为提交前必须通过的门槛，钩子配置未改。
 临时进程对真实同页做新旧解析对比，不提交正式任务、不替换容器源码或配置、不改历史。
 该单页验证不能代替完整 Docker/Celery 推荐任务验收，部署后仍需创建新任务验证。
+
+## 自适应推荐召回与分类统计（2026-10-07）
+
+后端阶段分支 `enhancement/recommendation-adaptive-recall`，提交标题
+`[Enhancement] Recall recommendation candidates on demand and report verification counts`。
+`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：801 通过、28 跳过
+（92.10 秒）。回归覆盖两类种子交替、未使用来源延后、过滤后继续召回、唯一 AVID 分类，
+完整算法在 50% 黑名单命中条件下仅调用两个 seed 即返回 12 条，不调用发现来源。
+根目录 `pre-commit run -a` 全通过，钩子配置未改。这是隔离验证，未重启部署容器，
+未提交真实推荐任务；速度与返回数量仍需真实 API/Celery/代理验收。

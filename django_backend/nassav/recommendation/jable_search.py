@@ -60,7 +60,37 @@ class JableSearchRecommender(AbstractRecommender):
             seeds=seeds, candidates=candidates, request=request
         )
 
+    def filter_blocklisted_candidates(self, candidates, request):
+        output = super().filter_blocklisted_candidates(candidates, request)
+        request.blacklist_excluded_avids.update(
+            {item.avid for item in candidates} - {item.avid for item in output}
+        )
+        return output
+
+    def _publish_progress(self, stage, candidates, request):
+        if self.execution_budget:
+            verified = self._verified_candidates(candidates, request)
+            self.execution_budget.publish(
+                stage,
+                candidates=len(candidates),
+                verified=len(verified),
+                attempted=len(request.detail_attempted_avids),
+                statistics={
+                    "recalled_count": len(request.recalled_avids),
+                    "detail_success_count": len(request.detail_completed_avids),
+                    "blacklist_excluded_count": len(request.blacklist_excluded_avids),
+                    "unverified_count": len(
+                        {item.avid for item in candidates}
+                        - request.detail_completed_avids
+                    ),
+                    "qualified_count": len(verified),
+                },
+            )
+
     def rank_and_trim(self, candidates, request):
+        request.remaining_unverified_count = sum(
+            not item.raw_metrics.get("detail_enriched") for item in candidates
+        )
         if (
             request.seed_blacklist_active
             or request.completion_reason == "network_budget"
@@ -72,6 +102,7 @@ class JableSearchRecommender(AbstractRecommender):
             ]
             request.unverified_candidate_count = len(candidates) - len(verified)
             candidates = verified
+        request.qualified_candidate_count = len(candidates)
         return super().rank_and_trim(candidates, request)
 
     def build_seeds(self, request: RecommendationRequest) -> list[RecommendationSeed]:
@@ -82,6 +113,8 @@ class JableSearchRecommender(AbstractRecommender):
         seeds: list[RecommendationSeed],
         request: RecommendationRequest,
     ) -> list[RecommendationCandidate]:
+        if self.execution_budget:
+            return self._recall_adaptively(seeds, request)
         merged: dict[str, RecommendationCandidate] = {}
 
         def recall(seed, check):
@@ -102,6 +135,53 @@ class JableSearchRecommender(AbstractRecommender):
         except RecommendationBudgetExhausted:
             request.completion_reason = "network_budget"
 
+        request.recalled_avids.update(merged)
+        return list(merged.values())
+
+    def _recall_adaptively(self, seeds, request):
+        assert self.execution_budget is not None
+        # Interleave seed types while retaining preference order inside each type.
+        groups = {}
+        for seed in seeds:
+            groups.setdefault(seed.seed_type, []).append(seed)
+        for index in range(max((len(group) for group in groups.values()), default=0)):
+            request.deferred_seeds.extend(
+                group[index] for group in groups.values() if index < len(group)
+            )
+        merged = {}
+        target = max(
+            request.limit, min(request.detail_enrichment_limit, request.limit * 2)
+        )
+
+        def recall(seed, check):
+            return self._source_operation(
+                lambda worker: worker.recall_by_seed(seed, request), check
+            )
+
+        try:
+            while request.deferred_seeds:
+                self.execution_budget.check()
+                batch = request.deferred_seeds[:2]
+                del request.deferred_seeds[:2]
+                with self.proxy_server.ordered(
+                    recall, batch, check=self.check
+                ) as results:
+                    for candidates in results:
+                        for candidate in candidates:
+                            self._merge_candidate(merged, candidate)
+                        request.recalled_avids.update(merged)
+                        self._publish_progress("recall", list(merged.values()), request)
+                usable = self.filter_existing_resources(list(merged.values()), request)
+                if self.count_preferred_candidates(usable, request) >= target:
+                    return list(merged.values())
+            if not request.discovery_recalled:
+                request.discovery_recalled = True
+                for candidate in self.recall_discovery_candidates(request):
+                    self._merge_candidate(merged, candidate)
+        except RecommendationBudgetExhausted:
+            request.completion_reason = "network_budget"
+        request.recalled_avids.update(merged)
+        self._publish_progress("recall", list(merged.values()), request)
         return list(merged.values())
 
     def recall_by_seed(
@@ -292,28 +372,14 @@ class JableSearchRecommender(AbstractRecommender):
                         break
                 batch = selected[offset : min(offset + batch_size, remaining)]
                 request.detail_attempted_avids.update(item.avid for item in batch)
-                if self.execution_budget:
-                    self.execution_budget.publish(
-                        "details",
-                        candidates=len(candidates),
-                        verified=len(self._verified_candidates(candidates, request)),
-                        attempted=len(request.detail_attempted_avids),
-                    )
+                self._publish_progress("details", candidates, request)
                 with self.proxy_server.ordered(
                     fetch, batch, check=self.check
                 ) as results:
                     for candidate, detail in results:
                         if detail:
                             self._apply_video_detail(candidate, detail, request)
-                        if self.execution_budget:
-                            self.execution_budget.publish(
-                                "details",
-                                candidates=len(candidates),
-                                verified=len(
-                                    self._verified_candidates(candidates, request)
-                                ),
-                                attempted=len(request.detail_attempted_avids),
-                            )
+                        self._publish_progress("details", candidates, request)
         except RecommendationBudgetExhausted:
             request.completion_reason = "network_budget"
         return candidates
@@ -459,6 +525,7 @@ class JableSearchRecommender(AbstractRecommender):
         request: RecommendationRequest,
     ) -> None:
         raw_metrics = dict(candidate.raw_metrics or {})
+        request.detail_completed_avids.add(candidate.avid)
         raw_metrics["detail_enriched"] = True
         raw_metrics["detail"] = dict(detail)
         for source_key, target_key in (
@@ -726,7 +793,18 @@ class JableSearchRecommender(AbstractRecommender):
     ) -> tuple[list[RecommendationSeed], list[RecommendationCandidate]]:
         if self.execution_budget and self.execution_budget.exhausted:
             return seeds, candidates
-        if self.count_preferred_candidates(candidates, request) >= request.limit:
+
+        def available(values):
+            if self.execution_budget:
+                values = [
+                    item
+                    for item in values
+                    if item.raw_metrics.get("detail_enriched")
+                    or item.avid not in request.detail_attempted_avids
+                ]
+            return self.count_preferred_candidates(values, request)
+
+        if available(candidates) >= request.limit:
             return seeds, candidates
 
         expanded_seeds = list(seeds)
@@ -736,9 +814,21 @@ class JableSearchRecommender(AbstractRecommender):
         batch_size = max(request.actor_seed_limit + request.genre_seed_limit, 4)
         expansion_rounds = 0
 
-        while self.count_preferred_candidates(
-            list(merged_candidates.values()), request
+        while available(
+            list(merged_candidates.values())
         ) < request.limit and expansion_rounds < max(int(max_rounds), 1):
+            if self.execution_budget and (
+                request.deferred_seeds or not request.discovery_recalled
+            ):
+                extra_candidates = self.recall_candidates([], request)
+                for candidate in self.filter_existing_resources(
+                    extra_candidates, request
+                ):
+                    self._merge_candidate(merged_candidates, candidate)
+                expansion_rounds += 1
+                if self.execution_budget.exhausted:
+                    break
+                continue
             extra_seeds = self.seed_provider.get_additional_seeds(
                 request,
                 used_seeds=expanded_seeds,
@@ -780,6 +870,10 @@ class JableSearchRecommender(AbstractRecommender):
             self.count_preferred_candidates(
                 self._verified_candidates(output_candidates, request)
                 if self.execution_budget
+                and (
+                    request.seed_blacklist_active
+                    or request.completion_reason == "network_budget"
+                )
                 else output_candidates,
                 request,
             )

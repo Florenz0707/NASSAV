@@ -23,10 +23,11 @@ class RecommendationExecutionBudget:
             self.exhausted = True
             raise RecommendationBudgetExhausted("推荐网络预算已用尽，准备收尾")
 
-    def publish(self, stage, *, candidates=0, verified=0, attempted=0):
+    def publish(self, stage, *, candidates=0, verified=0, attempted=0, statistics=None):
         self.stage = stage
         self.report(
             {
+                **(statistics or {}),
                 "stage": stage,
                 "candidate_count": candidates,
                 "verified_count": verified,

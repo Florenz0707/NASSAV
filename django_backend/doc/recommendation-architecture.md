@@ -121,3 +121,21 @@ deadline 的网络控制；协调线程按输入顺序合并候选、详情和�
 详情缓存使用 `video_detail_v2` 命名空间，隔离旧解析器污染数据；列表缓存保持原 key/TTL，
 旧详情自然过期，无需全局清空 Redis。部署需同步更新 API 和 scrape worker。
 `verified_count` 表示详情核验后通过黑名单的候选数，抓取成功并不保证该数增加。
+
+## 自适应首轮召回与统计
+
+生产 job 按演员/类别交替顺序，每次两个 seed，通过公共 ProxyServer 获取页面；
+每批过滤已有资源、黑名单和近期历史后，若新鲜候选达到目标池即进入详情。
+目标池为 max(limit, min(detail_enrichment_limit, 2 × limit))，默认 24；
+列表整页返回可能使数量略超目标。配置的五演员/五类别仍是可用种子池，未使用的种子
+保留为补充；热门/最新也延后到种子池无法提供足够候选时，不再每轮必抓全部来源。
+演员与类别内部保持原偏好顺序，多样性按实际已召回候选重排；因此首轮来源覆盖会缩小。
+不足时复用剩余种子和原扩展 hook，共享 AVID 去重与详情尝试预算，不重置预算。
+同步兼容 GET 保留完整首轮召回方式。
+
+进度和结果 verification_context 新增 recalled_count、detail_success_count、
+blacklist_excluded_count、unverified_count、qualified_count，详情尝试数仍单独报告。
+召回/成功/排除按本轮唯一 AVID 计数；黑名单包含召回和详情阶段命中，未核验只统计最终
+保留候选池中尚未核验的资源，合格为最终排名前符合返回条件的数量，返回数可能更少。
+已有资源与近期历史过滤可能另行减少候选，不能把 recalled_count 当作核验通过率分母。
+保留旧 excluded_unverified_count、candidate_count、verified_count 的兼容语义。
