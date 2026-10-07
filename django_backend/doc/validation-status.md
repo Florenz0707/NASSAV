@@ -4,7 +4,7 @@
 
 ## 已实现的能力
 
-资源新增/刷新、下载、翻译和推荐核心用例接受能力依赖，默认生产 Adapter 由 composition 装配；HTTP 分组视图与原 Celery 任务名保持兼容。资源任务、渐进外部搜索、取消、阶段结果与终态查询、下载进度通过 API/WebSocket 供前端使用。单用户会话、CSRF、WebSocket Origin 和数据库模式护栏继续生效。模块职责见[模块边界](p5-domain-boundaries.md)，消费者契约见[接口说明](interface.md)。
+资源新增/刷新、下载、翻译和推荐核心用例接受能力依赖，默认生产 Adapter 由 composition 装配；HTTP 分组视图与原 Celery 任务名保持兼容。资源任务、渐进外部搜索、取消、阶段结果与终态查询、下载进度通过 API/WebSocket 供前端使用。单用户会话、CSRF、WebSocket Origin 和数据库模式护栏继续生效。模块职责见[任务架构与职责](task-control-architecture.md)，消费者契约见[接口说明](interface.md)。
 
 下载执行使用独立 owner 与失租中止；批量翻译按实际标题字段筛选，异常只收尾本批未完成状态。正常下载成功事件先于数据库持久化、DB 失败仅告警，以及文件/数据库部分成功的原有行为仍保留，不能把接口成功当作完整事务提交证明。
 
@@ -43,11 +43,11 @@
 
 部分迁移计划、Byparr 现场记录、质量阶段说明已不在当前文件树中；2026-10-05 的 `415550e` 另清理了五份抽象重构过程文档。现有导航引用长期维护文档，不把缺失历史报告重新包装成当前实测结果。需要追溯时使用 `git log --all -- <旧路径>`，仅在对应文件实际存在的提交中读取。
 
-API 字段在 interface，持久化行为在 database，算法与参数在 recommendation，模块职责在 p5-domain-boundaries，默认配置在 configuration-contract，操作入口在两个 README/Compose/脚本说明，复验命令在 tests/README。改动正文对应章节，避免在文件末尾持续追加互相矛盾的阶段说明。
+API 字段在 interface，持久化行为在 database，算法与参数在 recommendation，模块职责在 task-control-architecture，默认配置在 configuration-contract，操作入口在两个 README/Compose/脚本说明，复验命令在 tests/README。改动正文对应章节，避免在文件末尾持续追加互相矛盾的阶段说明。
 
 ## 2026-10-06 持久任务控制隔离验收
 
-P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属翻译）的暂停、恢复、终止和归属清理，执行记录见[P7](../../docs/task-control-p7-results.md)。SQLite/PostgreSQL 16 各运行九项真实 prefork Celery + 临时 Redis + 固定 CLI + 本地 HLS/图片/翻译 HTTP fixture 用例；实际注入 worker 崩溃、Redis 断线及目录权限错误，确认停止后才清理、正式文件与共享头像保留。前端为真实 Vue/模拟 API/WS 的浏览器验收；后端控制请求通过已授权 APIClient，未验证真实 HTTPS/WSS 会话网关。
+P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属翻译）的暂停、恢复、终止和归属清理，执行记录见P7的历史文件 `../../docs/task-control-p7-results.md`（已在 `0a9b457` 清理，可从该提交的父版本追溯）。SQLite/PostgreSQL 16 各运行九项真实 prefork Celery + 临时 Redis + 固定 CLI + 本地 HLS/图片/翻译 HTTP fixture 用例；实际注入 worker 崩溃、Redis 断线及目录权限错误，确认停止后才清理、正式文件与共享头像保留。前端为真实 Vue/模拟 API/WS 的浏览器验收；后端控制请求通过已授权 APIClient，未验证真实 HTTPS/WSS 会话网关。
 
 该证据替换“本轮完全未做 worker/PG 联调”的范围限制，仅限本地隔离实例。生产库迁移 0022–0025、Docker 中新旧 worker 切换、真实站点、真实翻译模型和目标网关仍待目标环境接受，不因隔离通过自动上线；步骤见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。
 
@@ -75,13 +75,13 @@ P0–P7 已在独立阶段分支实现并验证下载与整条刮削（含所属
 
 每次 HLS 校验请求期限改为 60s，超时最多尝试两次、间隔 0.5s，失败尝试的部分响应完全丢弃。回调与重试间仍检查暂停/终止，保留所有缓存与当前源字节核对；持续超时回到 paused，错误码 RESUME_VALIDATION_TIMEOUT，允许用户恢复重试，释放执行槽位。内容或轨道不一致仍要求终止后重新下载。
 
-超时与受控下载专项 22 项通过；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 725 通过、26 跳过，根目录 `pre-commit run -a` 全通过。临时 Docker 容器使用本地 nassav-backend:dev 镜像、只读挂载修改源码、`--network none`，真实 curl 请求仅访问其临时 loopback 服务，注入 0.25s 的部分响应超时后校验重试成功、缓存保留及暂停优先级；验收报告见[Docker 探针](../../docs/task-control-probes/resume-timeout-docker.json)。临时目录与容器已清理。
+超时与受控下载专项 22 项通过；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 725 通过、26 跳过，根目录 `pre-commit run -a` 全通过。临时 Docker 容器使用本地 nassav-backend:dev 镜像、只读挂载修改源码、`--network none`，真实 curl 请求仅访问其临时 loopback 服务，注入 0.25s 的部分响应超时后校验重试成功、缓存保留及暂停优先级；验收报告见Docker 探针的历史文件 `../../docs/task-control-probes/resume-timeout-docker.json`（已在 `0a9b457` 清理，可从该提交的父版本追溯）。临时目录与容器已清理。
 
 该 probe 不证明真实外站、完整 CLI 下载及生产切换已验收；未重新构建部署镜像或恢复原正式任务。更新镜像后需在目标网络复查恢复校验、暂停/终止及视频完整性。参数与探针入口见[配置契约](configuration-contract.md)和[脚本说明](../scripts/README.md)。
 
 ## 原生下载续传修复（2026-10-06）
 
-分支 `fix/native-download-resume`，基线 `53d0e92`，提交标题 `[Fix] Reuse verified local segments for native download resume`。原恢复准备串行重新下载所有已缓存分片，重新部署后仍停在 resume_validation。现改为当前清单/轨道/密钥身份加本地哈希校验，损坏/未知/未完成缓存删除后交由原生 CLI 重下，完整缓存不再请求远程字节。安全边界与兼容部署见[执行记录](../../docs/task-control-native-resume-results.md)。
+分支 `fix/native-download-resume`，基线 `53d0e92`，提交标题 `[Fix] Reuse verified local segments for native download resume`。原恢复准备串行重新下载所有已缓存分片，重新部署后仍停在 resume_validation。现改为当前清单/轨道/密钥身份加本地哈希校验，损坏/未知/未完成缓存删除后交由原生 CLI 重下，完整缓存不再请求远程字节。安全边界与兼容部署见执行记录的历史文件 `../../docs/task-control-native-resume-results.md`（已在 `0a9b457` 清理，可从该提交的父版本追溯）。
 
 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：726 通过、28 跳过。专项恢复/超时测试 23 通过；真实 curl loopback 超时探针通过。真实 CLI 来自当前 Docker worker 的 0.5.1 二进制，`NASSAV_LOCAL_DOWNLOAD_BINARY=... uv run pytest tests/test_local_cli_task_control.py --ds=django_project.refactoring_test_settings -q`：明文/AES、12/240 分片四项通过（84.85s）；240 分片用例暂停时保留至少 151 个完整分片，恢复后这些分片 HTTP 请求数不增加，最终全量解码 hash 等于原视频。较大样例先暴露共享内存 SQLite 并发表锁，专项改用临时文件 SQLite 后通过。根目录 `pre-commit run -a` 全通过，未修改钩子配置。
 
@@ -91,7 +91,7 @@ CLI 和网络均仅访问临时 loopback fixture，数据库/输出临时隔离�
 
 分支 `fix/backend-volume-ownership`，基线 `6d5fe89`，提交标题 `[Fix] Align backend runtime ownership and recover cancelled task cleanup`。Compose 所有七个后端入口统一使用非 root 的 NASSAV_UID:NASSAV_GID（默认 1000:1000），Beat PID 移至其运行卷；新增只读预览/显式停止断言的权限准备工具，保留缓存、锁 inode 和正式媒体文件。
 
-专项 15 项通过，真实 Docker UID1000 探针通过全部运行目录、SQLite、flock、缓存删除和本地 HLS 原生下载/清理；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 736 通过、28 跳过（80.79s），根目录 `pre-commit run -a` 全通过，钩子配置未改。详细命令与范围见[执行记录](../../docs/backend-volume-permissions-results.md)。
+专项 15 项通过，真实 Docker UID1000 探针通过全部运行目录、SQLite、flock、缓存删除和本地 HLS 原生下载/清理；完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 736 通过、28 跳过（80.79s），根目录 `pre-commit run -a` 全通过，钩子配置未改。详细命令与范围见执行记录的历史文件 `../../docs/backend-volume-permissions-results.md`（已在 `0a9b457` 清理，可从该提交的父版本追溯）。
 
 实际实例在全部服务停止时修复 205 个条目的属主为 1000:1000，六个已有锁 inode 不变。PostgreSQL 只读核对发现 HMN-606 取消请求卡在 RECOVERY_UNCONFIRMED，核实旧容器/后代退出后，通过已有 fenced 管理命令收尾该指定 attempt：cancelled / cleanup_state=completed，私有目录删除，正式视频保留。Redis 仅临时启动支持 owner 锁释放，随后恢复停止；没有迁移数据库或启动其他正式服务。现场权限与指定取消收尾已验收，更新后端 Compose 身份后的完整服务运行仍需用户合并代码并重新创建容器验收。
 
@@ -101,7 +101,7 @@ CLI 和网络均仅访问临时 loopback fixture，数据库/输出临时隔离�
 
 TaskAssets 先持久记录 journal，再在 DB fence 外建立旧备份，硬链接受限时分块复制、检查控制/归属、验证 SHA 并原子发布。复制失败/暂停保留正式文件；完成复制但未发布时回滚保留原正式 inode，不以备份副本替换未动过的目标。磁盘错误不隐藏，journal/fencing 与正式提升流程保持。权限脚本默认范围不变，增加 include-published 离线迁移选项。
 
-专项资产/权限 40 项通过；真实 Docker UID1000、network none、临时 SQLite/root:root 644 文件，先实际复现内核 EPERM，再用完整 TaskAssets 验证发布与 DB 失败回滚通过；最终符号链接绑定源复验还覆盖复制完成后的暂停保留原 inode，三个真实内核 EPERM 场景均通过。完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 743 通过、28 跳过（85.14s），根目录 `pre-commit run -a` 全通过；命令/范围见[执行记录](../../docs/legacy-resource-permissions-results.md)。钩子配置未修改。
+专项资产/权限 40 项通过；真实 Docker UID1000、network none、临时 SQLite/root:root 644 文件，先实际复现内核 EPERM，再用完整 TaskAssets 验证发布与 DB 失败回滚通过；最终符号链接绑定源复验还覆盖复制完成后的暂停保留原 inode，三个真实内核 EPERM 场景均通过。完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 743 通过、28 跳过（85.14s），根目录 `pre-commit run -a` 全通过；命令/范围见执行记录的历史文件 `../../docs/legacy-resource-permissions-results.md`（已在 `0a9b457` 清理，可从该提交的父版本追溯）。钩子配置未修改。
 
 现场在共享资源锁和目标锁内逐个修复 110 个旧正式文件的属主为 1000:1000，保留 inode/内容/大小/mtime；真实 scraper 对 SNOS-317.html 的 read/write access 均为 true，正式根目录剩余 root 文件为零。当前服务全程运行，未重启或自动重新抓取失败任务；用户的符号链接挂载可以保留。权限现场已验收，兼容发布代码需更新后端镜像，失败任务仍需重新提交；未宣称真实站点刮削发布通过。
 
@@ -110,3 +110,11 @@ TaskAssets 先持久记录 journal，再在 DB fence 外建立旧备份，硬链
 用户在本轮文档修订前明确确认“这轮改进验收完成”。本轮覆盖任务控制与详情、scraper 代理、原生下载续传、容器身份及旧正式资产权限兼容等改进；此前各阶段“需用户验收”的描述是当时记录，不再作为本轮整体未接受的结论。用户没有提供逐项运行日志、迁移清单或网关报告，本文不将该确认推导为所有外站、翻译模型、生产数据库迁移及独立 PostgreSQL 备份恢复专项均已验收。
 
 最新完整隔离业务门槛来自 `bbe3288` 的执行记录：743 passed、28 skipped；真实 CLI、Docker 和 PostgreSQL fixture 的覆盖范围仍以对应历史章节为准。本次仅修改 Markdown，核对 `6801ea6..7a3d7f1` 的提交和当前模块契约；执行根目录 `pre-commit run -a`、相对文档链接检查及 `git diff --check`，不重跑业务探针、不修改运行数据或执行迁移。长期开发入口为[任务控制架构](task-control-architecture.md)，原 P0–P7 计划与报告保留追溯用途。
+
+## v2.4.4 前端收尾与文档修订
+
+前端改进范围为 `1ded0f6..6dc0450`，包括 HTML 语义、交互复用、features/shared/app 布局、请求归属、控件与页面反馈、主题及列表修复。用户在本轮明确结束前端改进；阶段命令与验证范围见[语义重构记录](../../vue_frontend/doc/semantic-refactoring-progress.md)和[UX 改进记录](../../vue_frontend/doc/ux-neutral-progress.md)。最近阶段 `6dc0450` 的前端 lint、60 项单元测试、构建及全仓库 pre-commit 通过；浏览器验证深浅主题品牌渐变一致性、控件对比度与加载状态，使用模拟 API，不推导为新增真实 worker、数据库或生产部署验收。
+
+本次修订更新 2.4.4 变更日志、前端功能说明与前后端项目版本元数据，依赖版本与业务接口不变；核对文档链接，执行前端 check、后端 uv 锁文件一致性检查及根目录 pre-commit。清理对象限已合并本地分支与旧临时开发产物，不清理正式资源、任务资产、锁文件或数据库。
+
+维护收尾：已删除 82 个合入 idle 的旧阶段分支；清理 227 个历史日志、截图、报告/备份和 9 个旧缓存、原型、空测试目录，约 256 MiB。保留 `/tmp/nassav-agent-worktree` 与文档规定的 `/tmp/nassav-browser-audit`。另一个仅含隔离测试设置及字节码的 `/tmp/nassav-task-control-p1-pg` 属主为 nobody，非交互 sudo 要求密码，需用户在本机清理；不涉及正式数据库。

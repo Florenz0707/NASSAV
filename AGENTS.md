@@ -103,7 +103,7 @@
 - 新增接口时，应更新接口文档
 - 新增或调整数据库相关行为时，应更新数据库文档
 - 新增脚本、推荐链路、服务编排或其他非显然行为时，应补充设计说明文档
-- 后端职责维护于[模块边界](django_backend/doc/p5-domain-boundaries.md)，前端职责与组件约束维护于[开发契约](vue_frontend/doc/development-contracts.md)与[模块布局](vue_frontend/doc/module-layout.md)；执行记录注明提交、命令和验证范围
+- 后端职责维护于[任务架构与职责](django_backend/doc/task-control-architecture.md)，前端职责与组件约束维护于[开发契约](vue_frontend/doc/development-contracts.md)与[模块布局](vue_frontend/doc/module-layout.md)；执行记录注明提交、命令和验证范围
 
 ## 提交约定
 

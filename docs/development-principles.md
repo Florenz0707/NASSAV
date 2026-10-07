@@ -1,6 +1,6 @@
 # 重构原则与持续开发约束
 
-本文将本轮后端能力重构和前端 F1–F6 的做法作为后续开发基线。具体职责分别由[后端模块边界](../django_backend/doc/p5-domain-boundaries.md)和[前端开发契约](../vue_frontend/doc/development-contracts.md)维护；Agent 入口为[仓库规范](../AGENTS.md)。本文约束新增与修改代码，不要求为无关旧代码补建继承层。
+本文将本轮后端能力重构和前端 F1–F6 的做法作为后续开发基线。具体职责分别由[后端任务架构与职责](../django_backend/doc/task-control-architecture.md)和[前端开发契约](../vue_frontend/doc/development-contracts.md)维护；Agent 入口为[仓库规范](../AGENTS.md)。本文约束新增与修改代码，不要求为无关旧代码补建继承层。
 
 ## 设计原则及落地方式
 

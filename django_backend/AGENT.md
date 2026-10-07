@@ -2,7 +2,7 @@
 
 ## 开发前
 
-- 阅读[仓库规范](../AGENTS.md)、[重构原则](../docs/development-principles.md)和[模块边界](doc/p5-domain-boundaries.md)，核对目标用例与消费者。
+- 阅读[仓库规范](../AGENTS.md)、[重构原则](../docs/development-principles.md)和[任务架构与职责](doc/task-control-architecture.md)，核对目标用例与消费者。
 - 使用 `uv` 管理环境和运行 Python；配置变更同步 `config/config.example.yaml`，容器默认配置受影响时同步对应示例。
 - 接口、数据、推荐与运行行为分别核对 doc 下对应文档；脚本参数写入脚本说明和 [scripts/README.md](scripts/README.md)，测试入口维护于 [tests/README.md](tests/README.md)。
 

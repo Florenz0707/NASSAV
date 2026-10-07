@@ -1,16 +1,18 @@
 # NASSAV 前端（Vue 3 + Vite）
 
-一个用于管理视频资源的前端应用，包含资源检索、信息刮削、下载管理等功能。基于 Vue 3、Vite、Pinia 与 Vue Router 构建，默认通过
+一个用于管理视频资源的前端应用，包含资源检索、信息刮削、任务详情等功能。基于 Vue 3、Vite、Pinia 与 Vue Router 构建，默认通过
 `/nassav` 代理与后端交互。
 
 全栈容器部署通过仓库根目录 `compose.yaml` 提供 nginx 网关，详见 [Compose 部署说明](../django_backend/doc/compose-deployment.md)。
 
-后续开发遵循[重构原则](../docs/development-principles.md)、[前端开发契约](doc/development-contracts.md)及 [AGENT.md](AGENT.md)；阶段验证证据见[执行记录](doc/refactoring-progress.md)。
+后续开发遵循[重构原则](../docs/development-principles.md)、[前端开发契约](doc/development-contracts.md)及 [AGENT.md](AGENT.md)；阶段验证证据见[语义重构记录](doc/semantic-refactoring-progress.md)和[UX 改进记录](doc/ux-neutral-progress.md)。
 
 ## 功能概览（含页面与预览图）
 
-- 首页（概览与最近添加）
-  - 功能：展示资源总览统计（总数/已下载/待下载），最近添加资源，快捷入口（添加资源/浏览资源库）。
+当前版本为 2.4.4。以下预览图为历史页面参考，当前布局与交互以功能描述及开发契约为准。
+
+- 首页（品牌与功能入口）
+  - 功能：展示品牌、下载与刮削能力介绍，提供添加资源和浏览资源库快捷入口；品牌标识与导航共用橙色渐变，背景使用彩色柔光。
   - 路由：`/`
   - 预览：
 
@@ -60,7 +62,7 @@
     ![Add Resource](public/preview/addResource.png)
 
 - 任务详情（持久下载与刮削任务，兼容历史队列）
-  - 功能：列表/详情、类型和整体状态筛选、创建/更新时间降序、资源名称与封面、包含翻译的活动时间线；支持单条/批量暂停、恢复、终止和本浏览器隐藏已结束任务。控制能力由服务器快照决定，清理状态独立展示。
+  - 功能：列表/详情、类型和整体状态筛选、创建/更新时间降序、资源名称与封面、包含翻译的活动时间线；支持单条/批量暂停、恢复、终止和本浏览器隐藏已结束任务。控制能力由服务器快照决定，清理状态独立展示；顶部区分当前跟踪、已加载隐藏数与服务端总数，本地隐藏不改变后台任务。
   - 路由：`/downloads`
   - 预览：
 
@@ -75,7 +77,7 @@
 
 应用使用单用户 Django 会话；未登录时展示登录界面，写请求携带 CSRF token，会话失效后回到登录流程。API 与 WebSocket 使用同源网关；DEBUG 不能绕过登录。权限和部署配置见[接口文档](../django_backend/doc/interface.md)。
 
-演员/类别详情提供来源下拉与搜索按钮，不自动发起外部抓取。可用来源和排序以后端 search-capabilities 为准，当前支持启用的 Jable/MissAV；默认选择取持久化设置，不可用时回退到支持该搜索的源。MissAV 缺少映射时可能是关键词结果，页面明确提示，不能保证全部属于该演员/类别。
+演员/类别详情提供手动搜索入口；开始搜索与来源设置按钮在空白区域居中，来源由设置弹窗选择，重新搜索位于结果分页下方，不自动发起外部抓取。可用来源和排序以后端 search-capabilities 为准，当前支持启用的 Jable/MissAV；默认选择取持久化设置，不可用时回退到支持该搜索的源。MissAV 缺少映射时可能是关键词结果，页面明确提示，不能保证全部属于该演员/类别。
 
 搜索使用后台任务，逐页展示 partial 结果；失败或取消保留已有结果并显示状态，不伪装成完整成功。用户可以取消任务；切源或离开页面终止旧请求/订阅，后台任务仍可能继续，过期响应不得覆盖新状态。WebSocket 通知触发带 token 的版本快照查询，1.5 秒轮询补偿断线。结果默认每页 15 项，翻页通过同一签名任务读取，不新建搜索；源站抓取进度与界面展示页数分别标注。添加结果时携带对应来源；部分结果不进入成功会话缓存。详细接口见[外部搜索契约](../django_backend/doc/interface.md)。
 
@@ -181,6 +183,10 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 ## 任务详情与调试
 
-正式 `/downloads` 使用列表与详情布局，支持下载与刮削筛选。模拟效果由 `DownloadsView.vue` 的 `DEBUG_MODE` 开关启用，见[任务详情与调试说明](doc/task-details-demo.md)。
+正式 `/downloads` 使用列表与详情布局，支持下载与刮削筛选。模拟效果由 `DownloadsView.vue` 的 `DEBUG_MODE` 开关启用，见[任务详情与调试说明](doc/development-contracts.md)。
 
 全局通知模块已移除，任务的阶段时间在任务详情中查看；导航栏恢复原有布局。
+
+## 控件与页面反馈
+
+按钮统一五态，加载时保留尺寸且阻止重复提交。输入框提供占位、聚焦、就地错误与清空；空列表使用图标与短文案，失败显示简短原因和重试。请求超过一秒后显示骨架或 loading，刷新保留已有内容；动画使用平缓呼吸和单层旋转，支持减少动态效果偏好。深浅主题、公共组件和状态归属见[开发契约](doc/development-contracts.md)，目录职责见[模块布局](doc/module-layout.md)。

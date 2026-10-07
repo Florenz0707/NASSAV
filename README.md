@@ -8,7 +8,7 @@
 - 三个 Celery 队列分别处理默认任务、刮削和下载；持久任务支持单条/批量暂停、恢复、终止与停止后的私有产物清理。
 - 单用户 Django 会话保护业务 API 和任务 WebSocket；登录后使用浏览器 Cookie 与 CSRF 令牌。
 - [前端页面与本地开发](vue_frontend/README.md) · [后端本地开发](django_backend/README.md) · [后端接口](django_backend/doc/interface.md) · [数据库说明](django_backend/doc/database.md)
-- [重构原则与持续开发约束](docs/development-principles.md) · [后端模块边界](django_backend/doc/p5-domain-boundaries.md) · [前端开发契约](vue_frontend/doc/development-contracts.md) · [Agent 规范](AGENTS.md)
+- [重构原则与持续开发约束](docs/development-principles.md) · [后端任务架构与职责](django_backend/doc/task-control-architecture.md) · [前端开发契约](vue_frontend/doc/development-contracts.md) · [Agent 规范](AGENTS.md)
 
 ## 快速开始
 
@@ -31,16 +31,45 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 资源添加/刷新通过异步任务执行；演员和类别外部搜索支持来源选择、渐进结果、取消和终态补查。下载和批量翻译的 owner/异常收尾修复、资源/下载/翻译/推荐用例分层已实现；消费者 URL、响应字段和 Celery 任务名保持。
 
-用户已确认本轮改进验收完成。最新资产权限修复提交 `bbe3288` 的历史隔离门槛为 743 passed、28 skipped；本次文档修订不重新执行部署或业务验收。独立 PostgreSQL 备份恢复、另一设备 HTTPS/WSS 等专项不由本轮确认自动覆盖，具体范围见[验证状态](django_backend/doc/validation-status.md)。
+用户已确认任务与资产权限改进验收完成，并在 2.4.4 文档修订前结束本轮前端改进。前端语义与模块重构、控件与页面反馈、布局和主题调整见[前端开发契约](vue_frontend/doc/development-contracts.md)及[模块布局](vue_frontend/doc/module-layout.md)；各阶段浏览器验收使用模拟 API/WS，不替代真实服务联调。最新资产权限修复提交 `bbe3288` 的历史隔离门槛为 743 passed、28 skipped；本次文档修订不重新执行部署或业务验收。独立 PostgreSQL 备份恢复、另一设备 HTTPS/WSS 等专项不由本轮确认自动覆盖，具体范围见[验证状态](django_backend/doc/validation-status.md)。
 
 ## 文档导航
 
 - 本地开发：[后端](django_backend/README.md)、[前端](vue_frontend/README.md)
 - 消费者与数据：[接口与权限](django_backend/doc/interface.md)、[数据库与备份](django_backend/doc/database.md)、[推荐系统](django_backend/doc/recommendation.md)
-- 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[模块边界](django_backend/doc/p5-domain-boundaries.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
+- 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[任务架构与职责](django_backend/doc/task-control-architecture.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
 - 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[验证状态](django_backend/doc/validation-status.md)
 
 ## 版本更新
+
+### v2.4.4（2026-10-07）
+
+#### 🆕 新增
+
+- **统一交互反馈**：按钮统一默认、悬浮、按下、禁用与加载状态；输入框支持占位、聚焦、错误说明和清空。页面区分正常、空状态、加载与错误，失败提供重试。
+- **平缓加载**：加载超过一秒后显示骨架或 loading；刷新保留已有内容，使用缓慢呼吸与单层旋转，并尊重减少动态效果偏好。
+
+#### 🔧 优化
+
+- **语义与复用**：补齐表单标签、标题、分页名称、跳过导航与路由焦点；统一资源操作菜单和复选框，拆分添加、推荐与外部搜索的工作流和展示组件。
+- **模块布局**：业务能力归入 features，公共控件与工具归入 shared，导航及连接装配归入 app；API 按领域拆分，保留唯一客户端和公开导出。
+- **视觉与布局**：恢复首页彩色柔光背景，首页与导航标识共用橙色渐变；卡片使用中性色，深色表面保持层级。首页功能图标、下载和刷新增加局部色彩，导航栏透明并保留背景模糊。
+- **资源与搜索体验**：资源卡片保持紧凑操作按钮，详情按钮保持统一尺寸；外部搜索入口居中，重新搜索置于分页下方；Cookie 设置保留在添加按钮旁，下载源使用单层边框。
+
+#### 🐛 修复
+
+- 修复资源详情封面圆角与多余底框、按钮尺寸变化，以及批量模式复选框挤占封面空间的问题。
+- 修复任务顶部计数忽略“不再跟踪”的问题；分别展示当前跟踪、已加载隐藏数与服务端总数，刷新后保持本地隐藏偏好。
+- 修复实体详情重复删除、恢复后的添加批次匹配、推荐迟到响应和旧查询结果覆盖；资源操作使用明确事件与请求归属。
+- 修复推荐页窄屏按钮文案折叠及首页浅色主题重点按钮文字被链接基础样式覆盖的问题。
+
+#### 🧹 清理
+
+- 清理已合并的本地阶段分支，仅保留 main、dev、idle；清理旧临时日志、截图、原型和测试缓存，保留开发 worktree 与浏览器验收环境。
+
+#### 📚 文档
+
+- 更新前端功能说明、控件与状态契约、模块布局及验证边界；阶段证据见[语义重构记录](vue_frontend/doc/semantic-refactoring-progress.md)和[UX 改进记录](vue_frontend/doc/ux-neutral-progress.md)。本版汇总 `1ded0f6..6dc0450` 的改进，历史版本记录保留。
 
 ### v2.4.3（2026-10-06）
 
