@@ -62,3 +62,18 @@ def test_recommendation_source_uses_global_page_proxy(settings):
     algorithm = manager.build_recommender("jable_page_lookup", manager.get_strategy())
     assert algorithm.jable.proxy == settings.PROXY_URL
     assert algorithm.jable.strict_failures
+
+
+def test_active_seed_blacklist_excludes_unverified_candidates_before_trimming():
+    algorithm = JableSearchRecommender(
+        jable=Mock(), candidate_inventory=Mock(), seed_provider=Mock()
+    )
+    request = RecommendationRequest(limit=1, seed_blacklist_active=True)
+    unknown = RecommendationCandidate("UNKNOWN", "", "", "", total_score=100)
+    verified = RecommendationCandidate(
+        "VERIFIED", "", "", "", raw_metrics={"detail_enriched": True}
+    )
+    assert algorithm.rank_and_trim([unknown, verified], request) == [verified]
+    assert request.unverified_candidate_count == 1
+    request.seed_blacklist_active = False
+    assert algorithm.rank_and_trim([unknown, verified], request) == [unknown]

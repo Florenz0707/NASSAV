@@ -104,6 +104,7 @@ class RecommendationRequest:
     type_preference: str = "balanced"
     actor_preference: str = "balanced"
     genre_preference: str = "balanced"
+    unverified_candidate_count: int = field(default=0, repr=False)
     history_generation: int | None = field(default=None, repr=False)
     force_refresh_external: bool = False
     detail_attempted_avids: set[str] = field(default_factory=set, repr=False)
@@ -170,6 +171,9 @@ class RecommendationExecution:
                 "genre_preference": self.request.genre_preference,
                 "force_refresh_external": self.request.force_refresh_external,
                 "seed_blacklist_active": self.request.seed_blacklist_active,
+            },
+            "verification_context": {
+                "excluded_unverified_count": self.request.unverified_candidate_count,
             },
             "history_context": {
                 "recently_recommended_count": len(

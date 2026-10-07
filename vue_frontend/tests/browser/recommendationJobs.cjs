@@ -43,7 +43,7 @@ async function main() {
               },
             ],
             seeds: [],
-            meta: {},
+            meta: { verification_context: { excluded_unverified_count: 2 } },
           },
         }
       }
@@ -59,6 +59,7 @@ async function main() {
     mode = 'succeeded'
     await page.locator('.header-actions .ui-button').first().click()
     await page.getByText('异步推荐验收', { exact: true }).waitFor()
+    await page.getByRole('status').filter({ hasText: '2 条候选因详情未核验' }).waitFor()
     mode = 'failed'
     await page.locator('.header-actions .ui-button').first().click()
     await page.getByRole('alert').filter({ hasText: '来源暂不可用' }).waitFor()

@@ -118,3 +118,21 @@ TaskAssets 先持久记录 journal，再在 DB fence 外建立旧备份，硬链
 本次修订更新 2.4.4 变更日志、前端功能说明与前后端项目版本元数据，依赖版本与业务接口不变；核对文档链接，执行前端 check、后端 uv 锁文件一致性检查及根目录 pre-commit。清理对象限已合并本地分支与旧临时开发产物，不清理正式资源、任务资产、锁文件或数据库。
 
 维护收尾：已删除 82 个合入 idle 的旧阶段分支；清理 227 个历史日志、截图、报告/备份和 9 个旧缓存、原型、空测试目录，约 256 MiB。保留 `/tmp/nassav-agent-worktree` 与文档规定的 `/tmp/nassav-browser-audit`。另一个仅含隔离测试设置及字节码的 `/tmp/nassav-task-control-p1-pg` 属主为 nobody，非交互 sudo 要求密码，需用户在本机清理；不涉及正式数据库。
+
+## 推荐改进的验证范围（2026-10-07）
+
+- 来源失败与详情预算：提交 `19b3b06`，后端隔离 **747 passed、28 skipped**。
+- 持久推荐 worker 与控制 API：提交 `62bdf97`，后端隔离 **756 passed、28 skipped**。
+- 前端异步跟踪：提交 `0d63de3`，`pnpm run check` **65 tests passed**，lint/build 通过。
+  `recommendationJobs.cjs` 用模拟 API 验证成功、失败、后台取消请求、移动布局及路由卸载。
+- 每阶段执行 `pre-commit run -a`；格式或类型失败修复后重新通过才合并 idle。
+- 代理专项使用回环 HTTP/curl 验证生产装配的推荐页面、图片请求经过配置代理；
+  Byparr 控制连接直连的既有回归同时通过。
+
+尚未在目标环境应用迁移 0026、重启 worker，未验收真实 Jable、ProxyServer/Byparr、
+Celery broker 或 PostgreSQL 并发；隔离 SQLite/模拟浏览器不覆盖这些环境边界。
+
+最终黑名单核验与反馈一致性阶段：后端 **758 passed、28 skipped**，前端
+**65 tests passed**。并发回归使用子进程临时文件 SQLite，移除写入 fence 的反例确实
+触发并发旧值读取；恢复 fence 后最终点赞计数为 1。浏览器另覆盖未核验候选数量提示。
+新架构与后续开发约束见[推荐架构](recommendation-architecture.md)。

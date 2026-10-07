@@ -546,6 +546,16 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
+    <p
+      v-if="meta?.verification_context?.excluded_unverified_count"
+      role="status"
+      class="text-secondary mb-4"
+    >
+      有
+      {{ meta.verification_context.excluded_unverified_count }}
+      条候选因详情未核验而被过滤，以遵守黑名单设置。
+    </p>
+
     <RecommendationPreferences
       v-model:type-preference="typePreference"
       v-model:actor-preference="actorPreference"

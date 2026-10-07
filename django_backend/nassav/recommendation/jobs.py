@@ -28,6 +28,17 @@ def history_generation():
     return state.generation
 
 
+def lock_history():
+    """Acquire the shared write fence before any feedback/reset read.
+
+    A write (rather than SELECT FOR UPDATE alone) also serializes SQLite.
+    """
+    if not RecommendationState.objects.filter(pk=1).update(generation=F("generation")):
+        RecommendationState.objects.get_or_create(pk=1)
+        RecommendationState.objects.filter(pk=1).update(generation=F("generation"))
+    return RecommendationState.objects.get(pk=1).generation
+
+
 def fence_history(generation):
     if not RecommendationState.objects.filter(pk=1, generation=generation).update(
         generation=F("generation")
@@ -50,8 +61,7 @@ def snapshot(job):
 
 def submit(owner, parameters):
     with transaction.atomic():
-        generation = history_generation()
-        fence_history(generation)
+        generation = lock_history()
         job = RecommendationJob.objects.create(
             owner=owner,
             parameters=parameters,

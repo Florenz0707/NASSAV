@@ -595,3 +595,6 @@ uv run python scripts/accept_task_control_workers.py \
 ## Compose 后端运行目录权限
 
 仓库根目录的 `scripts/prepare_backend_permissions.py` 是不连接 DB/Redis 的宿主机工具。`--data-dir`、`--resource-dir`、正整数 `--uid`、`--gid` 必填；默认只读检查，输出 JSON，需修复或不安全路径退出非零。`--repair --writers-stopped` 在确认所有写入者停止后准备目录/修复属主，需 chown 权限。`--include-published` 显式增加旧正式媒体的属主/owner 权限迁移；默认不遍历这些文件。它不删除缓存/锁、不取消任务、不迁移数据库，也不处理 Redis/Ollama 卷和 PostgreSQL 密码文件。链接目标须先人工核对并传真实路径；硬链接、符号链接与特殊文件拒绝。范围及首次部署、旧实例迁移见[部署说明](../doc/compose-deployment.md#后端运行身份与任务目录权限)。
+
+推荐映射脚本不会由默认 Beat 或推荐 job 自动执行；部署者可显式运行上述脚本，或另行
+配置 cron。Jable 与 JavBus 共用全局 `Proxy.Enable` / `Proxy.url`，不使用视频下载代理。

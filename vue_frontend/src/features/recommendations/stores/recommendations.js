@@ -89,7 +89,10 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
     }
     // Keep polling and allow retry when server cancellation could not be confirmed.
     await recommendationApi.cancelJob(id)
-    if (activeJobId.value === id) cancelQuery()
+    if (activeJobId.value === id) {
+      activeJobId.value = ''
+      cancelQuery()
+    }
   }
   async function loadMetrics() {
     const request = metricsGuard.begin()

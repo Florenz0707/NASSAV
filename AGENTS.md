@@ -130,3 +130,12 @@
 ## 持久任务开发约束
 
 涉及下载、刮削、所属翻译、任务控制或文件清理时，先阅读[任务控制架构](django_backend/doc/task-control-architecture.md)。DB 是持久业务状态所有者；恢复使用新 attempt/generation，旧执行不得提交。暂停/终止须确认写入者停止，终态不等于清理完成；不得在线删除锁文件、手动清空 `.tasks` 或以 Celery revoke 代替控制协议。发布、回滚与删除复用共享资源/目标锁及资产日志；网络、复制和大文件哈希不得放入短 DB 提交回调。前端按 job_id/version 合并授权快照，以 allowed_actions 决定操作。
+
+## 推荐开发约束
+
+修改推荐、反馈或历史重置前阅读[推荐架构](django_backend/doc/recommendation-architecture.md)。
+推荐 job 由 DB 持有，Celery 仅运输；成功检查历史 generation、执行 UUID 和 deadline。
+网络不进入短提交事务；取消/重置后的旧执行不得保存 snapshot。
+推荐来源与浏览器出口共用全局 Proxy.url，Byparr 控制直连，不混用下载代理。
+详情失败消耗共享预算，启用 seed 黑名单时排除未核验候选并告知数量；
+反馈先取得共享历史写入 fence，再读取旧值和更新计数。离线映射不默认自动运行。

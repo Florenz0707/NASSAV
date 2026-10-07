@@ -284,9 +284,9 @@ class RecommendationSnapshotRepository:
     @transaction.atomic
     def reset_state(self, *, preserve_blocklist: bool = True) -> dict[str, int | bool]:
         from nassav.recommendation_models import RecommendationJob, RecommendationState
-        from .jobs import history_generation
+        from .jobs import lock_history
 
-        history_generation()
+        lock_history()
         RecommendationState.objects.filter(pk=1).update(generation=F("generation") + 1)
         RecommendationJob.objects.filter(state__in=["queued", "running"]).update(
             state="cancelled",
