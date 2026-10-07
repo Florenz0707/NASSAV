@@ -94,6 +94,7 @@ def test_jable_parse_video_detail_separates_tag_and_category_slugs():
     <html>
       <head><meta property="og:image" content="https://img/abc.jpg"></head>
       <body>
+        <section class="video-info">
         <h4 class="title">ABC-123 Demo Title</h4>
         <script>var hlsUrl = "https://example.com/video.m3u8";</script>
         <div class="models">
@@ -101,6 +102,7 @@ def test_jable_parse_video_detail_separates_tag_and_category_slugs():
         </div>
         <a href="/tags/groupsex/">多P</a>
         <a href="/categories/chinese-subtitle/">中文字幕</a>
+        </section>
       </body>
     </html>
     """
@@ -395,3 +397,70 @@ def test_jable_discover_latest_updates_uses_from_parameter_for_later_pages(
 def test_jable_extract_avid(title, detail_url, expected):
     jable = Jable()
     assert jable._extract_avid(title=title, detail_url=detail_url) == expected
+
+
+def test_detail_metadata_excludes_navigation_and_uses_full_actor_tooltip():
+    from nassav.recommendation.entities import (
+        RecommendationRequest,
+        RecommendationCandidate,
+    )
+    from nassav.recommendation.jable_search import JableSearchRecommender
+    from unittest.mock import Mock
+
+    html = """<html><body>
+    <nav class="app-nav"><a href="/tags/groupsex/">多P</a></nav>
+    <section class="video-info pb-3">
+      <h4 class="title">FOCS-063 Demo</h4>
+      <div class="info-header"><div class="models">
+        <a class="model" href="/models/konatsu/">
+          <span data-original-title="柏木こなつ" title="">柏</span>
+        </a>
+      </div></div>
+      <h5 class="tags"><a href="/tags/girl/">少女</a></h5>
+    </section>
+    <aside><div class="models"><a class="model" href="/models/other/">Other</a></div>
+      <a href="/categories/unrelated/">Unrelated</a></aside>
+    <script>var hlsUrl = "https://example.com/video.m3u8";</script>
+    </body></html>"""
+    detail = Jable()._parse_video_detail(html=html, avid="FOCS-063", detail_url="")
+    request = RecommendationRequest(
+        seed_blacklist_active=True, blocked_seed_name_keys={("genre", "多p")}
+    )
+    candidate = RecommendationCandidate("FOCS-063", "", "", "")
+    algorithm = JableSearchRecommender(
+        jable=Mock(), candidate_inventory=Mock(), seed_provider=Mock()
+    )
+    algorithm._apply_video_detail(candidate, detail, request)
+    assert algorithm._verified_candidates([candidate], request) == [candidate]
+    assert detail["genres"] == ["少女"]
+    assert detail["actors"] == ["柏木こなつ"]
+    assert detail["actor_slugs"] == ["konatsu"]
+
+
+def test_detail_cache_version_ignores_polluted_legacy_payload(monkeypatch):
+    source = Jable()
+    source.cache_enabled = True
+    url = "https://jable.tv/videos/abc-123/"
+    cache.set(
+        source._build_cache_key("video_detail", avid="ABC-123", url=url),
+        {"genres": ["多P"]},
+    )
+    calls = []
+
+    def fetch(*args, **kwargs):
+        calls.append(args)
+        return '<section class="video-info"><h4 class="title">ABC-123 Title</h4><a href="/tags/girl/">少女</a></section><script>var hlsUrl = "https://example.com/a.m3u8";</script>'
+
+    monkeypatch.setattr(source, "_request_html", fetch)
+    assert source.get_video_detail("ABC-123", url)["genres"] == ["少女"]
+    assert source.get_video_detail("ABC-123", url)["genres"] == ["少女"]
+    assert len(calls) == 1
+
+
+def test_missing_detail_metadata_is_not_verified_as_empty():
+    with pytest.raises(ValueError, match="metadata section missing"):
+        Jable()._parse_video_detail(
+            html='<nav><a href="/tags/groupsex/">多P</a></nav>',
+            avid="ABC-123",
+            detail_url="",
+        )

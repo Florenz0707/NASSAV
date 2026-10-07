@@ -248,7 +248,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             return {}
 
         cache_key = self._build_cache_key(
-            "video_detail",
+            "video_detail_v2",
             avid=normalized_avid,
             url=normalized_url,
         )
@@ -802,9 +802,14 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             title = title_node.get_text(" ", strip=True) if title_node else ""
             title = re.sub(r"\s*-\s*Jable\.TV.*$", "", title).strip()
 
-        actors = self._extract_detail_links(soup, selector="div.models a.model[href]")
+        metadata = soup.select_one("section.video-info")
+        if metadata is None:
+            raise ValueError("Jable detail metadata section missing")
+        actors = self._extract_detail_links(
+            metadata, selector="div.models a.model[href]", prefer_tooltip=True
+        )
         genres = self._extract_detail_links(
-            soup,
+            metadata,
             selector='a[href*="/tags/"], a[href*="/categories/"]',
         )
         cover_url = self.get_cover_url(html) or ""
@@ -832,12 +837,26 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         return {key: value for key, value in payload.items() if value not in ("", [])}
 
     def _extract_detail_links(
-        self, soup: BeautifulSoup, *, selector: str
+        self, soup, *, selector: str, prefer_tooltip: bool = False
     ) -> list[dict]:
         output: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for anchor in soup.select(selector):
             name = anchor.get_text(" ", strip=True)
+            if prefer_tooltip:
+                for attr in ("data-original-title", "title", "alt"):
+                    nodes = [anchor, *anchor.select(f"[{attr}]")]
+                    full_name = next(
+                        (
+                            self._get_tag_attr(node, attr).strip()
+                            for node in nodes
+                            if self._get_tag_attr(node, attr).strip()
+                        ),
+                        "",
+                    )
+                    if full_name:
+                        name = full_name
+                        break
             href = self._get_tag_attr(anchor, "href")
             if not name:
                 continue
