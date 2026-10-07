@@ -129,8 +129,15 @@ def build_recommendation_manager():
     from nassav.source import Jable
 
     def jable_factory(strategy):
+        from nassav.source.search_contracts import SourceSearchUnavailable
+
+        if not settings.SOURCE_CONFIG.get("jable", {}).get("weight", 0):
+            raise SourceSearchUnavailable("jable_disabled")
         return JablePageLookupRecommender(
-            jable=Jable(proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None),
+            jable=Jable(
+                proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None,
+                strict_failures=True,
+            ),
             candidate_inventory=DjangoCandidateInventory(),
             seed_provider=strategy.seed_provider_builder(),
             factors=[builder() for builder in strategy.factor_builders],

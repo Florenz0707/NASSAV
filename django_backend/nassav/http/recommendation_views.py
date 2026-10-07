@@ -38,6 +38,10 @@ class RecommendationsDemoView(SchemaAPIView):
             return build_response(200, "success", execution.to_dict())
         except RecommendationManagerError as e:
             return build_response(400, str(e), None)
+        except SourceSearchUnavailable:
+            return build_response(503, "推荐来源未启用", None)
+        except SourceSearchError:
+            return build_response(502, "推荐来源抓取失败，请稍后重试", None)
 
 
 class RecommendationsView(SchemaAPIView):
@@ -61,6 +65,10 @@ class RecommendationsView(SchemaAPIView):
             return build_response(200, "success", execution.to_dict())
         except RecommendationManagerError as e:
             return build_response(400, str(e), None)
+        except SourceSearchUnavailable:
+            return build_response(503, "推荐来源未启用", None)
+        except SourceSearchError:
+            return build_response(502, "推荐来源抓取失败，请稍后重试", None)
 
 
 class RecommendationOptionsView(SchemaAPIView):

@@ -731,3 +731,16 @@ manager 会把 `blocked_avids` 写入 `RecommendationRequest.blocked_avid_blockl
 - `nassav/recommendation/cover_cache.py`
 
 扩展接口与默认装配见[模块边界](p5-domain-boundaries.md)，纯算法和批量查询验证见[测试说明](../tests/README.md)。
+
+## 来源失败、代理与详情预算
+
+生产推荐使用独立的 Jable 实例，共用全局 `Proxy.Enable` / `Proxy.url`；
+列表、详情的直接请求及浏览器出口沿用该代理，视频下载代理不参与推荐。
+Jable `weight=0` 时明确拒绝推荐，不绕过来源启用配置。
+生产推荐启用 `strict_failures`：抓取/校验和解析失败不再伪装为零条结果；
+兼容同步接口分别返回 503（未启用）与 502（来源失败），失败不保存 snapshot。
+旧来源调用默认保留兼容模式。
+
+`detail_enrichment_limit` 按尝试的 AVID 计数，详情失败也消耗预算；
+同一轮补候选与重入共用预算，不重复请求已尝试的 AVID。
+响应 `meta.effective_request.detail_attempt_count` 可核对实际尝试数。

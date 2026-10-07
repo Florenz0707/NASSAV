@@ -195,16 +195,22 @@ class JableSearchRecommender(AbstractRecommender):
         if not candidates or request.detail_enrichment_limit <= 0:
             return candidates
 
-        remaining = max(int(request.detail_enrichment_limit), 0)
+        remaining = max(
+            int(request.detail_enrichment_limit) - len(request.detail_attempted_avids),
+            0,
+        )
         for candidate in candidates:
             if remaining <= 0:
                 break
             if not self._should_enrich_candidate_detail(candidate, request):
                 continue
+            if candidate.avid in request.detail_attempted_avids:
+                continue
+            request.detail_attempted_avids.add(candidate.avid)
+            remaining -= 1
             detail = self._call_video_detail(candidate, request)
             if not detail:
                 continue
-            remaining -= 1
             self._apply_video_detail(candidate, detail, request)
         return candidates
 
