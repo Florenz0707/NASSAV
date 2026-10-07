@@ -3,7 +3,7 @@
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from threading import Event
 from typing import Protocol, TypeVar
 
@@ -36,11 +36,12 @@ class ProxyServer(Protocol):
 
 
 class OrderedProxyServer:
-    def __init__(self, max_concurrency: int = 1, *, capacity=None):
+    def __init__(self, max_concurrency: int = 1, *, capacity=None, worker_scope=None):
         if isinstance(max_concurrency, bool) or not 1 <= max_concurrency <= 8:
             raise ValueError("Proxy server concurrency must be between 1 and 8")
         self.max_concurrency = max_concurrency
         self.capacity = capacity
+        self.worker_scope = worker_scope or nullcontext
 
     @contextmanager
     def slot(self, timeout_ms: int, *, check: Callable[[], None]):
@@ -63,13 +64,18 @@ class OrderedProxyServer:
             check_owner()
 
         def invoke(value):
-            checkpoint()
-            result = operation(value, checkpoint)
-            checkpoint()
-            return result
+            scope = self.worker_scope if self.max_concurrency > 1 else nullcontext
+            with scope():
+                checkpoint()
+                result = operation(value, checkpoint)
+                checkpoint()
+                return result
 
         if self.max_concurrency == 1:
-            yield (invoke(value) for value in values)
+            try:
+                yield (invoke(value) for value in values)
+            finally:
+                stopped.set()
             return
 
         pool = ThreadPoolExecutor(max_workers=self.max_concurrency)

@@ -136,3 +136,26 @@ Celery broker 或 PostgreSQL 并发；隔离 SQLite/模拟浏览器不覆盖这�
 **65 tests passed**。并发回归使用子进程临时文件 SQLite，移除写入 fence 的反例确实
 触发并发旧值读取；恢复 fence 后最终点赞计数为 1。浏览器另覆盖未核验候选数量提示。
 新架构与后续开发约束见[推荐架构](recommendation-architecture.md)。
+
+## 代理抽象并发接入（2026-10-07）
+
+公共能力阶段提交 `ec0e229`，完整后端隔离 774 passed、28 skipped，
+`pre-commit run -a` 通过。消费者接入与本节随 `[Enhancement] Use proxy concurrency
+for external search and recommendations` 提交，按本文档的 Git 历史可追溯。
+
+接入回归覆盖外部搜索首屏、乱序、有序部分快照、空页短路和失败不写成功缓存；
+推荐独立 seed、热门/最新发现及详情共享预算、取消后不合并、不同 provider 的生产
+装配和真实隔离 SQLite 的线程连接/来源生命周期。临时 Unix socket Redis 另验证
+三个 spawn 独立进程共同遵守两个槽位，故障失败和失租时保留其他 owner 的占用。
+完整后端离线门槛 787 passed、28 skipped，全量 pre-commit 通过，钩子配置未修改。
+
+实际 Byparr 3.0.4 的只读接入验证使用新公共 ProxyServer 接口及现有全局 Proxy.url，
+容量为独立临时 Redis；共 5 次 Jable 请求，全部通过同站点、非挑战和业务结构校验。
+两个详情并发总耗时 20.981 秒、两个列表并发总耗时 13.023 秒，结束后槽位为零。
+未写正式 DB、Cookie、任务或推荐历史。脱敏记录位于
+`/tmp/nassav-proxy-abstraction-live-results.json`。
+
+这验证公共调度、真实 provider 传输和临时 Redis 的接入；未验证真实 Celery 推荐/外部
+搜索完整 job、MissAV、目标 PostgreSQL 或实际 2 GB 容器容量，也未重启或修改生产配置。
+默认 BrowserFetch 并发为 2，旧 FlareSolverr 配置默认 1；所有 API/worker 需统一配置
+并重启加载。同 endpoint 的共享容量、取消/远端生命周期限制见[代理并发架构](proxy-concurrency.md)。

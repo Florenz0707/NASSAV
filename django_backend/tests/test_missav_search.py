@@ -285,3 +285,11 @@ def test_chinese_listing_path_and_empty_page():
     assert valid_listing(
         "<title>MissAV</title><h1>搜索</h1><p>没有找到视频</p>", "missav.ai"
     )
+
+
+@pytest.fixture(autouse=True)
+def isolated_adapter_test_seam(monkeypatch):
+    """These serial protocol tests inject shared source doubles explicitly."""
+    for adapter in external_search_service.adapters.values():
+        if hasattr(adapter, "source_scope"):
+            monkeypatch.setattr(adapter, "source_scope", None)

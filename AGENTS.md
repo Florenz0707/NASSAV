@@ -139,3 +139,7 @@
 推荐来源与浏览器出口共用全局 Proxy.url，Byparr 控制直连，不混用下载代理。
 详情失败消耗共享预算，启用 seed 黑名单时排除未核验候选并告知数量；
 反馈先取得共享历史写入 fence，再读取旧值和更新计数。离线映射不默认自动运行。
+
+代理服务器并发能力统一由 `ProxyServer` 提供，不以 Byparr 等具体 provider 决定业务调度；
+来源实例、会话和网络控制按并发操作隔离，结果、预算与提交由协调线程持有，
+跨 worker 容量和开发约束见[代理并发架构](django_backend/doc/proxy-concurrency.md)。

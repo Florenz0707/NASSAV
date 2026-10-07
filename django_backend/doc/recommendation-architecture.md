@@ -77,3 +77,11 @@ worker 进程异常后，不复用运行 token；截止时间后失败，由用�
 来源失败与空列表区别、代理实际路由、共享预算、未知详情和反馈并发计数。
 迁移 0026 仅在隔离 DB 验证，目标部署必须先 migrate 并重启 API/worker；
 模拟浏览器与临时 SQLite、回环代理不等于真实来源/Byparr/Celery/PostgreSQL 验收。
+
+## 代理并发
+
+推荐通过公共 `ProxyServer.ordered` 并行独立 seed、热门/最新发现及详情请求，
+不得面向某个浏览器 provider 写并发分支。每个操作拥有独立来源、transport 和继承
+deadline 的网络控制；协调线程按输入顺序合并候选、详情和预算，保持最终 blacklist
+核验与历史提交 fence。线程结束清理线程本地 DB 连接。容量由同 endpoint 的 Redis
+槽位跨 worker 共享，配置与短路/失败/取消约束见[代理并发架构](proxy-concurrency.md)。

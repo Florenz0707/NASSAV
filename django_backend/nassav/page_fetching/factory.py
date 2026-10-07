@@ -1,6 +1,7 @@
 """Normalize browser configuration and create one page service per Source."""
 
 from dataclasses import dataclass
+from contextlib import contextmanager
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -138,4 +139,17 @@ def create_proxy_server(config: BrowserFetchConfig) -> ProxyServer:
     return OrderedProxyServer(
         config.max_concurrency,
         capacity=RedisProxyCapacity(client, config.url, config.max_concurrency),
+        worker_scope=_worker_connections,
     )
+
+
+@contextmanager
+def _worker_connections():
+    """Django connections are thread-local, including ownership check queries."""
+    from django.db import close_old_connections, connections
+
+    close_old_connections()
+    try:
+        yield
+    finally:
+        connections.close_all()

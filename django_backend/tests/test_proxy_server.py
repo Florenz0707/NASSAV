@@ -145,3 +145,54 @@ def test_capacity_wait_observes_cancellation(proxy_redis):
         with capacity.slot(1000, check=check):
             pytest.fail("Busy capacity was bypassed")
     assert proxy_redis.zcard(capacity.key) == 1
+
+
+@pytest.mark.parametrize("concurrency", [1, 2])
+def test_iterator_cannot_schedule_operations_after_scope_exit(concurrency):
+    calls = []
+    with OrderedProxyServer(concurrency).ordered(
+        lambda value, check: calls.append(value), [1, 2]
+    ) as results:
+        pass
+    with pytest.raises(RuntimeError, match="stopped"):
+        next(results)
+    assert calls == []
+
+
+def test_separate_worker_processes_share_proxy_capacity(proxy_redis):
+    import multiprocessing
+    import queue
+    from proxy_capacity_worker import request_slot
+
+    context = multiprocessing.get_context("spawn")
+    release, acquired = context.Event(), context.Queue()
+    endpoint = "http://shared-proxy:8191"
+    key = RedisProxyCapacity(proxy_redis, endpoint, 2).key
+
+    socket_path = proxy_redis.connection_pool.connection_kwargs["path"]
+    processes = [
+        context.Process(
+            target=request_slot, args=(socket_path, endpoint, release, acquired)
+        )
+        for _ in range(3)
+    ]
+    for process in processes:
+        process.start()
+    try:
+        first = [acquired.get(timeout=2), acquired.get(timeout=2)]
+        assert proxy_redis.zcard(key) == 2
+        with pytest.raises(queue.Empty):
+            acquired.get(timeout=0.1)
+        release.set()
+        assert acquired.get(timeout=2) not in first
+        for process in processes:
+            process.join(timeout=3)
+            assert process.exitcode == 0
+        assert proxy_redis.zcard(key) == 0
+    finally:
+        release.set()
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+            process.join(timeout=3)
+        acquired.close()

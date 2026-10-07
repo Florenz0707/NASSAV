@@ -50,6 +50,10 @@ class MemoryStore(JobStore):
 @pytest.fixture
 def runtime(monkeypatch):
     store = MemoryStore()
+    # Serial job protocol fixtures replace adapter methods, not real sources.
+    for adapter in search_jobs.external_search_service.adapters.values():
+        if hasattr(adapter, "source_scope"):
+            monkeypatch.setattr(adapter, "source_scope", None)
     monkeypatch.setattr(search_jobs, "_publish", Mock())
     monkeypatch.setattr(search_jobs, "RedisSearchJobStore", lambda: store)
     enqueue = Mock()
