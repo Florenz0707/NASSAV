@@ -93,7 +93,22 @@ watch(
 
 <template>
   <div class="app">
-    <div class="background-pattern" />
+    <div class="background-pattern" aria-hidden="true">
+      <div class="absolute inset-0 pointer-events-none opacity-60 overflow-hidden">
+        <div
+          class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] top-[-10%] right-[-5%]"
+          style="background: var(--ambient-coral)"
+        />
+        <div
+          class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] top-[40%] right-[-10%]"
+          style="background: var(--accent-secondary)"
+        />
+        <div
+          class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bottom-[-10%] right-[-5%]"
+          style="background: var(--accent-tertiary)"
+        />
+      </div>
+    </div>
     <div
       v-if="sessionStore.status === 'checking'"
       class="flex min-h-screen items-center justify-center text-[var(--text-secondary)]"
@@ -143,7 +158,22 @@ watch(
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--app-background);
+  background:
+    radial-gradient(
+      ellipse at 20% 20%,
+      color-mix(in srgb, var(--accent-purple) 15%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 80%,
+      color-mix(in srgb, var(--ambient-coral) 10%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      color-mix(in srgb, var(--accent-tertiary) 8%, transparent) 0%,
+      transparent 70%
+    );
   pointer-events: none;
   z-index: 0;
 }

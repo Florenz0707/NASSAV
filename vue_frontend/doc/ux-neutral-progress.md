@@ -41,3 +41,11 @@
 - 资源库刷新和添加页 Cookie 按钮使用 AppButton warm tone，保留交互状态、禁用与加载契约。
 - 下载源移除外层原生控件样式，保留 CustomSelect 内部单层边框、标签和键盘行为。
 - 验证：`pnpm run check`、`pre-commit run -a`，以及相关 Playwright 深浅主题、按钮状态、Cookie 弹窗、语义和移动端检查；模拟 API 与真实部署验收分开。
+
+## 原首页背景恢复
+
+分支：`fix/restore-original-ambient-background`，前一阶段提交：`48c8f68`。
+
+- 用户验收拒绝上轮整片棕黄背景。本次对照 UX 重构前 `15401f5` 的首页，恢复中性底色、珊瑚红／橙色／青绿色柔光的原始尺寸、位置、模糊与透明度。背景统一由 App 展示，首页不重复叠加。
+- 撤回卡片、输入框、文字与边框的棕黄色染色，保留局部工具按钮配色和下载源单层边框。链接基础颜色归入 base layer，避免浅色主题覆盖首页重点按钮的浅色文字。
+- 验证：`pnpm run check`、`pre-commit run -a`；Playwright 的 theme、uxControls、cookies、resourceTaskFixes，以及首页和添加页深浅主题、窄屏截图检查。浏览器使用模拟 API，不代表真实部署验收。

@@ -14,22 +14,6 @@ import { RouterLink } from 'vue-router'
       "
     />
 
-    <!-- Visual Shapes (Extended to full height) -->
-    <div class="fixed inset-0 z-[-1] pointer-events-none opacity-60 overflow-hidden">
-      <div
-        class="absolute w-[500px] h-[500px] rounded-full opacity-40 blur-[80px] top-[-10%] right-[-5%]"
-        style="background: var(--surface-raised)"
-      />
-      <div
-        class="absolute w-[400px] h-[400px] rounded-full opacity-40 blur-[80px] top-[40%] right-[-10%]"
-        style="background: var(--surface-raised)"
-      />
-      <div
-        class="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[80px] bottom-[-10%] right-[-5%]"
-        style="background: var(--surface-raised)"
-      />
-    </div>
-
     <!-- Hero Section -->
     <section class="relative z-10 py-20 px-4">
       <div class="relative max-w-7xl mx-auto">
@@ -46,7 +30,10 @@ import { RouterLink } from 'vue-router'
             <span class="text-xl opacity-90">高效管理 · 自动刮削 · 极速下载</span>
           </p>
           <div class="flex gap-5 flex-wrap">
-            <RouterLink to="/add" class="tw-btn-primary px-8 py-4 rounded-xl text-lg">
+            <RouterLink
+              to="/add"
+              class="tw-btn-primary px-8 py-4 rounded-xl text-lg text-on-accent"
+            >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" stroke-width="2" />
                 <path
