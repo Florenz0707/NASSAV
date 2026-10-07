@@ -7,7 +7,7 @@ defineEmits(['add', 'open', 'view'])
   <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-2 mt-auto remote-resource-actions">
     <AppButton
       :variant="added ? 'neutral' : 'primary'"
-      tone="warm"
+      tone="coral"
       :disabled="added"
       :loading="adding"
       loading-text="添加中"

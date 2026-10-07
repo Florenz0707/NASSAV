@@ -694,7 +694,7 @@ onBeforeUnmount(() => {
       aria-label="回到顶部"
       @click="scrollToTop"
     >
-      ⩟
+      ↑
     </AppButton>
 
     <RecommendationBlacklist

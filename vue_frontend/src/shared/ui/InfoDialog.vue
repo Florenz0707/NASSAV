@@ -20,8 +20,8 @@ const { titleId } = useDialog(visible, root, close)
 <template>
   <AppButton
     variant="neutral"
-    size="sm"
-    :class="buttonText ? '' : 'w-8 h-8 p-0 shrink-0'"
+    size="m"
+    :class="buttonText ? 'flex' : 'w-8 h-8 p-0 shrink-0'"
     :disabled="disabled"
     :loading="loading"
     :aria-label="label"
@@ -30,6 +30,7 @@ const { titleId } = useDialog(visible, root, close)
     :aria-controls="visible ? `${titleId}-panel` : undefined"
     @click="visible = true"
   >
+    <span v-if="buttonText">{{ buttonText }}</span>
     <svg
       class="w-4 h-4"
       viewBox="0 0 24 24"
@@ -41,12 +42,11 @@ const { titleId } = useDialog(visible, root, close)
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v6M12 7h.01" />
     </svg>
-    <span v-if="buttonText">{{ buttonText }}</span>
   </AppButton>
   <Teleport to="body">
     <div
       v-if="visible"
-      class="fixed inset-0 z-[10000] bg-black/75 backdrop-blur flex items-center justify-center p-4"
+      class="fixed inset-0 z-[10000] bg-black/80 backdrop-blur flex items-center justify-center p-4"
       @click.self="close"
     >
       <section
