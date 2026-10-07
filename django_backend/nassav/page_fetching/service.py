@@ -33,6 +33,8 @@ class PageFetchService:
 
     def set_task_control(self, control) -> None:
         self.task_control = control
+        if self.browser is not None:
+            self.browser.set_task_control(control)
 
     def _check(self):
         if self.task_control is not None:

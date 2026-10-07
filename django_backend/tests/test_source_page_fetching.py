@@ -139,7 +139,7 @@ def test_manager_injects_configured_browser(settings):
     for name in ("MissAV", "Jable"):
         browser = manager.sources[name].page_fetcher.browser
         assert browser.provider == "byparr"
-        assert browser._request_headers() == {
+        assert browser.client._request_headers() == {
             "X-Proxy-Server": "http://host.docker.internal:7890"
         }
 
@@ -147,7 +147,8 @@ def test_manager_injects_configured_browser(settings):
     direct_manager = SourceManager()
     for name in ("MissAV", "Jable"):
         assert (
-            direct_manager.sources[name].page_fetcher.browser._request_headers() == {}
+            direct_manager.sources[name].page_fetcher.browser.client._request_headers()
+            == {}
         )
 
 

@@ -28,6 +28,8 @@ BrowserFetch:
   provider: byparr
   url: http://127.0.0.1:8192
   timeout_ms: 60000
+  # 同一代理服务跨 worker 的容量；不依赖 provider 名称，1 为串行。
+  max_concurrency: 2
   # 仅控制完整会话复用；不改变各源的 browser_fetch_strategy 抓取顺序。
   session_reuse_enabled: false
 

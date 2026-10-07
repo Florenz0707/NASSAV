@@ -25,6 +25,11 @@ class _V1BrowserClient(BrowserPageClient):
         self._session.close()
         self._session = session
 
+    def close(self) -> None:
+        close = getattr(self._session, "close", None)
+        if close is not None:
+            close()
+
     def fetch(self, url: str, *, timeout_ms: int) -> PageResult:
         started = monotonic()
 
