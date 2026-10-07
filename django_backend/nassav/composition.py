@@ -217,6 +217,7 @@ def build_recommendation_manager(*, context=None, control=None):
                 source_factory, check, control
             ),
             check=control.check if control is not None else None,
+            execution_budget=getattr(context, "execution_budget", None),
             **strategy.recommender_kwargs,
         )
 

@@ -147,3 +147,53 @@ def test_recovery_retries_broker_failure(owner, monkeypatch):
     jobs.recover()
     assert publish.call_count == 2
     assert publish.call_args.kwargs["queue"] == "scrape"
+
+
+def test_progress_is_versioned_owner_fenced_and_not_a_history_snapshot(owner):
+    job = jobs.submit(owner, {})
+
+    def progress_builder(*, context, control):
+        context.report_progress({"stage": "details", "verified_count": 2})
+        current = RecommendationJob.objects.get(pk=job.pk)
+        assert jobs.snapshot(current)["progress"]["verified_count"] == 2
+        assert jobs.snapshot(current)["result"] is None
+        assert current.version == 3
+        assert RecommendationSnapshot.objects.count() == 0
+        jobs.cancel(job.pk, owner)
+        with pytest.raises(jobs.RecommendationStopped):
+            context.report_progress({"stage": "details", "verified_count": 3})
+        return builder(context=context, control=control)
+
+    jobs.execute(job.pk, manager_builder=progress_builder)
+    job.refresh_from_db()
+    assert job.state == "cancelled"
+
+
+def test_soft_budget_finalizes_partial_with_history_but_empty_partial_fails(owner):
+    from nassav.recommendation.entities import RecommendationCandidate
+
+    for items in [[RecommendationCandidate("PARTIAL", "", "", "")], []]:
+        job = jobs.submit(owner, {})
+
+        def partial_builder(*, context, control):
+            def recommend(**kwargs):
+                request = RecommendationRequest(completion_reason="network_budget")
+                context.prepare(request, "jable_page_lookup", "local_preference")
+                execution = RecommendationExecution(
+                    "jable_page_lookup",
+                    "local_preference",
+                    request,
+                    RecommendationRun([], items),
+                )
+                context.persist(execution)
+
+            return SimpleNamespace(recommend=recommend)
+
+        jobs.execute(job.pk, manager_builder=partial_builder)
+        job.refresh_from_db()
+        assert job.state == ("succeeded" if items else "failed")
+        if items:
+            assert job.result["meta"]["partial"]
+            assert job.result["meta"]["returned_count"] == 1
+            assert job.result["meta"]["completion_reason"] == "network_budget"
+    assert RecommendationSnapshot.objects.count() == 1

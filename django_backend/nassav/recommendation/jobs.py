@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from nassav.recommendation_models import RecommendationJob, RecommendationState
 from nassav.task_network import TaskNetworkControl, TaskNetworkTimeout
+from .execution_budget import RecommendationExecutionBudget
 from .data_access import DjangoRecommendationContext
 from .workflow import RecommendationManagerError
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
@@ -53,6 +54,7 @@ def snapshot(job):
         "state": job.state,
         "message": job.message,
         "result": job.result if job.state == "succeeded" else None,
+        "progress": job.result if job.state == "running" else None,
         "allowed_actions": ["cancel"] if job.state in ACTIVE else [],
         "created_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
@@ -127,6 +129,16 @@ def recover():
 class JobContext(DjangoRecommendationContext):
     def __init__(self, job, token):
         self.job, self.token = job, token
+        self.execution_budget: RecommendationExecutionBudget | None = None
+
+    def report_progress(self, progress):
+        if not RecommendationJob.objects.filter(
+            pk=self.job.pk,
+            state="running",
+            execution_owner=self.token,
+            deadline__gt=timezone.now(),
+        ).update(result=progress, version=F("version") + 1, updated_at=timezone.now()):
+            raise RecommendationStopped("推荐执行已失效")
 
     def prepare(self, request, recommender_id, strategy_id):
         fingerprint = super().prepare(request, recommender_id, strategy_id)
@@ -135,6 +147,11 @@ class JobContext(DjangoRecommendationContext):
 
     @transaction.atomic
     def persist(self, execution):
+        if (
+            execution.request.completion_reason == "network_budget"
+            and not execution.run.items
+        ):
+            raise TaskNetworkTimeout("网络预算耗尽且没有合格推荐")
         fence_history(self.job.history_generation)
         updated = RecommendationJob.objects.filter(
             pk=self.job.pk,
@@ -173,14 +190,23 @@ def execute(job_id, *, manager_builder=None):
         if timezone.now() >= job.deadline:
             raise TaskNetworkTimeout("推荐超时")
 
-    control = TaskNetworkControl(check)
+    context = JobContext(job, token)
+    remaining = max(0, (job.deadline - timezone.now()).total_seconds())
+    budget = RecommendationExecutionBudget(remaining, report=context.report_progress)
+    context.execution_budget = budget
+
+    def network_check():
+        check()
+        budget.check()
+
+    control = TaskNetworkControl(network_check)
     if manager_builder is None:
         from nassav.composition import build_recommendation_manager
 
         manager_builder = build_recommendation_manager
     try:
-        with control.phase(max(0.1, (job.deadline - timezone.now()).total_seconds())):
-            manager = manager_builder(context=JobContext(job, token), control=control)
+        with control.phase(max(0.1, budget.deadline - budget.clock())):
+            manager = manager_builder(context=context, control=control)
             manager.recommend(
                 strategy_id=job.parameters.get("strategy"),
                 request_params=job.parameters,
@@ -201,6 +227,15 @@ def execute(job_id, *, manager_builder=None):
         )
     except Exception as error:
         if isinstance(error, TaskNetworkTimeout):
+            logger.warning(
+                "Recommendation timeout job=%s stage=%s reason=%s "
+                "db_remaining_seconds=%.3f network_remaining_seconds=%.3f",
+                job_id,
+                budget.stage,
+                str(error),
+                (job.deadline - timezone.now()).total_seconds(),
+                budget.deadline - budget.clock(),
+            )
             message = "推荐超时，请重试"
         elif isinstance(error, SourceSearchUnavailable):
             message = "推荐来源未启用"

@@ -108,6 +108,7 @@ class RecommendationRequest:
     history_generation: int | None = field(default=None, repr=False)
     force_refresh_external: bool = False
     detail_attempted_avids: set[str] = field(default_factory=set, repr=False)
+    completion_reason: str = "completed"
 
 
 @dataclass
@@ -144,6 +145,10 @@ class RecommendationExecution:
     def to_dict(self) -> dict:
         data = self.run.to_dict()
         data["meta"] = {
+            "partial": self.request.completion_reason == "network_budget",
+            "completion_reason": self.request.completion_reason,
+            "requested_count": self.request.limit,
+            "returned_count": len(self.run.items),
             "recommender": self.recommender_id,
             "strategy": self.strategy_id,
             "snapshot_id": self.snapshot_id,

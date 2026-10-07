@@ -3,6 +3,7 @@ from copy import copy
 
 from nassav.page_fetching.proxy_server import ProxyServer, OrderedProxyServer
 
+from .execution_budget import RecommendationBudgetExhausted
 from .base import AbstractRecommender
 from .contracts import CandidateInventory, RecommendationSource, SeedProvider
 from .entities import RecommendationCandidate, RecommendationRequest, RecommendationSeed
@@ -23,6 +24,7 @@ class JableSearchRecommender(AbstractRecommender):
         proxy_server: ProxyServer | None = None,
         source_scope=None,
         check=None,
+        execution_budget=None,
     ):
         super().__init__(factors=factors, candidate_inventory=candidate_inventory)
         self.jable = jable
@@ -34,6 +36,7 @@ class JableSearchRecommender(AbstractRecommender):
         self.proxy_server = proxy_server or OrderedProxyServer()
         self.source_scope = source_scope
         self.check = check
+        self.execution_budget = execution_budget
 
     def _source_operation(self, operation, check):
         if self.source_scope is None:
@@ -58,7 +61,10 @@ class JableSearchRecommender(AbstractRecommender):
         )
 
     def rank_and_trim(self, candidates, request):
-        if request.seed_blacklist_active:
+        if (
+            request.seed_blacklist_active
+            or request.completion_reason == "network_budget"
+        ):
             verified = [
                 candidate
                 for candidate in candidates
@@ -83,13 +89,18 @@ class JableSearchRecommender(AbstractRecommender):
                 lambda worker: worker.recall_by_seed(seed, request), check
             )
 
-        with self.proxy_server.ordered(recall, seeds, check=self.check) as batches:
-            for candidates in batches:
-                for candidate in candidates:
-                    self._merge_candidate(merged, candidate)
+        try:
+            with self.proxy_server.ordered(recall, seeds, check=self.check) as batches:
+                for candidates in batches:
+                    for candidate in candidates:
+                        self._merge_candidate(merged, candidate)
+                    if self.execution_budget:
+                        self.execution_budget.publish("recall", candidates=len(merged))
 
-        for candidate in self.recall_discovery_candidates(request):
-            self._merge_candidate(merged, candidate)
+            for candidate in self.recall_discovery_candidates(request):
+                self._merge_candidate(merged, candidate)
+        except RecommendationBudgetExhausted:
+            request.completion_reason = "network_budget"
 
         return list(merged.values())
 
@@ -199,9 +210,14 @@ class JableSearchRecommender(AbstractRecommender):
                 check,
             )
 
-        with self.proxy_server.ordered(discover, methods, check=self.check) as batches:
-            for batch in batches:
-                raw_results.extend(batch)
+        try:
+            with self.proxy_server.ordered(
+                discover, methods, check=self.check
+            ) as batches:
+                for batch in batches:
+                    raw_results.extend(batch)
+        except RecommendationBudgetExhausted:
+            request.completion_reason = "network_budget"
 
         candidates: list[RecommendationCandidate] = []
         seen_avids: set[str] = set()
@@ -238,27 +254,75 @@ class JableSearchRecommender(AbstractRecommender):
             0,
         )
         selected = []
+        seen = set(request.detail_attempted_avids)
         for candidate in candidates:
-            if remaining <= 0:
-                break
-            if not self._should_enrich_candidate_detail(candidate, request):
+            if candidate.avid in seen or not self._should_enrich_candidate_detail(
+                candidate, request
+            ):
                 continue
-            if candidate.avid in request.detail_attempted_avids:
-                continue
-            request.detail_attempted_avids.add(candidate.avid)
-            remaining -= 1
+            seen.add(candidate.avid)
             selected.append(candidate)
+        if self.execution_budget:
+            selected = self.prioritize_fresh_candidates(
+                self.rerank_candidates(
+                    self.rank_candidates(
+                        self.score_candidates(selected, request), request
+                    ),
+                    request,
+                ),
+                request,
+            )
 
         def fetch(candidate, check):
             return candidate, self._source_operation(
                 lambda worker: worker._call_video_detail(candidate, request), check
             )
 
-        with self.proxy_server.ordered(fetch, selected, check=self.check) as results:
-            for candidate, detail in results:
-                if detail:
-                    self._apply_video_detail(candidate, detail, request)
+        # The business batch is intentionally small; actual capacity is owned by ProxyServer.
+        batch_size = 2 if self.execution_budget else max(remaining, 1)
+        try:
+            for offset in range(0, min(len(selected), remaining), batch_size):
+                if self.execution_budget:
+                    self.execution_budget.check()
+                    eligible = self._verified_candidates(candidates, request)
+                    if (
+                        self.count_preferred_candidates(eligible, request)
+                        >= request.limit
+                    ):
+                        break
+                batch = selected[offset : min(offset + batch_size, remaining)]
+                request.detail_attempted_avids.update(item.avid for item in batch)
+                if self.execution_budget:
+                    self.execution_budget.publish(
+                        "details",
+                        candidates=len(candidates),
+                        verified=len(self._verified_candidates(candidates, request)),
+                        attempted=len(request.detail_attempted_avids),
+                    )
+                with self.proxy_server.ordered(
+                    fetch, batch, check=self.check
+                ) as results:
+                    for candidate, detail in results:
+                        if detail:
+                            self._apply_video_detail(candidate, detail, request)
+                        if self.execution_budget:
+                            self.execution_budget.publish(
+                                "details",
+                                candidates=len(candidates),
+                                verified=len(
+                                    self._verified_candidates(candidates, request)
+                                ),
+                                attempted=len(request.detail_attempted_avids),
+                            )
+        except RecommendationBudgetExhausted:
+            request.completion_reason = "network_budget"
         return candidates
+
+    def _verified_candidates(self, candidates, request):
+        return self.filter_blocklisted_candidates(
+            [item for item in candidates if item.raw_metrics.get("detail_enriched")],
+            request,
+        )
 
     def _recall_keyword_items(
         self,
@@ -660,6 +724,8 @@ class JableSearchRecommender(AbstractRecommender):
         request: RecommendationRequest,
         max_rounds: int = 3,
     ) -> tuple[list[RecommendationSeed], list[RecommendationCandidate]]:
+        if self.execution_budget and self.execution_budget.exhausted:
+            return seeds, candidates
         if self.count_preferred_candidates(candidates, request) >= request.limit:
             return seeds, candidates
 
@@ -711,7 +777,15 @@ class JableSearchRecommender(AbstractRecommender):
         top_up_rounds = 0
 
         while (
-            self.count_preferred_candidates(output_candidates, request) < request.limit
+            self.count_preferred_candidates(
+                self._verified_candidates(output_candidates, request)
+                if self.execution_budget
+                else output_candidates,
+                request,
+            )
+            < request.limit
+            and not (self.execution_budget and self.execution_budget.exhausted)
+            and len(request.detail_attempted_avids) < request.detail_enrichment_limit
             and top_up_rounds < 3
         ):
             previous_seed_count = len(expanded_seeds)

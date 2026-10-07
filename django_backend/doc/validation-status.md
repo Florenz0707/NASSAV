@@ -159,3 +159,14 @@ for external search and recommendations` 提交，按本文档的 Git 历史可�
 搜索完整 job、MissAV、目标 PostgreSQL 或实际 2 GB 容器容量，也未重启或修改生产配置。
 默认 BrowserFetch 并发为 2，旧 FlareSolverr 配置默认 1；所有 API/worker 需统一配置
 并重启加载。同 endpoint 的共享容量、取消/远端生命周期限制见[代理并发架构](proxy-concurrency.md)。
+
+## 推荐预算收尾与进度（2026-10-07）
+
+阶段分支 `fix/recommendation-budget`，提交标题 `[Fix] Bound recommendation detail work and preserve verified partial results`。
+完整 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：794 通过、28 跳过。
+新增隔离回归覆盖目标满足后停止、预算耗尽保留核验结果、黑名单命中继续补足、取消/硬超时
+不被吞掉、版本进度与取消 fence、部分结果历史提交和无合格结果失败。
+`pre-commit run -a` 为合并门槛，钩子配置未改；执行结果以阶段提交前检查为准。
+
+这是隔离算法/DB/代理回归，不代表已部署的 Docker 推荐任务验收；未重启在线容器，
+未提交真实推荐或改变正式数据。提前约 27 秒失败的历史原因仍待新诊断日志确认。

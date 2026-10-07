@@ -53,7 +53,7 @@ HTTP transport 和线程本地 Django 连接，包含归属检查打开的连接
 来源业务类和消费者只使用 `ProxyServer`，不得自行创建线程池、读取 provider 名称
 决定并发量，或在线修改 SourceManager 单例的任务控制/代理/会话。
 
-并发不增加推荐的 300 秒整体期限，不新增推荐流式结果，也不改变 URL、job 字段、
+并发不增加推荐的 300 秒整体期限；推荐软预算与版本进度见[推荐架构](recommendation-architecture.md)。不改变 URL、
 任务名、队列、缓存 key/TTL 和黑名单规则。直接 HTTP 保留全局 Proxy.url；下载代理
 仍独立，浏览器控制仍直连。`max_concurrency: 1` 可回到顺序调度，仍保留来源隔离和容量检查。
 

@@ -85,3 +85,29 @@ worker 进程异常后，不复用运行 token；截止时间后失败，由用�
 deadline 的网络控制；协调线程按输入顺序合并候选、详情和预算，保持最终 blacklist
 核验与历史提交 fence。线程结束清理线程本地 DB 连接。容量由同 endpoint 的 Redis
 槽位跨 worker 共享，配置与短路/失败/取消约束见[代理并发架构](proxy-concurrency.md)。
+
+## 推荐网络预算与进度（2026-10-07）
+
+生产 DB 推荐 job 保留提交后 300 秒硬期限（含排队），提前 30 秒停止网络工作，
+给协作退出、评分和短事务提交预留时间。该软预算独立于取消、归属与硬期限；
+只有软预算耗尽允许收尾，取消、失效、硬超时与来源错误不转换为部分成功。
+详情按两项业务批次调度，通过公共 ProxyServer 使用实际共享容量；按已有因子预排序、
+多样性重排与新鲜度优先选择候选，核验后过滤黑名单，满足目标的新鲜合格数量即可停止。
+24 次详情是跨补召回共享的尝试上限，不是必须完成数量；失败尝试不返还预算。
+兼容同步 GET 不使用生产 job 软预算，保持原执行范围。
+
+运行快照新增 `progress`（其他状态为 null）：`stage`（recall/details）、
+`candidate_count`、`verified_count`、`detail_attempt_count`、`elapsed_seconds`、
+`network_remaining_seconds`。协调线程按执行 UUID/running/deadline 条件更新 DB JSON
+与 version；进度不产生历史 snapshot，也不提供未经验证的资源或可反馈的历史 item。
+`result` 仍仅在 succeeded 时可见。进度随完成批次更新，非固定心跳。
+
+软预算耗尽且已有核验、过滤通过的资源时正常提交部分推荐；结果 meta 新增
+`partial`、`completion_reason`（completed/network_budget）、`requested_count`、
+`returned_count`。部分结果继续接受最终黑名单检查；即使没有演员/类别黑名单，
+预算耗尽后的结果也只能包含详情核验成功的资源。没有合格结果则失败，不保存空成功历史。
+数量不足但未耗尽网络预算沿用既有语义，`partial` 专指网络预算收尾。
+
+超时日志记录 job、阶段、异常原因及 DB/网络剩余时间，用于区分硬期限和网络阶段期限；
+此前提前约 27 秒失败的确切原因尚未由现有日志证明，不能宣称已定位系统时钟问题。
+部署需同步更新 API 与 scrape worker；无需数据库迁移。未重新部署的服务仍使用旧契约。
