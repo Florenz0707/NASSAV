@@ -86,3 +86,13 @@ EntityDetailView 管理实体信息与本地资源；ExternalSearchPanel 独占�
 资源详情的完整封面使用 ResourceCover naturalSize 模式，在最大可用尺寸内按原比例居中，图片自身有圆角，成功加载时不显示底色框；失败仍保留原占位。ActionMenu 通过 triggerClass 接收触发按钮布局类，尺寸不传给菜单容器；资源卡片操作按内容定宽（刷新显示短文案且保留可访问名称），详情操作共用固定宽高，加载/禁用状态不改变布局。
 
 ActionMenu 的 compact 模式用于卡片，buttonText 区分短文案与可访问名称；菜单保留居中选项、主题浮层及柔和底色，键盘/禁用/焦点契约不变。外部搜索初始入口按首屏剩余高度居中并响应窗口和可见性变化；已搜索后重新搜索与设置位于分页下方，重新搜索清除当前查询页缓存并从第一页开始，不另提供刷新外部结果按钮。
+
+## 中性色控件与反馈
+
+页面以主背景和中性色卡片为主体，辅助表面区分层级，重点色集中在当前主要动作和状态。60/30/10 是视觉层级目标，不按资源图片像素强制配比。深浅主题保持相同按钮尺寸和字重；深色主题降低重点色亮度及阴影，避免视觉重量明显增大。
+
+AppButton 的 primary、neutral、danger 共用默认、悬浮、按下、禁用、加载五态；loading 保留原插槽占位，loadingText 提供可访问的忙碌说明，禁止重复提交。调用方仅覆盖布局，不用旧按钮类或内联背景覆盖状态颜色。危险动作使用独立的浅底和高对比文字。
+
+AppInput 支持 label/id、placeholder、error、multiline、disabled、clearable 与 modelValue；输入和清空均发出 update:modelValue，清空另发出 clear 并恢复输入焦点。外部标签关联 id；错误文本通过 aria-describedby/aria-invalid 关联。class/style 用于外层布局，其余原生属性传入控件。SearchInput 复用它并保留公开模型契约。
+
+LoadingSpinner 使用单层 1.5 秒连续旋转，避免多层动画和文字闪烁；减少动态效果偏好下停止动画。加载元素保持稳定，不通过高频重建 DOM 制造闪烁。

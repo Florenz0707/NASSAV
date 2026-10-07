@@ -32,7 +32,7 @@ const assert = require('node:assert/strict')
     })
     for (const [path, columns, size] of [
       ['/resources/actors', 5, 15],
-      ['/resources/genres', 5, 18],
+      ['/resources/genres', 5, 15],
       ['/resources', 3, 15],
     ]) {
       await page.setViewportSize({ width: 1440, height: 1000 })

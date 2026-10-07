@@ -1,7 +1,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { summarizeSubmissionJobs } from '../lib/submissionResults.js'
 export function useResourceSubmission({ resourceStore, resourceApi, toastStore }) {
+  const validationError = ref('')
   const avid = ref('')
+  watch(avid, () => {
+    validationError.value = ''
+  })
   const source = ref('any')
   const submitting = ref(false)
   const result = ref(null)
@@ -37,8 +41,10 @@ export function useResourceSubmission({ resourceStore, resourceApi, toastStore }
   }
 
   async function handleSubmit() {
+    if (submitting.value) return
     const avids = parseAvids()
     if (avids.length === 0) {
+      validationError.value = '请输入至少一个视频编号，例如 SNOS-317'
       toastStore.warning('请输入视频编号')
       return
     }
@@ -100,5 +106,14 @@ export function useResourceSubmission({ resourceStore, resourceApi, toastStore }
     }
   }
 
-  return { avid, source, submitting, result, sourceOptions, parseAvids, handleSubmit }
+  return {
+    avid,
+    source,
+    submitting,
+    result,
+    sourceOptions,
+    parseAvids,
+    handleSubmit,
+    validationError,
+  }
 }

@@ -7,8 +7,9 @@ defineProps({
     validator: (value) => ['primary', 'neutral', 'danger'].includes(value),
   },
   size: { type: String, default: 'md', validator: (value) => ['sm', 'md'].includes(value) },
-  disabled: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
+  disabled: Boolean,
+  loading: Boolean,
+  loadingText: { type: String, default: '' },
 })
 </script>
 <template>
@@ -18,14 +19,20 @@ defineProps({
     :class="[`ui-button--${variant}`, `ui-button--${size}`]"
     :disabled="disabled || loading"
     :aria-busy="loading"
+    :aria-label="loading ? loadingText || '正在处理' : undefined"
   >
-    <LoadingSpinner v-if="loading" size="small" aria-hidden="true" />
-    <slot />
+    <span class="ui-button__content" :class="{ 'ui-button__content--hidden': loading }"
+      ><slot
+    /></span>
+    <span v-if="loading" class="ui-button__busy" aria-hidden="true"
+      ><LoadingSpinner size="small" /><span v-if="loadingText">{{ loadingText }}</span></span
+    >
   </button>
 </template>
 <style scoped>
 @layer components {
   .ui-button {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -38,15 +45,29 @@ defineProps({
     font-weight: 600;
     cursor: pointer;
     transition:
-      background-color 0.2s,
-      filter 0.2s;
+      background-color 0.15s,
+      border-color 0.15s,
+      transform 0.1s;
   }
-  .ui-button:hover:not(:disabled) {
-    filter: brightness(1.08);
+  .ui-button__content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: inherit;
   }
-  .ui-button:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
+  .ui-button__content--hidden {
+    visibility: hidden;
+  }
+  .ui-button__busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .ui-button__busy :deep(.loading-indicator) {
+    color: inherit;
   }
   .ui-button--sm {
     padding: 0.375rem 0.75rem;
@@ -56,9 +77,12 @@ defineProps({
     background: var(--accent-primary);
     color: var(--on-accent);
   }
-  .ui-button--danger {
-    background: var(--accent-danger);
-    color: var(--text-inverse);
+  .ui-button--primary:hover:not(:disabled) {
+    background: var(--accent-primary-hover);
+    box-shadow: var(--button-shadow);
+  }
+  .ui-button--primary:active:not(:disabled) {
+    background: var(--accent-primary-pressed);
   }
   .ui-button--neutral {
     background: var(--bg-secondary);
@@ -66,7 +90,49 @@ defineProps({
     border-color: var(--border-color);
   }
   .ui-button--neutral:hover:not(:disabled) {
-    background: var(--bg-white-8);
+    background: var(--neutral-hover);
+  }
+  .ui-button--neutral:active:not(:disabled) {
+    background: var(--neutral-pressed);
+  }
+  .ui-button--danger {
+    background: var(--danger-surface);
+    color: var(--accent-danger);
+    border-color: color-mix(in srgb, var(--accent-danger) 25%, transparent);
+  }
+  .ui-button--danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+  }
+  .ui-button--danger:active:not(:disabled) {
+    background: var(--danger-pressed);
+  }
+  .ui-button:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .ui-button:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 3px;
+  }
+  .ui-button--danger:focus-visible {
+    outline-color: color-mix(in srgb, var(--accent-danger) 25%, transparent);
+  }
+  .ui-button:disabled:not([aria-busy='true']) {
+    background: var(--disabled-surface);
+    color: var(--text-muted);
+    border-color: var(--border-color);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .ui-button[aria-busy='true'] {
+    cursor: wait;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ui-button {
+      transition: none;
+    }
+    .ui-button:active {
+      transform: none;
+    }
   }
 }
 </style>

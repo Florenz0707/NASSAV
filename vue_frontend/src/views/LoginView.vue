@@ -1,5 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import AppInput from '../shared/ui/AppInput.vue'
+import AppButton from '../shared/ui/AppButton.vue'
 import { useSessionStore } from '../features/auth/stores/session.js'
 
 const sessionStore = useSessionStore()
@@ -7,16 +9,22 @@ const username = ref('')
 const password = ref('')
 const submitting = ref(false)
 const errorMessage = ref('')
+const credentialsError = ref('')
+watch([username, password], () => {
+  credentialsError.value = ''
+})
 
 async function submit() {
   if (submitting.value) return
   submitting.value = true
   errorMessage.value = ''
+  credentialsError.value = ''
   try {
     await sessionStore.signIn(username.value.trim(), password.value)
     password.value = ''
   } catch (error) {
     errorMessage.value = error.message || '登录失败，请检查连接后重试'
+    if (error.httpStatus === 401 || error.code === 401) credentialsError.value = errorMessage.value
   } finally {
     submitting.value = false
   }
@@ -52,34 +60,39 @@ async function submit() {
       </div>
 
       <label for="login-username" class="mb-2 block text-sm text-secondary">用户名</label>
-      <input
+      <AppInput
         id="login-username"
         v-model="username"
         name="username"
+        placeholder="输入管理员用户名"
         autocomplete="username"
         required
-        class="mb-4 w-full rounded-lg border border-surface-subtle/10 bg-primary px-3 py-2 text-primary outline-none focus:border-accent-primary"
+        class="mb-4"
+        :disabled="submitting"
       />
       <label for="login-password" class="mb-2 block text-sm text-secondary">密码</label>
-      <input
+      <AppInput
         id="login-password"
         v-model="password"
         name="password"
+        placeholder="输入登录密码"
+        :error="credentialsError"
         type="password"
         autocomplete="current-password"
         required
-        class="mb-4 w-full rounded-lg border border-surface-subtle/10 bg-primary px-3 py-2 text-primary outline-none focus:border-accent-primary"
+        class="mb-4"
+        :disabled="submitting"
       />
-      <p v-if="errorMessage" role="alert" class="mb-4 text-sm text-accent-danger">
+      <p
+        v-if="errorMessage && !credentialsError"
+        role="alert"
+        class="mb-4 text-sm text-accent-danger"
+      >
         {{ errorMessage }}
       </p>
-      <button
-        type="submit"
-        :disabled="submitting"
-        class="w-full rounded-lg bg-accent-primary px-4 py-2 font-medium text-on-accent transition-colors duration-200 hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
-      >
-        {{ submitting ? '正在登录…' : '登录' }}
-      </button>
+      <AppButton type="submit" :loading="submitting" loading-text="正在登录" class="w-full">
+        登录
+      </AppButton>
     </form>
   </div>
 </template>

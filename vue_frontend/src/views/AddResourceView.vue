@@ -11,7 +11,7 @@ import { resourceApi } from '../api/index.js'
 import { useResourceSubmission } from '../features/resources/composables/useResourceSubmission.js'
 import SubmissionResults from '../features/resources/components/SubmissionResults.vue'
 import CustomSelect from '../shared/ui/CustomSelect.vue'
-import LoadingSpinner from '../shared/ui/LoadingSpinner.vue'
+import AppInput from '../shared/ui/AppInput.vue'
 
 const router = useRouter()
 const resourceStore = useResourceStore()
@@ -19,8 +19,16 @@ const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 
 const showCookies = ref(false)
-const { avid, source, submitting, result, sourceOptions, parseAvids, handleSubmit } =
-  useResourceSubmission({ resourceStore, resourceApi, toastStore })
+const {
+  avid,
+  source,
+  submitting,
+  result,
+  sourceOptions,
+  parseAvids,
+  handleSubmit,
+  validationError,
+} = useResourceSubmission({ resourceStore, resourceApi, toastStore })
 
 function viewResource() {
   if (result.value?.data?.avid) {
@@ -49,15 +57,16 @@ function viewResource() {
               已识别 {{ parseAvids().length }} 个
             </span>
           </label>
-          <textarea
+          <AppInput
             id="add-avids"
+            multiline
+            :model-value="avid"
+            :error="validationError"
             aria-describedby="add-avids-hint"
-            v-model="avid"
-            placeholder="支持多种格式：&#10;单个: SSIS-469&#10;多个: ABC-001, DEF-002&#10;或换行/空格分隔"
-            class="form-textarea"
+            placeholder="输入视频编号，如 SNOS-317；多个编号用换行、逗号或空格分隔"
             :disabled="submitting"
             rows="5"
-            @input="avid = avid.toUpperCase()"
+            @update:model-value="avid = $event.toUpperCase()"
           />
           <p id="add-avids-hint" class="form-hint">支持换行、逗号、空格分隔，自动去重</p>
         </div>
@@ -78,25 +87,23 @@ function viewResource() {
         </div>
 
         <div class="flex items-stretch gap-3">
-          <button
+          <AppButton
             type="submit"
-            class="btn-primary flex-1 min-w-0 text-lg flex items-center justify-center gap-2 rounded-lg px-6 py-4 hover:bg-opacity-80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            :disabled="submitting || parseAvids().length === 0"
+            class="flex-1 min-w-0 text-lg flex items-center justify-center gap-2 rounded-lg px-6 py-4"
+            :loading="submitting"
+            loading-text="提交中"
           >
-            <LoadingSpinner v-if="submitting" size="small" />
-            <template v-else>
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke-width="2" />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8v8M8 12h8"
-                />
-              </svg>
-              {{ parseAvids().length > 1 ? `批量添加 (${parseAvids().length})` : '添加资源' }}
-            </template>
-          </button>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke-width="2" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v8M8 12h8"
+              />
+            </svg>
+            {{ parseAvids().length > 1 ? `批量添加 (${parseAvids().length})` : '添加资源' }}
+          </AppButton>
           <AppButton
             variant="neutral"
             class="rounded-lg px-4 shrink-0"

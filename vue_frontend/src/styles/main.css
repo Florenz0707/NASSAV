@@ -179,6 +179,55 @@ body.light-mode {
   --detail-badge-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
+/* Neutral-card theme: geometry stays identical across themes. */
+:root,
+body.dark-mode {
+  --bg-primary: #101217;
+  --bg-secondary: #1b1f27;
+  --card-bg: #1b1f27;
+  --bg-overlay: #1b1f27;
+  --bg-input: #1b1f27;
+  --surface-raised: #272d38;
+  --text-secondary: #b3bbc8;
+  --text-muted: #9ba5b5;
+  --border-color: #3a4353;
+  --accent-primary: #b53e50;
+  --accent-primary-hover: #b94052;
+  --accent-primary-pressed: #9d3344;
+  --accent-danger: #ff95aa;
+  --danger-surface: #3b202b;
+  --danger-hover: #4d2936;
+  --danger-pressed: #612f42;
+  --neutral-hover: #272d38;
+  --neutral-pressed: #333c4b;
+  --focus-ring: color-mix(in srgb, var(--accent-primary-text) 25%, transparent);
+  --disabled-surface: #272d38;
+  --button-shadow: none;
+}
+body.light-mode {
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --card-bg: #ffffff;
+  --bg-overlay: #ffffff;
+  --bg-input: #ffffff;
+  --surface-raised: #eceef1;
+  --text-secondary: #626875;
+  --text-muted: #737985;
+  --border-color: #d6dae0;
+  --accent-primary: #bd3e50;
+  --accent-primary-hover: #ae3547;
+  --accent-primary-pressed: #952a3b;
+  --accent-danger: #b12341;
+  --danger-surface: #fff2f4;
+  --danger-hover: #fde5eb;
+  --danger-pressed: #f9d3df;
+  --neutral-hover: #eceef1;
+  --neutral-pressed: #dce1e8;
+  --focus-ring: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+  --disabled-surface: #eceef1;
+  --button-shadow: 0 3px 10px color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
 /* ===== Reset & Base ===== */
 @layer base {
   *,

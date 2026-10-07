@@ -38,7 +38,7 @@ async function main() {
     const origin = process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178'
     for (const [entity, size, label] of [
       ['actors', 15, '演员'],
-      ['genres', 18, '类别'],
+      ['genres', 15, '类别'],
     ]) {
       await page.goto(`${origin}/resources/${entity}?page=2`)
       await page.getByRole('link', { name: 'Page 2', exact: false }).waitFor()
