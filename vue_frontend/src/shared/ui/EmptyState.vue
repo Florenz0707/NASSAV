@@ -22,7 +22,7 @@ defineProps({
     class="flex flex-col items-center justify-center text-center"
     :class="compact ? 'p-0' : 'py-16 px-8'"
   >
-    <div class="text-6xl opacity-30 mb-6 animate-[float_3s_ease-in-out_infinite]">
+    <div class="text-6xl text-muted mb-6">
       <slot name="icon"><AppIcon :name="icon" class="w-14 h-14" /></slot>
     </div>
     <h3 class="text-xl font-semibold text-primary mb-2">

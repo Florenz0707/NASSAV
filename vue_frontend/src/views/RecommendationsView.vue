@@ -1,4 +1,6 @@
 <script setup>
+import PageLoad from '../shared/ui/PageLoad.vue'
+import RequestError from '../shared/ui/RequestError.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -539,19 +541,23 @@ onBeforeUnmount(() => {
     <RecommendationSeeds v-if="seeds.length" :groups="seedGroups" />
 
     <section class="content-shell">
-      <div v-if="showInitialLoading" class="loading-shell">
-        <LoadingSpinner size="large" text="正在和妈妈桑交涉..." />
-      </div>
+      <PageLoad v-if="showInitialLoading" text="正在加载推荐" />
+      <RequestError
+        v-if="error && visibleItems.length && !loading"
+        :message="error"
+        compact
+        @retry="loadRecommendations"
+      />
 
       <EmptyState
-        v-else-if="!hasRequested && !visibleItems.length"
+        v-if="!showInitialLoading && !hasRequested && !visibleItems.length"
         icon="star"
         title="尚未开始推荐"
         description="设置偏好，开始推荐"
       />
 
       <EmptyState
-        v-else-if="error && !visibleItems.length"
+        v-else-if="!loading && error && !visibleItems.length"
         icon="warning"
         title="推荐加载失败"
         :description="error"
@@ -564,7 +570,7 @@ onBeforeUnmount(() => {
       </EmptyState>
 
       <EmptyState
-        v-else-if="!visibleItems.length"
+        v-else-if="!loading && !visibleItems.length"
         icon="star"
         title="暂时没有推荐结果"
         description="尝试添加本地资源，或者稍后重试。"

@@ -1,4 +1,6 @@
 <script setup>
+import PageLoad from '../../../shared/ui/PageLoad.vue'
+import RequestError from '../../../shared/ui/RequestError.vue'
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useActorGroupsStore } from '../stores/actorGroups.js'
@@ -8,7 +10,6 @@ import GenreGroupCard from './GenreGroupCard.vue'
 import SearchInput from '../../../shared/ui/SearchInput.vue'
 import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 import ResourcePagination from '../../../shared/ui/ResourcePagination.vue'
-import LoadingSpinner from '../../../shared/ui/LoadingSpinner.vue'
 import EmptyState from '../../../shared/ui/EmptyState.vue'
 
 const props = defineProps({
@@ -115,9 +116,19 @@ onBeforeUnmount(() => {
         @update:model-value="page = 1"
       />
     </div>
-    <p v-if="store.error" class="text-accent-danger mb-4" role="alert">{{ store.error }}</p>
-    <LoadingSpinner v-if="store.loading" text="正在加载..." role="status" />
-    <EmptyState v-else-if="!store.error && !store.groups.length" title="暂无匹配结果" />
+    <RequestError
+      v-if="store.error && !store.loading"
+      :message="store.error"
+      :compact="store.groups.length > 0"
+      @retry="load"
+    />
+    <PageLoad v-if="store.loading && !store.groups.length" variant="directory" :count="10" />
+    <PageLoad v-else-if="store.loading" variant="spinner" text="正在更新列表" />
+    <EmptyState
+      v-if="!store.loading && !store.error && !store.groups.length"
+      title="暂无匹配结果"
+      description="试试其他关键词"
+    />
     <div class="directory-grid library-grid">
       <component
         :is="actor ? ActorGroupCard : GenreGroupCard"

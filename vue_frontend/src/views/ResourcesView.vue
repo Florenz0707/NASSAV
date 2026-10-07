@@ -1,4 +1,6 @@
 <script setup>
+import PageLoad from '../shared/ui/PageLoad.vue'
+import RequestError from '../shared/ui/RequestError.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useResourceStore } from '../features/resources/stores/resource.js'
@@ -178,7 +180,11 @@ async function fetchResourceList() {
     params.status = filterStatus.value
   }
 
-  await resourceStore.fetchResources(params)
+  try {
+    await resourceStore.fetchResources(params)
+  } catch {
+    /* Store owns the error and retry state. */
+  }
 }
 
 // include actor filter if provided in query
@@ -380,19 +386,22 @@ function onPageSizeChange(newSize) {
         </button>
       </template>
     </ConfirmDialog>
-    <!-- Skeleton Loading -->
-    <div v-if="resourceStore.loading" class="library-grid resource-library-grid gap-6">
-      <div
-        v-for="i in pageSize"
-        :key="i"
-        class="skeleton-card rounded-2xl overflow-hidden"
-        style="height: 380px"
-      />
-    </div>
+    <RequestError
+      v-if="resourceStore.error && !resourceStore.loading"
+      :message="resourceStore.error"
+      :compact="filteredResources.length > 0"
+      @retry="fetchResourceList()"
+    />
+    <PageLoad
+      v-if="resourceStore.loading && !filteredResources.length"
+      :count="6"
+      text="正在加载资源"
+    />
+    <PageLoad v-else-if="resourceStore.loading" variant="spinner" text="正在更新资源" />
 
     <!-- Empty State -->
     <EmptyState
-      v-else-if="filteredResources.length === 0"
+      v-if="!resourceStore.loading && !resourceStore.error && filteredResources.length === 0"
       icon="empty"
       title="暂无资源"
       :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
@@ -403,7 +412,7 @@ function onPageSizeChange(newSize) {
     </EmptyState>
 
     <!-- Resources Grid -->
-    <div v-else class="library-grid resource-library-grid gap-6">
+    <div v-if="filteredResources.length" class="library-grid resource-library-grid gap-6">
       <ResourceCard
         v-for="resource in filteredResources"
         :key="resource.avid"
@@ -476,17 +485,6 @@ function onPageSizeChange(newSize) {
   to {
     background-position: 200% 0;
   }
-}
-
-.skeleton-card {
-  background: linear-gradient(
-    90deg,
-    var(--bg-secondary) 25%,
-    var(--bg-overlay) 50%,
-    var(--bg-secondary) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
 }
 
 @keyframes spin {

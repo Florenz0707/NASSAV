@@ -1,4 +1,6 @@
 <script setup>
+import PageLoad from '../shared/ui/PageLoad.vue'
+import RequestError from '../shared/ui/RequestError.vue'
 import { ref, onMounted } from 'vue'
 import { sourceApi } from '../api/index.js'
 import { useToastStore } from '../shared/stores/toast.js'
@@ -9,6 +11,17 @@ const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 // 字体预览（临时变量，用于预览效果）
 const previewFont = ref('Mplus2')
+const loading = ref(true),
+  loadError = ref(''),
+  saving = ref(false)
+async function loadSettings() {
+  loading.value = true
+  loadError.value = ''
+  const result = await settingsStore.loadSettings()
+  if (result.success) previewFont.value = settingsStore.fontFamily
+  else loadError.value = result.error?.message || '设置加载失败'
+  loading.value = false
+}
 const displayTitleOptions = [
   { value: 'translated_title', label: '翻译标题' },
   { value: 'source_title', label: '源站标题' },
@@ -25,6 +38,8 @@ const searchSourceOptions = ref([
 ])
 // 保存设置
 const handleSaveSettings = async () => {
+  if (saving.value) return
+  saving.value = true
   try {
     // 应用预览字体到全局设置
     settingsStore.fontFamily = previewFont.value
@@ -32,6 +47,8 @@ const handleSaveSettings = async () => {
     toastStore.success('设置已保存')
   } catch (err) {
     toastStore.error(err.message || '保存设置失败')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -47,9 +64,7 @@ onMounted(async () => {
   } catch {
     toastStore.error('获取搜索源状态失败')
   }
-  await settingsStore.loadSettings()
-  // 初始化预览字体为当前设置
-  previewFont.value = settingsStore.fontFamily
+  await loadSettings()
 })
 </script>
 <template>
@@ -58,9 +73,12 @@ onMounted(async () => {
       <h1 class="text-[2rem] font-bold text-primary mb-2">系统设置</h1>
       <p class="text-muted">配置系统参数</p>
     </div>
-    <div class="tw-surface-overlay rounded-xl p-6">
+    <PageLoad v-if="loading" variant="spinner" text="正在加载设置" />
+    <RequestError v-else-if="loadError" :message="loadError" @retry="loadSettings" />
+    <div v-else class="tw-surface-overlay rounded-xl p-6">
       <GeneralSettingsPanel
         :settings="settingsStore"
+        :saving="saving"
         :preview-font="previewFont"
         :display-title-options="displayTitleOptions"
         :search-result-display-options="searchResultDisplayOptions"

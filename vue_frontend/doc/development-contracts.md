@@ -96,3 +96,5 @@ AppButton 的 primary、neutral、danger 共用默认、悬浮、按下、禁用
 AppInput 支持 label/id、placeholder、error、multiline、disabled、clearable 与 modelValue；输入和清空均发出 update:modelValue，清空另发出 clear 并恢复输入焦点。外部标签关联 id；错误文本通过 aria-describedby/aria-invalid 关联。class/style 用于外层布局，其余原生属性传入控件。SearchInput 复用它并保留公开模型契约。
 
 LoadingSpinner 使用单层 1.5 秒连续旋转，避免多层动画和文字闪烁；减少动态效果偏好下停止动画。加载元素保持稳定，不通过高频重建 DOM 制造闪烁。
+
+PageLoad 只拥有挂载后一秒的展示计时器，卸载清理；资源/目录/详情使用与内容形状对应的骨架，设置与任务等场景使用单层 loading。原查询 store 继续拥有 loading/error/结果。刷新保留已有内容，空状态只在请求结束且没有错误时出现；RequestError 通过 retry 事件交回原操作，不自行请求 API。骨架使用 3.2 秒低幅度呼吸，不频繁重建节点；减少动态效果偏好下静止。详情元数据按路由与请求版本合并，旧响应不能改写新页。

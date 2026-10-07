@@ -1,12 +1,14 @@
 <script setup>
+import PageLoad from '../shared/ui/PageLoad.vue'
+import RequestError from '../shared/ui/RequestError.vue'
 import { resolveResourceTitle } from '../features/resources/lib/resourceTitle.js'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { actorApi, downloadApi, genreApi, resourceApi } from '../api/index.js'
 import { useResourceStore } from '../features/resources/stores/resource.js'
 import { useToastStore } from '../shared/stores/toast.js'
 import { useSettingsStore } from '../features/settings/stores/settings.js'
-import LoadingSpinner from '../shared/ui/LoadingSpinner.vue'
+import { createRequestGuard } from '../shared/lib/requestGuard.js'
 import ConfirmDialog from '../shared/ui/ConfirmDialog.vue'
 import ActionMenu from '../shared/ui/ActionMenu.vue'
 import AppButton from '../shared/ui/AppButton.vue'
@@ -101,20 +103,29 @@ async function toggleWatched() {
   }
 }
 
-onMounted(async () => {
-  await fetchMetadata()
-})
+const metadataGuard = createRequestGuard()
+onBeforeUnmount(() => metadataGuard.invalidate())
+watch(
+  avid,
+  () => {
+    metadata.value = null
+    fetchMetadata()
+  },
+  { immediate: true }
+)
 
 async function fetchMetadata(bypassCache = false) {
+  const request = metadataGuard.begin()
+  const currentAvid = avid.value
   loading.value = true
   error.value = null
   try {
-    const response = await resourceApi.getMetadata(avid.value, bypassCache)
-    metadata.value = response.data
+    const response = await resourceApi.getMetadata(currentAvid, bypassCache)
+    if (metadataGuard.current(request)) metadata.value = response.data
   } catch (err) {
-    error.value = err.message || '获取元数据失败'
+    if (metadataGuard.current(request)) error.value = err.message || '获取元数据失败'
   } finally {
-    loading.value = false
+    if (metadataGuard.current(request)) loading.value = false
   }
 }
 
@@ -263,33 +274,17 @@ async function navigateToGenre(genreName) {
       返回
     </button>
 
-    <!-- 加载状态 -->
-    <LoadingSpinner v-if="loading" size="large" text="加载详情中..." />
-
-    <!-- 错误状态 -->
-    <div v-else-if="error" class="text-center py-16 px-8">
-      <div
-        class="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center text-[var(--accent-primary)]"
-        style="background: color-mix(in srgb, var(--accent-primary) 10%, transparent)"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      </div>
-      <h2 class="text-xl text-[var(--text-primary)] mb-2">加载失败</h2>
-      <p class="text-[var(--text-muted)] mb-6">
-        {{ error }}
-      </p>
-      <button class="tw-btn-primary-elevated" @click="fetchMetadata">重试</button>
-    </div>
+    <PageLoad v-if="loading && !metadata" variant="detail" text="正在加载详情" />
+    <RequestError
+      v-if="error && !loading"
+      :message="error"
+      :compact="!!metadata"
+      @retry="fetchMetadata()"
+    />
+    <PageLoad v-if="loading && metadata" variant="spinner" text="正在更新详情" />
 
     <!-- 详情内容 -->
-    <template v-else-if="metadata">
+    <template v-if="metadata">
       <!-- 头部信息 -->
       <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-10 mb-12">
         <!-- 封面和状态按钮 -->

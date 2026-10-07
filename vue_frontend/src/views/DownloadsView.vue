@@ -1,4 +1,6 @@
 <script setup>
+import PageLoad from '../shared/ui/PageLoad.vue'
+import RequestError from '../shared/ui/RequestError.vue'
 import { useTaskJobsStore } from '../features/tasks/stores/taskJobs.js'
 import { logger } from '../shared/lib/logger.js'
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
@@ -251,14 +253,13 @@ function stopPolling() {
     >
       该任务未被本浏览器跟踪，或已移出当前队列。
     </p>
-    <p v-if="queueError" class="text-accent-danger mb-4" role="alert">{{ queueError }}</p>
-    <p
+    <RequestError v-if="queueError" :message="queueError" compact @retry="fetchQueueStatus" />
+    <RequestError
       v-if="!DEBUG_MODE && (taskJobs.error || taskJobs.listError)"
-      class="text-accent-danger mb-4"
-      role="alert"
-    >
-      {{ taskJobs.error || taskJobs.listError }}
-    </p>
+      :message="taskJobs.error || taskJobs.listError"
+      compact
+      @retry="taskJobs.load()"
+    />
     <div v-if="!DEBUG_MODE" class="flex items-center gap-3 mb-4 text-muted text-sm">
       <span
         >已加载 {{ taskJobs.jobs.size }} /
@@ -268,15 +269,21 @@ function stopPolling() {
         v-if="taskJobs.hasMore"
         variant="neutral"
         size="sm"
-        :disabled="taskJobs.loading"
+        :loading="taskJobs.loading"
         @click="taskJobs.load(true)"
         >加载更多</AppButton
       >
-      <AppButton variant="neutral" size="sm" :disabled="taskJobs.loading" @click="taskJobs.load()"
+      <AppButton variant="neutral" size="sm" :loading="taskJobs.loading" @click="taskJobs.load()"
         >刷新列表</AppButton
       >
     </div>
+    <PageLoad
+      v-if="!DEBUG_MODE && taskJobs.loading && !tasks.length"
+      variant="spinner"
+      text="正在加载任务"
+    />
     <TaskDetailsPanel
+      v-else
       :tasks="tasks"
       :debug="DEBUG_MODE"
       :ordering="taskJobs.ordering"

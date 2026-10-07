@@ -1,4 +1,6 @@
 <script setup>
+import PageLoad from '../../../shared/ui/PageLoad.vue'
+import RequestError from '../../../shared/ui/RequestError.vue'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useToastStore } from '../../../shared/stores/toast.js'
@@ -10,7 +12,6 @@ import ResourceCard from '../../resources/components/ResourceCard.vue'
 import ExternalSearchPanel from '../../external-search/components/ExternalSearchPanel.vue'
 
 import ResourcePagination from '../../../shared/ui/ResourcePagination.vue'
-import LoadingSpinner from '../../../shared/ui/LoadingSpinner.vue'
 
 import EmptyState from '../../../shared/ui/EmptyState.vue'
 import BatchControls from '../../resources/components/BatchControls.vue'
@@ -45,6 +46,7 @@ const searchQuery = ref(route.query.search || '')
 const filterStatus = ref(route.query.status || 'all')
 
 const loadingEntity = ref(false)
+const entityError = ref('')
 const entity = ref({ id: entityId.value, name: '', resource_count: 0, avatar_url: null })
 const toastStore = useToastStore()
 
@@ -152,6 +154,7 @@ async function confirmBatchDelete(action) {
 async function loadEntityInfo(id) {
   const request = infoGuard.begin()
   loadingEntity.value = true
+  entityError.value = ''
   try {
     const response = await entityApi.getList({ id: String(id), page: 1, page_size: 1 })
     if (!infoGuard.current(request)) return
@@ -166,8 +169,9 @@ async function loadEntityInfo(id) {
       // fallback: set id and empty name
       entity.value = { id, name: String(id), resource_count: 0, avatar_url: null }
     }
-  } catch (_error) {
+  } catch (error) {
     if (!infoGuard.current(request)) return
+    entityError.value = error.message || '实体信息加载失败'
     entity.value = { id, name: String(id), resource_count: 0, avatar_url: null }
   } finally {
     if (infoGuard.current(request)) loadingEntity.value = false
@@ -198,7 +202,11 @@ async function fetchResources(p = 1) {
     params.status = filterStatus.value
   }
 
-  await resourceStore.fetchResources(params)
+  try {
+    await resourceStore.fetchResources(params)
+  } catch {
+    /* Store owns the error and retry state. */
+  }
 }
 
 function onSortChange() {
@@ -365,6 +373,12 @@ function goBack() {
 
 <template>
   <div class="px-6 pt-2 pb-6">
+    <RequestError
+      v-if="entityError"
+      :message="entityError"
+      compact
+      @retry="loadEntityInfo(entityId)"
+    />
     <button class="tw-back-btn mb-10" @click="goBack">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -473,12 +487,22 @@ function goBack() {
           </button>
         </template>
       </ConfirmDialog>
-      <!-- Loading State -->
-      <LoadingSpinner v-if="resourceStore.loading" size="large" text="加载资源中..." />
+      <RequestError
+        v-if="resourceStore.error && !resourceStore.loading"
+        :message="resourceStore.error"
+        :compact="displayedResources.length > 0"
+        @retry="fetchResources(page)"
+      />
+      <PageLoad
+        v-if="resourceStore.loading && !displayedResources.length"
+        :count="6"
+        text="正在加载资源"
+      />
+      <PageLoad v-else-if="resourceStore.loading" variant="spinner" text="正在更新资源" />
 
       <!-- Empty State -->
       <EmptyState
-        v-else-if="displayedResources.length === 0"
+        v-if="!resourceStore.loading && !resourceStore.error && displayedResources.length === 0"
         icon="empty"
         title="暂无资源"
         :description="searchQuery ? '没有找到匹配的资源' : '点击右上角添加您的第一个资源'"
@@ -489,7 +513,10 @@ function goBack() {
       </EmptyState>
 
       <!-- Resources Grid -->
-      <div v-else class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div
+        v-if="displayedResources.length"
+        class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+      >
         <ResourceCard
           v-for="resource in displayedResources"
           :key="resource.avid"

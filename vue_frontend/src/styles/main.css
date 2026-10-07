@@ -461,15 +461,25 @@ select option {
 
 /* ===== Loading Skeleton ===== */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--neutral-color) 5%, transparent) 25%,
-    color-mix(in srgb, var(--neutral-color) 10%, transparent) 50%,
-    color-mix(in srgb, var(--neutral-color) 5%, transparent) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
+  background: var(--surface-raised);
+  animation: skeleton-breathe 3.2s ease-in-out infinite;
+}
+@keyframes skeleton-breathe {
+  0%,
+  100% {
+    opacity: 0.94;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+  .animate-spin {
+    animation-duration: 0s;
+  }
 }
 
 /* ===== Media Queries ===== */

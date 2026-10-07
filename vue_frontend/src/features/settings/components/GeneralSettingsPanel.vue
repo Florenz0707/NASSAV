@@ -5,6 +5,7 @@ import AppButton from '../../../shared/ui/AppButton.vue'
 import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 
 const props = defineProps({
+  saving: Boolean,
   settings: {
     type: Object,
     required: true,
@@ -206,7 +207,9 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
       </div>
 
       <div class="flex pt-4 justify-end min-w-full">
-        <AppButton @click="emit('save')">保存设置</AppButton>
+        <AppButton :loading="saving" loading-text="保存中" @click="emit('save')"
+          >保存设置</AppButton
+        >
       </div>
     </div>
   </div>

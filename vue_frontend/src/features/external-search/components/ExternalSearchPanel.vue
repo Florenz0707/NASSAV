@@ -1,4 +1,6 @@
 <script setup>
+import PageLoad from '../../../shared/ui/PageLoad.vue'
+import RequestError from '../../../shared/ui/RequestError.vue'
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceStore } from '../../resources/stores/resource.js'
@@ -14,7 +16,6 @@ import SettingsModal from '../../../shared/ui/SettingsModal.vue'
 import ExternalSearchCard from './ExternalSearchCard.vue'
 import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 import EmptyState from '../../../shared/ui/EmptyState.vue'
-import LoadingSpinner from '../../../shared/ui/LoadingSpinner.vue'
 const props = defineProps({
   entityType: { type: String, required: true },
   entityId: { type: [String, Number], required: true },
@@ -519,18 +520,16 @@ defineExpose({
       >
         已保留成功获取的结果；列表不完整，可重新搜索。
       </p>
-      <p v-if="externalError" class="text-accent-danger mb-4" role="alert">
-        搜索失败：{{ externalError }}
-      </p>
+      <RequestError
+        v-if="externalError && !loadingExternal"
+        :message="`搜索失败：${externalError}`"
+        compact
+        @retry="restartExternalSearch"
+      />
       <p v-if="externalCancelled" class="text-muted mb-4 text-center" role="status">
         搜索已取消，已获取的结果仍可查看。
       </p>
-      <div
-        v-if="loadingExternal && externalResources.length === 0"
-        class="flex items-center justify-center py-20"
-      >
-        <LoadingSpinner size="large" text="正在执行外部搜索，请耐心等待..." />
-      </div>
+      <PageLoad v-if="loadingExternal && externalResources.length === 0" text="正在搜索外部资源" />
 
       <template v-else-if="externalSearched">
         <div
