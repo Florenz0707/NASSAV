@@ -10,6 +10,19 @@ async function main() {
     let sequence = 0,
       mode = 'queued',
       legacy = false
+    let addRequests = 0
+    const addJob = {
+      job_id: 'scrape-rec',
+      job_type: 'scrape',
+      avid: 'REC-001',
+      action: 'add',
+      version: 2,
+      state: 'running',
+      stage: 'translation',
+      resource_saved: true,
+      resource_avid: 'REC-001',
+      allowed_actions: [],
+    }
     page.on('pageerror', (error) => errors.push(error.message))
     await page.routeWebSocket('**/nassav/ws/**', () => {})
     await page.route('**/nassav/api/**', async (route) => {
@@ -19,6 +32,11 @@ async function main() {
         code = 200
       if (path.endsWith('/auth/session')) data = { authenticated: true, username: 'audit' }
       else if (path.endsWith('/setting')) data = { color_mode: 'dark' }
+      else if (path.endsWith('/resource/jobs') && request.method() === 'POST') {
+        addRequests++
+        data = { job_id: addJob.job_id, job: addJob }
+        code = 202
+      } else if (path.endsWith('/tasks/jobs/scrape-rec')) data = addJob
       else if (path.endsWith('/recommendations/jobs')) {
         sequence++
         data = { job_id: String(sequence), version: 1, state: 'queued' }
@@ -55,7 +73,13 @@ async function main() {
                 score_breakdown: [],
               },
             ],
-            seeds: [],
+            seeds: [
+              {
+                seed_type: 'actor',
+                value: '用于测试动态内容自动换行的演员名称'.repeat(8),
+                resource_count: 12,
+              },
+            ],
             meta: {
               partial: true,
               returned_count: 1,
@@ -78,6 +102,10 @@ async function main() {
     })
     const origin = process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178'
     await page.goto(`${origin}/recommendations`)
+    await page.getByRole('button', { name: '查看推荐信息' }).click()
+    await page.getByText('开始推荐后显示本轮核验信息。').waitFor()
+    await page.getByText('暂无高频演员数据').waitFor()
+    await page.keyboard.press('Escape')
     await page.getByRole('button', { name: '开始推荐', exact: true }).click()
     await page.getByRole('button', { name: '取消推荐', exact: true }).waitFor()
     await page.getByRole('button', { name: '取消推荐', exact: true }).click()
@@ -97,6 +125,10 @@ async function main() {
     mode = 'succeeded'
     await page.locator('.header-actions .ui-button').first().click()
     await page.getByText('异步推荐验收', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '加入资源库', exact: true }).click()
+    await page.getByRole('button', { name: '已添加', exact: true }).waitFor({ timeout: 4000 })
+    assert.equal(await page.getByRole('button', { name: '已添加', exact: true }).isDisabled(), true)
+    assert.equal(addRequests, 1)
     assert.equal(await stats.count(), 0)
     assert.ok((await page.getByText('异步推荐验收', { exact: true }).boundingBox()).y < 844)
     assert.equal(await page.locator('.remote-resource-actions .ui-button').count(), 2)
@@ -104,6 +136,10 @@ async function main() {
     await page.getByRole('status').filter({ hasText: '未核验不代表失败' }).waitFor()
     assert.equal(await stats.locator('dd').nth(2).innerText(), '2')
     assert.equal(await stats.locator('dd').nth(3).innerText(), '1')
+    const dialog = page.getByRole('dialog', { name: '推荐信息', exact: true })
+    assert.equal(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), true)
+    assert.equal(await dialog.getByRole('heading').count(), 7)
+    await dialog.getByText('暂无高频类别数据').waitFor()
     await page.screenshot({ path: '/tmp/nassav-ui-recommendation-info-mobile.png' })
     await page.keyboard.press('Escape')
     await page.getByRole('status').filter({ hasText: '已为你保留 1 / 12' }).waitFor()
@@ -112,6 +148,21 @@ async function main() {
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true
     )
+    await page.evaluate(() => {
+      document.body.style.minHeight = '2200px'
+      window.scrollTo(0, 700)
+    })
+    const top = page.getByRole('button', { name: '回到顶部' })
+    await top.waitFor()
+    const normal = await top.evaluate((el) => getComputedStyle(el).backgroundColor)
+    await top.hover()
+    await page.waitForTimeout(200)
+    assert.notEqual(await top.evaluate((el) => getComputedStyle(el).backgroundColor), normal)
+    await top.click()
+    await page.waitForFunction(() => window.scrollY === 0)
+    await page.evaluate(() => {
+      document.body.style.minHeight = ''
+    })
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.evaluate(() => {
       document.body.classList.remove('dark-mode')
@@ -122,6 +173,13 @@ async function main() {
       true
     )
     await page.screenshot({ path: '/tmp/nassav-ui-recommendation-desktop.png' })
+    await page.getByRole('button', { name: '查看推荐信息' }).click()
+    assert.equal(
+      await page.getByRole('dialog').evaluate((el) => el.scrollWidth <= el.clientWidth),
+      true
+    )
+    await page.screenshot({ path: '/tmp/nassav-ui-recommendation-info-desktop.png' })
+    await page.keyboard.press('Escape')
     await page.getByRole('button', { name: '设置推荐偏好' }).click()
     await page.getByRole('dialog', { name: '推荐偏好' }).waitFor()
     await page.keyboard.press('Shift+Tab')
@@ -166,7 +224,7 @@ async function main() {
     assert.ok(cancelled.includes(String(sequence)))
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: async success, explicit backend cancellation, worker failure, verification counts, legacy fallback, mobile/desktop layout and route cleanup'
+      'PASS: async success, explicit backend cancellation, worker failure, saved-resource add guard, scroll hover, dynamic dialog, verification counts, legacy fallback, mobile/desktop layout and route cleanup'
     )
   } finally {
     await browser.close()

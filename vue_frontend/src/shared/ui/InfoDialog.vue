@@ -56,7 +56,7 @@ const { titleId } = useDialog(visible, root, close)
         aria-modal="true"
         :aria-labelledby="titleId"
         tabindex="-1"
-        class="bg-secondary text-primary border rounded-2xl shadow-xl w-full max-w-3xl max-h-[85dvh] overflow-y-auto p-5"
+        class="bg-secondary text-primary border border-[var(--border-color)] rounded-2xl shadow-xl w-full max-w-3xl max-h-[85dvh] overflow-y-auto p-5"
       >
         <header class="flex items-center justify-between gap-3 mb-4">
           <h2 :id="titleId" class="text-xl font-semibold">{{ title }}</h2>

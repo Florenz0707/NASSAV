@@ -43,3 +43,5 @@ api/client.js 独占 Axios 实例、envelope 转换、CSRF 与登录失效监听
 pnpm run check 包含 lint、单元测试、构建。模块布局回归检查 shared 无业务依赖、唯一 HTTP 实例及 API barrel 与领域对象同一身份。目录调整同步源码链接和浏览器样例 import；执行 pnpm run test:browser 以及根目录 pre-commit run -a。浏览器套件使用模拟 API/WS，不代表真实 worker 或生产环境验收。
 
 InfoDialog 位于 shared/ui，管理通用信息弹窗，不读取业务 store。TaskDetailsPanel 的 information 插槽供页面装配跟踪说明。RemoteResourceActions 位于 features/resources/components，供外部搜索和推荐卡片共用操作展示；推荐反馈与理由保留在推荐模块。
+
+推荐添加生命周期位于 features/recommendations/composables/useRecommendationAdds.js，消费提交能力和授权任务快照；RecommendationInformation 装配弹窗内的历史统计、核验、种子和管理操作，页面持有偏好与推荐查询。

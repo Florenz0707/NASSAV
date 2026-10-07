@@ -42,9 +42,7 @@
   }
 
   .recommendations-view .meta-strip,
-  .recommendations-view .metrics-panel,
-  .recommendations-view .strategy-params-panel,
-  .recommendations-view .seed-panel {
+  .recommendations-view .strategy-params-panel {
     border-radius: 1.35rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
@@ -122,73 +120,6 @@
   .recommendations-view .strategy-card .meta-select:focus {
     border-color: color-mix(in srgb, var(--accent-tertiary) 35%, transparent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
-  }
-
-  .recommendations-view .metrics-panel {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
-    gap: 0.75rem;
-    align-items: stretch;
-    padding: 0.85rem;
-  }
-
-  .recommendations-view .metrics-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.2rem;
-    min-height: 4.4rem;
-    padding: 0.75rem 0.85rem;
-    border-radius: 0.95rem;
-    background: var(--bg-secondary);
-    border: 1px solid color-mix(in srgb, var(--neutral-color) 6%, transparent);
-  }
-
-  .recommendations-view .metrics-label {
-    color: var(--text-muted);
-    font-size: 0.76rem;
-  }
-
-  .recommendations-view .metrics-value {
-    color: var(--text-primary);
-    font-size: 1.25rem;
-    font-weight: 800;
-    line-height: 1.2;
-  }
-
-  .recommendations-view .metrics-refresh-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 3rem;
-    min-height: 4.4rem;
-    border-radius: 0.95rem;
-    border: 1px solid color-mix(in srgb, var(--neutral-color) 12%, transparent);
-    background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition:
-      transform 0.2s ease,
-      color 0.2s ease,
-      background 0.2s ease;
-  }
-
-  .recommendations-view .metrics-refresh-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    color: var(--text-primary);
-    background: color-mix(in srgb, var(--neutral-color) 7%, transparent);
-  }
-
-  .recommendations-view .metrics-refresh-btn:disabled {
-    cursor: progress;
-    opacity: 0.7;
-  }
-
-  .recommendations-view .seed-panel {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    min-width: 0;
   }
 
   .recommendations-view .strategy-params-panel {
@@ -305,42 +236,6 @@
     line-height: 1.45;
   }
 
-  .recommendations-view .seed-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-  }
-
-  .recommendations-view .seed-title {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  .recommendations-view .seed-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.55rem;
-  }
-
-  .recommendations-view .seed-pill {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2rem;
-    padding: 0.3rem 0.75rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-    color: var(--accent-primary-text);
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .recommendations-view .seed-pill.secondary {
-    background: color-mix(in srgb, var(--accent-tertiary) 12%, transparent);
-    color: var(--accent-tertiary);
-  }
-
   .recommendations-view .content-shell {
     min-width: 0;
   }
@@ -417,23 +312,8 @@
     min-width: 3.5rem;
     min-height: 3.5rem;
     padding: 0 0.5rem;
-    border: 1px solid var(--accent-primary);
     border-radius: 999px;
-    background: var(--accent-primary);
-    color: var(--on-accent);
-    font-weight: 700;
-    font-size: 1.2rem;
-    backdrop-filter: blur(14px);
     box-shadow: var(--shadow-accent-lg);
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-
-  .recommendations-view .scroll-top-btn:hover {
-    transform: translateY(-2px);
-    background: var(--accent-secondary);
-    border-color: var(--accent-secondary);
-    box-shadow: var(--shadow-accent-xl);
   }
 
   .recommendations-view .reason-floating-panel {
@@ -542,15 +422,8 @@
 
     .recommendations-view .page-header,
     .recommendations-view .meta-strip,
-    .recommendations-view .metrics-panel,
-    .recommendations-view .strategy-params-grid,
-    .recommendations-view .seed-panel {
+    .recommendations-view .strategy-params-grid {
       grid-template-columns: 1fr;
-    }
-
-    .recommendations-view .metrics-refresh-btn {
-      width: 100%;
-      min-height: 3rem;
     }
 
     .recommendations-view .page-header {

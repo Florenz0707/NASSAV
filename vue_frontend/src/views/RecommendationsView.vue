@@ -1,6 +1,7 @@
 <script setup>
+import { useRecommendationAdds } from '../features/recommendations/composables/useRecommendationAdds.js'
 import InfoDialog from '../shared/ui/InfoDialog.vue'
-import RecommendationVerification from '../features/recommendations/components/RecommendationVerification.vue'
+import RecommendationInformation from '../features/recommendations/components/RecommendationInformation.vue'
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import RequestError from '../shared/ui/RequestError.vue'
@@ -8,8 +9,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import RecommendationPreferences from '../features/recommendations/components/RecommendationPreferences.vue'
-import RecommendationMetrics from '../features/recommendations/components/RecommendationMetrics.vue'
-import RecommendationSeeds from '../features/recommendations/components/RecommendationSeeds.vue'
 import RecommendationCard from '../features/recommendations/components/RecommendationCard.vue'
 import EmptyState from '../shared/ui/EmptyState.vue'
 import RecommendationBlacklist from '../features/recommendations/components/RecommendationBlacklist.vue'
@@ -37,7 +36,6 @@ const typePreference = ref(route.query.type_preference || 'balanced')
 const actorPreference = ref(route.query.actor_preference || 'balanced')
 const genrePreference = ref(route.query.genre_preference || 'balanced')
 const limit = ref(Number.parseInt(route.query.limit, 10) || 12)
-const addingAvids = ref(new Set())
 const addedAvids = ref(new Set())
 const feedbackSubmittingAvids = ref(new Set())
 const initialized = ref(false)
@@ -284,52 +282,14 @@ function refreshExternalRecommendations() {
   loadRecommendations({ forceRefreshExternal: true })
 }
 
-const pendingRecommendationAdds = new Map()
-watch(
-  () => resourceStore.visibleScrapeJobs,
-  (jobs) => {
-    for (const job of jobs) {
-      const item = pendingRecommendationAdds.get(job.avid)
-      if (!item || job.action !== 'add' || (job.state !== 'succeeded' && job.state !== 'failed'))
-        continue
-      pendingRecommendationAdds.delete(job.avid)
-      if (job.state === 'succeeded') {
-        const added = new Set(addedAvids.value)
-        added.add(job.avid)
-        addedAvids.value = added
-        persistRecommendationFeedback(item, 'like').catch(() => {})
-      }
-    }
-  }
-)
-
-async function handleAdd(item) {
-  if (!item?.avid || addingAvids.value.has(item.avid)) return
-
-  const next = new Set(addingAvids.value)
-  next.add(item.avid)
-  addingAvids.value = next
-
-  try {
-    await resourceStore.addResource(item.avid, 'any')
-
-    pendingRecommendationAdds.set(item.avid, item)
-  } catch (err) {
-    if (err.code === 409) {
-      toastStore.info(`${item.avid} 已存在于资源库`)
-      const added = new Set(addedAvids.value)
-      added.add(item.avid)
-      addedAvids.value = added
-      persistRecommendationFeedback(item, 'like').catch(() => {})
-      return
-    }
-    toastStore.error(err.message || '添加资源失败')
-  } finally {
-    const done = new Set(addingAvids.value)
-    done.delete(item.avid)
-    addingAvids.value = done
-  }
-}
+const { adding: addingAvids, add: handleAdd } = useRecommendationAdds({
+  added: addedAvids,
+  jobs: () => resourceStore.visibleScrapeJobs,
+  submit: (avid) => resourceStore.addResource(avid, 'any'),
+  onAdded: (item) => persistRecommendationFeedback(item, 'like'),
+  onExisting: (item) => toastStore.info(`${item.avid} 已存在于资源库`),
+  onError: (error) => toastStore.error(error.message || '添加资源失败'),
+})
 
 async function persistRecommendationFeedback(item, feedbackType) {
   if (!item?.avid || !item?.snapshot_id || !['like', 'dislike', 'clear'].includes(feedbackType)) {
@@ -499,35 +459,17 @@ onBeforeUnmount(() => {
         <div class="flex items-center gap-2 mt-2">
           <p class="text-secondary">发现符合偏好的资源</p>
           <InfoDialog title="推荐信息" label="查看推荐信息">
-            <div class="recommendations-view">
-              <RecommendationMetrics
-                :cards="metricCards"
-                :loading="metricsLoading"
-                @refresh="loadRecommendationMetrics"
-              />
-              <RecommendationVerification
-                v-if="loading ? progress : meta?.verification_context"
-                :statistics="loading ? progress : meta.verification_context"
-              />
-              <RecommendationSeeds v-if="seeds.length" :groups="seedGroups" />
-              <div class="flex flex-wrap gap-2">
-                <AppButton
-                  variant="neutral"
-                  :disabled="loading"
-                  @click="refreshExternalRecommendations"
-                  >刷新外部结果</AppButton
-                >
-                <AppButton variant="neutral" :disabled="loading" @click="handleResetRecommendations"
-                  >清空页面</AppButton
-                >
-                <AppButton
-                  variant="danger"
-                  :disabled="loading || metricsLoading"
-                  @click="handleResetRecommendationHistory"
-                  >重置历史</AppButton
-                >
-              </div>
-            </div>
+            <RecommendationInformation
+              :cards="metricCards"
+              :metrics-loading="metricsLoading"
+              :loading="loading"
+              :statistics="loading ? progress : meta?.verification_context"
+              :groups="seedGroups"
+              @refresh-metrics="loadRecommendationMetrics"
+              @refresh-external="refreshExternalRecommendations"
+              @clear="handleResetRecommendations"
+              @reset-history="handleResetRecommendationHistory"
+            />
           </InfoDialog>
         </div>
       </div>
@@ -687,14 +629,23 @@ onBeforeUnmount(() => {
     </section>
 
     <AppButton
-      variant="neutral"
+      variant="primary"
       v-if="showScrollTop"
       class="scroll-top-btn"
       type="button"
       aria-label="回到顶部"
       @click="scrollToTop"
     >
-      ↑
+      <svg
+        class="w-5 h-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <path d="m6 12 6-6 6 6M12 6v12" />
+      </svg>
     </AppButton>
 
     <RecommendationBlacklist

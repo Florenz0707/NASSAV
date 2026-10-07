@@ -42,3 +42,13 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 验证命令：`cd vue_frontend && pnpm run check`（67 项测试、ESLint、构建），根目录 `pre-commit run -a`。浏览器使用 Chromium、完全模拟 API：`recommendationJobs.cjs`、`resourceTaskFixes.cjs`、`entityDetail.cjs`，覆盖推荐结果位置、信息/偏好弹窗、跟踪统计更新、深浅主题及移动端、导航滚动；Vite 开发服务上的 `components.cjs` 与 `uxControls.cjs` 覆盖公共按钮状态、弹窗禁用/加载、嵌套、焦点循环/恢复和卸载清理。
 
 旧 `taskDetails.cjs` 使用非持久的队列任务夹具，无法加载当前任务明细；未将它作为本轮任务页验收。当前任务协议由 `resourceTaskFixes.cjs` 验证。本轮未修改后端，也未进行真实 worker 或部署验收。
+
+## 2026-10-08 推荐添加与信息弹窗修复
+
+提交：`[Fix] Track recommendation adds by job identity and reorganize information dialog`，阶段分支 `fix/recommendation-controls-and-information`，质量门槛通过后合并 idle。
+
+- 原先仅等待整体 succeeded，遗漏了资源保存后仍翻译的状态，并在提交返回后释放 loading。现在按提交身份匹配快照，资源已保存即禁用；未保存失败/取消恢复重试。回归覆盖快速终态、同 AVID 的其他任务、409 与卸载迟到响应。
+- 回到顶部不再同时定义页面颜色和公共按钮颜色，复用 primary 五态与 SVG 图标。
+- 信息弹窗拆为历史统计、本轮核验、推荐依据和管理操作；各区块按内容自适应，刷新独立放在标题旁，空组有占位、长种子换行，移除旧页面宽度驱动的统计/种子布局。弹窗边框与分隔线显式采用主题 token。
+
+验证：`cd vue_frontend && pnpm run check`，71 项单元测试、ESLint 和构建；根目录 `pre-commit run -a`。Chromium `recommendationJobs.cjs` 使用模拟 API，复现过已保存资源按钮未禁用；修复后验证按钮禁用、悬浮颜色、空/运行/完成信息、不均衡种子、移动/桌面无横向溢出、焦点与任务取消等既有回归。公共弹窗 `components.cjs` 验证焦点、嵌套及卸载行为。未修改后端，未代替真实 worker/部署验收。
