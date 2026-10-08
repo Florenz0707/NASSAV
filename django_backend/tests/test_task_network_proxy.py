@@ -43,13 +43,18 @@ def refactoring_offline_network_guard(monkeypatch):
 
 
 @contextmanager
-def endpoint(body):
+def endpoint(body, *, required_referer=None):
     calls = []
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             calls.append(self.path)
-            self.send_response(200)
+            self.send_response(
+                200
+                if required_referer is None
+                or self.headers.get("Referer") == required_referer
+                else 403
+            )
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -187,5 +192,34 @@ def test_recommendation_worker_source_uses_global_proxy(
             dest = tmp_path / "recommendation-cover.jpg"
             assert source.download_file(target, str(dest))
             assert dest.read_bytes() == b"proxied"
+        assert proxy_calls == [target]
+        assert origin_calls == []
+
+
+@pytest.mark.parametrize("controlled", [False, True])
+def test_missav_playlist_uses_source_proxy_and_referer(controlled, monkeypatch):
+    from nassav.source.MissAV import MissAV
+
+    referer = "https://missav.ai/dm17/cn/ipzz-912-chinese-subtitle"
+    body = (
+        b"#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000,RESOLUTION=1920x1080\n1080.m3u8\n"
+    )
+    monkeypatch.setenv("NO_PROXY", "*")
+    monkeypatch.setenv("no_proxy", "*")
+    with (
+        endpoint(b"direct forbidden", required_referer="never") as (
+            origin,
+            origin_calls,
+        ),
+        endpoint(body, required_referer=referer) as (proxy, proxy_calls),
+    ):
+        source = MissAV(proxy)
+        if controlled:
+            source.set_task_control(TaskNetworkControl(lambda: None))
+        target = f"{origin}/video/playlist.m3u8"
+        assert source._get_highest_quality_m3u8(target, referer=referer) == (
+            f"{origin}/video/1080.m3u8",
+            "1920x1080",
+        )
         assert proxy_calls == [target]
         assert origin_calls == []

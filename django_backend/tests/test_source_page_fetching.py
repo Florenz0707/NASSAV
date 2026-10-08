@@ -162,3 +162,61 @@ def test_source_direct_redirect_is_rejected():
     source.fetch_html = redirected
     with patch("time.sleep"):
         assert source.get_html("IPZZ-912") is None
+
+
+def test_missav_manifest_uses_validated_browser_final_url():
+    final_url = "https://missav.ai/dm17/cn/ipzz-912-chinese-subtitle"
+    browser = FakeBrowser(MISSAV_HTML)
+    browser.fetch = Mock(
+        return_value=PageResult(
+            html=MISSAV_HTML, final_url=final_url, provider="byparr"
+        )
+    )
+    source = MissAV(page_fetcher=PageFetchService(browser))
+    source.last_final_url = "https://missav.ai/cn/wrong-direct-page"
+    source._fetch = Mock(
+        return_value=Mock(
+            text=(
+                "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000,RESOLUTION=1920x1080\n1080.m3u8\n"
+            )
+        )
+    )
+    html = source.get_html("IPZZ-912")
+    info = source.parse_html(html)
+    assert info is not None and info.m3u8.endswith("/1080.m3u8")
+    assert source._fetch.call_args.kwargs["headers"]["Referer"] == final_url
+
+
+def test_missav_manifest_falls_back_to_detail_referer_for_supplied_html():
+    source = MissAV(page_fetcher=PageFetchService(None))
+    source._fetch = Mock(
+        return_value=Mock(
+            text=(
+                "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000,RESOLUTION=1920x1080\n1080.m3u8\n"
+            )
+        )
+    )
+    assert source.parse_html(MISSAV_HTML) is not None
+    assert source._fetch.call_args.kwargs["headers"][
+        "Referer"
+    ] == source.get_detail_url("IPZZ-912")
+
+
+def test_missav_playlist_propagates_task_stop_during_request():
+    import pytest
+    from nassav.task_network import TaskNetworkControl
+
+    source = MissAV(page_fetcher=PageFetchService(None))
+    checks = Mock(side_effect=[None, RuntimeError("请求暂停")])
+    source.set_task_control(TaskNetworkControl(checks))
+    source._fetch = Mock(side_effect=RuntimeError("transfer interrupted"))
+    with pytest.raises(RuntimeError, match="请求暂停"):
+        source._get_highest_quality_m3u8("https://surrit.com/test/playlist.m3u8")
+
+
+def test_missav_playlist_http_failure_still_returns_no_stream():
+    source = MissAV(page_fetcher=PageFetchService(None))
+    response = Mock()
+    response.raise_for_status.side_effect = RuntimeError("HTTP Error 403")
+    source._fetch = Mock(return_value=response)
+    assert source.parse_html(MISSAV_HTML) is None

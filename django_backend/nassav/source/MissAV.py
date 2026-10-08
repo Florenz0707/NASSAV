@@ -1,7 +1,7 @@
 import re
 from collections.abc import Callable
 
-from curl_cffi import requests
+from curl_cffi import CurlOpt
 from django.conf import settings
 from loguru import logger
 
@@ -124,6 +124,7 @@ class MissAV(SourceBase, ListingSource):
                 else None,
             )
             if result.ok:
+                self.last_final_url = result.final_url
                 return result.html
             if candidate_index < len(urls):
                 time.sleep(1)
@@ -173,12 +174,17 @@ class MissAV(SourceBase, ListingSource):
         """
         info = AVDownloadInfo()
         info.source = self.get_source_name()
+        if not self._extract_metadata(html, info):
+            return None
 
         # 1. 提取 m3u8（必需）
         uuid = self._extract_uuid(html)
         if uuid:
             playlist_url = f"https://surrit.com/{uuid}/playlist.m3u8"
-            result = self._get_highest_quality_m3u8(playlist_url)
+            referer = self.last_final_url or (
+                self.get_detail_url(info.avid) if info.avid else self.get_home_url()
+            )
+            result = self._get_highest_quality_m3u8(playlist_url, referer=referer)
             if result:
                 m3u8_url, resolution = result
                 info.m3u8 = m3u8_url
@@ -187,10 +193,6 @@ class MissAV(SourceBase, ListingSource):
                 return None
         else:
             logger.error("未找到有效 uuid")
-            return None
-
-        # 2. 提取标题和 AVID
-        if not self._extract_metadata(html, info):
             return None
 
         return info
@@ -225,17 +227,23 @@ class MissAV(SourceBase, ListingSource):
             logger.error(f"核心元数据解析异常: {e!s}")
             return False
 
-    def _get_highest_quality_m3u8(self, playlist_url: str) -> tuple[str, str] | None:
+    def _get_highest_quality_m3u8(
+        self, playlist_url: str, *, referer: str | None = None
+    ) -> tuple[str, str] | None:
         self._check_task()
         try:
-            if self.task_control is None:
-                response = requests.get(
-                    playlist_url, timeout=10, impersonate=IMPERSONATE
-                )
-            else:
-                response = self.task_control.request(
-                    "GET", playlist_url, timeout=10, impersonate=IMPERSONATE
-                )
+            response = self._fetch(
+                playlist_url,
+                proxies=self.proxies or {"all": ""},
+                headers={"Referer": referer or self.get_home_url()},
+                timeout=10,
+                impersonate=IMPERSONATE,
+                **(
+                    {"curl_options": {CurlOpt.NOPROXY: ""}}
+                    if self.task_control is None
+                    else {}
+                ),
+            )
             response.raise_for_status()
             self._check_task()
             playlist_content = response.text
@@ -265,6 +273,7 @@ class MissAV(SourceBase, ListingSource):
             return None
 
         except Exception as e:
+            self._check_task()
             logger.error(f"获取最高质量流失败: {e!s}")
             return None
 
