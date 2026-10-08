@@ -524,18 +524,18 @@ onBeforeUnmount(() => {
         <AppButton
           variant="neutral"
           class="rec-action-btn"
-          aria-label="设置推荐偏好"
+          aria-label="个性化"
           :disabled="!initialized"
           @click="openPersonalizationModal"
-          >推荐偏好</AppButton
+          >个性化</AppButton
         >
       </div>
     </section>
 
     <p v-if="loading && progress" role="status" class="text-secondary mb-4">
       {{ progress.stage === 'details' ? '正在核验详情' : '正在召回候选' }}： 已召回
-      {{ progress.recalled_count ?? progress.candidate_count }} 条，已用时
-      {{ Math.round(progress.elapsed_seconds) }} 秒。
+      {{ progress.recalled_count ?? progress.candidate_count ?? 0 }} 条，已用时
+      {{ Math.round(progress.elapsed_seconds) ?? '-' }} 秒。
     </p>
     <p v-if="!loading && meta?.partial" role="status" class="text-secondary mb-4">
       本次达到搜索时间预算，已为你保留 {{ meta.returned_count }} / {{ meta.requested_count }}
@@ -665,7 +665,7 @@ onBeforeUnmount(() => {
     <RecommendationBlacklist
       ref="blacklistRef"
       :show="showPersonalizationModal"
-      title="推荐偏好"
+      title="个性化"
       @close="closePersonalizationModal"
     >
       <template #preferences>

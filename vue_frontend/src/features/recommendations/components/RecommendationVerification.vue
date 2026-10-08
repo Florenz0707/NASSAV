@@ -15,7 +15,6 @@ const counts = computed(() => [
 
 <template>
   <section aria-label="推荐核验统计" role="status" class="space-y-3">
-    <h3 class="text-base font-semibold text-primary">本轮核验</h3>
     <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3">
       <div v-for="item in counts" :key="item.label">
         <dt class="text-secondary text-sm">{{ item.label }}</dt>

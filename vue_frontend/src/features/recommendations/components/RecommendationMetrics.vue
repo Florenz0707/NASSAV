@@ -1,7 +1,7 @@
 <script setup>
 import AppButton from '../../../shared/ui/AppButton.vue'
 defineProps({ cards: { type: Array, required: true }, loading: Boolean })
-defineEmits(['refresh'])
+defineEmits(['refresh', 'resetHistory'])
 </script>
 <template>
   <section aria-label="推荐历史信息">
@@ -29,6 +29,13 @@ defineEmits(['refresh'])
           />
         </svg>
         刷新
+      </AppButton>
+      <AppButton
+        variant="danger"
+        size="sm"
+        :disabled="loading || metricsLoading"
+        @click="$emit('resetHistory')"
+        >重置历史
       </AppButton>
     </header>
     <dl class="grid grid-cols-2 sm:grid-cols-3 gap-3">

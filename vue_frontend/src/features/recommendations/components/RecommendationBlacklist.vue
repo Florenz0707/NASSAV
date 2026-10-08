@@ -5,7 +5,6 @@ import { useToastStore } from '../../../shared/stores/toast.js'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 import SettingsModal from '../../../shared/ui/SettingsModal.vue'
 import LoadingSpinner from '../../../shared/ui/LoadingSpinner.vue'
-import AppButton from '../../../shared/ui/AppButton.vue'
 import SearchInput from '../../../shared/ui/SearchInput.vue'
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -350,7 +349,6 @@ defineExpose({ invalidate: invalidateBlacklistCache })
                   映射：{{ formatSeedSourceMapping(item) }}
                 </div>
               </div>
-
               <button
                 class="blacklist-action-btn"
                 :class="item.is_blocked ? 'is-unblock' : 'is-block'"
@@ -374,11 +372,6 @@ defineExpose({ invalidate: invalidateBlacklistCache })
         </div>
       </section>
     </div>
-    <template #footer>
-      <div class="blacklist-footer">
-        <AppButton variant="neutral" @click="closePersonalizationModal">关闭</AppButton>
-      </div>
-    </template>
   </SettingsModal>
 </template>
 <style scoped>

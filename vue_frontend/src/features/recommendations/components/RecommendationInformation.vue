@@ -1,5 +1,4 @@
 <script setup>
-import AppButton from '../../../shared/ui/AppButton.vue'
 import RecommendationMetrics from './RecommendationMetrics.vue'
 defineProps({ cards: { type: Array, required: true }, metricsLoading: Boolean, loading: Boolean })
 defineEmits(['refreshMetrics', 'resetHistory'])
@@ -10,15 +9,7 @@ defineEmits(['refreshMetrics', 'resetHistory'])
       :cards="cards"
       :loading="metricsLoading"
       @refresh="$emit('refreshMetrics')"
+      @reset="$emit('resetHistory')"
     />
-    <div class="flex justify-end border-t border-[var(--border-color)] pt-4">
-      <AppButton
-        variant="danger"
-        size="sm"
-        :disabled="loading || metricsLoading"
-        @click="$emit('resetHistory')"
-        >重置历史</AppButton
-      >
-    </div>
   </div>
 </template>

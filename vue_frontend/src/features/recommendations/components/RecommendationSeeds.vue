@@ -3,7 +3,6 @@ defineProps({ groups: { type: Object, required: true } })
 </script>
 <template>
   <section aria-label="推荐依据">
-    <h3 class="text-base font-semibold text-primary mb-3">推荐依据</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <section
         v-for="group in [
