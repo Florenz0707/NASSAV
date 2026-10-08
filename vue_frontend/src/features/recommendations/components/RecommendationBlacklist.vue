@@ -5,6 +5,7 @@ import { useToastStore } from '../../../shared/stores/toast.js'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 import SettingsModal from '../../../shared/ui/SettingsModal.vue'
 import LoadingSpinner from '../../../shared/ui/LoadingSpinner.vue'
+import AppButton from '../../../shared/ui/AppButton.vue'
 import SearchInput from '../../../shared/ui/SearchInput.vue'
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -245,19 +246,28 @@ defineExpose({ invalidate: invalidateBlacklistCache })
         <h3 class="text-lg font-semibold text-primary mb-3">推荐偏好</h3>
         <slot name="preferences" />
       </section>
-      <section class="min-w-0">
-        <h3 v-if="$slots.preferences" class="text-lg font-semibold text-primary mb-3">黑名单</h3>
-        <div class="blacklist-tabs header-tabs">
-          <button
-            v-for="tab in blacklistTabs"
-            :key="tab.value"
-            class="blacklist-tab"
-            :class="{ active: blacklistSeedType === tab.value }"
-            @click="blacklistSeedType = tab.value"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
+      <section
+        :class="[
+          'min-w-0',
+          $slots.preferences ? 'lg:border-l lg:border-[var(--border-color)] lg:pl-6' : '',
+        ]"
+      >
+        <header class="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <h3 v-if="$slots.preferences" class="text-lg font-semibold text-primary">黑名单</h3>
+          <div class="ml-auto flex items-center justify-end gap-2 flex-wrap">
+            <AppButton
+              v-for="tab in blacklistTabs"
+              :key="tab.value"
+              :variant="blacklistSeedType === tab.value ? 'primary' : 'neutral'"
+              size="sm"
+              :aria-label="tab.label"
+              :aria-pressed="blacklistSeedType === tab.value"
+              :loading="blacklistLoading && blacklistSeedType === tab.value"
+              @click="blacklistSeedType = tab.value"
+              >{{ tab.label }}</AppButton
+            >
+          </div>
+        </header>
 
         <div class="blacklist-modal">
           <div class="blacklist-toolbar">
@@ -386,37 +396,6 @@ defineExpose({ invalidate: invalidateBlacklistCache })
   flex-direction: column;
   align-items: left;
   gap: 1rem;
-}
-
-.blacklist-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-}
-
-.blacklist-tab {
-  min-height: 2.3rem;
-  border: 1px solid color-mix(in srgb, var(--neutral-color) 10%, transparent);
-  border-radius: 60px;
-  padding: 0 1rem;
-  background: color-mix(in srgb, var(--neutral-color) 4%, transparent);
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-  font-weight: 400;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    color 0.2s ease;
-}
-
-.blacklist-tab.active {
-  border-color: color-mix(in srgb, var(--accent-secondary) 32%, transparent);
-  background: color-mix(in srgb, var(--accent-secondary) 12%, transparent);
-  color: var(--text-inverse);
-}
-
-.header-tabs {
-  margin-left: 0.5rem;
 }
 
 .blacklist-search {
@@ -638,10 +617,6 @@ defineExpose({ invalidate: invalidateBlacklistCache })
   .blacklist-action-btn,
   .blacklist-add-strip {
     width: 100%;
-  }
-
-  .header-tabs {
-    margin-left: 0;
   }
 }
 </style>

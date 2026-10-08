@@ -28,8 +28,8 @@ const limitOptions = [
 <template>
   <section class="grid grid-cols-1 gap-3">
     <div class="bg-primary rounded-xl p-3 space-y-2">
-      <label for="recommendation-type" class="text-secondary text-sm">种子偏好</label>
-      <div class="meta-control">
+      <label for="recommendation-type" class="block text-secondary text-sm">种子偏好</label>
+      <div class="meta-control pt-1">
         <CustomSelect
           id="recommendation-type"
           aria-label="种子偏好"
@@ -41,8 +41,8 @@ const limitOptions = [
       <p class="text-muted text-xs">控制演员种子与类别种子的整体权重倾向。</p>
     </div>
     <div class="bg-primary rounded-xl p-3 space-y-2">
-      <label for="recommendation-actor" class="text-secondary text-sm">演员偏好</label>
-      <div class="meta-control">
+      <label for="recommendation-actor" class="block text-secondary text-sm">演员偏好</label>
+      <div class="meta-control pt-1">
         <CustomSelect
           id="recommendation-actor"
           aria-label="演员偏好"
@@ -54,8 +54,8 @@ const limitOptions = [
       <p class="text-muted text-xs">控制演员种子“熟悉/平衡/少见”偏好，叠加种子轮换抑制。</p>
     </div>
     <div class="bg-primary rounded-xl p-3 space-y-2">
-      <label for="recommendation-genre" class="text-secondary text-sm">类别偏好</label>
-      <div class="meta-control">
+      <label for="recommendation-genre" class="block text-secondary text-sm">类别偏好</label>
+      <div class="meta-control pt-1">
         <CustomSelect
           id="recommendation-genre"
           aria-label="类别偏好"
@@ -67,8 +67,8 @@ const limitOptions = [
       <p class="text-muted text-xs">控制类别种子“熟悉/平衡/少见”偏好，叠加种子轮换抑制。</p>
     </div>
     <div class="bg-primary rounded-xl p-3 space-y-2">
-      <label for="recommendation-limit" class="text-secondary text-sm">返回数量</label>
-      <div class="meta-control">
+      <label for="recommendation-limit" class="block text-secondary text-sm">返回数量</label>
+      <div class="meta-control pt-1">
         <CustomSelect
           id="recommendation-limit"
           aria-label="返回数量"

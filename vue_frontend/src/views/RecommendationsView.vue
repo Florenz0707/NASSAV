@@ -1,6 +1,7 @@
 <script setup>
 import { useRecommendationAdds } from '../features/recommendations/composables/useRecommendationAdds.js'
 import InfoDialog from '../shared/ui/InfoDialog.vue'
+import { useRecommendationElapsed } from '../features/recommendations/composables/useRecommendationElapsed.js'
 import RecommendationContext from '../features/recommendations/components/RecommendationContext.vue'
 import RecommendationInformation from '../features/recommendations/components/RecommendationInformation.vue'
 import AppButton from '../shared/ui/AppButton.vue'
@@ -28,6 +29,8 @@ const resourceStore = useResourceStore()
 const recommendationStore = useRecommendationsStore()
 const { items, seeds, meta, metrics, blockedAvids, feedbackByAvid, loading, error, progress } =
   storeToRefs(recommendationStore)
+const elapsedSeconds = useRecommendationElapsed(loading)
+const resultElapsedSeconds = ref(null)
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 
@@ -144,6 +147,7 @@ function saveViewState() {
     blockedAvids: serializeSet(blockedAvids.value),
     feedbackByAvid: feedbackByAvid.value || {},
     scrollY: window.scrollY || 0,
+    elapsedSeconds: resultElapsedSeconds.value,
   }
   saveRecommendationViewState(state)
 }
@@ -158,6 +162,7 @@ function restoreViewState() {
   limit.value = Number.parseInt(state.limit, 10) || 24
   items.value = Array.isArray(state.items) ? state.items : []
   seeds.value = Array.isArray(state.seeds) ? state.seeds : []
+  resultElapsedSeconds.value = Number.isFinite(state.elapsedSeconds) ? state.elapsedSeconds : null
   meta.value = state.meta || null
   metrics.value = state.metrics || null
   hasRequested.value = Boolean(state.hasRequested)
@@ -190,6 +195,7 @@ function clearPageRecommendations() {
   error.value = ''
   hasRequested.value = false
   lastLoadedConfigKey.value = ''
+  resultElapsedSeconds.value = null
   closeReasonPanel()
 }
 
@@ -260,6 +266,7 @@ async function loadRecommendations(options = {}) {
       { append: shouldMerge }
     )
     if (!payload) return
+    resultElapsedSeconds.value = elapsedSeconds.value
     lastLoadedConfigKey.value = requestConfigKey
     loadRecommendationMetrics()
     syncActiveReasonItem()
@@ -441,6 +448,7 @@ watch(
     limit,
     hasRequested,
     lastLoadedConfigKey,
+    resultElapsedSeconds,
   ],
   () => {
     if (initialized.value && !loading.value) saveViewState()
@@ -532,18 +540,16 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <p v-if="loading && progress" role="status" class="text-secondary mb-4">
-      {{ progress.stage === 'details' ? '正在核验详情' : '正在召回候选' }}： 已召回
-      {{ progress.recalled_count ?? progress.candidate_count ?? 0 }} 条，已用时
-      {{ Math.round(progress.elapsed_seconds) ?? '-' }} 秒。
-    </p>
     <p v-if="!loading && meta?.partial" role="status" class="text-secondary mb-4">
       本次达到搜索时间预算，已为你保留 {{ meta.returned_count }} / {{ meta.requested_count }}
       条核验通过的推荐，可再次推荐获取更多。
     </p>
 
     <RecommendationContext
-      :statistics="loading ? progress : meta?.verification_context"
+      :statistics="
+        loading ? progress || { verified_count: 0, candidate_count: 0 } : meta?.verification_context
+      "
+      :elapsed-seconds="loading ? elapsedSeconds : resultElapsedSeconds"
       :groups="seedGroups"
     />
     <section class="content-shell">

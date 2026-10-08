@@ -62,3 +62,12 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 - 核验与推荐依据默认折叠成卡片上方的摘要；偏好与黑名单合并到同一响应式弹窗。屏蔽叉移到喜欢、不喜欢右侧，保留操作契约。
 
 验证：`cd vue_frontend && pnpm run check`（71 项测试、ESLint、构建），根目录 `pre-commit run -a`。Chromium 模拟 API 脚本 `recommendationRestore.cjs` 复现过刷新丢失列表，修复后覆盖多批次、硬刷新、清空持久化、已有/无结果失败提示、卡片操作位置、左右/上下弹窗与无横向溢出；`recommendationJobs.cjs`、`recommendationBlacklist.cjs` 覆盖原异步流程、取消、核验回退、反馈、类型切换和迟到读写。未修改后端，未进行真实 worker/来源验收。
+
+## 2026-10-08 用户布局调整后的细化
+
+提交：`[Fix] Refine recommendation controls and add local verification timing`，阶段分支 `fix/recommendation-details-and-timer`，基于用户 `06f9a19` 调整，通过质量门槛后合并 idle。
+
+- 历史标题靠左、刷新与重置成组靠右，修复用户调整后的重置事件名/禁用参数。偏好与下拉增加间距，两列加主题竖线；黑名单标题与 AppButton 选项同排，空页脚不再渲染。
+- 核验摘要展示已通过/召回总数及前端本轮用时，不等待后端进度；完成冻结并保存成功批次用时，旧缓存未知用时显示“—”，卸载停止计时。移除重复的上方运行文案。演员/类别 seed 使用 coral/teal 底色和浅色文字；屏蔽与反馈圆角统一。
+
+验证：`cd vue_frontend && pnpm run check`（72 项测试、ESLint、构建），根目录 `pre-commit run -a`。计时单元回归覆盖无 progress 更新、完成冻结、下一轮重置、卸载清理。Chromium 模拟 API 的 `recommendationJobs.cjs`、`recommendationRestore.cjs`、`recommendationBlacklist.cjs` 验证计时独立更新、历史按钮对齐、标签间距、分割线、黑名单五态接入、多批次恢复与迟到响应；`components.cjs` 验证公共弹窗嵌套和焦点清理。本轮未修改后端或进行真实来源/worker 验收。

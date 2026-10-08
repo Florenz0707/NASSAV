@@ -4,6 +4,7 @@ import RecommendationSeeds from './RecommendationSeeds.vue'
 defineProps({
   statistics: { type: Object, default: null },
   groups: { type: Object, required: true },
+  elapsedSeconds: { type: Number, default: null },
 })
 </script>
 <template>
@@ -15,8 +16,9 @@ defineProps({
       <summary class="cursor-pointer text-sm text-primary">
         <strong>本轮核验</strong>
         <span class="text-muted ml-2"
-          >详情 {{ statistics.detail_success_count ?? '—' }} · 合格
-          {{ statistics.qualified_count ?? statistics.verified_count ?? '—' }}</span
+          >已通过 {{ statistics.verified_count ?? statistics.qualified_count ?? '—' }} /
+          {{ statistics.recalled_count ?? statistics.candidate_count ?? '—' }} 条，总用时
+          {{ elapsedSeconds ?? '—' }} 秒</span
         >
       </summary>
       <div class="mt-3"><RecommendationVerification :statistics="statistics" /></div>

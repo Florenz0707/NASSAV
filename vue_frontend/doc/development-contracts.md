@@ -144,3 +144,7 @@ RecommendationInformation 仅装配历史信息、指标刷新和历史重置；
 推荐页面在初始化恢复完成后、每轮查询结束及相关结果/偏好/反馈变更后，将完整合并列表保存至既有 sessionStorage key；pagehide 和路由卸载补保存滚动位置，不依赖 Vue 卸载来处理网页刷新。初始化完成前不启动新查询，卸载后的设置响应不得重新恢复旧状态或注册监听器。继续推荐保留跨轮 AVID 去重；失败追加保留已有成功批次，清空与历史重置同步持久化，刷新不会自动提交新任务。
 
 RecommendationBlacklist 保留 show/close/invalidate 生命周期接口，新增 title 与 preferences 插槽用于联合弹窗；黑名单缓存、查询护栏和类型切换仍由自身持有。推荐卡片屏蔽动作移至喜欢/不喜欢右侧，保留取消屏蔽、禁用及原后端反馈契约。
+
+推荐历史标题左对齐，指标刷新/历史重置在右侧成组，resetHistory 事件经 RecommendationInformation 转发到页面；重置在推荐或指标加载时禁用。个性化弹窗的偏好标签与选择框增加标准间距，桌面两列之间使用主题分割线，黑名单选项位于标题右侧并使用 AppButton 的选中、加载/禁用与五态。SettingsModal 仅在提供 footer 插槽时渲染页脚，避免留下空白区。
+
+useRecommendationElapsed 使用前端单调时钟从查询 loading 开始计时，不等待 progress；每轮重置，完成后冻结，卸载清理 interval。成功批次用时随页面缓存恢复，未知旧缓存显示“—”；失败/取消不覆盖已有成功批次用时。核验摘要显示 verified_count/qualified_count 与 recalled_count/candidate_count 及前端用时，不重复展示上方旧进度文案。演员种子底色使用 coral-fill，类别使用 teal-fill，文字使用 on-accent；屏蔽按钮复用反馈按钮的圆角。

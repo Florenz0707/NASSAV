@@ -114,7 +114,20 @@ async function main() {
     mode = 'running'
     await page.locator('.header-actions .ui-button').first().click()
     const stats = page.getByRole('status').filter({ hasText: '详情获取成功' })
-    await page.locator('summary').filter({ hasText: '本轮核验' }).click()
+    const summary = page.locator('summary').filter({ hasText: '本轮核验' })
+    await summary.waitFor()
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('summary')].some((el) =>
+        /已通过 4 \/ 24 条/.test(el.textContent)
+      )
+    )
+    const seconds = async () => Number((await summary.innerText()).match(/总用时 (\d+) 秒/)[1])
+    const before = await seconds()
+    await page.waitForTimeout(1500)
+    assert.ok((await seconds()) > before)
+    assert.ok((await seconds()) < 10)
+    assert.equal(await page.getByText(/正在核验详情：/).count(), 0)
+    await summary.click()
     await stats.waitFor()
     assert.equal(await stats.locator('dd').nth(0).innerText(), '6')
     assert.equal(await stats.locator('dd').nth(1).innerText(), '2')
@@ -185,8 +198,8 @@ async function main() {
     )
     await page.screenshot({ path: '/tmp/nassav-ui-recommendation-info-desktop.png' })
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: '设置推荐偏好' }).click()
-    await page.getByRole('dialog', { name: '推荐偏好' }).waitFor()
+    await page.getByRole('button', { name: '个性化' }).click()
+    await page.getByRole('dialog', { name: '个性化' }).waitFor()
     await page.keyboard.press('Shift+Tab')
     assert.equal(
       await page.getByRole('dialog').evaluate((el) => el.contains(document.activeElement)),
@@ -195,16 +208,17 @@ async function main() {
     await page.keyboard.press('Escape')
     assert.equal(
       await page
-        .getByRole('button', { name: '设置推荐偏好' })
+        .getByRole('button', { name: '个性化' })
         .evaluate((el) => el === document.activeElement),
       true
     )
     legacy = true
     await page.locator('.header-actions .ui-button').first().click()
     await page.locator('summary').filter({ hasText: '本轮核验' }).click()
-    await page.waitForFunction(
-      () => document.querySelector('[aria-label="推荐核验统计"] dd')?.textContent.trim() === '—'
-    )
+    await page.waitForFunction(() => {
+      const counts = document.querySelectorAll('[aria-label="推荐核验统计"] dd')
+      return counts[0]?.textContent.trim() === '—' && counts[2]?.textContent.trim() === '2'
+    })
     assert.equal(await stats.locator('dd').nth(2).innerText(), '2')
     assert.equal(await stats.locator('dd').nth(3).innerText(), '—')
     await page.keyboard.press('Escape')

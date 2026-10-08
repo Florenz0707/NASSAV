@@ -39,8 +39,8 @@ async function main() {
     })
     const origin = process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178'
     await page.goto(`${origin}/recommendations`)
-    await page.getByRole('button', { name: '设置推荐偏好', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: '推荐偏好', exact: true })
+    await page.getByRole('button', { name: '个性化', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: '个性化', exact: true })
     await dialog.getByText('仅看已屏蔽', { exact: true }).click()
     await dialog.locator('.blacklist-row').filter({ hasText: 'Actor' }).waitFor()
     await dialog.getByRole('button', { name: '屏蔽', exact: true }).click()

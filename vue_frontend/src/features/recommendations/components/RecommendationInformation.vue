@@ -8,8 +8,9 @@ defineEmits(['refreshMetrics', 'resetHistory'])
     <RecommendationMetrics
       :cards="cards"
       :loading="metricsLoading"
+      :reset-disabled="loading"
       @refresh="$emit('refreshMetrics')"
-      @reset="$emit('resetHistory')"
+      @reset-history="$emit('resetHistory')"
     />
   </div>
 </template>

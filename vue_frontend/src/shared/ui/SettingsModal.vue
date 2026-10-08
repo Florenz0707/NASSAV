@@ -74,7 +74,7 @@ const { titleId } = useDialog(toRef(props, 'show'), dialogRef, () => emit('close
           <slot />
         </div>
 
-        <div class="p-6" style="border-top: 1px solid var(--border-color)">
+        <div v-if="$slots.footer" class="p-6" style="border-top: 1px solid var(--border-color)">
           <slot name="footer" />
         </div>
       </div>

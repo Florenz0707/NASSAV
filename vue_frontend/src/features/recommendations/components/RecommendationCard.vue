@@ -177,7 +177,7 @@ function handleReasonsClick(event) {
             type="button"
             variant="danger"
             size="sm"
-            class="w-8 h-8 p-0 shrink-0"
+            class="w-8 h-8 p-0 shrink-0 feedback-block-btn"
             :aria-pressed="isBlocked"
             :disabled="feedbackSubmitting"
             :aria-label="isBlocked ? '取消屏蔽' : '屏蔽'"
@@ -370,6 +370,10 @@ function handleReasonsClick(event) {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.feedback-block-btn {
+  border-radius: 999px;
 }
 
 .inline-feedback-btn {
