@@ -103,8 +103,8 @@ async function main() {
     const origin = process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178'
     await page.goto(`${origin}/recommendations`)
     await page.getByRole('button', { name: '查看推荐信息' }).click()
-    await page.getByText('开始推荐后显示本轮核验信息。').waitFor()
-    await page.getByText('暂无高频演员数据').waitFor()
+    await page.getByRole('heading', { name: '历史信息' }).waitFor()
+    assert.equal(await page.getByRole('button', { name: '刷新外部结果' }).count(), 0)
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: '开始推荐', exact: true }).click()
     await page.getByRole('button', { name: '取消推荐', exact: true }).waitFor()
@@ -114,13 +114,13 @@ async function main() {
     mode = 'running'
     await page.locator('.header-actions .ui-button').first().click()
     const stats = page.getByRole('status').filter({ hasText: '详情获取成功' })
-    await page.getByRole('button', { name: '查看推荐信息' }).click()
+    await page.locator('summary').filter({ hasText: '本轮核验' }).click()
     await stats.waitFor()
     assert.equal(await stats.locator('dd').nth(0).innerText(), '6')
     assert.equal(await stats.locator('dd').nth(1).innerText(), '2')
     assert.equal(await stats.locator('dd').nth(2).innerText(), '18')
     assert.equal(await stats.locator('dd').nth(3).innerText(), '4')
-    await page.keyboard.press('Escape')
+    await page.locator('summary').filter({ hasText: '本轮核验' }).click()
     await page.getByRole('button', { name: '取消推荐', exact: true }).click()
     mode = 'succeeded'
     await page.locator('.header-actions .ui-button').first().click()
@@ -129,17 +129,22 @@ async function main() {
     await page.getByRole('button', { name: '已添加', exact: true }).waitFor({ timeout: 4000 })
     assert.equal(await page.getByRole('button', { name: '已添加', exact: true }).isDisabled(), true)
     assert.equal(addRequests, 1)
-    assert.equal(await stats.count(), 0)
+    assert.equal(await stats.isVisible(), false)
     assert.ok((await page.getByText('异步推荐验收', { exact: true }).boundingBox()).y < 844)
     assert.equal(await page.locator('.remote-resource-actions .ui-button').count(), 2)
-    await page.getByRole('button', { name: '查看推荐信息' }).click()
+    await page.locator('summary').filter({ hasText: '本轮核验' }).click()
     await page.getByRole('status').filter({ hasText: '未核验不代表失败' }).waitFor()
     assert.equal(await stats.locator('dd').nth(2).innerText(), '2')
     assert.equal(await stats.locator('dd').nth(3).innerText(), '1')
+    await page.locator('summary').filter({ hasText: '本轮核验' }).click()
+    await page.locator('summary').filter({ hasText: '推荐依据' }).click()
+    await page.getByText('暂无高频类别数据').waitFor()
+    await page.locator('summary').filter({ hasText: '推荐依据' }).click()
+    await page.getByRole('button', { name: '查看推荐信息' }).click()
     const dialog = page.getByRole('dialog', { name: '推荐信息', exact: true })
     assert.equal(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), true)
-    assert.equal(await dialog.getByRole('heading').count(), 7)
-    await dialog.getByText('暂无高频类别数据').waitFor()
+    assert.equal(await dialog.getByRole('heading').count(), 2)
+    assert.equal(await dialog.getByRole('button').count(), 3)
     await page.screenshot({ path: '/tmp/nassav-ui-recommendation-info-mobile.png' })
     await page.keyboard.press('Escape')
     await page.getByRole('status').filter({ hasText: '已为你保留 1 / 12' }).waitFor()
@@ -196,7 +201,7 @@ async function main() {
     )
     legacy = true
     await page.locator('.header-actions .ui-button').first().click()
-    await page.getByRole('button', { name: '查看推荐信息' }).click()
+    await page.locator('summary').filter({ hasText: '本轮核验' }).click()
     await page.waitForFunction(
       () => document.querySelector('[aria-label="推荐核验统计"] dd')?.textContent.trim() === '—'
     )
@@ -207,7 +212,8 @@ async function main() {
     const cancelCount = cancelled.length
     mode = 'failed'
     await page.locator('.header-actions .ui-button').first().click()
-    await page.getByRole('alert').filter({ hasText: '来源暂不可用' }).waitFor()
+    await page.locator('.results-footer').getByText('来源暂不可用').waitFor()
+    assert.equal(await page.getByRole('alert').count(), 0)
     assert.equal(cancelled.length, cancelCount)
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

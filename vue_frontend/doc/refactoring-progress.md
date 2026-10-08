@@ -52,3 +52,13 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 - 信息弹窗拆为历史统计、本轮核验、推荐依据和管理操作；各区块按内容自适应，刷新独立放在标题旁，空组有占位、长种子换行，移除旧页面宽度驱动的统计/种子布局。弹窗边框与分隔线显式采用主题 token。
 
 验证：`cd vue_frontend && pnpm run check`，71 项单元测试、ESLint 和构建；根目录 `pre-commit run -a`。Chromium `recommendationJobs.cjs` 使用模拟 API，复现过已保存资源按钮未禁用；修复后验证按钮禁用、悬浮颜色、空/运行/完成信息、不均衡种子、移动/桌面无横向溢出、焦点与任务取消等既有回归。公共弹窗 `components.cjs` 验证焦点、嵌套及卸载行为。未修改后端，未代替真实 worker/部署验收。
+
+## 2026-10-08 推荐信息层级与多轮恢复
+
+提交：`[Fix] Persist recommendation batches and refine context and preferences layout`，阶段分支 `fix/recommendation-layout-and-restoration`，通过质量门槛后合并 idle。
+
+- 原先只在组件卸载保存，浏览器刷新不可靠地触发该回调，可能恢复旧批次或丢失新列表。现在每轮结束及状态变化后保存完整去重列表，pagehide/路由卸载补保存；初始恢复前禁用查询，卸载后的初始化响应不注册监听器。
+- 推荐错误只显示在页底继续推荐下方；无结果时也能在同一位置重试。信息弹窗只保留历史、指标刷新和重置；移除刷新外部结果，清空回到页头。
+- 核验与推荐依据默认折叠成卡片上方的摘要；偏好与黑名单合并到同一响应式弹窗。屏蔽叉移到喜欢、不喜欢右侧，保留操作契约。
+
+验证：`cd vue_frontend && pnpm run check`（71 项测试、ESLint、构建），根目录 `pre-commit run -a`。Chromium 模拟 API 脚本 `recommendationRestore.cjs` 复现过刷新丢失列表，修复后覆盖多批次、硬刷新、清空持久化、已有/无结果失败提示、卡片操作位置、左右/上下弹窗与无横向溢出；`recommendationJobs.cjs`、`recommendationBlacklist.cjs` 覆盖原异步流程、取消、核验回退、反馈、类型切换和迟到读写。未修改后端，未进行真实 worker/来源验收。

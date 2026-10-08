@@ -1,4 +1,5 @@
 <script setup>
+import AppButton from '../../../shared/ui/AppButton.vue'
 import RemoteResourceActions from '../../resources/components/RemoteResourceActions.vue'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
@@ -105,27 +106,6 @@ function handleReasonsClick(event) {
       <div v-else class="cover-fallback">
         <span>{{ item.avid }}</span>
       </div>
-      <div class="feedback-overlay">
-        <button
-          type="button"
-          class="feedback-overlay-button danger"
-          :class="{ active: isBlocked }"
-          :disabled="feedbackSubmitting"
-          :aria-label="isBlocked ? '取消屏蔽' : '屏蔽'"
-          :title="isBlocked ? '取消屏蔽' : '屏蔽'"
-          @click="emit('block')"
-        >
-          <span v-if="isBlocked" class="feedback-overlay-label">已屏蔽</span>
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            ></path>
-          </svg>
-        </button>
-      </div>
     </div>
 
     <div class="card-body">
@@ -144,9 +124,10 @@ function handleReasonsClick(event) {
         <span v-if="metrics.likes">收藏 {{ metrics.likes }}</span>
       </div>
 
-      <div v-if="item.score !== undefined || item.reasons?.length" class="reasons-wrap">
+      <div class="reasons-wrap">
         <button
           type="button"
+          v-if="item.score !== undefined || item.reasons?.length"
           class="reason-toggle"
           :data-reason-anchor="item.avid"
           :disabled="!hasReasons"
@@ -192,6 +173,26 @@ function handleReasonsClick(event) {
               ></path>
             </svg>
           </button>
+          <AppButton
+            type="button"
+            variant="danger"
+            size="sm"
+            class="w-8 h-8 p-0 shrink-0"
+            :aria-pressed="isBlocked"
+            :disabled="feedbackSubmitting"
+            :aria-label="isBlocked ? '取消屏蔽' : '屏蔽'"
+            :title="isBlocked ? '取消屏蔽' : '屏蔽'"
+            @click="emit('block')"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </AppButton>
         </div>
       </div>
 
@@ -243,84 +244,6 @@ function handleReasonsClick(event) {
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background: var(--surface-raised);
-}
-
-.feedback-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  gap: 0.35rem;
-  padding: 0.4rem;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--shadow-ink) 12%, transparent),
-    color-mix(in srgb, var(--shadow-ink) 42%, transparent)
-  );
-  pointer-events: none;
-}
-
-.feedback-overlay-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.95rem;
-  padding: 0.28rem 0.72rem;
-  border-radius: 999px;
-  color: white;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  pointer-events: auto;
-}
-
-.feedback-overlay-badge.blocked {
-  background: color-mix(in srgb, var(--accent-primary) 50%, transparent);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 28%, transparent);
-}
-
-.feedback-overlay-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.7rem;
-  min-height: 1.7rem;
-  padding: 0.28rem 0.72rem;
-  border: 0;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-tertiary) 24%, transparent);
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-tertiary) 18%, transparent);
-  pointer-events: auto;
-  cursor: pointer;
-  gap: 0.35rem;
-}
-
-.feedback-overlay-button.danger {
-  background: color-mix(in srgb, var(--accent-primary) 30%, transparent);
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent-primary) 22%, transparent);
-}
-
-.feedback-overlay-button.active {
-  background: var(--accent-tertiary);
-}
-
-.feedback-overlay-button.danger.active {
-  background: var(--accent-primary);
-  color: var(--on-accent);
-}
-
-.feedback-overlay-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.feedback-overlay-button:disabled {
-  cursor: progress;
-  opacity: 0.75;
 }
 
 .cover-image {
@@ -410,7 +333,9 @@ function handleReasonsClick(event) {
 .reasons-wrap {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
 }
 

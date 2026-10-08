@@ -1,10 +1,10 @@
 <script setup>
 import { useRecommendationAdds } from '../features/recommendations/composables/useRecommendationAdds.js'
 import InfoDialog from '../shared/ui/InfoDialog.vue'
+import RecommendationContext from '../features/recommendations/components/RecommendationContext.vue'
 import RecommendationInformation from '../features/recommendations/components/RecommendationInformation.vue'
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
-import RequestError from '../shared/ui/RequestError.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -128,6 +128,7 @@ function serializeSet(value) {
 }
 
 function saveViewState() {
+  if (!initialized.value) return
   const state = {
     typePreference: typePreference.value,
     actorPreference: actorPreference.value,
@@ -278,10 +279,6 @@ function continueRecommendations() {
   loadRecommendations({ append: true })
 }
 
-function refreshExternalRecommendations() {
-  loadRecommendations({ forceRefreshExternal: true })
-}
-
 const { adding: addingAvids, add: handleAdd } = useRecommendationAdds({
   added: addedAvids,
   jobs: () => resourceStore.visibleScrapeJobs,
@@ -426,8 +423,34 @@ watch([typePreference, actorPreference, genrePreference, limit], () => {
   syncQuery()
 })
 
+// A hard reload does not reliably unmount Vue; persist each settled batch and view change.
+watch(
+  [
+    initialized,
+    loading,
+    items,
+    seeds,
+    meta,
+    metrics,
+    addedAvids,
+    blockedAvids,
+    feedbackByAvid,
+    typePreference,
+    actorPreference,
+    genrePreference,
+    limit,
+    hasRequested,
+    lastLoadedConfigKey,
+  ],
+  () => {
+    if (initialized.value && !loading.value) saveViewState()
+  },
+  { deep: true, flush: 'post' }
+)
+let pageActive = true
 onMounted(async () => {
   await settingsStore.loadSettings()
+  if (!pageActive) return
   const restoredState = restoreViewState()
   loadRecommendationMetrics()
   initialized.value = true
@@ -436,7 +459,9 @@ onMounted(async () => {
     await nextTick()
     window.scrollTo({ top: restoredState.scrollY, left: 0, behavior: 'auto' })
   }
+  if (!pageActive) return
   updateScrollState()
+  window.addEventListener('pagehide', saveViewState)
   window.addEventListener('scroll', updateScrollState, { passive: true })
   window.addEventListener('resize', handleViewportResize)
   window.addEventListener('keydown', handleGlobalKeydown)
@@ -445,6 +470,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   recommendationStore.cancelQuery()
   saveViewState()
+  pageActive = false
+  window.removeEventListener('pagehide', saveViewState)
   window.removeEventListener('scroll', updateScrollState)
   window.removeEventListener('resize', handleViewportResize)
   window.removeEventListener('keydown', handleGlobalKeydown)
@@ -463,11 +490,7 @@ onBeforeUnmount(() => {
               :cards="metricCards"
               :metrics-loading="metricsLoading"
               :loading="loading"
-              :statistics="loading ? progress : meta?.verification_context"
-              :groups="seedGroups"
               @refresh-metrics="loadRecommendationMetrics"
-              @refresh-external="refreshExternalRecommendations"
-              @clear="handleResetRecommendations"
               @reset-history="handleResetRecommendationHistory"
             />
           </InfoDialog>
@@ -478,6 +501,7 @@ onBeforeUnmount(() => {
         <AppButton
           class="rec-action-btn"
           :loading="loading"
+          :disabled="!initialized"
           @click="runPrimaryRecommendationAction"
         >
           {{ recommendationActionLabel }}
@@ -490,19 +514,21 @@ onBeforeUnmount(() => {
         >
           取消推荐
         </AppButton>
-        <AppButton variant="neutral" class="rec-action-btn" @click="openPersonalizationModal">
-          个性化
-        </AppButton>
-        <InfoDialog title="推荐偏好" label="设置推荐偏好" button-text="推荐偏好">
-          <div class="recommendations-view">
-            <RecommendationPreferences
-              v-model:type-preference="typePreference"
-              v-model:actor-preference="actorPreference"
-              v-model:genre-preference="genrePreference"
-              v-model:limit="limit"
-            />
-          </div>
-        </InfoDialog>
+        <AppButton
+          variant="neutral"
+          class="rec-action-btn"
+          :disabled="!initialized || loading"
+          @click="handleResetRecommendations"
+          >清空页面</AppButton
+        >
+        <AppButton
+          variant="neutral"
+          class="rec-action-btn"
+          aria-label="设置推荐偏好"
+          :disabled="!initialized"
+          @click="openPersonalizationModal"
+          >推荐偏好</AppButton
+        >
       </div>
     </section>
 
@@ -516,14 +542,12 @@ onBeforeUnmount(() => {
       条核验通过的推荐，可再次推荐获取更多。
     </p>
 
+    <RecommendationContext
+      :statistics="loading ? progress : meta?.verification_context"
+      :groups="seedGroups"
+    />
     <section class="content-shell">
       <PageLoad v-if="showInitialLoading" text="正在加载推荐" />
-      <RequestError
-        v-if="error && visibleItems.length && !loading"
-        :message="error"
-        compact
-        @retry="loadRecommendations"
-      />
 
       <EmptyState
         v-if="!showInitialLoading && !hasRequested && !visibleItems.length"
@@ -533,26 +557,11 @@ onBeforeUnmount(() => {
       />
 
       <EmptyState
-        v-else-if="!loading && error && !visibleItems.length"
-        icon="warning"
-        title="推荐加载失败"
-        :description="error"
-      >
-        <template #action>
-          <AppButton variant="neutral" class=" " @click="loadRecommendations"> 重新加载 </AppButton>
-        </template>
-      </EmptyState>
-
-      <EmptyState
         v-else-if="!loading && !visibleItems.length"
         icon="star"
-        title="暂时没有推荐结果"
-        description="尝试添加本地资源，或者稍后重试。"
-      >
-        <template #action>
-          <AppButton variant="neutral" class=" " @click="loadRecommendations"> 再试一次 </AppButton>
-        </template>
-      </EmptyState>
+        title="暂未获得推荐结果"
+        description="调整偏好，或点击下方按钮继续推荐。"
+      />
 
       <div v-else class="results-stack">
         <div
@@ -614,17 +623,22 @@ onBeforeUnmount(() => {
             </transition>
           </div>
         </div>
-
-        <div class="results-footer">
-          <AppButton
-            variant="neutral"
-            class="rec-footer-btn min-w-[10rem]"
-            :loading="loading"
-            @click="continueRecommendations"
-          >
-            继续推荐
-          </AppButton>
-        </div>
+      </div>
+      <div v-if="hasRequested" class="results-footer">
+        <AppButton
+          variant="neutral"
+          class="rec-footer-btn min-w-[10rem]"
+          :loading="loading"
+          @click="continueRecommendations"
+          >继续推荐</AppButton
+        >
+        <p
+          v-if="error && !loading"
+          role="status"
+          class="text-muted text-xs text-center max-w-full break-words"
+        >
+          {{ error }}
+        </p>
       </div>
     </section>
 
@@ -651,8 +665,18 @@ onBeforeUnmount(() => {
     <RecommendationBlacklist
       ref="blacklistRef"
       :show="showPersonalizationModal"
+      title="推荐偏好"
       @close="closePersonalizationModal"
-    />
+    >
+      <template #preferences>
+        <RecommendationPreferences
+          v-model:type-preference="typePreference"
+          v-model:actor-preference="actorPreference"
+          v-model:genre-preference="genrePreference"
+          v-model:limit="limit"
+        />
+      </template>
+    </RecommendationBlacklist>
   </div>
 </template>
 

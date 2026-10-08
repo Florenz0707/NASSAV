@@ -293,6 +293,9 @@
   }
 
   .recommendations-view .results-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
     display: flex;
     justify-content: center;
   }

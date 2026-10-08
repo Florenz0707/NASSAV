@@ -44,4 +44,4 @@ pnpm run check 包含 lint、单元测试、构建。模块布局回归检查 sh
 
 InfoDialog 位于 shared/ui，管理通用信息弹窗，不读取业务 store。TaskDetailsPanel 的 information 插槽供页面装配跟踪说明。RemoteResourceActions 位于 features/resources/components，供外部搜索和推荐卡片共用操作展示；推荐反馈与理由保留在推荐模块。
 
-推荐添加生命周期位于 features/recommendations/composables/useRecommendationAdds.js，消费提交能力和授权任务快照；RecommendationInformation 装配弹窗内的历史统计、核验、种子和管理操作，页面持有偏好与推荐查询。
+推荐添加生命周期位于 features/recommendations/composables/useRecommendationAdds.js，消费提交能力和授权任务快照；RecommendationInformation 装配历史信息、刷新和重置弹窗；RecommendationContext 装配页内紧凑核验/种子摘要。页面持有偏好与推荐查询，借 RecommendationBlacklist 的 preferences 插槽装配联合偏好/黑名单弹窗。

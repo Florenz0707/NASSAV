@@ -4,9 +4,9 @@ defineProps({ cards: { type: Array, required: true }, loading: Boolean })
 defineEmits(['refresh'])
 </script>
 <template>
-  <section aria-label="推荐历史统计">
+  <section aria-label="推荐历史信息">
     <header class="flex items-center justify-between gap-3 mb-3">
-      <h3 class="text-base font-semibold text-primary">历史统计</h3>
+      <h3 class="text-base font-semibold text-primary">历史信息</h3>
       <AppButton
         variant="neutral"
         size="sm"

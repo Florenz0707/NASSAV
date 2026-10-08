@@ -7,7 +7,10 @@ import SettingsModal from '../../../shared/ui/SettingsModal.vue'
 import LoadingSpinner from '../../../shared/ui/LoadingSpinner.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
 import SearchInput from '../../../shared/ui/SearchInput.vue'
-const props = defineProps({ show: { type: Boolean, default: false } })
+const props = defineProps({
+  show: { type: Boolean, default: false },
+  title: { type: String, default: '个性化' },
+})
 const emit = defineEmits(['close'])
 const showPersonalizationModal = toRef(props, 'show')
 const recommendationStore = useRecommendationsStore()
@@ -232,131 +235,145 @@ defineExpose({ invalidate: invalidateBlacklistCache })
 <template>
   <SettingsModal
     :show="showPersonalizationModal"
-    title="个性化"
-    max-width-class="max-w-4xl"
+    :title="title"
+    :max-width-class="$slots.preferences ? 'max-w-6xl max-h-[85dvh] overflow-y-auto' : 'max-w-4xl'"
     @close="closePersonalizationModal"
   >
-    <template #header-extra>
-      <div class="blacklist-tabs header-tabs">
-        <button
-          v-for="tab in blacklistTabs"
-          :key="tab.value"
-          class="blacklist-tab"
-          :class="{ active: blacklistSeedType === tab.value }"
-          @click="blacklistSeedType = tab.value"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-    </template>
-
-    <div class="blacklist-modal">
-      <div class="blacklist-toolbar">
-        <SearchInput
-          v-model="blacklistSearch"
-          :placeholder="
-            blacklistSeedType === 'actor'
-              ? '搜索演员名'
-              : blacklistSeedType === 'genre'
-                ? '搜索类别名'
-                : '输入 AVID，例如 IPZZ-001'
-          "
-        />
-
-        <label v-if="blacklistSeedType !== 'resource'" class="pretty-toggle">
-          <input
-            v-model="blacklistBlockedOnly"
-            type="checkbox"
-            :disabled="blacklistSeedType === 'resource'"
-          />
-          <span class="pretty-toggle-track">
-            <span class="pretty-toggle-thumb" />
-          </span>
-          <span class="pretty-toggle-label">仅看已屏蔽</span>
-        </label>
-      </div>
-
-      <div
-        v-if="blacklistSeedType === 'resource' && normalizedBlacklistSearch"
-        class="blacklist-add-strip"
-      >
-        <div class="blacklist-add-copy">
-          <span>将当前 AVID 直接加入资源黑名单</span>
-        </div>
-        <button
-          class="blacklist-action-btn is-block"
-          :disabled="blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}`"
-          @click="addResourceBlacklist"
-        >
-          {{ blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}` ? '...' : '屏蔽' }}
-        </button>
-      </div>
-
-      <div class="blacklist-summary">
-        <span>
-          当前类型：
-          {{
-            blacklistSeedType === 'actor' ? '演员' : blacklistSeedType === 'genre' ? '类别' : '资源'
-          }}
-        </span>
-        <span v-if="blacklistPagination">
-          {{ blacklistSeedType === 'resource' ? '屏蔽条目' : '总条目' }}
-          {{ blacklistPagination.total }}
-        </span>
-        <span>当前展示 {{ blacklistItems.length }}</span>
-      </div>
-
-      <div v-if="blacklistLoading" class="blacklist-loading">
-        <LoadingSpinner size="medium" text="正在读取..." />
-      </div>
-
-      <div v-else-if="!blacklistItems.length" class="blacklist-empty">
-        {{ blacklistBlockedOnly ? '当前没有已屏蔽项。' : '没有匹配到可操作的条目。' }}
-      </div>
-
-      <div v-else class="blacklist-list">
-        <div
-          v-for="item in blacklistItems"
-          :key="`${blacklistSeedType}-${item.avid || item.id}`"
-          class="blacklist-row"
-        >
-          <div class="blacklist-main">
-            <div class="blacklist-name">
-              {{ item.name || item.title || item.avid }} （{{
-                blacklistSeedType === 'resource' ? '' : `${item.resource_count ?? 0}个资源`
-              }}
-              {{ `${item.is_blocked ? '已屏蔽' : '未屏蔽'}` }}）
-            </div>
-            <div
-              v-if="blacklistSeedType !== 'resource' && formatSeedSourceMapping(item)"
-              class="blacklist-mapping"
-            >
-              映射：{{ formatSeedSourceMapping(item) }}
-            </div>
-          </div>
-
+    <div
+      :class="$slots.preferences ? 'grid grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)] gap-6' : ''"
+    >
+      <section v-if="$slots.preferences" class="min-w-0">
+        <h3 class="text-lg font-semibold text-primary mb-3">推荐偏好</h3>
+        <slot name="preferences" />
+      </section>
+      <section class="min-w-0">
+        <h3 v-if="$slots.preferences" class="text-lg font-semibold text-primary mb-3">黑名单</h3>
+        <div class="blacklist-tabs header-tabs">
           <button
-            class="blacklist-action-btn"
-            :class="item.is_blocked ? 'is-unblock' : 'is-block'"
-            :disabled="
-              blacklistSubmittingKey ===
-              `${blacklistSeedType}:${blacklistSeedType === 'resource' ? item.avid : item.id}`
-            "
-            @click="toggleSeedBlocked(item)"
+            v-for="tab in blacklistTabs"
+            :key="tab.value"
+            class="blacklist-tab"
+            :class="{ active: blacklistSeedType === tab.value }"
+            @click="blacklistSeedType = tab.value"
           >
-            {{
-              blacklistSubmittingKey ===
-              `${blacklistSeedType}:${blacklistSeedType === 'resource' ? item.avid : item.id}`
-                ? '...'
-                : item.is_blocked
-                  ? '取消'
-                  : '屏蔽'
-            }}
+            {{ tab.label }}
           </button>
         </div>
-      </div>
-    </div>
 
+        <div class="blacklist-modal">
+          <div class="blacklist-toolbar">
+            <SearchInput
+              v-model="blacklistSearch"
+              :placeholder="
+                blacklistSeedType === 'actor'
+                  ? '搜索演员名'
+                  : blacklistSeedType === 'genre'
+                    ? '搜索类别名'
+                    : '输入 AVID，例如 IPZZ-001'
+              "
+            />
+
+            <label v-if="blacklistSeedType !== 'resource'" class="pretty-toggle">
+              <input
+                v-model="blacklistBlockedOnly"
+                type="checkbox"
+                :disabled="blacklistSeedType === 'resource'"
+              />
+              <span class="pretty-toggle-track">
+                <span class="pretty-toggle-thumb" />
+              </span>
+              <span class="pretty-toggle-label">仅看已屏蔽</span>
+            </label>
+          </div>
+
+          <div
+            v-if="blacklistSeedType === 'resource' && normalizedBlacklistSearch"
+            class="blacklist-add-strip"
+          >
+            <div class="blacklist-add-copy">
+              <span>将当前 AVID 直接加入资源黑名单</span>
+            </div>
+            <button
+              class="blacklist-action-btn is-block"
+              :disabled="blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}`"
+              @click="addResourceBlacklist"
+            >
+              {{
+                blacklistSubmittingKey === `resource:${normalizedBlacklistSearch}` ? '...' : '屏蔽'
+              }}
+            </button>
+          </div>
+
+          <div class="blacklist-summary">
+            <span>
+              当前类型：
+              {{
+                blacklistSeedType === 'actor'
+                  ? '演员'
+                  : blacklistSeedType === 'genre'
+                    ? '类别'
+                    : '资源'
+              }}
+            </span>
+            <span v-if="blacklistPagination">
+              {{ blacklistSeedType === 'resource' ? '屏蔽条目' : '总条目' }}
+              {{ blacklistPagination.total }}
+            </span>
+            <span>当前展示 {{ blacklistItems.length }}</span>
+          </div>
+
+          <div v-if="blacklistLoading" class="blacklist-loading">
+            <LoadingSpinner size="medium" text="正在读取..." />
+          </div>
+
+          <div v-else-if="!blacklistItems.length" class="blacklist-empty">
+            {{ blacklistBlockedOnly ? '当前没有已屏蔽项。' : '没有匹配到可操作的条目。' }}
+          </div>
+
+          <div v-else class="blacklist-list">
+            <div
+              v-for="item in blacklistItems"
+              :key="`${blacklistSeedType}-${item.avid || item.id}`"
+              class="blacklist-row"
+            >
+              <div class="blacklist-main">
+                <div class="blacklist-name">
+                  {{ item.name || item.title || item.avid }} （{{
+                    blacklistSeedType === 'resource' ? '' : `${item.resource_count ?? 0}个资源`
+                  }}
+                  {{ `${item.is_blocked ? '已屏蔽' : '未屏蔽'}` }}）
+                </div>
+                <div
+                  v-if="blacklistSeedType !== 'resource' && formatSeedSourceMapping(item)"
+                  class="blacklist-mapping"
+                >
+                  映射：{{ formatSeedSourceMapping(item) }}
+                </div>
+              </div>
+
+              <button
+                class="blacklist-action-btn"
+                :class="item.is_blocked ? 'is-unblock' : 'is-block'"
+                :disabled="
+                  blacklistSubmittingKey ===
+                  `${blacklistSeedType}:${blacklistSeedType === 'resource' ? item.avid : item.id}`
+                "
+                @click="toggleSeedBlocked(item)"
+              >
+                {{
+                  blacklistSubmittingKey ===
+                  `${blacklistSeedType}:${blacklistSeedType === 'resource' ? item.avid : item.id}`
+                    ? '...'
+                    : item.is_blocked
+                      ? '取消'
+                      : '屏蔽'
+                }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
     <template #footer>
       <div class="blacklist-footer">
         <AppButton variant="neutral" @click="closePersonalizationModal">关闭</AppButton>
