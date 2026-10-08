@@ -540,11 +540,6 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <p v-if="!loading && meta?.partial" role="status" class="text-secondary mb-4">
-      本次达到搜索时间预算，已为你保留 {{ meta.returned_count }} / {{ meta.requested_count }}
-      条核验通过的推荐，可再次推荐获取更多。
-    </p>
-
     <RecommendationContext
       :statistics="
         loading ? progress || { verified_count: 0, candidate_count: 0 } : meta?.verification_context

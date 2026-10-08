@@ -29,9 +29,9 @@ const blacklistCache = new Map()
 const blacklistGuard = createRequestGuard()
 let blacklistSearchTimer = null
 const blacklistTabs = [
-  { value: 'actor', label: '演员黑名单' },
-  { value: 'genre', label: '类别黑名单' },
-  { value: 'resource', label: '资源黑名单' },
+  { value: 'actor', label: '演员' },
+  { value: 'genre', label: '类别' },
+  { value: 'resource', label: '资源' },
 ]
 
 const normalizedBlacklistSearch = computed(() =>
