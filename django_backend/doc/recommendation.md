@@ -1,6 +1,6 @@
 # Recommendation Overview
 
-本文档说明当前后端实际生效的推荐机制实现。内容以 `django_backend/nassav/recommendation/`、`nassav/http/recommendation_views.py` 与现有测试为准，不再保留历史方案设想。
+本文档说明当前后端实际生效的推荐机制实现。内容以 `django_backend/nassav/recommendation/`、`nassav/http/recommendation_job_views.py`、兼容 `recommendation_views.py` 与现有测试为准，不再保留历史方案设想。
 
 ## 当前实现结论
 
@@ -15,21 +15,30 @@
   - 搜索页回退召回
   - Jable 热榜与最近更新 discovery 页
 
-推荐流程概括如下：
+生产推荐流程概括如下：
 
-1. 从本地 `AVResource` 统计 actor / genre 偏好，生成推荐种子
-2. 优先走 Jable 映射页召回，映射缺失或映射页无结果时回退搜索页
-3. 额外引入 Jable 热榜与最近更新作为 discovery 候选
-4. 过滤本地已存在资源与 AVID 黑名单中的 `avid`
-5. 如果候选仍不足，则继续向低位种子扩展召回
-6. 对候选做历史避让、打分、去重和多样性重排
-7. 持久化 snapshot / items，供下次历史避让与审计使用
+1. API 建立 RecommendationJob，scrape worker 条件领取，准备本地偏好种子和历史上下文。
+2. 演员/类别交替按小批次召回，映射缺失或空页时回退关键词；过滤已有资源、黑名单与近期历史，足够后进入详情。
+3. 使用公共 ProxyServer 有序有界并发；每个来源/会话/网络控制独立，协调线程统一合并候选与共享详情尝试预算。
+4. 预排序候选后核验详情；详情失败消耗预算，黑名单再次过滤，合格新鲜数量满足目标即停止。不足时使用剩余种子及热门/最新补召回。
+5. 按历史避让、偏好评分和多样性排序输出；网络软预算耗尽只能保留已核验合格资源，无合格结果明确失败。
+6. 短事务检查历史 generation、执行 UUID、任务状态和硬期限，原子提交 snapshot/items 与 job.result；取消/重置后的旧执行不得回填。
+
+生产任务硬期限 300 秒（含排队），网络提前 30 秒结束。运行快照仅提供数量/阶段，不流式发布资源卡片；最终成功才提供 result。同步 GET 保留原有完整首轮召回与执行范围，不使用生产 job 软预算。详细统计、未知身份黑名单规则与执行契约见[推荐架构](recommendation-architecture.md)。
 
 ## API
 
+### 生产入口：推荐任务
+
+- `POST /nassav/api/recommendations/jobs`：JSON 参数，返回 202 与 job_id/version。
+- `GET /nassav/api/recommendations/jobs/{job_id}`：查询本人任务状态/进度，成功后获得 items/seeds/meta。
+- `POST /nassav/api/recommendations/jobs/{job_id}/cancel`：幂等取消，已结束任务保持原终态。
+
+生产前端使用此入口；进度和错误字段以[接口文档](interface.md)为准。
+
 ### 1. `GET /nassav/api/recommendations/`
 
-统一推荐接口。
+同步兼容接口，生产前端不再使用。
 
 当前支持的 query 参数：
 
@@ -763,7 +772,7 @@ HTTP 仅提交；Celery `nassav.tasks.recommendation_job_task` 在 `scrape` 队�
 清空历史原子递增 `RecommendationState.generation`、取消未结束 job、删除 snapshot；
 同步兼容请求也检查准备时的 generation。成功保存 snapshot 和任务结果位于同一短
 事务内，先取得历史 fence 再取得任务 fence，不包含网络请求。
-部署需先应用迁移 0026，再重启 API 与各 worker；本文只证明隔离验证，尚未做真实部署验收。
+部署需先应用迁移 0026，再重启 API 与各 worker。引入阶段以隔离验证为主，本轮用户对推荐可用性的确认与专项待验范围见[验证状态](validation-status.md)。
 
 ## 黑名单核验与反馈一致性
 
@@ -774,3 +783,17 @@ HTTP 仅提交；Celery `nassav.tasks.recommendation_job_task` 在 `scrape` 队�
 反馈、历史重置与 snapshot 提交共用历史写入 fence；反馈在读取旧值前取得 fence，
 相同 like 的并发请求不会重复增加 accepted_count。该短事务不包含来源请求。
 临时文件 SQLite 的真实并发回归验证互斥与计数；尚未进行目标 PostgreSQL 并发验收。
+
+## 缓存、历史与本地图片
+
+| 对象                               | 当前策略                                                            | 失效/清理                                              |
+| ---------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------ |
+| Jable 列表与详情                   | 共用来源缓存；列表/关键词/详情默认 1800 秒，热门/最新默认 300 秒    | TTL 过期；详情使用 video_detail_v2 隔离旧污染缓存      |
+| 推荐 snapshot/items 与 SeedProfile | DB 历史、审计与偏好输入，不作为最终结果缓存                         | 用户重置历史；反馈与提交共享历史 fence                 |
+| RecommendationJob                  | DB 持久任务及成功结果                                               | 恢复循环清理已结束且更新超过一天的 job，不连带清理历史 |
+| 前端推荐列表                       | 同标签页 sessionStorage 保存完整跨轮去重列表、偏好与成功用时        | 清空页面/历史重置；无定时 TTL，不是后端结果缓存        |
+| 本地推荐/外部搜索封面              | cover 接口按 URL SHA-256 文件名缓存于 resource/recommendation_cover | 当前无自动 TTL/定时删除，重置历史或删除 job 不清理图片 |
+
+推荐每次新请求重新运行候选和评分，来源页缓存可以命中；外部搜索另有按查询参数缓存的聚合成功结果（默认 300 秒），只缓存完整成功，部分/失败/取消不写成功缓存。两者共享封面接口，图片残留不代表后台任务仍在执行。本轮未新增图片清理机制，也不应把历史重置误用为文件清理；后续增加 GC 需独立设计并发读写与保留策略。
+
+Jable 详情只读取 section.video-info 内的演员/标签/类别，演员完整名称优先 tooltip；导航和侧栏不能参与核验。召回数是本轮唯一 AVID 总量，包含可能被已有资源/历史过滤的条目；详情成功、黑名单排除、未核验和最终返回量分别解释，不把返回/召回比值当作详情核验成功率。

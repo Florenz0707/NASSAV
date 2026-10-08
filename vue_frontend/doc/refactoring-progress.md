@@ -79,3 +79,7 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 黑名单固定 13rem 列表上限导致弹窗剩余区域无法展示条目。现在桌面列表填满剩余高度，偏好列独立滚动；窄屏内容区整体滚动，标题固定，条目不压缩。SettingsModal 新增默认空值的 contentClass，不改变其他消费者布局。
 
 验证：`pnpm run check`（72 项测试、ESLint、构建）、`pre-commit run -a`；Chromium 模拟 API 的 `recommendationBlacklist.cjs` 覆盖 40 项长列表、900/600 高度桌面填充与末项访问、移动端末项访问及原迟到请求/类型切换；`recommendationRestore.cjs` 和 `components.cjs` 检查已有布局、恢复与公共弹窗生命周期。本轮无后端修改或真实 worker 联调。
+
+## 2026-10-08 v2.4.5 文档汇总
+
+阶段分支 `docs/release-2.4.5`，提交标题 `[Doc] Release 2.4.5 recommendation and UI documentation`。汇总 2.4.4 之后的推荐 worker/公共代理并发和前端细化，保留用户主题与布局；更新 README、推荐说明/架构、前端开发入口与约束、验证状态和前后端版本元数据。验证为 `pnpm run check`（72 项、lint/build）、离线 uv 锁文件检查、版本/修改文档链接和全量 pre-commit；不重复声明真实服务验收，历史浏览器证据保留在对应阶段。

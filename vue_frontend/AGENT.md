@@ -17,6 +17,8 @@
 - 颜色使用 main.css 的主题 token 及 Tailwind 语义映射，禁止组件新增颜色字面量；新增 token 检查深浅主题和生成样式，保留显式 `@config`。
 - 优先使用 AppButton、AppInput、SearchInput、PageLoad、RequestError、ResourcePagination、CustomSelect、ConfirmDialog、AppIcon 与 useDialog；组件样式使用合适的 CSS layer，不覆盖工具类的布局/显示效果。
 - 控件只覆盖布局，不用旧类或内联背景覆盖公共按钮五态；强调色文字与背景使用各自 token。页面加载超过一秒展示骨架或 loading，刷新保留内容、错误提供重试，动画平缓且尊重减少动态效果偏好。
+- 推荐生产查询使用 recommendationJob 的任务身份/版本护栏；页面初始化恢复前不发新查询，跨轮合并列表在每轮完成及 pagehide 持久化。前端计时仅作展示，不替代后端 deadline；资源添加按返回 job_id 的授权保存快照禁用，不等待翻译整体成功。
+- 长列表弹窗明确视口高度与滚动所有者，桌面列表填满剩余空间、窄屏完整访问末项；保持标题/关闭可访问，不以固定小高度留下不可用空白。
 - 核心图标使用有明确尺寸的 currentColor SVG；弹窗/下拉检查键盘、焦点、禁用项、嵌套和卸载清理，移动端布局一并验证。
 
 ## 验证与文档

@@ -318,7 +318,7 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 
 会话读写由 `CookieRepository` ABC 约束，生产实现仍为 `SourceCookieRepository`。Source 的会话获取、验证和刷新协调位于 `SourceSessionLifecycle`，可注入独立存储与协调器。完整快照字段、数据库版本校验、人工写入优先、CAS 和缓存格式保持现有行为；本轮迁移没有 schema 或迁移文件变化。
 
-核心能力与 ORM Adapter 的分工见[模块边界](p5-domain-boundaries.md)，复验命令见[测试说明](../tests/README.md)。本轮职责整理未引入 schema 或数据库迁移。
+核心能力与 ORM Adapter 的分工见[任务架构](task-control-architecture.md)与[推荐架构](recommendation-architecture.md)，复验命令见[测试说明](../tests/README.md)。本轮职责整理未引入 schema 或数据库迁移。
 
 ## 持久任务记录（任务控制 P1）
 
@@ -335,13 +335,13 @@ P2 迁移 `0023_taskassettarget` 新增正式资产发布标记表，按 `(root,
 
 SQLite/PostgreSQL 均通过版本条件更新和事务保证并发控制；SQLite 的瞬时锁竞争可有限重试，不忽略其他数据库错误。暂停处理中禁止恢复，终止优先于暂停；确认执行停止后才进入 paused/cancelled。`cancelled` 与 `cleanup_state` 独立，DB 控制记录不证明文件已经清理。
 
-P4 迁移 `0024_taskevent_taskeventreceipt_and_more` 新增资源提交事件出箱及收件去重记录：TaskEvent 按 `(job, event)` 唯一，稳定 UUID 跨派发重试不变；TaskEventReceipt 按 `(event, consumer)` 唯一。资源与事件登记在同一个受控事务内，派发在事务外，失败保留 pending。现有日志消费者去重，新增具有业务副作用的消费者仍需自己的幂等收件。部署须核对 0024；验证和限制见[P4 执行记录](../../docs/task-control-p4-results.md)。
+P4 迁移 `0024_taskevent_taskeventreceipt_and_more` 新增资源提交事件出箱及收件去重记录：TaskEvent 按 `(job, event)` 唯一，稳定 UUID 跨派发重试不变；TaskEventReceipt 按 `(event, consumer)` 唯一。资源与事件登记在同一个受控事务内，派发在事务外，失败保留 pending。现有日志消费者去重，新增具有业务副作用的消费者仍需自己的幂等收件。部署须核对 0024；验证和限制见[事件出箱架构](task-control-architecture.md)。
 
-P5 迁移 `0025_avresource_translation_generation_and_more` 新增私有翻译 generation/owner 字段，不作为资源 API 字段展示。元数据保存与归属失效在同一 ORM 事务内；请求和领取递增 generation，结果及异常仅更新本 owner/version。TaskAttempt.role=translation 表示所属子派发，父执行交接为 stopped，整体 queued 等待子执行；恢复新 generation/main，已保存资源直接交接新 child。TaskJob.translation 与整体状态/时间线共同持久化，不将资源 pending 状态解释为父任务恢复。部署须核对 0025，见[P5](../../docs/task-control-p5-results.md)。
+P5 迁移 `0025_avresource_translation_generation_and_more` 新增私有翻译 generation/owner 字段，不作为资源 API 字段展示。元数据保存与归属失效在同一 ORM 事务内；请求和领取递增 generation，结果及异常仅更新本 owner/version。TaskAttempt.role=translation 表示所属子派发，父执行交接为 stopped，整体 queued 等待子执行；恢复新 generation/main，已保存资源直接交接新 child。TaskJob.translation 与整体状态/时间线共同持久化，不将资源 pending 状态解释为父任务恢复。部署须核对 0025，见[所属翻译架构](task-control-architecture.md)。
 
 P7 不增加 schema。恢复扫描依据 TaskAttempt 的 worker host/boot_id/PID namespace/PID/start_ticks，心跳超时只触发核查；身份未知保持原控制状态并记 RECOVERY_UNCONFIRMED。原 writer 确认退出后 stopped attempt，按取消意图进入 cancelled 或保留 paused，翻译归属仅收尾该子执行。未恢复的 promoting 日志禁止恢复和正式资源删除，避免删除后旧补偿恢复文件；后台重试日志和清理，失败不复活任务。
 
-迁移顺序为 0022 → 0023 → 0024 → 0025；实施前备份并停用旧消费者，生产迁移及回滚操作见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。SQLite/PostgreSQL 隔离证据见[P7](../../docs/task-control-p7-results.md)，不代表生产切换验收。
+迁移顺序为 0022 → 0023 → 0024 → 0025；实施前备份并停用旧消费者，生产迁移及回滚操作见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。SQLite/PostgreSQL 隔离证据见[验证状态与历史记录](validation-status.md)，不代表生产切换验收。
 
 持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](validation-status.md)为准。
 

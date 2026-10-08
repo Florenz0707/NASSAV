@@ -6,6 +6,7 @@
 
 - 资源浏览、搜索、添加、刷新、下载与批量操作；按演员和类别聚合。
 - 三个 Celery 队列分别处理默认任务、刮削和下载；持久任务支持单条/批量暂停、恢复、终止与停止后的私有产物清理。
+- 推荐通过独立持久任务在 scrape worker 执行，支持进度、取消、反馈、历史避让和黑名单；外部搜索与推荐共用代理服务器并发能力。
 - 单用户 Django 会话保护业务 API 和任务 WebSocket；登录后使用浏览器 Cookie 与 CSRF 令牌。
 - [前端页面与本地开发](vue_frontend/README.md) · [后端本地开发](django_backend/README.md) · [后端接口](django_backend/doc/interface.md) · [数据库说明](django_backend/doc/database.md)
 - [重构原则与持续开发约束](docs/development-principles.md) · [后端任务架构与职责](django_backend/doc/task-control-architecture.md) · [前端开发契约](vue_frontend/doc/development-contracts.md) · [Agent 规范](AGENTS.md)
@@ -31,16 +32,44 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 资源添加/刷新通过异步任务执行；演员和类别外部搜索支持来源选择、渐进结果、取消和终态补查。下载和批量翻译的 owner/异常收尾修复、资源/下载/翻译/推荐用例分层已实现；消费者 URL、响应字段和 Celery 任务名保持。
 
-用户已确认任务与资产权限改进验收完成，并在 2.4.4 文档修订前结束本轮前端改进。前端语义与模块重构、控件与页面反馈、布局和主题调整见[前端开发契约](vue_frontend/doc/development-contracts.md)及[模块布局](vue_frontend/doc/module-layout.md)；各阶段浏览器验收使用模拟 API/WS，不替代真实服务联调。最新资产权限修复提交 `bbe3288` 的历史隔离门槛为 743 passed、28 skipped；本次文档修订不重新执行部署或业务验收。独立 PostgreSQL 备份恢复、另一设备 HTTPS/WSS 等专项不由本轮确认自动覆盖，具体范围见[验证状态](django_backend/doc/validation-status.md)。
+用户此前已确认任务与资产权限改进验收完成，本轮也确认推荐系统可用。v2.4.5 汇总推荐异步化、公共代理并发及推荐/任务页面调整；后端最近完整隔离门槛为 801 passed、28 skipped，前端最近为 72 项测试通过。浏览器布局与生命周期验收使用模拟 API/WS；用户确认与受控来源实验的范围见[验证状态](django_backend/doc/validation-status.md)。本次文档修订不重新部署或提交真实任务，独立 PostgreSQL 并发、备份恢复及另一设备 HTTPS/WSS 仍需专项验收。
 
 ## 文档导航
 
 - 本地开发：[后端](django_backend/README.md)、[前端](vue_frontend/README.md)
 - 消费者与数据：[接口与权限](django_backend/doc/interface.md)、[数据库与备份](django_backend/doc/database.md)、[推荐系统](django_backend/doc/recommendation.md)
-- 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[任务架构与职责](django_backend/doc/task-control-architecture.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
+- 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[推荐架构](django_backend/doc/recommendation-architecture.md)、[代理并发](django_backend/doc/proxy-concurrency.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
 - 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[验证状态](django_backend/doc/validation-status.md)
 
 ## 版本更新
+
+### v2.4.5（2026-10-08）
+
+#### 🆕 新增
+
+- **异步推荐任务**：推荐交由 scrape worker 执行，DB 持有任务状态；前端按任务 ID/版本轮询进度，支持主动取消，失败可重试。历史重置和取消阻止旧执行回填。
+- **代理服务器并发**：外部搜索与推荐接入公共 ProxyServer 能力，来源不依赖具体浏览器 provider。独立请求隔离会话与任务控制，Redis 跨 worker 共享容量；BrowserFetch 默认两路，可配置为串行。
+- **推荐核验信息**：分别展示召回、详情成功、黑名单排除、未核验与合格数量；紧凑摘要提供前端实时计时，完成后保留成功批次用时。
+
+#### 🔧 优化
+
+- **推荐召回与预算**：按需交替召回演员/类别种子，足够后进入详情，热门/最新和剩余种子延后补充；详情共享尝试预算，满足目标即停止。网络预算耗尽时保留已核验合格结果，无合格结果明确失败。
+- **推荐页面层级**：结果优先展示，历史信息收进 info 弹窗，核验与推荐依据默认折叠；个性化集中偏好和黑名单。失败提示移到页底继续推荐下方，清空页面保留在页头。
+- **统一卡片与控件**：推荐和外部搜索复用添加/查看动作；推荐屏蔽按钮移至反馈按钮旁，圆角一致，演员/类别依据分别使用 coral/teal。黑名单标题与五态选项同排，桌面列表填满剩余空间，移动端完整滚动。
+- **任务与导航**：任务跟踪统计移至说明弹窗，移除刷新列表按钮；导航在页面顶部隐藏分割线，下滑后显示，保留透明背景与现有主题调整。
+
+#### 🐛 修复
+
+- 修复 Jable 详情整页解析误将导航类别当作资源类别的问题，恢复演员完整名称；独立详情缓存版本隔离旧污染数据。
+- 修复推荐来源失败伪装为空结果、详情失败不消耗预算、黑名单漏过未核验资源及并发反馈计数竞争。
+- 修复推荐资源已保存但仍翻译时添加按钮未禁用，以及同 AVID 的其他任务误影响添加状态的问题。
+- 修复网页刷新丢失后续推荐批次，失败追加保留已有结果；清空与历史重置同步持久化。
+- 修复回到顶部悬浮样式、历史重置事件接线、弹窗动态布局与空页脚，以及黑名单固定高度造成的空白区域。
+
+#### 📚 文档
+
+- 更新推荐使用说明、异步任务与代理并发架构、前端开发约束、升级要求和验证状态；前后端版本统一为 2.4.5。本版汇总 `f8238dc..1e92dd1`，保留用户布局调整与各阶段历史证据。
+- 从 2.4.4 升级需应用数据库迁移 0026，再同步更新 API、worker 与前端，统一浏览器并发配置；详见[推荐架构](django_backend/doc/recommendation-architecture.md)及[验证状态](django_backend/doc/validation-status.md)。
 
 ### v2.4.4（2026-10-07）
 

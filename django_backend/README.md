@@ -37,7 +37,7 @@ API 默认监听 `127.0.0.1:9790`。默认 worker 不消费 `scrape` 和 `downlo
 
 ## 开发检查
 
-开发原则与扩展约束见[共同原则](../docs/development-principles.md)、[模块边界](doc/p5-domain-boundaries.md)及 [AGENT.md](AGENT.md)。
+开发原则与扩展约束见[共同原则](../docs/development-principles.md)、[任务架构](doc/task-control-architecture.md)与[推荐架构](doc/recommendation-architecture.md)及 [AGENT.md](AGENT.md)。
 
 `manage.py check` 使用当前实例配置，运行前确认数据库和资源目录；离线业务门槛使用专用测试设置：
 
@@ -52,14 +52,15 @@ uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 
 ## 代码导航
 
-HTTP 在 `nassav/http/` 按业务分组，URL 在 `nassav/urls.py`。核心编排在 resource_workflow、download_workflow、translation_workflow 和 recommendation/workflow；对应 contracts 定义消费能力，composition 装配默认 Adapter。Celery 入口保留 `nassav.tasks.*` 名称，队列/进度在 download_queue，运维薄任务在 maintenance_tasks。生产 facade 保留已有调用方，新核心不要反向导入默认实例。完整接口与扩展规则见[模块边界](doc/p5-domain-boundaries.md)。
+HTTP 在 `nassav/http/` 按业务分组，URL 在 `nassav/urls.py`。核心编排在 resource_workflow、download_workflow、translation_workflow 和 recommendation/workflow；对应 contracts 定义消费能力，composition 装配默认 Adapter。Celery 入口保留 `nassav.tasks.*` 名称，队列/进度在 download_queue，运维薄任务在 maintenance_tasks。生产 facade 保留已有调用方，新核心不要反向导入默认实例。完整接口与扩展规则见[任务架构](doc/task-control-architecture.md)与[推荐架构](doc/recommendation-architecture.md)。
 
 ## 详细文档
 
 - [接口、登录与任务 WebSocket](doc/interface.md)
 - [数据库模型、模式与备份](doc/database.md)
 - [配置校验与覆盖顺序](doc/configuration-contract.md)
-- [资源、下载、推荐模块边界](doc/p5-domain-boundaries.md)
+- [推荐算法与使用说明](doc/recommendation.md)、[推荐任务架构](doc/recommendation-architecture.md)
+- [代理服务器并发与容量](doc/proxy-concurrency.md)
 - [持久任务控制、资产提交与扩展约束](doc/task-control-architecture.md)
 - [Compose 部署和外部 PostgreSQL](doc/compose-deployment.md)
 - [维护与现场验证脚本](scripts/README.md)
@@ -71,3 +72,11 @@ HTTP 在 `nassav/http/` 按业务分组，URL 在 `nassav/urls.py`。核心编�
 ## License
 
 MIT License
+
+## v2.4.5 推荐任务与升级
+
+推荐生产入口是 `POST /nassav/api/recommendations/jobs`，在 scrape 队列执行；旧 GET 推荐保留同步兼容。下载/刮削 TaskJob 与 RecommendationJob 分别持有状态，不共用暂停/恢复协议。推荐来源与浏览器出口使用全局 Proxy.url，浏览器服务的控制连接直连；外部搜索和推荐共用 ProxyServer 并发能力。
+
+从 2.4.4 升级先备份数据库并执行 `uv run python manage.py migrate`（包含 0026），再以同一版本重启 API 与 worker、更新前端。所有进程保持相同 BrowserFetch.max_concurrency、代理 endpoint 与 Redis 容量域；默认两路，设置 1 可恢复串行。部署使用已有[Compose 入口](doc/compose-deployment.md)，本次文档更新不代替在线迁移或部署操作。
+
+推荐任务包含排队在内的硬期限为 300 秒，网络提前 30 秒收尾；已有核验结果可部分成功，取消、硬超时与来源失败不转成部分成功。详情尝试预算跨补召回共享，来源列表与详情缓存可复用，历史不作为推荐结果缓存；本地推荐封面目前没有自动过期清理，详见[推荐说明](doc/recommendation.md)。

@@ -75,7 +75,7 @@ worker 进程异常后，不复用运行 token；截止时间后失败，由用�
 
 新增能力至少覆盖：重复派发、取消与提交竞争、重置与迟到提交、超时、broker 补派、
 来源失败与空列表区别、代理实际路由、共享预算、未知详情和反馈并发计数。
-迁移 0026 仅在隔离 DB 验证，目标部署必须先 migrate 并重启 API/worker；
+迁移 0026 的自动化证据来自隔离 DB，目标部署必须先 migrate 并重启 API/worker；
 模拟浏览器与临时 SQLite、回环代理不等于真实来源/Byparr/Celery/PostgreSQL 验收。
 
 ## 代理并发
@@ -139,3 +139,11 @@ blacklist_excluded_count、unverified_count、qualified_count，详情尝试数�
 保留候选池中尚未核验的资源，合格为最终排名前符合返回条件的数量，返回数可能更少。
 已有资源与近期历史过滤可能另行减少候选，不能把 recalled_count 当作核验通过率分母。
 保留旧 excluded_unverified_count、candidate_count、verified_count 的兼容语义。
+
+## v2.4.5 前端消费者与发布边界
+
+前端 recommendationJob 只处理提交/版本轮询/取消；store 持有当前查询，页面保存完整合并列表及偏好到既有 sessionStorage。每轮结束、pagehide 和路由卸载都保存，初始化恢复前不发新请求；失败追加不丢成功批次。详情 progress 是数量快照，result 仅成功后可见，不应把本轮计时 UI 描述为后端资源流。
+
+useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代服务端 deadline/network_remaining_seconds。推荐卡片添加通过独立 resource job_id 跟踪，授权快照确认已保存即可禁用；所属翻译失败不能将已保存资源重新开放添加。前端详细约束见[开发契约](../../vue_frontend/doc/development-contracts.md)。
+
+从 2.4.4 升级涉及迁移 0026、API/scrape worker 与前端同步发布，所有 worker 统一代理容量配置。用户已在本轮确认推荐系统可用；该确认不扩大为独立 PostgreSQL、所有 provider 或高并发容量验收。v2.4.5 文档修订、历史隔离证据及仍待专项范围见[验证状态](validation-status.md)。
