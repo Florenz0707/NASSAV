@@ -422,6 +422,14 @@ ACTIVE_TRANSLATOR = CONFIG.get("Translator", {}).get("active", None)
 
 
 # Celery Beat schedule: daily consistency checks
+# Completed external-search jobs can be reused independently of source page caches.
+EXTERNAL_SEARCH_RESULT_TTL_SECONDS = integer(
+    CONFIG.get("ExternalSearch", {}).get("ResultTTLSeconds", 300),
+    "ExternalSearch.ResultTTLSeconds",
+    0,
+    86400,
+)
+
 # Optional provider-facts policy; shared by API and every worker.
 _cache_config = CONFIG.get("ResourceCache", {})
 RESOURCE_CACHE_POLICY = {

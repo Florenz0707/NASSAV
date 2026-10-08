@@ -41,3 +41,9 @@ BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受
 ## 持久抓取缓存
 
 可选 ResourceCache 块统一用于 API/worker；省略时使用安全默认值。SourceTTLSeconds 默认 604800、ScraperTTLSeconds 默认 2592000，范围 1–31536000；PlaybackTTLSeconds 默认 300，范围 1–3600。MetadataRetentionDays 默认 90（1–3650），PlaybackGraceHours 默认 24（1–720），CleanupBatchSize 默认 500（1–5000）。均拒绝布尔值、非法整数或越界值，块本身须为映射。新鲜期改动只影响新发布记录，配置后重启 API/worker/Beat。定期清理依赖 Beat，手动统计/有界清理入口和部署边界见[持久抓取缓存](resource-cache-architecture.md)。
+
+## 外部搜索任务结果复用
+
+可选 YAML `ExternalSearch.ResultTTLSeconds` 控制已成功外部搜索任务结果的复用时长（秒），默认 300，范围 0–86400；0 禁止已完成结果复用，但同查询 queued/running 任务仍去重。拒绝布尔值、非法整数和越界值，ExternalSearch 块须为映射。本地与 Compose 配置样例均提供此项；修改后同步重启 API 与 scrape worker。
+
+任务结果新鲜期从 completed_at 起算，强制重新搜索跳过已完成结果。Redis 查询 owner 按剩余复用时间有条件保留，不延长后来执行者的锁；任务快照保留一天，签名查询凭证覆盖执行预算及最大复用窗口。该项不改变 Jable 来源列表 TTL，也不启用可选聚合结果缓存 `EXTERNAL_SEARCH_CACHE_ENABLED`，更不控制数据库原站详情缓存。

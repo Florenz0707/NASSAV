@@ -516,3 +516,27 @@ def test_signed_status_pages_do_not_expose_internal_collection(
     assert api_client.get(url, {**params, "page": 0}).status_code == 400
     assert api_client.get(url, {**params, "token": "invalid"}).status_code == 403
     assert runtime[1].call_count == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "ttl,age,reused",
+    [(60, 59, True), (60, 60, False), (3600, 301, True), (0, 0, False)],
+)
+def test_completed_result_reuse_obeys_configured_ttl(
+    actor_factory, runtime, settings, monkeypatch, ttl, age, reused
+):
+    settings.EXTERNAL_SEARCH_RESULT_TTL_SECONDS = ttl
+    clock = [1000.0]
+    monkeypatch.setattr(search_jobs.time, "time", lambda: clock[0])
+    query = {"entity_type": "actor", "entity_id": actor_factory().pk, "source": "jable"}
+    first, duplicate = search_jobs.submit_search_job(query)
+    assert not duplicate
+    # Even disabled completed-result reuse must retain in-flight deduplication.
+    assert search_jobs.submit_search_job(query)[1]
+    runtime[0].save({**first, "state": "succeeded", "completed_at": clock[0]})
+    clock[0] += age
+    second, duplicate = search_jobs.submit_search_job(query)
+    assert duplicate is reused
+    assert (second["task_id"] == first["task_id"]) is reused
+    assert runtime[1].call_count == (1 if reused else 2)

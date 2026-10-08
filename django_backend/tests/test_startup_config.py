@@ -300,3 +300,15 @@ def test_invalid_resource_playback_cache_ttl_fails_startup(tmp_path, value):
     result = startup(config_path, env_path)
     assert result.returncode != 0
     assert "ResourceCache.PlaybackTTLSeconds" in result.stderr
+
+
+@pytest.mark.parametrize("value", [-1, True, 86401, "bad"])
+def test_invalid_external_search_result_ttl_fails_startup(tmp_path, value):
+    config_path = tmp_path / "config.yaml"
+    write_config(
+        config_path,
+        lambda config: config.update(ExternalSearch={"ResultTTLSeconds": value}),
+    )
+    result = startup(config_path, tmp_path / "absent.env")
+    assert result.returncode != 0
+    assert "ExternalSearch.ResultTTLSeconds" in result.stderr

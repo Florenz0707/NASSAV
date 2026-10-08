@@ -23,6 +23,7 @@ def load_yaml(path: Path) -> dict:
         "Database",
         "BrowserFetch",
         "ResourceCache",
+        "ExternalSearch",
         "FlareSolverr",
         "Source",
         "Scraper",

@@ -1494,3 +1494,7 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 ### 持久详情缓存统计
 
 推荐的 progress、effective_request 与 verification_context 可包含 `detail_cache_hit_count` 和 `detail_network_attempt_count`；`detail_attempt_count` 包含缓存及网络详情尝试。缓存命中仍使用当前黑名单与偏好，且不消耗网络详情尝试上限。显式刷新跳过详情缓存。缓存表迁移和时效约定见 [持久抓取缓存](resource-cache-architecture.md)。
+
+### 外部搜索任务结果 TTL
+
+相同查询的已成功任务按 YAML `ExternalSearch.ResultTTLSeconds` 复用，默认 300 秒，0 禁用，最大 86400 秒。强制刷新仍跳过已完成任务；queued/running 仍返回重复任务身份。结果新鲜期以 completed_at 为起点，不因轮询或迟到事件延长，原接口字段和 URL 不变。配置说明见[配置契约](configuration-contract.md)。

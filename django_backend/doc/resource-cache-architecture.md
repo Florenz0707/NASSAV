@@ -54,3 +54,7 @@ uv run python manage.py provider_cache --apply --limit 500
 未执行正式迁移、生产重启、真实站点和 Docker/目标 PostgreSQL 验收；隔离网络替身与 SQLite 不能证明真实反爬、签名链接有效期或并发数据库性能。部署后应观察冷/热推荐的 detail_cache_hit_count/detail_network_attempt_count、失效链接刷新、暂停恢复及定期清理统计。
 
 P5 最终完整隔离验证：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 831 passed/28 skipped（含配置非法值、有效租约保留、选择后续租竞争、缓存时效与当前来源优先、取消/重置/执行归属/截止时间 fence）；`uv run python manage.py makemigrations --check --dry-run --settings=django_project.refactoring_test_settings` 返回 No changes detected。根目录 pre-commit 格式修正后全通过才提交；未改钩子配置。
+
+## 从详情缓存添加资源
+
+添加仍创建受控刮削任务。仅相同提供者、域名/上下文、variant 和解析版本且未过期的事实可命中。来源元数据和播放缓存都有效时复用来源准备；若播放缓存已失效，目前会重新获取该来源页面并更新事实。scraper 缓存独立，推荐仅产生 source 事实时，添加仍需获取未缓存的 JavBus 等元数据。封面和新头像按 URL 下载到私有目录，数据库资源/关系保存及所属翻译仍执行；缓存不会代替这些业务副作用。显式刷新强制获取对应事实，选择其他来源不会混用旧来源缓存。

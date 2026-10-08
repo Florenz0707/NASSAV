@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import time
 from uuid import uuid4
 
@@ -21,7 +22,7 @@ from nassav.scrape_jobs import JobStore, RedisJobStore
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 
 JOB_DEADLINE = 1800
-RESULT_TTL = 300
+_RETAIN_RESULT_LOCK = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end"
 
 
 class SearchJobCancelled(Exception):
@@ -43,6 +44,27 @@ class RedisSearchJobStore(RedisJobStore):
     def _status_key(task_id: str) -> str:
         return f"nassav:search:job:{task_id}"
 
+    def save(self, snapshot: dict) -> dict:
+        current = super().save(snapshot)
+        if current["state"] == "succeeded":
+            # Keep the query owner for the configured reuse window, including windows > 4h.
+            remaining = max(
+                1,
+                math.ceil(
+                    current["completed_at"]
+                    + settings.EXTERNAL_SEARCH_RESULT_TTL_SECONDS
+                    - time.time()
+                ),
+            )
+            self.client.eval(
+                _RETAIN_RESULT_LOCK,
+                1,
+                self._lock_key(current["query_key"]),
+                current["task_id"],
+                remaining,
+            )
+        return current
+
 
 def search_job_token(task_id: str) -> str:
     return signing.dumps(task_id, salt="nassav.search.job")
@@ -50,7 +72,16 @@ def search_job_token(task_id: str) -> str:
 
 def valid_search_job_token(task_id: str, token: str) -> bool:
     try:
-        return signing.loads(token, salt="nassav.search.job", max_age=86400) == task_id
+        return (
+            signing.loads(
+                token,
+                salt="nassav.search.job",
+                max_age=max(
+                    86400, JOB_DEADLINE + settings.EXTERNAL_SEARCH_RESULT_TTL_SECONDS
+                ),
+            )
+            == task_id
+        )
     except signing.BadSignature:
         return False
 
@@ -160,7 +191,8 @@ def submit_search_job(
         existing = get_search_job(owner, store=store) if owner else None
         if existing and existing["state"] not in {"failed", "cancelled"}:
             # Forced requests only reuse work that is still running.
-            fresh = existing.get("completed_at", 0) + RESULT_TTL > time.time()
+            ttl = settings.EXTERNAL_SEARCH_RESULT_TTL_SECONDS
+            fresh = ttl > 0 and existing.get("completed_at", 0) + ttl > time.time()
             if existing["state"] in {"queued", "running"} or (
                 fresh and not query["force_refresh"]
             ):
