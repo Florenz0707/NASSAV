@@ -1383,7 +1383,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 
 关闭完整会话复用时，直连仍采用已有 Cookie 的传统请求方式，不进行完整 Cookie + UA 会话复用、自动验证保存或刷新协调；开启后采用配套 UA、出口与过期检查及已验证会话刷新。此改动不修改正式配置或自动启用复用。
 
-策略语义以本节与[配置契约](configuration-contract.md)为准；当前验证范围见[验证状态](validation-status.md)，历史现场报告不作为本次新测量。
+策略语义以本节与[配置契约](configuration-contract.md)为准；当前验证范围见[部署与验证边界](compose-deployment.md#近期改动与验证边界)，历史现场报告不作为本次新测量。
 
 ## 下载任务租约
 
@@ -1443,7 +1443,7 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 
 下载恢复校验持续网络超时返回持久任务 `state: paused`、`error_code: RESUME_VALIDATION_TIMEOUT`，保留未提交产物及 resume/cancel 动作。它不表示下载器已经启动或视频已完成；同 job/new attempt 重试核对当前播放列表/轨道/密钥身份及本地缓存哈希，不重新下载已缓存分片。校验通过后由 CLI 复用完整分片，仅下载缺失或损坏分片。相同 URL 下服务器替换字节而播放列表及密钥不变的情况无法检出；身份变化或不支持的轨道仍返回 RESTART_REQUIRED。
 
-持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](validation-status.md)为准。
+持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[部署与验证边界](compose-deployment.md#近期改动与验证边界)为准。
 
 ## 推荐任务（异步）
 

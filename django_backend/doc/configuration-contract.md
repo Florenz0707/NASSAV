@@ -16,7 +16,7 @@ Compose 所有后端服务以 `.env` 中 `NASSAV_UID:NASSAV_GID` 运行（默认
 
 BrowserFetch.session_reuse_enabled 只接受 YAML 布尔值，省略为 false。它只控制配套 Cookie+UA、过期/路线校验、自动验证保存和刷新协调，不改写各源 browser_fetch_strategy；关闭时 direct_first 仍先直连，使用已有 Cookie 的传统方式。页面顺序分别为 direct_first、browser_first、direct_only，以来源配置为准。开启完整复用后才使用经验证的配套会话；不自动修改正式配置或放行 MissAV。
 
-更改开关、来源策略或代理配置后重启 API 与持有 Source 实例的 worker。关闭复用与改为 browser_first 是两个独立操作；不要通过清空 Cookie 表代替配置切换。默认本地和 Compose 样例、模板具体值以上文为准，验收边界见[验证状态](validation-status.md)。
+更改开关、来源策略或代理配置后重启 API 与持有 Source 实例的 worker。关闭复用与改为 browser_first 是两个独立操作；不要通过清空 Cookie 表代替配置切换。默认本地和 Compose 样例、模板具体值以上文为准，验收边界见[部署与验证边界](compose-deployment.md#近期改动与验证边界)。
 
 ## 默认依赖装配
 

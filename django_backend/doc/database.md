@@ -322,7 +322,7 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 
 ## 持久任务记录（任务控制 P1）
 
-迁移 `0022_taskjob_taskcommand_taskattempt_taskartifact_and_more` 新增 TaskJob、TaskAttempt、TaskArtifact 与 TaskCommand，不修改现有资源数据。新下载及 HTTP 刮削提交已接入持久记录，Redis 仅作兼容投影；旧消息仍兼容但不支持控制。迁移执行情况按目标实例核对，不能从本文推断。实施全流程见[任务控制计划](../../docs/task-pause-cancel-design.md)。
+迁移 `0022_taskjob_taskcommand_taskattempt_taskartifact_and_more` 新增 TaskJob、TaskAttempt、TaskArtifact 与 TaskCommand，不修改现有资源数据。新下载及 HTTP 刮削提交已接入持久记录，Redis 仅作兼容投影；旧消息仍兼容但不支持控制。迁移执行情况按目标实例核对，不能从本文推断。当前控制协议与职责见[任务控制架构](task-control-architecture.md)。
 
 - TaskJob 保存稳定 UUID、类型/AVID、操作人、整体状态、version/generation、输入选项、检查点、时间线与清理汇总。`active_key` 唯一约束保留运行/等待/暂停任务的同类型同 AVID 名额，终态置空；任务没有 Redis 的 24 小时过期规则。
 - TaskAttempt 保存每次 Celery 派发 UUID、generation/role、执行 owner/identity、心跳与起止时间。恢复新建 attempt，旧消息不重新激活；pending 是可重试派发记录，发布失败保留，领取时原子拒绝重复执行。
@@ -341,9 +341,9 @@ P5 迁移 `0025_avresource_translation_generation_and_more` 新增私有翻译 g
 
 P7 不增加 schema。恢复扫描依据 TaskAttempt 的 worker host/boot_id/PID namespace/PID/start_ticks，心跳超时只触发核查；身份未知保持原控制状态并记 RECOVERY_UNCONFIRMED。原 writer 确认退出后 stopped attempt，按取消意图进入 cancelled 或保留 paused，翻译归属仅收尾该子执行。未恢复的 promoting 日志禁止恢复和正式资源删除，避免删除后旧补偿恢复文件；后台重试日志和清理，失败不复活任务。
 
-迁移顺序为 0022 → 0023 → 0024 → 0025；实施前备份并停用旧消费者，生产迁移及回滚操作见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。SQLite/PostgreSQL 隔离证据见[验证状态与历史记录](validation-status.md)，不代表生产切换验收。
+迁移顺序为 0022 → 0023 → 0024 → 0025；实施前备份并停用旧消费者，生产迁移及回滚操作见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。SQLite/PostgreSQL 隔离证据见[部署与验证边界](compose-deployment.md#近期改动与验证边界)，不代表生产切换验收。
 
-持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](validation-status.md)为准。
+持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[部署与验证边界](compose-deployment.md#近期改动与验证边界)为准。
 
 ## 推荐任务与历史代次（0026）
 

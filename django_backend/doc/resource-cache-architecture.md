@@ -1,6 +1,6 @@
 # 持久抓取缓存
 
-新增 ResourceMetadataCache 与 ResourcePlaybackCache（迁移 0027），不关联 AVResource，删除资源不会级联清理缓存；缓存本身不创建资源、演员、类别或推荐偏好。两张表使用相同规范化身份（AVID、提供者类型/名称、上下文哈希、版本路径哈希），播放表只接受 source。播放缓存不依赖元数据行，允许分别清理。
+新增 ResourceMetadataCache 与 ResourcePlaybackCache（迁移 0027；0028 后物理表名为 `nassav_resource_metadata_cache`、`nassav_resource_playback_cache`），不关联 AVResource，删除资源不会级联清理缓存；缓存本身不创建资源、演员、类别或推荐偏好。两张表使用相同规范化身份（AVID、提供者类型/名称、上下文哈希、版本路径哈希），播放表只接受 source。播放缓存不依赖元数据行，允许分别清理。
 
 ProviderFactsCache 消费 ProviderFactsStore，统一批量读取、字段证据、解析版本、新鲜期与有界 single flight；生产 ORM Adapter 只执行短条件写。网络在事务外，publication fence 由任务装配提供。缓存领取使用 UUID/generation/240 秒租期，最多等待 60 秒且每次检查控制；过期/失效/清理后的旧发布只能条件更新，不能 upsert 复活。失败与空结果不覆盖旧成功；已缓存结果深复制，缺少要求字段不记为验证成功。
 
@@ -49,9 +49,9 @@ uv run python manage.py provider_cache --apply --limit 500
 
 先备份数据库，暂停旧 API/worker 消费，再应用 0027 并一致更新 API、scrape/download worker 和 Beat。迁移只建两张空表，不恢复已删除业务资源，也不将旧数据库/Redis 中的过期播放地址升级为有效缓存。当前权限和资源目录策略不变。不要在新消费者运行时逆向迁移；停用新消费者后可逆向删缓存表，正式资源和原有业务表不受影响，但事实缓存全部丢失。
 
-隔离阶段依次在 feat/resource-cache-p1–p5 工作，通过完整 pytest 与 pre-commit 后提交合并 idle。已合并：7e80f14（P1）、6799434（P2）、cbf52a7（P3）、dd02b58（P4）；P5 提交标题为 `[Feat] Add bounded provider cache maintenance and policy configuration`。完整隔离结果依次 808/812/814/817 passed、各 28 skipped；P1 临时 SQLite 正向/反向/再次正向迁移通过。专项覆盖热/冷缓存、强制刷新、TTL、提供者/路径/出口隔离、错误身份、缺图恢复、无 HTML 发布、一次失效链接刷新、控制 fence 和清理竞争。
+隔离阶段依次在 feat/resource-cache-p1–p5 工作，通过完整 pytest 与 pre-commit 后提交合并 idle。已合并：7e80f14（P1）、6799434（P2）、cbf52a7（P3）、dd02b58（P4）；bc1d654（P5）。完整隔离结果依次 808/812/814/817 passed、各 28 skipped；P1 临时 SQLite 正向/反向/再次正向迁移通过。专项覆盖热/冷缓存、强制刷新、TTL、提供者/路径/出口隔离、错误身份、缺图恢复、无 HTML 发布、一次失效链接刷新、控制 fence 和清理竞争。
 
-未执行正式迁移、生产重启、真实站点和 Docker/目标 PostgreSQL 验收；隔离网络替身与 SQLite 不能证明真实反爬、签名链接有效期或并发数据库性能。部署后应观察冷/热推荐的 detail_cache_hit_count/detail_network_attempt_count、失效链接刷新、暂停恢复及定期清理统计。
+上述 P1–P5 阶段由 agent 进行隔离验证，未执行正式迁移或生产重启。2026-10-08 后续只读核查已观察到实例 PostgreSQL 应用至 0027；这不等于完成真实站点热缓存、签名链接有效期或并发性能验收。0028 表名迁移仅完成隔离验证，正式切换未执行，分项记录见[部署与验证边界](compose-deployment.md#近期改动与验证边界)。部署后应观察冷/热推荐的 detail_cache_hit_count/detail_network_attempt_count、失效链接刷新、暂停恢复及定期清理统计。
 
 P5 最终完整隔离验证：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 831 passed/28 skipped（含配置非法值、有效租约保留、选择后续租竞争、缓存时效与当前来源优先、取消/重置/执行归属/截止时间 fence）；`uv run python manage.py makemigrations --check --dry-run --settings=django_project.refactoring_test_settings` 返回 No changes detected。根目录 pre-commit 格式修正后全通过才提交；未改钩子配置。
 

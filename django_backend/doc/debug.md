@@ -89,7 +89,7 @@ progress_update 字段直接位于 data；任务事件还有 task_started/task_c
 
 首选[测试说明](../tests/README.md)中的 refactoring_test_settings；它隔离数据库、资源和网络。离线会话模拟、临时 Redis 的真实 Lua 与实际浏览器/站点分别记录。
 
-在线验证须显式 opt-in，并使用当前有效页面、源对应路线、独立库/Redis/文件目录（若探针需要写入）。参数和容器命令见[脚本说明](../scripts/README.md)，当前接受边界见[验证状态](validation-status.md)。Byparr /health 可能依赖外部连通性，HTTP 200、Cookie 存在和 TCP 成功均不能替代同站非挑战业务 HTML 校验。
+在线验证须显式 opt-in，并使用当前有效页面、源对应路线、独立库/Redis/文件目录（若探针需要写入）。参数和容器命令见[脚本说明](../scripts/README.md)，当前接受边界见[部署与验证边界](compose-deployment.md#近期改动与验证边界)。Byparr /health 可能依赖外部连通性，HTTP 200、Cookie 存在和 TCP 成功均不能替代同站非挑战业务 HTML 校验。
 
 日志 page_fetch 记录来源、路径类型、提供方、失败分类、浏览器次数、会话版本、锁等待与耗时；scrape_job 记录队列等待和任务耗时。task_id/request_id 用于关联同一执行，检查前确认日志未包含原始 Cookie、UA 或代理凭据。生产策略/等待候选不因本地调试结果自动放行。
 

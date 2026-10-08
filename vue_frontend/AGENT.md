@@ -2,7 +2,7 @@
 
 ## 开发前
 
-- 阅读[仓库规范](../AGENTS.md)、[重构原则](../docs/development-principles.md)和[前端开发契约](doc/development-contracts.md)，核对公开组件、状态所有者和生命周期。
+- 阅读[仓库规范](../AGENTS.md)和[前端开发契约](doc/development-contracts.md)，核对公开组件、状态所有者和生命周期。
 - 使用仓库指定的 `pnpm`，命令和浏览器环境见 [README](README.md)。
 
 ## 开发时

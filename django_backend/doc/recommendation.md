@@ -772,7 +772,7 @@ HTTP 仅提交；Celery `nassav.tasks.recommendation_job_task` 在 `scrape` 队�
 清空历史原子递增 `RecommendationState.generation`、取消未结束 job、删除 snapshot；
 同步兼容请求也检查准备时的 generation。成功保存 snapshot 和任务结果位于同一短
 事务内，先取得历史 fence 再取得任务 fence，不包含网络请求。
-部署需先应用迁移 0026，再重启 API 与各 worker。引入阶段以隔离验证为主，本轮用户对推荐可用性的确认与专项待验范围见[验证状态](validation-status.md)。
+部署需先应用迁移 0026，再重启 API 与各 worker。引入阶段以隔离验证为主，本轮用户对推荐可用性的确认与专项待验范围见[部署与验证边界](compose-deployment.md#近期改动与验证边界)。
 
 ## 黑名单核验与反馈一致性
 

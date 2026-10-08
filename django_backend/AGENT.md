@@ -2,7 +2,7 @@
 
 ## 开发前
 
-- 阅读[仓库规范](../AGENTS.md)、[重构原则](../docs/development-principles.md)和[任务架构与职责](doc/task-control-architecture.md)，核对目标用例与消费者。
+- 阅读[仓库规范](../AGENTS.md)和[任务架构与职责](doc/task-control-architecture.md)，核对目标用例与消费者。
 - 使用 `uv` 管理环境和运行 Python；配置变更同步 `config/config.example.yaml`，容器默认配置受影响时同步对应示例。
 - 接口、数据、推荐与运行行为分别核对 doc 下对应文档；脚本参数写入脚本说明和 [scripts/README.md](scripts/README.md)，测试入口维护于 [tests/README.md](tests/README.md)。
 
@@ -32,7 +32,7 @@ uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 
 默认 pytest 配置使用实例设置，不能省略 `--ds` 后声称隔离验证。复用能力替身和临时 SQLite/Redis fixture，覆盖异常、失租、幂等、终态和调用次数；在线测试显式 opt-in，不连接正式数据验证重构。根目录执行 `pre-commit run -a`，失败项修复后再提交/合并。
 
-按变更更新接口、数据、模块边界或运行说明；纯文档变更检查链接与命令并执行 pre-commit。报告提交、命令、通过/跳过及范围，目标环境验收按[验证状态](doc/validation-status.md)维护。
+按变更更新接口、数据、模块边界或运行说明；纯文档变更检查链接与命令并执行 pre-commit。报告提交、命令、通过/跳过及范围，目标环境验收按[部署与验证边界](doc/compose-deployment.md#近期改动与验证边界)维护。
 
 ## 持久任务开发约束
 

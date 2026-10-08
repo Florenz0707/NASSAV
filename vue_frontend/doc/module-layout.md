@@ -1,24 +1,24 @@
 # 前端模块布局与维护边界
 
-本轮目录重构采用业务就近放置；组件、状态、副作用各有所有者。组件数量或文件行数不是拆分标准，职责、生命周期和消费者能力才是。公开交互与状态约束见[开发契约](development-contracts.md)，通用原则见[重构原则](../../docs/development-principles.md)。
+本轮目录重构采用业务就近放置；组件、状态、副作用各有所有者。组件数量或文件行数不是拆分标准，职责、生命周期和消费者能力才是。公开交互与状态约束见[开发契约](development-contracts.md)，通用原则见[仓库开发规范](../../AGENTS.md)。
 
 ## 目录与入口
 
-| 位置                         | 内容与入口                                                                                                                                |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| src/views                    | 路由装配、导航和必要的跨模块协调；不另写查询或任务协议                                                                                    |
-| src/app                      | router、Navbar、WebSocket 连接及事件分发                                                                                                  |
-| src/shared                   | ui（按钮、菜单、复选框、封面等）、useDialog、请求版本工具、logger、toast；不依赖业务模块                                                  |
-| src/features/resources       | ResourceCard、添加结果、批量交互、useResourceSubmission；resource facade、resourceList 查询、downloadQueue 兼容队列；标题与资源操作纯函数 |
-| src/features/catalog         | 演员/类别目录与详情组件；directoryStore 和实体适配 store                                                                                  |
-| src/features/external-search | ExternalSearchPanel、结果卡片、能力/任务组合函数；手动搜索与带令牌快照生命周期                                                            |
-| src/features/tasks           | TaskDetailsPanel、TaskTimeline、taskJobs、历史刮削兼容状态/反馈及展示适配函数                                                             |
-| src/features/recommendations | 偏好/指标/种子/黑名单组件；推荐查询与视图偏好状态                                                                                         |
-| src/features/cookies         | Cookie 管理面板、弹窗及状态展示；来源 API 读写                                                                                            |
-| src/features/settings        | 用户设置 store、设置面板与字体配置                                                                                                        |
-| src/features/auth            | 会话状态，启动/失效和应用装配协作                                                                                                         |
-| src/api                      | client.js 唯一 HTTP 实例；领域 API 文件；index.js 保留原有具名导出入口                                                                    |
-| src/styles/main.css          | 全局主题 token、层级与 Tailwind 入口                                                                                                      |
+| 位置                         | 内容与入口                                                                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| src/views                    | 路由装配、导航和必要的跨模块协调；不另写查询或任务协议                                                                                                     |
+| src/app                      | router、Navbar、WebSocket 连接及事件分发                                                                                                                   |
+| src/shared                   | ui（按钮、菜单、复选框、封面等）、useDialog、请求版本工具、logger、toast；不依赖业务模块                                                                   |
+| src/features/resources       | ResourceCard、添加结果、批量交互、useResourceSubmission、useResourceAdds；resource facade、resourceList 查询、downloadQueue 兼容队列；标题与资源操作纯函数 |
+| src/features/catalog         | 演员/类别目录与详情组件；directoryStore 和实体适配 store                                                                                                   |
+| src/features/external-search | ExternalSearchPanel、结果卡片、能力/任务组合函数；手动搜索与带令牌快照生命周期                                                                             |
+| src/features/tasks           | TaskDetailsPanel、TaskTimeline、taskJobs、历史刮削兼容状态/反馈及展示适配函数                                                                              |
+| src/features/recommendations | 偏好/指标/种子/黑名单组件；推荐查询与视图偏好状态                                                                                                          |
+| src/features/cookies         | Cookie 管理面板、弹窗及状态展示；来源 API 读写                                                                                                             |
+| src/features/settings        | 用户设置 store、设置面板与字体配置                                                                                                                         |
+| src/features/auth            | 会话状态，启动/失效和应用装配协作                                                                                                                          |
+| src/api                      | client.js 唯一 HTTP 实例；领域 API 文件；index.js 保留原有具名导出入口                                                                                     |
+| src/styles/main.css          | 全局主题 token、层级与 Tailwind 入口                                                                                                                       |
 
 子模块通过明确的组件 props/emits、store 方法或纯函数入口协作。shared 不导入 features、views、app 或领域 API；请求 guard 和展示组件不能读取资源/任务 store。不要增加会同时加载 Vue 组件和所有 store 的领域大 barrel，避免循环依赖并保留纯函数的 Node 测试能力。
 
@@ -44,6 +44,6 @@ pnpm run check 包含 lint、单元测试、构建。模块布局回归检查 sh
 
 InfoDialog 位于 shared/ui，管理通用信息弹窗，不读取业务 store。TaskDetailsPanel 的 information 插槽供页面装配跟踪说明。RemoteResourceActions 位于 features/resources/components，供外部搜索和推荐卡片共用操作展示；推荐反馈与理由保留在推荐模块。
 
-推荐添加生命周期位于 features/recommendations/composables/useRecommendationAdds.js，消费提交能力和授权任务快照；RecommendationInformation 装配历史信息、刷新和重置弹窗；RecommendationContext 装配页内紧凑核验/种子摘要。页面持有偏好与推荐查询，借 RecommendationBlacklist 的 preferences 插槽装配联合偏好/黑名单弹窗。
+推荐与外部搜索共用 features/resources/composables/useResourceAdds.js，消费提交能力和授权任务快照；旧 features/recommendations/composables/useRecommendationAdds.js 仅兼容 re-export。添加状态由返回 job_id 与最新 version 管理，保存确认后禁用，不等待所属翻译结束；未保存的失败/取消可重试，卸载与迟到响应不得影响新请求。RecommendationInformation 装配历史信息、刷新和重置弹窗；RecommendationContext 装配页内紧凑核验/种子摘要。页面持有偏好与推荐查询，借 RecommendationBlacklist 的 preferences 插槽装配联合偏好/黑名单弹窗。
 
 useRecommendationElapsed 位于推荐 composables，仅负责当前查询本地计时与清理；成功批次用时和缓存恢复由 RecommendationsView 持有，RecommendationContext 仅展示该用时与授权核验统计。

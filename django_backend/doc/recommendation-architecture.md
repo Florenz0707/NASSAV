@@ -1,7 +1,7 @@
 # 推荐架构与开发约束
 
 本文维护当前实现，算法详见[推荐说明](recommendation.md)，传输字段见[接口](interface.md)，
-部署与验证边界见[验证状态](validation-status.md)。下载/刮削的资产控制仍由
+部署与验证边界见[部署与验证边界](compose-deployment.md#近期改动与验证边界)。下载/刮削的资产控制仍由
 [任务架构](task-control-architecture.md)维护，不能把推荐 job 当作下载 TaskJob。
 
 ## 状态与职责
@@ -146,7 +146,7 @@ blacklist_excluded_count、unverified_count、qualified_count，详情尝试数�
 
 useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代服务端 deadline/network_remaining_seconds。推荐卡片添加通过独立 resource job_id 跟踪，授权快照确认已保存即可禁用；所属翻译失败不能将已保存资源重新开放添加。前端详细约束见[开发契约](../../vue_frontend/doc/development-contracts.md)。
 
-从 2.4.4 升级涉及迁移 0026、API/scrape worker 与前端同步发布，所有 worker 统一代理容量配置。用户已在本轮确认推荐系统可用；该确认不扩大为独立 PostgreSQL、所有 provider 或高并发容量验收。v2.4.5 文档修订、历史隔离证据及仍待专项范围见[验证状态](validation-status.md)。
+从 2.4.4 升级涉及迁移 0026、API/scrape worker 与前端同步发布，所有 worker 统一代理容量配置。用户已在本轮确认推荐系统可用；该确认不扩大为独立 PostgreSQL、所有 provider 或高并发容量验收。v2.4.5 文档修订、历史隔离证据及仍待专项范围见[部署与验证边界](compose-deployment.md#近期改动与验证边界)。
 
 ## 共享原站事实缓存
 

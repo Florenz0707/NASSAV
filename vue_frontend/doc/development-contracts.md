@@ -1,6 +1,6 @@
 # 前端开发契约
 
-本轮 F1–F6 后的持续开发约束。共同设计原则见[重构原则](../../docs/development-principles.md)，阶段结果见[执行记录](refactoring-progress.md)，命令和浏览器环境见[前端 README](../README.md)。
+本轮 F1–F6 后的持续开发约束。共同设计原则见[仓库开发规范](../../AGENTS.md)，阶段结果见[执行记录](refactoring-progress.md)，命令和浏览器环境见[前端 README](../README.md)。
 
 ## 职责与复用入口
 

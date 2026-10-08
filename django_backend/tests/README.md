@@ -11,7 +11,7 @@ uv sync
 uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 ```
 
-专用设置强制无凭证 config.example.yaml、临时 SQLite/资源/用户设置、内存缓存/Channels，不读取实际 .env，不使用正式数据库模式声明。未模拟的 HTTP/curl/TCP 请求即使被业务吞掉，也在 fixture 收尾时报错。`test_task_network_proxy.py` 单文件使用仅限 loopback 的真实 curl 替身传输护栏，临时 HTTP 服务分别充当目标/代理，校验 HTML、封面、头像、HTTPS CONNECT、环境变量优先级和 Byparr 控制直连；不访问外站，服务结束关闭。临时 Redis 只监听 Unix socket、不开 TCP/持久化，退出时清理；需要系统可启动子进程及本地套接字。当前缺项和历史数量见[验证状态](../doc/validation-status.md)，通过数量须对应提交与日期。
+专用设置强制无凭证 config.example.yaml、临时 SQLite/资源/用户设置、内存缓存/Channels，不读取实际 .env，不使用正式数据库模式声明。未模拟的 HTTP/curl/TCP 请求即使被业务吞掉，也在 fixture 收尾时报错。`test_task_network_proxy.py` 单文件使用仅限 loopback 的真实 curl 替身传输护栏，临时 HTTP 服务分别充当目标/代理，校验 HTML、封面、头像、HTTPS CONNECT、环境变量优先级和 Byparr 控制直连；不访问外站，服务结束关闭。临时 Redis 只监听 Unix socket、不开 TCP/持久化，退出时清理；需要系统可启动子进程及本地套接字。当前缺项和历史数量见[部署与验证边界](../doc/compose-deployment.md#近期改动与验证边界)，通过数量须对应提交与日期。
 
 ## 按链路定位
 
@@ -41,11 +41,11 @@ fixture resource_factory、api_client、ws_headers、settings、tmp_path 等在 
 
 ## 冻结与故障行为
 
-`test_task_records.py` 验证持久任务的排队/运行暂停、恢复新 attempt、终止确认、幂等命令、操作者权限、派发失败恢复及真实线程并发；专项也在隔离 PostgreSQL 16 上执行，记录见[任务控制 P1](../../docs/task-control-p1-results.md)。迁移测试必须在 finally 恢复执行前迁移图的叶节点，不能只恢复到所测旧迁移，以免删除后来新增表并污染后续测试。
+`test_task_records.py` 验证持久任务的排队/运行暂停、恢复新 attempt、终止确认、幂等命令、操作者权限、派发失败恢复及真实线程并发；专项也在隔离 PostgreSQL 16 上执行，当前身份与控制协议见[任务架构](../doc/task-control-architecture.md#任务身份控制与停止确认)。迁移测试必须在 finally 恢复执行前迁移图的叶节点，不能只恢复到所测旧迁移，以免删除后来新增表并污染后续测试。
 
-`test_task_assets.py` 使用真实临时文件与测试 DB 验证私有产物、已有文件/共享头像保护、相同内容回滚、DB 保存失败、多文件提交补偿、停止后崩溃恢复、后续发布 fencing、路径/符号链接拒绝、清理权限失败重试及正式删除 409。与 task_records 的 41 项专项在 SQLite/PostgreSQL 16 验证，见[P2 执行记录](../../docs/task-control-p2-results.md)。测试故障注入不证明真实 worker 崩溃恢复或 CLI 已接入。
+`test_task_assets.py` 使用真实临时文件与测试 DB 验证私有产物、已有文件/共享头像保护、相同内容回滚、DB 保存失败、多文件提交补偿、停止后崩溃恢复、后续发布 fencing、路径/符号链接拒绝、清理权限失败重试及正式删除 409。与 task_records 的 41 项专项在 SQLite/PostgreSQL 16 验证，当前资产协议见[任务架构](../doc/task-control-architecture.md#私有资产发布与补偿)。测试故障注入不证明真实 worker 崩溃恢复或 CLI 已接入。
 
-`test_controlled_download.py` 与 `test_task_control_http.py` 验证下载停止/提交竞争、暂停释放真实 Redis 槽位、未知 writer 保留归属、分片/AES 身份、推送和 broker 失败、权限与版本输入；`test_local_cli_task_control.py` 默认跳过，设置 NASSAV_LOCAL_DOWNLOAD_BINARY 为固定 P0 二进制绝对路径后，使用本地生成 HLS 和 loopback 做真实 CLI 明文/AES 暂停恢复与全量解码对比（12/240 分片，较大样例暂停时至少 151 个完整分片），核对恢复时完整缓存分片的 HTTP 请求数不增加。所有文件/DB 临时隔离；来源解析/校验 HTTP 为本地替身，此项不是非 eager Celery 或来源网站验收。见[P3 执行记录](../../docs/task-control-p3-results.md)。
+`test_controlled_download.py` 与 `test_task_control_http.py` 验证下载停止/提交竞争、暂停释放真实 Redis 槽位、未知 writer 保留归属、分片/AES 身份、推送和 broker 失败、权限与版本输入；`test_local_cli_task_control.py` 默认跳过，设置 NASSAV_LOCAL_DOWNLOAD_BINARY 为固定 P0 二进制绝对路径后，使用本地生成 HLS 和 loopback 做真实 CLI 明文/AES 暂停恢复与全量解码对比（12/240 分片，较大样例暂停时至少 151 个完整分片），核对恢复时完整缓存分片的 HTTP 请求数不增加。所有文件/DB 临时隔离；来源解析/校验 HTTP 为本地替身，此项不是非 eager Celery 或来源网站验收。当前续传边界见[任务架构](../doc/task-control-architecture.md#下载续传边界)。
 
 test_refactoring_baseline 保留“正常下载先通知成功、DB 写入失败仍成功”以及“资源写库失败保留 HTML、不发布新增事件”的现有顺序。独立下载 owner 回归确认失租不能更新成功；批量翻译错误只收尾本批 translating，保留旧译文和部分完成。语义修复要有明确的新旧对照，不能为了结构迁移改变此类断言。
 
@@ -58,7 +58,7 @@ refactoring_test_settings 跳过 external 标记；开启外部开关也不会�
 - test_browser_fetch_integration 使用 BROWSER_FETCH_EXTERNAL=1，还需当前有效的 BROWSER_FETCH_URL、BROWSER_FETCH_MISSAV_URL/AVID、BROWSER_FETCH_JABLE_URL/AVID；服务不可用或业务校验失败按失败记录，不算离线通过。
 - test_resource_samples、test_real_resource_kir062、test_debug_requests 等旧样本需要 NASSAV_EXTERNAL_TESTS=1，可能写数据库/文件或请求真实站点；使用确认的测试配置与目录。
 - Ollama/真实封面/头像等遗留样本按各文件的标记和可用性条件执行，分别报告 skipped、失败和通过，不把跳过写成环境已接受。
-- PostgreSQL、API/worker 共享状态、真实下载、HTTPS/WSS 和备份恢复需专用实例与实际记录，见[验证状态](../doc/validation-status.md)。
+- PostgreSQL、API/worker 共享状态、真实下载、HTTPS/WSS 和备份恢复需专用实例与实际记录，见[部署与验证边界](../doc/compose-deployment.md#近期改动与验证边界)。
 
 在线探针的参数、来源路径、两个时间窗口和完整业务验证由[脚本说明](../scripts/README.md)维护，业务字段见[接口](../doc/interface.md)。离线门槛拒绝网络和线上实验是否被批准是两个不同条件。
 
@@ -78,9 +78,9 @@ Ruff 的规则范围在根目录 `ruff.toml` 显式固定为 `E4`、`E7`、`E9`�
 
 ## 覆盖率与排查
 
-P5 的 `test_controlled_translation.py` 覆盖父子交接、排队/运行/完成竞争、暂停恢复、翻译版本替代、旧单条/批量 success/error 及旧排队消息；`test_persistent_scrape_http.py` 检查实际资源入口的持久身份、操作者和 broker 故障。两者与既有回归在 SQLite/PostgreSQL 执行。主动 response.close 并发出 request_finished 的 HTTP 文件响应测试使用 transaction=True，使连接关闭后下一请求能重新连接；不可用 pytest 原回滚事务模拟真实响应生命周期。范围和命令见[P5](../../docs/task-control-p5-results.md)。
+P5 的 `test_controlled_translation.py` 覆盖父子交接、排队/运行/完成竞争、暂停恢复、翻译版本替代、旧单条/批量 success/error 及旧排队消息；`test_persistent_scrape_http.py` 检查实际资源入口的持久身份、操作者和 broker 故障。两者与既有回归在 SQLite/PostgreSQL 执行。主动 response.close 并发出 request_finished 的 HTTP 文件响应测试使用 transaction=True，使连接关闭后下一请求能重新连接；不可用 pytest 原回滚事务模拟真实响应生命周期。当前所属翻译协议见[任务架构](../doc/task-control-architecture.md#刮削检查点与所属翻译)。
 
-任务控制 P4 的 `test_controlled_scrape.py` 使用真实隔离 DB/文件和可控来源响应覆盖分阶段停止、恢复、版本冲突、部分图片失败和提交补偿；`test_task_network.py` 覆盖阶段预算与内容回调停止。两者连同 `test_task_records.py`、`test_task_assets.py` 在临时 PostgreSQL 验证，环境和命令见[P4 执行记录](../../docs/task-control-p4-results.md)。网络替身验证控制边界，不代表真实来源停止延迟；非 eager worker 和本地网络联调归 P7。
+任务控制 P4 的 `test_controlled_scrape.py` 使用真实隔离 DB/文件和可控来源响应覆盖分阶段停止、恢复、版本冲突、部分图片失败和提交补偿；`test_task_network.py` 覆盖阶段预算与内容回调停止。两者连同 `test_task_records.py`、`test_task_assets.py` 在临时 PostgreSQL 验证，当前检查点协议见[任务架构](../doc/task-control-architecture.md#刮削检查点与所属翻译)。网络替身验证控制边界，不代表真实来源停止延迟；非 eager worker 和本地网络联调归 P7。
 
 ```bash
 uv run coverage run -m pytest tests/ --ds=django_project.refactoring_test_settings

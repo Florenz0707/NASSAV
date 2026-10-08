@@ -1,14 +1,14 @@
 # Scripts 目录说明
 
-本目录包含维护、数据重建和验证脚本；参数与用法按下文分类维护。历史一次性脚本处置通过 Git 追溯，当前验证边界见[验证状态](../doc/validation-status.md)。
+本目录包含维护、数据重建和验证脚本；参数与用法按下文分类维护。历史一次性脚本处置通过 Git 追溯，当前验证边界见[部署与验证边界](../doc/compose-deployment.md#近期改动与验证边界)。
 
 ## 任务下载停止与恢复探针
 
-`probe_task_download_control.py` 只使用 ffmpeg 合成媒体及回环 HTTP，拒绝未知版本二进制和已存在的工作目录，不连接 Django/DB/Redis。运行参数为 `--binary <固定二进制绝对路径>` 和 `--workspace <不存在的目录>`；工作区保留日志、媒体和 report.json，退出码非零表示能力门槛失败。依赖 Linux `/proc`、ffmpeg、libx264 与固定 N_m3u8DL-RE。实验结束后可删除该新建工作区；不得指定正式资源目录。详细命令、二进制 SHA256、两轮证据和验证限制见[任务控制 P0 记录](../../docs/task-control-p0-results.md)。
+`probe_task_download_control.py` 只使用 ffmpeg 合成媒体及回环 HTTP，拒绝未知版本二进制和已存在的工作目录，不连接 Django/DB/Redis。运行参数为 `--binary <固定二进制绝对路径>` 和 `--workspace <不存在的目录>`；工作区保留日志、媒体和 report.json，退出码非零表示能力门槛失败。依赖 Linux `/proc`、ffmpeg、libx264 与固定 N_m3u8DL-RE。实验结束后可删除该新建工作区；不得指定正式资源目录。当前停止与续传边界见[任务控制架构](../doc/task-control-architecture.md#下载续传边界)。
 
 ## Byparr 会话复用 P0 探测
 
-`probe_byparr_session.py` 在运行中的 Django 容器内使用有效配置，对单个已知页面执行只读对照；不写 Cookie 表。先阅读[验证边界与历史记录](../doc/validation-status.md)。参数为 `source`（`jable`/`missav`）、`kind`（`detail`/`listing`）、HTTPS 页面 URL；详情页还需 `--avid`。URL 必须属于已配置源域名且不带凭据；只允许 Jable 分页查询 `from=02`。可用 `--reuse-url` 指定同站另一详情页，MissAV 同时传 `--reuse-avid`，在同一次浏览器会话中测试跨页复用。默认不把存储或浏览器 Cookie 发送到目标站；完整会话对照必须在获准的试验窗口显式加 `--allow-session-replay`。只保存脚本输出的脱敏 JSON，不保存原始 Byparr 响应。
+`probe_byparr_session.py` 在运行中的 Django 容器内使用有效配置，对单个已知页面执行只读对照；不写 Cookie 表。先阅读[部署与验证边界](../doc/compose-deployment.md#近期改动与验证边界)。参数为 `source`（`jable`/`missav`）、`kind`（`detail`/`listing`）、HTTPS 页面 URL；详情页还需 `--avid`。URL 必须属于已配置源域名且不带凭据；只允许 Jable 分页查询 `from=02`。可用 `--reuse-url` 指定同站另一详情页，MissAV 同时传 `--reuse-avid`，在同一次浏览器会话中测试跨页复用。默认不把存储或浏览器 Cookie 发送到目标站；完整会话对照必须在获准的试验窗口显式加 `--allow-session-replay`。只保存脚本输出的脱敏 JSON，不保存原始 Byparr 响应。
 
 ```bash
 # 在与正式 Django 相同的容器、配置和代理路线内运行；先将脚本复制到容器临时目录
@@ -20,13 +20,13 @@
 
 ## MissAV P5 只读对照
 
-`probe_p5_missav.py` 在正式 API 容器内用同一代理，从主页发现当前详情页；每个时段取至少 20 个有效详情页，比较无 Cookie 直连、已验证 Cookie+UA 直连，并用至少 5 个 Byparr 有效详情页作为耗时对照。参数：`--window W1|W2`、`--count 20..100`（默认 20）及必需的 `--allow-session-replay`。脚本输出脱敏 JSONL，不读取或写入 Cookie 表、Redis、任务队列；运行方式和结果见 [验证边界与历史记录](../doc/validation-status.md)。
+`probe_p5_missav.py` 在正式 API 容器内用同一代理，从主页发现当前详情页；每个时段取至少 20 个有效详情页，比较无 Cookie 直连、已验证 Cookie+UA 直连，并用至少 5 个 Byparr 有效详情页作为耗时对照。参数：`--window W1|W2`、`--count 20..100`（默认 20）及必需的 `--allow-session-replay`。脚本输出脱敏 JSONL，不读取或写入 Cookie 表、Redis、任务队列；运行方式和结果见 [历史现场记录查询方式](#历史现场记录)。
 
 ## Byparr 固定版本部署
 
 `byparr/compose.yaml` 将已验证的 `3.0.4` 镜像固定到 digest，监听宿主机
 `127.0.0.1:8192`。Django 在同机宿主机运行时使用这个地址。当前试验记录见
-[验证边界与历史记录](../doc/validation-status.md)。
+[历史现场记录查询方式](#历史现场记录)。
 
 ```bash
 cd django_backend/scripts/byparr
@@ -484,7 +484,7 @@ uv sync
 
 ## Byparr 会话复用 P5 只读预筛
 
-`probe_p5_jable.py` 在运行中的 API 容器内发现 Jable 当前详情页，只把浏览器 Cookie+UA 留在探针进程内存；种子必须经 3 秒同页直连验证。每窗口对 20 个不同详情页执行直连优先、必要时浏览器回退，并输出不含 Cookie、UA、代理和完整 URL 的 JSONL。执行前需确认脚本对应容器内代码版本与代理路线；显式 `--allow-session-replay` 才会发送浏览器会话。参数：`--window W1|W2`、`--count 20..100`（默认 20）、`--allow-session-replay`。脚本不写数据库或共享 Redis，不能代替 API/worker 并发和 24 小时灰度。现场结果与 NO-GO 判定见[验证边界与历史记录](../doc/validation-status.md)。
+`probe_p5_jable.py` 在运行中的 API 容器内发现 Jable 当前详情页，只把浏览器 Cookie+UA 留在探针进程内存；种子必须经 3 秒同页直连验证。每窗口对 20 个不同详情页执行直连优先、必要时浏览器回退，并输出不含 Cookie、UA、代理和完整 URL 的 JSONL。执行前需确认脚本对应容器内代码版本与代理路线；显式 `--allow-session-replay` 才会发送浏览器会话。参数：`--window W1|W2`、`--count 20..100`（默认 20）、`--allow-session-replay`。脚本不写数据库或共享 Redis，不能代替 API/worker 并发和 24 小时灰度。现场结果与 NO-GO 判定见[历史现场记录查询方式](#历史现场记录)。
 
 ```bash
 # 从仓库根目录执行；将 stdout 保存为脱敏证据，stderr 单独检查
@@ -495,7 +495,7 @@ uv sync
 
 ## MissAV 详情路径只读对照
 
-`probe_missav_paths.py` 使用运行中 API 容器的 Byparr 和代理配置，对首页发现的不同番号交错比较 `/cn/{avid}`、发现路径及字幕候选。只有通过同站点、非挑战、标题番号和视频 UUID 校验才算有效。使用 `--resource-targets` 时仅从现有 `AVResource.source=MissAV` 行读取目标番号，并对比 `/en/{avid}`；不会修改资源、Cookie、Redis 或任务。输出 JSONL 仅含番号、路径类型、耗时和失败类型，不保存页面、Cookie、UA、代理或完整 URL。参数：`--count`（1..100，默认 20）、`--offset`（仅首页发现模式，默认 0）、`--subtitle-count`（默认 8）、`--root-count`（默认 0）、`--resource-targets`。正式站点实测应在 API 容器执行并将 stdout 单独保存；不要从宿主机改用另一条网络路线。结果见[验证边界与历史记录](../doc/validation-status.md)。
+`probe_missav_paths.py` 使用运行中 API 容器的 Byparr 和代理配置，对首页发现的不同番号交错比较 `/cn/{avid}`、发现路径及字幕候选。只有通过同站点、非挑战、标题番号和视频 UUID 校验才算有效。使用 `--resource-targets` 时仅从现有 `AVResource.source=MissAV` 行读取目标番号，并对比 `/en/{avid}`；不会修改资源、Cookie、Redis 或任务。输出 JSONL 仅含番号、路径类型、耗时和失败类型，不保存页面、Cookie、UA、代理或完整 URL。参数：`--count`（1..100，默认 20）、`--offset`（仅首页发现模式，默认 0）、`--subtitle-count`（默认 8）、`--root-count`（默认 0）、`--resource-targets`。正式站点实测应在 API 容器执行并将 stdout 单独保存；不要从宿主机改用另一条网络路线。结果见[历史现场记录查询方式](#历史现场记录)。
 
 ```bash
 # 从仓库根目录执行；容器镜像通常不包含 scripts/，故仅复制到容器临时目录
@@ -510,7 +510,7 @@ docker exec -e PYTHONPATH=/tmp/nassav-path-probe:/app nassav-api-1 \
 
 ## Byparr blockMedia 隔离对照
 
-`probe_byparr_media.py` 在 API 容器中对隔离 Byparr 实例做配对测量。参数：`--window W1|W2`、`--count 1..100`（默认 20）、`--base-url`（必须是具有 `/ready` 且报告 v3.0.4 的隔离计时实例）、`--samples-file`（第二窗口重用第一窗口 JSONL 中的番号清单）。奇偶样本交错默认/阻止媒体的顺序，第二窗口反转；默认有效而阻止媒体失败时停止。输出脱敏 JSONL，不读写 Cookie、Redis、任务或配置。`byparr/instrument_media_experiment.py` 仅在固定 Byparr 镜像中运行，调用上游原函数并返回阶段计时。结果与限制见[验证边界与历史记录](../doc/validation-status.md)。
+`probe_byparr_media.py` 在 API 容器中对隔离 Byparr 实例做配对测量。参数：`--window W1|W2`、`--count 1..100`（默认 20）、`--base-url`（必须是具有 `/ready` 且报告 v3.0.4 的隔离计时实例）、`--samples-file`（第二窗口重用第一窗口 JSONL 中的番号清单）。奇偶样本交错默认/阻止媒体的顺序，第二窗口反转；默认有效而阻止媒体失败时停止。输出脱敏 JSONL，不读写 Cookie、Redis、任务或配置。`byparr/instrument_media_experiment.py` 仅在固定 Byparr 镜像中运行，调用上游原函数并返回阶段计时。结果与限制见[历史现场记录查询方式](#历史现场记录)。
 
 ```bash
 # 创建仅本次实验使用的容器，与正式 API 使用同一网络；镜像固定
@@ -544,7 +544,7 @@ docker exec -e PYTHONPATH=/tmp/nassav-media-probe:/app nassav-api-1 \
 
 冷请求：每窗口使用 `probe_byparr_media.py --source Jable --count 20 --ready-base-url <隔离候选地址>`，默认实例报告 networkidle，候选报告 business_bounded；W2 加 `--samples-file` 重用番号且反转配对顺序。两个窗口各检查不存在详情。暖请求：在同一 API 网络与配置代理路线中，用 `probe_p5_jable.py --window W1 --count 20 --allow-session-replay --browser-base-url <隔离候选地址>`；W2 重做同页种子验证并重新发现至少 20 个不同详情。Cookie+UA 只在探针进程内使用，不写数据库或共享缓存。完整解析须匹配请求番号、播放地址、标题和封面。所有请求含失败均计入暖 P95，输出包含 UTC 记录时间及前 10 页浏览器调用数。
 
-`assess_byparr_acceptance.py --cold W1冷.jsonl W2冷.jsonl --warm W1暖.jsonl W2暖.jsonl` 离线核对两个窗口的 20 个不同有效详情、直连有效率至少 95%、零错误页误接纳、暖 P95 小于 5 秒且小于原 Byparr 中位数的 25%、前 10 页至多一次浏览器调用。退出 2 表示 NO-GO；通过预筛也仍需后续 API/worker、任务/下载/WebSocket 与 24 小时观察才能放行。数据和结论见[验证边界与历史记录](../doc/validation-status.md)。
+`assess_byparr_acceptance.py --cold W1冷.jsonl W2冷.jsonl --warm W1暖.jsonl W2暖.jsonl` 离线核对两个窗口的 20 个不同有效详情、直连有效率至少 95%、零错误页误接纳、暖 P95 小于 5 秒且小于原 Byparr 中位数的 25%、前 10 页至多一次浏览器调用。退出 2 表示 NO-GO；通过预筛也仍需后续 API/worker、任务/下载/WebSocket 与 24 小时观察才能放行。数据和结论见[历史现场记录查询方式](#历史现场记录)。
 
 `probe_byparr_runtime.py --phase serial|mixed --avids AVID ...` 只能在专用 `nassav-wait-postgres`、`nassav-wait-redis` 与 `/tmp/acceptance-resource` 环境中运行。创建样本资源，调用真实 Cookie/资源 API、Celery 刮削队列及 ASGI WebSocket；worker 分别设置 `-c 1`/`-c 2`，混合阶段另执行同步刷新。候选包装器的 `/experiment-stats` 只返回请求/错误/在途计数，不用于正式 API。Cookie 失败保留为失败，但独立任务检查继续执行。
 
@@ -586,7 +586,7 @@ uv run python scripts/accept_task_control_workers.py \
   --report /tmp/nassav-p7-postgres-report.json
 ```
 
-固定 SHA 为 `d2fa5b4b79f243320c509a85835327a520d8c160c600d99921e764bfc519fec7`。脚本不是线上探针；本地来源和翻译替身不代表 Jable/MissAV/JavBus/Ollama 已验收。结果与范围见[P7](../../docs/task-control-p7-results.md)。
+固定 SHA 为 `d2fa5b4b79f243320c509a85835327a520d8c160c600d99921e764bfc519fec7`。脚本不是线上探针；本地来源和翻译替身不代表 Jable/MissAV/JavBus/Ollama 已验收。当前部署复验步骤见[部署说明](../doc/compose-deployment.md#验证)。
 
 ## HLS 恢复校验超时验收
 
@@ -598,3 +598,13 @@ uv run python scripts/accept_task_control_workers.py \
 
 推荐映射脚本不会由默认 Beat 或推荐 job 自动执行；部署者可显式运行上述脚本，或另行
 配置 cron。Jable 与 JavBus 共用全局 `Proxy.Enable` / `Proxy.url`，不使用视频下载代理。
+
+## 历史现场记录
+
+早期 probe 的现场测量及 NO-GO 结论曾记录在 validation-status.md，该文件已由文档清理提交删除。需要复核上述历史实验时，从仓库根目录读取删除前版本，不用近期缓存/迁移的隔离结果代替来源实验：
+
+```bash
+git show cc6ab42^:django_backend/doc/validation-status.md
+```
+
+当前部署步骤与近期验证边界见[部署说明](../doc/compose-deployment.md#近期改动与验证边界)，代理出口约束见[代理路由](../doc/proxy-routing.md)。历史实验结果仅对记录中的时段、来源和出口有效。

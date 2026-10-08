@@ -59,4 +59,4 @@ sudo systemctl enable --now nassav-beat
 
 API、default/scrape/download worker 读取同一代码版本、数据库/Redis 和来源配置；配置修改后重启持有实例的进程。所有宿主机/容器中只运行一个 Beat。运维任务文件迁移后仍以 nassav.tasks.\* 注册，不应修改 Beat 的任务名。
 
-下载 owner 保护不能与旧版无条件删锁 worker 混用；停止旧进程继续消费、核对在途任务和租约后再执行版本切换验收。具体边界见[Compose 部署](compose-deployment.md#下载-worker-版本切换)，当前接受范围见[验证状态](validation-status.md)。
+下载 owner 保护不能与旧版无条件删锁 worker 混用；停止旧进程继续消费、核对在途任务和租约后再执行版本切换验收。具体边界见[Compose 部署](compose-deployment.md#下载-worker-版本切换)，当前接受范围见[部署与验证边界](compose-deployment.md#近期改动与验证边界)。

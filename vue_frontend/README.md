@@ -5,7 +5,7 @@
 
 全栈容器部署通过仓库根目录 `compose.yaml` 提供 nginx 网关，详见 [Compose 部署说明](../django_backend/doc/compose-deployment.md)。
 
-后续开发遵循[重构原则](../docs/development-principles.md)、[前端开发契约](doc/development-contracts.md)及 [AGENT.md](AGENT.md)；阶段验证证据见[语义重构记录](doc/semantic-refactoring-progress.md)和[UX 改进记录](doc/ux-neutral-progress.md)。
+后续开发遵循[仓库开发规范](../AGENTS.md)、[前端开发契约](doc/development-contracts.md)及 [AGENT.md](AGENT.md)；阶段验证证据见[语义重构记录](doc/semantic-refactoring-progress.md)和[UX 改进记录](doc/ux-neutral-progress.md)。
 
 ## 功能概览（含页面与预览图）
 
@@ -203,4 +203,4 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 推荐信息仅保留历史统计、刷新和重置。个性化弹窗左侧推荐偏好，右侧黑名单；桌面两列独立滚动，移动端内容整体滚动，关闭按钮保持可访问。推荐依据按演员 coral/类别 teal 显示；资源卡片与外部搜索复用操作按钮，屏蔽位于反馈右侧。添加请求按返回 job_id 跟踪，授权快照确认资源已保存即禁用按钮，即使翻译尚未结束或失败也不重复添加。
 
-回归入口为 `recommendationJobs.cjs`、`recommendationRestore.cjs`、`recommendationBlacklist.cjs`；配合公共 `components.cjs` 验证任务失败/取消/迟到响应、添加禁用、多批次刷新恢复、弹窗布局/滚动及焦点。模拟 API/WS 验收与真实来源/worker 验收分开记录，见[执行记录](doc/refactoring-progress.md)和[后端验证状态](../django_backend/doc/validation-status.md)。
+回归入口为 `recommendationJobs.cjs`、`recommendationRestore.cjs`、`recommendationBlacklist.cjs`；配合公共 `components.cjs` 验证任务失败/取消/迟到响应、添加禁用、多批次刷新恢复、弹窗布局/滚动及焦点。模拟 API/WS 验收与真实来源/worker 验收分开记录，见[执行记录](doc/refactoring-progress.md)和[部署与验证边界](../django_backend/doc/compose-deployment.md#近期改动与验证边界)。

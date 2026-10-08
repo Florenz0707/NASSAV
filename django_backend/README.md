@@ -33,11 +33,11 @@ API 默认监听 `127.0.0.1:9790`。默认 worker 不消费 `scrape` 和 `downlo
 
 ## 数据库与部署状态
 
-本机默认和基础 Compose 使用 SQLite；PostgreSQL 是显式选择的外部数据库模式。开发 PostgreSQL 库的数据已导入，业务回归、备份恢复验收及正式切换尚未完成。连接方式、schema、模式保护与备份恢复见[数据库文档](doc/database.md)。历史导入与目标环境接受分开记录，见[验证状态](doc/validation-status.md)。
+本机默认和基础 Compose 使用 SQLite；PostgreSQL 是显式选择的外部数据库模式。2026-10-08 只读核查实例 PostgreSQL 已应用至 0027；正式表名迁移 0028 尚未执行，备份恢复与并发性能需专项验收。连接方式、schema、模式保护与备份恢复见[数据库文档](doc/database.md)。历史导入与目标环境接受分开记录，见[部署与验证边界](doc/compose-deployment.md#近期改动与验证边界)。
 
 ## 开发检查
 
-开发原则与扩展约束见[共同原则](../docs/development-principles.md)、[任务架构](doc/task-control-architecture.md)与[推荐架构](doc/recommendation-architecture.md)及 [AGENT.md](AGENT.md)。
+开发原则与扩展约束见[仓库开发规范](../AGENTS.md)、[任务架构](doc/task-control-architecture.md)与[推荐架构](doc/recommendation-architecture.md)及 [AGENT.md](AGENT.md)。
 
 `manage.py check` 使用当前实例配置，运行前确认数据库和资源目录；离线业务门槛使用专用测试设置：
 
@@ -48,7 +48,7 @@ uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 
 离线设置强制无凭证模板、临时 SQLite/文件/用户设置、内存缓存/Channels，并阻止未模拟外部请求。锁测试需要本机提供 `redis-server`，只监听临时 Unix socket，测试后清理。真实 Ollama、站点、worker 和 PostgreSQL 验收单独运行并记录；不要直接用默认 settings 全套测试连接当前实例数据。详细分类见[测试说明](tests/README.md)。
 
-仓库根目录运行 `pre-commit run -a`，包括格式、类型、编译及前端检查。结果需对应具体提交和配置，参见[验证状态](doc/validation-status.md)。
+仓库根目录运行 `pre-commit run -a`，包括格式、类型、编译及前端检查。结果需对应具体提交和配置，参见[部署与验证边界](doc/compose-deployment.md#近期改动与验证边界)。
 
 ## 代码导航
 
@@ -65,9 +65,9 @@ HTTP 在 `nassav/http/` 按业务分组，URL 在 `nassav/urls.py`。核心编�
 - [Compose 部署和外部 PostgreSQL](doc/compose-deployment.md)
 - [维护与现场验证脚本](scripts/README.md)
 - [测试分类与隔离门槛](tests/README.md)
-- [当前验证状态与环境接受](doc/validation-status.md)
+- [部署与验证边界](doc/compose-deployment.md#近期改动与验证边界)
 
-持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](doc/task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[验证状态](doc/validation-status.md)为准。
+持久任务的当前架构、执行归属、资产提交及扩展检查清单见[任务控制架构](doc/task-control-architecture.md)。历史阶段的迁移/部署状态只代表记录当时；本轮验收确认及仍需独立验证的范围以[部署与验证边界](doc/compose-deployment.md#近期改动与验证边界)为准。
 
 ## License
 
