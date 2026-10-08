@@ -144,3 +144,7 @@
 代理服务器并发能力统一由 `ProxyServer` 提供，不以 Byparr 等具体 provider 决定业务调度；
 来源实例、会话和网络控制按并发操作隔离，结果、预算与提交由协调线程持有，
 跨 worker 容量和开发约束见[代理并发架构](django_backend/doc/proxy-concurrency.md)。
+
+## 抓取缓存开发约束
+
+原站事实、短期播放缓存与正式资源独立，迁移/流程遵循[持久抓取缓存](django_backend/doc/resource-cache-architecture.md)。命中仍执行当前黑名单与业务判断；不得混入翻译/用户状态或把旧来源地址当永久有效。网络在事务外，缓存提交检查执行归属、租约和代次；定期清理有界且只清理缓存记录。

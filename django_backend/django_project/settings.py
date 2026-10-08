@@ -422,7 +422,25 @@ ACTIVE_TRANSLATOR = CONFIG.get("Translator", {}).get("active", None)
 
 
 # Celery Beat schedule: daily consistency checks
+# Optional provider-facts policy; shared by API and every worker.
+_cache_config = CONFIG.get("ResourceCache", {})
+RESOURCE_CACHE_POLICY = {
+    key: integer(_cache_config.get(key, default), f"ResourceCache.{key}", 1, maximum)
+    for key, default, maximum in (
+        ("SourceTTLSeconds", 604800, 31536000),
+        ("ScraperTTLSeconds", 2592000, 31536000),
+        ("PlaybackTTLSeconds", 300, 3600),
+        ("MetadataRetentionDays", 90, 3650),
+        ("PlaybackGraceHours", 24, 720),
+        ("CleanupBatchSize", 500, 5000),
+    )
+}
+
 CELERY_BEAT_SCHEDULE = {
+    "cleanup-provider-cache": {
+        "task": "nassav.tasks.cleanup_provider_cache",
+        "schedule": crontab(hour="*/6", minute=10),
+    },
     "db-disk-consistency-daily": {
         "task": "nassav.tasks.check_videos_consistency",
         "schedule": crontab(hour=7, minute=0),

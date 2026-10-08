@@ -7,7 +7,7 @@ from PIL import Image
 
 from nassav.resource_contracts import ResourceSaveInput, SourceRelations
 from nassav.resource_data import AVDownloadInfo
-from nassav.provider_facts import SourceFactsLookup, SCRAPER_POLICY
+from nassav.provider_facts import SourceFactsLookup, SCRAPER_POLICY, configured_policy
 from nassav.resource_cache import CacheKey, CachePublicationLost
 from nassav.source.jable_actor_mapping import JableModelCandidate
 
@@ -122,7 +122,7 @@ class ScrapePreparation:
 
             result = self.facts_cache.resolve(
                 key,
-                SCRAPER_POLICY,
+                configured_policy(SCRAPER_POLICY),
                 fetch,
                 force=force,
                 check=self.control.check,

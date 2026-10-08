@@ -87,3 +87,12 @@ Translator:
       日语标题：{text}
 
       中文翻译：
+
+# 抓取事实与播放链接持久缓存；删除资源不删除缓存。
+ResourceCache:
+  SourceTTLSeconds: 604800
+  ScraperTTLSeconds: 2592000
+  PlaybackTTLSeconds: 300
+  MetadataRetentionDays: 90
+  PlaybackGraceHours: 24
+  CleanupBatchSize: 500

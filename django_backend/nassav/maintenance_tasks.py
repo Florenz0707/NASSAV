@@ -168,3 +168,12 @@ def check_resources_consistency(
         call_command("check_resources_consistency", *args)
     except Exception as e:
         logger.error(f"运行资源一致性检查任务失败: {e}")
+
+
+@shared_task(name="nassav.tasks.cleanup_provider_cache", ignore_result=True)
+def cleanup_provider_cache():
+    from nassav.resource_cache_maintenance import DjangoProviderCacheMaintenance
+
+    result = DjangoProviderCacheMaintenance().purge(apply=True)
+    logger.info("Provider cache cleanup: {}", result)
+    return result

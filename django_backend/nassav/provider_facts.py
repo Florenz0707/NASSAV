@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 from urllib.parse import urlsplit, urlunsplit
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from nassav.resource_cache import CacheKey, CachePolicy
 
@@ -15,6 +15,18 @@ SCRAPER_POLICY = CachePolicy(
     "scraper-facts-v1", frozenset({"metadata", "scraped_by"}), timedelta(days=30)
 )
 PLAYBACK_POLICY = CachePolicy("playback-v1", frozenset({"m3u8"}), timedelta(minutes=5))
+
+
+def configured_policy(policy):
+    from django.conf import settings
+
+    key = {
+        SOURCE_POLICY.parser_version: "SourceTTLSeconds",
+        SCRAPER_POLICY.parser_version: "ScraperTTLSeconds",
+        PLAYBACK_POLICY.parser_version: "PlaybackTTLSeconds",
+    }[policy.parser_version]
+    seconds = settings.RESOURCE_CACHE_POLICY[key]
+    return replace(policy, ttl=timedelta(seconds=seconds))
 
 
 def source_key(source, avid, detail_url=""):
@@ -66,7 +78,9 @@ class SourceFactsLookup:
         }
         return {
             keys[key]: value["detail"]
-            for key, value in self.cache.read_many(list(keys), SOURCE_POLICY).items()
+            for key, value in self.cache.read_many(
+                list(keys), configured_policy(SOURCE_POLICY)
+            ).items()
             if value.get("detail")
         }
 
@@ -77,9 +91,9 @@ class SourceFactsLookup:
         control = source.task_control
         check = control.check if control is not None else lambda: None
         fence = control.publish if control is not None else None
-        playback = self.cache.read_many([pkey], PLAYBACK_POLICY, playback=True).get(
-            pkey
-        )
+        playback = self.cache.read_many(
+            [pkey], configured_policy(PLAYBACK_POLICY), playback=True
+        ).get(pkey)
         captured = {}
 
         def fetch():
@@ -88,7 +102,7 @@ class SourceFactsLookup:
             if link:
                 captured["playback"] = self.cache.resolve(
                     pkey,
-                    PLAYBACK_POLICY,
+                    configured_policy(PLAYBACK_POLICY),
                     lambda: {"m3u8": link},
                     force=True,
                     playback=True,
@@ -99,7 +113,7 @@ class SourceFactsLookup:
 
         result = self.cache.resolve(
             key,
-            SOURCE_POLICY,
+            configured_policy(SOURCE_POLICY),
             fetch,
             force=force or (require_playback and not playback),
             check=check,

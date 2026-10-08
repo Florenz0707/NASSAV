@@ -239,3 +239,6 @@ def recommendation_job_task(job_id):
     from nassav.recommendation.jobs import execute
 
     execute(job_id)
+
+
+from nassav.maintenance_tasks import cleanup_provider_cache as cleanup_provider_cache

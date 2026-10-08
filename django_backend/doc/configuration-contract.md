@@ -37,3 +37,7 @@ P7 没有新增 YAML 或 .env 键。worker ready 启动独立扫描线程，每 
 进程核查限于相同 host、boot_id、PID namespace；容器换代无法确认原实例时保留 RECOVERY_UNCONFIRMED，须管理员确认原实例全部退出后使用维护命令。跨主机自动停止和共享 worker terminate 不在该能力内；步骤见[部署说明](compose-deployment.md#持久任务控制版本切换与回滚)。
 
 BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受 1–8 的整数（不接受布尔值），BrowserFetch 块中省略该字段时默认为 2；旧 FlareSolverr 块默认 1。禁用 BrowserFetch 时业务调度保持串行。默认装配通过 Redis 对同一 url 的浏览器请求统一限流，不按 provider、来源或出口路线分割容量；所有 API/worker 必须使用相同 url、Redis 与容量配置。Redis 不可用时明确失败，不静默取消限流。业务通过 ProxyServer.ordered 消费有序、有界并发，容量占用只覆盖实际浏览器 IO，任务结束不删除其他 owner 的槽位。详见[代理并发架构](proxy-concurrency.md)。
+
+## 持久抓取缓存
+
+可选 ResourceCache 块统一用于 API/worker；省略时使用安全默认值。SourceTTLSeconds 默认 604800、ScraperTTLSeconds 默认 2592000，范围 1–31536000；PlaybackTTLSeconds 默认 300，范围 1–3600。MetadataRetentionDays 默认 90（1–3650），PlaybackGraceHours 默认 24（1–720），CleanupBatchSize 默认 500（1–5000）。均拒绝布尔值、非法整数或越界值，块本身须为映射。新鲜期改动只影响新发布记录，配置后重启 API/worker/Beat。定期清理依赖 Beat，手动统计/有界清理入口和部署边界见[持久抓取缓存](resource-cache-architecture.md)。

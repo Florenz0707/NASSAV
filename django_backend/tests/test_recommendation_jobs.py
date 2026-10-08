@@ -197,3 +197,41 @@ def test_soft_budget_finalizes_partial_with_history_but_empty_partial_fails(owne
             assert job.result["meta"]["returned_count"] == 1
             assert job.result["meta"]["completion_reason"] == "network_budget"
     assert RecommendationSnapshot.objects.count() == 1
+
+
+@pytest.mark.parametrize("invalidate", ["cancel", "history", "owner", "deadline"])
+def test_provider_cache_commit_fence_rejects_invalid_recommendation_execution(
+    owner, invalidate
+):
+    from nassav.recommendation_models import RecommendationState
+    from uuid import uuid4
+
+    job = jobs.submit(owner, {})
+    publish = Mock()
+    observed = []
+
+    def manager_builder(*, context, control):
+        def recommend(**kwargs):
+            if invalidate == "cancel":
+                jobs.cancel(job.pk, owner)
+            elif invalidate == "history":
+                RecommendationState.objects.filter(pk=1).update(
+                    generation=job.history_generation + 1
+                )
+            elif invalidate == "owner":
+                RecommendationJob.objects.filter(pk=job.pk).update(
+                    execution_owner=uuid4()
+                )
+            else:
+                RecommendationJob.objects.filter(pk=job.pk).update(
+                    deadline=timezone.now() - timedelta(seconds=1)
+                )
+            with pytest.raises(jobs.RecommendationStopped):
+                context.publish_cache(publish)
+            observed.append(True)
+
+        return SimpleNamespace(recommend=recommend)
+
+    jobs.execute(job.pk, manager_builder=manager_builder)
+    publish.assert_not_called()
+    assert observed == [True]

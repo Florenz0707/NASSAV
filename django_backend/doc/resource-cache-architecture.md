@@ -4,7 +4,7 @@
 
 ProviderFactsCache 消费 ProviderFactsStore，统一批量读取、字段证据、解析版本、新鲜期与有界 single flight；生产 ORM Adapter 只执行短条件写。网络在事务外，publication fence 由任务装配提供。缓存领取使用 UUID/generation/240 秒租期，最多等待 60 秒且每次检查控制；过期/失效/清理后的旧发布只能条件更新，不能 upsert 复活。失败与空结果不覆盖旧成功；已缓存结果深复制，缺少要求字段不记为验证成功。
 
-P1 建立表和公共能力，P2 接入推荐消费者。不回填旧 AVResource 或 Redis：旧数据出处与时间不可靠。当前 source/scraper/Jable 短缓存继续运行。P2–P5 将依次接入推荐、结构化刮削、短期播放与清理。正式 migrate/worker/站点验收不由隔离回归代替。
+P1 建立表和公共能力，P2 接入推荐消费者。不回填旧 AVResource 或 Redis：旧数据出处与时间不可靠。推荐与持久刮削/下载使用新缓存；旧兼容 SourceManager/ScraperManager 的 Redis 入口保留，不为新表回填。P2–P5 已接入推荐、结构化刮削、短期播放与清理。正式 migrate/worker/站点验收不由隔离回归代替。
 
 验证入口：`uv run pytest tests/test_resource_cache.py --ds=django_project.refactoring_test_settings -v`；完整后端门槛及根目录 pre-commit 通过后阶段提交合并 idle。后续阶段维护本文件的当前契约。
 
@@ -26,6 +26,31 @@ P1 阶段提交标题 `[Feat] Add persistent provider facts cache and publicatio
 
 ## 下载与恢复
 
-生产受控下载的 resolver 使用相同来源准备器，只有当前播放缓存新鲜、会话/出口上下文一致时复用 m3u8；不再把 AVResource 中未带新鲜期的播放地址当作永久有效。缓存过期则重新获取来源事实，不触发完整 scraper 刮削、翻译或封面/头像/HTML 发布。resolver 的可选 control/force 参数注入任务检查与短事务发布 fence，调用方无控制参数的旧入口仍兼容。
+生产受控下载的 resolver 使用相同来源准备器，只有当前播放缓存新鲜、会话/出口上下文一致时复用 m3u8；不再把 AVResource 中未带新鲜期的播放地址当作永久有效。缓存过期则重新获取来源事实，优先保留该正式资源已选且仍启用的来源，避免无故换源；未选或来源已禁用才按当前来源优先级查找，不触发完整 scraper 刮削、翻译或封面/头像/HTML 发布。resolver 的可选 control/force 参数注入任务检查与短事务发布 fence，调用方无控制参数的旧入口仍兼容。
 
 HLS 入口返回 401/403/404/410 时只强制刷新一次，再执行完整的 manifest/密钥/分片身份校验；其他异常不触发无界重试。下载传输及校验仍使用 DOWNLOAD_PROXY_URL，来源获取仍使用全局 Proxy.url。刷新链接不放宽续传条件：新旧媒体身份不同按既有协议要求重新下载，保留暂停产物，不绕过停止写入者和资产清理。
+
+## 配置、统计与清理
+
+可选 YAML ResourceCache 块由同一设置入口校验，本地/Compose 样例均已补充；省略时保持默认值。SourceTTLSeconds=604800、ScraperTTLSeconds=2592000、PlaybackTTLSeconds=300 分别控制新发布记录的新鲜期。MetadataRetentionDays=90 按最近使用清理，PlaybackGraceHours=24 按播放链接过期时间加宽限清理，CleanupBatchSize=500 限制每张表每次删除量（最大 5000）。改配置需重启相关进程；不会改写已有记录的 fresh_until。
+
+Celery Beat 每 6 小时第 10 分钟调用 nassav.tasks.cleanup_provider_cache，未运行 Beat 则不会自动清理。清理只处理两张缓存表，跳过有效领取租约，在实际删除时再次检查条件；不会删除资源、演员、类别、业务标记、图片、视频或任务锁/中间目录。清理后旧 owner 不能重新插入结果，只能条件更新既有行。数据库备份包含缓存，保留期与批次限制用于控制增长，命中率与耗时仍须目标环境观察。
+
+```bash
+# 默认统计并预览本批数量，不展示原始事实或播放 URL
+uv run python manage.py provider_cache
+# 显式执行，每张表最多 500 条
+uv run python manage.py provider_cache --apply --limit 500
+```
+
+统计输出 total/fresh/leased/eligible_for_cleanup；fresh 为时效统计，不等于某一消费者解析版本的可用命中数。推荐 progress 与结果的缓存/网络详情计数用于判断实际收益。
+
+## 部署与验证边界
+
+先备份数据库，暂停旧 API/worker 消费，再应用 0027 并一致更新 API、scrape/download worker 和 Beat。迁移只建两张空表，不恢复已删除业务资源，也不将旧数据库/Redis 中的过期播放地址升级为有效缓存。当前权限和资源目录策略不变。不要在新消费者运行时逆向迁移；停用新消费者后可逆向删缓存表，正式资源和原有业务表不受影响，但事实缓存全部丢失。
+
+隔离阶段依次在 feat/resource-cache-p1–p5 工作，通过完整 pytest 与 pre-commit 后提交合并 idle。已合并：7e80f14（P1）、6799434（P2）、cbf52a7（P3）、dd02b58（P4）；P5 提交标题为 `[Feat] Add bounded provider cache maintenance and policy configuration`。完整隔离结果依次 808/812/814/817 passed、各 28 skipped；P1 临时 SQLite 正向/反向/再次正向迁移通过。专项覆盖热/冷缓存、强制刷新、TTL、提供者/路径/出口隔离、错误身份、缺图恢复、无 HTML 发布、一次失效链接刷新、控制 fence 和清理竞争。
+
+未执行正式迁移、生产重启、真实站点和 Docker/目标 PostgreSQL 验收；隔离网络替身与 SQLite 不能证明真实反爬、签名链接有效期或并发数据库性能。部署后应观察冷/热推荐的 detail_cache_hit_count/detail_network_attempt_count、失效链接刷新、暂停恢复及定期清理统计。
+
+P5 最终完整隔离验证：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为 831 passed/28 skipped（含配置非法值、有效租约保留、选择后续租竞争、缓存时效与当前来源优先、取消/重置/执行归属/截止时间 fence）；`uv run python manage.py makemigrations --check --dry-run --settings=django_project.refactoring_test_settings` 返回 No changes detected。根目录 pre-commit 格式修正后全通过才提交；未改钩子配置。

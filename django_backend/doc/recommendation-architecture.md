@@ -147,3 +147,7 @@ blacklist_excluded_count、unverified_count、qualified_count，详情尝试数�
 useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代服务端 deadline/network_remaining_seconds。推荐卡片添加通过独立 resource job_id 跟踪，授权快照确认已保存即可禁用；所属翻译失败不能将已保存资源重新开放添加。前端详细约束见[开发契约](../../vue_frontend/doc/development-contracts.md)。
 
 从 2.4.4 升级涉及迁移 0026、API/scrape worker 与前端同步发布，所有 worker 统一代理容量配置。用户已在本轮确认推荐系统可用；该确认不扩大为独立 PostgreSQL、所有 provider 或高并发容量验收。v2.4.5 文档修订、历史隔离证据及仍待专项范围见[验证状态](validation-status.md)。
+
+## 共享原站事实缓存
+
+生产推荐 Jable 详情与受控刮削共享独立数据库事实缓存；批量缓存读取由协调线程持有，网络 miss 仍通过 ProxyServer 能力调度。命中不复用推荐评分或业务库存判断，黑名单和反馈每轮重算。缓存发布也使用 history generation、执行 UUID 和 deadline fence，取消/重置后旧结果不能写回。迁移 0027、TTL、缓存命中/网络尝试统计和有界清理见[持久抓取缓存](resource-cache-architecture.md)。

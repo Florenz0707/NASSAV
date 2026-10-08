@@ -314,7 +314,14 @@ def build_controlled_download(lease):
             raise RuntimeError("下载资源元数据不存在，拒绝提交")
 
     records = build_task_records()
-    resolver = ProviderDownloadInfoResolver(build_scrape_preparation)
+    resolver = ProviderDownloadInfoResolver(
+        build_scrape_preparation,
+        preferred_source=lambda avid: (
+            AVResource.objects.filter(avid=avid)
+            .values_list("source", flat=True)
+            .first()
+        ),
+    )
     return ControlledDownload(
         records,
         build_task_assets(records),

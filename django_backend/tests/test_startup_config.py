@@ -287,3 +287,16 @@ print('fork-log-ok')
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "fork-log-ok"
+
+
+@pytest.mark.parametrize("value", [0, True, 3601, "bad"])
+def test_invalid_resource_playback_cache_ttl_fails_startup(tmp_path, value):
+    config_path = tmp_path / "config.yaml"
+    env_path = tmp_path / ".env"
+    write_config(
+        config_path,
+        lambda config: config.update(ResourceCache={"PlaybackTTLSeconds": value}),
+    )
+    result = startup(config_path, env_path)
+    assert result.returncode != 0
+    assert "ResourceCache.PlaybackTTLSeconds" in result.stderr

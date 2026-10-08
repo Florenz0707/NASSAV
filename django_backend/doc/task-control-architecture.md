@@ -117,3 +117,7 @@ scraper/元数据/封面/头像共用全局 Proxy.url；下载使用独立 downl
 TaskJob。Celery 在 scrape 队列执行、DB 保存结果、HTTP 授权查询和取消；
 无正式资产提升，取消表示禁止提交并协作退出，不声称文件 writer 已退出。
 共享网络预算/代理能力可复用，状态与补偿协议不能混用，详见[推荐架构](recommendation-architecture.md)。
+
+## 原站事实与短期播放缓存
+
+受控刮削和下载注入同一结构化准备器，事实缓存独立于 AVResource 与 TaskArtifact；热缓存无原 HTML 也能提交资源。缓存原始 URL，缺失图片仍走私有资产验证/发布/回滚，不直接写正式目录。缓存发布使用当前 attempt 的短事务 fence；暂停、取消和执行失效不得发布旧结果。下载只获取来源/播放事实，不触发完整元数据刮削或翻译；链接新鲜期与一次失效刷新不替代 HLS 续传身份校验。相关迁移/时效/清理边界见[持久抓取缓存](resource-cache-architecture.md)。

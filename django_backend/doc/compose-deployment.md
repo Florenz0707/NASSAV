@@ -219,3 +219,7 @@ sudo find "$lock_dir" -maxdepth 1 -type f -name '*.lock' -exec chown 1000:1000 {
 ```
 
 锁文件目前不自动删除；操作结束释放 flock、进程退出也释放锁，文件存在不代表占锁。需要回收时只能在所有相关写入进程完全停止后另行维护。不要在服务运行时删除锁文件或替换锁目录：其他进程可能持有旧 inode 上的锁，重建文件会破坏互斥。也不要递归修改整个资源目录或设置 `777`。多用户/容器并行写入应统一运行身份，或预先配置共享组和目录/文件写权限；避免再次由不同身份创建不可写的锁。修复后先验证取锁，再手动重试原请求，不能用真实资源删除作为权限探针。
+
+## 持久抓取缓存版本切换
+
+更新缓存消费者前备份数据库、暂停旧 API/worker 消费，执行 `uv run python manage.py migrate` 应用 0027，再一致更新 API、scrape/download worker 和 Beat。缓存初始为空，首次仍冷抓取；不回填旧元数据或 m3u8。容器 config/config.yaml 可省略 ResourceCache 块使用默认值，或按 Compose 配置样例补充并重启。只有 Beat 运行时才自动有界清理；`provider_cache` 默认只预览。目标 PostgreSQL、真实站点热缓存收益与暂停恢复仍需部署验收，详见[缓存架构](resource-cache-architecture.md)。

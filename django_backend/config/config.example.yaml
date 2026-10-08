@@ -99,3 +99,12 @@ Translator:
       翻译规则：1)保留人名不翻译 2)保留番号和系列名 3)使用自然流畅的中文 4)保持原文情境 5)只返回翻译结果\n
       日语标题：{text}\n
       中文翻译：
+
+# 抓取事实与播放链接持久缓存；删除资源不删除缓存。
+ResourceCache:
+  SourceTTLSeconds: 604800
+  ScraperTTLSeconds: 2592000
+  PlaybackTTLSeconds: 300
+  MetadataRetentionDays: 90
+  PlaybackGraceHours: 24
+  CleanupBatchSize: 500

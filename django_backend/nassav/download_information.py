@@ -72,8 +72,9 @@ class ReadOnlyDownloadInfoResolver(DownloadInfoResolver):
 class ProviderDownloadInfoResolver(DownloadInfoResolver):
     """Resolve fresh playback facts without scraping metadata or publishing resource assets."""
 
-    def __init__(self, preparation):
+    def __init__(self, preparation, *, preferred_source=None):
         self.preparation = preparation
+        self.preferred_source = preferred_source or (lambda avid: None)
 
     def resolve(
         self, avid: str, *, control=None, force=False
@@ -82,7 +83,13 @@ class ProviderDownloadInfoResolver(DownloadInfoResolver):
 
         control = control if control is not None else TaskNetworkControl(lambda: None)
         gateway = self.preparation(control)
-        prepared, _ = gateway.source(avid, "any", force=force)
+        preferred = self.preferred_source(avid)
+        selected = (
+            preferred
+            if preferred and gateway.sources.get_source(preferred) is not None
+            else "any"
+        )
+        prepared, _ = gateway.source(avid, selected, force=force)
         info = AVDownloadInfo(**prepared["info"])
         adapter = gateway.sources.get_source(prepared["source_name"])
         if adapter is None:

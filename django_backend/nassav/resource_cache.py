@@ -190,9 +190,13 @@ class DjangoProviderFactsStore(ProviderFactsStore):
         )
         if not updated:
             return None
-        generation = model.objects.values_list("generation", flat=True).get(
-            pk=row.pk, fetch_owner=owner
+        generation = (
+            model.objects.filter(pk=row.pk, fetch_owner=owner)
+            .values_list("generation", flat=True)
+            .first()
         )
+        if generation is None:
+            return None
         return CacheClaim(key, owner, generation, playback)
 
     def publish(self, claim, payload, policy, now):

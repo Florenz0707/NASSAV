@@ -140,3 +140,47 @@ def test_download_resolver_only_uses_fresh_playback_and_has_no_resource_side_eff
     assert item.get_html.call_count == 2
     assert not AVResource.objects.exists()
     metadata.scrape_with_source.assert_not_called()
+
+
+def test_configured_source_and_playback_ttl_applied_to_publication(settings):
+    settings.RESOURCE_CACHE_POLICY = {
+        **settings.RESOURCE_CACHE_POLICY,
+        "SourceTTLSeconds": 60,
+        "PlaybackTTLSeconds": 15,
+    }
+    item = source()
+    item.get_video_detail("TEST-001")
+    metadata = ResourceMetadataCache.objects.get()
+    playback = ResourcePlaybackCache.objects.get()
+    assert metadata.fresh_until - metadata.fetched_at == timedelta(seconds=60)
+    assert playback.fresh_until - playback.fetched_at == timedelta(seconds=15)
+
+
+def test_download_keeps_existing_enabled_source_and_falls_back_if_disabled():
+    from types import SimpleNamespace
+    from nassav.download_information import ProviderDownloadInfoResolver
+    from nassav.resource_data import AVDownloadInfo
+    from dataclasses import asdict
+
+    gateway = Mock()
+    gateway.sources.get_source.return_value = SimpleNamespace(domain="selected.example")
+    gateway.source.return_value = (
+        {
+            "info": asdict(
+                AVDownloadInfo(avid="TEST-001", source="Selected", m3u8="url")
+            ),
+            "source_name": "Selected",
+        },
+        None,
+    )
+    resolver = ProviderDownloadInfoResolver(
+        lambda control: gateway, preferred_source=lambda avid: "Selected"
+    )
+    resolver.resolve("TEST-001")
+    assert gateway.source.call_args.args == ("TEST-001", "Selected")
+    gateway.sources.get_source.side_effect = [
+        None,
+        SimpleNamespace(domain="fallback.example"),
+    ]
+    resolver.resolve("TEST-001")
+    assert gateway.source.call_args.args == ("TEST-001", "any")
