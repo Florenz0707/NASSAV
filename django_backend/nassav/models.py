@@ -319,7 +319,7 @@ class AVResource(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        db_table = "nassav_avresource"
+        db_table = "nassav_av_resource"
         ordering = ["-metadata_updated_at"]
 
     def __str__(self):

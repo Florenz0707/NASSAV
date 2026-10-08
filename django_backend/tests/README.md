@@ -104,3 +104,7 @@ uv run coverage report
 `test_task_assets.py` 还验证旧文件硬链接 EPERM 的备份回退、提交成功、元数据失败回滚、复制中的暂停和磁盘失败不被吞掉；`test_backend_permissions.py` 的正式媒体迁移须显式 include-published，保留 inode/内容且拒绝链接。
 
 代理并发专项：`test_proxy_server.py` 验证任意 provider 的公共容量装饰、有序窗口、取消、失租及真实临时 Redis 共享限额；`test_search_proxy_concurrency.py` 验证外部搜索首屏/乱序/短路/部分失败、推荐独立 seed 与详情共享预算、取消后不合并、不同 provider 的生产装配及线程本地连接清理。业务网络使用替身，Redis 使用 Unix socket；不代表真实来源/worker 容量验收。
+
+## 表名迁移回归
+
+`uv run pytest tests/test_table_name_migration.py --ds=django_project.refactoring_test_settings -v` 使用合成资源、演员/类别关联、任务/attempt/资产/事件/命令及推荐/缓存行，执行 0027→0028→0027→0028，并比对全部字段、主键、关系行与索引/唯一约束。finally 恢复原迁移图叶节点，适用于后续迁移继续加入。PostgreSQL 验证必须另用独立临时实例与测试配置，禁止指向正式库。

@@ -223,3 +223,25 @@ sudo find "$lock_dir" -maxdepth 1 -type f -name '*.lock' -exec chown 1000:1000 {
 ## 持久抓取缓存版本切换
 
 更新缓存消费者前备份数据库、暂停旧 API/worker 消费，执行 `uv run python manage.py migrate` 应用 0027，再一致更新 API、scrape/download worker 和 Beat。缓存初始为空，首次仍冷抓取；不回填旧元数据或 m3u8。容器 config/config.yaml 可省略 ResourceCache 块使用默认值，或按 Compose 配置样例补充并重启。只有 Beat 运行时才自动有界清理；`provider_cache` 默认只预览。目标 PostgreSQL、真实站点热缓存收益与暂停恢复仍需部署验收，详见[缓存架构](resource-cache-architecture.md)。
+
+## 表名规范化迁移 0028
+
+本次切换需要维护窗口：旧版消费者仍查询旧表名，不能与迁移后的新版混跑。正式执行前保留旧镜像标签与 0027 数据库备份，核对当前数据库引擎、schema、已应用迁移以及 14 个目标表名均未占用。正常入口统一使用 scripts/compose_stack.py 对应的数据库模式与 Compose 文件，勿误用默认 SQLite 栈。
+
+1. 禁止新写入与任务提交，停止 Beat 派发；按任务控制协议暂停/结束当前执行，确认写入者退出，再停止 API 和全部 worker（含恢复线程）。保留暂停工作区及队列，不删除锁/任务私有文件。
+2. 使用当前引擎备份数据库并验证可恢复；PostgreSQL 使用 custom-format 备份。把配置、数据库模式声明和镜像版本与备份一并记录。不要用宿主机默认 SQLite 文件代替实际 PostgreSQL 数据库。
+3. 用准备好的新版后端一次性容器审阅 `python manage.py migrate --plan` 与 `python manage.py sqlmigrate nassav 0028`，确认仅 14 次表重命名。设置有限 lock_timeout，若等待现存连接超时则保留停止状态并排查，不绕过锁或混跑旧服务。
+4. 在同一配置/secret/schema 下执行迁移（PostgreSQL 可使用下方同连接限时入口）。核对目标表存在、旧表消失、业务行数、主键、多对多关联、索引及约束，并确认迁移记录到 0028。
+5. 同步启动新版 API、scrape/download/default worker 与 Beat，验收资源列表/详情、演员/类别关联、任务查询与控制、推荐历史/反馈及缓存统计。仅迁移数据库不能替代代码部署。
+
+若需回退，先停止新版写入者，用含该迁移的新版代码执行 `python manage.py migrate nassav 0027`，确认旧表恢复后再启动旧镜像。回退表名不会撤销上线后的业务写入；恢复整个备份仅在数据回退方案明确时执行。若数据库已经存在 0028 以后的迁移，先审阅回退计划，不能直接照抄此命令。
+
+当前自动化验证使用合成数据和隔离实例；正式迁移及维护窗口需要单独确认与记录。
+
+PostgreSQL 一次性迁移进程可在同一连接设置 5 秒锁等待上限，保留配置中的 search_path；锁等待超时则退出并由原子迁移回滚，不启动消费者：
+
+```bash
+python manage.py shell -c "from django.db import connection; from django.core.management import call_command; connection.cursor().execute(\"SET lock_timeout = '5s'\"); call_command('migrate', 'nassav', '0028')"
+```
+
+此入口仅用于 PostgreSQL；SQLite 使用普通 migrate 命令。该会话设置只作用于此次进程，不更改数据库或角色的全局配置。

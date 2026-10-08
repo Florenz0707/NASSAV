@@ -8,6 +8,9 @@ from django.db import models
 class RecommendationState(models.Model):
     generation = models.PositiveBigIntegerField(default=1)
 
+    class Meta:
+        db_table = "nassav_recommendation_state"
+
 
 class RecommendationJob(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
@@ -25,4 +28,9 @@ class RecommendationJob(models.Model):
     dispatch_after = models.DateTimeField(null=True)
 
     class Meta:
-        indexes = [models.Index(fields=["state", "deadline"])]
+        db_table = "nassav_recommendation_job"
+        indexes = [
+            models.Index(
+                fields=["state", "deadline"], name="nassav_reco_state_64edbc_idx"
+            )
+        ]

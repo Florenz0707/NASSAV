@@ -34,7 +34,7 @@ Database:
 
 迁移 `0021_sourcecookie_session_metadata` 只增加三个可空列，旧行数量及 Cookie 内容不变；可回退到上一迁移。`SourceCookieRepository` 把 Cookie、UA、到期时间、路线标识和版本作为同一快照传入 Django 共享缓存与进程缓存。读取共享缓存前核对数据库版本，避免迟到的旧缓存遮蔽新值。浏览器会话写入使用短事务锁行并比较 `updated_at`；人工设置、清除或较新的刷新发生后，较早启动的浏览器结果不写回。人工设置不带 UA 时清空历史 UA、到期时间和路线标识；清除 Cookie 时同样清空元数据。未知路线的自动会话不写入，已过期或路线不匹配的快照不会用于页面直连。旧行继续携带原 Cookie 和默认 UA 进行有限直连；P2 已接入详情、列表和搜索页面的浏览器会话提取与短直连验证；P3 已加入跨 API/worker 的站点级 Redis 刷新租约；人工写入仍不等待该锁，旧自动 Cookie 写入也会检查启动时版本和租约持有权。
 
-- **`AVResource` (`nassav_avresource`)**: 主表，保存 AV 元数据（除封面与视频文件外的所有字段）。
+- **`AVResource` (`nassav_av_resource`)**: 主表，保存 AV 元数据（除封面与视频文件外的所有字段）。
   - 关键字段：
     - `avid` (Char, unique, db_index): AV 编号，主查找键。
     - `original_title` (Char, db_index): Scraper 获取的原始标题（通常为日语，来自 Javbus）。
@@ -356,3 +356,28 @@ P7 不增加 schema。恢复扫描依据 TaskAttempt 的 worker host/boot_id/PID
 ## 持久抓取缓存（0027）
 
 ResourceMetadataCache 与 ResourcePlaybackCache 独立于 AVResource，无业务资源外键。唯一键为 AVID/提供者类型/名称/上下文哈希/版本路径哈希；JSON 为原站解析结果，不含收藏、观看、翻译或任务状态。播放表限定 source。迁移空表，不回填混合 metadata 或旧播放地址；有效期、领取代次与可替换存储接口见[缓存架构](resource-cache-architecture.md)。
+
+## 表名规范化（迁移 0028）
+
+业务模型显式声明 Meta.db_table，表名全小写，单词之间使用下划线；AV/AVID 等缩写作为单词整体。source_cookie 与其他已经符合规范的表保留现名。字段、模型身份、ContentType/权限、数据与 API 契约保持；序列和约束沿用已有名称，本轮规范仅针对表名。
+
+| 原表名                         | 新表名                           |
+| ------------------------------ | -------------------------------- |
+| `nassav_avresource`            | `nassav_av_resource`             |
+| `nassav_avresource_actors`     | `nassav_av_resource_actors`      |
+| `nassav_avresource_genres`     | `nassav_av_resource_genres`      |
+| `nassav_taskjob`               | `nassav_task_job`                |
+| `nassav_taskattempt`           | `nassav_task_attempt`            |
+| `nassav_taskartifact`          | `nassav_task_artifact`           |
+| `nassav_taskcommand`           | `nassav_task_command`            |
+| `nassav_taskassettarget`       | `nassav_task_asset_target`       |
+| `nassav_taskevent`             | `nassav_task_event`              |
+| `nassav_taskeventreceipt`      | `nassav_task_event_receipt`      |
+| `nassav_recommendationstate`   | `nassav_recommendation_state`    |
+| `nassav_recommendationjob`     | `nassav_recommendation_job`      |
+| `nassav_resourcemetadatacache` | `nassav_resource_metadata_cache` |
+| `nassav_resourceplaybackcache` | `nassav_resource_playback_cache` |
+
+0028_normalize_table_names 包含 12 个 AlterModelTable，资源主表的两个隐式多对多关联表由 Django 自动改名，共影响 14 张物理表。TaskJob、TaskAttempt、RecommendationJob 的索引显式固定原名称，不重建索引。历史 0002/0004 等迁移保留原表名，以支持空库安装与回退链。迁移不搬运资源文件或重置任务/缓存；执行前检查名称冲突并按[部署步骤](compose-deployment.md#表名规范化迁移-0028)备份和停止旧消费者。
+
+验证记录（2026-10-08）：阶段提交标题 `[Enhancement] Normalize database table names with reversible migration`。`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：860 passed/28 skipped；迁移专项 SQLite 与独立 PostgreSQL 17 nassav schema 各 2 passed，覆盖完整字段/主键/关系行、全部声明索引/约束/外键及 0027→0028→0027→0028。`makemigrations --check --dry-run` 返回 No changes detected；PostgreSQL `sqlmigrate nassav 0028` 仅生成 14 次 ALTER TABLE RENAME。正式数据库、镜像和服务尚未切换。

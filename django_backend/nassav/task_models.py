@@ -44,7 +44,13 @@ class TaskJob(models.Model):
     finished_at = models.DateTimeField(null=True)
 
     class Meta:
-        indexes = [models.Index(fields=["owner", "state", "created_at"])]
+        db_table = "nassav_task_job"
+        indexes = [
+            models.Index(
+                fields=["owner", "state", "created_at"],
+                name="nassav_task_owner_i_df871f_idx",
+            )
+        ]
 
 
 class TaskAttempt(models.Model):
@@ -65,13 +71,18 @@ class TaskAttempt(models.Model):
     stopped_at = models.DateTimeField(null=True)
 
     class Meta:
+        db_table = "nassav_task_attempt"
         constraints = [
             models.UniqueConstraint(
                 fields=["job", "generation", "role"],
                 name="task_attempt_generation_role",
             )
         ]
-        indexes = [models.Index(fields=["state", "dispatched_at"])]
+        indexes = [
+            models.Index(
+                fields=["state", "dispatched_at"], name="nassav_task_state_38ea21_idx"
+            )
+        ]
 
 
 class TaskArtifact(models.Model):
@@ -90,6 +101,7 @@ class TaskArtifact(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "nassav_task_artifact"
         constraints = [
             models.UniqueConstraint(
                 fields=["job", "root", "relative_path"], name="task_artifact_owned_path"
@@ -105,6 +117,7 @@ class TaskCommand(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = "nassav_task_command"
         constraints = [
             models.UniqueConstraint(
                 fields=["job", "request_id"], name="task_command_request_id"
@@ -122,6 +135,7 @@ class TaskAssetTarget(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "nassav_task_asset_target"
         constraints = [
             models.UniqueConstraint(
                 fields=["root", "relative_path"], name="task_asset_target_path"
@@ -140,6 +154,7 @@ class TaskEvent(models.Model):
     delivered_at = models.DateTimeField(null=True)
 
     class Meta:
+        db_table = "nassav_task_event"
         constraints = [
             models.UniqueConstraint(fields=["job", "event"], name="task_event_job_kind")
         ]
@@ -150,6 +165,7 @@ class TaskEventReceipt(models.Model):
     consumer = models.CharField(max_length=80)
 
     class Meta:
+        db_table = "nassav_task_event_receipt"
         constraints = [
             models.UniqueConstraint(
                 fields=["event", "consumer"], name="task_event_consumer"

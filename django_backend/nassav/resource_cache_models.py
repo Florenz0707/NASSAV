@@ -26,6 +26,7 @@ class ProviderCacheRecord(models.Model):
 
 class ResourceMetadataCache(ProviderCacheRecord):
     class Meta:
+        db_table = "nassav_resource_metadata_cache"
         constraints = [
             models.UniqueConstraint(
                 fields=[
@@ -46,6 +47,7 @@ class ResourceMetadataCache(ProviderCacheRecord):
 class ResourcePlaybackCache(ProviderCacheRecord):
     # No FK to the resource or metadata: each cache can be evicted independently.
     class Meta:
+        db_table = "nassav_resource_playback_cache"
         constraints = [
             models.UniqueConstraint(
                 fields=[
