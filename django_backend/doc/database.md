@@ -352,3 +352,7 @@ P7 不增加 schema。恢复扫描依据 TaskAttempt 的 worker host/boot_id/PID
 `RecommendationState` 使用 pk=1 保存历史 generation，清空历史递增；
 成功提交检查 generation 和任务执行归属，snapshot 与成功结果原子保存。
 部署先应用迁移 0026，重启 API/worker。迁移不更改已有推荐 snapshot 内容。
+
+## 持久抓取缓存（0027）
+
+ResourceMetadataCache 与 ResourcePlaybackCache 独立于 AVResource，无业务资源外键。唯一键为 AVID/提供者类型/名称/上下文哈希/版本路径哈希；JSON 为原站解析结果，不含收藏、观看、翻译或任务状态。播放表限定 source。迁移空表，不回填混合 metadata 或旧播放地址；有效期、领取代次与可替换存储接口见[缓存架构](resource-cache-architecture.md)。

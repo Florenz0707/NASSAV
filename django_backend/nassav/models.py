@@ -13,6 +13,10 @@ from nassav.recommendation_models import (
     RecommendationJob as RecommendationJob,
     RecommendationState as RecommendationState,
 )
+from nassav.resource_cache_models import (
+    ResourceMetadataCache as ResourceMetadataCache,
+    ResourcePlaybackCache as ResourcePlaybackCache,
+)
 from nassav.task_models import (
     TaskArtifact as TaskArtifact,
     TaskAssetTarget as TaskAssetTarget,
