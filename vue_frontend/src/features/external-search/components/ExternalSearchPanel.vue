@@ -5,6 +5,7 @@ import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceStore } from '../../resources/stores/resource.js'
 import { useToastStore } from '../../../shared/stores/toast.js'
+import { useResourceAdds } from '../../resources/composables/useResourceAdds.js'
 import { useExternalSearchTask } from '../composables/useExternalSearchTask.js'
 import {
   useExternalSearchSources,
@@ -152,19 +153,29 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', updateInitialHeight)
 })
 
-const addingExternalAvids = ref(new Set())
+const addedExternalAvids = ref(new Set())
+const { adding: addingExternalAvids, add: handleAddExternal } = useResourceAdds({
+  added: addedExternalAvids,
+  jobs: () => resourceStore.visibleScrapeJobs,
+  submit: (avid, item) => resourceStore.addResource(avid, item.source || externalSource.value),
+  onAdded: (item) => {
+    syncExternalResourceStatus(item.avid, true)
+  },
+  onExisting: (item) => toastStore.info(`${item.avid} 已经在资源库中`),
+  onError: (error) => toastStore.error(error.message || '添加失败'),
+})
 const handledScrapeJobs = new Set()
 watch(
   () => resourceStore.visibleScrapeJobs,
   (jobs) => {
     for (const job of jobs) {
       const id = job.job_id || job.task_id
-      if (job.state !== 'succeeded' || handledScrapeJobs.has(id)) continue
+      if (
+        !(job.resource_saved || job.resource_avid || job.state === 'succeeded') ||
+        handledScrapeJobs.has(id)
+      )
+        continue
       handledScrapeJobs.add(id)
-      if (job.action === 'add') {
-        const item = externalResources.value.find((candidate) => candidate.avid === job.avid)
-        if (item) markExternalItemInLibrary(item)
-      }
       emit('resource-saved')
     }
   }
@@ -210,12 +221,9 @@ function setCachedExternalPage(pageNumber, payload) {
 }
 
 function isExternalItemInLibrary(item) {
-  return Boolean(item?.is_in_library || item?.in_library)
-}
-
-function markExternalItemInLibrary(item) {
-  item.is_in_library = true
-  item.in_library = true
+  return Boolean(
+    item?.is_in_library || item?.in_library || addedExternalAvids.value.has(item?.avid)
+  )
 }
 
 async function scrollToTopAfterExternalRefresh() {
@@ -378,6 +386,10 @@ function resetExternalSearchState() {
 }
 
 function syncExternalResourceStatus(avid, inLibrary) {
+  const added = new Set(addedExternalAvids.value)
+  if (inLibrary) added.add(avid)
+  else added.delete(avid)
+  addedExternalAvids.value = added
   let updated = false
   const item = externalResources.value.find((r) => r.avid === avid)
   if (item) {
@@ -400,24 +412,6 @@ function syncExternalResourceStatus(avid, inLibrary) {
     })
   }
   if (updated) saveExternalCache()
-}
-
-async function handleAddExternal(item) {
-  if (addingExternalAvids.value.has(item.avid)) return
-  addingExternalAvids.value.add(item.avid)
-  try {
-    await resourceStore.addResource(item.avid, item.source || externalSource.value)
-  } catch (err) {
-    if (err.httpStatus === 409 || err.code === 409 || err?.response?.status === 409) {
-      toastStore.info(`${item.avid} 已经在资源库中`)
-      markExternalItemInLibrary(item)
-      saveExternalCache()
-    } else {
-      toastStore.error(err.message || '添加失败')
-    }
-  } finally {
-    addingExternalAvids.value.delete(item.avid)
-  }
 }
 
 function handleOpenExternal(item) {

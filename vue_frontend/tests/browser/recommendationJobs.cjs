@@ -160,7 +160,29 @@ async function main() {
     assert.equal(await dialog.getByRole('button').count(), 3)
     await page.screenshot({ path: '/tmp/nassav-ui-recommendation-info-mobile.png' })
     await page.keyboard.press('Escape')
-    await page.getByRole('status').filter({ hasText: '已为你保留 1 / 12' }).waitFor()
+    await page.locator('.recommendation-card').first().waitFor()
+    const checkFooterGap = async () => {
+      const gap = await page.evaluate(() => {
+        const grid = document.querySelector('.recommendation-grid').getBoundingClientRect()
+        const button = document.querySelector('.results-footer button').getBoundingClientRect()
+        return {
+          actual: button.top - grid.bottom,
+          minimum: 3 * parseFloat(getComputedStyle(document.documentElement).fontSize),
+        }
+      })
+      assert.ok(
+        gap.actual >= gap.minimum - 1,
+        `single-row recommendation footer gap: ${JSON.stringify(gap)}`
+      )
+    }
+    await checkFooterGap()
+    await page.locator('summary').filter({ hasText: '推荐依据' }).click()
+    const seed = page.getByRole('region', { name: '推荐依据' }).locator('li').first()
+    await seed.waitFor()
+    const background = await seed.evaluate((el) => getComputedStyle(el).backgroundColor)
+    assert.match(background, /(?:0\.8|80%)/)
+    assert.equal(await seed.evaluate((el) => getComputedStyle(el).opacity), '1')
+    await page.locator('summary').filter({ hasText: '推荐依据' }).click()
     await page.screenshot({ path: '/tmp/nassav-ui-recommendation-mobile.png' })
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -190,6 +212,7 @@ async function main() {
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true
     )
+    await checkFooterGap()
     await page.screenshot({ path: '/tmp/nassav-ui-recommendation-desktop.png' })
     await page.getByRole('button', { name: '查看推荐信息' }).click()
     assert.equal(

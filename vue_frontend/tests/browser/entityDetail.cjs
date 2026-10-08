@@ -70,6 +70,26 @@ async function main() {
         data = jobs.get(url.pathname.split('/').at(-1))
       await route.fulfill({ json: { code: 200, data, pagination } })
     })
+    let addJob = null,
+      addCount = 0
+    await page.route('**/nassav/api/resource/jobs', async (route) => {
+      addCount++
+      addJob = {
+        job_id: `external-add-${addCount}`,
+        task_id: `attempt-${addCount}`,
+        job_type: 'scrape',
+        avid: 'EXT-001',
+        action: 'add',
+        state: 'queued',
+        version: 1,
+        resource_saved: false,
+        allowed_actions: [],
+      }
+      await route.fulfill({ json: { code: 202, data: { job_id: addJob.job_id, job: addJob } } })
+    })
+    await page.route('**/nassav/api/tasks/jobs/external-add-*', async (route) => {
+      await route.fulfill({ json: { code: 200, data: addJob } })
+    })
     const origin = process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4178'
     for (const type of ['actor', 'genre']) {
       await page.goto(`${origin}/${type}s/1?page=2`)
@@ -100,6 +120,32 @@ async function main() {
       assert.equal(submissions.at(-1).entity_type, type)
       assert.equal(submissions.at(-1).entity_id, 1)
       assert.equal(submissions.at(-1).source, 'missav')
+      const card = page.locator('.external-search-card').first()
+      await card.getByRole('button', { name: '加入资源库', exact: true }).click()
+      await card.getByRole('button', { name: '添加中', exact: true }).waitFor()
+      const acceptedCount = addCount
+      await page.waitForTimeout(200)
+      assert.equal(
+        await card.getByRole('button', { name: '添加中', exact: true }).isDisabled(),
+        true
+      )
+      addJob = { ...addJob, state: 'failed', version: 2 }
+      await card.getByRole('button', { name: '加入资源库', exact: true }).waitFor()
+      await card.getByRole('button', { name: '加入资源库', exact: true }).click()
+      assert.equal(addCount, acceptedCount + 1)
+      addJob = {
+        ...addJob,
+        state: 'running',
+        stage: 'translation',
+        resource_saved: true,
+        resource_avid: 'EXT-001',
+        version: 2,
+      }
+      await card.getByRole('button', { name: '已添加', exact: true }).waitFor()
+      assert.equal(
+        await card.getByRole('button', { name: '已添加', exact: true }).isDisabled(),
+        true
+      )
       await page.getByRole('button', { name: '取消搜索', exact: true }).click()
       await page.getByText('搜索已取消，已获取的结果仍可查看。', { exact: true }).waitFor()
       assert.equal(await page.getByText('Partial result', { exact: true }).isVisible(), true)
@@ -107,7 +153,7 @@ async function main() {
     }
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: actor/genre adapters, restored page, explicit search, source change, partial results and backend cancellation'
+      'PASS: actor/genre adapters, restored page, explicit search, source change, partial results, backend cancellation and owned add lifecycle'
     )
   } finally {
     await browser.close()

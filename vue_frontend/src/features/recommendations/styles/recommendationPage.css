@@ -293,6 +293,7 @@
   }
 
   .recommendations-view .results-footer {
+    margin-top: 3rem;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;

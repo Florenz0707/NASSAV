@@ -18,7 +18,9 @@ defineProps({ groups: { type: Object, required: true } })
             v-for="seed in groups[group.key]"
             :key="`${seed.seed_type}-${seed.value}`"
             class="text-on-accent text-sm rounded-lg px-3 py-2 max-w-full break-words"
-            :class="group.key === 'actor' ? 'bg-[var(--coral-fill)]' : 'bg-[var(--teal-fill)]'"
+            :class="
+              group.key === 'actor' ? 'bg-[var(--coral-fill)]/80' : 'bg-[var(--teal-fill)]/80'
+            "
           >
             {{ seed.value }}
             <span class="text-on-accent opacity-80">· {{ seed.resource_count }}</span>
