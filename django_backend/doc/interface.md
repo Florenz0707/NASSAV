@@ -1498,3 +1498,7 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 ### 外部搜索任务结果 TTL
 
 相同查询的已成功任务按 YAML `ExternalSearch.ResultTTLSeconds` 复用，默认 300 秒，0 禁用，最大 86400 秒。强制刷新仍跳过已完成任务；queued/running 仍返回重复任务身份。结果新鲜期以 completed_at 为起点，不因轮询或迟到事件延长，原接口字段和 URL 不变。配置说明见[配置契约](configuration-contract.md)。
+
+### 外部搜索聚合缓存与详情命中
+
+外部搜索默认启用完整聚合结果缓存（ExternalSearch.CacheEnabled=true，AggregateTTLSeconds=300），与 ResultTTLSeconds 独立。结果 meta.cache.enabled/hit/force_refresh 保留，新增 meta.detail_cache_hit_count 表示本轮完整集合命中的有效来源详情数，资源可带 detail_cached。命中仅补缺失标题/封面，不触发逐条详情抓取；该标记不承诺添加阶段缓存仍新鲜。in_library 在查询/分页返回时按当前数据库重新计算，不保存到原站聚合缓存。接口 URL、任务身份、部分进度与分页契约保持不变。

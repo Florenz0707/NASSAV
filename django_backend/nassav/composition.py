@@ -86,9 +86,24 @@ def external_search_adapters(*, proxy_server: "ProxyServer | None" = None):
     def scope(name):
         return lambda check: _controlled_source_scope(factories[name], check)
 
+    def facts_lookup(name, items):
+        from nassav.provider_facts import SourceFactsLookup
+        from nassav.source.SourceBase import SourceBase
+
+        source = source_manager.get_source(name)
+        if not isinstance(source, SourceBase):
+            return {}
+        return SourceFactsLookup(build_provider_facts_cache(), source).read_facts(
+            [(item["avid"], item.get("detail_url", "")) for item in items]
+        )
+
     return {
-        "jable": JableExternalSourceAdapter(source_scope=scope("jable")),
-        "missav": MissAVExternalSourceAdapter(source_scope=scope("missav")),
+        "jable": JableExternalSourceAdapter(
+            source_scope=scope("jable"), facts_lookup=facts_lookup
+        ),
+        "missav": MissAVExternalSourceAdapter(
+            source_scope=scope("missav"), facts_lookup=facts_lookup
+        ),
         "memo": PlaceholderExternalSourceAdapter("memo"),
     }
 

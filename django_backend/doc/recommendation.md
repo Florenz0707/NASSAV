@@ -797,8 +797,10 @@ HTTP 仅提交；Celery `nassav.tasks.recommendation_job_task` 在 `scrape` 队�
 | 前端推荐列表                       | 同标签页 sessionStorage 保存完整跨轮去重列表、偏好与成功用时        | 清空页面/历史重置；无定时 TTL，不是后端结果缓存        |
 | 本地推荐/外部搜索封面              | cover 接口按 URL SHA-256 文件名缓存于 resource/recommendation_cover | 当前无自动 TTL/定时删除，重置历史或删除 job 不清理图片 |
 
-推荐每次新请求重新运行候选和评分，来源页缓存可以命中；外部搜索任务结果可按 `ExternalSearch.ResultTTLSeconds` 复用（默认 300 秒、0 禁用）；另有可选的聚合成功结果缓存（默认 TTL 300 秒，但现行生产设置未启用 `EXTERNAL_SEARCH_CACHE_ENABLED`），只缓存完整成功，部分/失败/取消不写成功缓存。两者共享封面接口，图片残留不代表后台任务仍在执行。本轮未新增图片清理机制，也不应把历史重置误用为文件清理；后续增加 GC 需独立设计并发读写与保留策略。
+推荐每次新请求重新运行候选和评分，来源页缓存可以命中；外部搜索任务结果可按 `ExternalSearch.ResultTTLSeconds` 复用（默认 300 秒、0 禁用）；另有默认启用的聚合成功结果缓存（`ExternalSearch.CacheEnabled`/`AggregateTTLSeconds`，默认 TTL 300 秒），只缓存完整成功，部分/失败/取消不写成功缓存。两者共享封面接口，图片残留不代表后台任务仍在执行。本轮未新增图片清理机制，也不应把历史重置误用为文件清理；后续增加 GC 需独立设计并发读写与保留策略。
 
 Jable 详情只读取 section.video-info 内的演员/标签/类别，演员完整名称优先 tooltip；导航和侧栏不能参与核验。召回数是本轮唯一 AVID 总量，包含可能被已有资源/历史过滤的条目；详情成功、黑名单排除、未核验和最终返回量分别解释，不把返回/召回比值当作详情核验成功率。
 
 持久事实的迁移 0027、配置、短事务发布 fence 与清理机制见[持久抓取缓存](resource-cache-architecture.md)。定期清理仅缓存数据库记录，不清理上述本地推荐封面目录。
+
+外部搜索现可批量读取已有有效来源详情补缺失标题/封面，但不逐条抓详情，不把列表摘要写成完整数据库事实。搜索任务/聚合缓存返回时重新计算当前库存；添加资源仍按 [持久抓取缓存](resource-cache-architecture.md) 补齐缺失事实。

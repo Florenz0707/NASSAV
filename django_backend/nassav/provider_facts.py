@@ -72,6 +72,19 @@ class SourceFactsLookup:
     def __init__(self, cache, source):
         self.cache, self.source = cache, source
 
+    def read_facts(self, candidates):
+        result = {}
+        for offset in range(0, len(candidates), 200):
+            keys = {
+                source_key(self.source, avid, url): avid
+                for avid, url in candidates[offset : offset + 200]
+            }
+            for key, value in self.cache.read_many(
+                list(keys), configured_policy(SOURCE_POLICY)
+            ).items():
+                result[keys[key]] = value
+        return result
+
     def read_details(self, candidates):
         keys = {
             source_key(self.source, avid, url): avid for avid, url in candidates[:200]

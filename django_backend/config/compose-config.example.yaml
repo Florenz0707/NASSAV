@@ -100,3 +100,5 @@ ResourceCache:
 # 已完成外部搜索任务结果复用时长；秒，0 禁用，最大 86400。
 ExternalSearch:
   ResultTTLSeconds: 300
+  CacheEnabled: true
+  AggregateTTLSeconds: 300

@@ -184,3 +184,112 @@ def test_download_keeps_existing_enabled_source_and_falls_back_if_disabled():
     ]
     resolver.resolve("TEST-001")
     assert gateway.source.call_args.args == ("TEST-001", "any")
+
+
+def test_external_search_reads_existing_details_without_fetching_more(
+    actor_factory, settings
+):
+    from nassav.provider_facts import SourceFactsLookup
+    from nassav.external_search import ExternalSearchService, JableExternalSourceAdapter
+    from django.core.cache import cache
+
+    settings.EXTERNAL_SEARCH_CACHE_ENABLED = True
+    settings.EXTERNAL_SEARCH_FETCH_PAGES = 1
+    cache.clear()
+    item = source()
+    item.get_video_detail("TEST-001")
+    lookup = SourceFactsLookup(build_provider_facts_cache(), item)
+    reader = Mock(
+        side_effect=lambda name, rows: lookup.read_facts(
+            [(row["avid"], row.get("detail_url", "")) for row in rows]
+        )
+    )
+    adapter = JableExternalSourceAdapter(
+        source_lookup=lambda name: item, facts_lookup=reader
+    )
+    adapter.search_actor_items = Mock(
+        return_value=[
+            {
+                "avid": "TEST-001",
+                "detail_url": item.get_detail_url("TEST-001"),
+                "source_title": "",
+                "thumbnail_url": "",
+            },
+            {"avid": "UNKNOWN-001", "source_title": "Listing only"},
+        ]
+    )
+    service = ExternalSearchService(adapters={"jable": adapter})
+    query = dict(
+        actor_id=actor_factory().pk,
+        source_name="jable",
+        page=1,
+        page_size=20,
+        ordering="-views",
+    )
+    result = service.search_actor_detail(**query)
+    known = next(row for row in result.items if row["avid"] == "TEST-001")
+    assert known["detail_cached"] and known["source_title"] and known["thumbnail_url"]
+    assert result.meta["detail_cache_hit_count"] == 1
+    assert not next(row for row in result.items if row["avid"] == "UNKNOWN-001")[
+        "detail_cached"
+    ]
+    assert service.search_actor_detail(**query).meta["cache"]["hit"]
+    assert item.get_html.call_count == adapter.search_actor_items.call_count == 1
+    assert ResourceMetadataCache.objects.count() == 1
+    ResourceMetadataCache.objects.update(
+        fresh_until=timezone.now() - timedelta(seconds=1)
+    )
+    assert service.search_actor_detail(**query).meta["detail_cache_hit_count"] == 0
+    assert item.get_html.call_count == 1
+    cache.clear()
+
+
+def test_cached_job_reads_details_created_after_search_without_network(
+    settings, monkeypatch
+):
+    from nassav import search_jobs
+    from nassav.external_search import ExternalSearchService, JableExternalSourceAdapter
+    from nassav.provider_facts import SourceFactsLookup
+    from test_search_jobs import MemoryStore
+
+    item = source()
+    adapter = JableExternalSourceAdapter(
+        source_lookup=lambda name: item,
+        facts_lookup=lambda name, rows: SourceFactsLookup(
+            build_provider_facts_cache(), item
+        ).read_facts([(row["avid"], row.get("detail_url", "")) for row in rows]),
+    )
+    monkeypatch.setattr(
+        search_jobs,
+        "external_search_service",
+        ExternalSearchService(adapters={"jable": adapter}),
+    )
+    store = MemoryStore()
+    row = {
+        "avid": "TEST-001",
+        "detail_url": item.get_detail_url("TEST-001"),
+        "source_title": "",
+        "thumbnail_url": "",
+    }
+    store.rows["cached-job"] = {
+        "task_id": "cached-job",
+        "state": "succeeded",
+        "query": {"source": "jable"},
+        "collected_results": [row],
+        "result": {"data": {"external_results": [row]}, "pagination": {}},
+    }
+    assert not search_jobs.get_search_job("cached-job", store=store)["result"]["data"][
+        "external_results"
+    ][0]["detail_cached"]
+    item.get_video_detail("TEST-001")
+    read = search_jobs.get_search_job("cached-job", store=store)
+    assert read["result"]["data"]["external_results"][0]["detail_cached"]
+    assert read["result"]["data"]["external_results"][0]["source_title"]
+    assert read["result"]["data"]["external_meta"]["detail_cache_hit_count"] == 1
+    assert (
+        store.rows["cached-job"]["result"]["data"]["external_results"][0][
+            "source_title"
+        ]
+        == ""
+    )
+    assert item.get_html.call_count == 1

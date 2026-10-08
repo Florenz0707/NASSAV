@@ -446,6 +446,7 @@ def test_late_page_cannot_revive_a_terminal_search(actor_factory, runtime, monke
 
 
 @pytest.mark.parametrize("state", ["running", "succeeded", "failed", "cancelled"])
+@pytest.mark.django_db
 def test_read_other_pages_of_same_job_without_fetching_or_mutating(runtime, state):
     store, enqueue = runtime
     items = [{"avid": f"ITEM-{i}"} for i in range(31)]
@@ -465,9 +466,13 @@ def test_read_other_pages_of_same_job_without_fetching_or_mutating(runtime, stat
     }
     store.rows["paged-job"] = original
     second = search_jobs.get_search_job("paged-job", page=2, page_size=15, store=store)
-    assert second["result"]["data"]["external_results"] == items[15:30]
+    assert second["result"]["data"]["external_results"] == [
+        {**item, "in_library": False} for item in items[15:30]
+    ]
     last = search_jobs.get_search_job("paged-job", page=3, page_size=15, store=store)
-    assert last["result"]["data"]["external_results"] == items[30:]
+    assert last["result"]["data"]["external_results"] == [
+        {**item, "in_library": False} for item in items[30:]
+    ]
     assert last["result"]["pagination"] == {
         "page": 3,
         "page_size": 15,
@@ -512,7 +517,9 @@ def test_signed_status_pages_do_not_expose_internal_collection(
     data = response.json()["data"]
     assert "collected_results" not in data
     assert "query_key" not in data
-    assert data["result"]["data"]["external_results"] == items[15:30]
+    assert data["result"]["data"]["external_results"] == [
+        {**item, "in_library": False, "detail_cached": False} for item in items[15:30]
+    ]
     assert api_client.get(url, {**params, "page": 0}).status_code == 400
     assert api_client.get(url, {**params, "token": "invalid"}).status_code == 403
     assert runtime[1].call_count == 1
@@ -540,3 +547,62 @@ def test_completed_result_reuse_obeys_configured_ttl(
     assert duplicate is reused
     assert (second["task_id"] == first["task_id"]) is reused
     assert runtime[1].call_count == (1 if reused else 2)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("cancel_wins", [False, True])
+def test_complete_result_cache_publication_follows_terminal_commit(
+    actor_factory, runtime, monkeypatch, cancel_wins
+):
+    store = runtime[0]
+    publish = Mock()
+    result = ExternalSearchResult(
+        items=[], pagination={}, meta={}, publish_cache=publish
+    )
+    monkeypatch.setattr(
+        search_jobs.external_search_service,
+        "search_actor_detail",
+        Mock(return_value=result),
+    )
+    job, _ = search_jobs.submit_search_job(
+        {"entity_type": "actor", "entity_id": actor_factory().pk, "source": "jable"}
+    )
+    original = store.save
+
+    def save(snapshot):
+        if cancel_wins and snapshot["state"] == "succeeded":
+            original({**snapshot, "state": "cancelled"})
+        return original(snapshot)
+
+    monkeypatch.setattr(store, "save", save)
+    finished = search_jobs.execute_search_job(job["task_id"])
+    assert finished["state"] == ("cancelled" if cancel_wins else "succeeded")
+    assert publish.call_count == (0 if cancel_wins else 1)
+
+
+@pytest.mark.django_db
+def test_reused_task_result_reprojects_library_without_mutating_snapshot(
+    actor_factory, resource_factory, runtime, monkeypatch
+):
+    result = ExternalSearchResult(
+        items=[{"avid": "EXIST-001", "in_library": False}], pagination={}, meta={}
+    )
+    monkeypatch.setattr(
+        search_jobs.external_search_service,
+        "search_actor_detail",
+        Mock(return_value=result),
+    )
+    job, _ = search_jobs.submit_search_job(
+        {"entity_type": "actor", "entity_id": actor_factory().pk, "source": "jable"}
+    )
+    search_jobs.execute_search_job(job["task_id"])
+    saved = resource_factory(avid="EXIST-001")
+    read = search_jobs.get_search_job(job["task_id"])
+    assert read["result"]["data"]["external_results"][0]["in_library"]
+    assert not runtime[0].rows[job["task_id"]]["result"]["data"]["external_results"][0][
+        "in_library"
+    ]
+    saved.delete()
+    assert not search_jobs.get_search_job(job["task_id"])["result"]["data"][
+        "external_results"
+    ][0]["in_library"]

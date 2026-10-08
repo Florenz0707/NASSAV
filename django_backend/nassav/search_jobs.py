@@ -16,6 +16,7 @@ from nassav.external_search import (
     ExternalSearchResult,
     external_search_service,
     paginate_results,
+    project_library_presence,
 )
 from nassav.models import Actor, Genre
 from nassav.scrape_jobs import JobStore, RedisJobStore
@@ -249,6 +250,30 @@ def get_search_job(
             },
         )
         store.release(snapshot["query_key"], task_id)
+    if snapshot and snapshot.get("result"):
+        from copy import deepcopy
+
+        snapshot = deepcopy(snapshot)
+        data = snapshot["result"]["data"]
+        collected = snapshot.get("collected_results")
+        projected = project_library_presence(
+            collected if collected is not None else data["external_results"]
+        )
+        query = snapshot.get("query", {})
+        if query.get("source"):
+            projected, detail_hits = external_search_service.project_existing_details(
+                query["source"], projected, force=query.get("force_refresh", False)
+            )
+            data["external_meta"] = {
+                **data.get("external_meta", {}),
+                "detail_cache_hit_count": detail_hits,
+            }
+        by_avid = {item["avid"]: item for item in projected}
+        data["external_results"] = [
+            by_avid.get(item["avid"], item) for item in data["external_results"]
+        ]
+        if collected is not None:
+            snapshot["collected_results"] = projected
     if snapshot and page is not None and snapshot.get("result"):
         if page < 1 or page_size is None or not 1 <= page_size <= 100:
             raise ValueError("分页参数无效")
@@ -358,10 +383,11 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
             force_refresh=query["force_refresh"],
             on_progress=progress,
             should_cancel=ensure_active,
+            defer_cache_publication=True,
         )
         ensure_active()
         payload = _result_payload(result, query)
-        return _save(
+        finished = _save(
             store,
             {
                 **snapshot,
@@ -373,6 +399,12 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
                 "completed_at": time.time(),
             },
         )
+        if finished["state"] == "succeeded" and result.publish_cache is not None:
+            try:
+                result.publish_cache()
+            except Exception:
+                logger.exception("外部搜索已成功，聚合缓存写入失败 task_id={}", task_id)
+        return finished
     except SearchJobCancelled:
         return store.get(task_id)
     except SoftTimeLimitExceeded:

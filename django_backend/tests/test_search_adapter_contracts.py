@@ -120,3 +120,73 @@ def test_adapter_cache_context_separates_domains(actor_factory, settings):
                 ordering="-views",
             )
         assert adapter.calls == [1]
+
+
+@pytest.mark.django_db
+def test_aggregate_cache_reuses_raw_results_and_reprojects_library(
+    actor_factory, resource_factory, settings
+):
+    from django.core.cache import cache
+
+    settings.EXTERNAL_SEARCH_CACHE_ENABLED = True
+    settings.EXTERNAL_SEARCH_FETCH_PAGES = 2
+    cache.clear()
+    actor = actor_factory()
+    adapter = TestListingAdapter()
+    service = ExternalSearchService(adapters={adapter.source_name: adapter})
+    query = dict(
+        actor_id=actor.pk,
+        source_name=adapter.source_name,
+        page=1,
+        page_size=20,
+        ordering="-views",
+    )
+    first = service.search_actor_detail(**query)
+    assert not first.meta["cache"]["hit"]
+    saved = resource_factory(avid="LOW-001")
+    second = service.search_actor_detail(**query)
+    assert second.meta["cache"]["hit"] and adapter.calls == [1, 2]
+    assert next(item for item in second.items if item["avid"] == "LOW-001")[
+        "in_library"
+    ]
+    assert not next(item for item in first.items if item["avid"] == "LOW-001")[
+        "in_library"
+    ]
+    saved.delete()
+    third = service.search_actor_detail(**{**query, "page": 2, "page_size": 1})
+    assert third.meta["cache"]["hit"] and not third.items[0]["in_library"]
+    service.search_actor_detail(**query, force_refresh=True)
+    assert adapter.calls == [1, 2, 1, 2]
+    cache.clear()
+
+
+@pytest.mark.django_db
+def test_async_cache_is_deferred_until_authoritative_success(actor_factory, settings):
+    from django.core.cache import cache
+
+    settings.EXTERNAL_SEARCH_CACHE_ENABLED = True
+    settings.EXTERNAL_SEARCH_FETCH_PAGES = 1
+    cache.clear()
+    actor = actor_factory()
+    adapter = TestListingAdapter()
+    service = ExternalSearchService(adapters={adapter.source_name: adapter})
+    query = dict(
+        actor_id=actor.pk,
+        source_name=adapter.source_name,
+        page=1,
+        page_size=20,
+        ordering="-views",
+    )
+    pending = service.search_actor_detail(**query, defer_cache_publication=True)
+    assert pending.publish_cache is not None
+    another = service.search_actor_detail(**query, defer_cache_publication=True)
+    assert not another.meta["cache"]["hit"]
+    pending.publish_cache()
+    hit = service.search_actor_detail(**query)
+    assert hit.meta["cache"]["hit"]
+    key = f"external-search:v5:cn:actor:{actor.pk}:test-listing:test.invalid:direct:1:-views"
+    assert all(
+        "in_library" not in item and "detail_cached" not in item
+        for item in cache.get(key)
+    )
+    cache.clear()

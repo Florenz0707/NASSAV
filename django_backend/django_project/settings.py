@@ -430,6 +430,17 @@ EXTERNAL_SEARCH_RESULT_TTL_SECONDS = integer(
     86400,
 )
 
+EXTERNAL_SEARCH_CACHE_ENABLED = boolean(
+    CONFIG.get("ExternalSearch", {}).get("CacheEnabled", True),
+    "ExternalSearch.CacheEnabled",
+)
+EXTERNAL_SEARCH_CACHE_TTL_SECONDS = integer(
+    CONFIG.get("ExternalSearch", {}).get("AggregateTTLSeconds", 300),
+    "ExternalSearch.AggregateTTLSeconds",
+    1,
+    86400,
+)
+
 # Optional provider-facts policy; shared by API and every worker.
 _cache_config = CONFIG.get("ResourceCache", {})
 RESOURCE_CACHE_POLICY = {

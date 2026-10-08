@@ -46,4 +46,10 @@ BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受
 
 可选 YAML `ExternalSearch.ResultTTLSeconds` 控制已成功外部搜索任务结果的复用时长（秒），默认 300，范围 0–86400；0 禁止已完成结果复用，但同查询 queued/running 任务仍去重。拒绝布尔值、非法整数和越界值，ExternalSearch 块须为映射。本地与 Compose 配置样例均提供此项；修改后同步重启 API 与 scrape worker。
 
-任务结果新鲜期从 completed_at 起算，强制重新搜索跳过已完成结果。Redis 查询 owner 按剩余复用时间有条件保留，不延长后来执行者的锁；任务快照保留一天，签名查询凭证覆盖执行预算及最大复用窗口。该项不改变 Jable 来源列表 TTL，也不启用可选聚合结果缓存 `EXTERNAL_SEARCH_CACHE_ENABLED`，更不控制数据库原站详情缓存。
+任务结果新鲜期从 completed_at 起算，强制重新搜索跳过已完成结果。Redis 查询 owner 按剩余复用时间有条件保留，不延长后来执行者的锁；任务快照保留一天，签名查询凭证覆盖执行预算及最大复用窗口。该项不改变 Jable 来源列表 TTL、聚合结果 TTL 或数据库原站详情 TTL。
+
+### 外部搜索聚合结果与已有详情
+
+`ExternalSearch.CacheEnabled` 默认 true，控制完整聚合结果缓存；`ExternalSearch.AggregateTTLSeconds` 默认 300，范围 1–86400 秒，关闭使用 CacheEnabled=false。结果缓存采用 Redis/Django cache，不新增数据库表。键隔离演员/类别身份、来源、域名、出口、排序及采集页数，缓存完整集合供不同分页复用。API/scrape worker 同步重启使配置生效。ResultTTLSeconds 控制任务身份复用，与聚合缓存独立，设为 0 仍可能命中来源或聚合缓存；强制重新搜索跳过相应读取。
+
+异步任务缓存回调仅在授权终态为 succeeded 后执行，取消先赢不得写成功缓存；失败/部分结果不发布完整聚合缓存。缓存只保存列表原站字段，不保存 in_library/detail_cached 等投影；读取时批量查询当前库存与已有有效数据库详情，不为列表追加详情请求。已有详情可补充缺失标题/封面，列表不被伪装成完整来源元数据/m3u8；添加时仍补齐缺失事实。

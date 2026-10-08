@@ -312,3 +312,20 @@ def test_invalid_external_search_result_ttl_fails_startup(tmp_path, value):
     result = startup(config_path, tmp_path / "absent.env")
     assert result.returncode != 0
     assert "ExternalSearch.ResultTTLSeconds" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("AggregateTTLSeconds", 0),
+        ("AggregateTTLSeconds", True),
+        ("AggregateTTLSeconds", 86401),
+        ("CacheEnabled", "invalid"),
+    ],
+)
+def test_invalid_external_aggregate_cache_config_fails_startup(tmp_path, key, value):
+    config_path = tmp_path / "config.yaml"
+    write_config(config_path, lambda config: config.update(ExternalSearch={key: value}))
+    result = startup(config_path, tmp_path / "absent.env")
+    assert result.returncode != 0
+    assert f"ExternalSearch.{key}" in result.stderr

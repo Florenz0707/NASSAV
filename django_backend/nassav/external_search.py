@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -30,6 +31,21 @@ class ExternalSearchResult:
     pagination: dict[str, int]
     meta: dict[str, Any]
     collected_items: list[dict] | None = None
+    publish_cache: Callable[[], None] | None = None
+
+
+def project_library_presence(items: list[dict]) -> list[dict]:
+    result = deepcopy(items)
+    avids = {str(item.get("avid", "")).strip().upper() for item in result}
+    avids.discard("")
+    existing = (
+        set(AVResource.objects.filter(avid__in=avids).values_list("avid", flat=True))
+        if avids
+        else set()
+    )
+    for item in result:
+        item["in_library"] = str(item.get("avid", "")).strip().upper() in existing
+    return result
 
 
 def paginate_results(
@@ -106,18 +122,21 @@ class SearchCapability:
 class ExternalSourceAdapter(ABC):
     source_name: str = ""
     implemented: bool = False
+    facts_lookup = None
 
     def __init__(
         self,
         *,
         source_lookup: Callable[[str], SourceBase | None] | None = None,
         source_scope=None,
+        facts_lookup=None,
     ):
         self.source_lookup = (
             source_lookup if source_lookup is not None else source_manager.get_source
         )
         self.source_scope = source_scope
         self._isolated = False
+        self.facts_lookup = facts_lookup
 
     @contextmanager
     def operation(self, check):
@@ -129,6 +148,13 @@ class ExternalSourceAdapter(ABC):
             adapter = type(self)(source_lookup=lambda name: source)
             adapter._isolated = True
             yield adapter
+
+    def cached_facts(self, items: list[dict]) -> dict:
+        return (
+            self.facts_lookup(self.source_name, items)
+            if self.facts_lookup is not None
+            else {}
+        )
 
     def capability(self) -> SearchCapability:
         return SearchCapability(self.source_name, self.source_name)
@@ -500,6 +526,24 @@ class ExternalSearchService:
             else external_search_adapters(proxy_server=self.proxy_server)
         )
 
+    def project_existing_details(self, source_name, items, *, force=False):
+        result = deepcopy(items)
+        adapter = self.adapters.get(source_name)
+        facts = (
+            adapter.cached_facts(result) if adapter is not None and not force else {}
+        )
+        for item in result:
+            detail = facts.get(item["avid"])
+            item["detail_cached"] = detail is not None
+            if detail is not None:
+                item["source_title"] = item.get("source_title") or detail[
+                    "source_info"
+                ].get("source_title", "")
+                item["thumbnail_url"] = item.get("thumbnail_url") or detail.get(
+                    "cover_url", ""
+                )
+        return result, len(facts)
+
     def _fetch_entity_page(
         self, entity_type, entity, source_name, page, ordering, force_refresh, check
     ):
@@ -537,6 +581,7 @@ class ExternalSearchService:
         force_refresh: bool = False,
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
         should_cancel: Callable[[], None] | None = None,
+        defer_cache_publication: bool = False,
     ) -> ExternalSearchResult:
         actor = (
             Actor.objects.annotate(resource_count=Count("resources"))
@@ -568,6 +613,7 @@ class ExternalSearchService:
             force_refresh=force_refresh,
             on_progress=on_progress,
             should_cancel=should_cancel,
+            defer_cache_publication=defer_cache_publication,
         )
         result.meta["actor"] = {
             "id": actor_pk,
@@ -589,6 +635,7 @@ class ExternalSearchService:
         force_refresh: bool = False,
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
         should_cancel: Callable[[], None] | None = None,
+        defer_cache_publication: bool = False,
     ) -> ExternalSearchResult:
         genre = (
             Genre.objects.annotate(resource_count=Count("resources"))
@@ -620,6 +667,7 @@ class ExternalSearchService:
             force_refresh=force_refresh,
             on_progress=on_progress,
             should_cancel=should_cancel,
+            defer_cache_publication=defer_cache_publication,
         )
         result.meta["genre"] = {
             "id": genre_pk,
@@ -650,6 +698,7 @@ class ExternalSearchService:
         force_refresh: bool = False,
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
         should_cancel: Callable[[], None] | None = None,
+        defer_cache_publication: bool = False,
     ) -> ExternalSearchResult:
         normalized_source = self._normalize_source(source_name)
         adapter = self.adapters.get(normalized_source)
@@ -687,11 +736,12 @@ class ExternalSearchService:
 
         domain, route = adapter.cache_context()
         cache_key = (
-            "external-search:v4:cn:"
+            "external-search:v5:cn:"
             f"{entity_type}:{entity_id}:{normalized_source}:{domain}:{route}:"
             f"{fetch_pages}:{safe_ordering}"
         )
         cache_hit = False
+        publish_cache = None
         normalized_items: list[dict] | None = None
         if not force_refresh:
             normalized_items = cache_backend.get(cache_key)
@@ -740,7 +790,31 @@ class ExternalSearchService:
             )
             if should_cancel is not None:
                 should_cancel()
-            cache_backend.set(cache_key, normalized_items, cache_ttl)
+            raw_items = [
+                {
+                    key: value
+                    for key, value in item.items()
+                    if key not in {"in_library", "detail_cached"}
+                }
+                for item in normalized_items
+            ]
+            frozen = deepcopy(raw_items)
+            if cache_enabled:
+
+                def publish_result_cache():
+                    cache_backend.set(cache_key, frozen, cache_ttl)
+
+                publish_cache = publish_result_cache
+                if not defer_cache_publication:
+                    publish_cache()
+                    publish_cache = None
+
+        if should_cancel is not None:
+            should_cancel()
+        normalized_items = project_library_presence(normalized_items)
+        normalized_items, detail_hits = self.project_existing_details(
+            normalized_source, normalized_items, force=force_refresh
+        )
 
         sorted_items = (
             normalized_items
@@ -755,11 +829,13 @@ class ExternalSearchService:
         return ExternalSearchResult(
             items=page_items,
             collected_items=sorted_items,
+            publish_cache=publish_cache,
             pagination=pagination,
             meta={
                 "source": normalized_source,
                 "implemented": True,
                 "partial": False,
+                "detail_cache_hit_count": detail_hits,
                 "ordering": safe_ordering,
                 "fetch_pages": fetch_pages,
                 "cache": {
