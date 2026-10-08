@@ -22,6 +22,9 @@ class RecommendationContextStore(ABC):
 
 
 class RecommendationSource(ABC):
+    def cached_video_details(self, candidates) -> dict:
+        return {}
+
     @abstractmethod
     def search(
         self, keyword: str, page: int = 1, *, force_refresh: bool = False

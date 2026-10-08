@@ -44,6 +44,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         page_fetcher: PageFetchService | None = None,
         cookie_repository: CookieRepository | None = None,
         refresh_coordinator: SessionRefreshCoordinator | None = None,
+        facts_cache=None,
     ):
         super().__init__(
             proxy,
@@ -51,6 +52,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             cookie_repository=cookie_repository,
             refresh_coordinator=refresh_coordinator,
         )
+        self.facts_cache = facts_cache
         self.strict_failures = strict_failures
         source_config = settings.SOURCE_CONFIG.get("jable", {})
         self.domain = source_config.get("domain", "jable.tv")
@@ -235,6 +237,38 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             logger.error(f"封面URL提取失败: {e}")
             return None
 
+    def get_detail_url(self, avid: str) -> str:
+        return f"https://{self.domain}/videos/{avid.lower()}/"
+
+    def cached_video_details(self, candidates):
+        if self.facts_cache is None:
+            return {}
+        from nassav.provider_facts import SourceFactsLookup
+
+        self._check_task()
+        return SourceFactsLookup(self.facts_cache, self).read_details(candidates)
+
+    def fetch_provider_facts(self, avid: str, detail_url: str = ""):
+        from nassav.provider_facts import parse_source_facts
+
+        html = (
+            self._request_html(
+                detail_url,
+                referer=f"https://{self.domain}/",
+                validator=self._is_detail_page_html,
+            )
+            if detail_url
+            else self.get_html(avid)
+        )
+        self._check_task()
+        if not html:
+            raise SourceSearchError("jable_detail_unavailable")
+        detail = self._parse_video_detail(
+            html=html, avid=avid, detail_url=detail_url or self.get_detail_url(avid)
+        )
+        metadata, playback = parse_source_facts(self, avid, html, detail)
+        return metadata, playback, html
+
     def get_video_detail(
         self,
         avid: str,
@@ -242,6 +276,15 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         *,
         force_refresh: bool = False,
     ) -> dict:
+        if self.facts_cache is not None:
+            from nassav.provider_facts import SourceFactsLookup
+
+            data, _, _, hit = SourceFactsLookup(self.facts_cache, self).resolve(
+                avid, detail_url, force=force_refresh
+            )
+            return (
+                {**data.get("detail", {}), "_provider_cache_hit": hit} if data else {}
+            )
         normalized_avid = str(avid or "").strip().upper()
         normalized_url = str(detail_url or "").strip()
         if not normalized_avid and not normalized_url:

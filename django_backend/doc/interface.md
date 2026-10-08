@@ -1490,3 +1490,7 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 结果同时放在 verification_context 和 effective_request；返回数仍以 meta.returned_count 为准。
 黑名单排除数可能包含未获取详情的候选，因此不直接与详情成功数相减求通过率。
 候选池大小不等于详情已核验数，未核验不代表失败；旧字段继续保留。
+
+### 持久详情缓存统计
+
+推荐的 progress、effective_request 与 verification_context 可包含 `detail_cache_hit_count` 和 `detail_network_attempt_count`；`detail_attempt_count` 包含缓存及网络详情尝试。缓存命中仍使用当前黑名单与偏好，且不消耗网络详情尝试上限。显式刷新跳过详情缓存。缓存表迁移和时效约定见 [持久抓取缓存](resource-cache-architecture.md)。

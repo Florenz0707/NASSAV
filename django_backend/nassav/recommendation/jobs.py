@@ -140,6 +140,18 @@ class JobContext(DjangoRecommendationContext):
         ).update(result=progress, version=F("version") + 1, updated_at=timezone.now()):
             raise RecommendationStopped("推荐执行已失效")
 
+    @transaction.atomic
+    def publish_cache(self, operation):
+        fence_history(self.job.history_generation)
+        if not RecommendationJob.objects.filter(
+            pk=self.job.pk,
+            state="running",
+            execution_owner=self.token,
+            deadline__gt=timezone.now(),
+        ).update(version=F("version")):
+            raise RecommendationStopped("推荐执行已失效")
+        return operation()
+
     def prepare(self, request, recommender_id, strategy_id):
         fingerprint = super().prepare(request, recommender_id, strategy_id)
         request.history_generation = self.job.history_generation
@@ -199,7 +211,7 @@ def execute(job_id, *, manager_builder=None):
         check()
         budget.check()
 
-    control = TaskNetworkControl(network_check)
+    control = TaskNetworkControl(network_check, publish_fence=context.publish_cache)
     if manager_builder is None:
         from nassav.composition import build_recommendation_manager
 

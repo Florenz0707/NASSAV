@@ -164,6 +164,13 @@ def build_translation_workflow(expected_generations=None):
     )
 
 
+def build_provider_facts_cache():
+    from django.utils import timezone
+    from nassav.resource_cache import ProviderFactsCache, DjangoProviderFactsStore
+
+    return ProviderFactsCache(DjangoProviderFactsStore(), now=timezone.now)
+
+
 def build_recommendation_manager(*, context=None, control=None):
     from django.conf import settings
 
@@ -185,6 +192,7 @@ def build_recommendation_manager(*, context=None, control=None):
         return Jable(
             proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None,
             strict_failures=True,
+            facts_cache=build_provider_facts_cache(),
             page_fetcher=create_page_fetch_service(
                 settings.BROWSER_FETCH_CONFIG,
                 proxy_url=settings.PROXY_URL if settings.PROXY_ENABLED else None,

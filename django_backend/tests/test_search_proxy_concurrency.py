@@ -208,7 +208,7 @@ def test_recommendation_details_are_isolated_and_merge_on_coordinator_with_share
             super()._apply_video_detail(*args)
 
     algorithm = Algorithm(
-        jable=Mock(),
+        jable=Mock(cached_video_details=Mock(return_value={})),
         seed_provider=Mock(),
         candidate_inventory=Mock(),
         proxy_server=OrderedProxyServer(2),
@@ -250,7 +250,7 @@ def test_recommendation_seeds_overlap_and_merge_in_original_order():
             closed.append(source)
 
     algorithm = JableSearchRecommender(
-        jable=Mock(),
+        jable=Mock(cached_video_details=Mock(return_value={})),
         seed_provider=Mock(),
         candidate_inventory=Mock(),
         max_pages_per_query=1,
@@ -293,7 +293,7 @@ def test_recommendation_cancel_does_not_merge_late_details():
             merges.append(args)
 
     algorithm = Algorithm(
-        jable=Mock(),
+        jable=Mock(cached_video_details=Mock(return_value={})),
         seed_provider=Mock(),
         candidate_inventory=Mock(),
         proxy_server=OrderedProxyServer(2),

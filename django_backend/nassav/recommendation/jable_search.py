@@ -76,6 +76,10 @@ class JableSearchRecommender(AbstractRecommender):
                 verified=len(verified),
                 attempted=len(request.detail_attempted_avids),
                 statistics={
+                    "detail_cache_hit_count": len(request.detail_cache_hit_avids),
+                    "detail_network_attempt_count": len(
+                        request.detail_attempted_avids - request.detail_cache_hit_avids
+                    ),
                     "recalled_count": len(request.recalled_avids),
                     "detail_success_count": len(request.detail_completed_avids),
                     "blacklist_excluded_count": len(request.blacklist_excluded_avids),
@@ -330,7 +334,8 @@ class JableSearchRecommender(AbstractRecommender):
             return candidates
 
         remaining = max(
-            int(request.detail_enrichment_limit) - len(request.detail_attempted_avids),
+            int(request.detail_enrichment_limit)
+            - len(request.detail_attempted_avids - request.detail_cache_hit_avids),
             0,
         )
         selected = []
@@ -352,6 +357,17 @@ class JableSearchRecommender(AbstractRecommender):
                 ),
                 request,
             )
+
+        if not request.force_refresh_external:
+            cached = getattr(self.jable, "cached_video_details", lambda _: {})(
+                [(item.avid, item.detail_url) for item in selected]
+            )
+            for item in selected:
+                if item.avid in cached:
+                    request.detail_attempted_avids.add(item.avid)
+                    request.detail_cache_hit_avids.add(item.avid)
+                    self._apply_video_detail(item, cached[item.avid], request)
+            selected = [item for item in selected if item.avid not in cached]
 
         def fetch(candidate, check):
             return candidate, self._source_operation(
@@ -524,6 +540,11 @@ class JableSearchRecommender(AbstractRecommender):
         detail: dict,
         request: RecommendationRequest,
     ) -> None:
+        if detail.get("_provider_cache_hit"):
+            request.detail_cache_hit_avids.add(candidate.avid)
+        detail = {
+            key: value for key, value in detail.items() if key != "_provider_cache_hit"
+        }
         raw_metrics = dict(candidate.raw_metrics or {})
         request.detail_completed_avids.add(candidate.avid)
         raw_metrics["detail_enriched"] = True

@@ -83,6 +83,19 @@ class SourceBase(BrowserSessionHandler):
         """Optional source-native relation data; never performs persistence."""
         return SourceRelations()
 
+    def get_detail_url(self, avid: str) -> str:
+        return f"https://{self.domain}/{avid.lower()}"
+
+    def fetch_provider_facts(self, avid: str, detail_url: str = ""):
+        from nassav.provider_facts import parse_source_facts
+
+        html = self.get_html(avid)
+        self._check_task()
+        if not html:
+            raise ValueError("Source page unavailable")
+        metadata, playback = parse_source_facts(self, avid, html)
+        return metadata, playback, html
+
     def set_domain(self, domain: str):
         self.domain = domain
 

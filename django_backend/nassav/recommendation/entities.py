@@ -108,6 +108,7 @@ class RecommendationRequest:
     history_generation: int | None = field(default=None, repr=False)
     force_refresh_external: bool = False
     detail_attempted_avids: set[str] = field(default_factory=set, repr=False)
+    detail_cache_hit_avids: set[str] = field(default_factory=set, repr=False)
     completion_reason: str = "completed"
     recalled_avids: set[str] = field(default_factory=set, repr=False)
     detail_completed_avids: set[str] = field(default_factory=set, repr=False)
@@ -178,6 +179,11 @@ class RecommendationExecution:
                 "discovery_limit": self.request.discovery_limit,
                 "detail_enrichment_limit": self.request.detail_enrichment_limit,
                 "detail_attempt_count": len(self.request.detail_attempted_avids),
+                "detail_cache_hit_count": len(self.request.detail_cache_hit_avids),
+                "detail_network_attempt_count": len(
+                    self.request.detail_attempted_avids
+                    - self.request.detail_cache_hit_avids
+                ),
                 "type_preference": self.request.type_preference,
                 "actor_preference": self.request.actor_preference,
                 "genre_preference": self.request.genre_preference,
@@ -188,6 +194,11 @@ class RecommendationExecution:
                 "excluded_unverified_count": self.request.unverified_candidate_count,
                 "recalled_count": len(self.request.recalled_avids),
                 "detail_attempt_count": len(self.request.detail_attempted_avids),
+                "detail_cache_hit_count": len(self.request.detail_cache_hit_avids),
+                "detail_network_attempt_count": len(
+                    self.request.detail_attempted_avids
+                    - self.request.detail_cache_hit_avids
+                ),
                 "detail_success_count": len(self.request.detail_completed_avids),
                 "blacklist_excluded_count": len(self.request.blacklist_excluded_avids),
                 "unverified_count": self.request.remaining_unverified_count,

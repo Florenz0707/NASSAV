@@ -12,8 +12,15 @@ class TaskNetworkTimeout(TimeoutError):
 
 
 class TaskNetworkControl:
-    def __init__(self, check: Callable[[], None], *, clock: Callable = time.monotonic):
+    def __init__(
+        self,
+        check: Callable[[], None],
+        *,
+        clock: Callable = time.monotonic,
+        publish_fence=None,
+    ):
         self._check, self.clock = check, clock
+        self.publish_fence = publish_fence
         self.deadline: float | None = None
 
     def check(self) -> None:
@@ -31,9 +38,17 @@ class TaskNetworkControl:
 
     def fork(self, check: Callable[[], None]):
         """Copy the current deadline without sharing mutable phase state."""
-        control = TaskNetworkControl(check, clock=self.clock)
+        control = TaskNetworkControl(
+            check, clock=self.clock, publish_fence=self.publish_fence
+        )
         control.deadline = self.deadline
         return control
+
+    def publish(self, operation):
+        self.check()
+        if self.publish_fence is not None:
+            return self.publish_fence(operation)
+        return operation()
 
     @contextmanager
     def phase(self, seconds: float):

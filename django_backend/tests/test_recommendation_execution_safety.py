@@ -12,7 +12,7 @@ from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavai
 
 
 def test_failed_details_consume_one_shared_budget_across_topups():
-    source = Mock()
+    source = Mock(cached_video_details=Mock(return_value={}))
     source.get_video_detail.return_value = {}
     algorithm = JableSearchRecommender(
         jable=source, candidate_inventory=Mock(), seed_provider=Mock()
@@ -66,7 +66,9 @@ def test_recommendation_source_uses_global_page_proxy(settings):
 
 def test_active_seed_blacklist_excludes_unverified_candidates_before_trimming():
     algorithm = JableSearchRecommender(
-        jable=Mock(), candidate_inventory=Mock(), seed_provider=Mock()
+        jable=Mock(cached_video_details=Mock(return_value={})),
+        candidate_inventory=Mock(),
+        seed_provider=Mock(),
     )
     request = RecommendationRequest(limit=1, seed_blacklist_active=True)
     unknown = RecommendationCandidate("UNKNOWN", "", "", "", total_score=100)
@@ -84,7 +86,7 @@ def budget_algorithm(clock, *, limit=12):
     from nassav.page_fetching.proxy_server import OrderedProxyServer
 
     budget = RecommendationExecutionBudget(300, clock=lambda: clock[0])
-    source = Mock()
+    source = Mock(cached_video_details=Mock(return_value={}))
 
     def detail(*args, **kwargs):
         clock[0] += 20.6
@@ -136,7 +138,9 @@ def test_soft_budget_keeps_only_completed_verified_details():
 
 def test_soft_partial_requires_verification_even_without_seed_blacklist():
     algorithm = JableSearchRecommender(
-        jable=Mock(), candidate_inventory=Mock(), seed_provider=Mock()
+        jable=Mock(cached_video_details=Mock(return_value={})),
+        candidate_inventory=Mock(),
+        seed_provider=Mock(),
     )
     request = RecommendationRequest(completion_reason="network_budget")
     assert (
@@ -195,7 +199,7 @@ def test_adaptive_recall_interleaves_types_and_defers_unneeded_sources():
             raise AssertionError("discovery should be deferred")
 
     algorithm = Algorithm(
-        jable=Mock(),
+        jable=Mock(cached_video_details=Mock(return_value={})),
         candidate_inventory=Mock(),
         seed_provider=Mock(),
         execution_budget=budget,
@@ -224,7 +228,7 @@ def test_adaptive_recall_continues_when_first_batch_is_existing_or_blocked():
     inventory = Mock()
     inventory.existing.side_effect = lambda avids: avids & {"existing"}
     algorithm = Algorithm(
-        jable=Mock(),
+        jable=Mock(cached_video_details=Mock(return_value={})),
         candidate_inventory=inventory,
         seed_provider=Mock(),
         execution_budget=RecommendationExecutionBudget(300),
@@ -280,7 +284,7 @@ def test_whole_pipeline_reaches_goal_without_fetching_all_seed_or_discovery_page
     from nassav.recommendation.entities import RecommendationSeed
 
     calls = []
-    source = Mock()
+    source = Mock(cached_video_details=Mock(return_value={}))
     source.get_video_detail.side_effect = lambda avid, *args, **kwargs: {
         "actors": ["Blocked" if int(avid.split("-")[-1]) % 2 else "Allowed"]
     }
@@ -320,3 +324,29 @@ def test_whole_pipeline_reaches_goal_without_fetching_all_seed_or_discovery_page
     assert source.get_video_detail.call_count == 24
     assert len(run.execution_request.deferred_seeds) == 8
     assert len(run.execution_request.blacklist_excluded_avids) == 12
+
+
+def test_cached_details_use_no_network_budget_and_still_apply_current_blacklist():
+    algorithm, source, request, candidates = budget_algorithm([0.0], limit=1)
+    request.detail_enrichment_limit = 1
+    request.blocked_seed_name_keys = {("actor", "blocked")}
+    source.cached_video_details.return_value = {
+        "0": {"actors": ["Blocked"], "genres": []},
+        "1": {"actors": ["Allowed"], "genres": []},
+    }
+    algorithm.enrich_candidates(candidates, request)
+    assert request.detail_cache_hit_avids == {"0", "1"}
+    source.get_video_detail.assert_not_called()
+    assert [
+        item.avid for item in algorithm._verified_candidates(candidates, request)
+    ] == ["1"]
+    assert request.blacklist_excluded_avids == {"0"}
+
+
+def test_force_refresh_skips_batch_cache():
+    algorithm, source, request, candidates = budget_algorithm([0.0], limit=1)
+    request.force_refresh_external = True
+    algorithm.enrich_candidates(candidates, request)
+    source.cached_video_details.assert_not_called()
+    assert not request.detail_cache_hit_avids
+    assert source.get_video_detail.call_count == 2
