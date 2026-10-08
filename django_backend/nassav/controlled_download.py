@@ -8,6 +8,8 @@ from pathlib import Path
 from threading import get_ident
 
 from django.db import close_old_connections
+from curl_cffi.requests.exceptions import HTTPError
+from nassav.task_network import TaskNetworkControl
 from loguru import logger
 
 from nassav.constants import HEADERS
@@ -208,6 +210,12 @@ class ControlledDownload:
                 )
                 self._project(snapshot, progress=progress_data)
 
+        control = TaskNetworkControl(
+            check,
+            publish_fence=lambda operation: records.controlled_transaction(
+                token, operation
+            ),
+        )
         try:
             records.execution_identity(
                 token, {**worker_identity, **lease.recovery_identity()}
@@ -218,7 +226,7 @@ class ControlledDownload:
                 success = True
             else:
                 records.checkpoint(token, "source_lookup")
-                resolved = self.resolver.resolve(avid)
+                resolved = self.resolver.resolve(avid, control=control)
                 check()
                 if not resolved or not resolved.info.m3u8:
                     raise RuntimeError("无法获取下载信息")
@@ -235,7 +243,24 @@ class ControlledDownload:
                     self.sleep(0.2)
                 self._project(records.get(job_id))
                 records.checkpoint(token, "resume_validation")
-                manifest = self.guard.describe(resolved.info.m3u8, headers, check)
+                try:
+                    manifest = self.guard.describe(resolved.info.m3u8, headers, check)
+                except HTTPError as failure:
+                    check()
+                    if getattr(failure.response, "status_code", None) not in {
+                        401,
+                        403,
+                        404,
+                        410,
+                    }:
+                        raise
+                    # One bounded refresh for rejected/expired links; never bypass resume identity checks.
+                    resolved = self.resolver.resolve(avid, control=control, force=True)
+                    check()
+                    if resolved is None or not resolved.info.m3u8:
+                        raise RuntimeError("无法刷新失效播放链接") from failure
+                    headers["Referer"] = f"https://{resolved.domain}/"
+                    manifest = self.guard.describe(resolved.info.m3u8, headers, check)
                 workspace = self.assets.workspace(token, "video")
                 self.guard.prepare(
                     workspace,

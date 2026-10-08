@@ -109,3 +109,34 @@ def test_scrape_reuses_source_and_scraper_facts_and_downloads_missing_cover(tmp_
     gateway.source("TEST-001", "any", force=True)
     gateway.scrape("TEST-001", force=True)
     assert item.get_html.call_count == scraper.scrape.call_count == 2
+
+
+def test_download_resolver_only_uses_fresh_playback_and_has_no_resource_side_effects():
+    from nassav.download_information import ProviderDownloadInfoResolver
+    from nassav.scrape_preparation import ScrapePreparation
+    from nassav.task_network import TaskNetworkControl
+    from nassav.models import AVResource
+
+    item = source()
+    sources, metadata = Mock(), Mock()
+    sources.get_sorted_sources.return_value = [("Jable", item)]
+    sources.get_source.return_value = item
+
+    def preparation(control):
+        item.set_task_control(control)
+        return ScrapePreparation(
+            sources, metadata, control, facts_cache=build_provider_facts_cache()
+        )
+
+    resolver = ProviderDownloadInfoResolver(preparation)
+    control = TaskNetworkControl(lambda: None)
+    assert resolver.resolve("TEST-001", control=control).info.m3u8
+    assert resolver.resolve("TEST-001", control=control).info.m3u8
+    assert item.get_html.call_count == 1
+    ResourcePlaybackCache.objects.update(
+        fresh_until=timezone.now() - timedelta(seconds=1)
+    )
+    assert resolver.resolve("TEST-001", control=control).info.m3u8
+    assert item.get_html.call_count == 2
+    assert not AVResource.objects.exists()
+    metadata.scrape_with_source.assert_not_called()

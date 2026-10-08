@@ -18,7 +18,9 @@ class ResolvedDownload:
 
 class DownloadInfoResolver(ABC):
     @abstractmethod
-    def resolve(self, avid: str) -> ResolvedDownload | None:
+    def resolve(
+        self, avid: str, *, control=None, force=False
+    ) -> ResolvedDownload | None:
         raise NotImplementedError
 
 
@@ -33,7 +35,9 @@ class ResourceDownloadInfoResolver(DownloadInfoResolver):
         self.prepare_directory = prepare_directory
         self.domain_lookup = domain_lookup
 
-    def resolve(self, avid: str) -> ResolvedDownload | None:
+    def resolve(
+        self, avid: str, *, control=None, force=False
+    ) -> ResolvedDownload | None:
         self.prepare_directory(avid)
         info = self.resources.load_cached_metadata(avid)
         if not info or not info.m3u8:
@@ -56,8 +60,31 @@ class ReadOnlyDownloadInfoResolver(DownloadInfoResolver):
     def __init__(self, cached: Callable, lookup: Callable, domain_lookup: Callable):
         self.cached, self.lookup, self.domain_lookup = cached, lookup, domain_lookup
 
-    def resolve(self, avid: str) -> ResolvedDownload | None:
+    def resolve(
+        self, avid: str, *, control=None, force=False
+    ) -> ResolvedDownload | None:
         info = self.cached(avid)
         if not info or not info.m3u8:
             info, _, _, _ = self.lookup(avid)
         return ResolvedDownload(info, self.domain_lookup(info.source)) if info else None
+
+
+class ProviderDownloadInfoResolver(DownloadInfoResolver):
+    """Resolve fresh playback facts without scraping metadata or publishing resource assets."""
+
+    def __init__(self, preparation):
+        self.preparation = preparation
+
+    def resolve(
+        self, avid: str, *, control=None, force=False
+    ) -> ResolvedDownload | None:
+        from nassav.task_network import TaskNetworkControl
+
+        control = control if control is not None else TaskNetworkControl(lambda: None)
+        gateway = self.preparation(control)
+        prepared, _ = gateway.source(avid, "any", force=force)
+        info = AVDownloadInfo(**prepared["info"])
+        adapter = gateway.sources.get_source(prepared["source_name"])
+        if adapter is None:
+            return None
+        return ResolvedDownload(info, adapter.domain)

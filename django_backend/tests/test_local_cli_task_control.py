@@ -90,7 +90,7 @@ def test_real_cli_pause_resume_produces_complete_video(
     outcomes, failures, saved = [], [], []
     with media_server(tmp_path) as (base, counts):
         resolver = SimpleNamespace(
-            resolve=lambda avid: SimpleNamespace(
+            resolve=lambda avid, **kwargs: SimpleNamespace(
                 info=SimpleNamespace(m3u8=f"{base}/media/index.m3u8"),
                 domain="localhost",
             )

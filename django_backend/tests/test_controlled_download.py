@@ -89,7 +89,7 @@ def context(db, tmp_path):
         {kind: tmp_path / kind for kind in ["cover", "avatar", "video"]}, records
     )
     resolver = SimpleNamespace(
-        resolve=lambda avid: SimpleNamespace(
+        resolve=lambda avid, **kwargs: SimpleNamespace(
             info=SimpleNamespace(m3u8="https://offline.invalid/index.m3u8"),
             domain="offline.invalid",
         )
@@ -185,7 +185,7 @@ def test_stop_after_source_resolution_blocks_download(context):
     ctx = context
     old = ctx.runner.resolver.resolve
 
-    def resolve(avid):
+    def resolve(avid, **kwargs):
         request(ctx, "cancel")
         return old(avid)
 
@@ -483,3 +483,38 @@ def test_validation_timeout_retains_workspace_and_allows_resume(context):
     assert not ctx.saved
     resumed = request(ctx, "resume")
     assert resumed["generation"] == 2
+
+
+def test_rejected_playback_is_refreshed_once_then_runs_resume_guard(context):
+    from curl_cffi.requests.exceptions import HTTPError
+    from unittest.mock import Mock
+
+    ctx = context
+    old = ctx.runner.resolver.resolve
+    ctx.runner.resolver.resolve = Mock(side_effect=old)
+    original = ctx.guard.describe
+    ctx.guard.describe = Mock(
+        side_effect=[
+            HTTPError("expired", response=SimpleNamespace(status_code=403)),
+            original(),
+        ]
+    )
+    ctx.guard.prepare = Mock()
+    assert execute(ctx)["status"] == "succeeded"
+    assert ctx.runner.resolver.resolve.call_count == 2
+    assert ctx.runner.resolver.resolve.call_args.kwargs["force"] is True
+    assert ctx.guard.describe.call_count == 2
+    ctx.guard.prepare.assert_called_once()
+
+
+def test_rejected_refreshed_playback_is_not_retried_forever(context):
+    from curl_cffi.requests.exceptions import HTTPError
+    from unittest.mock import Mock
+
+    ctx = context
+    ctx.guard.describe = Mock(
+        side_effect=HTTPError("expired", response=SimpleNamespace(status_code=403))
+    )
+    assert execute(ctx)["status"] == "failed"
+    assert ctx.guard.describe.call_count == 2
+    assert ctx.downloader.called == 0

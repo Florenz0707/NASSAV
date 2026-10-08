@@ -79,7 +79,7 @@ class LocalPreparation:
 def download(lease):
     runner = _original_download(lease)
     runner.resolver = SimpleNamespace(
-        resolve=lambda avid: SimpleNamespace(
+        resolve=lambda avid, **kwargs: SimpleNamespace(
             info=SimpleNamespace(m3u8=settings.P7_BASE_URL + "/media/index.m3u8"),
             domain="localhost",
         )
