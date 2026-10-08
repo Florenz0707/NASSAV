@@ -172,7 +172,7 @@ onBeforeUnmount(() => {
     <transition name="custom-select-fade">
       <div
         v-if="open"
-        class="custom-select-menu bg-secondary border border-[var(--border-white-10)] rounded-lg shadow-lg"
+        class="custom-select-menu bg-[var(--bg-overlay)] border border-[var(--border-white-10)] rounded-lg shadow-lg"
         :id="listboxId"
         role="listbox"
       >
@@ -229,7 +229,7 @@ onBeforeUnmount(() => {
   gap: 0.85rem;
   border: 1px solid var(--border-color);
   border-radius: 1rem;
-  background: var(--bg-secondary);
+  background: var(--bg-input);
   color: var(--text-primary);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--neutral-color) 6%, transparent),
@@ -309,7 +309,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.4rem;
   padding: 0.4rem;
-  background: var(--bg-secondary);
+  background: var(--bg-overlay);
   border: 1px solid var(--border-color);
   border-radius: 1rem;
   box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-ink) 40%, transparent);
