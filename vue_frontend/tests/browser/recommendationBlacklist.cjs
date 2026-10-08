@@ -22,7 +22,15 @@ async function main() {
         const name =
           url.searchParams.get('search') || (url.pathname.endsWith('/actors') ? 'Actor' : 'Genre')
         if (name === 'old') await new Promise((resolve) => setTimeout(resolve, 900))
-        data = [{ id: 1, name, is_blocked: false, resource_count: 2 }]
+        data =
+          name === 'many'
+            ? Array.from({ length: 40 }, (_, index) => ({
+                id: index + 1,
+                name: `many-${index + 1}`,
+                is_blocked: true,
+                resource_count: 2,
+              }))
+            : [{ id: 1, name, is_blocked: false, resource_count: 2 }]
         pagination = { total: 1, pages: 1, page: 1 }
       } else if (url.pathname.endsWith('/recommendations/seed-block')) {
         mutations.push(request.postDataJSON())
@@ -44,7 +52,7 @@ async function main() {
     await dialog.getByText('仅看已屏蔽', { exact: true }).click()
     await dialog.locator('.blacklist-row').filter({ hasText: 'Actor' }).waitFor()
     await dialog.getByRole('button', { name: '屏蔽', exact: true }).click()
-    await dialog.getByRole('button', { name: '类别黑名单', exact: true }).click()
+    await dialog.getByRole('button', { name: '类别', exact: true }).click()
     await dialog.locator('.blacklist-row').filter({ hasText: 'Genre' }).waitFor()
     await page.waitForTimeout(700)
     assert.equal(mutations[0].seed_type, 'actor')
@@ -57,7 +65,7 @@ async function main() {
     await page.waitForTimeout(1000)
     assert.match(await dialog.locator('.blacklist-row').innerText(), /new/)
     assert.doesNotMatch(await dialog.locator('.blacklist-row').innerText(), /old/)
-    await dialog.getByRole('button', { name: '资源黑名单', exact: true }).click()
+    await dialog.getByRole('button', { name: '资源', exact: true }).click()
     await dialog.getByRole('searchbox').fill('av-001')
     await dialog
       .locator('.blacklist-add-strip')
@@ -65,6 +73,35 @@ async function main() {
       .click()
     await dialog.locator('.blacklist-row').filter({ hasText: 'AV-001' }).waitFor()
     assert.equal(mutations.at(-1).avid, 'AV-001')
+    await dialog.getByRole('button', { name: '演员', exact: true }).click()
+    await dialog.getByRole('searchbox').fill('many')
+    await dialog.locator('.blacklist-row').filter({ hasText: 'many-40' }).waitFor()
+    for (const height of [900, 600]) {
+      await page.setViewportSize({ width: 1280, height })
+      const panel = await dialog.boundingBox()
+      const list = dialog.locator('.blacklist-list')
+      const box = await list.boundingBox()
+      assert.ok(Math.abs(panel.y + panel.height - (box.y + box.height) - 24) < 3)
+      if (height === 900) assert.ok(box.height > 300)
+      await list.evaluate((el) => {
+        el.scrollTop = el.scrollHeight
+      })
+      const last = await list.locator('.blacklist-row').last().boundingBox()
+      assert.ok(last.y >= box.y && last.y + last.height <= box.y + box.height + 1)
+      assert.ok(panel.y >= 0 && panel.y + panel.height <= height)
+    }
+    await page.setViewportSize({ width: 390, height: 844 })
+    const content = dialog.locator(':scope > div').nth(1)
+    await content.evaluate((el) => {
+      el.scrollTop = el.scrollHeight
+    })
+    const mobileBody = await content.boundingBox()
+    const mobileLast = await dialog.locator('.blacklist-row').last().boundingBox()
+    assert.ok(
+      mobileLast.y >= mobileBody.y &&
+        mobileLast.y + mobileLast.height <= mobileBody.y + mobileBody.height
+    )
+    assert.equal(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), true)
     await page.screenshot({ path: '/tmp/nassav-f6-blacklist.png', fullPage: true })
     await page.keyboard.press('Escape')
     await dialog.waitFor({ state: 'hidden' })

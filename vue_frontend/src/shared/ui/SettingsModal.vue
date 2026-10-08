@@ -14,6 +14,10 @@ const props = defineProps({
     type: String,
     default: 'max-w-2xl',
   },
+  contentClass: {
+    type: String,
+    default: '',
+  },
   showClose: {
     type: Boolean,
     default: true,
@@ -41,7 +45,7 @@ const { titleId } = useDialog(toRef(props, 'show'), dialogRef, () => emit('close
         :class="maxWidthClass"
       >
         <div
-          class="p-6 flex justify-between items-center"
+          class="p-6 flex shrink-0 justify-between items-center"
           style="border-bottom: 1px solid var(--border-color)"
         >
           <div class="settings-modal-header-main">
@@ -70,7 +74,7 @@ const { titleId } = useDialog(toRef(props, 'show'), dialogRef, () => emit('close
           </button>
         </div>
 
-        <div class="p-6">
+        <div class="p-6" :class="contentClass">
           <slot />
         </div>
 

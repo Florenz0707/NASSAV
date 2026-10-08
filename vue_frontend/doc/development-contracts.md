@@ -148,3 +148,5 @@ RecommendationBlacklist 保留 show/close/invalidate 生命周期接口，新增
 推荐历史标题左对齐，指标刷新/历史重置在右侧成组，resetHistory 事件经 RecommendationInformation 转发到页面；重置在推荐或指标加载时禁用。个性化弹窗的偏好标签与选择框增加标准间距，桌面两列之间使用主题分割线，黑名单选项位于标题右侧并使用 AppButton 的选中、加载/禁用与五态。SettingsModal 仅在提供 footer 插槽时渲染页脚，避免留下空白区。
 
 useRecommendationElapsed 使用前端单调时钟从查询 loading 开始计时，不等待 progress；每轮重置，完成后冻结，卸载清理 interval。成功批次用时随页面缓存恢复，未知旧缓存显示“—”；失败/取消不覆盖已有成功批次用时。核验摘要显示 verified_count/qualified_count 与 recalled_count/candidate_count 及前端用时，不重复展示上方旧进度文案。演员种子底色使用 coral-fill，类别使用 teal-fill，文字使用 on-accent；屏蔽按钮复用反馈按钮的圆角。
+
+个性化弹窗采用受视口约束的高度。SettingsModal 的可选 contentClass 只控制内容区布局，默认不改变其他消费者；黑名单在桌面填满剩余高度并独立滚动，偏好列可独立滚动，窄屏内容区整体滚动。列表条目不收缩，不再使用固定 13rem 上限，标题与关闭按钮保持可访问。

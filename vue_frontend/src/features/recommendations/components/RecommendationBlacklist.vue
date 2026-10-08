@@ -236,23 +236,30 @@ defineExpose({ invalidate: invalidateBlacklistCache })
   <SettingsModal
     :show="showPersonalizationModal"
     :title="title"
-    :max-width-class="$slots.preferences ? 'max-w-6xl max-h-[85dvh] overflow-y-auto' : 'max-w-4xl'"
+    :max-width-class="
+      $slots.preferences ? 'max-w-6xl h-[85dvh] flex flex-col' : 'max-w-4xl h-[85dvh] flex flex-col'
+    "
+    content-class="min-h-0 flex-1 overflow-y-auto"
     @close="closePersonalizationModal"
   >
     <div
-      :class="$slots.preferences ? 'grid grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)] gap-6' : ''"
+      :class="
+        $slots.preferences
+          ? 'grid grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)] gap-6 lg:h-full'
+          : 'lg:h-full'
+      "
     >
-      <section v-if="$slots.preferences" class="min-w-0">
+      <section v-if="$slots.preferences" class="min-w-0 lg:min-h-0 lg:overflow-y-auto">
         <h3 class="text-lg font-semibold text-primary mb-3">推荐偏好</h3>
         <slot name="preferences" />
       </section>
       <section
         :class="[
-          'min-w-0',
+          'min-w-0 flex flex-col lg:h-full lg:min-h-0',
           $slots.preferences ? 'lg:border-l lg:border-[var(--border-color)] lg:pl-6' : '',
         ]"
       >
-        <header class="flex items-center justify-between gap-3 flex-wrap mb-4">
+        <header class="flex shrink-0 items-center justify-between gap-3 flex-wrap mb-4">
           <h3 v-if="$slots.preferences" class="text-lg font-semibold text-primary">黑名单</h3>
           <div class="ml-auto flex items-center justify-end gap-2 flex-wrap">
             <AppButton
@@ -386,6 +393,8 @@ defineExpose({ invalidate: invalidateBlacklistCache })
 </template>
 <style scoped>
 .blacklist-modal {
+  min-height: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -525,7 +534,6 @@ defineExpose({ invalidate: invalidateBlacklistCache })
 
 .blacklist-list {
   display: flex;
-  max-height: 13rem;
   flex-direction: column;
   gap: 0.75rem;
   overflow-y: auto;
@@ -533,6 +541,7 @@ defineExpose({ invalidate: invalidateBlacklistCache })
 }
 
 .blacklist-row {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -601,6 +610,19 @@ defineExpose({ invalidate: invalidateBlacklistCache })
 .blacklist-footer {
   display: flex;
   justify-content: flex-end;
+}
+
+@media (min-width: 1024px) {
+  .blacklist-modal > :not(.blacklist-list) {
+    flex-shrink: 0;
+  }
+
+  .blacklist-list,
+  .blacklist-loading,
+  .blacklist-empty {
+    flex: 1;
+    min-height: 0;
+  }
 }
 
 @media (max-width: 960px) {

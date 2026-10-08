@@ -108,7 +108,7 @@ async function main() {
     await page.getByRole('button', { name: '个性化' }).click()
     const preferences = page.getByRole('dialog', { name: '个性化' })
     const left = await preferences.getByRole('button', { name: '种子偏好' }).boundingBox()
-    const right = await preferences.getByRole('button', { name: '演员黑名单' }).boundingBox()
+    const right = await preferences.getByRole('button', { name: '演员', exact: true }).boundingBox()
     assert.ok(left.x < right.x)
     const label = await preferences.locator('label[for="recommendation-type"]').boundingBox()
     assert.ok(left.y - (label.y + label.height) >= 11)
@@ -123,7 +123,7 @@ async function main() {
     assert.equal(await preferences.locator(':scope > div').count(), 2)
     assert.equal(
       await preferences
-        .getByRole('button', { name: '演员黑名单' })
+        .getByRole('button', { name: '演员', exact: true })
         .evaluate((el) => el.classList.contains('ui-button')),
       true
     )

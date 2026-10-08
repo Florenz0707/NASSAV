@@ -71,3 +71,11 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 - 核验摘要展示已通过/召回总数及前端本轮用时，不等待后端进度；完成冻结并保存成功批次用时，旧缓存未知用时显示“—”，卸载停止计时。移除重复的上方运行文案。演员/类别 seed 使用 coral/teal 底色和浅色文字；屏蔽与反馈圆角统一。
 
 验证：`cd vue_frontend && pnpm run check`（72 项测试、ESLint、构建），根目录 `pre-commit run -a`。计时单元回归覆盖无 progress 更新、完成冻结、下一轮重置、卸载清理。Chromium 模拟 API 的 `recommendationJobs.cjs`、`recommendationRestore.cjs`、`recommendationBlacklist.cjs` 验证计时独立更新、历史按钮对齐、标签间距、分割线、黑名单五态接入、多批次恢复与迟到响应；`components.cjs` 验证公共弹窗嵌套和焦点清理。本轮未修改后端或进行真实来源/worker 验收。
+
+## 2026-10-08 黑名单滚动区域修复
+
+提交：`[Fix] Let blacklist fill available dialog space`，阶段分支 `fix/blacklist-dialog-scroll-space`，质量门槛通过后合并 idle。
+
+黑名单固定 13rem 列表上限导致弹窗剩余区域无法展示条目。现在桌面列表填满剩余高度，偏好列独立滚动；窄屏内容区整体滚动，标题固定，条目不压缩。SettingsModal 新增默认空值的 contentClass，不改变其他消费者布局。
+
+验证：`pnpm run check`（72 项测试、ESLint、构建）、`pre-commit run -a`；Chromium 模拟 API 的 `recommendationBlacklist.cjs` 覆盖 40 项长列表、900/600 高度桌面填充与末项访问、移动端末项访问及原迟到请求/类型切换；`recommendationRestore.cjs` 和 `components.cjs` 检查已有布局、恢复与公共弹窗生命周期。本轮无后端修改或真实 worker 联调。
