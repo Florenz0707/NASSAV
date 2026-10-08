@@ -366,7 +366,9 @@ def build_controlled_scrape(*, continuation=None):
                     fetcher.browser.set_task_transport(TaskBrowserSession(control))
         for _, scraper in metadata.get_scrapers():
             scraper.set_task_control(control)
-        return ScrapePreparation(sources, metadata, control)
+        return ScrapePreparation(
+            sources, metadata, control, facts_cache=build_provider_facts_cache()
+        )
 
     def project(snapshot):
         from nassav.consumers import send_task_update

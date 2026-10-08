@@ -7,6 +7,8 @@ from PIL import Image
 
 from nassav.resource_contracts import ResourceSaveInput, SourceRelations
 from nassav.resource_data import AVDownloadInfo
+from nassav.provider_facts import SourceFactsLookup, SCRAPER_POLICY
+from nassav.resource_cache import CacheKey, CachePublicationLost
 from nassav.source.jable_actor_mapping import JableModelCandidate
 
 
@@ -37,11 +39,16 @@ def resource_input(avid: str, prepared: dict) -> ResourceSaveInput:
 
 
 class ScrapePreparation:
-    def __init__(self, sources, metadata, control):
+    def __init__(self, sources, metadata, control, *, facts_cache=None):
         self.sources, self.metadata, self.control = sources, metadata, control
+        self.facts_cache = facts_cache
 
-    def source(self, avid: str, source: str) -> tuple[dict, bytes]:
+    def source(
+        self, avid: str, source: str, *, force=False
+    ) -> tuple[dict, bytes | None]:
         with self.control.phase(180):
+            if self.facts_cache is not None:
+                return self._cached_source(avid, source, force=force)
             info, adapter, html, errors = (
                 self.sources.get_info_from_any_source(avid)
                 if source == "any"
@@ -60,11 +67,70 @@ class ScrapePreparation:
             }
             return prepared, html.encode("utf-8")
 
-    def scrape(self, avid: str) -> dict:
+    def _cached_source(self, avid, source, *, force=False):
+        adapters = (
+            self.sources.get_sorted_sources()
+            if source == "any"
+            else [(source, self.sources.get_source(source))]
+        )
+        errors = {}
+        for name, adapter in adapters:
+            self.control.check()
+            if adapter is None:
+                continue
+            try:
+                self.sources.refresh_source_cookie(adapter.get_source_name())
+                data, playback, html, _ = SourceFactsLookup(
+                    self.facts_cache, adapter
+                ).resolve(avid, force=force, require_playback=True)
+                self.control.check()
+                return {
+                    "info": {**data["source_info"], "m3u8": playback["m3u8"]},
+                    "source_name": adapter.get_source_name(),
+                    "cover_url": data["cover_url"],
+                    "relations": data["relations"],
+                }, html.encode("utf-8") if html is not None else None
+            except CachePublicationLost:
+                raise
+            except Exception as error:
+                self.control.check()
+                errors[name] = str(error)
+        raise ValueError(f"来源获取失败: {errors}")
+
+    def scrape(self, avid: str, *, force=False) -> dict:
         with self.control.phase(60):
+            if self.facts_cache is not None:
+                return self._cached_scrape(avid, force=force)
             data, by = self.metadata.scrape_with_source(avid)
             self.control.check()
             return {"metadata": data, "scraped_by": by}
+
+    def _cached_scrape(self, avid, *, force=False):
+        assert self.facts_cache is not None
+        for name, scraper in self.metadata.get_scrapers():
+            self.control.check()
+            key = CacheKey.create(avid, "scraper", name, scope=scraper.domain)
+
+            def fetch():
+                data = scraper.scrape(avid)
+                self.control.check()
+                if not data or not data.get("title"):
+                    return {}
+                if str(data.get("avid", "")).upper() != avid.upper():
+                    raise ValueError("Scraper resource identity is invalid")
+                return {"metadata": data, "scraped_by": name}
+
+            result = self.facts_cache.resolve(
+                key,
+                SCRAPER_POLICY,
+                fetch,
+                force=force,
+                check=self.control.check,
+                fence=self.control.publish,
+            )
+            if result.payload:
+                return result.payload
+        return {"metadata": None, "scraped_by": None}
 
     def cover(self, prepared: dict, path: Path) -> bool:
         data = prepared.get("metadata") or {}

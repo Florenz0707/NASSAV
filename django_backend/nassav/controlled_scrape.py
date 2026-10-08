@@ -68,7 +68,12 @@ class ControlledScrape:
             checkpoint.update(data)
             self._project(records.checkpoint(token, name, data))
 
-        control = TaskNetworkControl(check)
+        control = TaskNetworkControl(
+            check,
+            publish_fence=lambda operation: records.controlled_transaction(
+                token, operation
+            ),
+        )
         try:
             gateway = self.preparation(control)
             records.execution_identity(
@@ -110,31 +115,39 @@ class ControlledScrape:
                 if "prepared" not in checkpoint:
                     stage("source")
                     prepared, page = gateway.source(
-                        snapshot["avid"], options.get("source", "any")
+                        snapshot["avid"],
+                        options.get("source", "any"),
+                        force=snapshot["action"] == "refresh",
                     )
-                    assets.stage(
-                        token,
-                        "cover",
-                        "page.html",
-                        "html",
-                        lambda path: control.write(path, page) or True,
-                    )
+                    if page is not None:
+                        assets.stage(
+                            token,
+                            "cover",
+                            "page.html",
+                            "html",
+                            lambda path: control.write(path, page) or True,
+                        )
                     stage("source_complete", prepared=prepared)
                 prepared = dict(checkpoint["prepared"])
                 if not checkpoint.get("metadata_done"):
                     stage("metadata")
                     if options.get("refresh_metadata", True):
                         try:
-                            prepared.update(gateway.scrape(snapshot["avid"]))
+                            prepared.update(
+                                gateway.scrape(
+                                    snapshot["avid"],
+                                    force=snapshot["action"] == "refresh",
+                                )
+                            )
                         except TaskNetworkTimeout:
                             prepared.update(metadata=None, scraped_by=None)
                     stage("metadata_complete", prepared=prepared, metadata_done=True)
-                promotions = [
-                    AssetPromotion(
-                        assets.completed(token, "cover", "page.html"),
-                        f"{snapshot['avid']}.html",
+                page_artifact = assets.completed(token, "cover", "page.html")
+                promotions = []
+                if page_artifact is not None:
+                    promotions.append(
+                        AssetPromotion(page_artifact, f"{snapshot['avid']}.html")
                     )
-                ]
                 if not checkpoint.get("cover_done"):
                     stage("cover")
                     cover = assets.completed(token, "cover", "cover.jpg")

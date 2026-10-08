@@ -89,6 +89,9 @@ class MissAV(SourceBase, ListingSource):
         verify_listing_url(url, result.final_url)
         return parse_listing(result.html, self.domain)
 
+    def get_detail_url(self, avid: str) -> str:
+        return f"https://{self.domain}/cn/{avid.lower()}"
+
     def get_html(self, avid: str) -> str | None:
         """Fetch candidates in their original order and validate both paths alike."""
         import time

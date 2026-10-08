@@ -52,7 +52,7 @@ def context(db, tmp_path):
             request(stop["action"])
 
     class Gateway:
-        def source(self, avid, source):
+        def source(self, avid, source, *, force=False):
             assert source == "chosen"
             hit("source")
             return {
@@ -67,7 +67,7 @@ def context(db, tmp_path):
                 "source_name": "fixture",
             }, b"private html"
 
-        def scrape(self, avid):
+        def scrape(self, avid, *, force=False):
             hit("metadata")
             return {
                 "metadata": {
@@ -313,3 +313,26 @@ def test_adapter_construction_failure_releases_active_reservation(context):
     )
     assert not duplicate
     assert replacement["job_id"] != job["job_id"]
+
+
+def test_warm_structured_source_commits_without_html_artifact(context):
+    runner, records, assets, job, request, calls, stop = context
+    preparation = runner.preparation
+
+    def warm(control):
+        gateway = preparation(control)
+        original = gateway.source
+
+        def source(avid, name, *, force=False):
+            prepared, _ = original(avid, name, force=force)
+            return prepared, None
+
+        gateway.source = source
+        return gateway
+
+    runner.preparation = warm
+    result = runner.run(job["job_id"], job["task_id"])
+    assert result["state"] == "succeeded"
+    assert AVResource.objects.filter(avid="SCRAPE-1").exists()
+    assert not (assets.roots["cover"] / "SCRAPE-1.html").exists()
+    assert (assets.roots["cover"] / "SCRAPE-1.jpg").exists()
