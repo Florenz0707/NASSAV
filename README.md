@@ -1,6 +1,6 @@
 # NASSAV - AV 资源管理系统
 
-基于 Django、Celery 和 Vue 的资源管理系统，提供多源获取、元数据刮削、异步下载、推荐和实时任务进度。项目基于 [Satoing/NASSAV](https://github.com/Satoing/NASSAV) 重构；历史参考代码已从当前仓库移除。
+基于 Django、Celery 和 Vue 的资源管理系统，将资源收藏与管理、多源发现、个性化推荐和任务控制串成完整流程：搜索感兴趣的资源，补齐元数据，加入资源库，再按需下载。支持实时进度以及任务暂停、恢复和终止。项目基于 [Satoing/NASSAV](https://github.com/Satoing/NASSAV) 重构；历史参考代码已从当前仓库移除。
 
 ## 功能与入口
 
@@ -10,6 +10,12 @@
 - 单用户 Django 会话保护业务 API 和任务 WebSocket；登录后使用浏览器 Cookie 与 CSRF 令牌。
 - [前端页面与本地开发](vue_frontend/README.md) · [后端本地开发](django_backend/README.md) · [后端接口](django_backend/doc/interface.md) · [数据库说明](django_backend/doc/database.md)
 - [仓库开发规范](AGENTS.md) · [后端任务架构与职责](django_backend/doc/task-control-architecture.md) · [前端开发契约](vue_frontend/doc/development-contracts.md)
+
+## 界面预览
+
+![首页：品牌入口与功能概览](vue_frontend/public/preview/home.jpg)
+
+查看[完整页面介绍与预览](vue_frontend/README.md#功能概览含页面与预览图)：资源库、演员/类别、外部搜索、推荐与黑名单、添加资源、任务详情及设置。预览由当前组件和示例数据生成，更新于 2026-10-08。
 
 ## 快速开始
 

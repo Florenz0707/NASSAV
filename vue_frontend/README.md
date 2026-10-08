@@ -1,6 +1,6 @@
 # NASSAV 前端（Vue 3 + Vite）
 
-一个用于管理视频资源的前端应用，包含资源检索、信息刮削、任务详情等功能。基于 Vue 3、Vite、Pinia 与 Vue Router 构建，默认通过
+将资源库、多源发现、个性化推荐和持久任务控制集中在一个界面。支持资源检索、批量添加与刮削、下载暂停/恢复/终止，并提供清晰的进度、翻译状态和失败反馈。基于 Vue 3、Vite、Pinia 与 Vue Router 构建，默认通过
 `/nassav` 代理与后端交互。
 
 全栈容器部署通过仓库根目录 `compose.yaml` 提供 nginx 网关，详见 [Compose 部署说明](../django_backend/doc/compose-deployment.md)。
@@ -9,14 +9,14 @@
 
 ## 功能概览（含页面与预览图）
 
-当前版本为 2.4.5。以下预览图为历史页面参考，当前布局与交互以功能描述及开发契约为准。
+当前版本为 2.4.5，以下预览更新于 2026-10-08，展示当前工作树（含未发布改进）的真实页面组件。资源、演员、封面和任务均使用示例数据，截图不代表真实站点或 worker 联调验收；默认展示浅色主题，另附深色任务界面。
 
 - 首页（品牌与功能入口）
   - 功能：展示品牌、下载与刮削能力介绍，提供添加资源和浏览资源库快捷入口；品牌标识与导航共用橙色渐变，背景使用彩色柔光。
   - 路由：`/`
   - 预览：
 
-    ![Home](public/preview/home.png)
+    ![Home](public/preview/home.jpg)
 
 - 资源库（搜索/过滤/排序/批量操作）
   - 功能：支持按
@@ -24,19 +24,21 @@
   - 路由：`/resources`
   - 预览：
 
-    ![Resources](public/preview/resource.png)
+    ![Resources](public/preview/resource.jpg)
 
 - 演员库（按演员聚合浏览）
   - 功能：展示所有演员及其作品数；支持搜索演员名称；按作品数或名称排序；分页浏览；点击演员卡片查看该演员的所有作品。
   - 路由：`/resources/actors`
   - 预览：
 
-    ![Actors](public/preview/actors.png)
+    ![Actors](public/preview/actors.jpg)
 
 - 类别库（按类别聚合浏览）
   - 功能：展示所有类别及其作品数；支持搜索类别名称；按作品数或名称排序；分页浏览；点击类别卡片查看该类别的所有作品。
   - 路由：`/resources/genres`
-  - 预览：（与演员库界面类似，采用统一的卡片设计）
+  - 预览：
+
+    ![类别库：五列卡片与筛选](public/preview/genres.jpg)
 
 - 演员详情（特定演员的作品列表）
   - 功能：展示该演员的所有作品；支持搜索、排序、过滤；支持批量操作。
@@ -51,7 +53,7 @@
   - 路由：`/resource/:avid`
   - 预览：
 
-    ![Resource Detail](public/preview/resourceDetail.png)
+    ![Resource Detail](public/preview/resourceDetail.jpg)
 
 - 添加资源（支持选择下载源与 Cookie 设置）
   - 功能：输入 AVID 并选择下载源（或自动），提交后回显封面下载/元数据保存/信息刮削状态；支持继续添加/查看详情；提供 Cookie
@@ -59,19 +61,39 @@
   - 路由：`/add`
   - 预览：
 
-    ![Add Resource](public/preview/addResource.png)
+    ![批量添加资源与下载源选择](public/preview/addResource.jpg)
+
+    ![添加资源页的 Cookie 设置弹窗](public/preview/cookies.jpg)
 
 - 任务详情（持久下载与刮削任务，兼容历史队列）
   - 功能：列表/详情、类型和整体状态筛选、创建/更新时间降序、资源名称与封面、包含翻译的活动时间线；支持单条/批量暂停、恢复、终止和本浏览器隐藏已结束任务。控制能力由服务器快照决定，清理状态独立展示；说明文字旁的 info 弹窗区分当前跟踪、已加载隐藏数与服务端总数，本地隐藏不改变后台任务；列表不再提供独立刷新按钮。
   - 路由：`/downloads`
   - 预览：
 
-    ![Downloads](public/preview/downloads.png)
+    ![任务详情：下载和刮削列表、进度及活动时间线](public/preview/downloads.jpg)
+
+    ![深色主题任务详情](public/preview/tasksDark.jpg)
+
+- 外部搜索（演员/类别详情中的发现入口）
+  - 功能：手动选择来源开始搜索，渐进展示结果，支持取消与分页；添加按钮跟随所属任务状态，保存后禁用，未保存的失败允许重试。
+  - 路由：`/actors/:actorId?tab=external` 或 `/genres/:genreId?tab=external`
+  - 预览：
+
+    ![外部搜索结果与添加状态](public/preview/externalSearch.jpg)
 
 - 推荐页
   - 路由：`/recommendations`；手动提交推荐 job，由 scrape worker 执行，支持进度、取消与失败重试；多轮结果追加并在当前浏览器标签页恢复。历史信息收进 info 弹窗，核验/依据默认折叠，偏好与黑名单集中在个性化弹窗；支持反馈、屏蔽及加入资源库。
+  - 预览：
+
+    ![推荐发现：核验摘要、依据与反馈卡片](public/preview/recommendations.jpg)
+
+    ![个性化：推荐偏好与演员、类别、资源黑名单](public/preview/personalization.jpg)
+
 - 设置页
   - 路由：`/settings`；管理用户设置与默认外部搜索源；Cookie 设置由添加资源页按钮打开。
+  - 预览：
+
+    ![设置：主题、标题、头像及默认搜索源](public/preview/settings.jpg)
 
 ## 登录与外部搜索
 
