@@ -1,6 +1,6 @@
 # 持久任务控制与资产提交架构
 
-适用基线：v2.4.3，代码 `7a3d7f1`。本文维护新增下载、HTTP 刮削及所属翻译的当前架构与开发约束；历史无 job_id 的任务和同步入口继续兼容，不自动获得控制能力。字段见[接口](interface.md)、模型与迁移见[数据库](database.md)、操作步骤见[部署说明](compose-deployment.md)，证据与接受范围见[验证状态](validation-status.md)。原[设计计划](../../docs/task-pause-cancel-design.md)及 P0–P7 报告用于追溯，不替代本文。
+本文维护新增下载、HTTP 刮削及所属翻译的当前架构与开发约束；历史无 job_id 的任务和同步入口继续兼容，不自动获得控制能力。字段见[接口](interface.md)、模型与迁移见[数据库](database.md)、操作步骤见[部署说明](compose-deployment.md)，证据与接受范围见[验证状态](validation-status.md)。原[设计计划](../../docs/task-pause-cancel-design.md)及 P0–P7 报告用于追溯，不替代本文。
 
 ## 状态所有者与依赖方向
 
