@@ -108,3 +108,7 @@ uv run coverage report
 ## 表名迁移回归
 
 `uv run pytest tests/test_table_name_migration.py --ds=django_project.refactoring_test_settings -v` 使用合成资源、演员/类别关联、任务/attempt/资产/事件/命令及推荐/缓存行，执行 0027→0028→0027→0028，并比对全部字段、主键、关系行与索引/唯一约束。finally 恢复原迁移图叶节点，适用于后续迁移继续加入。PostgreSQL 验证必须另用独立临时实例与测试配置，禁止指向正式库。
+
+## 在线播放 P1
+
+`uv run pytest tests/test_playback_sessions.py tests/test_http_contracts.py --ds=django_project.refactoring_test_settings -v` 验证会话身份、取消/退出登录与发布竞争、租期、补派及缓存上下文。使用隔离 DB 和来源替身，不进行正式迁移或外站请求。表与控制接口见[在线播放架构](../doc/online-playback-architecture.md)。

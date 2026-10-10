@@ -381,3 +381,7 @@ ResourceMetadataCache 与 ResourcePlaybackCache 独立于 AVResource，无业务
 0028_normalize_table_names 包含 12 个 AlterModelTable，资源主表的两个隐式多对多关联表由 Django 自动改名，共影响 14 张物理表。TaskJob、TaskAttempt、RecommendationJob 的索引显式固定原名称，不重建索引。历史 0002/0004 等迁移保留原表名，以支持空库安装与回退链。迁移不搬运资源文件或重置任务/缓存；执行前检查名称冲突并按[部署步骤](compose-deployment.md#表名规范化迁移-0028)备份和停止旧消费者。
 
 验证记录（2026-10-08）：阶段提交标题 `[Enhancement] Normalize database table names with reversible migration`。`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：860 passed/28 skipped；迁移专项 SQLite 与独立 PostgreSQL 17 nassav schema 各 2 passed，覆盖完整字段/主键/关系行、全部声明索引/约束/外键及 0027→0028→0027→0028。`makemigrations --check --dry-run` 返回 No changes detected；PostgreSQL `sqlmigrate nassav 0028` 仅生成 14 次 ALTER TABLE RENAME。正式数据库、镜像和服务尚未切换。
+
+## 在线播放会话：迁移 0029
+
+PlaybackSession 显式使用 nassav_playback_session，新增用户/资源关系及状态、版本、执行归属、私有描述和期限。资源删除级联撤销会话，原站事实缓存独立；详细状态与清理规则见[在线播放架构](online-playback-architecture.md)。升级/回退只影响新会话表，不修改已有表身份；正式切换先备份并统一消费者，功能默认关闭。

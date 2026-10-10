@@ -325,6 +325,7 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # Start separate workers with -Q scrape -c 1, -Q download -c 1, and -Q default.
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ROUTES = {
+    "nassav.tasks.playback_prepare_task": {"queue": "scrape"},
     "nassav.tasks.recommendation_job_task": {"queue": "scrape"},
     "nassav.tasks.download_video_task": {"queue": "download"},
     "nassav.tasks.mock_download_video_task": {"queue": "download"},
@@ -498,3 +499,6 @@ CELERY_BEAT_SCHEDULE = {
         "args": (30,),  # days=30
     },
 }
+
+# Opt-in until the playback player and deployment acceptance are complete.
+PLAYBACK_ENABLED = os.getenv("NASSAV_PLAYBACK_ENABLED", "false").lower() == "true"

@@ -64,3 +64,7 @@ P5 最终完整隔离验证：`uv run pytest tests/ --ds=django_project.refactor
 外部搜索链路为任务结果复用 → 完整聚合结果缓存 → 来源列表获取；完整集合在 Redis/Django cache 中按来源/域名/出口/排序/采集页数隔离，默认启用，配置见[配置契约](configuration-contract.md)。只在完整成功时发布；异步缓存发布延后到权威任务终态 succeeded 之后，取消/失败不能发布。搜索页摘要没有 m3u8、完整演员/类别证据，不写入 ResourceMetadataCache 冒充完整详情，也不逐条追加详情网络请求。
 
 协调线程通过可选 facts_lookup 批量读取同一 ProviderFactsCache 的有效来源详情，每批最多 200 个键；补充列表缺失的原站标题/封面，输出 detail_cached 与 detail_cache_hit_count。这些标记表示本轮读取时命中，不保证添加时播放缓存或 scraper 缓存仍有效。搜索缓存命中、过期和强制刷新不更改数据库事实新鲜期。缓存原始结果不含库存或详情命中标记；任务/聚合结果返回时重新查询库存，避免已添加/删除资源后按钮状态过时。添加仍复用原有受控刮削流程补齐缺失事实与资产。
+
+## 在线播放准备
+
+P1 使用独立 online-playback-v2 播放事实，包含 manifest_url、实际 Referer、UA、来源/出口与会话版本、schema 和 omit Cookie 策略；不读取旧 m3u8-only 行。TTL 沿用 PlaybackTTLSeconds，发布受 PlaybackSession 执行 fence 约束。正式下载消费者保持 playback-v1，不因在线播放改变下载代理或续传契约。详见[在线播放架构](online-playback-architecture.md)。

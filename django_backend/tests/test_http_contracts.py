@@ -38,6 +38,23 @@ def test_url_and_openapi_contract_remains_identical():
         (Path(__file__).parent / "fixtures/backend_http_contract.json").read_text()
     )
     schema = SchemaGenerator().get_schema(request=None, public=True)
+    playback_routes = [
+        [
+            "nassav/api/resources/<str:avid>/playback-sessions",
+            "playback-submit",
+            "PlaybackSubmitView",
+        ],
+        [
+            "nassav/api/playback-sessions/<uuid:session_id>",
+            "playback-status",
+            "PlaybackStatusView",
+        ],
+        [
+            "nassav/api/playback-sessions/<uuid:session_id>/close",
+            "playback-close",
+            "PlaybackCloseView",
+        ],
+    ]
     recommendation_routes = [
         [
             "nassav/api/recommendations/jobs",
@@ -76,11 +93,15 @@ def test_url_and_openapi_contract_remains_identical():
     ]
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [
+        *playback_routes,
         *recommendation_routes,
         *control_routes,
         *baseline["routes"],
     ]
     control_paths = {
+        "/nassav/api/resources/{avid}/playback-sessions": {"post"},
+        "/nassav/api/playback-sessions/{session_id}": {"get"},
+        "/nassav/api/playback-sessions/{session_id}/close": {"post"},
         "/nassav/api/recommendations/jobs": {"post"},
         "/nassav/api/recommendations/jobs/{job_id}": {"get"},
         "/nassav/api/recommendations/jobs/{job_id}/cancel": {"post"},

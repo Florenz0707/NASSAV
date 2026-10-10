@@ -20,7 +20,28 @@ from .search_job_views import (
 
 app_name = "nassav"
 
+from nassav.http.playback_views import (
+    PlaybackSubmitView,
+    PlaybackStatusView,
+    PlaybackCloseView,
+)
+
 urlpatterns = [
+    path(
+        "api/resources/<str:avid>/playback-sessions",
+        PlaybackSubmitView.as_view(),
+        name="playback-submit",
+    ),
+    path(
+        "api/playback-sessions/<uuid:session_id>",
+        PlaybackStatusView.as_view(),
+        name="playback-status",
+    ),
+    path(
+        "api/playback-sessions/<uuid:session_id>/close",
+        PlaybackCloseView.as_view(),
+        name="playback-close",
+    ),
     path(
         "api/recommendations/jobs",
         recommendation_job_views.RecommendationJobSubmitView.as_view(),

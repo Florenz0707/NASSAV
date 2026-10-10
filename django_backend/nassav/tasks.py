@@ -242,3 +242,21 @@ def recommendation_job_task(job_id):
 
 
 from nassav.maintenance_tasks import cleanup_provider_cache as cleanup_provider_cache
+
+
+@shared_task(
+    name="nassav.tasks.playback_prepare_task",
+    soft_time_limit=310,
+    time_limit=330,
+    ignore_result=True,
+)
+def playback_prepare_task(session_id):
+    from django.conf import settings
+
+    if not settings.PLAYBACK_ENABLED:
+        return
+    from nassav.composition import build_playback_resolver
+    from nassav.playback.preparation import execute
+    from nassav.playback import records
+
+    execute(session_id, build_playback_resolver(), records)

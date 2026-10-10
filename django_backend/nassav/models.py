@@ -17,6 +17,7 @@ from nassav.resource_cache_models import (
     ResourceMetadataCache as ResourceMetadataCache,
     ResourcePlaybackCache as ResourcePlaybackCache,
 )
+from nassav.playback.models import PlaybackSession as PlaybackSession
 from nassav.task_models import (
     TaskArtifact as TaskArtifact,
     TaskAssetTarget as TaskAssetTarget,

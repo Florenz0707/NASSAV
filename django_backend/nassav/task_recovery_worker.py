@@ -28,6 +28,18 @@ def recovery_loop():
             recover()
         except Exception:
             logger.exception("Recommendation recovery scan failed")
+        try:
+            if getattr(settings, "PLAYBACK_ENABLED", False):
+                from nassav.playback.records import recover
+                from nassav.tasks import playback_prepare_task
+
+                recover(
+                    lambda session_id: playback_prepare_task.apply_async(
+                        args=(session_id,), queue="scrape"
+                    )
+                )
+        except Exception:
+            logger.exception("Playback recovery scan failed")
         finally:
             close_old_connections()
         _stop.wait(interval)

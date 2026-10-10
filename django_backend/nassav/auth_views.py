@@ -60,5 +60,11 @@ def login_view(request):
 def logout_view(request):
     if not is_operator(request.user):
         return _response(401, "请先登录")
+    from django.conf import settings
+
+    if getattr(settings, "PLAYBACK_ENABLED", False):
+        from nassav.playback.records import close_login
+
+        close_login(request.session.session_key)
     logout(request)
     return _response(200, "success", {"authenticated": False})

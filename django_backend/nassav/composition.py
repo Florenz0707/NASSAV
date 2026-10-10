@@ -530,3 +530,30 @@ def build_task_recovery():
         redis_client=get_redis_client,
         interrupt=interrupt,
     )
+
+
+def build_playback_resolver():
+    from django.conf import settings
+    from nassav.playback.preparation import SourcePlaybackResolver
+    from nassav.source.SourceManager import source_manager
+
+    factories = source_factories(
+        settings.PROXY_URL if settings.PROXY_ENABLED else None,
+        settings.BROWSER_FETCH_CONFIG,
+        source_manager.set_source_cookie,
+    )
+
+    @contextmanager
+    def scope(name, control):
+        if name not in factories or source_manager.get_source(name) is None:
+            raise ValueError("Playback source unavailable")
+        with _controlled_source_scope(
+            factories[name], control.check, control
+        ) as source:
+            yield source
+
+    return SourcePlaybackResolver(
+        scope,
+        build_provider_facts_cache(),
+        settings.RESOURCE_CACHE_POLICY["PlaybackTTLSeconds"],
+    )
