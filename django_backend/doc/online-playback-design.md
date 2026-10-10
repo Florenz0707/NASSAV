@@ -1,6 +1,6 @@
 # 基于来源 HLS 的在线播放：调研、设计与执行计划
 
-日期：2026-10-10。基线：`b91b5ac`。状态：**设计草案，尚未实现**。本轮只读核查代码和官方资料，没有抓取真实视频、创建任务或修改部署。来源实测列入 P0，不能把“已有 m3u8”当作已完成浏览器播放验收。
+日期：2026-10-10。初始设计基线：`b91b5ac`。状态：**设计草案，正式功能尚未实现**。初始调研为静态核查，后续已完成[两个来源样本的 P0 探测](online-playback-p0-report.md)：重新获取地址并真实解码、跳转、暂停及关闭。P0 未创建业务任务或修改部署；短时样本不能代替正式播放器、长期播放及目标设备验收。
 
 ## 可行性与范围
 
@@ -107,7 +107,7 @@ ProxyServer 代表页面 provider 的能力，不代表所有媒体必须经过�
 
 ASGI 下使用异步 StreamingHttpResponse iterator，ORM/会话检查在短同步桥接段完成，长期网络不占用事务，也不能把同步 DRF APIView 简单改一个 async def 就视为支持。Django 文档指出错误的迭代器类型会导致完整消费，断开时会取消协程，需 finally 关闭上游并释放容量。[Django 流响应](https://docs.djangoproject.com/en/6.0/ref/request-response/#streaminghttpresponse-objects)、[断开处理](https://docs.djangoproject.com/en/6.0/ref/request-response/#handling-disconnects)
 
-优先评估现有 curl_cffi 的 AsyncSession/异步流接口，保留需要的代理、UA 和来源传输特征；不能只因为存在 aiter_content 就宣称有有界背压，P0/P2 必须测量底层队列、慢客户端和取消。如果该版本不能满足内存上限，PlaybackTransport 可替换为已验证的异步客户端/有界读取实现，依赖及 TLS/代理兼容单独说明。[curl_cffi 官方实现](https://curl-cffi.readthedocs.io/en/latest/_modules/curl_cffi/requests/session.html)
+P0 已确认当前 curl_cffi 0.14.0 的默认 AsyncSession 流使用无界队列，aclose 会等待剩余传输，不可直接用于生产媒体转发。来源准备保留现有实现；PlaybackTransport 优先评估独立 HTTPX Adapter：临时 HTTPX 0.28.1 已通过两个 CDN 的同代理清单/Range/密钥请求与本地慢消费者关闭实验，尚未加入项目依赖。P2 必须进一步验证 ASGI 断连、多个慢客户端、代理/TLS/超时和内存上限，不把单次测量视为全局保证。[P0 测量](online-playback-p0-report.md#异步传输与缓存有效期)、[HTTPX 异步流契约](https://www.python-httpx.org/async/)、[curl_cffi 官方实现](https://curl-cffi.readthedocs.io/en/latest/_modules/curl_cffi/requests/session.html)
 
 Nginx 为 `/nassav/api/playback-sessions/` 的媒体子路径单独关闭 buffering/cache，或允许 X-Accel-Buffering: no；避免产生代理临时视频文件，设置合理分片连接/读取超时。[Nginx buffering](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering)
 
@@ -129,7 +129,7 @@ Nginx 为 `/nassav/api/playback-sessions/` 的媒体子路径单独关闭 buffer
 
 ## 分阶段执行计划
 
-每阶段仅在 `/tmp/nassav-agent-worktree` 新分支实现，通过门槛后提交合并 idle。下表为未来计划，不表示本轮已实现。
+每阶段仅在 `/tmp/nassav-agent-worktree` 新分支实现，通过门槛后提交合并 idle。P0 已完成两样本探测，结果与覆盖限制见[P0 报告](online-playback-p0-report.md)；P1–P5 仍为未来计划。
 
 | 阶段                  | 交付                                                                                                                                                                       | 验收/停止条件                                                                                                                                                                |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -144,6 +144,6 @@ P1/P2/P4 后端执行完整隔离 pytest 与 pre-commit；P3 前端执行 pnpm r
 
 ## 本轮结论与证据范围
 
-可行性成立于协议和浏览器能力层面，项目已有来源解析及短期事实缓存基础；需要补齐请求上下文、播放会话、同源网关和播放器。**当前未进行任何来源在线播放实测，不能保证 Jable/MissAV 的实际流均可播放。**建议先执行 P0，通过后再逐阶段实施 P1–P5，不将下载工具能取到视频等同于浏览器在线解码。
+协议与浏览器能力调研完成后，P0 已验证 Jable/MissAV 各一个新获取地址，在 Chrome＋hls.js＋临时同源网关中完成实际解码和短时操作。仍需补齐正式请求上下文、DB 会话、异步安全网关和前端播放器；不能保证全部资源、所有设备或长时链接失效后均可播放。可继续 P1，P2 必须采用经验证的有界媒体传输，不直接使用默认 curl 异步流。
 
-本轮仅新增设计文档与导航；官方资料调研和代码静态核查不代替网络、负载或目标设备验收。验证入口为文档链接检查与根目录 pre-commit run -a，最终提交见 Git 历史。
+初始调研仅新增设计文档与导航；P0 后续提交增加来源、代理、真实浏览器及传输测量报告，不修改业务代码。短时网络探测不代替正式服务负载和目标设备验收；文档门槛为链接检查与根目录 pre-commit run -a，最终提交见 Git 历史。
