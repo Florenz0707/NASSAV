@@ -49,6 +49,10 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 - 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[推荐架构](django_backend/doc/recommendation-architecture.md)、[代理并发](django_backend/doc/proxy-concurrency.md)、[持久抓取缓存](django_backend/doc/resource-cache-architecture.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
 - 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[部署与验证边界](django_backend/doc/compose-deployment.md#近期改动与验证边界)
 
+## 后续设计
+
+- [基于来源 HLS 的在线播放设计与执行计划](django_backend/doc/online-playback-design.md)：可行性调研与 P0–P5 计划，尚未实现。
+
 ## 版本更新
 
 完整历史与后续变更日志统一维护在 [CHANGES.md](CHANGES.md)。
