@@ -112,3 +112,7 @@ uv run coverage report
 ## 在线播放 P1
 
 `uv run pytest tests/test_playback_sessions.py tests/test_http_contracts.py --ds=django_project.refactoring_test_settings -v` 验证会话身份、取消/退出登录与发布竞争、租期、补派及缓存上下文。使用隔离 DB 和来源替身，不进行正式迁移或外站请求。表与控制接口见[在线播放架构](../doc/online-playback-architecture.md)。
+
+## 在线播放 P2
+
+test_playback_gateway.py 验证清单/目标策略、Range、取消和背压；test_playback_asgi.py 使用真实 Django ASGI 授权/断连路径；test_playback_redis.py 使用临时 Redis Unix socket 与独立进程验证容量；test_playback_transport_live_local.py 使用真实 TLS/HTTPX，验证 SNI、提前关闭及跟踪内存上限。均不访问正式 DB、CDN 或代理，不代表真实容器/播放器解码验收。部署约束见[在线播放架构](../doc/online-playback-architecture.md#配置与部署)。

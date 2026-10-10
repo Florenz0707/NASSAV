@@ -502,3 +502,16 @@ CELERY_BEAT_SCHEDULE = {
 
 # Opt-in until the playback player and deployment acceptance are complete.
 PLAYBACK_ENABLED = os.getenv("NASSAV_PLAYBACK_ENABLED", "false").lower() == "true"
+
+# Explicit CDN domains; an empty allowlist fails closed.
+PLAYBACK_ALLOWED_HOSTS = tuple(
+    x.strip().lower()
+    for x in os.getenv("NASSAV_PLAYBACK_ALLOWED_HOSTS", "").split(",")
+    if x.strip()
+)
+PLAYBACK_PROXY_TARGETS_TRUSTED = (
+    os.getenv("NASSAV_PLAYBACK_PROXY_TARGETS_TRUSTED", "false").lower() == "true"
+)
+PLAYBACK_MAX_MEDIA_REQUESTS = int(os.getenv("NASSAV_PLAYBACK_MAX_MEDIA_REQUESTS", "16"))
+if not 1 <= PLAYBACK_MAX_MEDIA_REQUESTS <= 128:
+    raise RuntimeError("NASSAV_PLAYBACK_MAX_MEDIA_REQUESTS must be between 1 and 128")

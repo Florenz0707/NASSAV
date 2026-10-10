@@ -557,3 +557,36 @@ def build_playback_resolver():
         build_provider_facts_cache(),
         settings.RESOURCE_CACHE_POLICY["PlaybackTTLSeconds"],
     )
+
+
+def build_playback_registry():
+    import redis
+    from django.conf import settings
+    from nassav.playback.redis_state import RedisAssetRegistry
+
+    return RedisAssetRegistry(
+        redis.from_url(
+            settings.CELERY_BROKER_URL, socket_timeout=2, socket_connect_timeout=2
+        )
+    )
+
+
+def build_playback_gateway():
+    from django.conf import settings
+    from nassav.playback.policy import TargetPolicy
+    from nassav.playback.transport import HttpxPlaybackTransport
+    from nassav.playback.redis_state import RedisPlaybackCapacity
+    from nassav.playback.gateway import PlaybackGateway
+
+    registry = build_playback_registry()
+    policy = TargetPolicy(settings.PLAYBACK_ALLOWED_HOSTS)
+    return PlaybackGateway(
+        HttpxPlaybackTransport(
+            policy,
+            settings.PROXY_URL if settings.PROXY_ENABLED else None,
+            proxy_targets_trusted=settings.PLAYBACK_PROXY_TARGETS_TRUSTED,
+        ),
+        policy,
+        registry,
+        RedisPlaybackCapacity(registry.client, settings.PLAYBACK_MAX_MEDIA_REQUESTS),
+    )

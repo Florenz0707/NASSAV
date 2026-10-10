@@ -93,6 +93,16 @@ def test_url_and_openapi_contract_remains_identical():
     ]
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [
+        [
+            "nassav/api/playback-sessions/<uuid:session_id>/manifest/<str:asset_id>",
+            "playback-manifest",
+            "media_view",
+        ],
+        [
+            "nassav/api/playback-sessions/<uuid:session_id>/assets/<str:asset_id>",
+            "playback-asset",
+            "media_view",
+        ],
         *playback_routes,
         *recommendation_routes,
         *control_routes,

@@ -263,3 +263,7 @@ python manage.py shell -c "from django.db import connection; from django.core.ma
 上述实现阶段根目录 `pre-commit run -a` 均通过；跳过项为显式在线等 opt-in 范围，不代表目标环境已经验收。前端浏览器使用模拟 API/WS，后端隔离设置使用网络替身和临时数据；迁移专项 PostgreSQL 使用一次性独立实例。用户此前确认任务/资产权限和推荐可用，不扩大为本表中新功能的部署验收。
 
 最近只读核查观察到活动 PostgreSQL 的 nassav schema 已应用至 0027、尚未应用 0028；agent 没有执行正式迁移或更新服务。新安装使用完整迁移链；已有实例先核对 showmigrations，再按本文 0027 缓存切换与 0028 表名维护窗口处理，统一 API、全部 worker 与 Beat 的代码/配置版本。旧表名消费者不得混跑，回退先停新消费者，再使用新代码逆向迁移，最后切回旧镜像。备份恢复、真实暂停续传、另一设备 HTTPS/WSS 与高并发性能仍需独立验收。
+
+## 在线播放（默认关闭）
+
+P1/P2 新增 0029 会话迁移和 Nginx 媒体路径，播放器尚未接入。启用须统一 API/worker/Nginx、先迁移后打开开关，并审核 CDN 域名和代理目标安全策略；Proxy.url 模式须核查实际 DNS/CONNECT ACL 后设置 NASSAV_PLAYBACK_PROXY_TARGETS_TRUSTED。详见[在线播放架构](online-playback-architecture.md#配置与部署)。本轮未执行正式数据库或容器切换。

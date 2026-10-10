@@ -26,7 +26,19 @@ from nassav.http.playback_views import (
     PlaybackCloseView,
 )
 
+from nassav.http.playback_media import media_view
+
 urlpatterns = [
+    path(
+        "api/playback-sessions/<uuid:session_id>/manifest/<str:asset_id>",
+        media_view,
+        name="playback-manifest",
+    ),
+    path(
+        "api/playback-sessions/<uuid:session_id>/assets/<str:asset_id>",
+        media_view,
+        name="playback-asset",
+    ),
     path(
         "api/resources/<str:avid>/playback-sessions",
         PlaybackSubmitView.as_view(),

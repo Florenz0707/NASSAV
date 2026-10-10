@@ -15,6 +15,11 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
 # is populated before importing code that may import ORM models.
 django_asgi_app = get_asgi_application()
 
+import logging
+from nassav.playback.access_log import PlaybackAccessFilter
+
+logging.getLogger("uvicorn.access").addFilter(PlaybackAccessFilter())
+
 # Import routing after Django is initialized
 from nassav.routing import websocket_urlpatterns
 from nassav.ws_origin import SameOriginWebSocketValidator

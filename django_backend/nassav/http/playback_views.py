@@ -48,6 +48,22 @@ class PlaybackSessionView(SchemaAPIView):
                     session_id, request.user.pk, request.session.session_key
                 )
             data = records.snapshot(row)
+            if row.state == "ready":
+                from nassav.http.playback_media import root_url
+                from nassav.playback.policy import PlaybackGatewayError
+
+                try:
+                    data["manifest_url"] = root_url(row)
+                except PlaybackGatewayError as error:
+                    return Response(
+                        {"code": error.status, "message": error.code, "data": None},
+                        status=error.status,
+                    )
+                except Exception:
+                    return Response(
+                        {"code": 503, "message": "playback_unavailable", "data": None},
+                        status=503,
+                    )
             return Response({"code": 200, "message": "success", "data": data})
         except records.PlaybackSession.DoesNotExist:
             return Response(
