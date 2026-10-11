@@ -4,6 +4,7 @@ const routes = [
   {
     path: '/play/:avid',
     name: 'Playback',
+    meta: { layout: 'playback' },
     component: () => import('../../views/PlaybackView.vue'),
     props: true,
   },

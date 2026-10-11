@@ -88,6 +88,10 @@ Linux Playwright Firefox 155 的独立进程重复探针连续 10/10 通过，�
 
 2026-10-11：用户明确要求先合并 P5 到 idle，再调整详情按钮和独立播放标签页。已将 P5 与验收范围说明 fast-forward 合并至 idle（339e23d），不将授权合并视为历史超时已修复或跳过项目通过。新的前端阶段 `feat/playback-dedicated-tab` 改用 `/play/:avid` 新标签页，联调探针同步跟踪新页并通过“停止播放”结束会话。完整页面浏览器测试 `node tests/browser/playbackTab.cjs` 通过：按钮顺序/等宽等高、桌面和手机布局、新标签页无 opener、详情页退出不停止播放、停止/重新播放及 pagehide 关闭。`node tests/browser/playback.cjs` 在 Chrome/Firefox 实际合成媒体解码与一次刷新通过；`pnpm run check` 的76项单元测试、lint、构建及 `pre-commit run -a` 全通过。完整页面测试使用模拟授权/API，合成媒体测试实际解码；本阶段不重建正式容器、不执行新真实来源联调。
 
+### 播放页布局精简
+
+后续阶段 `feat/playback-focused-layout` 将播放页导航缩为Logo，移除停止/重新播放及详情链接、底部说明；播放区域在加载/错误/播放时保持16:9，沿用max-w-5xl宽度，边框直接包裹视频。主区域居中，普通页面仍显示完整导航。联调探针改为点击Logo离开播放路由，再检查权威关闭状态；不依赖已移除的停止按钮。验证使用完整页面模拟API检查主题、桌面/手机、比例、居中、模拟pagehide发起关闭、reload新会话及路由卸载清理，并使用合成TS/fMP4实际解码检查媒体与边框贴合；不新增正式来源联调证据。Playwright拦截请求在旧document销毁时可能被丢弃，因此该页面测试在reload前单独触发pagehide验证调用，不作为真实浏览器关闭后服务端收妥/容量归零证据。本阶段 `pnpm run check` 的76项单元测试、lint/构建与 `pre-commit run -a` 全通过；`node tests/browser/playbackTab.cjs` 的布局/退出路径通过，`node tests/browser/playback.cjs` 在Chrome/Firefox合成媒体解码、边框贴合与刷新回归通过。
+
 ## 更新与回滚
 
 1. 备份并核对活动数据库模式及来源/代理/CDN 配置，按现有 Compose 入口选择 sqlite 或 postgres；不得直接更改 DB_ENGINE 切换已有部署模式。

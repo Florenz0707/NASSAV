@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, watch, ref } from 'vue'
+import { computed, onMounted, onUnmounted, watch, ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import Navbar from './app/components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
@@ -12,6 +12,7 @@ import { useSessionStore } from './features/auth/stores/session.js'
 
 const mainContent = ref(null)
 const route = useRoute()
+const playbackLayout = computed(() => route.meta.layout === 'playback')
 let focusAfterNavigation = false
 watch(
   () => route.path,
@@ -119,8 +120,14 @@ watch(
     <LoginView v-else-if="sessionStore.status !== 'authenticated'" />
     <template v-else>
       <a href="#main-content" class="skip-link">跳转到主要内容</a>
-      <Navbar />
-      <main id="main-content" ref="mainContent" tabindex="-1" class="main-content">
+      <Navbar :logo-only="playbackLayout" />
+      <main
+        id="main-content"
+        ref="mainContent"
+        tabindex="-1"
+        class="main-content"
+        :class="{ 'main-content--playback': playbackLayout }"
+      >
         <RouterView v-slot="{ Component }">
           <transition name="page" mode="out-in" @after-enter="restorePageFocus">
             <component :is="Component" />
@@ -189,6 +196,13 @@ watch(
   padding-top: calc(4rem + 2rem);
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.main-content--playback {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (max-width: 640px) {

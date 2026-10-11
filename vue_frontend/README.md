@@ -229,7 +229,7 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 ## 在线播放器验收
 
-详情页“在线播放”使用同源授权会话、MSE/hls.js 优先、缺少 MSE 时回退原生 HLS，不保存视频文件。来源准备异步完成，独立 `/play/:avid` 页面支持拖动、暂停、错误重试、停止/重新播放、关闭标签页和卸载清理；关闭原详情页不影响播放；hls.js 对网关来源拒绝最多刷新一次，兼容检查成功才恢复位置。原生 HLS 错误无法可靠取得 HTTP 状态，使用显式重试。配置和上线条件见[后端验收](../django_backend/doc/online-playback-acceptance.md)。
+详情页“在线播放”使用同源授权会话、MSE/hls.js 优先、缺少 MSE 时回退原生 HLS，不保存视频文件。来源准备异步完成，独立 `/play/:avid` 页面顶部仅保留Logo，播放器居中并在加载/播放时保持16:9比例；支持拖动、暂停、错误重试、关闭标签页和卸载清理；关闭原详情页不影响播放；hls.js 对网关来源拒绝最多刷新一次，兼容检查成功才恢复位置。原生 HLS 错误无法可靠取得 HTTP 状态，使用显式重试。配置和上线条件见[后端验收](../django_backend/doc/online-playback-acceptance.md)。
 
 `tests/browser/playback.cjs` 默认离线，ffmpeg 生成临时 TS/fMP4 后真实解码，模拟 API 验证迟到提交、恢复、焦点和移动布局；不替代真实来源/worker。`scripts/verify-playback-live.cjs` 必须显式提供验收来源、两个已有 AVID 和临时 Playwright storage-state 文件；默认连续播放 30 秒，可选刷新，测试后尽力关闭会话，临时登录由提供者删除。驱动依赖沿用上面的 NODE_PATH，不将凭证提交到仓库。
 

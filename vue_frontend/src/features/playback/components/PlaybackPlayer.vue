@@ -107,36 +107,42 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <section v-if="active" aria-label="视频播放器">
-    <div class="min-h-48 flex flex-col justify-center">
-      <PageLoad v-if="preparing" variant="spinner" text="正在准备播放，来源获取可能需要一分钟" />
-      <template v-if="state.state === 'ready'">
-        <video
-          ref="video"
-          controls
-          playsinline
-          preload="metadata"
-          class="w-full max-h-[65dvh] rounded-xl bg-primary"
-          aria-label="在线播放"
-          @waiting="buffering = true"
-          @canplay="buffering = false"
-          @playing="buffering = false"
-          @pause="buffering = false"
-        />
-        <p v-if="buffering && !mediaError" role="status" class="text-muted text-sm mt-3">
-          正在缓冲…
-        </p>
-      </template>
-      <div
-        v-if="mediaError || ['failed', 'closed'].includes(state.state)"
-        class="flex flex-col items-center gap-4 py-6"
-      >
-        <p role="alert" class="text-secondary text-sm">{{ mediaError || state.message }}</p>
-        <AppButton @click="retry">重试播放</AppButton>
-      </div>
+  <section
+    v-if="active"
+    aria-label="视频播放器"
+    class="relative w-full aspect-video overflow-hidden rounded-2xl border border-[var(--border-color)] bg-primary"
+  >
+    <div v-if="preparing" class="absolute inset-0 flex items-center justify-center p-4">
+      <PageLoad variant="spinner" text="正在准备播放，来源获取可能需要一分钟" />
     </div>
-    <p class="text-muted text-xs mt-4">
-      在线播放不保存视频文件。暂停保留会话，停止播放或关闭播放标签页释放会话。
+    <video
+      v-if="state.state === 'ready'"
+      ref="video"
+      controls
+      playsinline
+      preload="metadata"
+      class="absolute inset-0 w-full h-full object-contain"
+      aria-label="在线播放"
+      @waiting="buffering = true"
+      @canplay="buffering = false"
+      @playing="buffering = false"
+      @pause="buffering = false"
+    />
+    <p
+      v-if="buffering && !mediaError"
+      role="status"
+      class="absolute inset-0 flex items-center justify-center pointer-events-none text-secondary text-sm"
+    >
+      正在缓冲…
     </p>
+    <div
+      v-if="mediaError || ['failed', 'closed'].includes(state.state)"
+      class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 bg-primary/90 overflow-y-auto"
+    >
+      <p role="alert" class="text-secondary text-sm text-center">
+        {{ mediaError || state.message }}
+      </p>
+      <AppButton @click="retry">重试播放</AppButton>
+    </div>
   </section>
 </template>

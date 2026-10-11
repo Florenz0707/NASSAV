@@ -173,6 +173,17 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
       await page.waitForFunction(() => !!document.querySelector('video')?.getAttribute('src'))
       await page.locator('video').evaluate((video) => video.play())
       await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.5)
+      const geometry = await page.locator('video').evaluate((video) => {
+        const frame = video.parentElement.getBoundingClientRect(),
+          media = video.getBoundingClientRect()
+        return {
+          ratio: frame.width / frame.height,
+          widthGap: frame.width - media.width,
+          heightGap: frame.height - media.height,
+        }
+      })
+      assert.ok(Math.abs(geometry.ratio - 16 / 9) < 0.01)
+      assert.ok(geometry.widthGap <= 2 && geometry.heightGap <= 2, 'frame must hug video')
       await page.locator('video').evaluate((video) => {
         video.currentTime = 7
       })

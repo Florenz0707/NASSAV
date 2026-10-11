@@ -81,37 +81,63 @@ async function main() {
     const player = await opened
     await player.waitForURL(`${origin}/play/DEMO-1`)
     await player.getByRole('heading', { name: '独立播放测试资源', exact: true }).waitFor()
-    await player.getByRole('button', { name: '停止播放', exact: true }).waitFor()
+    assert.equal(await player.locator('nav').count(), 0)
+    assert.equal(await player.getByRole('button', { name: '菜单', exact: true }).count(), 0)
+    assert.equal(await player.getByRole('button', { name: '停止播放', exact: true }).count(), 0)
+    assert.equal(await player.getByRole('link', { name: '查看资源详情', exact: true }).count(), 0)
+    await player.getByRole('link', { name: 'NASSAV', exact: true }).waitFor()
     await player.waitForFunction(() => document.body.textContent.includes('正在准备播放'))
     assert.equal(await player.evaluate(() => window.opener), null)
     assert.equal(submitted.length, 1)
     assert.equal(new URL(detail.url()).pathname, '/resource/DEMO-1')
     await detail.close()
     assert.equal(closed.length, 0, 'closing detail must not stop the playback tab')
+    const viewport = player.getByRole('region', { name: '视频播放器', exact: true })
     for (const mode of ['light-mode', 'dark-mode']) {
       await player.evaluate((theme) => {
         document.body.classList.remove('light-mode', 'dark-mode')
         document.body.classList.add(theme)
       }, mode)
-      await player.setViewportSize({ width: 390, height: 844 })
-      assert.equal(
-        await player.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        true
-      )
+      for (const width of [1440, 1024, 390]) {
+        await player.setViewportSize({ width, height: 900 })
+        await player.waitForTimeout(350)
+        const box = await viewport.boundingBox()
+        assert.ok(Math.abs(box.width / box.height - 16 / 9) < 0.01)
+        assert.ok(Math.abs(box.x + box.width / 2 - width / 2) < 1)
+        if (width === 1440)
+          assert.ok(Math.abs(box.width - 1024) < 1, 'preserve desktop maximum width')
+        assert.equal(
+          await player.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          true
+        )
+        assert.equal(
+          await player.getByText('在线播放不保存视频文件。', { exact: false }).count(),
+          0
+        )
+      }
     }
-    await player.getByRole('button', { name: '停止播放', exact: true }).click()
-    await player.getByText('播放已停止', { exact: true }).waitFor()
-    await player.waitForTimeout(100)
-    assert.deepEqual(closed, ['tab-1'])
-    await player.getByRole('button', { name: '重新播放', exact: true }).click()
-    await player.waitForTimeout(200)
-    assert.equal(submitted.length, 2)
+    // Exercise pagehide before reload: Playwright can discard intercepted keepalive
+    // requests when their old document is destroyed; this is not a backend receipt check.
     await player.evaluate(() => window.dispatchEvent(new Event('pagehide')))
     await player.waitForTimeout(200)
+    assert.deepEqual(closed, ['tab-1'])
+    await player.reload()
+    await player.getByRole('heading', { name: '独立播放测试资源', exact: true }).waitFor()
+    await player.waitForFunction(() => document.body.textContent.includes('正在准备播放'))
+    assert.equal(submitted.length, 2)
+    assert.deepEqual(closed, ['tab-1'])
+    await player.getByRole('link', { name: 'NASSAV', exact: true }).click()
+    await player.waitForURL(origin + '/')
+    await player.waitForTimeout(500)
     assert.deepEqual(closed, ['tab-1', 'tab-2'])
+    assert.equal(
+      await player.locator('nav').count(),
+      1,
+      'normal navigation returns after leaving playback'
+    )
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: equal-sized ordered actions, mobile layout, isolated new playback tab, title, stop/restart and pagehide close'
+      'PASS: equal-sized ordered actions, mobile layout, isolated new playback tab, logo-only playback layout, fixed 16:9 viewport, pagehide call, reload/unmount cleanup and restored navigation'
     )
   } finally {
     await context.close()

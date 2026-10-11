@@ -227,7 +227,7 @@ async function main() {
         assert.equal(status.data.refresh_count, 1)
         assert.equal(status.data.state, 'ready')
       }
-      await page.getByRole('button', { name: '停止播放', exact: true }).click()
+      await page.getByRole('link', { name: 'NASSAV', exact: true }).click()
       await command(page, sessionId, 'close')
       const status = await (
         await page.request.get(`${origin}/nassav/api/playback-sessions/${sessionId}`)

@@ -5,6 +5,8 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '../../features/auth/stores/session.js'
 import { useToastStore } from '../../shared/stores/toast.js'
 
+defineProps({ logoOnly: Boolean })
+
 const route = useRoute()
 const router = useRouter()
 const sessionStore = useSessionStore()
@@ -77,12 +79,21 @@ watch(
 </script>
 
 <template>
-  <nav class="navbar" :class="{ scrolled }">
+  <component
+    :is="logoOnly ? 'header' : 'nav'"
+    class="navbar"
+    :class="{ scrolled: scrolled && !logoOnly }"
+  >
     <div class="navbar-inner">
       <!-- Logo -->
       <RouterLink to="/" class="navbar-logo">
         <span class="logo-icon">
-          <svg viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            class="w-5 h-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <path
               d="M6.3 4.2a1 1 0 0 1 1.5-.87l8 4.8a1 1 0 0 1 0 1.74l-8 4.8A1 1 0 0 1 6.3 13.8V4.2z"
             />
@@ -92,7 +103,7 @@ watch(
       </RouterLink>
 
       <!-- Desktop nav links -->
-      <div class="nav-links">
+      <div v-if="!logoOnly" class="nav-links">
         <!-- 首页 -->
         <RouterLink to="/" class="nav-item" :class="{ active: isActive('/') }">
           <svg
@@ -332,6 +343,7 @@ watch(
 
       <!-- Hamburger button (mobile only) -->
       <button
+        v-if="!logoOnly"
         class="hamburger-btn"
         :aria-expanded="showMobileMenu"
         aria-label="菜单"
@@ -363,7 +375,7 @@ watch(
     </div>
 
     <!-- Mobile menu -->
-    <div v-if="showMobileMenu" class="mobile-menu">
+    <div v-if="!logoOnly && showMobileMenu" class="mobile-menu">
       <RouterLink to="/" class="mobile-nav-item" :class="{ active: isActive('/') }">
         <svg
           class="nav-icon"
@@ -520,7 +532,7 @@ watch(
         退出登录
       </button>
     </div>
-  </nav>
+  </component>
 </template>
 
 <style scoped>
