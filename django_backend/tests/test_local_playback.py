@@ -545,3 +545,102 @@ def test_local_idle_consumer_releases_fd_and_capacity(tmp_path):
             assert video.fd is None and capacity.active == 0
 
     asyncio.run(run())
+
+
+@pytest.mark.django_db
+def test_local_owned_poll_keeps_buffered_video_alive_without_extending_absolute_limit(
+    local_video, operator_user
+):
+    from datetime import timedelta
+    from django.utils import timezone
+
+    resource, _, locator = local_video
+    client = Client()
+    client.force_login(operator_user)
+    row = submit_local(
+        locator,
+        records,
+        operator_user.pk,
+        client.session.session_key,
+        resource.avid,
+        uuid4(),
+    )
+    absolute = row.absolute_expires_at
+    records.PlaybackSession.objects.filter(pk=row.pk).update(
+        idle_expires_at=timezone.now() + timedelta(seconds=1)
+    )
+    response = client.get(f"/nassav/api/playback-sessions/{row.pk}")
+    assert response.status_code == 200 and response.json()["data"]["state"] == "ready"
+    row.refresh_from_db()
+    assert row.idle_expires_at > timezone.now() + timedelta(seconds=1700)
+    assert row.absolute_expires_at == absolute
+    records.PlaybackSession.objects.filter(pk=row.pk).update(
+        absolute_expires_at=timezone.now() - timedelta(seconds=1)
+    )
+    assert (
+        client.get(f"/nassav/api/playback-sessions/{row.pk}").json()["data"]["state"]
+        == "failed"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_revocation_cancels_asgi_send_backpressure_without_client_disconnect(
+    local_video, operator_user, monkeypatch
+):
+    from asgiref.sync import sync_to_async
+
+    resource, _, locator = local_video
+    client = Client()
+    client.force_login(operator_user)
+    key = client.session.session_key
+    row = submit_local(locator, records, operator_user.pk, key, resource.avid, uuid4())
+    capacity = Capacity()
+    monkeypatch.setattr(
+        composition,
+        "build_local_playback_gateway",
+        lambda: LocalPlaybackGateway(capacity),
+    )
+
+    async def run():
+        queue = asyncio.Queue()
+        await queue.put({"type": "http.request", "body": b""})
+        blocked = asyncio.Event()
+        never = asyncio.Event()
+
+        async def send(event):
+            if event["type"] == "http.response.body" and event.get("body"):
+                blocked.set()
+                await never.wait()  # Client is connected but no longer consumes.
+
+        from urllib.parse import urlsplit
+
+        url = urlsplit(local_url(row))
+        scope = {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": url.path,
+            "query_string": url.query.encode(),
+            "headers": [
+                (b"host", b"localhost"),
+                (b"cookie", f"sessionid={key}".encode()),
+            ],
+            "server": ("localhost", 80),
+            "client": ("127.0.0.1", 1234),
+        }
+        task = asyncio.create_task(application(scope, queue.get, send))
+        try:
+            await asyncio.wait_for(blocked.wait(), 5)
+            assert capacity.active == 1
+            await sync_to_async(records.close)(
+                row.pk, operator_user.pk, key, row.version, uuid4()
+            )
+            await asyncio.wait_for(task, 5)
+            assert capacity.active == 0
+        finally:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(run())

@@ -87,7 +87,7 @@ async def local_media_view(request, session_id):
             build_local_playback_gateway,
         )
 
-        locator = build_local_video_locator()
+        locator = await sync_to_async(build_local_video_locator)()
         avid = await sync_to_async(lambda: row.resource.avid)()
         await sync_to_async(check_local)(row, locator)
         gateway = build_local_playback_gateway()
@@ -101,6 +101,12 @@ async def local_media_view(request, session_id):
         async def opener():
             return await sync_to_async(locator.open)(avid, row.descriptor)
 
+        serving_task = asyncio.current_task()
+
+        def stop_transfer():
+            if serving_task is not None:
+                serving_task.cancel()
+
         manager = gateway.open(
             row.pk,
             row.descriptor,
@@ -109,6 +115,7 @@ async def local_media_view(request, session_id):
             method=request.method,
             range_value=request.headers.get("Range"),
             if_range=request.headers.get("If-Range"),
+            stopped=stop_transfer,
         )
         result = await manager.__aenter__()
         opened = True

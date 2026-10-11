@@ -6,7 +6,10 @@ const routes = [
     name: 'Playback',
     meta: { layout: 'playback' },
     component: () => import('../../views/PlaybackView.vue'),
-    props: true,
+    props: (route) => ({
+      avid: route.params.avid,
+      mode: route.query.mode === 'local' ? 'local' : 'source',
+    }),
   },
   {
     path: '/',

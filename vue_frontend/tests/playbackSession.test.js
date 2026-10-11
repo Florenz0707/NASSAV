@@ -104,3 +104,75 @@ test('refresh is single flight, remains one-shot and changes generation', async 
   assert.equal(await session.refresh(), false)
   await session.dispose()
 })
+
+test('local mode sends its mode, uses the MP4 snapshot and never refreshes a source', async () => {
+  const submitted = [],
+    changes = []
+  const local = {
+    ...row('local', 1, 'ready'),
+    mode: 'local',
+    media_type: 'mp4',
+    media_url: '/file',
+  }
+  const session = createPlaybackSession({
+    api: {
+      submit: async (...args) => {
+        submitted.push(args)
+        return { data: local }
+      },
+      status: async () => ({ data: local }),
+      refresh: () => {
+        throw Error('must not fetch a source')
+      },
+      close: async () => {},
+    },
+    changed: (value) => changes.push(value),
+    uuid: () => 'request',
+  })
+  await session.start('DEMO', 'local')
+  assert.deepEqual(submitted, [['DEMO', 'request', 'local']])
+  assert.equal(changes.at(-1).media_url, '/file')
+  assert.equal(await session.refresh(), false)
+  await session.dispose()
+})
+
+test('switching modes for the same AVID fences the late old mode', async () => {
+  const pending = deferred(),
+    changes = [],
+    closed = []
+  const session = createPlaybackSession({
+    api: {
+      submit: async (_avid, _id, mode) => ({ data: row(mode) }),
+      status: async (id) =>
+        id === 'local' ? pending.promise : { data: row('source', 2, 'ready') },
+      close: async (id) => closed.push(id),
+    },
+    changed: (value) => changes.push(value),
+  })
+  const first = session.start('DEMO', 'local')
+  await new Promise((resolve) => setImmediate(resolve))
+  await session.start('DEMO', 'source')
+  pending.resolve({ data: { ...row('local', 3, 'ready'), media_url: '/old-local' } })
+  await first
+  assert.equal(changes.at(-1).session_id, 'source')
+  assert.deepEqual(closed, ['local'])
+  await session.dispose()
+})
+
+test('a missing local file reports an error without falling back to source', async () => {
+  const modes = [],
+    changes = []
+  const session = createPlaybackSession({
+    api: {
+      submit: async (_avid, _id, mode) => {
+        modes.push(mode)
+        throw { httpStatus: 404, message: 'local_video_not_found' }
+      },
+    },
+    changed: (value) => changes.push(value),
+  })
+  await session.start('DEMO', 'local')
+  assert.deepEqual(modes, ['local'])
+  assert.equal(changes.at(-1).message, '已下载视频不存在，请检查文件或重新下载')
+  await session.dispose()
+})

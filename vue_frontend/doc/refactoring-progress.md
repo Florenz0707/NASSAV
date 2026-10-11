@@ -89,3 +89,9 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 分支 `fix/detail-playback-action-colors`（提交见 Git 历史）：详情下载使用 coral、播放使用 teal，公共 tone 的 hover/pressed 加深，保留尺寸与 AppButton 五状态。`pnpm run check` 通过（76 项测试）；Playwright 使用现有 `playbackTab.cjs` 的隔离 API 场景临时扩展，验证两主题下默认/hover/pressed 的填充不同且文字保持浅色，原有新标签、移动布局及卸载场景通过。人工查看深浅主题截图；不等于正式 API/worker 联调。根 `pre-commit run -a` 格式化后重跑通过。
 
 已下载视频与进度保存仅新增后端设计草案，未实现接口、迁移或部署。
+
+## 2026-10-11：已下载视频播放L2
+
+后端L1提交c0773bc已合并idle。分支feat/local-playback-frontend（提交见Git历史）：已下载“点击播放”打开/play/:avid?mode=local，新标签拥有会话；media_type=mp4用原生video，保持来源HLS引擎和一次刷新。本地文件错误不回退来源，AVID/模式变化清空本页位置，不新增进度持久化。
+
+执行pnpm run check（81项通过）、pre-commit run -a；现有playbackTab两主题/移动/卸载验收通过；Chrome/Firefox来源HLS合成TS/fMP4解码、拖动/暂停、一次刷新及旧结果护栏通过。本地专项使用临时SQLite、真实ASGI/Redis和90秒合成H.264/AAC MP4（含尾部moov布局），Chrome/Firefox验证首帧/解码帧、Range、拖动/暂停、独立标签、移动16:9与关闭后持久closed；仅全局WS提示用替身。可复现helper和入口见README。不替代正式Docker、实际下载视频编码、真机或长时验收。

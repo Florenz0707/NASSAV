@@ -42,6 +42,11 @@ export function createPlaybackSession({
     }
   }
   function message(row) {
+    if (row.state === 'failed' && row.mode === 'local') {
+      if (row.error_code === 'media_identity_changed') return '本地视频已被替换，请重新开始播放'
+      if (row.error_code === 'local_publication_pending') return '视频发布尚未完成，请稍后重试'
+      return row.error_code === 'expired' ? '播放会话已过期，请重试' : '本地视频已删除或无法读取'
+    }
     if (row.state === 'failed')
       return row.error_code === 'media_identity_changed'
         ? '刷新后媒体不兼容，请重新开始播放'
@@ -60,8 +65,10 @@ export function createPlaybackSession({
           snapshot?.state === 'ready' &&
           row.state === 'ready' &&
           snapshot.generation === row.generation
-        )
+        ) {
           row.manifest_url = snapshot.manifest_url || row.manifest_url
+          row.media_url = snapshot.media_url || row.media_url
+        }
         snapshot = row
         emit({ ...row, message: message(row) })
       }
@@ -75,7 +82,7 @@ export function createPlaybackSession({
       })
     }
   }
-  async function start(avid) {
+  async function start(avid, mode = 'source') {
     const token = ++operation
     clearTimeout(timer)
     const old = snapshot
@@ -88,9 +95,9 @@ export function createPlaybackSession({
     }
     if (disposed || token !== operation) return
     refreshUsed = false
-    emit({ state: 'queued', message: '' })
+    emit({ state: 'queued', mode, message: '' })
     try {
-      const row = (await api.submit(avid, uuid())).data
+      const row = (await api.submit(avid, uuid(), mode)).data
       if (disposed || token !== operation) {
         await closeRow(row)
         return
@@ -103,17 +110,30 @@ export function createPlaybackSession({
       emit({
         state: 'failed',
         message:
-          error.httpStatus === 404
-            ? '在线播放未启用或资源已删除'
-            : error.httpStatus === 409
-              ? '播放会话已达上限，请先关闭其他播放器'
-              : '无法准备播放，请重试',
+          mode === 'local' && error.message === 'local_video_not_found'
+            ? '已下载视频不存在，请检查文件或重新下载'
+            : mode === 'local' &&
+                ['local_video_busy', 'local_publication_pending'].includes(error.message)
+              ? '视频正在发布或等待恢复，请稍后重试'
+              : error.httpStatus === 404
+                ? '在线播放未启用或资源已删除'
+                : error.httpStatus === 409
+                  ? '播放会话已达上限，请先关闭其他播放器'
+                  : '无法准备播放，请重试',
       })
     }
   }
   async function refresh() {
     if (refreshFlight) return refreshFlight
-    if (!snapshot || snapshot.state !== 'ready' || refreshUsed || disposed) return false
+    if (
+      !snapshot ||
+      snapshot.mode === 'local' ||
+      snapshot.media_type === 'mp4' ||
+      snapshot.state !== 'ready' ||
+      refreshUsed ||
+      disposed
+    )
+      return false
     refreshUsed = true
     const token = ++operation,
       id = snapshot.session_id,

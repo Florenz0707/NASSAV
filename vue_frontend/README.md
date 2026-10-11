@@ -264,3 +264,23 @@ done
 ```
 
 正式HTTPS/真机/长时验收项目及未通过记录见[验收记录](../django_backend/doc/online-playback-acceptance.md)。
+
+### 已下载 MP4 真实隔离浏览器验证
+
+后端测试 helper 只在显式启用时启动，使用临时 SQLite、资源/用户/登录会话和 Unix socket Redis，生成90秒H.264/AAC MP4，不使用正式配置或资源。需要 ffmpeg、redis-server 和 Playwright；正常停止 helper 回收临时文件。
+
+从仓库根目录进入后端：
+
+```bash
+cd django_backend
+NASSAV_LOCAL_PLAYBACK_TEST_SERVER=1 PYTHONPATH=. uv run python tests/helpers/local_playback_server.py
+```
+
+另一个终端从前端目录启动 `NASSAV_VITE_BACKEND_URL=http://127.0.0.1:9791 pnpm run dev --host 127.0.0.1 --port 4178`，将 helper 输出的 ISOLATED_STORAGE_STATE 文件路径填到下列变量（不要使用正式登录状态）：
+
+```bash
+NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录/storage-state.json \
+  node tests/browser/localPlayback.cjs
+```
+
+可加 NASSAV_BROWSER_ENGINE=firefox；NASSAV_BROWSER_ORIGIN 只接受本机地址。验证真实会话/MP4 HTTP/Range、解码帧、拖动/暂停、移动尺寸、退出后 closed；仅全局 WebSocket 提示用替身。不提供隔离状态时该专项明确跳过。它不替代正式 Docker、实际下载文件编码或真机验收。

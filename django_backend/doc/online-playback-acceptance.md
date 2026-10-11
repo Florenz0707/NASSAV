@@ -112,3 +112,17 @@ Linux Playwright Firefox 155 的独立进程重复探针连续 10/10 通过，�
 分支feat/local-playback-backend（提交见Git历史）：本地MP4会话、0031、鉴权Range接口、共享发布身份和资源锁，保持来源HLS契约。执行`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`、`pre-commit run -a`及`pnpm run check`；专项在独立PostgreSQL16执行，覆盖迁移往返。使用已有nginx:1.27-alpine、无网络容器执行nginx -t通过；Redis断连回收为真实隔离实例。前端接入/浏览器解码在L2验收，正式部署尚未进行；更新本地播放版本须统一消费者并应用0031。
 
 L1最终门槛：完整隔离后端931 passed / 28 skipped；本地播放与迁移专项SQLite及独立PostgreSQL各12 passed（测试线程连接已清理）；前端76项测试、lint/build与无网络Nginx配置检查通过。
+
+## 本地播放L2（2026-10-11）
+
+L1提交c0773bc；L2提交见feat/local-playback-frontend分支。详情已下载播放接入原生MP4、新标签本地模式，保留来源HLS。公开media_type选择引擎，URL不保存到持久存储；文件缺失/变化不回退来源。本地定位器的根符号链接解析也在线程执行。
+
+Chrome/Firefox在独立SQLite/真实ASGI/Unix socket Redis中通过合成90秒H.264/AAC MP4首帧和解码帧、Range、拖动/暂停、移动16:9及关闭后DB closed；包括尾部moov布局。此前faststart布局也通过。全局WS提示被隔离，HTTP/视频/播放会话为真实请求；不访问来源或正式资源。已有合成HLS TS/fMP4在两浏览器回归通过。前端81项测试与lint/build、全仓库pre-commit通过。复现入口见前端README及tests/helpers/local_playback_server.py。
+
+部署须重建前后端并执行Django migrate应用0031，API/worker使用同一版本。前端Nginx只代理，视频目录仍只需后端可读，不需要新增前端视频挂载。不启用转码；非兼容编码给播放错误，实际下载文件/正式Docker验收尚未执行。
+
+L2补充：本地状态轮询作为已缓冲视频的会话活动续idle，不延长absolute；回归验证无后续媒体请求仍可维持ready、绝对过期仍失败。
+
+L2补充背压验收：阻塞ASGI send且不发送disconnect，关闭会话后请求任务结束、容量归零；本地watcher显式取消所属传输，避免仅释放文件仍挂在代理发送缓冲。
+
+L2最终门槛：完整后端933 passed / 28 skipped，独立PostgreSQL本地播放/迁移14 passed；前端81 passed及lint/build、根pre-commit通过。最后的浏览器复测使用包含续期与背压撤销修复的全新隔离服务。

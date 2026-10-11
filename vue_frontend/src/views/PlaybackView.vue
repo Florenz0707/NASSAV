@@ -1,7 +1,7 @@
 <script setup>
 import PlaybackPage from '../features/playback/components/PlaybackPage.vue'
-defineProps({ avid: { type: String, required: true } })
+defineProps({ avid: { type: String, required: true }, mode: { type: String, default: 'source' } })
 </script>
 <template>
-  <PlaybackPage :avid="avid" />
+  <PlaybackPage :avid="avid" :mode="mode" />
 </template>

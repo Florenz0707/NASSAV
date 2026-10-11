@@ -2,7 +2,7 @@
 export async function attachPlayer(
   video,
   url,
-  { failed, position = 0, resume = false, current = () => true }
+  { failed, position = 0, resume = false, current = () => true, mediaType = 'hls' }
 ) {
   if (!url.startsWith('/nassav/api/playback-sessions/')) throw new Error('Invalid media entry')
   let hls = null,
@@ -27,6 +27,16 @@ export async function attachPlayer(
   }
   video.addEventListener('loadedmetadata', restore, { once: true })
   try {
+    if (!current()) {
+      destroy()
+      return destroy
+    }
+    if (mediaType === 'mp4') {
+      video.addEventListener('error', nativeError)
+      video.src = url
+      return destroy
+    }
+    if (mediaType !== 'hls') throw new Error('Unsupported media type')
     const { default: Hls } = await import('hls.js')
     if (!current()) {
       destroy()

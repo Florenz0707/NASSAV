@@ -9,6 +9,7 @@ import { attachPlayer } from '../lib/mediaPlayer.js'
 const props = defineProps({
   active: Boolean,
   avid: { type: String, required: true },
+  mode: { type: String, default: 'source' },
 })
 const video = ref(null)
 const state = ref({ state: 'queued' }),
@@ -37,24 +38,24 @@ function releasePlayer() {
 async function retry() {
   releasePlayer()
   mediaError.value = ''
-  if (state.value.error_code === 'media_identity_changed') position = 0
+  if (props.mode === 'local' || state.value.error_code === 'media_identity_changed') position = 0
   resumePlayback = false
-  await session.start(props.avid)
+  await session.start(props.avid, props.mode)
 }
 watch(
-  () => [props.active, props.avid],
-  ([show, avid]) => {
+  () => [props.active, props.avid, props.mode],
+  ([show, avid, mode]) => {
     releasePlayer()
     mediaError.value = ''
-    if (avid !== previousAvid) position = 0
-    previousAvid = avid
-    if (show) session.start(avid)
+    if (`${avid}:${mode}` !== previousAvid) position = 0
+    previousAvid = `${avid}:${mode}`
+    if (show) session.start(avid, mode)
     else session.stop()
   },
   { immediate: true }
 )
 watch(
-  () => state.value.manifest_url,
+  () => state.value.media_url || state.value.manifest_url,
   async (url) => {
     if (!url || !props.active) {
       releasePlayer()
@@ -68,11 +69,12 @@ watch(
     try {
       const dispose = await attachPlayer(video.value, url, {
         position,
+        mediaType: state.value.media_type || 'hls',
         resume: state.value.refresh_count === 1 && resumePlayback,
         current: () => token === playerVersion && props.active,
         failed: (message, status = 0) => {
           if (token === playerVersion) {
-            if (status === 410 && state.value.refresh_count !== 1) {
+            if (props.mode === 'source' && status === 410 && state.value.refresh_count !== 1) {
               const wasPlaying = video.value && !video.value.paused
               releasePlayer()
               resumePlayback = wasPlaying
@@ -113,7 +115,10 @@ onBeforeUnmount(() => {
     class="relative w-full aspect-video overflow-hidden rounded-2xl border border-[var(--border-color)] bg-primary"
   >
     <div v-if="preparing" class="absolute inset-0 flex items-center justify-center p-4">
-      <PageLoad variant="spinner" text="正在准备播放，来源获取可能需要一分钟" />
+      <PageLoad
+        variant="spinner"
+        :text="mode === 'local' ? '正在读取已下载视频' : '正在准备播放，来源获取可能需要一分钟'"
+      />
     </div>
     <video
       v-if="state.state === 'ready'"
@@ -122,7 +127,7 @@ onBeforeUnmount(() => {
       playsinline
       preload="metadata"
       class="absolute inset-0 w-full h-full object-contain"
-      aria-label="在线播放"
+      :aria-label="mode === 'local' ? '本地视频播放' : '在线播放'"
       @waiting="buffering = true"
       @canplay="buffering = false"
       @playing="buffering = false"

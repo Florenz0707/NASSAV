@@ -6,7 +6,10 @@ import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 import PlaybackPlayer from './PlaybackPlayer.vue'
 
-const props = defineProps({ avid: { type: String, required: true } })
+const props = defineProps({
+  avid: { type: String, required: true },
+  mode: { type: String, default: 'source' },
+})
 const settings = useSettingsStore()
 const metadata = ref(null)
 const guard = createRequestGuard()
@@ -33,9 +36,11 @@ onBeforeUnmount(() => guard.invalidate())
 <template>
   <section class="w-full max-w-5xl mx-auto">
     <header class="text-center mb-4">
-      <p class="text-muted text-sm mb-2">{{ avid }} · 在线播放</p>
+      <p class="text-muted text-sm mb-2">
+        {{ avid }} · {{ mode === 'local' ? '本地播放' : '在线播放' }}
+      </p>
       <h1 class="text-primary text-xl font-semibold break-words">{{ title }}</h1>
     </header>
-    <PlaybackPlayer active :avid="avid" />
+    <PlaybackPlayer active :avid="avid" :mode="mode" />
   </section>
 </template>

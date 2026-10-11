@@ -60,7 +60,16 @@ class PlaybackSessionView(SchemaAPIView):
                         )
 
                         try:
+                            from nassav.http.playback_media import authorize_session
+
+                            # A native player may buffer the entire MP4 and issue
+                            # no more media reads; its owned poll is local activity.
+                            authorize_session(request, session_id, row.generation)
+                            row = records.owned(
+                                session_id, request.user.pk, request.session.session_key
+                            )
                             check_local(row)
+                            data = records.snapshot(row)
                             data["media_url"] = local_url(row)
                         except PlaybackGatewayError:
                             data = records.snapshot(

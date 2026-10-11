@@ -1,8 +1,11 @@
 import api from './client.js'
 
 export const playbackApi = {
-  submit: (avid, requestId) =>
-    api.post(`/resources/${encodeURIComponent(avid)}/playback-sessions`, { request_id: requestId }),
+  submit: (avid, requestId, mode = 'source') =>
+    api.post(`/resources/${encodeURIComponent(avid)}/playback-sessions`, {
+      request_id: requestId,
+      mode,
+    }),
   status: (id) => api.get(`/playback-sessions/${id}`),
   refresh: (id, version, requestId) =>
     api.post(`/playback-sessions/${id}/refresh`, {

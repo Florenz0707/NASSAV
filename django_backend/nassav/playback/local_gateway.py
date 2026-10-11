@@ -35,6 +35,7 @@ class LocalPlaybackGateway:
         method="GET",
         range_value=None,
         if_range=None,
+        stopped=lambda: None,
     ):
         async with self.capacity.slot(session_id) as lease:
             video = None
@@ -72,6 +73,7 @@ class LocalPlaybackGateway:
                     raise
                 except Exception:
                     await close()
+                    stopped()
                     raise
 
             async def read(offset, size):

@@ -4,7 +4,7 @@ import RequestError from '../shared/ui/RequestError.vue'
 import { resolveResourceTitle } from '../features/resources/lib/resourceTitle.js'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { actorApi, downloadApi, genreApi, resourceApi } from '../api/index.js'
+import { actorApi, genreApi, resourceApi } from '../api/index.js'
 import { useResourceStore } from '../features/resources/stores/resource.js'
 import { useToastStore } from '../shared/stores/toast.js'
 import { useSettingsStore } from '../features/settings/stores/settings.js'
@@ -31,9 +31,13 @@ const error = ref(null)
 const refreshing = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteAction = ref(null)
-function openPlayback() {
+function openPlayback(mode = 'source') {
   window.open(
-    router.resolve({ name: 'Playback', params: { avid: avid.value } }).href,
+    router.resolve({
+      name: 'Playback',
+      params: { avid: avid.value },
+      query: mode === 'local' ? { mode } : {},
+    }).href,
     '_blank',
     'noopener,noreferrer'
   )
@@ -173,24 +177,6 @@ function goBack() {
   } else {
     // 否则使用浏览器后退
     router.back()
-  }
-}
-
-async function jumpPlay() {
-  try {
-    const resp = await downloadApi.getFilePath(avid.value)
-    if (!resp || (typeof resp.code === 'number' && (resp.code < 200 || resp.code >= 300))) {
-      toastStore.error(resp.message || '获取路径失败')
-    }
-
-    const path = resp.data.abspath
-    if (!path) toastStore.error('未返回文件路径')
-
-    const fileUrl = `file:/${path}`
-    await navigator.clipboard.writeText(fileUrl)
-    toastStore.success('视频路径已复制到剪贴板')
-  } catch (err) {
-    toastStore.error(err.message)
   }
 }
 
@@ -485,7 +471,7 @@ async function navigateToGenre(genreName) {
               v-if="metadata.file_exists"
               tone="teal"
               class="w-full h-14"
-              @click="jumpPlay"
+              @click="openPlayback('local')"
             >
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
@@ -493,7 +479,12 @@ async function navigateToGenre(genreName) {
               点击播放
             </AppButton>
 
-            <AppButton tone="teal" class="w-full h-14" @click="openPlayback" title="在新标签页播放">
+            <AppButton
+              tone="teal"
+              class="w-full h-14"
+              @click="openPlayback('source')"
+              title="在新标签页播放"
+            >
               <svg
                 class="w-4 h-4 shrink-0"
                 fill="currentColor"
