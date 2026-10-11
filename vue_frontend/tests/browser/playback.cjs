@@ -4,10 +4,14 @@ const { mkdtempSync, readFileSync, rmSync } = require('node:fs')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const { spawnSync } = require('node:child_process')
+const {
+  installMediaDiagnostics,
+  readMediaDiagnostics,
+} = require('../../scripts/lib/media-diagnostics.cjs')
 const { browserHash } = JSON.parse(readFileSync('node_modules/.vite/deps/_metadata.json', 'utf8'))
 async function main() {
   const fixture = mkdtempSync(join(tmpdir(), 'nassav-hls-fixture-'))
-  let browser
+  let browser, auditPage
   try {
     for (const format of ['mpegts', 'fmp4']) {
       const result = spawnSync(
@@ -70,6 +74,8 @@ async function main() {
       errors = [],
       closed = [],
       sessions = new Map()
+    auditPage = page
+    await installMediaDiagnostics(page)
     let serial = 0,
       format = 'mpegts',
       fail = false,
@@ -225,6 +231,9 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
     console.log(
       'PASS: real TS/fMP4 H.264/AAC decode, seek, pause, close, focus, retry, mobile/dark, one-shot expired-source position recovery and late submit fencing'
     )
+  } catch (error) {
+    console.log(JSON.stringify({ media_diagnostics: await readMediaDiagnostics(auditPage) }))
+    throw error
   } finally {
     await browser?.close()
     rmSync(fixture, { recursive: true, force: true })

@@ -250,3 +250,17 @@ node scripts/verify-playback-live.cjs
 私有 loopback HTTPS 验收可显式设置 `NASSAV_PLAYBACK_TEST_SELF_SIGNED=true`；仅允许localhost/回环HTTPS，例外只绕过一次性证书信任校验，不关闭Secure Cookie、CSRF或上游目标限制。正式证书验收保持默认false。
 
 合成播放器回归可设置 `NASSAV_BROWSER_ENGINE=firefox`（默认chromium），配合Playwright浏览器目录运行 `node tests/browser/playback.cjs`。先等待MSE挂载再调用play；合成TS/fMP4与真实来源轮次分开记录，Firefox间歇超时不由一次通过掩盖。
+
+合成与真实探针失败时会在清理前输出 `media_diagnostics`：当前媒体时间、帧数、缓冲区间和最近100条媒体事件，区分play拒绝、暂停、seek和等待缓冲；不包含URL、凭证或响应正文。真实探针的连续播放区间须解码新帧，且时间推进至少为观察时长的80%，避免只在开始播放过却被误报为连续播放通过。
+
+独立进程重复合成回归（任一轮失败立即退出）：
+
+```sh
+for round in 1 2 3 4 5 6 7 8 9 10; do
+  NODE_PATH=/tmp/nassav-browser-audit/node_modules \
+  PLAYWRIGHT_BROWSERS_PATH=/tmp/nassav-browser-audit/browsers \
+  NASSAV_BROWSER_ENGINE=firefox node tests/browser/playback.cjs || exit "$?"
+done
+```
+
+正式HTTPS/真机/长时验收项目及未通过记录见[验收记录](../django_backend/doc/online-playback-acceptance.md)。

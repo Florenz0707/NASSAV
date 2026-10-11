@@ -2,6 +2,7 @@
 const { chromium, firefox } = require('playwright')
 const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
+const { installMediaDiagnostics, readMediaDiagnostics } = require('./lib/media-diagnostics.cjs')
 let stage = 'setup',
   currentAvid = ''
 async function main() {
@@ -34,6 +35,7 @@ async function main() {
         }
   )
   const context = await browser.newContext({ storageState: state, ignoreHTTPSErrors: selfSigned })
+  await installMediaDiagnostics(context)
   if (process.env.NASSAV_PLAYBACK_TEST_MSE === 'true')
     await context.addInitScript(() => {
       const original = HTMLMediaElement.prototype.canPlayType
@@ -42,6 +44,7 @@ async function main() {
       }
     })
   const sessions = []
+  let lastPage
   async function play(page) {
     await page.locator('video').evaluate(async (video) => {
       let timer
@@ -87,6 +90,7 @@ async function main() {
       currentAvid = avid
       stage = 'open'
       const page = await context.newPage()
+      lastPage = page
       let sessionId, framesBefore, firstFrameMs
       page.on('response', async (response) => {
         if (
@@ -162,11 +166,22 @@ async function main() {
         paused,
         { timeout: 30000 }
       )
+      const continuousStart = await page.locator('video').evaluate((v) => ({
+        time: v.currentTime,
+        frames: v.getVideoPlaybackQuality().totalVideoFrames,
+      }))
       await page.waitForTimeout(seconds * 1000)
+      const continuousEnd = await page.locator('video').evaluate((v) => ({
+        time: v.currentTime,
+        frames: v.getVideoPlaybackQuality().totalVideoFrames,
+      }))
       assert.ok(
-        (await page
-          .locator('video')
-          .evaluate((video) => video.getVideoPlaybackQuality().totalVideoFrames)) > framesBefore
+        continuousEnd.frames > continuousStart.frames,
+        'continuous interval must decode new frames'
+      )
+      assert.ok(
+        continuousEnd.time - continuousStart.time >= seconds * 0.8,
+        'continuous interval stalled for more than 20% of observation time'
       )
       if (process.env.NASSAV_PLAYBACK_TEST_REFRESH === 'true') {
         stage = 'refresh'
@@ -219,6 +234,15 @@ async function main() {
         })
       )
     }
+  } catch (error) {
+    console.log(
+      JSON.stringify({
+        stage,
+        avid: currentAvid,
+        media_diagnostics: await readMediaDiagnostics(lastPage),
+      })
+    )
+    throw error
   } finally {
     for (const entry of sessions) await command(entry.page, entry.id, 'close').catch(() => {})
     await context.close()
