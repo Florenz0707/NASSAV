@@ -9,16 +9,7 @@ from urllib.parse import urljoin
 from nassav.constants import IMPERSONATE
 from .policy import PlaybackGatewayError
 from .transport import PlaybackTransport
-
-
-async def finish_owned_task(task):
-    """Repeated caller cancellation cannot abandon an owned process cleanup."""
-    while not task.done():
-        try:
-            await asyncio.shield(task)
-        except asyncio.CancelledError:
-            continue
-    return task.result()
+from .async_cleanup import finish_owned_task
 
 
 class CurlStreamResponse:
