@@ -83,3 +83,9 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 ## 2026-10-08 v2.4.5 文档汇总
 
 阶段分支 `docs/release-2.4.5`，提交标题 `[Doc] Release 2.4.5 recommendation and UI documentation`。汇总 2.4.4 之后的推荐 worker/公共代理并发和前端细化，保留用户主题与布局；更新 README、推荐说明/架构、前端开发入口与约束、验证状态和前后端版本元数据。验证为 `pnpm run check`（72 项、lint/build）、离线 uv 锁文件检查、版本/修改文档链接和全量 pre-commit；不重复声明真实服务验收，历史浏览器证据保留在对应阶段。
+
+## 2026-10-11：详情播放操作配色
+
+分支 `fix/detail-playback-action-colors`（提交见 Git 历史）：详情下载使用 coral、播放使用 teal，公共 tone 的 hover/pressed 加深，保留尺寸与 AppButton 五状态。`pnpm run check` 通过（76 项测试）；Playwright 使用现有 `playbackTab.cjs` 的隔离 API 场景临时扩展，验证两主题下默认/hover/pressed 的填充不同且文字保持浅色，原有新标签、移动布局及卸载场景通过。人工查看深浅主题截图；不等于正式 API/worker 联调。根 `pre-commit run -a` 格式化后重跑通过。
+
+已下载视频与进度保存仅新增后端设计草案，未实现接口、迁移或部署。

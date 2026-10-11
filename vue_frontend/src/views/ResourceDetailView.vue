@@ -473,6 +473,7 @@ async function navigateToGenre(genreName) {
 
             <AppButton
               v-if="!metadata.file_exists"
+              tone="coral"
               class="w-full h-14"
               :loading="isSubmittingDownload"
               :disabled="isDownloading"
@@ -480,14 +481,19 @@ async function navigateToGenre(genreName) {
             >
               {{ isDownloading ? '下载中...' : '下载视频' }}
             </AppButton>
-            <AppButton v-if="metadata.file_exists" class="w-full h-14" @click="jumpPlay">
+            <AppButton
+              v-if="metadata.file_exists"
+              tone="teal"
+              class="w-full h-14"
+              @click="jumpPlay"
+            >
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
               点击播放
             </AppButton>
 
-            <AppButton class="w-full h-14" @click="openPlayback" title="在新标签页播放">
+            <AppButton tone="teal" class="w-full h-14" @click="openPlayback" title="在新标签页播放">
               <svg
                 class="w-4 h-4 shrink-0"
                 fill="currentColor"

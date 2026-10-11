@@ -186,11 +186,11 @@ body.dark-mode {
   --disabled-surface: #2c3441;
 
   --coral-fill: #ce2851;
-  --coral-fill-hover: #c32248;
-  --coral-fill-pressed: #aa1d3e;
+  --coral-fill-hover: #a81b3e;
+  --coral-fill-pressed: #861330;
   --teal-fill: #087980;
-  --teal-fill-hover: #066e76;
-  --teal-fill-pressed: #065d65;
+  --teal-fill-hover: #04595f;
+  --teal-fill-pressed: #034348;
   --brand-gradient: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   --warm-fill: #a8451b;
   --warm-fill-hover: #b24b1e;
@@ -224,11 +224,11 @@ body.light-mode {
   --disabled-surface: #eceef1;
 
   --coral-fill: #ce2851;
-  --coral-fill-hover: #c32248;
-  --coral-fill-pressed: #aa1d3e;
+  --coral-fill-hover: #a81b3e;
+  --coral-fill-pressed: #861330;
   --teal-fill: #087980;
-  --teal-fill-hover: #066e76;
-  --teal-fill-pressed: #065d65;
+  --teal-fill-hover: #04595f;
+  --teal-fill-pressed: #034348;
   --brand-gradient: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
   --warm-fill: #a8451b;
   --warm-fill-hover: #993b15;

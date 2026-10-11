@@ -110,3 +110,7 @@ curl_worker 是私有单请求协议进程，不是 Celery 业务任务：不初
 `async_cleanup.finish_owned_task` 只等待已明确归属且自身有时限的操作，供媒体进程与容量清理复用；不得用于无限网络等待。生产 Redis socket/connect timeout 保持2秒。释放遇 Redis 不可用仅记录脱敏告警并保留既有45秒租约/90秒key TTL兜底，不删除其他owner，不宣称已主动释放。
 
 回归先复现申请取消、释放重复取消、Redis写成功后回包丢失三种遗留；真实隔离Redis验证自身计数归零及其他owner保持，真实Django ASGI disconnect测试使用Redis容量而非替身计数。目标Compose回收与播放器验收另在P5记录，不由这些隔离测试替代。
+
+## 后续方案
+
+已下载视频直传及个人播放进度的接口、迁移与边界见[设计草案](local-playback-and-progress-design.md)，尚未实现。

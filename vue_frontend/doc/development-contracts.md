@@ -23,6 +23,7 @@
 
 - 背景为 `bg-primary`、`bg-secondary`；文字为 `text-primary`、`text-secondary`、`text-muted`，不得混用背景和文字的 primary 映射。
 - ResourceCard 的 AVID 徽标使用主强调色文字和淡强调色背景；不套用实心主强调背景的浅色文字规则。
+- 详情操作使用 coral 下载、teal 播放（包括已下载资源的路径入口），保持等宽等高；coral/teal 的 hover、pressed 由公共主题 token 提供更深的填充，不用页面样式覆盖 loading/disabled。
 - 主强调背景上的文字与头像开关圆点使用固定浅色 `on-accent` token（对应深色主题正文色），不随浅色主题变暗。
 - 交互使用 accent 系列；危险、成功、警告和信息分别使用对应语义 token。边框使用 `--border-color` 对应默认 `border`，浅表面使用 `surface-subtle`，阴影复用预设；不新建固定白色边框或独立状态色。
 - 操作按钮优先使用 `AppButton` 的 `primary`、`neutral`、`danger` 及 loading/disabled 状态；搜索、分页、下拉和确认复用 `SearchInput`、`ResourcePagination`、`CustomSelect`、`ConfirmDialog`。
