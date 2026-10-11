@@ -4,6 +4,8 @@ import json
 from contextlib import asynccontextmanager
 from uuid import uuid4
 import asyncio
+import logging
+from .async_cleanup import finish_owned_task
 from django.utils.crypto import salted_hmac
 from .policy import PlaybackGatewayError
 
@@ -84,24 +86,69 @@ class RedisPlaybackCapacity:
             f"nassav:playback:capacity:{session_id}",
         ]
         lost = asyncio.Event()
-        try:
-            acquired = await asyncio.to_thread(
+        heartbeat_task = renew_task = release_task = None
+
+        async def cleanup():
+            lost.set()
+            if heartbeat_task is not None:
+                heartbeat_task.cancel()
+                await asyncio.gather(heartbeat_task, return_exceptions=True)
+            if renew_task is not None:
+                try:
+                    await finish_owned_task(renew_task)
+                except Exception:
+                    pass
+            try:
+                await asyncio.to_thread(self.client.eval, _RELEASE, 2, *keys, owner)
+            except Exception:
+                # Redis outages retain the existing bounded TTL fallback.
+                logging.getLogger(__name__).warning(
+                    "Playback capacity release unavailable; owner lease will expire"
+                )
+
+        async def release():
+            nonlocal release_task
+            # Single event-loop assignment: concurrent release callers join one task.
+            if release_task is None:
+                release_task = asyncio.create_task(cleanup())
+            try:
+                await asyncio.shield(release_task)
+            except asyncio.CancelledError:
+                await finish_owned_task(release_task)
+                raise
+
+        acquire_task = asyncio.create_task(
+            asyncio.to_thread(
                 self.client.eval, _ACQUIRE, 2, *keys, owner, self.limit, 4
             )
-            if not acquired:
-                raise PlaybackGatewayError("playback_busy", 429)
-        except PlaybackGatewayError:
+        )
+        try:
+            acquired = await asyncio.shield(acquire_task)
+        except asyncio.CancelledError:
+            # Cancelling to_thread cannot stop Redis committing. Settle the owner
+            # operation before releasing, including an ambiguous/lost reply.
+            try:
+                await finish_owned_task(acquire_task)
+            except Exception:
+                pass
+            cleanup_task = asyncio.create_task(release())
+            await finish_owned_task(cleanup_task)
             raise
         except Exception as error:
+            await release()
             raise PlaybackGatewayError("capacity_unavailable", 503) from error
+        if not acquired:
+            raise PlaybackGatewayError("playback_busy", 429)
 
         async def heartbeat():
+            nonlocal renew_task
             try:
                 while True:
                     await asyncio.sleep(10)
-                    if not await asyncio.to_thread(
-                        self.client.eval, _RENEW, 2, *keys, owner
-                    ):
+                    renew_task = asyncio.create_task(
+                        asyncio.to_thread(self.client.eval, _RENEW, 2, *keys, owner)
+                    )
+                    if not await asyncio.shield(renew_task):
                         lost.set()
                         return
             except asyncio.CancelledError:
@@ -109,28 +156,11 @@ class RedisPlaybackCapacity:
             except Exception:
                 lost.set()
 
-        task = asyncio.create_task(heartbeat())
+        heartbeat_task = asyncio.create_task(heartbeat())
 
         def check():
             if lost.is_set():
                 raise PlaybackGatewayError("capacity_lost", 503)
-
-        released = False
-        release_lock = asyncio.Lock()
-
-        async def release():
-            nonlocal released
-            async with release_lock:
-                if released:
-                    return
-                released = True
-                lost.set()
-                task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
-                try:
-                    await asyncio.to_thread(self.client.eval, _RELEASE, 2, *keys, owner)
-                except Exception:
-                    pass
 
         try:
             yield CapacityLease(check, release)

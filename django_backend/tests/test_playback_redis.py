@@ -80,3 +80,106 @@ def test_capacity_is_shared_with_separate_process(playback_redis):
                 result.close()
 
     asyncio.run(run())
+
+
+def test_cancelled_capacity_acquisition_releases_late_redis_owner(playback_redis):
+    """A cancelled HTTP request cannot abandon its in-flight Redis thread."""
+    from threading import Event
+    from nassav.playback.redis_state import _ACQUIRE
+
+    started, unblock, finished = Event(), Event(), Event()
+
+    class DelayedAcquire:
+        def eval(self, script, *args):
+            if script == _ACQUIRE:
+                started.set()
+                assert unblock.wait(3)
+                try:
+                    return playback_redis.eval(script, *args)
+                finally:
+                    finished.set()
+            return playback_redis.eval(script, *args)
+
+    async def run():
+        sid = uuid4()
+        entered = False
+
+        async def request():
+            nonlocal entered
+            async with RedisPlaybackCapacity(DelayedAcquire()).slot(sid):
+                entered = True
+
+        task = asyncio.create_task(request())
+        try:
+            assert await asyncio.to_thread(started.wait, 3)
+            task.cancel()
+            await asyncio.sleep(0)
+            task.cancel()
+        finally:
+            unblock.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 3)
+        assert await asyncio.to_thread(finished.wait, 3)
+        assert not entered
+        assert playback_redis.zcard("nassav:playback:capacity:global") == 0
+        assert playback_redis.zcard(f"nassav:playback:capacity:{sid}") == 0
+
+    asyncio.run(run())
+
+
+def test_cancelled_explicit_release_still_finishes_cleanup(playback_redis, monkeypatch):
+    import nassav.playback.redis_state as state
+
+    async def run():
+        original_sleep = asyncio.sleep
+        started, stopping, finish = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+        async def slow_heartbeat_sleep(seconds):
+            if seconds != 10:
+                return await original_sleep(seconds)
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                stopping.set()
+                await finish.wait()
+
+        monkeypatch.setattr(state.asyncio, "sleep", slow_heartbeat_sleep)
+        sid = uuid4()
+        async with RedisPlaybackCapacity(playback_redis).slot(sid) as lease:
+            await asyncio.wait_for(started.wait(), 3)
+            release = asyncio.create_task(lease.release())
+            await asyncio.wait_for(stopping.wait(), 3)
+            release.cancel()
+            await original_sleep(0)
+            release.cancel()
+            finish.set()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(release, 3)
+        assert playback_redis.zcard("nassav:playback:capacity:global") == 0
+        assert playback_redis.zcard(f"nassav:playback:capacity:{sid}") == 0
+
+    asyncio.run(run())
+
+
+def test_ambiguous_acquisition_error_releases_only_own_lease(playback_redis):
+    from nassav.playback.redis_state import _ACQUIRE
+
+    class LostReply:
+        def eval(self, script, *args):
+            result = playback_redis.eval(script, *args)
+            if script == _ACQUIRE:
+                raise ConnectionError("reply lost after Redis commit")
+            return result
+
+    async def run():
+        sid = uuid4()
+        key = "nassav:playback:capacity:global"
+        playback_redis.zadd(key, {"other-owner": 9999999999})
+        with pytest.raises(PlaybackGatewayError, match="capacity_unavailable"):
+            async with RedisPlaybackCapacity(LostReply()).slot(sid):
+                pytest.fail("Unconfirmed acquisition cannot enter the slot")
+        assert playback_redis.zrange(key, 0, -1) == [b"other-owner"]
+        assert playback_redis.zcard(f"nassav:playback:capacity:{sid}") == 0
+
+    asyncio.run(run())

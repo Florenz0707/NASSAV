@@ -8,6 +8,7 @@ from django_project.asgi import application
 from nassav.playback import records
 from nassav.http.playback_media import capability
 from test_playback_gateway import make_gateway, Response
+from nassav.playback.redis_state import RedisPlaybackCapacity
 from nassav.playback.contracts import PlaybackDescriptor
 
 
@@ -95,7 +96,7 @@ def test_asgi_media_authorization_range_and_cleanup(
 
 @pytest.mark.django_db(transaction=True)
 def test_asgi_disconnect_releases_stream(
-    operator_user, resource_factory, settings, monkeypatch
+    operator_user, resource_factory, settings, monkeypatch, playback_redis
 ):
     from nassav import composition
 
@@ -124,7 +125,8 @@ def test_asgi_disconnect_releases_stream(
             yield b"G" * 16384
             await asyncio.sleep(100)
 
-    gateway, transport, capacity, registry = make_gateway(SlowResponse(b""))
+    gateway, transport, _, registry = make_gateway(SlowResponse(b""))
+    gateway.capacity = RedisPlaybackCapacity(playback_redis)
     registry.get = Mock(
         return_value={"url": "https://media.example/a", "kind": "segment", "depth": 1}
     )
@@ -144,6 +146,8 @@ def test_asgi_disconnect_releases_stream(
         assert (await c.receive_output(5))["body"]
         await c.send_input({"type": "http.disconnect"})
         await c.wait(5)
-        assert transport.closed and capacity.active == 0
+        assert transport.closed
+        assert playback_redis.zcard("nassav:playback:capacity:global") == 0
+        assert playback_redis.zcard(f"nassav:playback:capacity:{row.pk}") == 0
 
     asyncio.run(run())
