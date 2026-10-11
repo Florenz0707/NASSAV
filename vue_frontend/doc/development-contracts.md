@@ -155,8 +155,8 @@ useRecommendationElapsed 使用前端单调时钟从查询 loading 开始计时�
 
 ## 在线播放器（P3）
 
-详情页通过 features/playback/components/PlaybackDialog 装配同源在线播放，下载与本地路径操作保留。playbackSession 拥有提交/版本快照/轮询/关闭；mediaPlayer 拥有按需加载 hls.js（MSE 可用时优先）或原生 HLS、有限缓冲和引擎销毁。仅接受同源受控媒体入口，签名地址不进入浏览器持久存储或日志。关闭、实体切换、卸载使旧响应失效；关闭后的迟到提交仍补发关闭，版本冲突重读后以同一命令 UUID 有界重试。pagehide 尽力关闭，服务端 TTL 兜底。
+详情页只打开独立路由 `/play/:avid` 的新标签页（noopener/noreferrer），URL 仅包含 AVID。PlaybackView 装配 features/playback/components/PlaybackPage；后者查询展示标题并装配 PlaybackPlayer，播放器拥有同源在线播放的状态与生命周期。下载与本地路径操作保留，详情操作依次为刷新、下载/本地播放、在线播放、删除，使用等高等宽响应式网格。playbackSession 拥有提交/版本快照/轮询/关闭；mediaPlayer 拥有按需加载 hls.js（MSE 可用时优先）或原生 HLS、有限缓冲和引擎销毁。仅接受同源受控媒体入口，签名地址不进入浏览器持久存储或日志。关闭、实体切换、卸载使旧响应失效；关闭后的迟到提交仍补发关闭，版本冲突重读后以同一命令 UUID 有界重试。pagehide 尽力关闭，服务端 TTL 兜底。
 
-播放器不强制自动播放；原生 controls 提供播放、暂停、音量及拖动。准备超过一秒展示平缓 loading，失败提供重试；同资源本次弹窗内保存位置，换资源清零。useDialog 管理 Escape、焦点和滚动锁。浏览器套件 playback.cjs 使用 ffmpeg 临时合成 TS/fMP4 H.264/AAC 并通过真实 video/hls.js 解码，不将模拟会话 API 作为正式 worker 验收。
+播放器不强制自动播放；原生 controls 提供播放、暂停、音量及拖动。准备超过一秒展示平缓 loading，失败提供重试；同资源本次播放页内保存位置，换资源清零。独立播放页不使用弹窗焦点锁或 Escape 关闭；原详情标签页关闭不停止播放。停止/重新播放控制本页会话，关闭播放标签页的 pagehide 尽力关闭、TTL 兜底。浏览器套件 playback.cjs 使用 ffmpeg 临时合成 TS/fMP4 H.264/AAC 并通过真实 video/hls.js 解码，不将模拟会话 API 作为正式 worker 验收。
 
 P4 的 refresh 由 playbackSession 单航班和一次上限控制，服务器仍是次数、版本和 generation 的所有者。只针对网关来源拒绝读取的 410 自动尝试，不能以任意网络错误无限重刮削；后端兼容失败不恢复位置，用户显式重新开始会清零。原生 HLS 失败保留手动重试。pagehide 的同源 CSRF keepalive 请求归 api/playback.js，不能声称必达；TTL 继续兜底。授权状态更新不得用新的签名 URL 重建同代次播放器。

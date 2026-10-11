@@ -17,7 +17,6 @@ import {
   resourceDeleteOptions,
 } from '../features/resources/lib/resourceActions.js'
 import ResourceCover from '../shared/ui/ResourceCover.vue'
-import PlaybackDialog from '../features/playback/components/PlaybackDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,7 +31,13 @@ const error = ref(null)
 const refreshing = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteAction = ref(null)
-const showPlayback = ref(false)
+function openPlayback() {
+  window.open(
+    router.resolve({ name: 'Playback', params: { avid: avid.value } }).href,
+    '_blank',
+    'noopener,noreferrer'
+  )
+}
 
 // 刷新菜单选项
 const refreshOptions = resourceRefreshOptions(true)
@@ -109,7 +114,6 @@ onBeforeUnmount(() => metadataGuard.invalidate())
 watch(
   avid,
   () => {
-    showPlayback.value = false
     metadata.value = null
     fetchMetadata()
   },
@@ -457,42 +461,48 @@ async function navigateToGenre(genreName) {
             </div>
           </div>
 
-          <AppButton class="w-fit mb-4" @click="showPlayback = true">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-            在线播放
-          </AppButton>
           <!-- 操作按钮 -->
-          <div class="flex flex-wrap gap-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-[560px]" aria-label="资源操作">
             <ActionMenu
               :label="refreshing ? '刷新中' : '刷新信息'"
               :options="refreshOptions"
-              trigger-class="w-32 h-14"
+              trigger-class="w-full h-14"
               :disabled="refreshing"
               @select="handleRefreshOption"
             />
 
             <AppButton
               v-if="!metadata.file_exists"
-              class="w-32 h-14"
+              class="w-full h-14"
               :loading="isSubmittingDownload"
               :disabled="isDownloading"
               @click="handleDownload"
             >
               {{ isDownloading ? '下载中...' : '下载视频' }}
             </AppButton>
-            <AppButton v-if="metadata.file_exists" class="w-32 h-14" @click="jumpPlay">
+            <AppButton v-if="metadata.file_exists" class="w-full h-14" @click="jumpPlay">
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z" />
               </svg>
               点击播放
             </AppButton>
 
+            <AppButton class="w-full h-14" @click="openPlayback" title="在新标签页播放">
+              <svg
+                class="w-4 h-4 shrink-0"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              在线播放
+            </AppButton>
+
             <ActionMenu
               label="删除数据"
               :options="deleteOptions"
-              trigger-class="w-32 h-14"
+              trigger-class="w-full h-14"
               danger
               align="right"
               @select="handleDeleteOption"
@@ -578,8 +588,6 @@ async function navigateToGenre(genreName) {
         </section>
       </div>
     </template>
-
-    <PlaybackDialog v-model:show="showPlayback" :avid="avid" :title="displayedTitle" />
 
     <!-- 确认对话框 -->
     <ConfirmDialog

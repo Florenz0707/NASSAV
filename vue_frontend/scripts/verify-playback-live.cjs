@@ -89,31 +89,45 @@ async function main() {
     for (const avid of targets) {
       currentAvid = avid
       stage = 'open'
-      const page = await context.newPage()
-      lastPage = page
+      const detailPage = await context.newPage()
+      await detailPage.goto(`${origin}/resource/${encodeURIComponent(avid)}`)
       let sessionId, framesBefore, firstFrameMs
-      page.on('response', async (response) => {
-        if (
-          /\/(manifest|assets)\//.test(new URL(response.url()).pathname) &&
-          response.status() >= 400
-        ) {
-          const error = await response.json().catch(() => ({}))
-          console.log(
-            JSON.stringify({ avid, media_status: response.status(), code: error.message })
-          )
-        }
-        if (
-          response.request().method() === 'POST' &&
-          response.url().endsWith('/playback-sessions') &&
-          response.status() === 202
-        ) {
-          const data = (await response.json()).data
-          sessionId = data.session_id
-          if (!sessions.some((s) => s.id === sessionId)) sessions.push({ page, id: sessionId })
-        }
+      context.once('page', (page) => {
+        page.on('response', async (response) => {
+          if (
+            /\/(manifest|assets)\//.test(new URL(response.url()).pathname) &&
+            response.status() >= 400
+          ) {
+            const error = await response.json().catch(() => ({}))
+            console.log(
+              JSON.stringify({ avid, media_status: response.status(), code: error.message })
+            )
+          }
+          if (
+            response.request().method() === 'GET' &&
+            /\/playback-sessions\/[^/]+$/.test(new URL(response.url()).pathname) &&
+            response.status() === 200
+          ) {
+            const data = (await response.json()).data
+            sessionId = data.session_id
+            if (!sessions.some((s) => s.id === sessionId)) sessions.push({ page, id: sessionId })
+          }
+          if (
+            response.request().method() === 'POST' &&
+            response.url().endsWith('/playback-sessions') &&
+            response.status() === 202
+          ) {
+            const data = (await response.json()).data
+            sessionId = data.session_id
+            if (!sessions.some((s) => s.id === sessionId)) sessions.push({ page, id: sessionId })
+          }
+        })
       })
-      await page.goto(`${origin}/resource/${encodeURIComponent(avid)}`)
-      await page.getByRole('button', { name: '在线播放', exact: true }).click()
+      const opened = context.waitForEvent('page')
+      await detailPage.getByRole('button', { name: '在线播放', exact: true }).click()
+      const page = await opened
+      lastPage = page
+      await page.waitForURL(`${origin}/play/${encodeURIComponent(avid)}`)
       const started = Date.now()
       stage = 'prepare'
       await page.locator('video').waitFor({ timeout: 320000 })
@@ -213,7 +227,7 @@ async function main() {
         assert.equal(status.data.refresh_count, 1)
         assert.equal(status.data.state, 'ready')
       }
-      await page.getByRole('button', { name: '关闭播放器', exact: true }).click()
+      await page.getByRole('button', { name: '停止播放', exact: true }).click()
       await command(page, sessionId, 'close')
       const status = await (
         await page.request.get(`${origin}/nassav/api/playback-sessions/${sessionId}`)

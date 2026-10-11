@@ -156,9 +156,9 @@ async function main() {
         contentType: 'text/html',
         body: `<html><head><meta charset="UTF-8"></head><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from '/node_modules/.vite/deps/vue.js?v=${browserHash}';
-import Dialog from '/src/features/playback/components/PlaybackDialog.vue';
+import Player from '/src/features/playback/components/PlaybackPlayer.vue';
 import '/src/styles/main.css';
-createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:()=>show.value=true},'打开播放器'),h(Dialog,{show:show.value,avid:'DEMO-1',title:'合成视频', 'onUpdate:show':value=>show.value=value})])}}).mount('#app');
+createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:()=>show.value=true},'打开播放器'),h('button',{onClick:()=>show.value=false},'停止播放'),h(Player,{active:show.value,avid:'DEMO-1'})])}}).mount('#app');
 </script></body></html>`,
       })
     )
@@ -179,15 +179,8 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
       await page.waitForFunction(() => document.querySelector('video').currentTime > 7.2)
       await page.locator('video').evaluate((video) => video.pause())
       assert.equal(await page.locator('video').evaluate((video) => video.paused), true)
-      await page.keyboard.press('Escape')
-      await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
-      await page.waitForTimeout(150)
-      assert.equal(
-        await page
-          .getByRole('button', { name: '打开播放器' })
-          .evaluate((el) => el === document.activeElement),
-        true
-      )
+      await page.getByRole('button', { name: '停止播放', exact: true }).click()
+      await page.waitForFunction(() => !document.querySelector('video'))
       assert.equal(await page.evaluate(() => document.body.style.overflow), '')
     }
     format = 'mpegts'
@@ -204,7 +197,7 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
       timeout: 15000,
     })
     assert.equal(refreshes, 1, 'expired source should refresh exactly once and resume position')
-    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: '停止播放', exact: true }).click()
     outage = false
     fail = true
     await page.getByRole('button', { name: '打开播放器' }).click()
@@ -216,20 +209,20 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
     await page.evaluate(() => document.documentElement.classList.add('dark'))
     assert.ok(
       await page
-        .getByRole('dialog')
+        .getByRole('region', { name: '视频播放器' })
         .evaluate((el) => el.getBoundingClientRect().width <= innerWidth)
     )
-    await page.getByRole('button', { name: '关闭播放器' }).click()
+    await page.getByRole('button', { name: '停止播放', exact: true }).click()
     delayed = true
     await page.getByRole('button', { name: '打开播放器' }).click()
     await page.waitForTimeout(150)
-    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: '停止播放', exact: true }).click()
     releaseSubmit()
     await page.waitForTimeout(300)
     assert.ok(closed.includes(`fixture-${serial}`), 'late submit must be closed')
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: real TS/fMP4 H.264/AAC decode, seek, pause, close, focus, retry, mobile/dark, one-shot expired-source position recovery and late submit fencing'
+      'PASS: real TS/fMP4 H.264/AAC decode, seek, pause, stop, retry, mobile/dark, one-shot expired-source position recovery and late submit fencing'
     )
   } catch (error) {
     console.log(JSON.stringify({ media_diagnostics: await readMediaDiagnostics(auditPage) }))

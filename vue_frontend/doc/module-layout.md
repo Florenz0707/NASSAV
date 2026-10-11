@@ -48,4 +48,4 @@ InfoDialog 位于 shared/ui，管理通用信息弹窗，不读取业务 store�
 
 useRecommendationElapsed 位于推荐 composables，仅负责当前查询本地计时与清理；成功批次用时和缓存恢复由 RecommendationsView 持有，RecommendationContext 仅展示该用时与授权核验统计。
 
-features/playback 独占在线播放会话及播放引擎生命周期；ResourceDetailView 仅装配 PlaybackDialog。领域传输位于 api/playback.js，复用唯一客户端，不向资源 store 混入媒体状态。hls.js 动态导入，MSE 可用时优先 hls.js；否则使用 video 的原生 HLS 能力。
+features/playback 独占在线播放会话及播放引擎生命周期；ResourceDetailView 只打开 `/play/:avid` 新标签页；PlaybackView 仅装配 PlaybackPage（标题与页面操作），PlaybackPlayer 拥有媒体/会话生命周期，详情页不拥有播放会话。领域传输位于 api/playback.js，复用唯一客户端，不向资源 store 混入媒体状态。hls.js 动态导入，MSE 可用时优先 hls.js；否则使用 video 的原生 HLS 能力。

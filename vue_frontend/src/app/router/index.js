@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
+    path: '/play/:avid',
+    name: 'Playback',
+    component: () => import('../../views/PlaybackView.vue'),
+    props: true,
+  },
+  {
     path: '/',
     name: 'Home',
     component: () => import('../../views/HomeView.vue'),
