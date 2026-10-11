@@ -49,7 +49,7 @@
   - 路由：`/genres/:genreId`
 
 - 资源详情（元数据与操作）
-  - 功能：展示封面、标题、发行日期、时长、来源、文件大小、演员、类别等；提交下载、复制本地文件路径用于播放、刷新元信息。
+  - 功能：展示封面、标题、发行日期、时长、来源、文件大小、演员、类别等；提交下载、复制本地文件路径、详情弹窗在线播放和刷新元信息。在线播放需后端开启且支持当前来源/编码。
   - 路由：`/resource/:avid`
   - 预览：
 
@@ -226,3 +226,23 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 推荐信息仅保留历史统计、刷新和重置。个性化弹窗左侧推荐偏好，右侧黑名单；桌面两列独立滚动，移动端内容整体滚动，关闭按钮保持可访问。推荐依据按演员 coral/类别 teal 显示；资源卡片与外部搜索复用操作按钮，屏蔽位于反馈右侧。添加请求按返回 job_id 跟踪，授权快照确认资源已保存即禁用按钮，即使翻译尚未结束或失败也不重复添加。
 
 回归入口为 `recommendationJobs.cjs`、`recommendationRestore.cjs`、`recommendationBlacklist.cjs`；配合公共 `components.cjs` 验证任务失败/取消/迟到响应、添加禁用、多批次刷新恢复、弹窗布局/滚动及焦点。模拟 API/WS 验收与真实来源/worker 验收分开记录，见[执行记录](doc/refactoring-progress.md)和[部署与验证边界](../django_backend/doc/compose-deployment.md#近期改动与验证边界)。
+
+## 在线播放器验收
+
+详情页“在线播放”使用同源授权会话、MSE/hls.js 优先、缺少 MSE 时回退原生 HLS，不保存视频文件。来源准备异步完成，播放器支持拖动、暂停、错误重试、Escape/焦点恢复、关闭和卸载清理；hls.js 对网关来源拒绝最多刷新一次，兼容检查成功才恢复位置。原生 HLS 错误无法可靠取得 HTTP 状态，使用显式重试。配置和上线条件见[后端验收](../django_backend/doc/online-playback-acceptance.md)。
+
+`tests/browser/playback.cjs` 默认离线，ffmpeg 生成临时 TS/fMP4 后真实解码，模拟 API 验证迟到提交、恢复、焦点和移动布局；不替代真实来源/worker。`scripts/verify-playback-live.cjs` 必须显式提供验收来源、两个已有 AVID 和临时 Playwright storage-state 文件；默认连续播放 30 秒，可选刷新，测试后尽力关闭会话，临时登录由提供者删除。驱动依赖沿用上面的 NODE_PATH，不将凭证提交到仓库。
+
+```sh
+NODE_PATH=/tmp/nassav-browser-audit/node_modules \
+NASSAV_PLAYBACK_TEST_ORIGIN=https://你的验收域名 \
+NASSAV_PLAYBACK_TEST_LOGIN=/tmp/临时登录.json \
+NASSAV_PLAYBACK_TEST_AVIDS=已入库编号一,已入库编号二 \
+NASSAV_PLAYBACK_TEST_SECONDS=30 \
+NASSAV_PLAYBACK_TEST_REFRESH=true \
+node scripts/verify-playback-live.cjs
+```
+
+此脚本会创建两个播放会话并允许短期播放缓存写入，不添加资源、不下载正式视频。正式实例仅在明确授权后执行；日志不展示 Cookie、能力 URL 或代理凭证。仅限 Chrome 的脚本成功不能代替真实 Safari/iOS/Android、HTTPS、自然签名到期和完整长时播放验收。
+
+真实在线播放探针可用 `NASSAV_PLAYBACK_TEST_ENGINE=firefox` 选择已安装的 Playwright Firefox（默认 chromium）；浏览器目录由 `PLAYWRIGHT_BROWSERS_PATH` 指定。该探针有界等待播放启动，但短时通过不代表真机或长期验收。

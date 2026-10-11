@@ -91,9 +91,19 @@ def owned(session_id, user_id, key):
     return row
 
 
+def owned_for_update(session_id, user_id, key):
+    # Acquire the short write fence before any SELECT. In SQLite/WAL a deferred
+    # read transaction cannot upgrade after a concurrent media heartbeat commits.
+    if not PlaybackSession.objects.filter(
+        pk=session_id, user_id=user_id, login_hash=login_hash(key)
+    ).update(version=F("version")):
+        raise PlaybackSession.DoesNotExist
+    return owned(session_id, user_id, key)
+
+
 def close(session_id, user_id, key, expected_version, request_id):
     with transaction.atomic():
-        row = owned(session_id, user_id, key)
+        row = owned_for_update(session_id, user_id, key)
         if row.last_command_id == request_id and row.state == "closed":
             return row
         if row.version != expected_version:
@@ -262,7 +272,7 @@ def preparation_input(token):
 def refresh(session_id, user_id, key, expected_version, request_id):
     now = timezone.now()
     with transaction.atomic():
-        row = owned(session_id, user_id, key)
+        row = owned_for_update(session_id, user_id, key)
         if row.last_command_id == request_id and row.refresh_count == 1:
             return row
         if (

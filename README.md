@@ -51,7 +51,7 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 ## 后续设计
 
-- [基于来源 HLS 的在线播放设计与执行计划](django_backend/doc/online-playback-design.md)：可行性调研与 P0–P5 计划，P0 已验证两个来源样本，正式功能尚未实现。
+- [基于来源 HLS 的在线播放设计与执行计划](django_backend/doc/online-playback-design.md)：P0–P5 计划；P1–P4 已实现受控 HLS 网关、详情页播放器与一次失效刷新，默认关闭，目标环境边界见[验收记录](django_backend/doc/online-playback-acceptance.md)。
 
 ## 版本更新
 

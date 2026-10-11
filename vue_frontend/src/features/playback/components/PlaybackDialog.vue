@@ -69,6 +69,7 @@ watch(
     }
     if (destroyPlayer) releasePlayer()
     const token = playerVersion
+    mediaError.value = ''
     await nextTick()
     if (token !== playerVersion || !video.value) return
     try {

@@ -1,4 +1,4 @@
-// Native HLS first; hls.js is loaded only when the browser needs MSE.
+// Prefer the validated MSE engine; fall back to native HLS when MSE is unavailable.
 export async function attachPlayer(
   video,
   url,
@@ -27,16 +27,17 @@ export async function attachPlayer(
   }
   video.addEventListener('loadedmetadata', restore, { once: true })
   try {
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    const { default: Hls } = await import('hls.js')
+    if (!current()) {
+      destroy()
+      return destroy
+    }
+    if (!Hls.isSupported()) {
+      if (!video.canPlayType('application/vnd.apple.mpegurl'))
+        throw new Error('Unsupported browser')
       video.addEventListener('error', nativeError)
       video.src = url
     } else {
-      const { default: Hls } = await import('hls.js')
-      if (!current()) {
-        destroy()
-        return destroy
-      }
-      if (!Hls.isSupported()) throw new Error('Unsupported browser')
       const loadPolicies = {}
       for (const name of [
         'fragLoadPolicy',

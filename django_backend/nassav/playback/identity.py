@@ -15,10 +15,48 @@ def byte_digest(body):
     return hashlib.sha256(body).hexdigest()
 
 
+# RFC 8216 6.3.1: comments and unrecognized tags do not define media identity.
+# Keep all supported standard structure, timing, rendition and encryption tags.
+IDENTITY_TAGS = frozenset(
+    {
+        "#EXTM3U",
+        "#EXTINF",
+        "#EXT-X-VERSION",
+        "#EXT-X-BYTERANGE",
+        "#EXT-X-DISCONTINUITY",
+        "#EXT-X-KEY",
+        "#EXT-X-MAP",
+        "#EXT-X-PROGRAM-DATE-TIME",
+        "#EXT-X-DATERANGE",
+        "#EXT-X-TARGETDURATION",
+        "#EXT-X-MEDIA-SEQUENCE",
+        "#EXT-X-DISCONTINUITY-SEQUENCE",
+        "#EXT-X-ENDLIST",
+        "#EXT-X-PLAYLIST-TYPE",
+        "#EXT-X-I-FRAMES-ONLY",
+        "#EXT-X-MEDIA",
+        "#EXT-X-STREAM-INF",
+        "#EXT-X-I-FRAME-STREAM-INF",
+        "#EXT-X-SESSION-DATA",
+        "#EXT-X-SESSION-KEY",
+        "#EXT-X-INDEPENDENT-SEGMENTS",
+        "#EXT-X-START",
+        "#EXT-X-GAP",
+        "#EXT-X-BITRATE",
+    }
+)
+
+
 def manifest_digest(parsed):
-    return byte_digest(
-        parsed.render([f"asset:{r.kind}:{i}" for i, r in enumerate(parsed.references)])
+    rendered = parsed.render(
+        [f"asset:{r.kind}:{i}" for i, r in enumerate(parsed.references)]
     )
+    lines = (
+        line
+        for line in rendered.decode().splitlines()
+        if line and (not line.startswith("#") or line.split(":", 1)[0] in IDENTITY_TAGS)
+    )
+    return byte_digest(("\n".join(lines) + "\n").encode())
 
 
 class PlaybackIdentityValidator:

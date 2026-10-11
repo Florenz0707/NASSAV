@@ -8,7 +8,7 @@
 
 状态为 queued、resolving、ready、failed、closed；ready 表示已取得播放描述，尚不代表视频解码/目标设备成功。每次提交使用 UUID request_id，同键换资源冲突；每用户最多 2 个未过期活动会话。close 使用 expected_version/request_id，重复关闭命令幂等，关闭递增 generation 和 version、清除描述，旧 worker 不能发布缓存或 ready。
 
-生产开关 NASSAV_PLAYBACK_ENABLED 默认 false；本地与 Compose 环境模板已说明，Compose 显式传入所有后端入口。开启前必须统一 API/worker 版本并应用新增迁移；本轮不执行正式迁移。P2 已提供受控媒体入口；正式播放器和失效刷新留到后续阶段，不能单独视为可播放的发布。
+生产开关 NASSAV_PLAYBACK_ENABLED 默认 false；本地与 Compose 环境模板已说明，Compose 显式传入所有后端入口。开启前必须统一 API/worker 版本并应用新增迁移；本轮不执行正式迁移。P2 已提供受控媒体入口；P3/P4 已提供播放器和有界失效刷新；目标环境覆盖与发布条件见[验收记录](online-playback-acceptance.md)。
 
 Celery nassav.tasks.playback_prepare_task 只运输会话 UUID，在 scrape 队列执行来源准备。网络在短 DB fence 外，领取使用 execution_id/generation 与 90 秒租期，网络控制回调续租，300 秒准备期限包含排队。过期或失租不重用执行身份；关闭、资源删除或取消后的旧执行不得发布。没有下载器、图片、HTML、翻译或业务资源保存副作用。
 
@@ -34,7 +34,7 @@ P1 尚不承诺根清单的 URI/DNS/媒体能力验证；P2 必须在受控目�
 
 P1 专项 test_playback_sessions.py 覆盖身份/CSRF、提交幂等与容量、关闭/退出登录 fencing、资源删除、补派/失租、失败脱敏以及缓存版本/源站会话隔离。新增接口在 test_http_contracts.py 显式声明，保留原 HTTP/OpenAPI 快照。隔离 SQLite、独立 PostgreSQL 16 均执行 0028→0029→0028→0029；正式数据库迁移和真实 worker 调用仍须部署验收。
 
-根 pre-commit 与完整隔离 pytest 是每阶段门槛。提交与实际结果见 Git 历史和阶段收尾，后续 P2/P3 继续维护本文件。
+根 pre-commit 与完整隔离 pytest 是每阶段门槛。提交与实际结果见 Git 历史和阶段收尾，后续播放链路变更继续维护本文件。
 
 ## P2 异步 HLS 网关
 
@@ -57,7 +57,7 @@ GET 支持单一 bytes Range，验证真实 206/Content-Range/长度，不伪造
 - NASSAV_PLAYBACK_PROXY_TARGETS_TRUSTED 默认 false；仅在代理目标 ACL/DNS 边界核查后开启。
 - NASSAV_PLAYBACK_MAX_MEDIA_REQUESTS 默认 16，允许 1–128；结合带宽/内存调整，Redis 必须可用。
 
-本轮不执行正式迁移或部署。P3 播放器、P4 失效刷新和 P5 长期目标环境验收仍待执行；ready 不代表所有资源或设备可解码。
+本轮不执行正式迁移或部署。P3/P4 已实现，P5 长期与目标设备验收仍按[记录](online-playback-acceptance.md)分项维护；ready 不代表所有资源或设备可解码。
 
 ### 验证范围
 
@@ -94,3 +94,11 @@ curl_worker 是私有单请求协议进程，不是 Celery 业务任务：不初
 网关记录实际已读取清单的规范化结构 SHA-256：替换 URI 为按引用位置确定的标识，保留轨道、CODECS、时长、媒体序号、IV、BYTERANGE 等。AES 密钥和 fMP4 初始化段分别记录完整字节哈希；数据库不保存原 URL、密钥或媒体字节。128 条有界基线包含所见清单的待读取密钥/init 依赖，未补齐时不允许刷新。普通初始化段最多 256 KiB；仅 Range 读取的 init 暂不支持自动刷新。刷新验证最多 120 秒、共用生产目标策略/来源代理/Redis 容量，所有清单再次解析；结构、密钥或 init 不兼容即 media_identity_changed，不自动恢复位置。相同结构不能证明远端视频字节恒等，此处只承诺保守兼容检查。
 
 上游 401/403/404/410 统一返回 source_access_failed/410，表示来源拒绝读取，不断言一定是签名过期。hls.js 的该类读取失败（包括非致命事件）只请求一次会话刷新，暂停旧加载，重新准备成功后恢复本次位置及播放/暂停意图；其他错误显示明确重试。原生 HLS 无法可靠提供 HTTP 状态，错误走显式重试，不猜测自动刷新。会话轮询保留同代次已签发入口，避免重新签名触发播放器重复销毁。关闭/pagehide 尽力关闭，TTL 及 worker 恢复循环兜底；既有 30 分钟空闲、4 小时绝对、24 小时终态清理不变。
+
+## P5 验收与部署入口
+
+阶段提交、隔离/真实协议/浏览器覆盖、尚未满足的设备和长时条件，以及更新与回滚步骤维护于[在线播放验收记录](online-playback-acceptance.md)。新版本须统一 API、所有 worker 和前端/Nginx，并应用 0030；本轮不更新用户的正式容器或正式数据库。
+
+### 清单刷新校验的非语义字段
+
+身份摘要忽略注释、空行及未识别扩展标签，保留已支持标准标签与引用拓扑（RFC 8216 6.3.1）。私有签名 token 不构成媒体身份；时间轴、轨道、加密/init 等变化仍拒绝恢复。新旧摘要算法不得混跑，更新前关闭旧会话。

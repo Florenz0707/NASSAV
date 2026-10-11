@@ -58,8 +58,10 @@ class PlaybackGateway:
         observe=None,
     ) -> AsyncIterator[GatewayResponse]:
         range_value = range_header(range_value)
-        if range_value and asset["kind"] in {"key", "manifest", "data"}:
-            raise PlaybackGatewayError("range_not_supported", 416)
+        if asset["kind"] in {"key", "manifest", "data"}:
+            # RFC 9110 permits ignoring Range: these bounded representations
+            # are served in full, and a rewritten manifest has a new byte layout.
+            range_value = None
         async with self.capacity.slot(session_id) as capacity_check:
             opened = False
             response = None

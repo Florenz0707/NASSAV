@@ -462,3 +462,43 @@ def test_redirect_cookie_is_never_forwarded():
         assert all("cookie" not in request.headers for request in requests)
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "kind,body",
+    [("manifest", b"#EXTM3U\n#EXTINF:4,\ns.ts\n#EXT-X-ENDLIST\n"), ("key", b"k" * 16)],
+)
+def test_native_player_range_probe_on_full_small_representation(kind, body):
+    async def run():
+        gateway, transport, capacity, _ = make_gateway(Response(body))
+
+        async def check():
+            pass
+
+        async with gateway.open(
+            uuid4(),
+            1,
+            PlaybackDescriptor(
+                "https://media.example/v.m3u8",
+                "https://source.example/detail",
+                "ua",
+                "jable",
+                None,
+                None,
+            ),
+            {"url": "https://media.example/v.m3u8", "kind": kind, "depth": 0},
+            check=check,
+            asset_url=lambda aid, _kind: "/opaque/" + aid,
+            ttl=30,
+            range_value="bytes=0-",
+        ) as result:
+            assert result.status == 200 and "Content-Range" not in result.headers
+            content = b"".join([chunk async for chunk in result.body])
+            assert content and len(content) == int(result.headers["Content-Length"])
+            if kind == "manifest":
+                assert b"/opaque/" in content
+            else:
+                assert content == body
+        assert transport.closed and capacity.active == 0
+
+    asyncio.run(run())

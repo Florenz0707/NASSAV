@@ -192,3 +192,28 @@ def test_refresh_http_requires_auth_csrf_version_and_uses_real_dispatch_contract
         client.post(url, payload, format="json").json()["data"]["version"]
         == response.json()["data"]["version"]
     )
+
+
+def test_manifest_identity_ignores_nonsemantic_comments_and_unknown_tags():
+    original = parse_manifest(playlist(), "https://media.example/v.m3u8", policy())
+    changed = parse_manifest(
+        playlist("new").replace(
+            b"#EXTM3U\n",
+            b"#EXTM3U\n# vendor comment\n\n#EXT-X-UNKNOWN=rotating-token\n",
+        ),
+        "https://media.example/v.m3u8",
+        policy(),
+    )
+    assert manifest_digest(original) == manifest_digest(changed)
+    # Standard tags affecting media structure must still change the identity.
+    for tag in (
+        b"#EXT-X-MEDIA-SEQUENCE:1\n",
+        b"#EXT-X-DISCONTINUITY\n",
+        b"#EXT-X-GAP\n",
+    ):
+        different = parse_manifest(
+            playlist().replace(b"#EXTINF:", tag + b"#EXTINF:"),
+            "https://media.example/v.m3u8",
+            policy(),
+        )
+        assert manifest_digest(original) != manifest_digest(different)
