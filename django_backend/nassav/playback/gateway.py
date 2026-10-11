@@ -86,7 +86,8 @@ class PlaybackGateway:
                         if response is not None:
                             await response.aclose()
                     finally:
-                        await capacity_check.release()
+                        if response is not None:
+                            await capacity_check.release()
                     raise
 
             watcher = asyncio.create_task(watch())

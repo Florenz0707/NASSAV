@@ -116,3 +116,5 @@ uv run coverage report
 ## 在线播放 P2
 
 test_playback_gateway.py 验证清单/目标策略、Range、取消和背压；test_playback_asgi.py 使用真实 Django ASGI 授权/断连路径；test_playback_redis.py 使用临时 Redis Unix socket 与独立进程验证容量；test_playback_transport_live_local.py 使用真实 TLS/HTTPX，验证 SNI、提前关闭及跟踪内存上限。均不访问正式 DB、CDN 或代理，不代表真实容器/播放器解码验收。部署约束见[在线播放架构](../doc/online-playback-architecture.md#配置与部署)。
+
+`test_playback_curl_transport.py` 验证浏览器模拟 Adapter 的真实隔离 TLS/管道背压、提前关闭、启动取消、读取中关闭与强杀回收、固定 DNS/代理/证书策略及生产装配。低层 curl 网络测试仅使用显式私有 Unix socket 和测试 CA，不允许将正式目标传入离线测试。

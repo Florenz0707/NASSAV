@@ -267,3 +267,5 @@ python manage.py shell -c "from django.db import connection; from django.core.ma
 ## 在线播放（默认关闭）
 
 P1/P2 新增 0029 会话迁移和 Nginx 媒体路径，播放器尚未接入。启用须统一 API/worker/Nginx、先迁移后打开开关，并审核 CDN 域名和代理目标安全策略；Proxy.url 模式须核查实际 DNS/CONNECT ACL 后设置 NASSAV_PLAYBACK_PROXY_TARGETS_TRUSTED。详见[在线播放架构](online-playback-architecture.md#配置与部署)。本轮未执行正式数据库或容器切换。
+
+MissAV 媒体修复需重新构建并创建 API 容器（curl_worker 随代码打包，不安装额外 curl CLI），控制接口和数据库结构不变。每在途媒体请求有独立可终止进程，应观察总 RSS 与启动开销后调整 NASSAV_PLAYBACK_MAX_MEDIA_REQUESTS；现有代理目标可信声明仍必需。开发时临时候选模块的成功不能当作运行服务已更新。

@@ -574,14 +574,14 @@ def build_playback_registry():
 def build_playback_gateway():
     from django.conf import settings
     from nassav.playback.policy import TargetPolicy
-    from nassav.playback.transport import HttpxPlaybackTransport
+    from nassav.playback.curl_transport import CurlPlaybackTransport
     from nassav.playback.redis_state import RedisPlaybackCapacity
     from nassav.playback.gateway import PlaybackGateway
 
     registry = build_playback_registry()
     policy = TargetPolicy(settings.PLAYBACK_ALLOWED_HOSTS)
     return PlaybackGateway(
-        HttpxPlaybackTransport(
+        CurlPlaybackTransport(
             policy,
             settings.PROXY_URL if settings.PROXY_ENABLED else None,
             proxy_targets_trusted=settings.PLAYBACK_PROXY_TARGETS_TRUSTED,

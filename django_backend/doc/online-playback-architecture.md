@@ -42,7 +42,7 @@ ready 查询返回带短期签名的同源 manifest_url，不泄漏上游地址�
 
 manifest 模块有界解析 VOD，将多级/音轨清单、相对地址、签名查询、AES-128 密钥、初始化段注册为 Redis 私有映射，保留 IV 和 byte range。仅支持 identity AES-128；直播、LL-HLS、变量替换、未知 URI 扩展和 DRM 明确拒绝。清单上限 1 MiB、20,000 行、10,000 引用，单会话最多 10,000 资产、嵌套深度 8；映射 TTL 不超过剩余绝对期限且最多 4 小时。关闭后授权失效，映射自然过期，不在线删除共享锁。
 
-policy 只接受 HTTPS/443、无凭据/片段的显式允许域名，逐跳验证重定向及全部 DNS 结果，拒绝非公网地址。transport 使用 HTTPX 异步流，trust_env=false，不自动跟随重定向，不转发 Cookie/Authorization。直连固定已验证 IP，同时保留 Host、SNI 和证书验证。媒体沿用全局 Proxy.url，不使用 Proxy.download_url 或静默回退；Byparr 不参与媒体请求。
+policy 只接受 HTTPS/443、无凭据/片段的显式允许域名，逐跳验证重定向及全部 DNS 结果，拒绝非公网地址。默认 transport 改为 CurlPlaybackTransport，以项目 IMPERSONATE 浏览器模拟能力读取媒体；HTTPX Adapter 保留为替换实现，不做隐式失败回退。禁止自动重定向和 Cookie/Authorization 转发，禁用环境代理改写。直连通过 CURLOPT_RESOLVE 固定已验证 IP，同时保留原始域名、Host、SNI 和证书验证。媒体沿用全局 Proxy.url，不使用 Proxy.download_url 或静默回退；Byparr 不参与媒体请求。
 
 代理的最终 DNS/CONNECT 目标由代理解析，本机 DNS 检查不能保证其一致。必须确认代理自身拒绝私网/保留地址，再设置 NASSAV_PLAYBACK_PROXY_TARGETS_TRUSTED=true；否则拒绝代理媒体请求。此配置不会自动创建代理 ACL。
 
@@ -66,3 +66,19 @@ GET 支持单一 bytes Range，验证真实 206/Content-Range/长度，不伪造
 ## 阶段执行记录（2026-10-10）
 
 P1 提交 dbb243f 已经合并 idle：完整隔离 pytest 868 passed / 28 skipped，pre-commit run -a 通过；SQLite 和独立 PostgreSQL 16 完成 0028→0029→0028→0029。P2 使用独立 feat/playback-p2 分支，提交身份以 Git 历史为准；门槛为完整隔离 pytest、pre-commit run -a、前端 pnpm run check 与无网络临时 Nginx 容器 nginx -t。所有测试只验证隔离行为，不执行正式数据库迁移、容器部署或 P3 页面接入。
+
+## MissAV 媒体传输修复（2026-10-11）
+
+现场对照中，同一新地址、全局代理和请求头下，HTTPX/普通 curl 返回 403 HTML，Chrome 模拟 curl 返回 200；只修改 UA 无效。这证明需要浏览器模拟传输能力，但不单独断言某个 TLS 扩展是根因。能力通过 PlaybackTransport 装配，不在网关按来源分支；Jable 和 MissAV 使用同一适配器。
+
+curl_worker 是私有单请求协议进程，不是 Celery 业务任务：不初始化 Django、不访问 DB/Redis、不保存媒体。请求及代理凭据只通过 stdin 传入，stderr 不收集；stdout 首行是有界元数据，之后为媒体字节。单 hop 独立进程/句柄，无 Cookie jar，每次重定向先销毁旧进程再验证新目标。无 shell、不使用外部 curl 可执行文件或默认 AsyncSession stream。
+
+子进程同步 WRITEFUNCTION 以最多 16 KiB 块写入阻塞管道；父进程 asyncio StreamReader limit=16 KiB，消费者变慢时管道自然背压，不使用无界生产队列或 communicate 整体收集。管道、TLS/内核缓冲和进程基础 RSS 仍存在；单请求一个进程带来额外内存/启动成本，部署并发应结合实际 RSS 调整，不能将跟踪 Python 内存当完整 RSS。
+
+关闭先取消在途管道读取，再 terminate 子进程，边有界排空残余管道边等待退出；1 秒未退出则 kill 并回收。不能仅等待 wait 而不处理暂停的 stdout，否则可能死锁。网关释放容量前退出该 hop；进程崩溃保留 owner 租约自然过期机制。父进程被杀时无业务状态写入者，子进程断管退出或最长 45 秒传输期限终止。
+
+保留 HTTPS 域名/DNS/代理可信边界、逐跳验证、Range/大小/HTML 校验、签名和登录授权，控制接口/迁移/配置项不变。新增测试覆盖真实本地 TLS 背压、取消、强杀回收、模拟配置/DNS 固定、重定向拒绝和生产装配；现场候选复测不等于运行容器已经部署修复，也不替代正式登录会话或播放器解码验收。
+
+参考：[libcurl 写入回调](https://curl.se/libcurl/c/CURLOPT_WRITEFUNCTION.html)、[固定 DNS](https://curl.se/libcurl/c/CURLOPT_RESOLVE.html)、[Python 子进程管道与等待](https://docs.python.org/3.12/library/asyncio-subprocess.html)。
+
+2026-10-11 现场候选复测：在现有 API 容器以临时模块加载修复 Adapter，仍使用生产网关/域名策略和全局代理；MissAV ADN-495 新清单完成重写，首段 206/65,536 字节，域名 surrit.com；Jable SONE-411 同样通过，AES 密钥 200/16 字节，首段 206/65,536 字节。来源刷新只保留在内存，DB 写入被拒绝，资产映射/容量为探针私有内存，未创建正式会话或修改部署。故此证据验证传输修复与媒体协议，不验证正式 Redis 容量、登录会话生命周期或解码。
