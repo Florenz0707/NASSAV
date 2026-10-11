@@ -10,6 +10,9 @@ importers:
       axios:
         specifier: ^1.20.0
         version: 1.20.0
+      hls.js:
+        specifier: 1.6.16
+        version: 1.6.16
       pinia:
         specifier: ^2.3.1
         version: 2.3.1(vue@3.5.43)
@@ -1405,6 +1408,12 @@ packages:
       }
     engines: { node: '>= 0.4' }
 
+  hls.js@1.6.16:
+    resolution:
+      {
+        integrity: sha512-VSIRpLfRwlAAdGL4wiTucx2ScRipo0ed1FBatWkyt832jC4CReKstga6yIhYVwGu9LOBjuX9wzmRMeQdBJtzEA==,
+      }
+
   https-proxy-agent@5.0.1:
     resolution:
       {
@@ -2704,6 +2713,8 @@ snapshots:
   hasown@2.0.4:
     dependencies:
       function-bind: 1.1.2
+
+  hls.js@1.6.16: {}
 
   https-proxy-agent@5.0.1:
     dependencies:

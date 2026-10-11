@@ -17,6 +17,7 @@ import {
   resourceDeleteOptions,
 } from '../features/resources/lib/resourceActions.js'
 import ResourceCover from '../shared/ui/ResourceCover.vue'
+import PlaybackDialog from '../features/playback/components/PlaybackDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,6 +32,7 @@ const error = ref(null)
 const refreshing = ref(false)
 const showConfirmDialog = ref(false)
 const pendingDeleteAction = ref(null)
+const showPlayback = ref(false)
 
 // 刷新菜单选项
 const refreshOptions = resourceRefreshOptions(true)
@@ -107,6 +109,7 @@ onBeforeUnmount(() => metadataGuard.invalidate())
 watch(
   avid,
   () => {
+    showPlayback.value = false
     metadata.value = null
     fetchMetadata()
   },
@@ -454,6 +457,12 @@ async function navigateToGenre(genreName) {
             </div>
           </div>
 
+          <AppButton class="w-fit mb-4" @click="showPlayback = true">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            在线播放
+          </AppButton>
           <!-- 操作按钮 -->
           <div class="flex flex-wrap gap-4">
             <ActionMenu
@@ -569,6 +578,8 @@ async function navigateToGenre(genreName) {
         </section>
       </div>
     </template>
+
+    <PlaybackDialog v-model:show="showPlayback" :avid="avid" :title="displayedTitle" />
 
     <!-- 确认对话框 -->
     <ConfirmDialog

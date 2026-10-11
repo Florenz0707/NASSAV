@@ -152,3 +152,9 @@ useRecommendationElapsed 使用前端单调时钟从查询 loading 开始计时�
 个性化弹窗采用受视口约束的高度。SettingsModal 的可选 contentClass 只控制内容区布局，默认不改变其他消费者；黑名单在桌面填满剩余高度并独立滚动，偏好列可独立滚动，窄屏内容区整体滚动。列表条目不收缩，不再使用固定 13rem 上限，标题与关闭按钮保持可访问。
 
 外部搜索与推荐的添加动作复用 resources/composables/useResourceAdds，以提交返回的 job_id（兼容 task_id）跟踪授权快照；入队后保持 loading，resource_saved/resource_avid 或保存成功即禁用添加，不等待所属翻译。失败/取消但未保存时允许重试，同番号其他任务不决定本次添加。外部搜索同步当前结果与页缓存的库存投影，删除事件清除本地已添加标记。推荐依据的演员/类别标签只将 coral/teal 背景设为 80% 不透明，文字保持原有不透明度；继续推荐与结果之间保留 3rem 间距。
+
+## 在线播放器（P3）
+
+详情页通过 features/playback/components/PlaybackDialog 装配同源在线播放，下载与本地路径操作保留。playbackSession 拥有提交/版本快照/轮询/关闭；mediaPlayer 拥有原生 HLS 或按需加载 hls.js、有限缓冲和引擎销毁。仅接受同源受控媒体入口，签名地址不进入浏览器持久存储或日志。关闭、实体切换、卸载使旧响应失效；关闭后的迟到提交仍补发关闭，版本冲突重读后以同一命令 UUID 有界重试。pagehide 尽力关闭，服务端 TTL 兜底。
+
+播放器不强制自动播放；原生 controls 提供播放、暂停、音量及拖动。准备超过一秒展示平缓 loading，失败提供重试；同资源本次弹窗内保存位置，换资源清零。useDialog 管理 Escape、焦点和滚动锁。浏览器套件 playback.cjs 使用 ffmpeg 临时合成 TS/fMP4 H.264/AAC 并通过真实 video/hls.js 解码，不将模拟会话 API 作为正式 worker 验收。

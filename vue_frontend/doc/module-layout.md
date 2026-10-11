@@ -47,3 +47,5 @@ InfoDialog 位于 shared/ui，管理通用信息弹窗，不读取业务 store�
 推荐与外部搜索共用 features/resources/composables/useResourceAdds.js，消费提交能力和授权任务快照；旧 features/recommendations/composables/useRecommendationAdds.js 仅兼容 re-export。添加状态由返回 job_id 与最新 version 管理，保存确认后禁用，不等待所属翻译结束；未保存的失败/取消可重试，卸载与迟到响应不得影响新请求。RecommendationInformation 装配历史信息、刷新和重置弹窗；RecommendationContext 装配页内紧凑核验/种子摘要。页面持有偏好与推荐查询，借 RecommendationBlacklist 的 preferences 插槽装配联合偏好/黑名单弹窗。
 
 useRecommendationElapsed 位于推荐 composables，仅负责当前查询本地计时与清理；成功批次用时和缓存恢复由 RecommendationsView 持有，RecommendationContext 仅展示该用时与授权核验统计。
+
+features/playback 独占在线播放会话及播放引擎生命周期；ResourceDetailView 仅装配 PlaybackDialog。领域传输位于 api/playback.js，复用唯一客户端，不向资源 store 混入媒体状态。hls.js 动态导入，原生 HLS 浏览器优先使用 video 能力。

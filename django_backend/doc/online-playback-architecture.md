@@ -82,3 +82,7 @@ curl_worker 是私有单请求协议进程，不是 Celery 业务任务：不初
 参考：[libcurl 写入回调](https://curl.se/libcurl/c/CURLOPT_WRITEFUNCTION.html)、[固定 DNS](https://curl.se/libcurl/c/CURLOPT_RESOLVE.html)、[Python 子进程管道与等待](https://docs.python.org/3.12/library/asyncio-subprocess.html)。
 
 2026-10-11 现场候选复测：在现有 API 容器以临时模块加载修复 Adapter，仍使用生产网关/域名策略和全局代理；MissAV ADN-495 新清单完成重写，首段 206/65,536 字节，域名 surrit.com；Jable SONE-411 同样通过，AES 密钥 200/16 字节，首段 206/65,536 字节。来源刷新只保留在内存，DB 写入被拒绝，资产映射/容量为探针私有内存，未创建正式会话或修改部署。故此证据验证传输修复与媒体协议，不验证正式 Redis 容量、登录会话生命周期或解码。
+
+## P3 详情页播放器
+
+资源详情新增独立在线播放按钮与播放器弹窗，保留下载及本地路径操作。前端会话及引擎的所有权、清理和测试入口见[前端契约](../../vue_frontend/doc/development-contracts.md#在线播放器p3)。本地合成视频验收与正式 worker/媒体联调分开记录；真实 Safari/iOS/Android 和长期播放仍需 P5 的目标设备验收。
