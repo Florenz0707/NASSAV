@@ -1,6 +1,7 @@
 """Short DB fences, snapshots and bounded session recovery."""
 
 from datetime import timedelta
+from uuid import uuid4
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F, Q
@@ -27,7 +28,16 @@ def snapshot(row):
         "version": row.version,
         "generation": row.generation,
         "error_code": row.error_code,
-        "allowed_actions": ["close"] if row.state not in {"closed", "failed"} else [],
+        "allowed_actions": (["close"] if row.state not in {"closed", "failed"} else [])
+        + (
+            ["refresh"]
+            if row.state == "ready"
+            and row.refresh_count == 0
+            and row.manifest_identity
+            and all(v.get("digest") for v in row.manifest_identity.values())
+            else []
+        ),
+        "refresh_count": row.refresh_count,
         "created_at": row.created_at.isoformat(),
         "updated_at": row.updated_at.isoformat(),
         "expires_at": min(row.idle_expires_at, row.absolute_expires_at).isoformat(),
@@ -167,10 +177,10 @@ def ready(token, descriptor):
     publish(token, commit)
 
 
-def fail(token):
+def fail(token, code="preparation_failed"):
     execution_rows(token).update(
         state="failed",
-        error_code="preparation_failed",
+        error_code=code,
         descriptor={},
         lease_until=None,
         version=F("version") + 1,
@@ -247,3 +257,90 @@ def preparation_input(token):
         row.source,
         (row.prepare_deadline - timezone.now()).total_seconds(),
     )
+
+
+def refresh(session_id, user_id, key, expected_version, request_id):
+    now = timezone.now()
+    with transaction.atomic():
+        row = owned(session_id, user_id, key)
+        if row.last_command_id == request_id and row.refresh_count == 1:
+            return row
+        if (
+            row.version != expected_version
+            or row.state != "ready"
+            or row.refresh_count != 0
+            or not row.manifest_identity
+            or not all(v.get("digest") for v in row.manifest_identity.values())
+            or min(row.idle_expires_at, row.absolute_expires_at) <= now
+        ):
+            raise PlaybackStopped("Refresh unavailable")
+        if not PlaybackSession.objects.filter(
+            pk=row.pk,
+            version=expected_version,
+            state="ready",
+            refresh_count=0,
+            idle_expires_at__gt=now,
+            absolute_expires_at__gt=now,
+        ).update(
+            state="queued",
+            refresh_count=1,
+            generation=F("generation") + 1,
+            execution_id=uuid4(),
+            descriptor={},
+            lease_until=None,
+            prepare_deadline=min(now + timedelta(seconds=300), row.absolute_expires_at),
+            dispatch_after=now,
+            version=F("version") + 1,
+            updated_at=now,
+            last_command_id=request_id,
+            error_code="",
+        ):
+            raise PlaybackStopped("Refresh unavailable")
+        return owned(session_id, user_id, key)
+
+
+def refresh_context(token):
+    row = execution_rows(token).first()
+    if row is None:
+        raise PlaybackStopped("Playback preparation no longer owned")
+    return row.refresh_count > 0, row.manifest_identity
+
+
+def observe_identity(session_id, generation, path, kind, digest, dependencies=()):
+    """Persist only bounded hashes; the short fence rejects stale media observers."""
+    from .policy import PlaybackGatewayError
+
+    now = timezone.now()
+    with transaction.atomic():
+        rows = PlaybackSession.objects.filter(
+            pk=session_id,
+            generation=generation,
+            state="ready",
+            idle_expires_at__gt=now,
+            absolute_expires_at__gt=now,
+        )
+        if not rows.update(version=F("version")):
+            raise PlaybackGatewayError("session_closed", 410)
+        row = rows.get()
+        previous = row.manifest_identity.get(path)
+        value = {"kind": kind, "digest": digest}
+        if previous and previous.get("digest") and previous != value:
+            raise PlaybackGatewayError("media_identity_changed", 422)
+        if not previous or not previous.get("digest"):
+            additions = {
+                child: {"kind": child_kind, "digest": None}
+                for child, child_kind in dependencies
+                if child not in row.manifest_identity
+            }
+            if (
+                len(row.manifest_identity) + len(additions) + (0 if previous else 1)
+                > 128
+            ):
+                raise PlaybackGatewayError("identity_limit_exceeded", 422)
+            row.manifest_identity.update(additions)
+            row.manifest_identity[path] = value
+            rows.update(
+                manifest_identity=row.manifest_identity,
+                version=F("version") + 1,
+                updated_at=now,
+            )

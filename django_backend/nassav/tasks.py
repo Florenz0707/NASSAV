@@ -259,4 +259,6 @@ def playback_prepare_task(session_id):
     from nassav.playback.preparation import execute
     from nassav.playback import records
 
-    execute(session_id, build_playback_resolver(), records)
+    from nassav.composition import build_playback_validator
+
+    execute(session_id, build_playback_resolver(), records, build_playback_validator())

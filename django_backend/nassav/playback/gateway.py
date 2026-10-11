@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from collections.abc import AsyncIterator
 from .manifest import parse_manifest
+from .body import read_limited
+from .identity import manifest_digest, byte_digest
 from .policy import PlaybackGatewayError
 
 
@@ -31,15 +33,6 @@ def range_header(value):
     return value
 
 
-async def read_limited(response, limit):
-    body = bytearray()
-    async for chunk in response.aiter_raw(chunk_size=16384):
-        body.extend(chunk)
-        if len(body) > limit:
-            raise PlaybackGatewayError("upstream_body_too_large")
-    return bytes(body)
-
-
 class PlaybackGateway:
     def __init__(self, transport, policy, registry, capacity):
         self.transport, self.policy, self.registry, self.capacity = (
@@ -62,6 +55,7 @@ class PlaybackGateway:
         ttl,
         method="GET",
         range_value=None,
+        observe=None,
     ) -> AsyncIterator[GatewayResponse]:
         range_value = range_header(range_value)
         if range_value and asset["kind"] in {"key", "manifest", "data"}:
@@ -141,6 +135,8 @@ class PlaybackGateway:
 
                     yield GatewayResponse(416, result_headers, empty())
                     return
+                if status in {401, 403, 404, 410}:
+                    raise PlaybackGatewayError("source_access_failed", 410)
                 if status not in {200, 206}:
                     raise PlaybackGatewayError("upstream_status_rejected")
                 encoding = response.headers.get("content-encoding", "identity")
@@ -192,8 +188,21 @@ class PlaybackGateway:
                     }
                     for url in hosts.values():
                         await guarded(self.policy.target(url))
+                    if observe:
+                        await guarded(
+                            observe(
+                                asset.get("path", "root"),
+                                "manifest",
+                                manifest_digest(parsed),
+                                [
+                                    (f"{asset.get('path', 'root')}/{i}", ref.kind)
+                                    for i, ref in enumerate(parsed.references)
+                                    if ref.kind in {"key", "init"}
+                                ],
+                            )
+                        )
                     replacements = []
-                    for ref in parsed.references:
+                    for index, ref in enumerate(parsed.references):
                         aid = await guarded(
                             asyncio.to_thread(
                                 self.registry.register,
@@ -203,6 +212,11 @@ class PlaybackGateway:
                                 ref.kind,
                                 asset["depth"] + 1,
                                 ttl,
+                                *(
+                                    [f"{asset.get('path', 'root')}/{index}"]
+                                    if observe
+                                    else []
+                                ),
                             )
                         )
                         replacements.append(asset_url(aid, ref.kind))
@@ -239,6 +253,10 @@ class PlaybackGateway:
                     )
                     if asset["kind"] == "key" and len(body) != 16:
                         raise PlaybackGatewayError("invalid_aes_key")
+                    if observe and asset["kind"] == "key":
+                        await guarded(
+                            observe(asset.get("path", "root"), "key", byte_digest(body))
+                        )
                     result_headers["Content-Length"] = str(len(body))
 
                     async def fixed():
@@ -247,6 +265,22 @@ class PlaybackGateway:
                         yield body
 
                     yield GatewayResponse(status, result_headers, fixed())
+                    return
+                if asset["kind"] == "init" and observe and not range_value:
+                    body = await guarded(read_limited(response, 256 * 1024))
+                    if not body or b"ftyp" not in body[:32]:
+                        raise PlaybackGatewayError("invalid_initialization", 422)
+                    await guarded(
+                        observe(asset.get("path", "root"), "init", byte_digest(body))
+                    )
+                    result_headers["Content-Length"] = str(len(body))
+
+                    async def initialization():
+                        await check()
+                        capacity_check()
+                        yield body
+
+                    yield GatewayResponse(status, result_headers, initialization())
                     return
                 chunks = response.aiter_raw(chunk_size=16384)
                 try:

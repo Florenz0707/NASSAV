@@ -98,14 +98,28 @@ class PlaybackSessionView(SchemaAPIView):
                 version = request.data.get("expected_version")
                 if type(version) is not int or version < 1:
                     raise ValueError("Invalid version")
-                row = records.close(
+                action = (
+                    records.refresh
+                    if request.resolver_match.url_name == "playback-refresh"
+                    else records.close
+                )
+                row = action(
                     session_id,
                     request.user.pk,
                     request.session.session_key,
                     version,
                     command_id,
                 )
-                status = 200
+                status = 202 if action is records.refresh else 200
+                if action is records.refresh:
+                    from nassav.tasks import playback_prepare_task
+
+                    try:
+                        playback_prepare_task.apply_async(
+                            args=(str(row.pk),), queue="scrape"
+                        )
+                    except Exception:
+                        pass
             return Response(
                 {"code": status, "message": "success", "data": records.snapshot(row)},
                 status=status,
@@ -134,4 +148,8 @@ class PlaybackStatusView(PlaybackSessionView):
 
 
 class PlaybackCloseView(PlaybackSessionView):
+    http_method_names = ["post", "options"]
+
+
+class PlaybackRefreshView(PlaybackSessionView):
     http_method_names = ["post", "options"]

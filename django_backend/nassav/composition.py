@@ -590,3 +590,19 @@ def build_playback_gateway():
         registry,
         RedisPlaybackCapacity(registry.client, settings.PLAYBACK_MAX_MEDIA_REQUESTS),
     )
+
+
+def build_playback_validator():
+    from nassav.playback.identity import PlaybackIdentityValidator
+
+    class Validator:
+        def validate(self, session_id, descriptor, baseline, control):
+            gateway = build_playback_gateway()
+            try:
+                return PlaybackIdentityValidator(
+                    gateway.transport, gateway.policy, gateway.capacity
+                ).validate(session_id, descriptor, baseline, control)
+            finally:
+                gateway.registry.client.close()
+
+    return Validator()

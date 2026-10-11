@@ -140,6 +140,11 @@ async def media_view(request, session_id, asset_id):
         async def check():
             await sync_to_async(authorize)(request, session_id, row.generation)
 
+        async def observe(path, kind, digest, dependencies=()):
+            await sync_to_async(records.observe_identity)(
+                row.pk, row.generation, path, kind, digest, dependencies
+            )
+
         manager = gateway.open(
             row.pk,
             row.generation,
@@ -150,6 +155,7 @@ async def media_view(request, session_id, asset_id):
             ttl=(row.absolute_expires_at - timezone.now()).total_seconds(),
             method=request.method,
             range_value=request.headers.get("Range"),
+            observe=observe,
         )
         result = await manager.__aenter__()
         opened = True

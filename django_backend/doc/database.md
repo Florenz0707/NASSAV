@@ -385,3 +385,7 @@ ResourceMetadataCache 与 ResourcePlaybackCache 独立于 AVResource，无业务
 ## 在线播放会话：迁移 0029
 
 PlaybackSession 显式使用 nassav_playback_session，新增用户/资源关系及状态、版本、执行归属、私有描述和期限。资源删除级联撤销会话，原站事实缓存独立；详细状态与清理规则见[在线播放架构](online-playback-architecture.md)。升级/回退只影响新会话表，不修改已有表身份；正式切换先备份并统一消费者，功能默认关闭。
+
+### 在线播放刷新基线（0030）
+
+nassav_playback_session 增加 refresh_count（默认 0）和 manifest_identity（默认空 JSON）。后者仅保存有界引用路径、类别和 SHA-256（密钥/init 读取前为 null），用于同会话一次刷新兼容检查；不保存源站地址或媒体内容。0030 可逆，回退丢弃这两个新字段并保留会话/资源/用户关系。正式切换须停止混合版本 API/worker，备份后迁移；退出新消费者再回退。

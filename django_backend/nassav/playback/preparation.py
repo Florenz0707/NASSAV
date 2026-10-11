@@ -1,6 +1,8 @@
 """Preparation workflow consumes explicit resolver; only owned facts may publish."""
 
 from datetime import timedelta
+import logging
+import time
 from dataclasses import asdict
 from nassav.constants import HEADERS
 from nassav.resource_cache import CacheKey, CachePolicy
@@ -12,7 +14,7 @@ class SourcePlaybackResolver(PlaybackResolver):
     def __init__(self, scope, cache, ttl_seconds):
         self.scope, self.cache, self.ttl_seconds = scope, cache, ttl_seconds
 
-    def resolve(self, avid, source_name, control):
+    def resolve(self, avid, source_name, control, *, force=False):
         with self.scope(source_name, control) as source:
             profile = proxy_route_profile(source.proxy)
             version = source.browser_session_version()
@@ -55,18 +57,23 @@ class SourcePlaybackResolver(PlaybackResolver):
                 policy,
                 fetch,
                 playback=True,
+                force=force,
                 check=control.check,
                 fence=control.publish,
             )
             return PlaybackDescriptor(**facts.payload).validate()
 
 
-def execute(session_id, resolver, records):
+logger = logging.getLogger(__name__)
+
+
+def execute(session_id, resolver, records, validator=None):
     from nassav.task_network import TaskNetworkControl
 
     token = records.claim(session_id)
     if token is None:
         return
+    started = time.monotonic()
     try:
         avid, source_name, remaining = records.preparation_input(token)
         control = TaskNetworkControl(
@@ -74,10 +81,41 @@ def execute(session_id, resolver, records):
             publish_fence=lambda op: records.publish(token, op),
         )
         with control.phase(max(0, remaining)):
-            descriptor = resolver.resolve(avid, source_name, control)
+            refreshing, baseline = records.refresh_context(token)
+            descriptor = resolver.resolve(avid, source_name, control, force=refreshing)
+            if refreshing:
+                if validator is None:
+                    raise ValueError("Refresh validator unavailable")
+                validator.validate(session_id, descriptor, baseline, control)
             control.check()
             records.ready(token, descriptor)
+            logger.info(
+                "Playback prepare session=%s generation=%s state=ready seconds=%.2f",
+                session_id,
+                token.generation,
+                time.monotonic() - started,
+            )
     except PlaybackStopped:
+        logger.info(
+            "Playback prepare session=%s generation=%s state=stopped",
+            session_id,
+            token.generation,
+        )
         return
-    except Exception:
-        records.fail(token)
+    except Exception as error:
+        from .policy import PlaybackGatewayError
+
+        code = (
+            "media_identity_changed"
+            if isinstance(error, PlaybackGatewayError)
+            and error.code == "media_identity_changed"
+            else "preparation_failed"
+        )
+        records.fail(token, code)
+        logger.warning(
+            "Playback prepare session=%s generation=%s state=failed code=%s seconds=%.2f",
+            session_id,
+            token.generation,
+            code,
+            time.monotonic() - started,
+        )

@@ -1506,3 +1506,7 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 ## 在线播放会话与媒体（P1/P2，默认关闭）
 
 控制接口、请求身份、授权及状态见[在线播放契约](online-playback-architecture.md#http-契约)。新增提交、查询、关闭入口；ready 返回签名同源 manifest_url。GET/HEAD /nassav/api/playback-sessions/{session_id}/manifest/{asset_id} 与 assets/{asset_id} 要求当前登录和 cap 签名，支持单段 Range。媒体返回清单/二进制，发送头前错误沿用 JSON 包装，均 no-store；无效签名 403、失效资产 410、容量不足 429、不可用 503、清单不支持 422、非法范围 416。已开始的流失败会断开连接。正式播放器留到 P3。
+
+### 在线播放失效刷新（P4）
+
+`POST /nassav/api/playback-sessions/{session_id}/refresh`：操作者登录和 CSRF，JSON 为 expected_version（正整数）与 request_id（UUID）。202 返回现有会话的新 generation、queued/version/refresh_count；同一命令幂等，不延长绝对期限。版本冲突、已关闭/过期、已刷新或缺少完整兼容基线返回 409。后台仍由 scrape worker 执行，成功读取授权 GET 快照的同源 manifest_url；失败用 preparation_failed 或 media_identity_changed 脱敏说明。公开快照新增 refresh_count，allowed_actions 仅在 ready/未刷新/基线完整时包含 refresh。前端不接收或提交上游 URL。

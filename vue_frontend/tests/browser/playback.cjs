@@ -25,9 +25,11 @@ async function main() {
           '-i',
           'sine=frequency=440:sample_rate=44100',
           '-t',
-          '12',
+          '120',
           '-c:v',
           'libx264',
+          '-preset',
+          'ultrafast',
           '-pix_fmt',
           'yuv420p',
           '-g',
@@ -66,11 +68,28 @@ async function main() {
       format = 'mpegts',
       fail = false,
       delayed = false,
-      releaseSubmit
+      releaseSubmit,
+      outage = false,
+      refreshes = 0
+    await page.addInitScript(() => {
+      const original = HTMLMediaElement.prototype.canPlayType
+      HTMLMediaElement.prototype.canPlayType = function (type) {
+        return type.includes('mpegurl') ? '' : original.call(this, type)
+      }
+    })
     page.on('pageerror', (error) => errors.push(error.message))
     await page.route('**/nassav/api/**', async (route) => {
       const path = new URL(route.request().url()).pathname
       if (/\/media\//.test(path)) {
+        if (
+          outage &&
+          path.includes('/media/g1/') &&
+          Number(path.match(/-(\d+)\.ts$/)?.[1] || 0) >= 40
+        )
+          return route.fulfill({
+            status: 410,
+            json: { code: 410, message: 'source_access_failed' },
+          })
         const name = path.split('/').at(-1)
         const body = readFileSync(join(fixture, name))
         return route.fulfill({
@@ -90,6 +109,17 @@ async function main() {
         return route.fulfill({ status: 202, json: { code: 202, data: sessions.get(id) } })
       }
       const id = path.split('/')[4]
+      if (path.endsWith('/refresh')) {
+        refreshes++
+        sessions.set(id, {
+          ...sessions.get(id),
+          generation: 2,
+          refresh_count: 1,
+          version: 5,
+          state: 'queued',
+        })
+        return route.fulfill({ status: 202, json: { code: 202, data: sessions.get(id) } })
+      }
       if (path.endsWith('/close')) {
         closed.push(id)
         return route.fulfill({
@@ -103,8 +133,8 @@ async function main() {
             ...sessions.get(id),
             state: fail ? 'failed' : 'ready',
             error_code: 'preparation_failed',
-            version: 3,
-            manifest_url: `/nassav/api/playback-sessions/${id}/media/${format}.m3u8`,
+            version: sessions.get(id).generation === 2 ? 6 : 3,
+            manifest_url: `/nassav/api/playback-sessions/${id}/media/g${sessions.get(id).generation}/${format}.m3u8`,
           },
         },
       })
@@ -147,6 +177,21 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
       )
       assert.equal(await page.evaluate(() => document.body.style.overflow), '')
     }
+    format = 'mpegts'
+    await page.getByRole('button', { name: '打开播放器' }).click()
+    await page.locator('video').waitFor()
+    await page.locator('video').evaluate((video) => video.play())
+    await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.5)
+    outage = true
+    await page.locator('video').evaluate((video) => {
+      video.currentTime = 90
+    })
+    await page.waitForFunction(() => document.querySelector('video')?.currentTime > 90.2, null, {
+      timeout: 15000,
+    })
+    assert.equal(refreshes, 1, 'expired source should refresh exactly once and resume position')
+    await page.keyboard.press('Escape')
+    outage = false
     fail = true
     await page.getByRole('button', { name: '打开播放器' }).click()
     await page.getByRole('alert').waitFor()
@@ -170,7 +215,7 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
     assert.ok(closed.includes(`fixture-${serial}`), 'late submit must be closed')
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: real TS/fMP4 H.264/AAC decode, seek, pause, close, focus, retry, mobile/dark and late submit fencing'
+      'PASS: real TS/fMP4 H.264/AAC decode, seek, pause, close, focus, retry, mobile/dark, one-shot expired-source position recovery and late submit fencing'
     )
   } finally {
     await browser?.close()

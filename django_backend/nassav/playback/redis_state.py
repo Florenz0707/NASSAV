@@ -36,11 +36,12 @@ class RedisAssetRegistry:
     def key(self, session_id, generation):
         return f"nassav:playback:assets:{session_id}:{generation}"
 
-    def register(self, session_id, generation, url, kind, depth, ttl):
+    def register(self, session_id, generation, url, kind, depth, ttl, path="root"):
         if depth > 8:
             raise PlaybackGatewayError("manifest_depth_exceeded", 422)
         payload = json.dumps(
-            {"url": url, "kind": kind, "depth": depth}, separators=(",", ":")
+            {"url": url, "kind": kind, "depth": depth, "path": path},
+            separators=(",", ":"),
         )
         asset_id = salted_hmac(
             "playback-asset", f"{session_id}:{generation}:{payload}"

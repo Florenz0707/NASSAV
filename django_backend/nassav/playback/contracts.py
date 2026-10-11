@@ -55,4 +55,6 @@ class PlaybackDescriptor:
 
 class PlaybackResolver(ABC):
     @abstractmethod
-    def resolve(self, avid: str, source: str, control) -> PlaybackDescriptor: ...
+    def resolve(
+        self, avid: str, source: str, control, *, force=False
+    ) -> PlaybackDescriptor: ...

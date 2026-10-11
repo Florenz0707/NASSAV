@@ -24,7 +24,8 @@ const { titleId } = useDialog(visible, root, close)
 let destroyPlayer = null,
   playerVersion = 0,
   position = 0,
-  previousAvid = ''
+  previousAvid = '',
+  resumePlayback = false
 const session = createPlaybackSession({
   api: playbackApi,
   changed: (row) => {
@@ -34,7 +35,8 @@ const session = createPlaybackSession({
 const preparing = computed(() => ['queued', 'resolving'].includes(state.value.state))
 function releasePlayer() {
   playerVersion++
-  if (video.value) position = video.value.currentTime || position
+  if (destroyPlayer && video.value) resumePlayback = !video.value.paused
+  if (destroyPlayer && video.value) position = video.value.currentTime || position
   destroyPlayer?.()
   destroyPlayer = null
   buffering.value = false
@@ -42,6 +44,8 @@ function releasePlayer() {
 async function retry() {
   releasePlayer()
   mediaError.value = ''
+  if (state.value.error_code === 'media_identity_changed') position = 0
+  resumePlayback = false
   await session.start(props.avid)
 }
 watch(
@@ -63,18 +67,29 @@ watch(
       releasePlayer()
       return
     }
-    releasePlayer()
+    if (destroyPlayer) releasePlayer()
     const token = playerVersion
     await nextTick()
     if (token !== playerVersion || !video.value) return
     try {
       const dispose = await attachPlayer(video.value, url, {
         position,
+        resume: state.value.refresh_count === 1 && resumePlayback,
         current: () => token === playerVersion && props.show,
-        failed: (message) => {
+        failed: (message, status = 0) => {
           if (token === playerVersion) {
-            buffering.value = false
-            mediaError.value = message
+            if (status === 410 && state.value.refresh_count !== 1) {
+              const wasPlaying = video.value && !video.value.paused
+              releasePlayer()
+              resumePlayback = wasPlaying
+              const refreshToken = playerVersion
+              session.refresh().then((ok) => {
+                if (!ok && refreshToken === playerVersion && props.show) mediaError.value = message
+              })
+            } else {
+              buffering.value = false
+              mediaError.value = message
+            }
           }
         },
       })
@@ -87,7 +102,7 @@ watch(
 )
 function leave() {
   releasePlayer()
-  session.stop()
+  session.stop(true)
 }
 window.addEventListener('pagehide', leave)
 onBeforeUnmount(() => {

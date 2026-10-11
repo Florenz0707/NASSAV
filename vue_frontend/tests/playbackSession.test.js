@@ -77,3 +77,30 @@ test('close retries a version conflict with one idempotency key', async () => {
   assert.equal(calls, 2)
   assert.equal(commands[0], commands[1])
 })
+
+test('refresh is single flight, remains one-shot and changes generation', async () => {
+  let commands = 0,
+    version = 3,
+    generation = 1
+  const changes = []
+  const session = createPlaybackSession({
+    api: {
+      submit: async () => ({ data: row('session') }),
+      status: async () => ({ data: { ...row('session', version, 'ready'), generation } }),
+      refresh: async () => {
+        commands++
+        generation++
+        version += 2
+        return { data: { ...row('session', version, 'queued'), generation, refresh_count: 1 } }
+      },
+      close: async () => {},
+    },
+    changed: (value) => changes.push(value),
+  })
+  await session.start('DEMO')
+  await Promise.all([session.refresh(), session.refresh()])
+  assert.equal(commands, 1)
+  assert.equal(changes.at(-1).generation, 2)
+  assert.equal(await session.refresh(), false)
+  await session.dispose()
+})

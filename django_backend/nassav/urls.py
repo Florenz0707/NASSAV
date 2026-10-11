@@ -24,6 +24,7 @@ from nassav.http.playback_views import (
     PlaybackSubmitView,
     PlaybackStatusView,
     PlaybackCloseView,
+    PlaybackRefreshView,
 )
 
 from nassav.http.playback_media import media_view
@@ -38,6 +39,11 @@ urlpatterns = [
         "api/playback-sessions/<uuid:session_id>/assets/<str:asset_id>",
         media_view,
         name="playback-asset",
+    ),
+    path(
+        "api/playback-sessions/<uuid:session_id>/refresh",
+        PlaybackRefreshView.as_view(),
+        name="playback-refresh",
     ),
     path(
         "api/resources/<str:avid>/playback-sessions",

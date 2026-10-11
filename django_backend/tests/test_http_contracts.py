@@ -40,6 +40,11 @@ def test_url_and_openapi_contract_remains_identical():
     schema = SchemaGenerator().get_schema(request=None, public=True)
     playback_routes = [
         [
+            "nassav/api/playback-sessions/<uuid:session_id>/refresh",
+            "playback-refresh",
+            "PlaybackRefreshView",
+        ],
+        [
             "nassav/api/resources/<str:avid>/playback-sessions",
             "playback-submit",
             "PlaybackSubmitView",
@@ -109,6 +114,7 @@ def test_url_and_openapi_contract_remains_identical():
         *baseline["routes"],
     ]
     control_paths = {
+        "/nassav/api/playback-sessions/{session_id}/refresh": {"post"},
         "/nassav/api/resources/{avid}/playback-sessions": {"post"},
         "/nassav/api/playback-sessions/{session_id}": {"get"},
         "/nassav/api/playback-sessions/{session_id}/close": {"post"},
