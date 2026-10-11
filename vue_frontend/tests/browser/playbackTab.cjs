@@ -12,6 +12,31 @@ async function main() {
     sessions = new Map()
   context.on('page', (page) => page.on('pageerror', (error) => errors.push(error.message)))
   try {
+    // Keep unload fetches inside the fixture even after the originating document dies.
+    // Playwright routing alone can let keepalive requests escape during navigation.
+    await context.exposeBinding('__closePlaybackFixture', (_source, path) => {
+      const id = path.split('/').at(-2)
+      assert.ok(sessions.has(id), 'only fixture sessions may be closed')
+      closed.push(id)
+      const data = { ...sessions.get(id), version: 2, state: 'closed' }
+      sessions.set(id, data)
+      return { code: 200, data }
+    })
+    await context.addInitScript(() => {
+      const original = window.fetch
+      window.fetch = function (input, options) {
+        const path = new URL(typeof input === 'string' ? input : input.url, location.href).pathname
+        if (path.startsWith('/nassav/api/playback-sessions/') && path.endsWith('/close'))
+          return window.__closePlaybackFixture(path).then(
+            (result) =>
+              new Response(JSON.stringify(result), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              })
+          )
+        return original.call(this, input, options)
+      }
+    })
     await context.routeWebSocket('**/nassav/ws/**', () => {})
     await context.route('**/nassav/api/**', async (route) => {
       const request = route.request(),
@@ -116,8 +141,7 @@ async function main() {
         )
       }
     }
-    // Exercise pagehide before reload: Playwright can discard intercepted keepalive
-    // requests when their old document is destroyed; this is not a backend receipt check.
+    // Verify the pagehide call against a transport fixture, not backend receipt.
     await player.evaluate(() => window.dispatchEvent(new Event('pagehide')))
     await player.waitForTimeout(200)
     assert.deepEqual(closed, ['tab-1'])

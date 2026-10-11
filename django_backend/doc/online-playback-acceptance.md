@@ -90,7 +90,7 @@ Linux Playwright Firefox 155 的独立进程重复探针连续 10/10 通过，�
 
 ### 播放页布局精简
 
-后续阶段 `feat/playback-focused-layout` 将播放页导航缩为Logo，移除停止/重新播放及详情链接、底部说明；播放区域在加载/错误/播放时保持16:9，沿用max-w-5xl宽度，边框直接包裹视频。主区域居中，普通页面仍显示完整导航。联调探针改为点击Logo离开播放路由，再检查权威关闭状态；不依赖已移除的停止按钮。验证使用完整页面模拟API检查主题、桌面/手机、比例、居中、模拟pagehide发起关闭、reload新会话及路由卸载清理，并使用合成TS/fMP4实际解码检查媒体与边框贴合；不新增正式来源联调证据。Playwright拦截请求在旧document销毁时可能被丢弃，因此该页面测试在reload前单独触发pagehide验证调用，不作为真实浏览器关闭后服务端收妥/容量归零证据。本阶段 `pnpm run check` 的76项单元测试、lint/构建与 `pre-commit run -a` 全通过；`node tests/browser/playbackTab.cjs` 的布局/退出路径通过，`node tests/browser/playback.cjs` 在Chrome/Firefox合成媒体解码、边框贴合与刷新回归通过。
+后续阶段 `feat/playback-focused-layout` 将播放页导航缩为Logo，移除停止/重新播放及详情链接、底部说明；播放区域在加载/错误/播放时保持16:9，沿用max-w-5xl宽度，边框直接包裹视频。主区域居中，普通页面仍显示完整导航。联调探针改为点击Logo离开播放路由，再检查权威关闭状态；不依赖已移除的停止按钮。验证使用完整页面模拟API检查主题、桌面/手机、比例、居中、模拟pagehide发起关闭、reload新会话及路由卸载清理，并使用合成TS/fMP4实际解码检查媒体与边框贴合；不新增正式来源联调证据。Playwright在旧document销毁时可能让keepalive绕过路由拦截；页面测试将退出fetch显式接到本地传输替身，避免触达Vite后端代理，并在reload前单独触发pagehide验证调用，不作为真实浏览器关闭后服务端收妥/容量归零证据。本阶段 `pnpm run check` 的76项单元测试、lint/构建与 `pre-commit run -a` 全通过；`node tests/browser/playbackTab.cjs` 的布局/退出路径通过，`node tests/browser/playback.cjs` 在Chrome/Firefox合成媒体解码、边框贴合与刷新回归通过。
 
 ## 更新与回滚
 
