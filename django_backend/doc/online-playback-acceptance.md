@@ -1,6 +1,6 @@
 # 在线播放 P3–P5：验收与发布边界
 
-日期：2026-10-11。P3/P4 已实现并合并；P5 的隔离与 Linux 桌面验收已执行；关闭容量回收检查未通过，完整发布验收亦有下列目标环境条件；本阶段不得自动合并。不能将短时 Linux Chrome 样本与隔离回归称为全部目标设备或长期验收。
+日期：2026-10-11。P3/P4 已实现并合并；P5 的隔离与 Linux 桌面验收已执行；容量回收已独立修复并复验通过；完整发布验收仍有下列目标环境条件，P5暂不自动合并。不能将短时 Linux Chrome 样本与隔离回归称为全部目标设备或长期验收。
 
 ## 交付与验证
 
@@ -18,7 +18,7 @@
 
 样本为独立 SQLite/Redis、真实 Celery worker、Nginx 与来源出口；首帧时间受排队、缓存及原站影响，不能作为性能承诺。Chrome 再次完成两来源的显式一次刷新：MissAV/Jable worker 准备约54.5/60.0秒，generation=2、refresh_count=1、原位置恢复并继续解码，关闭后权威状态closed且无manifest_url。旧代次请求410是预期失效，不等于刷新失败。自然签名到期只由合成410用例覆盖，真实网络本次为显式refresh。
 
-最终代码检查：完整隔离pytest **916 passed / 28 skipped**；`pnpm run check` **76 passed**（lint及构建通过）；`pre-commit run -a` 全通过；合成TS/fMP4浏览器回归通过。变更先复现Range、SQLite/WAL锁升级及私有扩展误判，再通过回归。hls.js 动态chunk约525 kB（gzip约162 kB），触发构建大小提示；未改变质量阈值。
+最终代码检查：完整隔离pytest **919 passed / 28 skipped**；`pnpm run check` **76 passed**（lint及构建通过）；`pre-commit run -a` 全通过；合成TS/fMP4浏览器回归通过。变更先复现Range、SQLite/WAL锁升级及私有扩展误判，再通过回归。hls.js 动态chunk约525 kB（gzip约162 kB），触发构建大小提示；未改变质量阈值。
 
 P5 发现并修复 Chrome 原生视频对清单发送 Range 时原网关返回416的问题。合法单 Range 对重写清单/密钥/小型 data 返回完整200，使用当前响应长度，不伪造206或转发上游 Range；分片/init 保持原206/416，多 Range/语法非法仍416。依据 [RFC 9110 Range](https://www.rfc-editor.org/rfc/rfc9110.html#section-14.2)，服务器可以忽略 Range 并返回完整表示。专项覆盖原生探测请求和既有媒体语义；不降低域名、登录、签名、大小或容量限制。
 
@@ -28,15 +28,30 @@ P5 的真实媒体并发暴露 SQLite/WAL 控制事务读后升级写锁的问�
 
 清单身份摘要仅保留已支持的标准 HLS 结构标签和匿名化 URI引用，忽略注释、空行与未知扩展，依据 [RFC 8216 6.3.1](https://www.rfc-editor.org/rfc/rfc8216.html#section-6.3.1)。真实 MissAV 轮换私有 token 行此前误触发不兼容；已用专项先失败后通过回归覆盖。轨道、时长、序列、discontinuity、IV、byterange、密钥及初始化字节仍受严格校验，不放宽 URL/来源策略。不兼容旧摘要的会话需关闭重建，升级期间不得混跑校验版本。
 
-离线浏览器入口：`NODE_PATH=/tmp/nassav-browser-audit/node_modules node tests/browser/playback.cjs`，在 vue_frontend 目录运行、配合本地 Vite。该用例明确走 MSE/hls.js，不把 Chrome 原生模式当作 hls.js 失效恢复验收；原生 HLS 的错误恢复使用手动重试，Safari/iOS 必须真机验证。
+离线浏览器入口（默认Chrome，可用NASSAV_BROWSER_ENGINE=firefox及Playwright浏览器目录）：`NODE_PATH=/tmp/nassav-browser-audit/node_modules node tests/browser/playback.cjs`，在 vue_frontend 目录运行、配合本地 Vite。该用例明确走 MSE/hls.js，不把 Chrome 原生模式当作 hls.js 失效恢复验收；原生 HLS 的错误恢复使用手动重试，Safari/iOS 必须真机验证。
 
-## P5 停止条件：关闭后的容量回收未通过
+## 历史停止条件与容量修复复验
 
 两次真实浏览器轮次都完成关闭，权威会话为closed且descriptor为空，没有写入资源文件。首次立即检查容量计数仍有一个租约，独立环境停止后重新创建，使用新的临时登录复验两来源：两者再次解码、seek、暂停、连续15秒并关闭。随后四次采样（间隔3秒）均显示：活动会话0、媒体curl生产者0、global ZSET未过期租约1。采样末断言失败（exit1），不能将停止容器或租约最终TTL回收视作正常主动释放验收通过。
 
-当前证据只确认未及时主动释放，尚未确定是取消/finally竞态、上游请求清理路径或其他原因；不得声称容量会永久泄漏。稍后收尾观察同租约已到期约49秒，说明此样本有期限兜底、没有证明持续续租；原始计数不等于仍占用可申请容量。仍需定位主动释放退出路径，补充可复现回归后重新验收。本轮私有数据库共15个播放会话全部closed、descriptor为空，两次自己的临时登录均删除；资源文件0。独立Compose服务和凭据文件在收尾移除，正式实例未修改。
+随后观察租约已到期约49秒，确认有期限兜底，但不能代替正常主动释放。用户授权独立修复后，在真实隔离Redis稳定复现三个路径：申请期间取消后线程迟到写入、释放期间重复取消、写成功后回包丢失；旧代码3失败，修复后通过。申请/续租先落定再补偿owner，释放共用受保护任务，取消仍传播；Redis不可用保留既有TTL。独立修复e344c50及fixture注册40031b1已同步至P5，独立分支完整915通过/28跳过、真实Redis/ASGI/传输专项17通过；组合完整919通过/28跳过。格式钩子删除unused fixture导入的问题由显式别名注册修正，最终测试顺序位于格式化之后。
 
-P5代码修复与文档保留阶段分支，不自动合并；是否先独立修复、如何安排后续真机验收，由用户决定。隔离pytest/pre-commit通过不覆盖这项真实服务失败。
+### HTTPS真实服务复验
+
+新建私有SQLite/Redis、真实scrape worker和Nginx TLS，使用相同全局Proxy.url与现有来源出口，媒体仍使用Curl传输而非Byparr。只挂载自己的DB/资源/日志，正式容器、配置、密码和用户资源不变。Chrome与Firefox同一时间运行，HTTPS/Secure Session与CSRF Cookie启用；一次性自签名证书仅在loopback测试上下文显式跳过信任检查，不替代正式证书链/反向代理验收。
+
+| 浏览器           | MissAV首帧         | Jable首帧          | 验证                                                        |
+| ---------------- | ------------------ | ------------------ | ----------------------------------------------------------- |
+| Chrome152/hls.js | 68.4秒（来源准备） | 50.0秒（来源准备） | 各连续180秒、seek、暂停/继续、一次刷新位置恢复、关闭        |
+| Firefox/hls.js   | 64.6秒（来源准备） | 6.1秒（缓存）      | 后续独立轮次各15秒、seek、暂停/继续、一次刷新位置恢复、关闭 |
+
+容量观测轮次四个关闭事件的会话ZSET均为0，观察耗时约1–3毫秒；不是依靠45秒租约到期。最终停栈前权威核对8个会话全部closed/descriptor为空、全局及会话ZSET计数0、媒体curl生产者0、资源文件0，临时登录已删除，之后移除私有服务和凭据。实际仓库live探针也通过两来源HTTPS/Secure Cookie解码与关闭，新增self-signed opt-in仅接受loopback HTTPS。
+
+Firefox早期实际轮次出现首帧或刷新等待超时，后续两来源独立轮次通过，合成TS/fMP4解码/一次410刷新回归亦通过；失败时未取得足够媒体状态，不武断归因为业务代码或证书。实际Firefox稳定性仍需目标环境复验。合成探针新增等待MSE挂载再play、显式浏览器选择，避免不同引擎的启动时序干扰；它不代替真实来源测试。
+
+双浏览器播放中的一次Docker stats样本：API151.6MiB、10进程/线程，worker169.7MiB、5进程/线程；只是观测样本，不是峰值或长期压测结论。3分钟样本不覆盖自然签名到期与数小时播放，也未擅自下载/刮削用户资源。
+
+P5修复、探针与记录保留阶段分支，是否放宽合并条件或提供剩余目标环境，由用户决定。代码检查和已通过样本不代表完整P5发布门槛。
 
 ## 仍需目标环境完成
 

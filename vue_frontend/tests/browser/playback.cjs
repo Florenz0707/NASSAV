@@ -1,4 +1,4 @@
-const { chromium } = require('playwright')
+const { chromium, firefox } = require('playwright')
 const assert = require('node:assert/strict')
 const { mkdtempSync, readFileSync, rmSync } = require('node:fs')
 const { tmpdir } = require('node:os')
@@ -56,10 +56,16 @@ async function main() {
       )
       assert.equal(result.status, 0, result.stderr)
     }
-    browser = await chromium.launch({
-      executablePath: process.env.NASSAV_CHROMIUM_PATH || '/bin/google-chrome',
-      args: ['--disable-features=LocalNetworkAccessChecks'],
-    })
+    const engine = process.env.NASSAV_BROWSER_ENGINE || 'chromium'
+    assert.ok(['chromium', 'firefox'].includes(engine))
+    browser = await (engine === 'firefox' ? firefox : chromium).launch(
+      engine === 'firefox'
+        ? {}
+        : {
+            executablePath: process.env.NASSAV_CHROMIUM_PATH || '/bin/google-chrome',
+            args: ['--disable-features=LocalNetworkAccessChecks'],
+          }
+    )
     const page = await browser.newPage(),
       errors = [],
       closed = [],
@@ -158,6 +164,7 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
       format = mode
       await page.getByRole('button', { name: '打开播放器' }).click()
       await page.locator('video').waitFor()
+      await page.waitForFunction(() => !!document.querySelector('video')?.getAttribute('src'))
       await page.locator('video').evaluate((video) => video.play())
       await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.5)
       await page.locator('video').evaluate((video) => {
@@ -180,6 +187,7 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
     format = 'mpegts'
     await page.getByRole('button', { name: '打开播放器' }).click()
     await page.locator('video').waitFor()
+    await page.waitForFunction(() => !!document.querySelector('video')?.getAttribute('src'))
     await page.locator('video').evaluate((video) => video.play())
     await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.5)
     outage = true

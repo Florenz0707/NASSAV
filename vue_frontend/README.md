@@ -246,3 +246,7 @@ node scripts/verify-playback-live.cjs
 此脚本会创建两个播放会话并允许短期播放缓存写入，不添加资源、不下载正式视频。正式实例仅在明确授权后执行；日志不展示 Cookie、能力 URL 或代理凭证。仅限 Chrome 的脚本成功不能代替真实 Safari/iOS/Android、HTTPS、自然签名到期和完整长时播放验收。
 
 真实在线播放探针可用 `NASSAV_PLAYBACK_TEST_ENGINE=firefox` 选择已安装的 Playwright Firefox（默认 chromium）；浏览器目录由 `PLAYWRIGHT_BROWSERS_PATH` 指定。该探针有界等待播放启动，但短时通过不代表真机或长期验收。
+
+私有 loopback HTTPS 验收可显式设置 `NASSAV_PLAYBACK_TEST_SELF_SIGNED=true`；仅允许localhost/回环HTTPS，例外只绕过一次性证书信任校验，不关闭Secure Cookie、CSRF或上游目标限制。正式证书验收保持默认false。
+
+合成播放器回归可设置 `NASSAV_BROWSER_ENGINE=firefox`（默认chromium），配合Playwright浏览器目录运行 `node tests/browser/playback.cjs`。先等待MSE挂载再调用play；合成TS/fMP4与真实来源轮次分开记录，Firefox间歇超时不由一次通过掩盖。

@@ -17,6 +17,14 @@ async function main() {
   const state = JSON.parse(readFileSync(stateFile, 'utf8'))
   const engine = process.env.NASSAV_PLAYBACK_TEST_ENGINE || 'chromium'
   assert.ok(['chromium', 'firefox'].includes(engine), 'Unsupported test engine')
+  const selfSigned = process.env.NASSAV_PLAYBACK_TEST_SELF_SIGNED === 'true'
+  if (selfSigned) {
+    const target = new URL(origin)
+    assert.ok(
+      target.protocol === 'https:' && ['localhost', '127.0.0.1', '[::1]'].includes(target.hostname),
+      'Self-signed exception is restricted to an isolated loopback HTTPS test'
+    )
+  }
   const browser = await (engine === 'firefox' ? firefox : chromium).launch(
     engine === 'firefox'
       ? {}
@@ -25,7 +33,7 @@ async function main() {
           args: ['--disable-features=LocalNetworkAccessChecks'],
         }
   )
-  const context = await browser.newContext({ storageState: state })
+  const context = await browser.newContext({ storageState: state, ignoreHTTPSErrors: selfSigned })
   if (process.env.NASSAV_PLAYBACK_TEST_MSE === 'true')
     await context.addInitScript(() => {
       const original = HTMLMediaElement.prototype.canPlayType
