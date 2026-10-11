@@ -39,7 +39,7 @@ def asset_url(session_id, generation, asset_id, kind):
     )
 
 
-def authorize(request, session_id, generation=None):
+def authorize_session(request, session_id, generation=None):
     if not settings.PLAYBACK_ENABLED:
         raise PlaybackGatewayError("playback_disabled", 404)
     if not is_operator(request.user):
@@ -78,6 +78,13 @@ def authorize(request, session_id, generation=None):
         ),
     ):
         raise PlaybackGatewayError("session_closed", 410)
+    return row
+
+
+def authorize(request, session_id, generation=None):
+    row = authorize_session(request, session_id, generation)
+    if row.media_kind != "source":
+        raise PlaybackGatewayError("media_kind_mismatch", 404)
     descriptor = PlaybackDescriptor(**row.descriptor).validate()
     proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
     if descriptor.route_profile != proxy_route_profile(proxy):

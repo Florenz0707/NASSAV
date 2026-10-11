@@ -28,8 +28,14 @@ from nassav.http.playback_views import (
 )
 
 from nassav.http.playback_media import media_view
+from nassav.http.playback_local_media import local_media_view
 
 urlpatterns = [
+    path(
+        "api/playback-sessions/<uuid:session_id>/file",
+        local_media_view,
+        name="playback-file",
+    ),
     path(
         "api/playback-sessions/<uuid:session_id>/manifest/<str:asset_id>",
         media_view,

@@ -114,3 +114,17 @@ curl_worker 是私有单请求协议进程，不是 Celery 业务任务：不初
 ## 后续方案
 
 已下载视频直传及个人播放进度的接口、迁移与边界见[设计草案](local-playback-and-progress-design.md)，尚未实现。
+
+## 已下载 MP4 播放（L1）
+
+迁移0031为会话增加media_kind，旧记录默认为source。创建请求可选mode=local，仍返回202，但会话直接ready；不调用来源、代理、Celery准备或Redis URI注册。默认source行为保持。local快照提供mode、media_type=mp4及带cap签名的同源media_url；refresh不可用，close、每用户两会话及登录/期限约束共用。
+
+GET/HEAD /api/playback-sessions/{id}/file由原生ASGI发送正式VIDEO_DIR/<avid>.mp4，支持单一bytes Range、suffix/open range、206/416、HEAD和强ETag的If-Range（日期/弱标签保守回200）。不返回绝对路径或私有描述，不允许临时产物/文件链接；配置根目录符号链接可以使用。要求DB file_exists及真实普通非空文件均存在，无promoting资产日志。
+
+文件身份复用TaskAssetTarget.marker与dev/inode/size/mtime_ns/ctime_ns，不新增AVResource视频代次、不全量哈希。旧正式视频无marker时仍以指纹绑定；手工原地篡改不能承诺字节恒等。原草案中的video_generation建议由现有资产发布epoch替代。短共享资源锁内绑定/打开文件，锁忙5秒返回409，不持锁播放、不在线删除锁文件；文件变化或删除使本地会话失败并释放用户会话名额，不能自动切换来源。
+
+传输以64KiB按需pread，不使用远端16MiB单段上限/45秒总期限。复用跨进程Redis容量（全局配置、每会话4），每0.5秒独立检查登录、会话、文件及发布身份，超过30秒无消费进展关闭句柄并释放容量。读取/打开线程必须等待归属操作落定，断连与重复取消不能遗留FD或容量。同步文件读取在独立线程，不阻塞事件循环；本地磁盘永久阻塞仍需操作系统层处理。
+
+关闭/删除/替换对新请求立即失效，在途按0.5秒检查停止；浏览器已缓冲数据无法撤回。删除流程不等待所有浏览器确认：Linux unlink后，在途打开的inode可能短暂占用磁盘，直至句柄关闭。不能把删除API成功等同已回收每个播放句柄。Nginx媒体规则覆盖file，禁用缓冲/缓存并隐藏cap查询串；不需要给前端容器额外挂载视频目录。
+
+SQLite与独立PostgreSQL专项覆盖0030→0031→0030→0031、关系保持、真实ASGI/Range与真实Redis断连回收；全仓库质量门槛及实际命令在阶段收尾/Git历史记录。前端L2与真实浏览器解码另验收；进度保存尚未实现。

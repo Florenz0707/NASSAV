@@ -106,3 +106,9 @@ Linux Playwright Firefox 155 的独立进程重复探针连续 10/10 通过，�
 `vue_frontend/scripts/verify-playback-live.cjs` 为显式 opt-in，只使用已有两条资源；由操作者提供临时 Playwright storage-state 文件，origin 必须是授权验收环境。它创建/关闭播放会话，允许准备短期缓存，不添加正式资源、不下载视频文件，不改密码。默认连续播放30秒（15–300可配置），可显式开启一次 refresh；跟踪实际视频帧、seek/暂停/继续及权威终态。例子见[前端README](../../vue_frontend/README.md#在线播放器验收)。
 
 探针关闭播放会话是尽力操作，结束仍应核对 DB 中的 state/descriptor、删除自己的临时登录并清理凭证文件；不能只凭浏览器退出证明释放完成。清理会话记录由有界恢复驱动在终态24小时后执行，URI映射自然TTL回收；不在线删除稳定任务锁。
+
+## 本地播放L1（2026-10-11）
+
+分支feat/local-playback-backend（提交见Git历史）：本地MP4会话、0031、鉴权Range接口、共享发布身份和资源锁，保持来源HLS契约。执行`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`、`pre-commit run -a`及`pnpm run check`；专项在独立PostgreSQL16执行，覆盖迁移往返。使用已有nginx:1.27-alpine、无网络容器执行nginx -t通过；Redis断连回收为真实隔离实例。前端接入/浏览器解码在L2验收，正式部署尚未进行；更新本地播放版本须统一消费者并应用0031。
+
+L1最终门槛：完整隔离后端931 passed / 28 skipped；本地播放与迁移专项SQLite及独立PostgreSQL各12 passed（测试线程连接已清理）；前端76项测试、lint/build与无网络Nginx配置检查通过。

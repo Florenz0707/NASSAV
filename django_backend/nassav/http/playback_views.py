@@ -5,6 +5,7 @@ from django.conf import settings
 from rest_framework.response import Response
 from nassav.http_base import SchemaAPIView
 from nassav.playback import records
+from nassav.playback.policy import PlaybackGatewayError
 
 
 class PlaybackSessionView(SchemaAPIView):
@@ -50,10 +51,27 @@ class PlaybackSessionView(SchemaAPIView):
             data = records.snapshot(row)
             if row.state == "ready":
                 from nassav.http.playback_media import root_url
-                from nassav.playback.policy import PlaybackGatewayError
 
                 try:
-                    data["manifest_url"] = root_url(row)
+                    if row.media_kind == "local":
+                        from nassav.http.playback_local_media import (
+                            local_url,
+                            check_local,
+                        )
+
+                        try:
+                            check_local(row)
+                            data["media_url"] = local_url(row)
+                        except PlaybackGatewayError:
+                            data = records.snapshot(
+                                records.owned(
+                                    session_id,
+                                    request.user.pk,
+                                    request.session.session_key,
+                                )
+                            )
+                    else:
+                        data["manifest_url"] = root_url(row)
                 except PlaybackGatewayError as error:
                     return Response(
                         {"code": error.status, "message": error.code, "data": None},
@@ -78,19 +96,36 @@ class PlaybackSessionView(SchemaAPIView):
         try:
             command_id = UUID(str(request.data.get("request_id")))
             if avid:
-                row = records.submit(
-                    request.user.pk,
-                    request.session.session_key,
-                    avid.upper(),
-                    command_id,
-                )
-                # Recovery retries broker failures; no network inside creation transaction.
-                from nassav.tasks import playback_prepare_task
+                mode = request.data.get("mode", "source")
+                if mode == "local":
+                    from nassav.composition import build_local_video_locator
+                    from nassav.playback.local_files import submit_local
 
-                try:
-                    playback_prepare_task.apply_async(
-                        args=(str(row.pk),), queue="scrape"
+                    row = submit_local(
+                        build_local_video_locator(),
+                        records,
+                        request.user.pk,
+                        request.session.session_key,
+                        avid.upper(),
+                        command_id,
                     )
+                elif mode == "source":
+                    row = records.submit(
+                        request.user.pk,
+                        request.session.session_key,
+                        avid.upper(),
+                        command_id,
+                    )
+                else:
+                    raise ValueError("Invalid playback mode")
+                # Recovery retries broker failures; no network inside creation transaction.
+                try:
+                    if row.media_kind == "source":
+                        from nassav.tasks import playback_prepare_task
+
+                        playback_prepare_task.apply_async(
+                            args=(str(row.pk),), queue="scrape"
+                        )
                 except Exception:
                     pass
                 status = 202
@@ -123,6 +158,11 @@ class PlaybackSessionView(SchemaAPIView):
             return Response(
                 {"code": status, "message": "success", "data": records.snapshot(row)},
                 status=status,
+            )
+        except PlaybackGatewayError as error:
+            return Response(
+                {"code": error.status, "message": error.code, "data": None},
+                status=error.status,
             )
         except (records.PlaybackSession.DoesNotExist, records.AVResource.DoesNotExist):
             return Response(

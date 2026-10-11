@@ -24,6 +24,8 @@ def login_hash(key):
 def snapshot(row):
     return {
         "session_id": str(row.pk),
+        "mode": row.media_kind,
+        "media_type": "mp4" if row.media_kind == "local" else "hls",
         "state": row.state,
         "version": row.version,
         "generation": row.generation,
@@ -31,7 +33,8 @@ def snapshot(row):
         "allowed_actions": (["close"] if row.state not in {"closed", "failed"} else [])
         + (
             ["refresh"]
-            if row.state == "ready"
+            if row.media_kind == "source"
+            and row.state == "ready"
             and row.refresh_count == 0
             and row.manifest_identity
             and all(v.get("digest") for v in row.manifest_identity.values())
@@ -44,7 +47,9 @@ def snapshot(row):
     }
 
 
-def submit(user_id, key, avid, request_id):
+def submit(user_id, key, avid, request_id, *, mode="source", descriptor=None):
+    if mode not in {"source", "local"} or (mode == "local" and not descriptor):
+        raise ValueError("Invalid playback mode")
     now = timezone.now()
     binding = login_hash(key)
     with transaction.atomic():
@@ -54,7 +59,7 @@ def submit(user_id, key, avid, request_id):
             user_id=user_id, login_hash=binding, request_id=request_id
         ).first()
         if previous:
-            if previous.resource.avid != avid:
+            if previous.resource.avid != avid or previous.media_kind != mode:
                 raise ValueError("Request identity conflict")
             return previous
         resource = AVResource.objects.get(avid=avid)
@@ -73,6 +78,9 @@ def submit(user_id, key, avid, request_id):
             login_hash=binding,
             resource=resource,
             source=resource.source.lower(),
+            media_kind=mode,
+            state="ready" if mode == "local" else "queued",
+            descriptor=descriptor or {},
             request_id=request_id,
             prepare_deadline=now + timedelta(seconds=300),
             dispatch_after=now,
@@ -128,6 +136,7 @@ def claim(session_id):
     if not PlaybackSession.objects.filter(
         pk=session_id,
         state="queued",
+        media_kind="source",
         prepare_deadline__gt=now,
         idle_expires_at__gt=now,
         absolute_expires_at__gt=now,
@@ -221,7 +230,10 @@ def recover(dispatch, limit=100):
     )
     for session_id in list(
         PlaybackSession.objects.filter(
-            state="queued", dispatch_after__lte=now, prepare_deadline__gt=now
+            state="queued",
+            media_kind="source",
+            dispatch_after__lte=now,
+            prepare_deadline__gt=now,
         ).values_list("pk", flat=True)[:limit]
     ):
         if PlaybackSession.objects.filter(
@@ -276,7 +288,8 @@ def refresh(session_id, user_id, key, expected_version, request_id):
         if row.last_command_id == request_id and row.refresh_count == 1:
             return row
         if (
-            row.version != expected_version
+            row.media_kind != "source"
+            or row.version != expected_version
             or row.state != "ready"
             or row.refresh_count != 0
             or not row.manifest_identity

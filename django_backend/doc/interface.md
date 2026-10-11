@@ -1510,3 +1510,9 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 ### 在线播放失效刷新（P4）
 
 `POST /nassav/api/playback-sessions/{session_id}/refresh`：操作者登录和 CSRF，JSON 为 expected_version（正整数）与 request_id（UUID）。202 返回现有会话的新 generation、queued/version/refresh_count；同一命令幂等，不延长绝对期限。版本冲突、已关闭/过期、已刷新或缺少完整兼容基线返回 409。后台仍由 scrape worker 执行，成功读取授权 GET 快照的同源 manifest_url；失败用 preparation_failed 或 media_identity_changed 脱敏说明。公开快照新增 refresh_count，allowed_actions 仅在 ready/未刷新/基线完整时包含 refresh。前端不接收或提交上游 URL。
+
+### 已下载视频播放
+
+`POST /nassav/api/resources/{avid}/playback-sessions` 可选 JSON `mode: "local"`（默认source），与request_id UUID共同定义幂等请求。local直接返回202/ready，不派发抓取；已下载文件缺失404、发布待恢复/锁忙409、非普通文件/内部链接422。GET快照新增mode与media_type；local ready返回签名同源media_url，不返回manifest_url或文件绝对路径。
+
+`GET/HEAD /nassav/api/playback-sessions/{session_id}/file?cap=...`：当前operator登录、会话拥有者及代次签名授权；MP4支持单一bytes Range（206/416及Content-Range）、HEAD、ETag/If-Range，no-store。未登录401、另一登录404、签名错误403、关闭/删除/文件替换410、容量429/503；头发出后失败中断流。local不支持refresh，支持既有close。文件缺失或变化后的GET快照为failed并给脱敏error_code。视频传输不走ProxyServer或Celery。

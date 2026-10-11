@@ -389,3 +389,7 @@ PlaybackSession 显式使用 nassav_playback_session，新增用户/资源关系
 ### 在线播放刷新基线（0030）
 
 nassav_playback_session 增加 refresh_count（默认 0）和 manifest_identity（默认空 JSON）。后者仅保存有界引用路径、类别和 SHA-256（密钥/init 读取前为 null），用于同会话一次刷新兼容检查；不保存源站地址或媒体内容。0030 可逆，回退丢弃这两个新字段并保留会话/资源/用户关系。正式切换须停止混合版本 API/worker，备份后迁移；退出新消费者再回退。
+
+## 0031：本地播放会话模式
+
+PlaybackSession.media_kind（nassav_playback_session，varchar16，默认source）区分来源HLS与local MP4。迁移只增加字段，历史会话仍为source，可逆、不修改正式资源/文件/关系。local descriptor私有保存发布marker及文件指纹；公开快照不包含路径/指纹，沿用会话期限与终态清理。不新增进度表。部署前备份、统一API/worker消费者并执行migrate；不在运行旧会话时回退删除字段，回退前关闭会话。

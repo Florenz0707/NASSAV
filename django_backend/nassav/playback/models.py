@@ -10,6 +10,7 @@ class PlaybackSession(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     login_hash = models.CharField(max_length=64)
     resource = models.ForeignKey("nassav.AVResource", on_delete=models.CASCADE)
+    media_kind = models.CharField(max_length=16, default="source")
     source = models.CharField(max_length=50)
     request_id = models.UUIDField()
     state = models.CharField(max_length=16, default="queued")

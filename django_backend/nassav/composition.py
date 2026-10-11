@@ -606,3 +606,21 @@ def build_playback_validator():
                 gateway.registry.client.close()
 
     return Validator()
+
+
+def build_local_video_locator():
+    from django.conf import settings
+    from nassav.playback.local_files import DjangoLocalVideoLocator
+
+    return DjangoLocalVideoLocator(settings.VIDEO_DIR, settings.COVER_DIR)
+
+
+def build_local_playback_gateway():
+    from django.conf import settings
+    from nassav.playback.local_gateway import LocalPlaybackGateway
+    from nassav.playback.redis_state import RedisPlaybackCapacity
+
+    registry = build_playback_registry()
+    return LocalPlaybackGateway(
+        RedisPlaybackCapacity(registry.client, settings.PLAYBACK_MAX_MEDIA_REQUESTS)
+    )

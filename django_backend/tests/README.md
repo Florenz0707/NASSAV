@@ -118,3 +118,7 @@ uv run coverage report
 test_playback_gateway.py 验证清单/目标策略、Range、取消和背压；test_playback_asgi.py 使用真实 Django ASGI 授权/断连路径；test_playback_redis.py 使用临时 Redis Unix socket 与独立进程验证容量；test_playback_transport_live_local.py 使用真实 TLS/HTTPX，验证 SNI、提前关闭及跟踪内存上限。均不访问正式 DB、CDN 或代理，不代表真实容器/播放器解码验收。部署约束见[在线播放架构](../doc/online-playback-architecture.md#配置与部署)。
 
 `test_playback_curl_transport.py` 验证浏览器模拟 Adapter 的真实隔离 TLS/管道背压、提前关闭、启动取消、读取中关闭与强杀回收、固定 DNS/代理/证书策略及生产装配。低层 curl 网络测试仅使用显式私有 Unix socket 和测试 CA，不允许将正式目标传入离线测试。
+
+## 本地视频播放专项
+
+`test_local_playback.py` 使用临时正式视频、真实Django ASGI及独立Redis验证Range/HEAD/If-Range、登录与cap、同大小替换、真实删除、闲置/断连/迟到打开回收、根符号链接与文件链接拒绝。`test_local_playback_migration.py` 覆盖0030→0031→0030→0031，finally恢复全部叶节点；SQLite与独立PostgreSQL均执行。来源解析/worker明确不应调用；接口字节测试不代表浏览器解码，L2另做合成MP4浏览器验证。
