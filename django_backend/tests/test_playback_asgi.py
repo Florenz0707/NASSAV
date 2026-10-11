@@ -9,6 +9,9 @@ from nassav.playback import records
 from nassav.http.playback_media import capability
 from test_playback_gateway import make_gateway, Response
 from nassav.playback.redis_state import RedisPlaybackCapacity
+from test_session_lifecycle_contracts import isolated_redis as _isolated_redis
+
+playback_redis = _isolated_redis
 from nassav.playback.contracts import PlaybackDescriptor
 
 
