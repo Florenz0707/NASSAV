@@ -188,3 +188,26 @@ def test_concurrent_claims_have_one_owner(operator_user, resource_factory):
         results = list(pool.map(run, [one, two]))
     assert sum(isinstance(value, dict) for value in results) == 1
     assert "progress_writer_conflict" in results
+
+
+def test_final_save_closes_atomically_and_conflicted_writer_cannot_overwrite(
+    operator_user, resource_factory
+):
+    row = ready(operator_user, resource_factory())
+    token = claim(row)
+    body = payload(row, token, position=40)
+    body["close_after_save"] = True
+    result = progress.save(row.pk, row.user_id, "one", body)
+    assert result["saved"] and result["position_seconds"] == 40
+    row.refresh_from_db()
+    assert row.state == "closed" and row.generation == 2
+    other = ready(operator_user, row.resource)
+    token2 = claim(other, expected=token["writer_generation"])
+    newer = ready(operator_user, row.resource)
+    claim(newer, expected=token2["writer_generation"])
+    stale = payload(other, token2, position=80)
+    stale["close_after_save"] = True
+    assert progress.save(other.pk, other.user_id, "one", stale)["saved"] is False
+    other.refresh_from_db()
+    assert other.state == "closed"
+    assert progress.query(newer)["position_seconds"] == 40

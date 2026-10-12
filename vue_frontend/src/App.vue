@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, watch, ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
+import { clearPlaybackDrafts } from './features/playback/lib/progressDrafts.js'
 import Navbar from './app/components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
 import Toast from './shared/ui/Toast.vue'
@@ -45,6 +46,7 @@ onMounted(() => {
 watch(
   () => sessionStore.status,
   (status) => {
+    if (status === 'anonymous') clearPlaybackDrafts()
     if (status === 'authenticated') {
       taskJobs.start(sessionStore.username)
       wsStore.connect()

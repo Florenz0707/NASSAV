@@ -121,6 +121,22 @@ async function main() {
         return route.fulfill({ status: 202, json: { code: 202, data: sessions.get(id) } })
       }
       const id = path.split('/')[4]
+      if (path.endsWith('/progress') || path.endsWith('/progress/claim')) {
+        return route.fulfill({
+          json: {
+            code: 200,
+            data: {
+              ledger_key: `fixture-${id}`,
+              version: 1,
+              writer_generation: 1,
+              position_seconds: 30,
+              duration_seconds: 120,
+              completed: false,
+              restore_policy: 'confirm',
+            },
+          },
+        })
+      }
       if (path.endsWith('/refresh')) {
         refreshes++
         sessions.set(id, {
@@ -171,8 +187,15 @@ createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:
       await page.getByRole('button', { name: '打开播放器' }).click()
       await page.locator('video').waitFor()
       await page.waitForFunction(() => !!document.querySelector('video')?.getAttribute('src'))
-      await page.locator('video').evaluate((video) => video.play())
-      await page.waitForFunction(() => document.querySelector('video')?.currentTime > 0.5)
+      await page.waitForFunction(() => document.querySelector('video')?.readyState >= 1)
+      await page.getByRole('button', { name: '继续上次播放' }).waitFor()
+      assert.match(
+        await page.getByRole('group', { name: '恢复播放进度' }).innerText(),
+        /确认当前来源/
+      )
+      await page.getByRole('button', { name: '继续上次播放' }).click()
+      await page.waitForFunction(() => document.querySelector('video')?.currentTime >= 30)
+
       const geometry = await page.locator('video').evaluate((video) => {
         const frame = video.parentElement.getBoundingClientRect(),
           media = video.getBoundingClientRect()

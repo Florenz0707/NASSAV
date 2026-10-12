@@ -16,7 +16,7 @@ GET当前会话progress返回不含凭证的用户/媒体账本摘要ledger_key�
 
 claim携带session_generation、expected_writer_generation、UUID request_id；短事务先锁用户写入fence，再锁播放会话，检查有效期与归属。最近成功领取者拥有写入权，增加writer_generation、保存writer_session、重置序号。同命令重试仅在仍拥有写入权时幂等；旧命令不能抢回已转让或清除的权利。
 
-PUT携带session_generation、writer_generation、sequence、expected_version、UUID request_id、position_seconds、duration_seconds、completed。用户/当前登录/会话代次/写入代次检查后更新，乱序/版本冲突409。同序号同完整payload幂等，改写同序号拒绝。网络与文件核查不进入短DB事务。
+PUT携带session_generation、writer_generation、sequence、expected_version、UUID request_id、position_seconds、duration_seconds、completed。用户/当前登录/会话代次/写入代次检查后更新，乱序/版本冲突409。同序号同进度payload幂等，改写同序号拒绝。可选布尔close_after_save在同一事务保存并调用既有关闭协议；失去写入权/版本冲突时仅关闭自身会话、返回saved=false，不覆盖其他写入者。该关闭标志不参与进度payload摘要，允许响应丢失后原进度请求追加关闭。已关闭会话仍拒绝重放。网络与文件核查不进入短DB事务。
 
 DELETE资源progress只清当前用户该AVID的所有媒体版本。保留零值墓碑并递增version/writer_generation、撤销writer_session，禁止删除重建造成token复用。重新播放需重新领取，不自动抢权。
 
@@ -34,3 +34,13 @@ DELETE资源progress只清当前用户该AVID的所有媒体版本。保留零�
 ## 验证边界
 
 专项覆盖幂等、乱序、回退、完成、清除与旧claim重试、多标签、用户隔离、关闭/到期/更换代次、文件版本、CSRF与接口契约。0031↔0032需验证可逆及SQLite/PostgreSQL关系保持；正式数据库迁移和浏览器/真实环境验收分别记录。前端接入后补充保存生命周期。
+
+## 播放器与执行记录
+
+前端生命周期、恢复提示和有界离线兜底见[开发契约](../../vue_frontend/doc/development-contracts.md#播放进度记忆)。源HLS仅按来源保存最近位置、新会话确认；本地版本变化返回空进度，不尝试套用另一个文件的进度。
+
+后端阶段131204a：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：945 passed / 28 skipped；独立Unix socket PostgreSQL16进度/迁移/任务专项28 passed；SQLite0031→0032→0031→0032，最终恢复全部叶节点；`pre-commit run -a`通过。新增模块暂存后纳入完整门槛，不以未跟踪文件检查结果代替提交门槛。短SQLite锁竞争重试复用db_retry，重试整个短事务，无网络副作用。
+
+前端阶段执行`pnpm run check`与`pre-commit run -a`，真实隔离helper/回环Vite/Playwright浏览器专项命令见[测试说明](../tests/README.md)。正式数据库尚未执行0032迁移；部署更新后运行migrate并统一API版本。回退0032会删除新增进度数据，应先备份。
+
+前端/离页阶段（feat/playback-progress-frontend，提交以Git历史为准）：最终隔离后端946 passed / 28 skipped；独立PostgreSQL进度/0032可逆迁移/任务协议29 passed；`pnpm run check`含91项测试、lint和构建通过。Chrome和Firefox真实隔离Django/SQLite/Redis/合成90秒MP4验证刷新/键盘/移动深色布局、回退、多标签、清除、路由离开、完成后从头及进度接口503不阻塞视频。合成TS/fMP4的模拟来源会话另验证确认续播、解码/拖动及一次失效刷新；不当作真实来源worker联调。浏览器关闭不保证keepalive送达，测试finally只通过授权接口清理本轮创建的会话，服务端TTL仍是生产兜底。未执行用户数据库迁移、容器部署、真机或长时验收。

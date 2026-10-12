@@ -116,8 +116,11 @@ def save(session_id, user_id, key, payload):
         raise ValueError("Invalid progress position")
     if type(payload.get("completed")) is not bool:
         raise ValueError("Invalid completion")
-    UUID(str(payload.get("request_id")))
-    body_hash = digest(payload)
+    command = UUID(str(payload.get("request_id")))
+    closing = payload.get("close_after_save", False)
+    if type(closing) is not bool:
+        raise ValueError("Invalid finalization")
+    body_hash = digest({k: v for k, v in payload.items() if k != "close_after_save"})
     with transaction.atomic():
         get_user_model().objects.filter(pk=user_id).update(last_login=F("last_login"))
         session = records.owned_for_update(session_id, user_id, key)
@@ -131,13 +134,21 @@ def save(session_id, user_id, key, payload):
             or row.writer_session != session.pk
             or row.writer_generation != payload["writer_generation"]
         ):
+            if closing:
+                return finalize(row, session, command, key, saved=False)
             raise PlaybackGatewayError("progress_writer_conflict", 409)
         if row.last_sequence == payload["sequence"] and row.last_payload == body_hash:
-            return snapshot(row, session)
+            return (
+                finalize(row, session, command, key)
+                if closing
+                else snapshot(row, session)
+            )
         if (
             row.version != payload["expected_version"]
             or payload["sequence"] <= row.last_sequence
         ):
+            if closing:
+                return finalize(row, session, command, key, saved=False)
             raise PlaybackGatewayError("progress_version_conflict", 409)
         row.position_seconds, row.duration_seconds = position, duration
         row.completed = payload["completed"]
@@ -145,7 +156,15 @@ def save(session_id, user_id, key, payload):
         row.last_sequence = payload["sequence"]
         row.last_payload = body_hash
         row.save()
-        return snapshot(row, session)
+        return (
+            finalize(row, session, command, key) if closing else snapshot(row, session)
+        )
+
+
+def finalize(row, session, command, key, *, saved=True):
+    data = {**snapshot(row, session), "saved": saved}
+    records.close(session.pk, session.user_id, key, session.version, command)
+    return data
 
 
 @retry_sqlite_contention
