@@ -4,6 +4,7 @@ import { playbackApi } from '../../../api/playback.js'
 import AppButton from '../../../shared/ui/AppButton.vue'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
 import { createPlaybackSession } from '../lib/playbackSession.js'
+import { createPlaybackProgress } from '../lib/playbackProgress.js'
 import { attachPlayer } from '../lib/mediaPlayer.js'
 
 const props = defineProps({
@@ -12,6 +13,17 @@ const props = defineProps({
   mode: { type: String, default: 'source' },
 })
 const video = ref(null)
+const progressState = ref({ candidate: null, message: '' })
+const progress = createPlaybackProgress({
+  api: playbackApi,
+  changed: (value) => {
+    progressState.value = value
+  },
+})
+const resumeTime = computed(() => {
+  const seconds = Math.floor(progressState.value.candidate?.position_seconds || 0)
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+})
 const state = ref({ state: 'queued' }),
   mediaError = ref(''),
   buffering = ref(false)
@@ -28,6 +40,8 @@ const session = createPlaybackSession({
 })
 const preparing = computed(() => ['queued', 'resolving'].includes(state.value.state))
 function releasePlayer() {
+  void progress.detach()
+  progressState.value = { candidate: null, message: '' }
   playerVersion++
   if (destroyPlayer && video.value) resumePlayback = !video.value.paused
   if (destroyPlayer && video.value) position = video.value.currentTime || position
@@ -67,6 +81,8 @@ watch(
     await nextTick()
     if (token !== playerVersion || !video.value) return
     try {
+      void progress.bind(state.value, video.value)
+      if (token !== playerVersion || !props.active) return
       const dispose = await attachPlayer(video.value, url, {
         position,
         mediaType: state.value.media_type || 'hls',
@@ -98,14 +114,23 @@ watch(
   }
 )
 function leave() {
+  const saving = progress.detach(true)
   releasePlayer()
-  session.stop(true)
+  if (!saving.closesSession) session.stop(true)
+  else void saving.finally(() => session.stop(true))
 }
+function hide() {
+  if (document.visibilityState === 'hidden') void progress.flush(true)
+}
+document.addEventListener('visibilitychange', hide)
 window.addEventListener('pagehide', leave)
 onBeforeUnmount(() => {
   window.removeEventListener('pagehide', leave)
+  document.removeEventListener('visibilitychange', hide)
+  const saving = progress.detach(true)
   releasePlayer()
-  session.dispose()
+  if (!saving.closesSession) session.dispose()
+  else void saving.finally(() => session.dispose())
 })
 </script>
 <template>
@@ -133,6 +158,30 @@ onBeforeUnmount(() => {
       @playing="buffering = false"
       @pause="buffering = false"
     />
+    <div
+      v-if="progressState.candidate && !mediaError"
+      class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 bg-primary/90"
+      role="group"
+      aria-label="恢复播放进度"
+    >
+      <p class="text-primary text-sm text-center">
+        上次播放至 {{ resumeTime
+        }}{{
+          progressState.candidate.restore_policy === 'confirm' ? '，请确认当前来源视频是否适用' : ''
+        }}
+      </p>
+      <div class="flex flex-wrap justify-center gap-3">
+        <AppButton @click="progress.choose(true)">继续上次播放</AppButton>
+        <AppButton variant="neutral" @click="progress.choose(false)">从头播放</AppButton>
+      </div>
+    </div>
+    <p
+      v-if="progressState.message && !mediaError"
+      role="status"
+      class="absolute top-2 left-2 right-2 rounded-lg bg-secondary p-2 text-muted text-xs"
+    >
+      {{ progressState.message }}
+    </p>
     <p
       v-if="buffering && !mediaError"
       role="status"

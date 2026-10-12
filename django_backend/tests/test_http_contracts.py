@@ -99,6 +99,21 @@ def test_url_and_openapi_contract_remains_identical():
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [
         [
+            "nassav/api/playback-sessions/<uuid:session_id>/progress",
+            "playback-progress",
+            "PlaybackProgressView",
+        ],
+        [
+            "nassav/api/playback-sessions/<uuid:session_id>/progress/claim",
+            "playback-progress-claim",
+            "PlaybackProgressClaimView",
+        ],
+        [
+            "nassav/api/resources/<str:avid>/playback-progress",
+            "playback-progress-clear",
+            "PlaybackProgressClearView",
+        ],
+        [
             "nassav/api/playback-sessions/<uuid:session_id>/file",
             "playback-file",
             "local_media_view",
@@ -119,6 +134,9 @@ def test_url_and_openapi_contract_remains_identical():
         *baseline["routes"],
     ]
     control_paths = {
+        "/nassav/api/playback-sessions/{session_id}/progress": {"get", "put"},
+        "/nassav/api/playback-sessions/{session_id}/progress/claim": {"post"},
+        "/nassav/api/resources/{avid}/playback-progress": {"delete"},
         "/nassav/api/playback-sessions/{session_id}/refresh": {"post"},
         "/nassav/api/resources/{avid}/playback-sessions": {"post"},
         "/nassav/api/playback-sessions/{session_id}": {"get"},

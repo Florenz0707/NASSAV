@@ -1516,3 +1516,7 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 `POST /nassav/api/resources/{avid}/playback-sessions` 可选 JSON `mode: "local"`（默认source），与request_id UUID共同定义幂等请求。local直接返回202/ready，不派发抓取；已下载文件缺失404、发布待恢复/锁忙409、非普通文件/内部链接422。GET快照新增mode与media_type；local ready返回签名同源media_url，不返回manifest_url或文件绝对路径。
 
 `GET/HEAD /nassav/api/playback-sessions/{session_id}/file?cap=...`：当前operator登录、会话拥有者及代次签名授权；MP4支持单一bytes Range（206/416及Content-Range）、HEAD、ETag/If-Range，no-store。未登录401、另一登录404、签名错误403、关闭/删除/文件替换410、容量429/503；头发出后失败中断流。local不支持refresh，支持既有close。文件缺失或变化后的GET快照为failed并给脱敏error_code。视频传输不走ProxyServer或Celery。
+
+## 播放进度
+
+新增所属播放会话 progress 查询/保存/claim 和个人资源进度 DELETE，参数、错误码与归属规则见[播放进度架构](playback-progress-architecture.md#接口)。所有接口沿用operator登录、CSRF及no-store，不返回上游地址。

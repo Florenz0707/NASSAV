@@ -51,3 +51,5 @@ useRecommendationElapsed 位于推荐 composables，仅负责当前查询本地�
 features/playback 独占在线播放会话及播放引擎生命周期；ResourceDetailView 只打开 `/play/:avid` 新标签页；PlaybackView 仅装配 PlaybackPage（标题与播放器装配），PlaybackPlayer 拥有媒体/会话生命周期，详情页不拥有播放会话。领域传输位于 api/playback.js，复用唯一客户端，不向资源 store 混入媒体状态。hls.js 动态导入，MSE 可用时优先 hls.js；否则使用 video 的原生 HLS 能力。
 
 播放路由的 meta.layout=playback 由 App 装配居中主区域及 Navbar.logoOnly，Navbar 复用既有 Logo，不复制品牌样式。PlaybackPlayer 拥有固定16:9播放区域及其中的加载、缓冲、错误/重试展示，状态切换不改变区域大小。
+
+播放进度模块位于features/playback/lib：playbackProgress拥有事件/写入队列/归属，progressDrafts仅管理有界个人兜底。App作为装配层在匿名状态清理兜底；auth业务模块不反向依赖播放模块。媒体引擎与API不维护个人状态，详细契约见[播放进度](development-contracts.md#播放进度记忆)。

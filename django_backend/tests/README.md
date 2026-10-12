@@ -122,3 +122,9 @@ test_playback_gateway.py 验证清单/目标策略、Range、取消和背压；t
 ## 本地视频播放专项
 
 `test_local_playback.py` 使用临时正式视频、真实Django ASGI及独立Redis验证Range/HEAD/If-Range、登录与cap、同大小替换、真实删除、闲置/断连/迟到打开回收、根符号链接与文件链接拒绝。`test_local_playback_migration.py` 覆盖0030→0031→0030→0031，finally恢复全部叶节点；SQLite与独立PostgreSQL均执行。来源解析/worker明确不应调用；接口字节测试不代表浏览器解码，L2另做合成MP4浏览器验证。
+
+## 播放进度验收
+
+`test_playback_progress.py`覆盖用户/会话隔离、claim竞争、重复与乱序保存、回退、完成、清除墓碑、过期/旧代次；`test_playback_progress_migration.py`验证0031↔0032及原播放关系保持，finally恢复全部迁移叶节点。使用标准隔离设置；PostgreSQL另启临时实例，禁止指向正式库。
+
+真实浏览器从后端启动`NASSAV_LOCAL_PLAYBACK_TEST_SERVER=1 uv run python tests/helpers/local_playback_server.py`（独立SQLite/Redis/合成MP4，回环9791）；从前端启动`NASSAV_VITE_BACKEND_URL=http://127.0.0.1:9791 pnpm exec vite --host 127.0.0.1 --port 4178 --strictPort`。使用helper打印的临时storage-state路径，前端执行`NASSAV_PROGRESS_STORAGE_STATE=<临时路径> node tests/browser/playbackProgress.cjs`；Firefox加`NASSAV_BROWSER_ENGINE=firefox`，Playwright模块/浏览器安装按前端README。storage-state含临时登录凭证，禁止提交或打印内容，结束停止helper/Vite并清理专用目录。无显式storage-state时该专项跳过。

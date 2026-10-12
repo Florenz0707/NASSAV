@@ -161,3 +161,17 @@ useRecommendationElapsed 使用前端单调时钟从查询 loading 开始计时�
 播放器不强制自动播放；原生 controls 提供播放、暂停、音量及拖动。准备超过一秒展示平缓 loading，失败提供重试；同资源本次播放页内保存位置，换资源清零。独立播放页不使用弹窗焦点锁或 Escape 关闭；原详情标签页关闭不停止播放。页面不提供停止/重新播放或查看资源详情按钮；退出路由、关闭或刷新标签页使旧执行失效并清理，pagehide 尽力关闭、TTL 兜底。播放器维持 max-w-5xl 宽度，加载/错误/视频共用 16:9（1280:720）区域；video 填满边框内部并 object-contain，不拉伸不同画幅。无外围 padding 或底部说明，缓冲/错误提示在区域内显示。浏览器套件 playback.cjs 使用 ffmpeg 临时合成 TS/fMP4 H.264/AAC 并通过真实 video/hls.js 解码，不将模拟会话 API 作为正式 worker 验收。
 
 P4 的 refresh 由 playbackSession 单航班和一次上限控制，服务器仍是次数、版本和 generation 的所有者。只针对网关来源拒绝读取的 410 自动尝试，不能以任意网络错误无限重刮削；后端兼容失败不恢复位置，用户显式重新开始会清零。原生 HLS 失败保留手动重试。pagehide 的同源 CSRF keepalive 请求归 api/playback.js，不能声称必达；TTL 继续兜底。授权状态更新不得用新的签名 URL 重建同代次播放器。
+
+## 播放进度记忆
+
+playbackProgress 拥有 video 事件、短期写入token、单请求保存队列、恢复提示与卸载清理；api/playback只处理HTTP与CSRF keepalive。组件装配提示和AppButton，媒体引擎不承担持久化。
+
+读取进度不领取写入权，不发送初始化0秒。用户开始播放时claim；每15秒timeupdate节流，pause/seeked/ended/页面隐藏补存。一次仅一个保存请求，合并待发最新位置；响应丢失重试原payload成功后发送新位置。409/401/404/410停止保存，不自动抢回写入权，播放可以继续。
+
+有效非完成位置>5秒、距结尾>5秒、时长差<=max(2秒,1%)提供“继续上次/从头播放”；本地文件版本必须精确匹配，来源新会话提示用户确认，不自动跨模式恢复。同会话HLS受控刷新沿用本页位置并重新绑定generation，不重复弹恢复提示。完成后重新打开默认从头，不修改共享watched。
+
+player销毁前捕获位置并解绑监听，再尽力保存；pagehide有写入token且无在途保存时，同步发起带CSRF keepalive的close_after_save请求，在后端短事务保存并关闭，不依赖页面销毁后的JS回调。无token/在途保存/失去写入权时立即走既有close；捕获有界兜底，服务端TTL兜底。保存失败时离页末次位置可能缺失；不并发开启两个进度保存请求。离页末次请求不承诺必达。路由/会话更换后旧响应不得修改新UI。
+
+progressDrafts是可选localStorage兜底，仅存账本摘要、秒数、完成/版本/代次/序号及写入时间，最多20条、7天；不保存AVID、用户名、视频路径、签名/来源URL或Cookie。取得当前授权服务端快照后，只有账本、version与writer_generation相符才作为恢复候选，不能直接重放旧请求。版本变化/清除/其他页面领取后旧兜底失效；确认匿名/退出登录时App装配层清理，存储不可用不影响播放。
+
+Node专项playbackProgress.test.js验证节流、重复/丢包重试、单航班、回退、完成、归属冲突、迟到查询及兜底隔离。真实API浏览器专项playbackProgress.cjs需NASSAV_PROGRESS_STORAGE_STATE显式指定隔离helper生成的临时登录状态，无该变量跳过，不使用正式账号。Chrome/Firefox与本地合成MP4验证不等同真机/长时或生产容器验收。

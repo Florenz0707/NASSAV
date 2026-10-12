@@ -27,10 +27,30 @@ from nassav.http.playback_views import (
     PlaybackRefreshView,
 )
 
+from nassav.http.playback_progress_views import (
+    PlaybackProgressView,
+    PlaybackProgressClaimView,
+    PlaybackProgressClearView,
+)
 from nassav.http.playback_media import media_view
 from nassav.http.playback_local_media import local_media_view
 
 urlpatterns = [
+    path(
+        "api/playback-sessions/<uuid:session_id>/progress",
+        PlaybackProgressView.as_view(),
+        name="playback-progress",
+    ),
+    path(
+        "api/playback-sessions/<uuid:session_id>/progress/claim",
+        PlaybackProgressClaimView.as_view(),
+        name="playback-progress-claim",
+    ),
+    path(
+        "api/resources/<str:avid>/playback-progress",
+        PlaybackProgressClearView.as_view(),
+        name="playback-progress-clear",
+    ),
     path(
         "api/playback-sessions/<uuid:session_id>/file",
         local_media_view,
