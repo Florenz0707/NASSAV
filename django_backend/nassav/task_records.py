@@ -4,14 +4,13 @@ The public interface owns DB transitions. Dispatch accepts an explicit callable;
 this module does not import Celery or publish inside a database transaction.
 """
 
-import time
 from collections.abc import Callable
-from functools import wraps
 from contextlib import nullcontext
 from uuid import UUID, uuid4
 
 from django.db import models
-from django.db import IntegrityError, OperationalError, connection, transaction
+from django.db import IntegrityError, transaction
+from nassav.db_retry import retry_sqlite_contention as _retry_sqlite_contention
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -29,24 +28,6 @@ from nassav.task_control_rules import (
     normalize_avid,
 )
 from nassav.task_models import TaskAttempt, TaskCommand, TaskJob
-
-
-def _retry_sqlite_contention(method):
-    @wraps(method)
-    def retry(*args, **kwargs):
-        for attempt in range(8):
-            try:
-                return method(*args, **kwargs)
-            except OperationalError as error:
-                if (
-                    connection.vendor != "sqlite"
-                    or "locked" not in str(error).lower()
-                    or attempt == 7
-                ):
-                    raise
-                time.sleep(0.01 * (attempt + 1))
-
-    return retry
 
 
 class DjangoTaskRecords:

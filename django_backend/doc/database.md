@@ -393,3 +393,7 @@ nassav_playback_session 增加 refresh_count（默认 0）和 manifest_identity�
 ## 0031：本地播放会话模式
 
 PlaybackSession.media_kind（nassav_playback_session，varchar16，默认source）区分来源HLS与local MP4。迁移只增加字段，历史会话仍为source，可逆、不修改正式资源/文件/关系。local descriptor私有保存发布marker及文件指纹；公开快照不包含路径/指纹，沿用会话期限与终态清理。不新增进度表。部署前备份、统一API/worker消费者并执行migrate；不在运行旧会话时回退删除字段，回退前关闭会话。
+
+## 个人播放进度（0032）
+
+PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；唯一(user, avid, media_key)，用户删除级联，资源/会话删除保留。清除以墓碑撤销旧写入权，不增加共享watched语义。迁移回退删除进度表，回退前备份新增个人数据；详细协议见[播放进度架构](playback-progress-architecture.md)。

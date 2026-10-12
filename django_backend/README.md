@@ -80,3 +80,5 @@ MIT License
 从 2.4.4 升级先备份数据库并执行 `uv run python manage.py migrate`（包含 0026），再以同一版本重启 API 与 worker、更新前端。所有进程保持相同 BrowserFetch.max_concurrency、代理 endpoint 与 Redis 容量域；默认两路，设置 1 可恢复串行。部署使用已有[Compose 入口](doc/compose-deployment.md)，本次文档更新不代替在线迁移或部署操作。
 
 推荐任务包含排队在内的硬期限为 300 秒，网络提前 30 秒收尾；已有核验结果可部分成功，取消、硬超时与来源失败不转成部分成功。详情尝试预算跨补召回共享，来源列表与详情缓存可复用，历史不作为推荐结果缓存；本地推荐封面目前没有自动过期清理，详见[推荐说明](doc/recommendation.md)。
+
+个人进度接口与数据约束见[播放进度架构](doc/playback-progress-architecture.md)，后续用户隔离与个人功能见[多用户扩展路线](doc/multi-user-roadmap.md)。多用户路线属于规划，不代表已开放登录权限。

@@ -45,3 +45,36 @@ class PlaybackSession(models.Model):
             ),
             models.Index(fields=["absolute_expires_at"], name="playback_expiry_idx"),
         ]
+
+
+class PlaybackProgress(models.Model):
+    """Personal positions survive resource/session deletion; writer tokens do not."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    avid = models.CharField(max_length=50)
+    media_key = models.CharField(max_length=64)
+    media_kind = models.CharField(max_length=16)
+    source = models.CharField(max_length=50, blank=True)
+    position_seconds = models.FloatField(default=0)
+    duration_seconds = models.FloatField(default=0)
+    completed = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
+    writer_generation = models.PositiveIntegerField(default=0)
+    writer_session = models.UUIDField(null=True)
+    claim_id = models.UUIDField(null=True)
+    last_sequence = models.PositiveIntegerField(default=0)
+    last_payload = models.CharField(max_length=64, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "nassav_playback_progress"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "avid", "media_key"], name="playback_progress_unique"
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "updated_at"], name="playback_progress_user_idx"
+            )
+        ]

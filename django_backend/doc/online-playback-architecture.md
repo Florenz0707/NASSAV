@@ -113,7 +113,7 @@ curl_worker 是私有单请求协议进程，不是 Celery 业务任务：不初
 
 ## 后续方案
 
-已下载视频直传及个人播放进度的接口、迁移与边界见[设计草案](local-playback-and-progress-design.md)，尚未实现。
+已下载视频直传已实现，个人播放进度的当前接口、迁移与边界见[播放进度架构](playback-progress-architecture.md)，早期方案见[设计草案](local-playback-and-progress-design.md)。
 
 ## 已下载 MP4 播放（L1）
 
@@ -127,7 +127,7 @@ GET/HEAD /api/playback-sessions/{id}/file由原生ASGI发送正式VIDEO_DIR/<avi
 
 关闭/删除/替换对新请求立即失效，在途按0.5秒检查停止；浏览器已缓冲数据无法撤回。删除流程不等待所有浏览器确认：Linux unlink后，在途打开的inode可能短暂占用磁盘，直至句柄关闭。不能把删除API成功等同已回收每个播放句柄。Nginx媒体规则覆盖file，禁用缓冲/缓存并隐藏cap查询串；不需要给前端容器额外挂载视频目录。
 
-SQLite与独立PostgreSQL专项覆盖0030→0031→0030→0031、关系保持、真实ASGI/Range与真实Redis断连回收；全仓库质量门槛及实际命令在阶段收尾/Git历史记录。前端L2与真实浏览器解码另验收；进度保存尚未实现。
+SQLite与独立PostgreSQL专项覆盖0030→0031→0030→0031、关系保持、真实ASGI/Range与真实Redis断连回收；全仓库质量门槛及实际命令在阶段收尾/Git历史记录。前端L2与真实浏览器解码另验收；进度保存新增0032，见[播放进度架构](playback-progress-architecture.md)。
 
 本地ready授权状态查询每10秒续idle期限，避免原生播放器读完整文件后30分钟误过期；不复活已过期/关闭会话、不延长4小时绝对期限。来源会话仍由媒体读取续期。
 
