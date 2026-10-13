@@ -47,7 +47,7 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
   <div>
     <div class="mb-6">
       <h2 class="text-xl font-semibold text-[var(--text-primary)] mb-2">通用设置</h2>
-      <p class="text-sm text-[var(--text-muted)]">配置系统的通用参数</p>
+      <p class="text-sm text-[var(--text-muted)]">仅影响当前账号的显示与搜索偏好</p>
     </div>
 
     <div class="space-y-6">

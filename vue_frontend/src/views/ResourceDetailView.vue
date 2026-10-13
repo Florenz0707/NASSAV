@@ -17,6 +17,7 @@ import {
   resourceDeleteOptions,
 } from '../features/resources/lib/resourceActions.js'
 import ResourceCover from '../shared/ui/ResourceCover.vue'
+import PersonalResourcePanel from '../features/resources/components/PersonalResourcePanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,34 +84,8 @@ const fileSize = computed(() => {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
 })
 
-// 切换收藏状态
-async function toggleFavorite() {
-  if (!metadata.value) return
-  try {
-    const newValue = !metadata.value.is_favorite
-    await resourceApi.updateStatus(avid.value, { is_favorite: newValue })
-    metadata.value.is_favorite = newValue
-    toastStore.success(newValue ? '已添加到收藏' : '已取消收藏')
-    // 重新获取元数据以确保状态同步（绕过浏览器缓存）
-    await fetchMetadata(true)
-  } catch (_err) {
-    toastStore.error('更新收藏状态失败')
-  }
-}
-
-// 切换观看状态
-async function toggleWatched() {
-  if (!metadata.value) return
-  try {
-    const newValue = !metadata.value.watched
-    await resourceApi.updateStatus(avid.value, { watched: newValue })
-    metadata.value.watched = newValue
-    toastStore.success(newValue ? '已标记为已观看' : '已标记为未观看')
-    // 重新获取元数据以确保状态同步
-    await fetchMetadata()
-  } catch (_err) {
-    toastStore.error('更新观看状态失败')
-  }
+function applyPersonalState(snapshot) {
+  if (metadata.value?.avid === snapshot.avid) Object.assign(metadata.value, snapshot)
 }
 
 const metadataGuard = createRequestGuard()
@@ -291,102 +266,7 @@ async function navigateToGenre(genreName) {
             />
           </div>
 
-          <!-- 收藏和观看按钮 -->
-          <div class="flex justify-between gap-3">
-            <button
-              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-white-5)] border"
-              :style="
-                metadata.is_favorite
-                  ? 'background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);'
-                  : 'border-color: var(--border-color);'
-              "
-              :title="metadata.is_favorite ? '取消收藏' : '添加到收藏'"
-              @click="toggleFavorite"
-            >
-              <svg
-                v-if="metadata.is_favorite"
-                class="w-5 h-5 text-[var(--accent-primary)]"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                />
-              </svg>
-              <svg
-                v-else
-                class="w-5 h-5 text-[var(--text-muted)]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-              <span
-                class="text-sm font-medium"
-                :class="
-                  metadata.is_favorite ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'
-                "
-              >
-                {{ metadata.is_favorite ? '已收藏' : '收藏' }}
-              </span>
-            </button>
-
-            <button
-              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[var(--bg-white-5)] border"
-              :style="
-                metadata.watched
-                  ? 'background: color-mix(in srgb, var(--accent-success) 10%, transparent); border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);'
-                  : 'border-color: var(--border-color);'
-              "
-              :title="metadata.watched ? '标记为未观看' : '标记为已观看'"
-              @click="toggleWatched"
-            >
-              <svg
-                v-if="metadata.watched"
-                class="w-5 h-5 text-[var(--accent-success)]"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
-                />
-              </svg>
-              <svg
-                v-else
-                class="w-5 h-5 text-[var(--text-muted)]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              <span
-                class="text-sm font-medium"
-                :class="
-                  metadata.watched ? 'text-[var(--accent-success)]' : 'text-[var(--text-muted)]'
-                "
-              >
-                {{ metadata.watched ? '已观看' : '标记观看' }}
-              </span>
-            </button>
-          </div>
+          <PersonalResourcePanel :resource="metadata" @updated="applyPersonalState" />
         </div>
 
         <!-- 右侧信息 -->

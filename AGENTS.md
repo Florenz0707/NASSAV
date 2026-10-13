@@ -159,3 +159,7 @@
 修改播放/进度先阅读[播放架构](django_backend/doc/online-playback-architecture.md)和[个人进度](django_backend/doc/playback-progress-architecture.md)。会话是短期授权，进度是用户持久状态，不混入AVResource.watched或原站缓存。媒体身份由服务端决定；来源账本键不代表字节相同，新会话续播须确认，不按AVID跨来源/本地模式套位置。保存/清除核查写入代次、序号和版本；旧页面不自动抢回写入权，清除保留墓碑防止token复用。离页合并保存和关闭，不依赖销毁后的JS回调，未送达由现有TTL兜底；浏览器模拟不代替真实媒体/数据库联调。
 
 多用户能力属于[路线规划](django_backend/doc/multi-user-roadmap.md)，未开放登录权限。开放前明确共享资源与个人状态的权限矩阵，迁移旧收藏/观看/推荐数据的归属，并对HTTP、WebSocket、任务与媒体统一用户隔离，禁止仅取消operator用户名限制。
+
+## 个人状态与设置约束
+
+收藏、已观看、备注和通用显示/搜索设置遵循[个人状态与设置](django_backend/doc/personal-state-architecture.md)，由UserResourceState/UserPreferences按用户持有，不写旧AVResource标记、不读写用户INI、不混入共享抓取缓存或任务事件。HTTP以request.user确定身份，列表批量投影避免逐卡查询；备注版本冲突保留前端草稿，禁止旧资源/旧用户响应改写当前状态。原数据通过指定操作者的只读、幂等导入命令迁移，不能复制给所有账号。开放多账号登录仍须完成统一权限和推荐隔离。

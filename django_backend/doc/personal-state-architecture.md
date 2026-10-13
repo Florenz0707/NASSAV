@@ -23,6 +23,12 @@ uv run python manage.py import_personal_data --username nassav --settings-file c
 uv run python manage.py import_personal_data --username nassav --settings-file config/user_settings.ini --apply
 ```
 
+Compose维护窗口使用相同数据库模式的一次性新版容器；不要启动旧worker。以下示例为SQLite，PostgreSQL须改为 `--mode postgres`，先只预览，再重复同一命令加 `--apply`：
+
+```bash
+python3 scripts/compose_stack.py --mode sqlite run --rm --no-deps api python manage.py import_personal_data --username nassav --settings-file /app/config/user_settings.ini
+```
+
 `--username` 必须匹配 `NASSAV_OPERATOR_USERNAME`，账号必须存在且有效。首条命令仅预览；不存在旧INI时省略 `--settings-file`，仅迁入旧资源标记。显式传入文件无法读取、解析或取值非法时整次导入失败，源文件只读且不会补值或写回。已存在的个人状态和设置保留，导入时间持久记录，再次执行不会覆盖用户修改或复活取消的收藏。既有设置行存在时保留整组值，不推断哪些字段尚未编辑。
 
 完成导入后INI不再是运行状态；无须挂载可写用户设置文件。尚未导入的原操作者会看到默认设置和空的个人标记，应在对外启动前完成导入。不要通过给所有账号复制旧标记来“兼容”。
@@ -31,6 +37,26 @@ uv run python manage.py import_personal_data --username nassav --settings-file c
 
 ## 分阶段实施
 
-数据库阶段已提供模型、投影、写入服务和显式导入命令（29d8c37），隔离SQLite完整951通过/28跳过，临时PostgreSQL5通过，pre-commit完整通过。接口阶段将列表/详情及状态更新绑定request.user，通用设置改为数据库，前端备注由下一阶段接入。隔离测试覆盖用户归属、部分修改、冲突、并发创建、只读导入、幂等、级联及升级/回退/再次升级。真实部署迁移由操作者按维护窗口执行。
+数据库阶段已提供模型、投影、写入服务和显式导入命令（29d8c37），隔离SQLite完整951通过/28跳过，临时PostgreSQL5通过，pre-commit完整通过。接口阶段4c29b9b将列表/详情及状态更新绑定request.user，通用设置改为数据库，并移除运行时INI管理器；完整SQLite956通过/28在线测试跳过，临时PostgreSQL56通过，pre-commit完整通过。前端阶段已接入详情页个人状态与备注编辑，最终验证记录见下方。隔离测试覆盖用户归属、部分修改、冲突、并发创建、只读导入、幂等、级联及升级/回退/再次升级。真实部署迁移由操作者按维护窗口执行。
 
 现有推荐尚未多用户化，但收藏/观看加权只读取配置中的原操作者个人状态，不再读取旧共享标记，也不汇总其他用户的私有行为。推荐历史、反馈和黑名单仍按原架构维护，后续第三阶段完成整体归属。
+
+## 前端职责与维护
+
+详情页只装配 `PersonalResourcePanel`，组件使用公共AppButton/AppInput并发出updated快照。`personalResourceEditor`独占备注草稿、保存忙碌状态、错误和版本；切换资源、用户、登出及卸载使旧请求失效。跨页面冲突保留草稿，接收当前服务端版本后必须由用户再次点击保存；清空先修改草稿，保存后才清除数据库备注。备注只作为文本显示，不插入HTML；草稿不写入浏览器持久存储。
+
+settings store读取和保存仍经已有setting接口；App在会话身份变化时reset，清空偏好和资源列表中的个人标记，使旧load/save响应失效。页面临时预览仍需点击“保存设置”，后端真值为UserPreferences，不以本地storage或进程对象作为长期状态。
+
+评分、观看历史、推荐历史/反馈/黑名单用户化及开放多账号登录不属于本次范围；共享资产控制仍沿用操作者权限。正式升级须先0033再运行显式旧数据导入，不混跑旧INI/AVResource标记写入者。
+
+## 本轮验证与发布边界
+
+2026-10-13，存储阶段29d8c37、接口阶段4c29b9b已按门槛合并idle，界面与文档阶段使用feat/personal-state-ui独立分支。以下命令保留退出码：
+
+- `cd django_backend && uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：最终956通过、28在线测试跳过。契约快照对备注/版本说明做显式断言，未重建旧快照。
+- 临时PostgreSQL16运行个人状态、0033升级/回退/再次升级、HTTP/设置和搜索默认值：56通过；数据库只监听本轮Unix socket，与正式数据库独立。
+- `cd vue_frontend && pnpm run check`：100项单元测试通过，lint及生产构建通过。
+- `tests/browser/personalState.cjs`：Chrome和Firefox连接隔离Django/SQLite、临时用户与资源，验证键盘保存、备注清空/刷新/跨页面冲突、收藏和观看筛选、设置页手动保存与刷新、深浅主题及390px布局；无真实来源抓取，WebSocket隔离。原settings浏览器契约回归通过。
+- 根目录 `pre-commit run -a`：完整通过，不修改钩子配置。
+
+本轮未执行正式0033迁移、旧数据导入、Docker重建或多账号权限开放；部署操作者须按前文执行并核对实例归属。SQLite/PostgreSQL及浏览器结果不替代正式环境升级验收。

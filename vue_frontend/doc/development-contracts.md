@@ -175,3 +175,11 @@ player销毁前捕获位置并解绑监听，再尽力保存；pagehide有写入
 progressDrafts是可选localStorage兜底，仅存账本摘要、秒数、完成/版本/代次/序号及写入时间，最多20条、7天；不保存AVID、用户名、视频路径、签名/来源URL或Cookie。取得当前授权服务端快照后，只有账本、version与writer_generation相符才作为恢复候选，不能直接重放旧请求。版本变化/清除/其他页面领取后旧兜底失效；确认匿名/退出登录时App装配层清理，存储不可用不影响播放。
 
 Node专项playbackProgress.test.js验证节流、重复/丢包重试、单航班、回退、完成、归属冲突、迟到查询及兜底隔离。真实API浏览器专项playbackProgress.cjs需NASSAV_PROGRESS_STORAGE_STATE显式指定隔离helper生成的临时登录状态，无该变量跳过，不使用正式账号。Chrome/Firefox与本地合成MP4验证不等同真机/长时或生产容器验收。
+
+## 个人资源状态与设置（多用户第二阶段）
+
+资源详情装配 `features/resources/components/PersonalResourcePanel.vue`，输入resource快照，updated事件只表示当前资源/用户的成功或冲突快照。`personalResourceEditor`管理备注草稿、版本、保存错误及忙碌状态；所有状态写入带expected_version，冲突保留草稿且不自动重试。切换资源、用户、登出、卸载使旧响应失效，不发布旧toast或覆盖新实体。保存确认前不伪装成功；清空先修改草稿，保存后生效。备注最多5000字符，仅当文本处理，不使用v-html，不持久化本地草稿。收藏/已观看是个人手动标记，播放结束不自动修改。
+
+settings store的reset清空六项偏好及loaded/in-flight请求归属；App在status/username变化时调用，资源列表reset同时清空含个人标记的结果、分页和旧查询。saveSettings返回ignored时页面不展示成功提示。API身份由后端会话决定，不发送user_id，不将INI或localStorage作为个人设置所有者。主题/字体的即时预览与手动保存契约保持。
+
+后端数据、迁移/导入及开放权限边界见[个人状态与设置](../../django_backend/doc/personal-state-architecture.md)。本阶段仍保留指定操作者登录，不把单项数据隔离当作全系统多用户访问已完成。

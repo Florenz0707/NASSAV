@@ -116,8 +116,24 @@ export function createResourceList(resourceApi) {
     lastResourceQuery = null
   }
 
+  function resetResourceList() {
+    cancelResourceQuery()
+    resources.value = []
+    error.value = null
+    pagination.value = { total: 0, page: 1, page_size: 20, pages: 1 }
+  }
+
   function refresh() {
     return lastResourceQuery ? fetchResources(lastResourceQuery) : Promise.resolve()
   }
-  return { resources, loading, error, pagination, fetchResources, cancelResourceQuery, refresh }
+  return {
+    resources,
+    loading,
+    error,
+    pagination,
+    fetchResources,
+    cancelResourceQuery,
+    resetResourceList,
+    refresh,
+  }
 }
