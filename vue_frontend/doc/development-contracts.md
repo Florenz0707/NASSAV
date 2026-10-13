@@ -180,7 +180,7 @@ Node专项playbackProgress.test.js验证节流、重复/丢包重试、单航班
 
 资源详情装配 `features/resources/components/PersonalResourcePanel.vue`，输入resource快照，updated事件只表示当前资源/用户的成功或冲突快照。`personalResourceEditor`管理备注草稿、版本、保存错误及忙碌状态；所有状态写入带expected_version，冲突保留草稿且不自动重试。切换资源、用户、登出、卸载使旧响应失效，不发布旧toast或覆盖新实体。保存确认前不伪装成功；清空先修改草稿，保存后生效。备注最多5000字符，仅当文本处理，不使用v-html，不持久化本地草稿。收藏/已观看是个人手动标记，播放结束不自动修改。
 
-settings store的reset清空六项偏好及loaded/in-flight请求归属；App在status/username变化时调用，资源列表reset同时清空含个人标记的结果、分页和旧查询。saveSettings返回ignored时页面不展示成功提示。API身份由后端会话决定，不发送user_id，不将INI或localStorage作为个人设置所有者。主题/字体的即时预览与手动保存契约保持。
+settings store的reset清空通用、推荐和播放偏好及loaded/in-flight请求归属；App在status/username变化时调用，资源列表reset同时清空含个人标记的结果、分页和旧查询。saveSettings返回ignored时页面不展示成功提示。API身份由后端会话决定，不发送user_id，不将INI或localStorage作为个人设置所有者。主题/字体的即时预览与手动保存契约保持。
 
 后端数据、迁移/导入及开放权限边界见[个人状态与设置](../../django_backend/doc/personal-state-architecture.md)。本阶段仍保留指定操作者登录，不把单项数据隔离当作全系统多用户访问已完成。
 
@@ -193,3 +193,9 @@ settings store的reset清空六项偏好及loaded/in-flight请求归属；App在
 ## 播放偏好
 
 PlaybackSettingsPanel仅发模型更新；settings store拥有个人JSON草稿、服务器基线和登录代次。playbackPreferenceWriter捕获登录代次，仅保存显式播放器变化，不提交无关设置。playbackPreferences绑定原生事件，初始化无写入、500ms合并、单请求串行，卸载移除监听；错误保持可重试草稿。设置defaultPlaybackRate防止换src时浏览器回到1倍速误写配置。播放路由auto依据个人默认模式与共享file_exists提示选模，明确local/source入口不被设置覆盖；最终播放授权和媒体身份在后端。字幕默认只作用于存在的字幕轨道。
+
+## 跨设备接续
+
+ContinueWatchingPanel归features/playback，Home只装配。读取当前用户有界未完成列表，mount/聚焦/可见/手动刷新重读，卸载失效旧响应，刷新报错保留已有内容，禁用播放时隐藏入口。资源封面与标题复用公共模块，点击以明确mode打开无opener的新标签。
+
+进度模块消费writer_active/is_writer提示，打开页不claim；另一页持权则由用户明确接续、从头或只读播放。接续先重读DB，再CAS领取，位置以claim返回值为准；409不自动抢回，可显式重新接续。有效离线草稿仅在没有其他活跃writer且版本/代次匹配时恢复，claim版本已变则丢弃该兜底。卸载/换媒体仍停止监听并保留原串行保存队列；小屏16:9播放器内提示有自己的滚动区域，按钮完整可达。

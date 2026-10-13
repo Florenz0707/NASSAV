@@ -136,3 +136,5 @@ test_playback_gateway.py 验证清单/目标策略、Range、取消和背压；t
 JSON配置的 `test_json_preferences.py` 覆盖缺省只读补齐、增删/改名键失效、严格类型、时间戳、并发部分更新与导入不建空配置；`test_json_preferences_migration.py` 验证0034保留六项旧值、用户归属/更新时间/个人关系及升级/回退/再次升级。与个人状态组一起在SQLite和独立PostgreSQL运行。
 
 推荐用户隔离覆盖test_recommendation_user_isolation.py与test_recommendation_ownership_migration.py（往返、关系保持、重复个人身份拒绝回退）；个人播放设置覆盖test_playback_preferences.py，均在refactoring_test_settings运行，不连接正式数据。真实合成视频偏好浏览器入口见vue_frontend/tests/browser/playbackPreferences.cjs，登录文件仅取本地临时fixture。
+
+跨设备覆盖test_playback_continuations.py：用户隔离、最新ledger后过滤、完成/近尾/清除/删除、来源或本地文件版本变化、批量固定查询数、登录绑定/保存权转移及旧writer拒绝。独立PostgreSQL测试库必须使用UTF8（例如TEST.CHARSET=UTF8与TEMPLATE=template0），不能用SQL_ASCII验证中文JSONB。local_playback_server提供两个同用户的独立登录，只在明确opt-in和9791–9799测试端口运行；退出先关闭临时播放会话，再停止其专用API/Redis并清理临时目录。

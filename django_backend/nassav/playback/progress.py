@@ -10,7 +10,7 @@ from django.db.models import F
 from django.utils import timezone
 from nassav.db_retry import retry_sqlite_contention
 from . import records
-from .models import PlaybackProgress
+from .models import PlaybackProgress, PlaybackSession
 from .policy import PlaybackGatewayError
 
 
@@ -30,7 +30,21 @@ def media_key(session):
 
 
 def snapshot(row, session):
+    now = timezone.now()
+    writer_active = bool(
+        row
+        and row.writer_session
+        and PlaybackSession.objects.filter(
+            pk=row.writer_session,
+            user_id=session.user_id,
+            state="ready",
+            idle_expires_at__gt=now,
+            absolute_expires_at__gt=now,
+        ).exists()
+    )
     return {
+        "writer_active": writer_active,
+        "is_writer": bool(writer_active and row.writer_session == session.pk),
         "ledger_key": digest(
             [session.user_id, session.resource.avid, media_key(session)]
         ),

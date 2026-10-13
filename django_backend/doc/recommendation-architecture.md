@@ -154,7 +154,7 @@ useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代�
 
 ## 第二阶段个人行为衔接
 
-收藏和观看权重改读 `UserResourceState` 中配置操作者的行，旧共享AVResource列只留作显式导入和回退快照；不统计其他账号的个人行为。当前推荐仍为单操作者服务，历史/反馈/黑名单的完整用户隔离属于[后续规划](multi-user-roadmap.md)，不得因为新表有user就开放推荐给所有账号。
+收藏和观看权重读取 `UserResourceState` 中任务创建者的行，旧共享AVResource列只留作显式导入和回退快照，不统计其他账号行为。推荐历史/反馈/黑名单已按用户隔离（见下节），仍保留单操作者准入；开放多账号须先完成[权限规划](multi-user-roadmap.md)。
 
 ## 用户归属（第三阶段）
 

@@ -13,6 +13,9 @@ def main():
             "Opt in with NASSAV_LOCAL_PLAYBACK_TEST_SERVER=1; isolated data only"
         )
 
+    port = int(os.environ.get("NASSAV_LOCAL_PLAYBACK_TEST_PORT", "9791"))
+    if not 9791 <= port <= 9799:
+        raise SystemExit("Disposable test ports must be 9791..9799")
     os.environ["DJANGO_SETTINGS_MODULE"] = "django_project.refactoring_test_settings"
     import django
 
@@ -81,29 +84,35 @@ def main():
     client = Client()
     client.force_login(user)
     assert (
-        client.get("/nassav/api/auth/session", HTTP_HOST="127.0.0.1:9791").status_code
+        client.get(
+            "/nassav/api/auth/session", HTTP_HOST=f"127.0.0.1:{port}"
+        ).status_code
         == 200
     )
-    state = {
-        "cookies": [
-            {
-                "name": m.key,
-                "value": m.value,
-                "domain": "127.0.0.1",
-                "path": "/",
-                "expires": -1,
-                "httpOnly": bool(m["httponly"]),
-                "secure": False,
-                "sameSite": "Lax",
-            }
-            for m in client.cookies.values()
-        ],
-        "origins": [],
-    }
-    p = root / "storage-state.json"
-    p.write_text(json.dumps(state))
-    p.chmod(0o600)
-    print("ISOLATED_STORAGE_STATE=" + str(p), flush=True)
+    for label, logged_in in [("", client), ("_SECOND", Client())]:
+        if label:
+            logged_in.force_login(user)
+            logged_in.get("/nassav/api/auth/session", HTTP_HOST=f"127.0.0.1:{port}")
+        state = {
+            "cookies": [
+                {
+                    "name": m.key,
+                    "value": m.value,
+                    "domain": "127.0.0.1",
+                    "path": "/",
+                    "expires": -1,
+                    "httpOnly": bool(m["httponly"]),
+                    "secure": False,
+                    "sameSite": "Lax",
+                }
+                for m in logged_in.cookies.values()
+            ],
+            "origins": [],
+        }
+        p = root / ("storage-state-second.json" if label else "storage-state.json")
+        p.write_text(json.dumps(state))
+        p.chmod(0o600)
+        print("ISOLATED_STORAGE_STATE" + label + "=" + str(p), flush=True)
     redis_log = (root / "redis.log").open("w")
     redis = subprocess.Popen(
         [
@@ -135,9 +144,10 @@ def main():
         uvicorn.run(
             application,
             host="127.0.0.1",
-            port=9791,
+            port=port,
             log_level="warning",
             access_log=False,
+            timeout_graceful_shutdown=3,
         )
     finally:
         redis.terminate()

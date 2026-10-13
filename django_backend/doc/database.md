@@ -409,3 +409,5 @@ PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；�
 ## 0035：推荐个人归属
 
 未发布迁移叶节点0035增加四个owner外键，Item/ItemSeed/Feedback沿snapshot继承；黑名单/种子唯一身份增加owner并保留NULL旧数据的条件唯一约束。迁移取消旧活动推荐job，不复制给所有账号，不改正式资源/缓存/文件。维护窗口停止旧消费者、备份、迁移后，在首次个人推荐前运行import_recommendation_data预览并显式归属原操作者。不同用户出现相同旧唯一身份时回退主动拒绝，见[推荐架构](recommendation-architecture.md#用户归属第三阶段)。JSON新增推荐偏好无需增加列，GET只读补齐、PUT仅合并合法提交键。
+
+第三阶段播放设置与第四阶段跨设备接续复用0034的用户JSON及0032的PlaybackProgress，不增加表或列；本轮唯一新增结构迁移仍为0035推荐归属。继续观看查询先选择user/AVID最新ledger，再过滤完成/清除/媒体变化，资源删除不级联进度；不同登录共用个人ledger，但不能共用播放session控制权。

@@ -286,3 +286,110 @@ test('failed progress read allows playback and preserves the explanation', async
   assert.match(s.changes.at(-1).message, /本次仍可播放/)
   await s.tracker.detach()
 })
+
+test('opening a second device never claims and an explicit transfer uses the latest position', async () => {
+  let position = 30,
+    claims = 0
+  const s = setup({
+      progress: async () => ({
+        data: {
+          ...saved,
+          writer_generation: 4,
+          writer_active: true,
+          is_writer: false,
+          position_seconds: position,
+        },
+      }),
+      claimProgress: async (_id, body) => {
+        claims++
+        assert.equal(body.expected_writer_generation, 4)
+        return {
+          data: {
+            ...saved,
+            writer_generation: 5,
+            writer_active: true,
+            is_writer: true,
+            position_seconds: position,
+          },
+        }
+      },
+    }),
+    v = video()
+  v.pause = () => v.dispatchEvent(new Event('pause'))
+  await s.tracker.bind(row, v)
+  assert.equal(s.changes.at(-1).takeover, true)
+  await v.play()
+  await turn()
+  assert.equal(claims, 0)
+  position = 45
+  await s.tracker.choose(true)
+  await turn()
+  assert.equal(claims, 1)
+  assert.equal(v.currentTime, 45)
+  assert.equal(s.calls.at(-1).position_seconds, 45)
+  await s.tracker.detach()
+})
+
+test('readonly playback never saves or automatically reclaims the writer', async () => {
+  let claims = 0
+  const s = setup({
+      progress: async () => ({ data: { ...saved, writer_active: true, is_writer: false } }),
+      claimProgress: async () => {
+        claims++
+        return { data: saved }
+      },
+    }),
+    v = video()
+  await s.tracker.bind(row, v)
+  await s.tracker.playWithoutSaving()
+  v.currentTime = 60
+  v.dispatchEvent(new Event('seeked'))
+  s.tick(20000)
+  v.dispatchEvent(new Event('timeupdate'))
+  await turn()
+  assert.equal(claims, 0)
+  assert.equal(s.calls.length, 0)
+  assert.equal(s.changes.at(-1).canTakeover, true)
+  await s.tracker.detach()
+})
+
+test('a transfer conflict requires a new explicit choice instead of automatic stealing', async () => {
+  let claims = 0
+  const s = setup({
+      progress: async () => ({ data: { ...saved, writer_active: true, is_writer: false } }),
+      claimProgress: async () => {
+        claims++
+        throw Object.assign(new Error('race'), { httpStatus: 409 })
+      },
+    }),
+    v = video()
+  v.pause = () => {}
+  await s.tracker.bind(row, v)
+  await s.tracker.choose(true)
+  assert.equal(claims, 1)
+  assert.equal(s.changes.at(-1).takeover, true)
+  v.dispatchEvent(new Event('timeupdate'))
+  await turn()
+  assert.equal(claims, 1)
+  assert.equal(s.calls.length, 0)
+  await s.tracker.detach()
+})
+
+test('a valid offline draft survives explicit resume when no other device holds the writer', async () => {
+  const v = video(),
+    changes = []
+  const tracker = createPlaybackProgress({
+    api: {
+      progress: async () => ({ data: saved }),
+      claimProgress: async () => ({ data: { ...saved, writer_generation: 1 } }),
+      saveProgress: async () => ({ data: { ...saved, writer_generation: 1, version: 2 } }),
+    },
+    drafts: { get: () => ({ ...saved, position_seconds: 35 }), put: () => {}, remove: () => {} },
+    changed: (state) => changes.push(state),
+    uuid: () => 'draft-claim',
+  })
+  await tracker.bind(row, v)
+  await tracker.choose(true)
+  assert.equal(v.currentTime, 35)
+  await tracker.detach()
+})

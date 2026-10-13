@@ -63,22 +63,60 @@ class DjangoLocalVideoLocator:
             root="video", target_path=path.name, state="promoting"
         ).exists():
             raise PlaybackGatewayError("local_publication_pending", 409)
-        try:
-            value = path.lstat()
-        except FileNotFoundError:
-            raise PlaybackGatewayError("local_video_not_found", 404)
-        if not stat.S_ISREG(value.st_mode) or value.st_size <= 0:
-            raise PlaybackGatewayError("local_video_rejected", 422)
         marker = (
             TaskAssetTarget.objects.filter(root="video", relative_path=path.name)
             .values_list("marker", flat=True)
             .first()
         )
+        return self._file_identity(avid, marker)
+
+    def _file_identity(self, avid, marker):
+        try:
+            value = self.path(avid).lstat()
+        except FileNotFoundError:
+            raise PlaybackGatewayError("local_video_not_found", 404)
+        if not stat.S_ISREG(value.st_mode) or value.st_size <= 0:
+            raise PlaybackGatewayError("local_video_rejected", 422)
         return {
             "schema": "local-playback-v1",
             "fingerprint": fingerprint(value),
             "marker": str(marker) if marker else None,
         }
+
+    def identities(self, avids):
+        """Batch database facts and bounded stat checks for display-only projection.
+
+        Session creation still locks and revalidates the publication independently.
+        """
+        if not avids:
+            return {}
+        existing = set(
+            AVResource.objects.filter(avid__in=avids, file_exists=True).values_list(
+                "avid", flat=True
+            )
+        )
+        names = {f"{avid}.mp4" for avid in existing}
+        pending = set(
+            TaskArtifact.objects.filter(
+                root="video", target_path__in=names, state="promoting"
+            ).values_list("target_path", flat=True)
+        )
+        markers = dict(
+            TaskAssetTarget.objects.filter(
+                root="video", relative_path__in=names
+            ).values_list("relative_path", "marker")
+        )
+        result = {}
+        for avid in existing:
+            name = f"{avid}.mp4"
+            if name in pending:
+                continue
+            try:
+                result[avid] = self._file_identity(avid, markers.get(name))
+            except (PlaybackGatewayError, OSError):
+                # Unavailable, invalid or racing files cannot offer continuation.
+                continue
+        return result
 
     def locked(self, avid):
         self.path(avid)  # Validate before constructing a lock path.

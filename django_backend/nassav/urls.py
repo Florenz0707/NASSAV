@@ -28,6 +28,7 @@ from nassav.http.playback_views import (
 )
 
 from nassav.http.playback_progress_views import (
+    PlaybackContinueView,
     PlaybackProgressView,
     PlaybackProgressClaimView,
     PlaybackProgressClearView,
@@ -36,6 +37,11 @@ from nassav.http.playback_media import media_view
 from nassav.http.playback_local_media import local_media_view
 
 urlpatterns = [
+    path(
+        "api/playback-progress",
+        PlaybackContinueView.as_view(),
+        name="playback-continue",
+    ),
     path(
         "api/playback-sessions/<uuid:session_id>/progress",
         PlaybackProgressView.as_view(),

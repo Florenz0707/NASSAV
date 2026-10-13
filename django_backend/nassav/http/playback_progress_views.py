@@ -85,3 +85,35 @@ class PlaybackProgressClaimView(PlaybackProgressView):
 class PlaybackProgressClearView(PlaybackProgressView):
     http_method_names = ["delete", "options"]
     delete = PlaybackProgressView.handle
+
+
+class PlaybackContinueView(SchemaAPIView):
+    """GET /api/playback-progress - 当前用户最近未完成且仍可接续的资源。"""
+
+    def get(self, request):
+        if not settings.PLAYBACK_ENABLED:
+            return Response(
+                {"code": 404, "message": "在线播放未启用", "data": None},
+                status=404,
+                headers={"Cache-Control": "no-store"},
+            )
+        try:
+            limit = int(request.query_params.get("limit", "6"))
+            if not 1 <= limit <= 24:
+                raise ValueError("Invalid limit")
+        except (ValueError, TypeError):
+            return Response(
+                {"code": 400, "message": "数量应为1至24", "data": None},
+                status=400,
+                headers={"Cache-Control": "no-store"},
+            )
+        from nassav.composition import build_local_video_locator
+        from nassav.playback.continuations import list_continuations
+
+        data = list_continuations(
+            request.user.pk, limit=limit, locator=build_local_video_locator()
+        )
+        return Response(
+            {"code": 200, "message": "success", "data": data},
+            headers={"Cache-Control": "no-store"},
+        )

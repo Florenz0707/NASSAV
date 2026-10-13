@@ -1548,3 +1548,9 @@ GET/PUT `/api/setting`新增recommendation_type_preference（actor_heavy/balance
 ### 用户播放偏好
 
 GET/PUT `/api/setting`新增playback_volume（JSON数值0–1，默认0.8）、playback_muted（布尔，默认false）、playback_rate（数值0.5/0.75/1/1.25/1.5/1.75/2，默认1）、playback_subtitles_enabled（布尔，默认true）、playback_default_mode（auto/local/source，默认auto）。仅数值项允许整数与小数等价输入，拒绝布尔、字符串、非有限和越界数；默认值补齐不写库，仍只合并提交字段。后端播放会话POST的mode默认仍是source，auto仅为前端入口选模规则。
+
+### 跨设备继续观看
+
+GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit为1–24的整数，非法值400、播放未启用404、匿名401。data为数组，元素包括avid、mode(local/source)、original_title/source_title/translated_title、position_seconds、duration_seconds、restore_policy(exact/confirm)、updated_at。每资源只展示最新ledger，过滤已完成/清除/近尾、已删除资源及已失效本地文件身份；有界候选扫描，非完整观看历史，无源站URL或会话凭证，no-store。
+
+既有GET/claim/save进度快照新增writer_active、is_writer布尔字段；写入协议不变。新登录须创建自己的播放session；他人登录的session仍404。UI仅在用户明确开始/接续时领取，活跃其他页面提示转移或只读播放；领取使用服务端最新writer_generation，409须重新确认，清除仍保留零位置tombstone并使旧token失效。

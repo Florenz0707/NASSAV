@@ -177,29 +177,59 @@ onBeforeUnmount(() => {
       @pause="buffering = false"
     />
     <div
-      v-if="progressState.candidate && !mediaError"
-      class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 bg-primary/90"
+      v-if="(progressState.candidate || progressState.takeover) && !mediaError"
+      class="absolute inset-0 flex flex-col items-center justify-start sm:justify-center gap-4 p-4 bg-primary/90 overflow-y-auto"
       role="group"
       aria-label="恢复播放进度"
     >
-      <p class="text-primary text-sm text-center">
-        上次播放至 {{ resumeTime
-        }}{{
-          progressState.candidate.restore_policy === 'confirm' ? '，请确认当前来源视频是否适用' : ''
-        }}
+      <p class="text-primary text-sm text-center shrink-0">
+        <span v-if="progressState.candidate"
+          >上次播放至 {{ resumeTime
+          }}{{
+            progressState.candidate.restore_policy === 'confirm'
+              ? '，请确认当前来源视频是否适用'
+              : ''
+          }}</span
+        >
+        <span v-if="progressState.takeover" class="block mt-2"
+          >另一播放页面持有保存权，接续后将由本页保存进度。</span
+        >
       </p>
-      <div class="flex flex-wrap justify-center gap-3">
-        <AppButton @click="progress.choose(true)">继续上次播放</AppButton>
-        <AppButton variant="neutral" @click="progress.choose(false)">从头播放</AppButton>
+      <div class="flex flex-wrap justify-center gap-3 shrink-0">
+        <AppButton :loading="progressState.choosing" @click="progress.choose(true)">{{
+          progressState.takeover ? '在此接续' : '继续上次播放'
+        }}</AppButton>
+        <AppButton
+          variant="neutral"
+          :disabled="progressState.choosing"
+          @click="progress.choose(false)"
+          >从头播放</AppButton
+        >
+        <AppButton
+          v-if="progressState.takeover"
+          variant="neutral"
+          :disabled="progressState.choosing"
+          @click="progress.playWithoutSaving()"
+          >仅播放，不保存进度</AppButton
+        >
       </div>
     </div>
-    <p
+    <div
       v-if="(progressState.message || preferenceMessage) && !mediaError"
       role="status"
       class="absolute top-2 left-2 right-2 rounded-lg bg-secondary p-2 text-muted text-xs"
     >
       {{ progressState.message || preferenceMessage }}
-    </p>
+      <AppButton
+        v-if="progressState.canTakeover"
+        variant="neutral"
+        size="sm"
+        class="ml-2"
+        :loading="progressState.choosing"
+        @click="progress.choose(true)"
+        >在此接续保存</AppButton
+      >
+    </div>
     <p
       v-if="buffering && !mediaError"
       role="status"

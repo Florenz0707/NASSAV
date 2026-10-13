@@ -1,6 +1,7 @@
 import api from './client.js'
 
 export const playbackApi = {
+  continuations: (limit = 6) => api.get('/playback-progress', { params: { limit } }),
   progress: (id) => api.get(`/playback-sessions/${id}/progress`),
   claimProgress: (id, body) => api.post(`/playback-sessions/${id}/progress/claim`, body),
   saveProgress: (id, body) => api.put(`/playback-sessions/${id}/progress`, body),

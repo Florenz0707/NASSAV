@@ -27,6 +27,26 @@ export function createPlaybackProgress({
       completed: video.ended,
     }
   }
+  function otherWriter(ctx) {
+    return ctx.saved?.writer_active && !ctx.saved.is_writer && !ctx.acceptTakeover
+  }
+  function promptTakeover(ctx, message = '') {
+    ctx.started = false
+    ctx.video.pause?.()
+    emit(ctx, { candidate: compatiblePosition(ctx) ? ctx.saved : null, takeover: true, message })
+  }
+  function compatiblePosition(ctx) {
+    const saved = ctx.candidate || ctx.saved
+    return (
+      saved &&
+      !saved.completed &&
+      saved.position_seconds > 5 &&
+      Number.isFinite(ctx.video.duration) &&
+      saved.position_seconds < ctx.video.duration - 5 &&
+      Math.abs(saved.duration_seconds - ctx.video.duration) <=
+        Math.max(2, ctx.video.duration * 0.01)
+    )
+  }
   async function acquire(ctx) {
     if (ctx.token || ctx.blocked || ctx.detached) return
     if (ctx.claiming) return ctx.claiming
@@ -43,8 +63,10 @@ export function createPlaybackProgress({
         emit(ctx, { candidate: null, message: '' })
       } catch (error) {
         if ([401, 404, 409, 410].includes(error.httpStatus)) ctx.blocked = true
+        ctx.canReclaim = error.httpStatus === 409
         emit(ctx, {
           candidate: null,
+          canTakeover: ctx.canReclaim,
           message: ctx.blocked
             ? '进度保存权已失效；本页仍可播放'
             : '暂时无法保存进度，播放不受影响',
@@ -60,8 +82,13 @@ export function createPlaybackProgress({
       await ctx.flight
       return drain(ctx, leaving)
     }
-    if (ctx.blocked || !ctx.started) return
+    if (ctx.blocked || !ctx.started || ctx.choosing) return
     await ctx.loading
+    if (ctx.blocked || (ctx.detached && !ctx.token)) return
+    if (otherWriter(ctx)) {
+      promptTakeover(ctx)
+      return
+    }
     ctx.lastSaved = now()
     await acquire(ctx)
     if (ctx.flight) {
@@ -93,10 +120,12 @@ export function createPlaybackProgress({
       } catch (error) {
         if ([401, 404, 409, 410].includes(error.httpStatus)) {
           ctx.blocked = true
+          ctx.canReclaim = error.httpStatus === 409
           ctx.retry = null
         }
         emit(ctx, {
           candidate: null,
+          canTakeover: ctx.canReclaim,
           message: ctx.blocked
             ? '进度保存权已失效；本页仍可播放'
             : '进度尚未保存，将在下次播放事件重试',
@@ -115,17 +144,11 @@ export function createPlaybackProgress({
   }
   function restoreCandidate(ctx) {
     if (ctx.started || ctx.chosen || !ctx.saved || !Number.isFinite(ctx.video.duration)) return
-    const saved = ctx.candidate || ctx.saved
-    // Do not jump into the final seconds or apply an incompatible duration.
-    if (
-      !saved.completed &&
-      saved.position_seconds > 5 &&
-      saved.position_seconds < ctx.video.duration - 5 &&
-      Math.abs(saved.duration_seconds - ctx.video.duration) <=
-        Math.max(2, ctx.video.duration * 0.01)
-    ) {
-      emit(ctx, { candidate: saved, message: '' })
+    if (otherWriter(ctx)) {
+      promptTakeover(ctx)
+      return
     }
+    if (compatiblePosition(ctx)) emit(ctx, { candidate: ctx.candidate || ctx.saved, message: '' })
   }
   function bind(row, video) {
     detach()
@@ -135,6 +158,8 @@ export function createPlaybackProgress({
       token: null,
       saved: null,
       started: false,
+      acceptTakeover: false,
+      canReclaim: false,
       blocked: false,
       restoring: false,
       chosen: row.refresh_count === 1,
@@ -153,7 +178,7 @@ export function createPlaybackProgress({
       .progress(row.session_id)
       .then(({ data }) => {
         ctx.saved = data
-        ctx.candidate = drafts.get(data) || data
+        ctx.candidate = data.writer_active && !data.is_writer ? data : drafts.get(data) || data
         restoreCandidate(ctx)
       })
       .catch(() => {
@@ -179,20 +204,82 @@ export function createPlaybackProgress({
   }
   async function choose(resume) {
     const ctx = current
-    if (!ctx || ctx.blocked) return
-    await ctx.loading
-    if (current !== ctx) return
-    ctx.chosen = true
+    if (!ctx || (ctx.blocked && !ctx.canReclaim) || ctx.choosing) return
+    ctx.choosing = true
+    ctx.started = false
     ctx.restoring = true
-    emit(ctx, { candidate: null, message: '' })
-    const position = resume ? (ctx.candidate || ctx.saved).position_seconds : 0
-    if (Number.isFinite(ctx.video.duration))
-      ctx.video.currentTime = Math.min(position, Math.max(0, ctx.video.duration - 0.1))
-    ctx.restoring = false
+    ctx.video.pause?.()
+    emit(ctx, {
+      candidate: ctx.candidate || ctx.saved,
+      takeover: otherWriter(ctx) || ctx.canReclaim,
+      choosing: true,
+      message: '',
+    })
+    try {
+      await ctx.loading
+      if (current !== ctx) return
+      // Explicit choice always reads the newest DB snapshot, including another device's last save.
+      ctx.saved = (await api.progress(ctx.row.session_id)).data
+      const draft = ctx.saved.writer_active && !ctx.saved.is_writer ? null : drafts.get(ctx.saved)
+      const readVersion = ctx.saved.version
+      ctx.candidate = draft || ctx.saved
+      if (current !== ctx) return
+      ctx.blocked = false
+      ctx.token = null
+      ctx.claimId = uuid()
+      ctx.acceptTakeover = true
+      await acquire(ctx)
+      if (current !== ctx) return
+      if (!ctx.token) {
+        ctx.acceptTakeover = false
+        if (ctx.canReclaim) promptTakeover(ctx, '保存权刚刚发生变化，请重新确认接续')
+        return
+      }
+      // Claim returns the position at transfer time; it may be newer than the GET.
+      ctx.saved = ctx.token
+      ctx.candidate =
+        draft && ctx.token.version === readVersion
+          ? {
+              ...ctx.token,
+              position_seconds: draft.position_seconds,
+              duration_seconds: draft.duration_seconds,
+              completed: draft.completed,
+            }
+          : ctx.token
+      ctx.chosen = true
+      const position = resume && compatiblePosition(ctx) ? ctx.candidate.position_seconds : 0
+      if (Number.isFinite(ctx.video.duration))
+        ctx.video.currentTime = Math.min(position, Math.max(0, ctx.video.duration - 0.1))
+      ctx.restoring = false
+      try {
+        await ctx.video.play()
+      } catch {
+        emit(ctx, { candidate: null, message: '请点击播放器开始播放' })
+      }
+    } catch {
+      if (current === ctx)
+        emit(ctx, {
+          candidate: ctx.candidate || ctx.saved,
+          takeover: otherWriter(ctx) || ctx.canReclaim,
+          message: '读取最新进度失败，请重试接续',
+        })
+    } finally {
+      ctx.restoring = false
+      ctx.choosing = false
+      if (current === ctx && ctx.started && ctx.token) void flush(ctx)
+    }
+  }
+  async function playWithoutSaving() {
+    const ctx = current
+    if (!ctx || ctx.choosing) return
+    ctx.blocked = true
+    ctx.canReclaim = true
+    ctx.chosen = true
+    emit(ctx, { candidate: null, canTakeover: true, message: '本页仅播放，不保存进度' })
     try {
       await ctx.video.play()
     } catch {
-      emit(ctx, { candidate: null, message: '请点击播放器开始播放' })
+      /* Native controls remain available. */
     }
   }
   function detach(leaving = false) {
@@ -242,6 +329,7 @@ export function createPlaybackProgress({
   return {
     bind,
     choose,
+    playWithoutSaving,
     detach,
     flush: (leaving = false) => (current ? flush(current, leaving) : Promise.resolve()),
   }

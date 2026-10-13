@@ -1,6 +1,6 @@
 # 多用户扩展路线与数据边界
 
-状态：个人播放进度、第二阶段个人状态/JSON设置及第三阶段推荐隔离已实现，尚未开放多用户业务访问。当前 `is_operator` 只允许配置指定的启用账号；已有 PlaybackSession.user 不代表整个资源库已经支持多用户。个人进度实现状态见[播放进度架构](playback-progress-architecture.md)，本轮状态与迁移见[个人状态与设置](personal-state-architecture.md)。
+状态：个人播放进度、第二阶段个人状态/JSON设置、第三阶段推荐隔离/播放设置及第四阶段跨设备接续已实现，尚未开放多用户业务访问。当前 `is_operator` 只允许配置指定的启用账号；已有 PlaybackSession.user 不代表整个资源库已经支持多用户。个人进度实现状态见[播放进度架构](playback-progress-architecture.md)，本轮状态与迁移见[个人状态与设置](personal-state-architecture.md)。
 
 ## 共享事实与个人状态
 
@@ -10,14 +10,14 @@
 
 | 能力              | 建议模型或边界                                                                    | 优先级           |
 | ----------------- | --------------------------------------------------------------------------------- | ---------------- |
-| 继续观看          | PlaybackProgress 按 user 查询；资源存在及访问权限重新核验                         | 第一阶段         |
+| 继续观看          | PlaybackProgress 按 user 查询；资源、媒体身份与新会话权限重新核验                 | 第四阶段已实现   |
 | 收藏/已观看/备注  | UserResourceState，唯一(user, resource)；资源删除级联，无评分                     | 第二阶段已实现   |
 | 通用设置          | UserPreferences，唯一user；JSON覆盖值、created_at/updated_at，旧INI显式导入缺失行 | 第二阶段已实现   |
 | 观看历史          | 与最新位置分开，采用有界 PlaybackHistory/事件记录及保留策略                       | 后续可选         |
 | 推荐与黑名单      | 用户拥有推荐状态、job、历史、反馈、偏好；generation/fence 加 user 域              | 第三阶段已实现   |
-| 播放设置          | UserPlaybackPreferences：音量、倍速、字幕和默认模式；设备差异可另存本地           | 第三阶段         |
-| 稍后观看/播放列表 | 用户拥有列表和有序条目；是否共享单独授权                                          | 第四阶段         |
-| 跨设备接续        | 复用个人进度，服务器决定写入归属；推送只作提示                                    | 第四阶段         |
+| 播放设置          | UserPreferences JSON：音量、静音、倍速、字幕默认与播放模式                        | 第三阶段已实现   |
+| 稍后观看/播放列表 | 用户拥有列表和有序条目；是否共享单独授权                                          | 后续可选         |
+| 跨设备接续        | 复用个人进度和显式保存权转移，不抢占打开页；旧页只读                              | 第四阶段已实现   |
 | 角色/配额         | 管理员拥有账号、删除正式资产、全库维护；普通用户仅允许授权动作                    | 开放多用户前必需 |
 
 ## 权限与迁移
@@ -38,7 +38,7 @@ AVResource.watched/is_favorite 现仅保留旧共享快照；第二阶段通过i
 2. 明确权限矩阵，覆盖用户间不可见/不可写、管理员操作及 WebSocket/媒体访问。
 3. 个人资源状态与通用设置、旧共享值/INI归属迁移（本轮已实现）；观看历史单列为后续可选能力。
 4. 推荐链路全面用户隔离：取消/重置后的旧执行不得写入；共享代理容量不变。
-5. 播放列表、播放设置、跨设备提示和配额。
+5. 播放设置、跨设备继续观看及显式保存权接续（本轮已实现）；播放列表与角色/配额留待后续。
 
 每阶段独立分支、离线质量门槛与 SQLite/PostgreSQL 迁移检查，目标部署验收独立记录。首版不自动增加公开注册、邀请、共享链接或匿名播放。
 
@@ -47,3 +47,7 @@ AVResource.watched/is_favorite 现仅保留旧共享快照；第二阶段通过i
 推荐隔离阶段基线0099632，分支feat/user-recommendation-isolation；迁移0035、显式旧推荐导入、任务/历史/反馈/黑名单/个人种子和前端缓存归属同时覆盖。完整后端离线门槛983通过/28在线跳过，最终推荐相关SQLite回归58通过，独立PostgreSQL迁移与归属/任务/反馈21通过；模型无迁移差异。前端pnpm run check含105单元测试、lint及构建通过，Chrome模拟API验证偏好保存、黑名单乱序/写入/弹窗与窄屏滚动。根pre-commit run -a通过后提交合并。未操作正式数据库，未执行真实外站worker联调，不把模拟浏览器验收当部署验收。
 
 播放偏好阶段基线3d2846a，分支feat/personal-playback-preferences；复用用户JSON，无新增迁移。完整后端离线门槛993通过/28在线跳过，独立PostgreSQL偏好回归29通过，前端check含109单元测试/lint/构建通过；Chrome与Firefox使用临时真实SQLite/Redis/API、合成MP4验证设置、原生变化自动保存、刷新与窄屏布局，Chrome合成HLS回归通过（不是外站worker联调）。Firefox第一次运行在文件变动的Vite环境中等待保存超时，稳定环境复测通过，保留此验收边界。根pre-commit与前端check通过后提交合并，正式部署未操作。
+
+第四阶段基线4df7850，分支feat/cross-device-playback-continuation。复用个人进度与登录绑定的播放session；新增有界继续观看列表，显式接续取得最新位置，旧写入者409，不远程暂停旧播放。用户归属、媒体变更/删除、完成/清除、竞争、只读播放和草稿兼容均覆盖。完整后端离线998通过/28在线跳过；最终UTF8独立PostgreSQL推荐/JSON/播放/迁移集成117通过。临时库首次SQL_ASCII导致中文JSON测试失败，改UTF8后通过，应用未针对测试错误修改。前端pnpm run check含113测试/lint/构建通过；Chrome与Firefox双独立登录使用真实临时API/SQLite/Redis/合成MP4验证列表、只读打开、提示出现后的最新位置接续、旧writer409、清除与小屏操作及深浅主题。Firefox两次运行卡在后台页resize，改先bringToFront后通过；验收脚本增加总时限和HTTP清理时限。根pre-commit run -a通过后提交合并，正式数据库与部署未操作。
+
+阶段提交：推荐隔离3d2846a，播放偏好4df7850，第四阶段提交由分支feat/cross-device-playback-continuation记录；三个阶段均从各自基线独立提交并通过门槛后合并idle。浏览器使用两个登录模拟设备，未做实体手机、正式部署/外站worker或长时验收；is_operator仍保留。
