@@ -349,7 +349,7 @@ async function navigateToGenre(genreName) {
             </AppButton>
             <AppButton
               v-if="metadata.file_exists"
-              tone="teal"
+              tone="coral"
               class="w-full h-14"
               @click="openPlayback('local')"
             >
@@ -360,7 +360,7 @@ async function navigateToGenre(genreName) {
             </AppButton>
 
             <AppButton
-              tone="teal"
+              tone="coral"
               class="w-full h-14"
               @click="openPlayback('source')"
               title="在新标签页播放"
