@@ -21,6 +21,10 @@ from nassav.playback.models import (
     PlaybackSession as PlaybackSession,
     PlaybackProgress as PlaybackProgress,
 )
+from nassav.personal_models import (
+    UserResourceState as UserResourceState,
+    UserPreferences as UserPreferences,
+)
 from nassav.task_models import (
     TaskArtifact as TaskArtifact,
     TaskAssetTarget as TaskAssetTarget,

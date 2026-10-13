@@ -258,11 +258,11 @@ def test_forced_refresh_and_sources_are_isolated(actor_factory, runtime, monkeyp
 
 @pytest.mark.django_db
 def test_validation_and_persisted_default(
-    actor_factory, api_client, runtime, settings, monkeypatch
+    actor_factory, api_client, runtime, settings, monkeypatch, operator_user
 ):
-    from nassav.user_settings import get_settings_manager
+    from nassav.personal_preferences import update_preferences
 
-    get_settings_manager().set("default_external_search_source", "missav")
+    update_preferences(operator_user.pk, {"default_external_search_source": "missav"})
     query = {"entity_type": "actor", "entity_id": actor_factory().pk}
     assert (
         api_client.post("/nassav/api/search/jobs", query, format="json").json()["data"][

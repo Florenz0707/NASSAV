@@ -492,13 +492,13 @@ class ExternalSearchService:
     DEFAULT_PAGE_SIZE = 20
     MAX_PAGE_SIZE = 100
 
-    def default_source(self, entity_type: str) -> str:
-        from nassav.user_settings import get_settings_manager
+    def default_source(self, entity_type: str, *, user_id=None) -> str:
+        from nassav.personal_preferences import read_preferences
 
         preferred = (
-            get_settings_manager()
-            .get_all()
-            .get("default_external_search_source", "jable")
+            read_preferences(user_id)["default_external_search_source"]
+            if user_id is not None
+            else "jable"
         )
         enabled = [
             entry["source"] for entry in self.capabilities() if entry.get(entity_type)

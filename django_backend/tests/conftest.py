@@ -1,6 +1,3 @@
-import tempfile
-from pathlib import Path
-
 import pytest
 from nassav.models import Actor, AVResource
 
@@ -47,48 +44,6 @@ def refactoring_offline_network_guard(monkeypatch, settings):
     monkeypatch.setattr(socket.socket, "connect", connect)
     yield
     assert not attempts, "Unmocked network use was caught by the offline guard"
-
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_user_settings():
-    """
-    为测试环境设置独立的用户配置文件路径
-    使用临时目录，避免覆盖生产环境的配置
-    """
-    from django.conf import settings
-
-    # 创建临时目录
-    temp_dir = tempfile.mkdtemp(prefix="nassav_test_")
-    temp_config_path = Path(temp_dir) / "user_settings.ini"
-
-    # 保存原始路径
-    original_path = getattr(settings, "USER_SETTINGS_PATH", None)
-
-    # 设置测试路径
-    settings.USER_SETTINGS_PATH = temp_config_path
-
-    # 清除路径级缓存，强制重新初始化
-    from nassav.user_settings import clear_settings_manager_cache
-
-    clear_settings_manager_cache()
-
-    yield temp_config_path
-
-    # 测试结束后恢复原始路径
-    if original_path is not None:
-        settings.USER_SETTINGS_PATH = original_path
-
-    from nassav.user_settings import clear_settings_manager_cache
-
-    clear_settings_manager_cache()
-
-    # 清理临时目录
-    import shutil
-
-    try:
-        shutil.rmtree(temp_dir)
-    except Exception:
-        pass
 
 
 @pytest.fixture

@@ -21,6 +21,10 @@ Database:
 
 `backup_database` 按当前引擎选择 SQLite 文件快照或 PostgreSQL custom-format `database.dump`。PostgreSQL 文件位于 `backup/database_postgresql_{timestamp}/`，带引擎和服务端主版本元数据。PostgreSQL 恢复命令 `restore_postgres_backup` 只接受空数据库；先创建新的空库，再在配置指向该库时执行恢复。备份目录会由 `sync_backups` 一并同步。使用 PostgreSQL 时自动清理只处理 PostgreSQL 备份，保留 SQLite 快照供回滚。
 
+## 个人状态（0033，未发布）
+
+新增 `nassav_user_resource_state` 和 `nassav_user_preferences`，用户状态与共享资源分离。旧数据归属通过指定原操作者的命令导入，迁移不自动猜测；升级、级联和回退影响见[个人状态与设置](personal-state-architecture.md)。v2.5.0的发布叶节点仍为0032。
+
 ## Database Overview
 
 - **Scope:** 介绍与 `AVResource` 相关的数据库表、它们之间的关系、字段语义、索引、以及元数据/封面/视频的持久化和更新流程。
@@ -310,7 +314,7 @@ Jable 的 Byparr 自动获取入口在浏览器首页业务校验和同页直连
 
 ## 外部搜索任务与默认源（2026-10-01）
 
-本次不新增数据库表，无需迁移。`default_external_search_source` 保存在实例共享 `config/user_settings.ini`，默认模板与旧文件自动补齐规则已同步。
+该功能最初不新增表；第二阶段0033改用用户数据库设置，旧INI不再运行时读取，见[迁移与归属](personal-state-architecture.md)。
 
 搜索任务使用 Redis `nassav:search:job:{task_id}` 快照和 `nassav:search:lock:{query_hash}` 查询锁。复用既有 JobStore 持久化与终态保护；快照 TTL 24 小时，成功结果复用窗口 300 秒，提交后 1800 秒未完成则读取时标记超时并释放锁。`cancelled` 也是终态，取消立即释放查询锁并保留阶段结果；终态不允许迟到结果覆盖。查询摘要包含实体、源、分页、排序、强制刷新、中文版本、域名、代理线路和抓取页数。
 

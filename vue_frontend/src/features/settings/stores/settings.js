@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { settingsApi } from '../../../api/index.js'
+import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 
 export const useSettingsStore = defineStore('settings', () => {
   // 是否显示女优头像
@@ -20,6 +21,21 @@ export const useSettingsStore = defineStore('settings', () => {
   const defaultExternalSearchSource = ref('jable')
   const loaded = ref(false)
   let loadPromise = null
+  let sessionEpoch = 0
+  const loadGuard = createRequestGuard()
+
+  function reset() {
+    sessionEpoch++
+    loadGuard.invalidate()
+    loadPromise = null
+    loaded.value = false
+    showActorAvatar.value = true
+    displayTitle.value = 'source_title'
+    fontFamily.value = 'Mplus2'
+    colorMode.value = 'dark'
+    searchResultDisplayStyle.value = 'grid'
+    defaultExternalSearchSource.value = 'jable'
+  }
 
   // 从后端加载设置（仅在应用启动时调用一次）
   async function loadSettings(force = false) {
@@ -30,9 +46,11 @@ export const useSettingsStore = defineStore('settings', () => {
       return loadPromise
     }
 
+    const ticket = loadGuard.begin()
     loadPromise = (async () => {
       try {
         const response = await settingsApi.get()
+        if (!loadGuard.current(ticket)) return { success: false, ignored: true }
         const data = response.data || {}
 
         // 后端返回的 enable_avatar 是字符串 "true"/"false"
@@ -57,10 +75,11 @@ export const useSettingsStore = defineStore('settings', () => {
         loaded.value = true
         return { success: true }
       } catch (err) {
+        if (!loadGuard.current(ticket)) return { success: false, ignored: true }
         console.error('加载用户设置失败:', err)
-        throw err
+        return { success: false, error: err }
       } finally {
-        loadPromise = null
+        if (loadGuard.current(ticket)) loadPromise = null
       }
     })()
 
@@ -73,6 +92,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // 保存设置到后端（仅在用户手动点击保存按钮时调用）
   async function saveSettings() {
+    const epoch = sessionEpoch
     try {
       await settingsApi.update({
         enable_avatar: showActorAvatar.value ? 'true' : 'false',
@@ -82,8 +102,9 @@ export const useSettingsStore = defineStore('settings', () => {
         search_result_display_style: searchResultDisplayStyle.value,
         default_external_search_source: defaultExternalSearchSource.value,
       })
-      return { success: true }
+      return epoch === sessionEpoch ? { success: true } : { success: false, ignored: true }
     } catch (err) {
+      if (epoch !== sessionEpoch) return { success: false, ignored: true }
       console.error('保存用户设置失败:', err)
       throw err
     }
@@ -97,6 +118,7 @@ export const useSettingsStore = defineStore('settings', () => {
     searchResultDisplayStyle,
     defaultExternalSearchSource,
     loaded,
+    reset,
     loadSettings,
     saveSettings,
   }

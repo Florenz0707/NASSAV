@@ -2,6 +2,8 @@ import re
 from datetime import timedelta
 from typing import cast
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.utils import timezone
 
@@ -173,17 +175,31 @@ class LocalPreferenceSeedProvider(SeedProvider):
 
     def _annotated_queryset(self, manager, *, only_interacted: bool = False) -> list:
         recent_since = timezone.now() - timedelta(days=max(self.recent_days, 1))
-        interaction_filter = Q(resources__watched=True) | Q(resources__is_favorite=True)
+        owner_id = (
+            get_user_model()
+            .objects.filter(username=settings.NASSAV_OPERATOR_USERNAME)
+            .values_list("pk", flat=True)
+            .first()
+        )
+        watched_filter = Q(
+            resources__user_states__user_id=owner_id,
+            resources__user_states__watched=True,
+        )
+        favorite_filter = Q(
+            resources__user_states__user_id=owner_id,
+            resources__user_states__is_favorite=True,
+        )
+        interaction_filter = watched_filter | favorite_filter
         queryset = manager.annotate(
             resource_count=Count("resources", distinct=True),
             watched_count=Count(
                 "resources",
-                filter=Q(resources__watched=True),
+                filter=watched_filter,
                 distinct=True,
             ),
             favorite_count=Count(
                 "resources",
-                filter=Q(resources__is_favorite=True),
+                filter=favorite_filter,
                 distinct=True,
             ),
             recent_count=Count(

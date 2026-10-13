@@ -27,7 +27,15 @@ export const useResourceStore = defineStore('resource', () => {
       }
     }
   )
-  const { resources, loading, error, pagination, fetchResources, cancelResourceQuery } = list
+  const {
+    resources,
+    loading,
+    error,
+    pagination,
+    fetchResources,
+    cancelResourceQuery,
+    resetResourceList,
+  } = list
   const sources = ref([])
   const downloads = ref([])
   const downloadStates = ref(new Map())
@@ -482,6 +490,7 @@ export const useResourceStore = defineStore('resource', () => {
     stats,
     fetchResources,
     cancelResourceQuery,
+    resetResourceList,
     fetchSources,
     addResource,
     refreshResource,

@@ -2,9 +2,6 @@
 测试用户设置 API
 """
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 
@@ -156,114 +153,8 @@ def test_update_invalid_search_result_display_style(client):
     assert "search_result_display_style" in data["data"]
 
 
-def test_settings_manager_default_creation():
-    """测试设置管理器创建默认配置"""
-    from nassav.user_settings import UserSettingsManager
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_path = Path(tmpdir) / "test_settings.ini"
-        manager = UserSettingsManager(config_path)
-
-        # 验证配置文件已创建
-        assert config_path.exists()
-
-        # 验证默认值
-        settings = manager.get_all()
-        assert settings["enable_avatar"] == "true"
-        assert settings["display_title"] == "source_title"
-        assert settings["font_family"] == "Mplus2"
-        assert settings["color_mode"] == "dark"
-        assert settings["search_result_display_style"] == "grid"
-
-
-def test_settings_manager_validation():
-    """测试设置管理器的值验证"""
-    from nassav.user_settings import UserSettingsManager
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_path = Path(tmpdir) / "test_settings.ini"
-        manager = UserSettingsManager(config_path)
-
-        # 测试有效值
-        assert manager.set("enable_avatar", "true") is True
-        assert manager.set("enable_avatar", "false") is True
-        assert manager.set("display_title", "original_title") is True
-        assert manager.set("display_title", "source_title") is True
-        assert manager.set("display_title", "translated_title") is True
-        assert manager.set("color_mode", "light") is True
-        assert manager.set("color_mode", "dark") is True
-        assert manager.set("search_result_display_style", "grid") is True
-        assert manager.set("search_result_display_style", "masonry") is True
-
-        # 测试无效值
-        assert manager.set("enable_avatar", "invalid") is False
-        assert manager.set("display_title", "invalid") is False
-        assert manager.set("color_mode", "invalid") is False
-        assert manager.set("search_result_display_style", "invalid") is False
-
-
-def test_settings_manager_persistence():
-    """测试设置管理器的持久化"""
-    from nassav.user_settings import UserSettingsManager
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_path = Path(tmpdir) / "test_settings.ini"
-
-        # 创建并设置
-        manager1 = UserSettingsManager(config_path)
-        manager1.set("enable_avatar", "false")
-        manager1.set("display_title", "translated_title")
-        manager1.set("color_mode", "light")
-        manager1.set("search_result_display_style", "masonry")
-
-        # 重新加载验证持久化
-        manager2 = UserSettingsManager(config_path)
-        assert manager2.get("enable_avatar") == "false"
-        assert manager2.get("display_title") == "translated_title"
-        assert manager2.get("color_mode") == "light"
-        assert manager2.get("search_result_display_style") == "masonry"
-
-
-def test_get_settings_manager_is_path_scoped_cache():
-    from nassav.user_settings import (
-        clear_settings_manager_cache,
-        get_settings_manager,
-    )
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        path_a = Path(tmpdir) / "settings-a.ini"
-        path_b = Path(tmpdir) / "settings-b.ini"
-
-        clear_settings_manager_cache()
-        manager_a1 = get_settings_manager(path_a)
-        manager_a2 = get_settings_manager(path_a)
-        manager_b = get_settings_manager(path_b)
-
-        assert manager_a1 is manager_a2
-        assert manager_a1 is not manager_b
-
-
-def test_clear_settings_manager_cache_recreates_instance():
-    from nassav.user_settings import (
-        clear_settings_manager_cache,
-        get_settings_manager,
-    )
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_path = Path(tmpdir) / "settings.ini"
-
-        clear_settings_manager_cache()
-        manager1 = get_settings_manager(config_path)
-        clear_settings_manager_cache(config_path)
-        manager2 = get_settings_manager(config_path)
-
-        assert manager1 is not manager2
-
-
 @pytest.mark.django_db
 def test_default_search_source_persists_and_rejects_unknown(client):
-    from nassav.user_settings import clear_settings_manager_cache
-
     assert (
         client.put(
             "/nassav/api/setting",
@@ -272,7 +163,6 @@ def test_default_search_source_persists_and_rejects_unknown(client):
         ).status_code
         == 200
     )
-    clear_settings_manager_cache()
     assert (
         client.get("/nassav/api/setting").json()["data"][
             "default_external_search_source"

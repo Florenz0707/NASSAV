@@ -233,7 +233,6 @@ AVATAR_DIR = RESOURCE_DIR / 'avatar'
 VIDEO_DIR = RESOURCE_DIR / 'video'
 THUMBNAIL_DIR = COVER_DIR / 'thumbnails'
 LOG_DIR = Path(P7_ROOT) / 'logs'
-USER_SETTINGS_PATH = Path(P7_ROOT) / 'settings.ini'
 """
         (root / "p7_acceptance_settings.py").write_text(settings_text)
         sys.path.insert(0, str(root))

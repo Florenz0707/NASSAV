@@ -53,3 +53,5 @@ features/playback 独占在线播放会话及播放引擎生命周期；Resource
 播放路由的 meta.layout=playback 由 App 装配居中主区域及 Navbar.logoOnly，Navbar 复用既有 Logo，不复制品牌样式。PlaybackPlayer 拥有固定16:9播放区域及其中的加载、缓冲、错误/重试展示，状态切换不改变区域大小。
 
 播放进度模块位于features/playback/lib：playbackProgress拥有事件/写入队列/归属，progressDrafts仅管理有界个人兜底。App作为装配层在匿名状态清理兜底；auth业务模块不反向依赖播放模块。媒体引擎与API不维护个人状态，详细契约见[播放进度](development-contracts.md#播放进度记忆)。
+
+个人资源标记和备注归 `features/resources/components/PersonalResourcePanel.vue` 与 `features/resources/lib/personalResourceEditor.js`；前者展示，后者拥有编辑/版本/归属生命周期。用户通用偏好继续归 `features/settings/stores/settings.js`，持久化由后端UserPreferences拥有；App装配登出和用户切换时的reset，shared组件不依赖个人状态服务。

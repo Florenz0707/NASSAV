@@ -98,7 +98,7 @@ export const resourceApi = {
   // 删除资源
   delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`),
 
-  // 更新资源状态（观看状态和收藏状态）
+  // 更新个人资源状态（观看、收藏、备注及可选 expected_version）
   updateStatus: (avid, payload) =>
     api.patch(`/resource/${encodeURIComponent(avid)}/status`, payload),
 

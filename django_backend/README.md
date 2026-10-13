@@ -48,7 +48,7 @@ uv run python manage.py check
 uv run pytest tests/ --ds=django_project.refactoring_test_settings -v
 ```
 
-离线设置强制无凭证模板、临时 SQLite/文件/用户设置、内存缓存/Channels，并阻止未模拟外部请求。锁测试需要本机提供 `redis-server`，只监听临时 Unix socket，测试后清理。真实 Ollama、站点、worker 和 PostgreSQL 验收单独运行并记录；不要直接用默认 settings 全套测试连接当前实例数据。详细分类见[测试说明](tests/README.md)。
+离线设置强制无凭证模板、临时 SQLite/文件/个人数据库设置、内存缓存/Channels，并阻止未模拟外部请求。锁测试需要本机提供 `redis-server`，只监听临时 Unix socket，测试后清理。真实 Ollama、站点、worker 和 PostgreSQL 验收单独运行并记录；不要直接用默认 settings 全套测试连接当前实例数据。详细分类见[测试说明](tests/README.md)。
 
 仓库根目录运行 `pre-commit run -a`，包括格式、类型、编译及前端检查。结果需对应具体提交和配置，参见[部署与验证边界](doc/compose-deployment.md#近期改动与验证边界)。
 

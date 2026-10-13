@@ -43,7 +43,8 @@ const handleSaveSettings = async () => {
   try {
     // 应用预览字体到全局设置
     settingsStore.fontFamily = previewFont.value
-    await settingsStore.saveSettings()
+    const result = await settingsStore.saveSettings()
+    if (!result.success) return
     toastStore.success('设置已保存')
   } catch (err) {
     toastStore.error(err.message || '保存设置失败')
@@ -70,8 +71,8 @@ onMounted(async () => {
 <template>
   <div class="settings-page">
     <div class="mb-8">
-      <h1 class="text-[2rem] font-bold text-primary mb-2">系统设置</h1>
-      <p class="text-muted">配置系统参数</p>
+      <h1 class="text-[2rem] font-bold text-primary mb-2">个人设置</h1>
+      <p class="text-muted">当前账号的显示与搜索偏好</p>
     </div>
     <PageLoad v-if="loading" variant="spinner" text="正在加载设置" />
     <RequestError v-else-if="loadError" :message="loadError" @retry="loadSettings" />

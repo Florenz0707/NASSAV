@@ -10,7 +10,7 @@ Django 管理命令、ASGI 和 Celery worker 使用同一个设置加载入口�
 
 Compose 所有后端服务以 `.env` 中 `NASSAV_UID:NASSAV_GID` 运行（默认 1000:1000），须与宿主机账号及绑定卷权限匹配。使用 prepare_backend_permissions.py 在停止写入者后准备运行目录；切换身份必须重建容器。详见[部署权限说明](compose-deployment.md#后端运行身份与任务目录权限)。
 
-资源目录默认是后端根目录的 `resource/`；隔离测试可以设置 `NASSAV_RESOURCE_DIR`。启动时会创建资源和日志目录，文件系统错误直接使进程失败。用户界面的 `user_settings.ini` 在首次使用时创建和补齐，`manage.py check` 不再为其写文件。信号接收器在 `AppConfig.ready()` 注册；日志文件 sink 每进程只添加一次。配置修改后须重启持有配置的 API/worker；修改 Compose 环境变量则须重建容器。
+资源目录默认是后端根目录的 `resource/`；隔离测试可以设置 `NASSAV_RESOURCE_DIR`。启动时会创建资源和日志目录，文件系统错误直接使进程失败。通用界面设置保存在按用户隔离的数据库表中；运行时不读写 `user_settings.ini`，旧文件仅供[显式导入](personal-state-architecture.md)。信号接收器在 `AppConfig.ready()` 注册；日志文件 sink 每进程只添加一次。配置修改后须重启持有配置的 API/worker；修改 Compose 环境变量则须重建容器。
 
 ## 会话复用与来源策略
 

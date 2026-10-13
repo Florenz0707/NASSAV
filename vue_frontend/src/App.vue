@@ -44,8 +44,10 @@ onMounted(() => {
 })
 
 watch(
-  () => sessionStore.status,
-  (status) => {
+  () => [sessionStore.status, sessionStore.username],
+  ([status]) => {
+    settingsStore.reset()
+    resourceStore.resetResourceList()
     if (status === 'anonymous') clearPlaybackDrafts()
     if (status === 'authenticated') {
       taskJobs.start(sessionStore.username)

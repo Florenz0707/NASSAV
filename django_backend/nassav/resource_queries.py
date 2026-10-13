@@ -4,7 +4,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 
 
-def list_resources(params):
+def list_resources(params, *, user_id=None):
     """Return (objects, pagination) for resources list based on params dict/querydict.
 
     Supported params: file_exists (true/false), source (comma separated), ordering,
@@ -12,7 +12,9 @@ def list_resources(params):
     """
     from nassav.models import AVResource
 
-    qs = AVResource.objects.all()
+    from nassav.personal_state import project_personal_state
+
+    qs = project_personal_state(AVResource.objects.all(), user_id)
 
     # 优化查询：预加载关联对象，避免 N+1 查询问题
     qs = qs.prefetch_related("genres")
@@ -67,17 +69,17 @@ def list_resources(params):
     watched = params.get("watched")
     if watched is not None:
         if str(watched).lower() in ("1", "true", "yes"):
-            qs = qs.filter(watched=True)
+            qs = qs.filter(personal_watched=True)
         elif str(watched).lower() in ("0", "false", "no"):
-            qs = qs.filter(watched=False)
+            qs = qs.filter(personal_watched=False)
 
     # filter by favorite status
     is_favorite = params.get("is_favorite")
     if is_favorite is not None:
         if str(is_favorite).lower() in ("1", "true", "yes"):
-            qs = qs.filter(is_favorite=True)
+            qs = qs.filter(personal_is_favorite=True)
         elif str(is_favorite).lower() in ("0", "false", "no"):
-            qs = qs.filter(is_favorite=False)
+            qs = qs.filter(personal_is_favorite=False)
 
     # search in title fields (original_title, source_title, translated_title)
     search = params.get("search")

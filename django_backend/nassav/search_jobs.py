@@ -87,7 +87,7 @@ def valid_search_job_token(task_id: str, token: str) -> bool:
         return False
 
 
-def validate_search_query(query: dict) -> dict:
+def validate_search_query(query: dict, *, user_id=None) -> dict:
     """Resolve defaults and validate without fetching an upstream page."""
     entity = query.get("entity_type")
     if entity not in {"actor", "genre"}:
@@ -99,7 +99,7 @@ def validate_search_query(query: dict) -> dict:
     capability_rows = external_search_service.capabilities()
     source = str(query.get("source") or "").strip().lower()
     if not source:
-        source = external_search_service.default_source(entity)
+        source = external_search_service.default_source(entity, user_id=user_id)
     if source not in external_search_service.registered_sources():
         if not source:
             raise SourceSearchUnavailable("source_disabled")
@@ -181,9 +181,9 @@ def _result_payload(result: ExternalSearchResult, query: dict) -> dict:
 
 
 def submit_search_job(
-    query: dict, *, store: JobStore | None = None
+    query: dict, *, store: JobStore | None = None, user_id=None
 ) -> tuple[dict, bool]:
-    query = validate_search_query(query)
+    query = validate_search_query(query, user_id=user_id)
     store = store or RedisSearchJobStore()
     key = _query_key(query)
     task_id = str(uuid4())

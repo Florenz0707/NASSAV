@@ -57,7 +57,7 @@ def serialize_resource(resource: AVResource, include_relations: bool = False) ->
     return data
 
 
-def serialize_legacy_resource(resource):
+def serialize_legacy_resource(resource, *, user_id=None):
     """Convert AVResource instance to plain dict suitable for API responses."""
     try:
         actors = [a.name for a in resource.actors.all()]
@@ -68,7 +68,7 @@ def serialize_legacy_resource(resource):
     except Exception:
         genres = []
 
-    return {
+    data = {
         "avid": resource.avid,
         "original_title": resource.original_title or "",
         "source_title": resource.source_title or "",
@@ -81,6 +81,12 @@ def serialize_legacy_resource(resource):
         "genres": genres,
         "file_size": resource.file_size,
         "file_exists": bool(resource.file_exists),
-        "watched": bool(resource.watched),
-        "is_favorite": bool(resource.is_favorite),
+        "watched": False,
+        "is_favorite": False,
     }
+
+    if user_id is not None:
+        from nassav.personal_state import state_snapshot
+
+        data.update(state_snapshot(resource, user_id))
+    return data

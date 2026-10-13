@@ -90,7 +90,7 @@
     ![个性化：推荐偏好与演员、类别、资源黑名单](public/preview/personalization.jpg)
 
 - 设置页
-  - 路由：`/settings`；管理用户设置与默认外部搜索源；Cookie 设置由添加资源页按钮打开。
+  - 路由：`/settings`；按账号保存显示偏好与默认外部搜索源（数据库）；Cookie 设置由添加资源页按钮打开。
   - 预览：
 
     ![设置：主题、标题、头像及默认搜索源](public/preview/settings.jpg)
@@ -286,3 +286,7 @@ NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录
 ```
 
 可加 NASSAV_BROWSER_ENGINE=firefox；NASSAV_BROWSER_ORIGIN 只接受本机地址。验证真实会话/MP4 HTTP/Range、解码帧、拖动/暂停、移动尺寸、退出后 closed；仅全局 WebSocket 提示用替身。不提供隔离状态时该专项明确跳过。它不替代正式 Docker、实际下载文件编码或真机验收。
+
+### 个人状态验收
+
+详情页支持个人收藏、已观看和5000字符备注，冲突时保留草稿。`tests/browser/personalState.cjs` 为显式opt-in：先启动后端 `tests/helpers/local_playback_server.py` 的隔离fixture与Vite代理，再用 `NASSAV_PERSONAL_STORAGE_STATE` 指向该临时会话文件运行；`NASSAV_BROWSER_ENGINE=firefox` 可切换引擎。验证真实HTTP/SQLite、键盘保存、备注清空/刷新/冲突、筛选和设置持久化；WebSocket只隔离本轮无关连接，不代替任务/worker联调。勿使用正式会话文件。
