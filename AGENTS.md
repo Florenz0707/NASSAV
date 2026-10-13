@@ -99,6 +99,7 @@
 
 ## 文档要求
 
+- 发布版本同时更新`django_backend/pyproject.toml`、`django_backend/uv.lock`中的项目版本与`vue_frontend/package.json`，检查锁文件一致性；发布文档区分制品准备、远端发布和正式部署，不把历史迁移快照或隔离测试当作当前实例验收。
 - 版本变更日志统一写入根目录 [CHANGES.md](CHANGES.md)，按版本倒序排列并沿用现有分类；README 仅保留入口，不再追加版本记录
 - 后端相关改动，需要检查 `django_backend/doc/` 下文档是否需要同步更新
 - 新增接口时，应更新接口文档
