@@ -248,6 +248,12 @@ python manage.py shell -c "from django.db import connection; from django.core.ma
 
 此入口仅用于 PostgreSQL；SQLite 使用普通 migrate 命令。该会话设置只作用于此次进程，不更改数据库或角色的全局配置。
 
+## v2.5.0发布准备
+
+当前制品版本2.5.0，迁移叶节点0032。维护窗口、备份、消费者统一更新、播放启用与回退数据影响见[v2.5.0升级与发布检查](release-2.5.0.md)。本轮仅准备版本/文档，不执行正式迁移或重建用户容器；先核对当前showmigrations，不能将下方2026-10-08记录当作实时状态。
+
+最近实现基线9c0eb83（2026-10-12）：离线后端946 passed / 28 skipped，独立PostgreSQL16进度/迁移/任务专项29 passed，前端91项测试及lint/build、pre-commit通过。Chrome/Firefox真实隔离API/合成MP4进度联调和模拟来源HLS回归通过。历史表名PostgreSQL17专项、真实来源worker/媒体检查及未完成项分别保留原记录，不能合并为生产全量验收。
+
 ## 近期改动与验证边界
 
 以下为截至 2026-10-08、`e854e7d` 的实现与已有执行记录，不表示本次文档修订重新运行全部测试或部署。历史 validation-status 与早期设计文档已移除，旧版本证据可从 Git 历史查看；当前契约以任务、推荐、缓存架构和数据库文档为准。
@@ -262,12 +268,12 @@ python manage.py shell -c "from django.db import connection; from django.core.ma
 
 上述实现阶段根目录 `pre-commit run -a` 均通过；跳过项为显式在线等 opt-in 范围，不代表目标环境已经验收。前端浏览器使用模拟 API/WS，后端隔离设置使用网络替身和临时数据；迁移专项 PostgreSQL 使用一次性独立实例。用户此前确认任务/资产权限和推荐可用，不扩大为本表中新功能的部署验收。
 
-最近只读核查观察到活动 PostgreSQL 的 nassav schema 已应用至 0027、尚未应用 0028；agent 没有执行正式迁移或更新服务。新安装使用完整迁移链；已有实例先核对 showmigrations，再按本文 0027 缓存切换与 0028 表名维护窗口处理，统一 API、全部 worker 与 Beat 的代码/配置版本。旧表名消费者不得混跑，回退先停新消费者，再使用新代码逆向迁移，最后切回旧镜像。备份恢复、真实暂停续传、另一设备 HTTPS/WSS 与高并发性能仍需独立验收。
+2026-10-08历史只读核查观察到活动 PostgreSQL 的 nassav schema 已应用至 0027、尚未应用 0028；agent 没有执行正式迁移或更新服务。新安装使用完整迁移链；已有实例先核对 showmigrations，再按本文 0027 缓存切换与 0028 表名维护窗口处理，统一 API、全部 worker 与 Beat 的代码/配置版本。旧表名消费者不得混跑，回退先停新消费者，再使用新代码逆向迁移，最后切回旧镜像。备份恢复、真实暂停续传、另一设备 HTTPS/WSS 与高并发性能仍需独立验收。
 
 ## 在线播放（默认关闭）
 
-P1–P4 已实现 0029/0030 会话迁移、Nginx 媒体路径、详情页播放器与一次有界兼容刷新。启用须统一 API/worker/Nginx、先迁移后打开开关，并审核 CDN 域名和代理目标安全策略；Proxy.url 模式须核查实际 DNS/CONNECT ACL 后设置 NASSAV_PLAYBACK_PROXY_TARGETS_TRUSTED。详见[在线播放架构](online-playback-architecture.md#配置与部署)。本轮未执行正式数据库或容器切换。
+P1–P4及本地播放/个人进度已实现0029–0032迁移、Nginx媒体路径、独立播放页与一次有界兼容刷新；最新职责见播放及进度架构。启用须统一 API/worker/Nginx、先迁移后打开开关，并审核 CDN 域名和代理目标安全策略；Proxy.url 模式须核查实际 DNS/CONNECT ACL 后设置 NASSAV_PLAYBACK_PROXY_TARGETS_TRUSTED。详见[在线播放架构](online-playback-architecture.md#配置与部署)。本轮未执行正式数据库或容器切换。
 
 MissAV 媒体修复需重新构建并创建 API 容器（curl_worker 随代码打包，不安装额外 curl CLI），控制接口和数据库结构不变。每在途媒体请求有独立可终止进程，应观察总 RSS 与启动开销后调整 NASSAV_PLAYBACK_MAX_MEDIA_REQUESTS；现有代理目标可信声明仍必需。开发时临时候选模块的成功不能当作运行服务已更新。
 
-P3/P4 更新与回滚、Compose 短时实测及真实设备/长时发布条件见[在线播放验收](online-playback-acceptance.md)。新旧会话协议不要混跑：先关闭在线播放入口、撤销旧会话并统一消费者，应用 0030 后再开放受控验收。前端、API 与媒体均通过同源 HTTPS 网关，勿仅部署播放器或仅更新 worker。
+P3/P4 更新与回滚、Compose 短时实测及真实设备/长时发布条件见[在线播放验收](online-playback-acceptance.md)。新旧会话协议不要混跑：先关闭在线播放入口、撤销旧会话并统一消费者，应用至0032后再开放受控验收。前端、API 与媒体均通过同源 HTTPS 网关，勿仅部署播放器或仅更新 worker。

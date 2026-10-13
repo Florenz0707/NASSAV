@@ -1,3 +1,7 @@
+# 数据库与迁移
+
+v2.5.0迁移叶节点为0032；0027–0032分别新增缓存、规范表名及实现播放/个人进度。已有实例按实际showmigrations升级，不把下方历史验证记录当作当前部署。维护窗口与逆向迁移数据影响见[v2.5.0发布检查](release-2.5.0.md)。
+
 SQLite 是本地和默认 Compose 数据库，由 `Database.Path` 或 `DATABASE_PATH` 指定，Compose 中的文件及 WAL/SHM 位于 `deploy-data/db/`。本地开发可在忽略的 `config/config.yaml` 中将 `Database.Engine` 设为 `postgres`，并配置 `Host`、`Port`、`Name`、`User`、`Schema` 及 `Password` 或 `PasswordFile`；环境变量可覆盖对应值。`Schema` 默认 `public`，需预先存在且应用账号需有权限；应用不会自动创建 schema。例如：
 
 ```yaml
