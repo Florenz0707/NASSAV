@@ -142,6 +142,7 @@ class ResourceSummarySerializer(serializers.Serializer):
     has_video = serializers.BooleanField(source="file_exists")
     watched = serializers.BooleanField(source="personal_watched", default=False)
     is_favorite = serializers.BooleanField(source="personal_is_favorite", default=False)
+    watch_later = serializers.BooleanField(source="personal_watch_later", default=False)
     state_version = serializers.IntegerField(source="personal_state_version", default=0)
     metadata_create_time = LocalSerializerMethodField()
     metadata_update_time = LocalSerializerMethodField()
@@ -214,6 +215,7 @@ class StrictBooleanField(serializers.BooleanField):
 
 
 class ResourceStatusUpdateSerializer(serializers.Serializer):
+    watch_later = StrictBooleanField(required=False)
     watched = StrictBooleanField(required=False)
     is_favorite = StrictBooleanField(required=False)
     notes = serializers.CharField(
@@ -225,7 +227,7 @@ class ResourceStatusUpdateSerializer(serializers.Serializer):
         unknown = set(self.initial_data) - set(self.fields)
         if unknown:
             raise serializers.ValidationError("存在不支持的个人状态字段")
-        if not ({"watched", "is_favorite", "notes"} & set(attrs)):
+        if not ({"watched", "is_favorite", "watch_later", "notes"} & set(attrs)):
             raise serializers.ValidationError("未提供任何要更新的字段")
         if "notes" in self.initial_data and not isinstance(
             self.initial_data["notes"], str

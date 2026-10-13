@@ -7,6 +7,7 @@ import { createPlaybackSession } from '../lib/playbackSession.js'
 import { createPlaybackProgress } from '../lib/playbackProgress.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { bindPlaybackPreferences } from '../lib/playbackPreferences.js'
+import { createViewingRecorder } from '../lib/viewingRecorder.js'
 import { attachPlayer } from '../lib/mediaPlayer.js'
 
 const props = defineProps({
@@ -16,6 +17,13 @@ const props = defineProps({
 })
 const settings = useSettingsStore()
 const preferenceMessage = ref('')
+const historyMessage = ref('')
+const history = createViewingRecorder({
+  record: playbackApi.viewed,
+  changed: (message) => {
+    historyMessage.value = message
+  },
+})
 let releasePreferences = null
 const video = ref(null)
 const progressState = ref({ candidate: null, message: '' })
@@ -45,6 +53,7 @@ const session = createPlaybackSession({
 })
 const preparing = computed(() => ['queued', 'resolving'].includes(state.value.state))
 function releasePlayer() {
+  history.detach()
   releasePreferences?.()
   releasePreferences = null
   preferenceMessage.value = ''
@@ -98,6 +107,7 @@ watch(
             preferenceMessage.value = '播放偏好保存失败，可在个人设置中重试'
         },
       })
+      history.bind(state.value, video.value)
       void progress.bind(state.value, video.value)
       if (token !== playerVersion || !props.active) return
       const dispose = await attachPlayer(video.value, url, {
@@ -215,11 +225,19 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <div
-      v-if="(progressState.message || preferenceMessage) && !mediaError"
+      v-if="(progressState.message || preferenceMessage || historyMessage) && !mediaError"
       role="status"
       class="absolute top-2 left-2 right-2 rounded-lg bg-secondary p-2 text-muted text-xs"
     >
-      {{ progressState.message || preferenceMessage }}
+      {{ progressState.message || preferenceMessage || historyMessage }}
+      <AppButton
+        v-if="historyMessage"
+        size="sm"
+        variant="neutral"
+        class="ml-2"
+        @click="history.retry()"
+        >重试记录</AppButton
+      >
       <AppButton
         v-if="progressState.canTakeover"
         variant="neutral"

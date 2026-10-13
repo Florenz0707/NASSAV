@@ -31,7 +31,7 @@ onBeforeUnmount(editor.reset)
 
 <template>
   <section aria-label="个人资源状态" class="space-y-4">
-    <div class="flex gap-3">
+    <div class="flex flex-wrap gap-3">
       <AppButton
         variant="neutral"
         class="flex-1"
@@ -80,6 +80,28 @@ onBeforeUnmount(editor.reset)
           <circle cx="12" cy="12" r="3" />
         </svg>
         {{ state.watched ? '已观看' : '标记观看' }}
+      </AppButton>
+      <AppButton
+        variant="neutral"
+        class="flex-1 whitespace-nowrap"
+        :aria-pressed="state.watchLater"
+        :disabled="!!state.busy"
+        :loading="state.busy === 'later'"
+        loading-text="正在保存稍后观看"
+        @click="editor.save({ watch_later: !state.watchLater }, 'later')"
+      >
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        {{ state.watchLater ? '已加入稍后观看' : '稍后观看' }}
       </AppButton>
     </div>
     <form class="space-y-3" @submit.prevent="editor.save({ notes: state.notes }, 'notes')">

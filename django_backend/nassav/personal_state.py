@@ -2,6 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import (
     BooleanField,
     CharField,
@@ -38,6 +39,11 @@ def project_personal_state(queryset, user_id):
         user_id=user_id, resource_id=OuterRef("pk")
     )
     return queryset.annotate(
+        personal_watch_later=Coalesce(
+            Subquery(states.values("watch_later")[:1]),
+            Value(False),
+            output_field=BooleanField(),
+        ),
         personal_watched=Coalesce(
             Subquery(states.values("watched")[:1]),
             Value(False),
@@ -69,6 +75,7 @@ def _snapshot(avid, row):
         "avid": avid,
         "watched": row.watched if row else False,
         "is_favorite": row.is_favorite if row else False,
+        "watch_later": row.watch_later if row else False,
         "notes": row.notes if row else "",
         "state_version": row.version if row else 0,
     }
@@ -76,9 +83,9 @@ def _snapshot(avid, row):
 
 @retry_sqlite_contention
 def update_state(resource, user_id, changes, *, expected_version=None):
-    if not changes or set(changes) - {"watched", "is_favorite", "notes"}:
+    if not changes or set(changes) - {"watched", "is_favorite", "watch_later", "notes"}:
         raise ValueError("未知或空个人状态字段")
-    for field in {"watched", "is_favorite"} & set(changes):
+    for field in {"watched", "is_favorite", "watch_later"} & set(changes):
         if not isinstance(changes[field], bool):
             raise ValueError("状态必须是布尔值")
     if "notes" in changes and (
@@ -98,8 +105,12 @@ def update_state(resource, user_id, changes, *, expected_version=None):
             row = UserResourceState(user_id=user_id, resource=resource)
         else:
             row.version += 1
+        if "watch_later" in changes and changes["watch_later"] != row.watch_later:
+            row.watch_later_added_at = (
+                timezone.now() if changes["watch_later"] else None
+            )
         for field, value in changes.items():
-            if field not in {"watched", "is_favorite", "notes"}:
+            if field not in {"watched", "is_favorite", "watch_later", "notes"}:
                 raise ValueError("未知个人状态字段")
             setattr(row, field, value)
         row.save()

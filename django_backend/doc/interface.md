@@ -1554,3 +1554,11 @@ GET/PUT `/api/setting`新增playback_volume（JSON数值0–1，默认0.8）、p
 GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit为1–24的整数，非法值400、播放未启用404、匿名401。data为数组，元素包括avid、mode(local/source)、original_title/source_title/translated_title、position_seconds、duration_seconds、restore_policy(exact/confirm)、updated_at。每资源只展示最新ledger，过滤已完成/清除/近尾、已删除资源及已失效本地文件身份；有界候选扫描，非完整观看历史，无源站URL或会话凭证，no-store。
 
 既有GET/claim/save进度快照新增writer_active、is_writer布尔字段；写入协议不变。新登录须创建自己的播放session；他人登录的session仍404。UI仅在用户明确开始/接续时领取，活跃其他页面提示转移或只读播放；领取使用服务端最新writer_generation，409须重新确认，清除仍保留零位置tombstone并使旧token失效。
+
+## 个人观看列表
+
+- `GET /api/personal/history`、`GET /api/personal/watch-later`：当前登录用户列表，page从1开始，page_size默认15、范围1–200；返回既有资源摘要并增加watch_later及queue_time（ISO8601），pagination含page/pages/page_size/total，超出末页收敛到末页。按最近观看/加入时间降序并以主键稳定排序；空列表pages为1。
+- `PATCH /api/resource/{avid}/status`新增严格布尔watch_later；复用expected_version，冲突409返回当前个人快照。true首次加入记录时间，重复true不重排；false移除，再加入重新排序。收藏/备注/已观看不受影响。
+- `POST /api/playback-sessions/{session_id}/viewed`：body为正整数session_generation、sequence（1–2147483647），仅接受当前登录绑定的ready未过期会话。更高sequence在真实播放开始时更新唯一历史条目；重复/更低sequence幂等、不重排。返回avid和recorded_at，不领取进度写入权。不存在/他人登录404，失效/旧代次409，参数400、未启用播放404。
+
+所有个人观看响应private,no-store，不接受user_id。读取、准备播放、播放进度claim不记录历史；播放器真实playing后上报，缓冲不重复、暂停恢复为新sequence。详见[架构](viewing-architecture.md)。

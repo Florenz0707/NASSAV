@@ -15,6 +15,7 @@ export function createPersonalResourceEditor({
       version: 0,
       watched: false,
       isFavorite: false,
+      watchLater: false,
       notes: '',
       savedNotes: '',
       busy: '',
@@ -28,6 +29,7 @@ export function createPersonalResourceEditor({
     state.version = version
     state.watched = !!snapshot.watched
     state.isFavorite = !!snapshot.is_favorite
+    state.watchLater = !!snapshot.watch_later
     state.savedNotes = snapshot.notes ?? ''
     if (!dirty || acceptDraft) state.notes = state.savedNotes
     return true

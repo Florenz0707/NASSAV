@@ -25,6 +25,7 @@ from nassav.playback.models import (
 from nassav.personal_models import (
     UserResourceState as UserResourceState,
     UserPreferences as UserPreferences,
+    UserWatchHistory as UserWatchHistory,
 )
 from nassav.task_models import (
     TaskArtifact as TaskArtifact,

@@ -199,3 +199,9 @@ PlaybackSettingsPanel仅发模型更新；settings store拥有个人JSON草稿�
 ContinueWatchingPanel归features/playback，Home只装配。读取当前用户有界未完成列表，mount/聚焦/可见/手动刷新重读，卸载失效旧响应，刷新报错保留已有内容，禁用播放时隐藏入口。资源封面与标题复用公共模块，点击以明确mode打开无opener的新标签。
 
 进度模块消费writer_active/is_writer提示，打开页不claim；另一页持权则由用户明确接续、从头或只读播放。接续先重读DB，再CAS领取，位置以claim返回值为准；409不自动抢回，可显式重新接续。有效离线草稿仅在没有其他活跃writer且版本/代次匹配时恢复，claim版本已变则丢弃该兜底。卸载/换媒体仍停止监听并保留原串行保存队列；小屏16:9播放器内提示有自己的滚动区域，按钮完整可达。
+
+## 观看历史与稍后观看
+
+PersonalResourcePanel/personalResourceEditor增加watch_later，复用个人state_version冲突与草稿保护。ViewingLibrary拥有页码/列表/错误/移除状态，切换列表或用户及卸载使旧响应失效，窗口回到前台重新读取；不持久化个人列表到localStorage。移除过程中不启动分页查询，失败保留内容并提供重试，跨页冲突须刷新。
+
+viewingRecorder仅在video的play后真实playing事件上报当前会话/代次/sequence；缓冲和重试保持sequence，暂停后重新播放增加sequence，播放器重绑同会话继承计数。事件记录与progress.claim/save独立，“仅播放不保存”仍记录历史；打开页面/loadedmetadata不记录。卸载解除play/playing监听，旧响应不改新播放器错误，失败可明确重试。不自动标记已观看或移除稍后观看。

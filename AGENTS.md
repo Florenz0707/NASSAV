@@ -171,3 +171,7 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 用户设置由UserPreferences JSON持有，合法键/默认值/类型以preference_definitions为准；GET只读补齐且不返回废弃键，PUT仅合并合法提交项，不接受用户指定owner。删/改键需明确数据迁移，不能依靠前端清理。新增播放数值设置接受JSON整数/小数，禁止布尔和数值字符串；原有设置类型保持契约。
 
 跨设备共享user进度，session控制仍绑定具体登录。继续观看只投影本用户的最新ledger及仍存在/身份匹配的资源，不返回源站链接或凭证，不抓取来源。打开页面不抢占保存权；明确接续先读最新快照，再CAS领取，并使用claim返回的位置。旧writer的409只读，不自动抢回；零位置清除tombstone不能被旧请求复活。不因个人表已隔离就移除is_operator或开放共享资产控制权限。
+
+## 观看列表约束
+
+观看历史与稍后观看遵循[个人观看列表](django_backend/doc/viewing-architecture.md)。历史唯一(user,resource)，真实播放/恢复更新队首，play之后的playing才上报；缓冲、读取、准备、claim和重试不新增事件。按会话generation/sequence拒绝旧执行或幂等去重，不绑定进度writer，只读播放同样记录。稍后观看沿用个人状态version与手动移除，不自动标记已观看或删队列；资源删除级联历史/稍后观看，播放进度仍按原规则保留。查询绑定request.user，不持久化个人列表到浏览器存储，不据旧进度推测回填历史。

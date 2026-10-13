@@ -55,3 +55,5 @@ features/playback 独占在线播放会话及播放引擎生命周期；Resource
 播放进度模块位于features/playback/lib：playbackProgress拥有事件/写入队列/归属，progressDrafts仅管理有界个人兜底。App作为装配层在匿名状态清理兜底；auth业务模块不反向依赖播放模块。媒体引擎与API不维护个人状态，详细契约见[播放进度](development-contracts.md#播放进度记忆)。
 
 个人资源标记和备注归 `features/resources/components/PersonalResourcePanel.vue` 与 `features/resources/lib/personalResourceEditor.js`；前者展示，后者拥有编辑/版本/归属生命周期。用户通用偏好继续归 `features/settings/stores/settings.js`，持久化由后端UserPreferences拥有；App装配登出和用户切换时的reset，shared组件不依赖个人状态服务。
+
+观看列表由features/viewing/components/ViewingLibrary负责读取、分页、刷新与移除，views/ViewingView仅装配，导航入口位于资源库菜单。HTTP归api/viewing.js并由api/index.js导出；播放历史事件归features/playback/lib/viewingRecorder.js，独立于进度写入权。

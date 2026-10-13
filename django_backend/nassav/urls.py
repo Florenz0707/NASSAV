@@ -36,7 +36,26 @@ from nassav.http.playback_progress_views import (
 from nassav.http.playback_media import media_view
 from nassav.http.playback_local_media import local_media_view
 
+from nassav.http.viewing_views import PersonalViewingView, PlaybackViewedView
+
 urlpatterns = [
+    path(
+        "api/personal/history",
+        PersonalViewingView.as_view(),
+        {"kind": "history"},
+        name="personal-history",
+    ),
+    path(
+        "api/personal/watch-later",
+        PersonalViewingView.as_view(),
+        {"kind": "watch-later"},
+        name="personal-watch-later",
+    ),
+    path(
+        "api/playback-sessions/<uuid:session_id>/viewed",
+        PlaybackViewedView.as_view(),
+        name="playback-viewed",
+    ),
     path(
         "api/playback-progress",
         PlaybackContinueView.as_view(),

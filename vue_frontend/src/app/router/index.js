@@ -2,6 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
+    path: '/resources/viewing',
+    name: 'Viewing',
+    component: () => import('../../views/ViewingView.vue'),
+  },
+  {
     path: '/play/:avid',
     name: 'Playback',
     meta: { layout: 'playback' },

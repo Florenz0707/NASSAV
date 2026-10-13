@@ -78,6 +78,19 @@ def main():
         file_exists=True,
         file_size=(settings.VIDEO_DIR / "LOCAL-PLAYBACK.mp4").stat().st_size,
     )
+    if os.environ.get("NASSAV_VIEWING_TEST_FIXTURE") == "1":
+        import shutil
+
+        shutil.copyfile(
+            settings.VIDEO_DIR / "LOCAL-PLAYBACK.mp4",
+            settings.VIDEO_DIR / "LOCAL-SECOND.mp4",
+        )
+        AVResource.objects.create(
+            avid="LOCAL-SECOND",
+            source="Jable",
+            original_title="稍后观看隔离验收",
+            file_exists=True,
+        )
     user = get_user_model().objects.create_user(
         username=settings.NASSAV_OPERATOR_USERNAME
     )

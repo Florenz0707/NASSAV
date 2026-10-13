@@ -16,6 +16,7 @@ const showMobileMenu = ref(false)
 const scrolled = ref(false)
 
 const resourcesMenuItems = [
+  { path: '/resources/viewing', label: '观看历史与稍后观看', icon: 'grid' },
   { path: '/resources', name: '全部资源', icon: 'grid' },
   { path: '/resources/actors', name: '按演员', icon: 'users' },
   { path: '/resources/genres', name: '按类别', icon: 'tag' },

@@ -47,7 +47,7 @@ python3 scripts/compose_stack.py --mode sqlite run --rm --no-deps api python man
 
 settings store读取和保存仍经已有setting接口；App在会话身份变化时reset，清空偏好和资源列表中的个人标记，使旧load/save响应失效。页面临时预览仍需点击“保存设置”，后端真值为UserPreferences，不以本地storage或进程对象作为长期状态。
 
-评分、完整观看历史和开放多账号登录仍未实现；推荐用户化、播放偏好及跨设备接续已在第三/第四阶段实现，共享资产仍沿用操作者权限。正式升级依次应用0033–0035并运行适用的显式旧数据导入，不混跑旧INI/AVResource标记或全局推荐写入者。
+评分和开放多账号登录仍未实现；观看历史与稍后观看见[个人观看列表](viewing-architecture.md)；推荐用户化、播放偏好及跨设备接续已在第三/第四阶段实现，共享资产仍沿用操作者权限。正式升级依次应用0033–0035并运行适用的显式旧数据导入，不混跑旧INI/AVResource标记或全局推荐写入者。
 
 ## 本轮验证与发布边界
 
