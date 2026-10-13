@@ -21,6 +21,48 @@ from .seed_profiles import recommendation_seed_profile_repository
 
 
 class RecommendationSnapshotRepository:
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+
+    def for_user(self, user_id):
+        return type(self)(user_id=user_id)
+
+    @property
+    def snapshots(self):
+        return RecommendationSnapshot.objects.filter(owner_id=self.user_id)
+
+    @property
+    def items(self):
+        return RecommendationItem.objects.filter(snapshot__owner_id=self.user_id)
+
+    @property
+    def item_seeds(self):
+        return RecommendationItemSeed.objects.filter(
+            item__snapshot__owner_id=self.user_id
+        )
+
+    @property
+    def profiles(self):
+        return RecommendationSeedProfile.objects.filter(owner_id=self.user_id)
+
+    @property
+    def blocks(self):
+        return RecommendationAvidBlocklist.objects.filter(owner_id=self.user_id)
+
+    @property
+    def feedbacks(self):
+        return RecommendationFeedback.objects.filter(
+            item__snapshot__owner_id=self.user_id
+        )
+
+    @property
+    def seed_profiles(self):
+        return (
+            recommendation_seed_profile_repository
+            if self.user_id is None
+            else recommendation_seed_profile_repository.for_user(self.user_id)
+        )
+
     def next_random_seed(self) -> int:
         return secrets.randbelow(2**31 - 1) + 1
 
@@ -69,7 +111,7 @@ class RecommendationSnapshotRepository:
             return []
 
         snapshot_ids = list(
-            RecommendationSnapshot.objects.filter(
+            self.snapshots.filter(
                 recommender_id=recommender_id,
                 strategy_id=strategy_id,
                 request_fingerprint=request_fingerprint,
@@ -80,9 +122,7 @@ class RecommendationSnapshotRepository:
         if not snapshot_ids:
             return []
 
-        items = RecommendationItem.objects.filter(
-            snapshot_id__in=snapshot_ids
-        ).order_by(
+        items = self.items.filter(snapshot_id__in=snapshot_ids).order_by(
             "-snapshot__generated_at",
             "rank",
             "id",
@@ -110,7 +150,7 @@ class RecommendationSnapshotRepository:
             return {}
 
         snapshot_ids = list(
-            RecommendationSnapshot.objects.filter(
+            self.snapshots.filter(
                 recommender_id=recommender_id,
             )
             .order_by("-generated_at", "-pk")
@@ -119,9 +159,7 @@ class RecommendationSnapshotRepository:
         if not snapshot_ids:
             return {}
 
-        items = RecommendationItem.objects.filter(
-            snapshot_id__in=snapshot_ids
-        ).order_by(
+        items = self.items.filter(snapshot_id__in=snapshot_ids).order_by(
             "-snapshot__generated_at",
             "rank",
             "pk",
@@ -152,7 +190,7 @@ class RecommendationSnapshotRepository:
             return {}
 
         snapshot_ids = list(
-            RecommendationSnapshot.objects.filter(
+            self.snapshots.filter(
                 recommender_id=recommender_id,
             )
             .order_by("-generated_at", "-pk")
@@ -163,14 +201,14 @@ class RecommendationSnapshotRepository:
 
         counts: dict[str, int] = {}
         item_ids = list(
-            RecommendationItem.objects.filter(snapshot_id__in=snapshot_ids)
+            self.items.filter(snapshot_id__in=snapshot_ids)
             .order_by("-snapshot__generated_at", "rank", "pk")
             .values_list("pk", flat=True)[:item_limit]
         )
         if not item_ids:
             return counts
 
-        for seed_type, seed_value in RecommendationItemSeed.objects.filter(
+        for seed_type, seed_value in self.item_seeds.filter(
             item_id__in=item_ids
         ).values_list("seed_type", "seed_value"):
             normalized_seed_type = str(seed_type or "").strip()
@@ -189,8 +227,9 @@ class RecommendationSnapshotRepository:
         if execution.request.history_generation is not None:
             from .jobs import fence_history
 
-            fence_history(execution.request.history_generation)
-        snapshot = RecommendationSnapshot.objects.create(
+            fence_history(execution.request.history_generation, self.user_id)
+        snapshot = self.snapshots.create(
+            owner_id=self.user_id,
             recommender_id=execution.recommender_id,
             strategy_id=execution.strategy_id,
             request_fingerprint=execution.request_fingerprint or "",
@@ -219,7 +258,7 @@ class RecommendationSnapshotRepository:
             random_seed=execution.request.random_seed,
         )
 
-        created_items = RecommendationItem.objects.bulk_create(
+        created_items = self.items.bulk_create(
             [
                 RecommendationItem(
                     snapshot=snapshot,
@@ -272,9 +311,9 @@ class RecommendationSnapshotRepository:
                     )
                 )
         if item_seed_rows:
-            RecommendationItemSeed.objects.bulk_create(item_seed_rows)
-            recommendation_seed_profile_repository.sync_seed_profiles(
-                items=RecommendationItem.objects.filter(
+            self.item_seeds.bulk_create(item_seed_rows)
+            self.seed_profiles.sync_seed_profiles(
+                items=self.items.filter(
                     pk__in=[item.pk for item in created_items if item.pk is not None]
                 ).prefetch_related("item_seeds"),
                 timestamp=snapshot.generated_at,
@@ -286,32 +325,36 @@ class RecommendationSnapshotRepository:
         from nassav.recommendation_models import RecommendationJob, RecommendationState
         from .jobs import lock_history
 
-        lock_history()
-        RecommendationState.objects.filter(pk=1).update(generation=F("generation") + 1)
-        RecommendationJob.objects.filter(state__in=["queued", "running"]).update(
+        lock_history(self.user_id)
+        RecommendationState.objects.filter(owner_id=self.user_id).update(
+            generation=F("generation") + 1
+        )
+        RecommendationJob.objects.filter(
+            owner_id=self.user_id, state__in=["queued", "running"]
+        ).update(
             state="cancelled",
             message="推荐历史已重置",
             version=F("version") + 1,
             updated_at=timezone.now(),
         )
-        blocklist_count = RecommendationAvidBlocklist.objects.count()
-        feedback_count = RecommendationFeedback.objects.count()
-        item_seed_count = RecommendationItemSeed.objects.count()
-        item_count = RecommendationItem.objects.count()
-        seed_profile_count = RecommendationSeedProfile.objects.count()
-        snapshot_count = RecommendationSnapshot.objects.count()
+        blocklist_count = self.blocks.count()
+        feedback_count = self.feedbacks.count()
+        item_seed_count = self.item_seeds.count()
+        item_count = self.items.count()
+        seed_profile_count = self.profiles.count()
+        snapshot_count = self.snapshots.count()
         if preserve_blocklist:
-            RecommendationSeedProfile.objects.filter(is_blocked=False).delete()
-            RecommendationSeedProfile.objects.filter(is_blocked=True).update(
+            self.profiles.filter(is_blocked=False).delete()
+            self.profiles.filter(is_blocked=True).update(
                 recommended_count=0,
                 accepted_count=0,
                 disliked_count=0,
                 last_recommended_at=None,
             )
         else:
-            RecommendationAvidBlocklist.objects.all().delete()
-            RecommendationSeedProfile.objects.all().delete()
-        RecommendationSnapshot.objects.all().delete()
+            self.blocks.all().delete()
+            self.profiles.all().delete()
+        self.snapshots.all().delete()
         return {
             "preserve_blocklist": preserve_blocklist,
             "blocklist_count": blocklist_count,
@@ -323,20 +366,16 @@ class RecommendationSnapshotRepository:
         }
 
     def build_metrics(self) -> dict:
-        snapshot_count = RecommendationSnapshot.objects.count()
-        item_count = RecommendationItem.objects.count()
-        distinct_avid_count = (
-            RecommendationItem.objects.values("avid").distinct().count()
-        )
+        snapshot_count = self.snapshots.count()
+        item_count = self.items.count()
+        distinct_avid_count = self.items.values("avid").distinct().count()
         repeated_avid_count = max(item_count - distinct_avid_count, 0)
         feedback_counts = {
             row["feedback"]: row["count"]
-            for row in RecommendationFeedback.objects.values("feedback").annotate(
-                count=Count("id")
-            )
+            for row in self.feedbacks.values("feedback").annotate(count=Count("id"))
         }
         item_counts = list(
-            RecommendationSnapshot.objects.order_by("-generated_at").values_list(
+            self.snapshots.order_by("-generated_at").values_list(
                 "item_count", flat=True
             )[:50]
         )
@@ -344,7 +383,7 @@ class RecommendationSnapshotRepository:
             round(sum(item_counts) / len(item_counts), 2) if item_counts else 0.0
         )
         top_seeds = list(
-            RecommendationItemSeed.objects.values("seed_type", "seed_value")
+            self.item_seeds.values("seed_type", "seed_value")
             .annotate(count=Count("id"))
             .order_by("-count", "seed_type", "seed_value")[:20]
         )
@@ -363,11 +402,9 @@ class RecommendationSnapshotRepository:
                 "like": int(feedback_counts.get("like", 0)),
                 "dislike": int(feedback_counts.get("dislike", 0)),
             },
-            "avid_blocklist_count": RecommendationAvidBlocklist.objects.count(),
-            "blocked_seed_count": RecommendationSeedProfile.objects.filter(
-                is_blocked=True
-            ).count(),
-            "learned_seed_count": RecommendationSeedProfile.objects.filter(
+            "avid_blocklist_count": self.blocks.count(),
+            "blocked_seed_count": self.profiles.filter(is_blocked=True).count(),
+            "learned_seed_count": self.profiles.filter(
                 Q(accepted_count__gt=0) | Q(disliked_count__gt=0)
             ).count(),
             "top_seed_exposures": [

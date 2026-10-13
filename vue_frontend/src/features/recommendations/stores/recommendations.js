@@ -19,6 +19,7 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
   const activeJobId = ref('')
   const jobState = ref('')
   const progress = ref(null)
+  let sessionEpoch = 0
   let controller = null
   const guard = createRequestGuard()
   const metricsGuard = createRequestGuard()
@@ -131,8 +132,10 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
   }
 
   async function setAvidBlocked(avid, blocked) {
+    const epoch = sessionEpoch
     if (blocked) await recommendationApi.blockAvid({ avid, reason: 'manual' })
     else await recommendationApi.unblockAvid({ avid })
+    if (epoch !== sessionEpoch) return null
     const next = new Set(blockedAvids.value)
     if (blocked) next.add(avid)
     else next.delete(avid)
@@ -140,11 +143,13 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
   }
 
   async function submitFeedback(item, feedbackType) {
+    const epoch = sessionEpoch
     const response = await recommendationApi.submitFeedback({
       snapshot_id: item.snapshot_id,
       avid: item.avid,
       feedback: feedbackType,
     })
+    if (epoch !== sessionEpoch) return null
     const savedFeedback = response.data?.feedback || ''
     const next = { ...feedbackByAvid.value }
     if (feedbackType === 'clear') delete next[item.avid]
@@ -166,7 +171,16 @@ export const useRecommendationsStore = defineStore('recommendations', () => {
     blockedAvids.value = new Set()
   }
 
+  function reset() {
+    sessionEpoch++
+    clearResults()
+    metrics.value = null
+    jobState.value = ''
+    error.value = ''
+  }
+
   return {
+    reset,
     loading,
     activeJobId,
     jobState,

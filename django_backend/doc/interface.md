@@ -1538,3 +1538,9 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 `GET/PUT /api/setting` 保持原路由与扁平envelope，不要求前端包裹preferences。六项字符串字段名称不变；created_at/updated_at属于持久记录，不新增到当前设置响应。GET按当前定义合并缺省值，不建行、不补写；删除/未知键不返回，非法存储值回退默认值。
 
 PUT仅合并明确提交的当前键；整组提交在写入前严格校验，未知/废弃键、null、错误类型或非法枚举返回400且不部分写入。空对象返回当前有效值且不建行；已有存储值相同不更新时间。缺失项保留隐式默认值，显式保存默认值成为覆盖值。不会按当前版本清除原JSON中的未知键；删除/改名需要显式数据迁移。当前没有键别名或重置接口，null不表示删除。完整行为、导入及回退见[个人状态与设置](personal-state-architecture.md#json设置与0034当前实现)。
+
+## 推荐个人归属（未发布）
+
+推荐job、历史指标、反馈、重置与三类黑名单只读写当前账号；他人snapshot不可反馈，他人job返回404。演员/类别目录共享，屏蔽投影个人化。旧共享数据需显式导入。job提交遗漏偏好或limit时读取个人JSON默认值，明确传参优先，后续设置变化不改变在途job。
+
+GET/PUT `/api/setting`新增recommendation_type_preference（actor_heavy/balanced/genre_heavy）、recommendation_actor_preference及recommendation_genre_preference（familiar/balanced/rare）、recommendation_limit（JSON整数12/24/36）；默认balanced与12。原有六项字符串设置兼容，PUT仅合并提交键。

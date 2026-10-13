@@ -1,3 +1,5 @@
+from django.db import transaction
+from nassav.db_retry import retry_sqlite_contention
 from collections.abc import Iterable
 
 from django.db.models import F
@@ -17,8 +19,18 @@ from .seed_policy import normalize_seed_value
 
 
 class RecommendationSeedProfileRepository:
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+
+    def for_user(self, user_id):
+        return type(self)(user_id=user_id)
+
+    @property
+    def profiles(self):
+        return RecommendationSeedProfile.objects.filter(owner_id=self.user_id)
+
     def has_blocked_profiles(self) -> bool:
-        return RecommendationSeedProfile.objects.filter(
+        return self.profiles.filter(
             seed_type__in=["actor", "genre"],
             is_blocked=True,
         ).exists()
@@ -27,7 +39,7 @@ class RecommendationSeedProfileRepository:
         self,
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str, str]]]:
         blocked_profiles = list(
-            RecommendationSeedProfile.objects.filter(
+            self.profiles.filter(
                 seed_type__in=["actor", "genre"],
                 is_blocked=True,
             ).only(
@@ -126,7 +138,7 @@ class RecommendationSeedProfileRepository:
             return set()
 
         return set(
-            RecommendationSeedProfile.objects.filter(
+            self.profiles.filter(
                 seed_type=str(seed_type or "").strip().lower(),
                 is_blocked=True,
                 normalized_value__in=normalized_values,
@@ -150,7 +162,7 @@ class RecommendationSeedProfileRepository:
             return set()
 
         return set(
-            RecommendationSeedProfile.objects.filter(
+            self.profiles.filter(
                 seed_type=str(seed_type or "").strip().lower(),
                 is_blocked=True,
                 source_name=normalized_source_name,
@@ -225,7 +237,8 @@ class RecommendationSeedProfileRepository:
                 )
 
         for identity, payload in grouped.items():
-            profile, created = RecommendationSeedProfile.objects.get_or_create(
+            profile, created = self.profiles.get_or_create(
+                owner_id=self.user_id,
                 seed_type=identity[0],
                 normalized_value=identity[1],
                 source_name=identity[2],
@@ -246,7 +259,7 @@ class RecommendationSeedProfileRepository:
                 payload["aliases"],
             )
             profile.last_recommended_at = timestamp
-            RecommendationSeedProfile.objects.filter(pk=profile.pk).update(
+            self.profiles.filter(pk=profile.pk).update(
                 value=profile.value,
                 aliases=profile.aliases,
                 last_recommended_at=timestamp,
@@ -255,9 +268,7 @@ class RecommendationSeedProfileRepository:
             )
 
     def build_seed_score_map(self) -> dict[str, float]:
-        profiles = RecommendationSeedProfile.objects.filter(
-            recommended_count__gt=0
-        ).only(
+        profiles = self.profiles.filter(recommended_count__gt=0).only(
             "seed_type",
             "value",
             "accepted_count",
@@ -275,12 +286,17 @@ class RecommendationSeedProfileRepository:
             )
         return output
 
+    @retry_sqlite_contention
+    @transaction.atomic
     def block_actor(
         self,
         *,
         actor: Actor,
         reason: str = "manual",
     ) -> RecommendationSeedProfile:
+        from .jobs import lock_history
+
+        lock_history(self.user_id)
         profile = self._set_manual_block(
             seed_type="actor",
             value=actor.name,
@@ -289,7 +305,12 @@ class RecommendationSeedProfileRepository:
         self._set_actor_source_blocks(actor=actor, value=actor.name, reason=reason)
         return profile
 
+    @retry_sqlite_contention
+    @transaction.atomic
     def unblock_actor(self, *, actor: Actor) -> RecommendationSeedProfile | None:
+        from .jobs import lock_history
+
+        lock_history(self.user_id)
         profile = self._clear_manual_block(
             seed_type="actor",
             value=actor.name,
@@ -297,12 +318,17 @@ class RecommendationSeedProfileRepository:
         self._clear_actor_source_blocks(actor=actor, value=actor.name)
         return profile
 
+    @retry_sqlite_contention
+    @transaction.atomic
     def block_genre(
         self,
         *,
         genre: Genre,
         reason: str = "manual",
     ) -> RecommendationSeedProfile:
+        from .jobs import lock_history
+
+        lock_history(self.user_id)
         profile = self._set_manual_block(
             seed_type="genre",
             value=genre.name,
@@ -311,7 +337,12 @@ class RecommendationSeedProfileRepository:
         self._set_genre_source_blocks(genre=genre, value=genre.name, reason=reason)
         return profile
 
+    @retry_sqlite_contention
+    @transaction.atomic
     def unblock_genre(self, *, genre: Genre) -> RecommendationSeedProfile | None:
+        from .jobs import lock_history
+
+        lock_history(self.user_id)
         profile = self._clear_manual_block(
             seed_type="genre",
             value=genre.name,
@@ -420,7 +451,8 @@ class RecommendationSeedProfileRepository:
             return
 
         normalized_value = self.normalize_value(value)
-        profile, _ = RecommendationSeedProfile.objects.get_or_create(
+        profile, _ = self.profiles.get_or_create(
+            owner_id=self.user_id,
             seed_type=seed_type,
             normalized_value=normalized_value,
             source_name=normalized_source_name,
@@ -449,7 +481,7 @@ class RecommendationSeedProfileRepository:
 
         normalized_value = self.normalize_value(value)
         profile = (
-            RecommendationSeedProfile.objects.filter(
+            self.profiles.filter(
                 seed_type=seed_type,
                 normalized_value=normalized_value,
                 source_name=normalized_source_name,
@@ -508,7 +540,8 @@ class RecommendationSeedProfileRepository:
                 continue
             seen_profiles.add(identity)
 
-            profile, _ = RecommendationSeedProfile.objects.get_or_create(
+            profile, _ = self.profiles.get_or_create(
+                owner_id=self.user_id,
                 seed_type=identity[0],
                 normalized_value=identity[1],
                 source_name=identity[2],
@@ -530,9 +563,7 @@ class RecommendationSeedProfileRepository:
                 update_payload["accepted_count"] = F("accepted_count") + accepted_delta
             if disliked_delta:
                 update_payload["disliked_count"] = F("disliked_count") + disliked_delta
-            RecommendationSeedProfile.objects.filter(pk=profile.pk).update(
-                **update_payload
-            )
+            self.profiles.filter(pk=profile.pk).update(**update_payload)
 
     def _feedback_delta(
         self,
@@ -582,7 +613,8 @@ class RecommendationSeedProfileRepository:
         reason: str,
     ) -> RecommendationSeedProfile:
         normalized_value = self.normalize_value(value)
-        profile, _ = RecommendationSeedProfile.objects.get_or_create(
+        profile, _ = self.profiles.get_or_create(
+            owner_id=self.user_id,
             seed_type=seed_type,
             normalized_value=normalized_value,
             source_name="",
@@ -605,7 +637,7 @@ class RecommendationSeedProfileRepository:
     ) -> RecommendationSeedProfile | None:
         normalized_value = self.normalize_value(value)
         profile = (
-            RecommendationSeedProfile.objects.filter(
+            self.profiles.filter(
                 seed_type=seed_type,
                 normalized_value=normalized_value,
                 source_name="",

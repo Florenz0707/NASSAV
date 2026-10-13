@@ -63,11 +63,11 @@ class ActorsListView(SchemaAPIView):
         # 分页
         paginator = Paginator(qs, page_size)
         page_obj = paginator.get_page(page)
-        blocked_names = (
-            recommendation_seed_profile_repository.get_blocked_normalized_values(
-                seed_type="actor",
-                values=[actor.name for actor in page_obj.object_list],
-            )
+        blocked_names = recommendation_seed_profile_repository.for_user(
+            request.user.pk
+        ).get_blocked_normalized_values(
+            seed_type="actor",
+            values=[actor.name for actor in page_obj.object_list],
         )
         actor_ids = [
             int(actor.pk) for actor in page_obj.object_list if actor.pk is not None
@@ -83,7 +83,9 @@ class ActorsListView(SchemaAPIView):
                 continue
             mappings[int(mapping_actor_id)] = mapping
         blocked_actor_source_identifiers = (
-            recommendation_seed_profile_repository.get_blocked_source_identifiers(
+            recommendation_seed_profile_repository.for_user(
+                request.user.pk
+            ).get_blocked_source_identifiers(
                 seed_type="actor",
                 source_name="jable",
                 identifiers=[
@@ -105,7 +107,9 @@ class ActorsListView(SchemaAPIView):
                 if a.avatar_url not in ACTOR_AVATAR_PLACEHOLDER_URLS
                 else None,
                 "is_blocked": (
-                    recommendation_seed_profile_repository.normalize_value(a.name)
+                    recommendation_seed_profile_repository.for_user(
+                        request.user.pk
+                    ).normalize_value(a.name)
                     in blocked_names
                     or str(
                         getattr(mappings.get(int(a.id)), "source_actor_slug", "") or ""
@@ -241,11 +245,11 @@ class GenresListView(SchemaAPIView):
         # 分页
         paginator = Paginator(qs, page_size)
         page_obj = paginator.get_page(page)
-        blocked_names = (
-            recommendation_seed_profile_repository.get_blocked_normalized_values(
-                seed_type="genre",
-                values=[genre.name for genre in page_obj.object_list],
-            )
+        blocked_names = recommendation_seed_profile_repository.for_user(
+            request.user.pk
+        ).get_blocked_normalized_values(
+            seed_type="genre",
+            values=[genre.name for genre in page_obj.object_list],
         )
         genre_ids = [
             int(genre.pk) for genre in page_obj.object_list if genre.pk is not None
@@ -261,7 +265,9 @@ class GenresListView(SchemaAPIView):
                 continue
             mappings[int(mapping_genre_id)] = mapping
         blocked_genre_source_identifiers = (
-            recommendation_seed_profile_repository.get_blocked_source_identifiers(
+            recommendation_seed_profile_repository.for_user(
+                request.user.pk
+            ).get_blocked_source_identifiers(
                 seed_type="genre",
                 source_name="jable",
                 identifiers=[
@@ -277,7 +283,9 @@ class GenresListView(SchemaAPIView):
                 "name": g.name,
                 "resource_count": getattr(g, "resource_count", 0),
                 "is_blocked": (
-                    recommendation_seed_profile_repository.normalize_value(g.name)
+                    recommendation_seed_profile_repository.for_user(
+                        request.user.pk
+                    ).normalize_value(g.name)
                     in blocked_names
                     or str(
                         getattr(mappings.get(int(g.id)), "source_genre_slug", "") or ""

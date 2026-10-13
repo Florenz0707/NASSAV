@@ -224,3 +224,47 @@ test('progress is owned by the current query and cleared on cancellation', async
     Object.assign(recommendationApi, original)
   }
 })
+
+test('personal view snapshots cannot be restored under a different owner', () => {
+  const values = new Map()
+  const storage = {
+    setItem: (key, value) => values.set(key, value),
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+  }
+  saveRecommendationViewState({ items: [{ avid: 'ALICE' }] }, storage, 'alice')
+  assert.equal(restoreRecommendationViewState(storage, 'bob'), null)
+  assert.equal(restoreRecommendationViewState(storage, 'alice').items[0].avid, 'ALICE')
+})
+
+test('logout reset fences late feedback and blacklist mutations', async () => {
+  const { recommendationApi } = await import('../src/api/index.js')
+  const original = {
+    submitFeedback: recommendationApi.submitFeedback,
+    blockAvid: recommendationApi.blockAvid,
+  }
+  let feedbackResolve, blockResolve
+  recommendationApi.submitFeedback = () =>
+    new Promise((resolve) => {
+      feedbackResolve = resolve
+    })
+  recommendationApi.blockAvid = () =>
+    new Promise((resolve) => {
+      blockResolve = resolve
+    })
+  try {
+    setActivePinia(createPinia())
+    const store = useRecommendationsStore()
+    const feedback = store.submitFeedback({ avid: 'PRIVATE', snapshot_id: 1 }, 'like')
+    const block = store.setAvidBlocked('PRIVATE', true)
+    store.reset()
+    feedbackResolve({ data: { feedback: 'like' } })
+    blockResolve({ data: {} })
+    await Promise.all([feedback, block])
+    assert.deepEqual(store.feedbackByAvid, {})
+    assert.equal(store.blockedAvids.size, 0)
+    assert.equal(store.metrics, null)
+  } finally {
+    Object.assign(recommendationApi, original)
+  }
+})

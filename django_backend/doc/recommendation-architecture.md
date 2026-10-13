@@ -155,3 +155,15 @@ useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代�
 ## 第二阶段个人行为衔接
 
 收藏和观看权重改读 `UserResourceState` 中配置操作者的行，旧共享AVResource列只留作显式导入和回退快照；不统计其他账号的个人行为。当前推荐仍为单操作者服务，历史/反馈/黑名单的完整用户隔离属于[后续规划](multi-user-roadmap.md)，不得因为新表有user就开放推荐给所有账号。
+
+## 用户归属（第三阶段）
+
+0035为Snapshot、SeedProfile、AvidBlocklist、State增加owner；Item/ItemSeed/Feedback沿snapshot继承。HTTP、同步兼容入口、种子个人标记、近期去重、反馈计数、黑名单投影和重置均显式传user_id。Repository.for_user返回独立作用域，无user_id的兼容实例只访问NULL owner旧数据。演员/类别/来源映射、正式资源、抓取缓存及ProxyServer容量仍共享，推荐继续由Celery scrape队列执行，source/browser使用全局Proxy.url。
+
+反馈、黑名单和重置先取本用户历史写入fence；重置只增加本用户generation、取消本用户job。worker归属由job.owner注入，缓存提交及snapshot提交同时检查个人generation、execution UUID与deadline；停用账号不能提交。网络始终在事务外。
+
+推荐偏好存入UserPreferences JSON：recommendation_type_preference、recommendation_actor_preference、recommendation_genre_preference、recommendation_limit。缺失项只读补齐默认值，任务提交时冻结有效配置，明确传参优先。页面提供显式保存，结果sessionStorage按账号命名，登出清理；旧未归属页面缓存不恢复，迟到反馈/黑名单响应不能写入新账号store。
+
+迁移不推断旧共享数据归属，保留NULL owner待导入，业务用户不可见。维护窗口停止API/worker/Beat并备份，迁移取消旧活动推荐job，禁止混跑旧消费者。首次个人推荐前执行`uv run python manage.py import_recommendation_data --username <原操作者>`预览，确认后加`--apply`。只允许配置中的原操作者；目标已有个人推荐数据或活动job时拒绝自动合并。条目/种子/反馈关系保持，无残余旧行时再次执行为零操作，不改共享资源、缓存或文件。
+
+回退0035移除个人归属；不同用户已有相同AVID黑名单或种子身份时主动拒绝回退，不自动丢数据恢复旧唯一约束。必须先备份并明确处理冲突；回退移除新增用户state行，旧活动job不复活。删除账号级联清理所属个人推荐状态。仍保留is_operator准入，不开放注册或普通用户共享资产/任务控制权限。

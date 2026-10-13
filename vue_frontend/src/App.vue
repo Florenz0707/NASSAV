@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, watch, ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { clearPlaybackDrafts } from './features/playback/lib/progressDrafts.js'
+import { useRecommendationsStore } from './features/recommendations/stores/recommendations.js'
+import { clearAllRecommendationViewStates } from './features/recommendations/stores/recommendationViewState.js'
 import Navbar from './app/components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
 import Toast from './shared/ui/Toast.vue'
@@ -46,9 +48,13 @@ onMounted(() => {
 watch(
   () => [sessionStore.status, sessionStore.username],
   ([status]) => {
+    useRecommendationsStore().reset()
     settingsStore.reset()
     resourceStore.resetResourceList()
-    if (status === 'anonymous') clearPlaybackDrafts()
+    if (status === 'anonymous') {
+      clearPlaybackDrafts()
+      clearAllRecommendationViewStates()
+    }
     if (status === 'authenticated') {
       taskJobs.start(sessionStore.username)
       wsStore.connect()
@@ -134,7 +140,7 @@ watch(
       >
         <RouterView v-slot="{ Component }">
           <transition name="page" mode="out-in" @after-enter="restorePageFocus">
-            <component :is="Component" />
+            <component :is="Component" :key="sessionStore.username" />
           </transition>
         </RouterView>
       </main>

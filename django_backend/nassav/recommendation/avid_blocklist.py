@@ -1,3 +1,6 @@
+from django.db import transaction
+from nassav.db_retry import retry_sqlite_contention
+
 """Persistence and list projection for manually blocked recommendation AVIDs."""
 
 from abc import ABC, abstractmethod
@@ -24,10 +27,20 @@ class AvidBlocklistRepository(ABC):
 
 
 class DjangoAvidBlocklistRepository(AvidBlocklistRepository):
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+
+    def for_user(self, user_id):
+        return type(self)(user_id=user_id)
+
+    @property
+    def blocks(self):
+        return RecommendationAvidBlocklist.objects.filter(owner_id=self.user_id)
+
     def list(
         self, *, page: int, page_size: int, search: str
     ) -> tuple[list[dict], dict]:
-        qs = RecommendationAvidBlocklist.objects.all().order_by("-updated_at", "-id")
+        qs = self.blocks.all().order_by("-updated_at", "-id")
         if search:
             qs = qs.filter(avid__icontains=search.upper())
 
@@ -74,8 +87,14 @@ class DjangoAvidBlocklistRepository(AvidBlocklistRepository):
         }
         return data, pagination
 
+    @retry_sqlite_contention
+    @transaction.atomic
     def block(self, *, avid: str, reason: str) -> dict:
-        block, _ = RecommendationAvidBlocklist.objects.update_or_create(
+        from .jobs import lock_history
+
+        lock_history(self.user_id)
+        block, _ = self.blocks.update_or_create(
+            owner_id=self.user_id,
             avid=avid,
             defaults={"source": "manual", "reason": reason},
         )
@@ -86,10 +105,13 @@ class DjangoAvidBlocklistRepository(AvidBlocklistRepository):
             "is_blocked": True,
         }
 
+    @retry_sqlite_contention
+    @transaction.atomic
     def unblock(self, *, avid: str) -> bool:
-        deleted_count, _ = RecommendationAvidBlocklist.objects.filter(
-            avid=avid
-        ).delete()
+        from .jobs import lock_history
+
+        lock_history(self.user_id)
+        deleted_count, _ = self.blocks.filter(avid=avid).delete()
         return deleted_count != 0
 
 

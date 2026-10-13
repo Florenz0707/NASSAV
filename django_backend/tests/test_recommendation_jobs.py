@@ -71,13 +71,13 @@ def test_history_reset_fences_late_worker_and_sync_results(owner):
     from nassav.recommendation.repository import recommendation_snapshot_repository
     from nassav.recommendation.data_access import DjangoRecommendationContext
 
-    context = DjangoRecommendationContext()
+    context = DjangoRecommendationContext(user_id=owner.pk)
     request = RecommendationRequest()
     context.prepare(request, "jable_page_lookup", "local_preference")
     job = jobs.submit(owner, {})
 
     def reset_builder(*, context, control):
-        recommendation_snapshot_repository.reset_state()
+        recommendation_snapshot_repository.for_user(owner.pk).reset_state()
         return builder(context=context, control=control)
 
     jobs.execute(job.pk, manager_builder=reset_builder)
@@ -215,7 +215,7 @@ def test_provider_cache_commit_fence_rejects_invalid_recommendation_execution(
             if invalidate == "cancel":
                 jobs.cancel(job.pk, owner)
             elif invalidate == "history":
-                RecommendationState.objects.filter(pk=1).update(
+                RecommendationState.objects.filter(owner=owner).update(
                     generation=job.history_generation + 1
                 )
             elif invalidate == "owner":

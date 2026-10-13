@@ -21,20 +21,29 @@ from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavai
 from nassav.recommendation.jobs import RecommendationStopped
 
 
+def personal_request_params(request):
+    from nassav.personal_preferences import read_preferences
+
+    preferences = read_preferences(request.user.pk)
+    parameters = request.query_params.copy()
+    for key in ("type_preference", "actor_preference", "genre_preference", "limit"):
+        parameters.setdefault(key, preferences[f"recommendation_{key}"])
+    return _parse_recommendation_request_params(parameters)
+
+
 class RecommendationsDemoView(SchemaAPIView):
     """GET /api/recommendations/demo - 返回基于本地偏好的 demo 推荐结果"""
 
     def get(self, request):
         from nassav.recommendation import (
             RecommendationManagerError,
-            recommender_manager,
         )
 
         try:
-            execution = recommender_manager.recommend(
-                request_params=_parse_recommendation_request_params(
-                    request.query_params
-                ),
+            from nassav.composition import build_recommendation_manager
+
+            execution = build_recommendation_manager(user_id=request.user.pk).recommend(
+                request_params=personal_request_params(request),
             )
             return build_response(200, "success", execution.to_dict())
         except RecommendationManagerError as e:
@@ -53,17 +62,16 @@ class RecommendationsView(SchemaAPIView):
     def get(self, request):
         from nassav.recommendation import (
             RecommendationManagerError,
-            recommender_manager,
         )
 
         strategy_id = request.query_params.get("strategy", "").strip() or None
 
         try:
-            execution = recommender_manager.recommend(
+            from nassav.composition import build_recommendation_manager
+
+            execution = build_recommendation_manager(user_id=request.user.pk).recommend(
                 strategy_id=strategy_id,
-                request_params=_parse_recommendation_request_params(
-                    request.query_params
-                ),
+                request_params=personal_request_params(request),
             )
             return build_response(200, "success", execution.to_dict())
         except RecommendationManagerError as e:
@@ -96,7 +104,9 @@ class RecommendationMetricsView(SchemaAPIView):
         return build_response(
             200,
             "success",
-            recommendation_snapshot_repository.build_metrics(),
+            recommendation_snapshot_repository.for_user(
+                request.user.pk
+            ).build_metrics(),
         )
 
 
@@ -115,7 +125,9 @@ class RecommendationFeedbackView(SchemaAPIView):
             return build_response(400, str(e), None)
 
         try:
-            feedback_obj = recommendation_feedback_repository.record_feedback(**payload)
+            feedback_obj = recommendation_feedback_repository.for_user(
+                request.user.pk
+            ).record_feedback(**payload)
         except RecommendationFeedbackError as e:
             return build_response(400, str(e), None)
 
@@ -152,7 +164,9 @@ class RecommendationSeedBlockView(SchemaAPIView):
                 actor = Actor.objects.get(pk=payload["id"])
             except Actor.DoesNotExist:
                 return build_response(404, "演员不存在", None)
-            profile = recommendation_seed_profile_repository.block_actor(
+            profile = recommendation_seed_profile_repository.for_user(
+                request.user.pk
+            ).block_actor(
                 actor=actor,
                 reason=payload["reason"],
             )
@@ -179,7 +193,9 @@ class RecommendationSeedBlockView(SchemaAPIView):
             )
         except ValueError as error:
             return build_response(400, "搜索源或排序参数无效", {"reason": str(error)})
-        profile = recommendation_seed_profile_repository.block_genre(
+        profile = recommendation_seed_profile_repository.for_user(
+            request.user.pk
+        ).block_genre(
             genre=genre,
             reason=payload["reason"],
         )
@@ -208,7 +224,9 @@ class RecommendationSeedBlockView(SchemaAPIView):
                 actor = Actor.objects.get(pk=payload["id"])
             except Actor.DoesNotExist:
                 return build_response(404, "演员不存在", None)
-            profile = recommendation_seed_profile_repository.unblock_actor(actor=actor)
+            profile = recommendation_seed_profile_repository.for_user(
+                request.user.pk
+            ).unblock_actor(actor=actor)
             if profile is None:
                 return build_response(404, "演员屏蔽记录不存在", None)
             data = {
@@ -234,7 +252,9 @@ class RecommendationSeedBlockView(SchemaAPIView):
             )
         except ValueError as error:
             return build_response(400, "搜索源或排序参数无效", {"reason": str(error)})
-        profile = recommendation_seed_profile_repository.unblock_genre(genre=genre)
+        profile = recommendation_seed_profile_repository.for_user(
+            request.user.pk
+        ).unblock_genre(genre=genre)
         if profile is None:
             return build_response(404, "类别屏蔽记录不存在", None)
         data = {
@@ -258,9 +278,9 @@ class RecommendationAvidBlocklistView(SchemaAPIView):
         page = _parse_positive_int(request.query_params.get("page"), 1)
         page_size = _parse_positive_int(request.query_params.get("page_size"), 50)
         search = str(request.query_params.get("search", "")).strip()
-        data, pagination = recommendation_avid_blocklist_repository.list(
-            page=page, page_size=page_size, search=search
-        )
+        data, pagination = recommendation_avid_blocklist_repository.for_user(
+            request.user.pk
+        ).list(page=page, page_size=page_size, search=search)
         return build_response(200, "success", data, pagination=pagination)
 
     def post(self, request):
@@ -272,7 +292,9 @@ class RecommendationAvidBlocklistView(SchemaAPIView):
             payload = _parse_recommendation_avid_block_payload(request.data or {})
         except ValueError as e:
             return build_response(400, str(e), None)
-        data = recommendation_avid_blocklist_repository.block(**payload)
+        data = recommendation_avid_blocklist_repository.for_user(request.user.pk).block(
+            **payload
+        )
         return build_response(200, "success", data)
 
     def delete(self, request):
@@ -284,7 +306,9 @@ class RecommendationAvidBlocklistView(SchemaAPIView):
             payload = _parse_recommendation_avid_block_payload(request.data or {})
         except ValueError as e:
             return build_response(400, str(e), None)
-        if not recommendation_avid_blocklist_repository.unblock(avid=payload["avid"]):
+        if not recommendation_avid_blocklist_repository.for_user(
+            request.user.pk
+        ).unblock(avid=payload["avid"]):
             return build_response(404, "资源屏蔽记录不存在", None)
         return build_response(
             200, "success", {"avid": payload["avid"], "is_blocked": False}
@@ -303,9 +327,9 @@ class RecommendationResetView(SchemaAPIView):
             else None,
             True,
         )
-        result = recommendation_snapshot_repository.reset_state(
-            preserve_blocklist=preserve_blocklist
-        )
+        result = recommendation_snapshot_repository.for_user(
+            request.user.pk
+        ).reset_state(preserve_blocklist=preserve_blocklist)
         return build_response(200, "success", result)
 
 

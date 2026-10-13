@@ -19,6 +19,12 @@ export const useSettingsStore = defineStore('settings', () => {
   // 推荐搜索结果展示样式：grid | masonry
   const searchResultDisplayStyle = ref('grid')
   const defaultExternalSearchSource = ref('jable')
+  const recommendationPreferences = ref({
+    type_preference: 'balanced',
+    actor_preference: 'balanced',
+    genre_preference: 'balanced',
+    limit: 12,
+  })
   const loaded = ref(false)
   let loadPromise = null
   let sessionEpoch = 0
@@ -28,6 +34,12 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function settingsPayload() {
     return {
+      ...Object.fromEntries(
+        Object.entries(recommendationPreferences.value).map(([key, value]) => [
+          `recommendation_${key}`,
+          value,
+        ])
+      ),
       enable_avatar: showActorAvatar.value ? 'true' : 'false',
       display_title: displayTitle.value,
       font_family: fontFamily.value,
@@ -43,6 +55,12 @@ export const useSettingsStore = defineStore('settings', () => {
     saveGuard.invalidate()
     loadPromise = null
     loaded.value = false
+    recommendationPreferences.value = {
+      type_preference: 'balanced',
+      actor_preference: 'balanced',
+      genre_preference: 'balanced',
+      limit: 12,
+    }
     showActorAvatar.value = true
     displayTitle.value = 'source_title'
     fontFamily.value = 'Mplus2'
@@ -86,6 +104,10 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         if (data.default_external_search_source !== undefined) {
           defaultExternalSearchSource.value = data.default_external_search_source
+        }
+        for (const key of Object.keys(recommendationPreferences.value)) {
+          if (data[`recommendation_${key}`] !== undefined)
+            recommendationPreferences.value[key] = data[`recommendation_${key}`]
         }
         savedValues = settingsPayload()
         loaded.value = true
@@ -136,6 +158,7 @@ export const useSettingsStore = defineStore('settings', () => {
     colorMode,
     searchResultDisplayStyle,
     defaultExternalSearchSource,
+    recommendationPreferences,
     loaded,
     reset,
     loadSettings,

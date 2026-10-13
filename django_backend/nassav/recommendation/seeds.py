@@ -43,13 +43,15 @@ class LocalPreferenceSeedProvider(SeedProvider):
 
     def get_seeds(self, request: RecommendationRequest) -> list[RecommendationSeed]:
         seeds = self._build_seed_batch(request, only_interacted=self.only_interacted)
-        seeds = recommendation_seed_profile_repository.filter_allowed_seeds(seeds)
+        seeds = recommendation_seed_profile_repository.for_user(
+            request.user_id
+        ).filter_allowed_seeds(seeds)
         if seeds or not self.only_interacted or not self.fallback_to_all:
             return seeds
         fallback_seeds = self._build_seed_batch(request, only_interacted=False)
-        return recommendation_seed_profile_repository.filter_allowed_seeds(
-            fallback_seeds
-        )
+        return recommendation_seed_profile_repository.for_user(
+            request.user_id
+        ).filter_allowed_seeds(fallback_seeds)
 
     def get_additional_seeds(
         self,
@@ -74,9 +76,9 @@ class LocalPreferenceSeedProvider(SeedProvider):
                 actor_limit=None,
                 genre_limit=None,
             )
-        seed_pool = recommendation_seed_profile_repository.filter_allowed_seeds(
-            seed_pool
-        )
+        seed_pool = recommendation_seed_profile_repository.for_user(
+            request.user_id
+        ).filter_allowed_seeds(seed_pool)
 
         used_keys = {(seed.seed_type, seed.value) for seed in used_seeds}
         extras: list[RecommendationSeed] = []
@@ -137,7 +139,7 @@ class LocalPreferenceSeedProvider(SeedProvider):
         request: RecommendationRequest | None = None,
     ) -> list[RecommendationSeed]:
         queryset = self._annotated_queryset(
-            Actor.objects, only_interacted=only_interacted
+            Actor.objects, only_interacted=only_interacted, request=request
         )
         seeds = self._build_seeds(
             queryset=queryset,
@@ -159,7 +161,7 @@ class LocalPreferenceSeedProvider(SeedProvider):
         request: RecommendationRequest | None = None,
     ) -> list[RecommendationSeed]:
         queryset = self._annotated_queryset(
-            Genre.objects, only_interacted=only_interacted
+            Genre.objects, only_interacted=only_interacted, request=request
         )
         seeds = self._build_seeds(
             queryset=queryset,
@@ -173,13 +175,19 @@ class LocalPreferenceSeedProvider(SeedProvider):
             seed_type="genre",
         )
 
-    def _annotated_queryset(self, manager, *, only_interacted: bool = False) -> list:
+    def _annotated_queryset(
+        self, manager, *, only_interacted: bool = False, request=None
+    ) -> list:
         recent_since = timezone.now() - timedelta(days=max(self.recent_days, 1))
         owner_id = (
-            get_user_model()
-            .objects.filter(username=settings.NASSAV_OPERATOR_USERNAME)
-            .values_list("pk", flat=True)
-            .first()
+            request.user_id
+            if request is not None and request.user_id is not None
+            else (
+                get_user_model()
+                .objects.filter(username=settings.NASSAV_OPERATOR_USERNAME)
+                .values_list("pk", flat=True)
+                .first()
+            )
         )
         watched_filter = Q(
             resources__user_states__user_id=owner_id,

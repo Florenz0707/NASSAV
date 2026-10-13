@@ -45,7 +45,19 @@ class RecommendationJobSubmitView(SchemaAPIView):
     serializer_class = RecommendationQuerySerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        from nassav.personal_preferences import read_preferences
+
+        preferences = read_preferences(request.user.pk)
+        defaults = {
+            key: preferences[f"recommendation_{key}"]
+            for key in (
+                "type_preference",
+                "actor_preference",
+                "genre_preference",
+                "limit",
+            )
+        }
+        serializer = self.serializer_class(data={**defaults, **request.data})
         if not serializer.is_valid():
             return build_response(400, "推荐参数无效", serializer.errors)
         payload = dict(serializer.validated_data)

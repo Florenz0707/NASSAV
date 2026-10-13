@@ -185,3 +185,7 @@ settings store的reset清空六项偏好及loaded/in-flight请求归属；App在
 后端数据、迁移/导入及开放权限边界见[个人状态与设置](../../django_backend/doc/personal-state-architecture.md)。本阶段仍保留指定操作者登录，不把单项数据隔离当作全系统多用户访问已完成。
 
 通用设置保存相对最近加载/成功保存的基线只提交改动字段，无改动不发PUT；不把GET补齐的默认值自动全部持久化。保存失败保留差异，保存期间新的编辑在后续提交，登出/用户切换或旧请求响应不得覆盖保存基线。JSON配置定义、缺失/废弃键与0034数据迁移遵循[后端配置规则](../../django_backend/doc/personal-state-architecture.md#json设置与0034当前实现)。
+
+## 推荐个人状态
+
+结果页面缓存按账号命名，旧未归属缓存不恢复；登出清空缓存与store，用户切换重新装配路由页。job/指标检查查询身份，反馈/黑名单写后投影检查登录代次，旧页不得持久化到新账号。偏好由settings store的recommendationPreferences读取用户JSON，“保存推荐偏好”只提交变更项；当前查询可使用尚未保存的选择，显式路由参数优先，缓存结果不覆盖个人数据库默认值。

@@ -18,25 +18,37 @@ class DjangoCandidateInventory(CandidateInventory):
 
 
 class DjangoRecommendationContext(RecommendationContextStore):
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+        self.snapshots = (
+            recommendation_snapshot_repository
+            if user_id is None
+            else recommendation_snapshot_repository.for_user(user_id)
+        )
+        self.feedback = (
+            recommendation_feedback_repository
+            if user_id is None
+            else recommendation_feedback_repository.for_user(user_id)
+        )
+
     def next_random_seed(self) -> int:
-        return recommendation_snapshot_repository.next_random_seed()
+        return self.snapshots.next_random_seed()
 
     def prepare(
         self, request: RecommendationRequest, recommender_id: str, strategy_id: str
     ) -> str:
         from .jobs import history_generation
 
-        request.history_generation = history_generation()
-        request_fingerprint = (
-            recommendation_snapshot_repository.build_request_fingerprint(
-                recommender_id=recommender_id,
-                strategy_id=strategy_id,
-                request=request,
-            )
+        request.user_id = self.user_id
+        request.history_generation = history_generation(self.user_id)
+        request_fingerprint = self.snapshots.build_request_fingerprint(
+            recommender_id=recommender_id,
+            strategy_id=strategy_id,
+            request=request,
         )
         if request.avoid_recent_recommendations:
             request.recently_recommended_avids = (
-                recommendation_snapshot_repository.get_recent_recommended_avids(
+                self.snapshots.get_recent_recommended_avids(
                     recommender_id=recommender_id,
                     strategy_id=strategy_id,
                     request_fingerprint=request_fingerprint,
@@ -45,28 +57,28 @@ class DjangoRecommendationContext(RecommendationContextStore):
                 )
             )
         request.recent_recommendation_counts = (
-            recommendation_snapshot_repository.get_recent_recommendation_counts(
+            self.snapshots.get_recent_recommendation_counts(
                 recommender_id=recommender_id,
                 snapshot_limit=max(request.recent_snapshot_limit * 2, 6),
                 item_limit=max(request.recent_item_limit * 2, 48),
             )
         )
-        request.recent_seed_counts = (
-            recommendation_snapshot_repository.get_recent_seed_counts(
-                recommender_id=recommender_id,
-                snapshot_limit=max(request.recent_snapshot_limit * 3, 8),
-                item_limit=max(request.recent_item_limit * 3, 72),
-            )
+        request.recent_seed_counts = self.snapshots.get_recent_seed_counts(
+            recommender_id=recommender_id,
+            snapshot_limit=max(request.recent_snapshot_limit * 3, 8),
+            item_limit=max(request.recent_item_limit * 3, 72),
         )
         from .seed_profiles import recommendation_seed_profile_repository
 
         blocked_name_keys, blocked_source_keys = (
-            recommendation_seed_profile_repository.build_blocked_seed_keys()
+            recommendation_seed_profile_repository.for_user(
+                self.user_id
+            ).build_blocked_seed_keys()
         )
         request.blocked_seed_name_keys = blocked_name_keys
         request.blocked_seed_source_keys = blocked_source_keys
         request.seed_blacklist_active = bool(blocked_name_keys or blocked_source_keys)
-        learning_profile = recommendation_feedback_repository.build_learning_profile()
+        learning_profile = self.feedback.build_learning_profile()
         request.feedback_avid_scores = learning_profile.avid_scores
         request.feedback_seed_scores = learning_profile.seed_scores
         request.blocked_avid_blocklist = learning_profile.blocked_avids
@@ -76,5 +88,5 @@ class DjangoRecommendationContext(RecommendationContextStore):
         return request_fingerprint
 
     def persist(self, execution: RecommendationExecution) -> int | None:
-        snapshot = recommendation_snapshot_repository.save_execution(execution)
+        snapshot = self.snapshots.save_execution(execution)
         return int(snapshot.pk) if snapshot.pk is not None else None

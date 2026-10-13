@@ -36,6 +36,16 @@ class PreferenceDefinition:
 
 
 PREFERENCE_DEFINITIONS = {
+    "recommendation_type_preference": PreferenceDefinition(
+        "balanced", ("actor_heavy", "balanced", "genre_heavy")
+    ),
+    "recommendation_actor_preference": PreferenceDefinition(
+        "balanced", ("familiar", "balanced", "rare")
+    ),
+    "recommendation_genre_preference": PreferenceDefinition(
+        "balanced", ("familiar", "balanced", "rare")
+    ),
+    "recommendation_limit": PreferenceDefinition(12, (12, 24, 36)),
     "enable_avatar": PreferenceDefinition("true", ("true", "false")),
     "display_title": PreferenceDefinition(
         "source_title", ("original_title", "source_title", "translated_title")

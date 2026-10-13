@@ -405,3 +405,7 @@ PlaybackSession.media_kind（nassav_playback_session，varchar16，默认source�
 ## 个人播放进度（0032）
 
 PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；唯一(user, avid, media_key)，用户删除级联，资源/会话删除保留。清除以墓碑撤销旧写入权，不增加共享watched语义。迁移回退删除进度表，回退前备份新增个人数据；详细协议见[播放进度架构](playback-progress-architecture.md)。
+
+## 0035：推荐个人归属
+
+未发布迁移叶节点0035增加四个owner外键，Item/ItemSeed/Feedback沿snapshot继承；黑名单/种子唯一身份增加owner并保留NULL旧数据的条件唯一约束。迁移取消旧活动推荐job，不复制给所有账号，不改正式资源/缓存/文件。维护窗口停止旧消费者、备份、迁移后，在首次个人推荐前运行import_recommendation_data预览并显式归属原操作者。不同用户出现相同旧唯一身份时回退主动拒绝，见[推荐架构](recommendation-architecture.md#用户归属第三阶段)。JSON新增推荐偏好无需增加列，GET只读补齐、PUT仅合并合法提交键。
