@@ -37,7 +37,7 @@ function openPlayback(mode = 'source') {
     router.resolve({
       name: 'Playback',
       params: { avid: avid.value },
-      query: mode === 'local' ? { mode } : {},
+      query: { mode },
     }).href,
     '_blank',
     'noopener,noreferrer'

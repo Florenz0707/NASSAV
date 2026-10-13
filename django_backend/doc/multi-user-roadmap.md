@@ -45,3 +45,5 @@ AVResource.watched/is_favorite 现仅保留旧共享快照；第二阶段通过i
 ## 本轮执行记录
 
 推荐隔离阶段基线0099632，分支feat/user-recommendation-isolation；迁移0035、显式旧推荐导入、任务/历史/反馈/黑名单/个人种子和前端缓存归属同时覆盖。完整后端离线门槛983通过/28在线跳过，最终推荐相关SQLite回归58通过，独立PostgreSQL迁移与归属/任务/反馈21通过；模型无迁移差异。前端pnpm run check含105单元测试、lint及构建通过，Chrome模拟API验证偏好保存、黑名单乱序/写入/弹窗与窄屏滚动。根pre-commit run -a通过后提交合并。未操作正式数据库，未执行真实外站worker联调，不把模拟浏览器验收当部署验收。
+
+播放偏好阶段基线3d2846a，分支feat/personal-playback-preferences；复用用户JSON，无新增迁移。完整后端离线门槛993通过/28在线跳过，独立PostgreSQL偏好回归29通过，前端check含109单元测试/lint/构建通过；Chrome与Firefox使用临时真实SQLite/Redis/API、合成MP4验证设置、原生变化自动保存、刷新与窄屏布局，Chrome合成HLS回归通过（不是外站worker联调）。Firefox第一次运行在文件变动的Vite环境中等待保存超时，稳定环境复测通过，保留此验收边界。根pre-commit与前端check通过后提交合并，正式部署未操作。

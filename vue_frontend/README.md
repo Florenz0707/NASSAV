@@ -290,3 +290,5 @@ NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录
 ### 个人状态验收
 
 详情页支持个人收藏、已观看和5000字符备注，冲突时保留草稿。`tests/browser/personalState.cjs` 为显式opt-in：先启动后端 `tests/helpers/local_playback_server.py` 的隔离fixture与Vite代理，再用 `NASSAV_PERSONAL_STORAGE_STATE` 指向该临时会话文件运行；`NASSAV_BROWSER_ENGINE=firefox` 可切换引擎。验证真实HTTP/SQLite、键盘保存、备注清空/刷新/冲突、筛选和设置持久化；WebSocket只隔离本轮无关连接，不代替任务/worker联调。勿使用正式会话文件。
+
+播放偏好真实隔离API浏览器验收：先按既有local_playback_server说明启动临时服务，将Vite的NASSAV_VITE_BACKEND_URL设为该临时地址，再以`NASSAV_PROGRESS_STORAGE_STATE=<临时storage-state.json> node tests/browser/playbackPreferences.cjs`执行；支持NASSAV_BROWSER_ENGINE=firefox。脚本只接受本地临时fixture，写入的是临时账号偏好，不使用部署账号。

@@ -5,6 +5,8 @@ import AppButton from '../../../shared/ui/AppButton.vue'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
 import { createPlaybackSession } from '../lib/playbackSession.js'
 import { createPlaybackProgress } from '../lib/playbackProgress.js'
+import { useSettingsStore } from '../../settings/stores/settings.js'
+import { bindPlaybackPreferences } from '../lib/playbackPreferences.js'
 import { attachPlayer } from '../lib/mediaPlayer.js'
 
 const props = defineProps({
@@ -12,6 +14,9 @@ const props = defineProps({
   avid: { type: String, required: true },
   mode: { type: String, default: 'source' },
 })
+const settings = useSettingsStore()
+const preferenceMessage = ref('')
+let releasePreferences = null
 const video = ref(null)
 const progressState = ref({ candidate: null, message: '' })
 const progress = createPlaybackProgress({
@@ -40,6 +45,9 @@ const session = createPlaybackSession({
 })
 const preparing = computed(() => ['queued', 'resolving'].includes(state.value.state))
 function releasePlayer() {
+  releasePreferences?.()
+  releasePreferences = null
+  preferenceMessage.value = ''
   void progress.detach()
   progressState.value = { candidate: null, message: '' }
   playerVersion++
@@ -81,10 +89,20 @@ watch(
     await nextTick()
     if (token !== playerVersion || !video.value) return
     try {
+      releasePreferences = bindPlaybackPreferences(video.value, {
+        preferences: settings.playbackPreferences,
+        save: settings.playbackPreferenceWriter(),
+        current: () => token === playerVersion && props.active,
+        failed: () => {
+          if (token === playerVersion)
+            preferenceMessage.value = '播放偏好保存失败，可在个人设置中重试'
+        },
+      })
       void progress.bind(state.value, video.value)
       if (token !== playerVersion || !props.active) return
       const dispose = await attachPlayer(video.value, url, {
         position,
+        subtitlesEnabled: settings.playbackPreferences.subtitles_enabled,
         mediaType: state.value.media_type || 'hls',
         resume: state.value.refresh_count === 1 && resumePlayback,
         current: () => token === playerVersion && props.active,
@@ -176,11 +194,11 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <p
-      v-if="progressState.message && !mediaError"
+      v-if="(progressState.message || preferenceMessage) && !mediaError"
       role="status"
       class="absolute top-2 left-2 right-2 rounded-lg bg-secondary p-2 text-muted text-xs"
     >
-      {{ progressState.message }}
+      {{ progressState.message || preferenceMessage }}
     </p>
     <p
       v-if="buffering && !mediaError"

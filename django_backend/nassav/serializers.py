@@ -76,7 +76,9 @@ class UserSettingSerializer(serializers.Serializer):
         fields: dict[str, serializers.Field] = {}
         for key, definition in PREFERENCE_DEFINITIONS.items():
             default = definition.default
-            if definition.choices:
+            if definition.numeric:
+                fields[key] = serializers.FloatField()
+            elif definition.choices:
                 fields[key] = serializers.ChoiceField(choices=definition.choices)
             elif isinstance(default, str):
                 if definition.max_length is None:

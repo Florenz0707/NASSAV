@@ -134,3 +134,5 @@ test_playback_gateway.py 验证清单/目标策略、Range、取消和背压；t
 `tests/test_personal_state.py` 验证用户隔离、并发部分修改、版本冲突、旧数据显式归属和只读幂等导入；`test_personal_state_http.py` 覆盖列表/详情/状态/设置/搜索默认值与ETag归属；`test_personal_state_migration.py` 对0033执行升级/回退/再次升级并保留旧共享数据与关系。均使用指定隔离settings，PostgreSQL验证使用独立临时数据库，不对正式实例运行测试。
 
 JSON配置的 `test_json_preferences.py` 覆盖缺省只读补齐、增删/改名键失效、严格类型、时间戳、并发部分更新与导入不建空配置；`test_json_preferences_migration.py` 验证0034保留六项旧值、用户归属/更新时间/个人关系及升级/回退/再次升级。与个人状态组一起在SQLite和独立PostgreSQL运行。
+
+推荐用户隔离覆盖test_recommendation_user_isolation.py与test_recommendation_ownership_migration.py（往返、关系保持、重复个人身份拒绝回退）；个人播放设置覆盖test_playback_preferences.py，均在refactoring_test_settings运行，不连接正式数据。真实合成视频偏好浏览器入口见vue_frontend/tests/browser/playbackPreferences.cjs，登录文件仅取本地临时fixture。

@@ -19,6 +19,13 @@ export const useSettingsStore = defineStore('settings', () => {
   // 推荐搜索结果展示样式：grid | masonry
   const searchResultDisplayStyle = ref('grid')
   const defaultExternalSearchSource = ref('jable')
+  const playbackPreferences = ref({
+    volume: 0.8,
+    muted: false,
+    rate: 1,
+    subtitles_enabled: true,
+    default_mode: 'auto',
+  })
   const recommendationPreferences = ref({
     type_preference: 'balanced',
     actor_preference: 'balanced',
@@ -40,6 +47,9 @@ export const useSettingsStore = defineStore('settings', () => {
           value,
         ])
       ),
+      ...Object.fromEntries(
+        Object.entries(playbackPreferences.value).map(([key, value]) => [`playback_${key}`, value])
+      ),
       enable_avatar: showActorAvatar.value ? 'true' : 'false',
       display_title: displayTitle.value,
       font_family: fontFamily.value,
@@ -55,6 +65,13 @@ export const useSettingsStore = defineStore('settings', () => {
     saveGuard.invalidate()
     loadPromise = null
     loaded.value = false
+    playbackPreferences.value = {
+      volume: 0.8,
+      muted: false,
+      rate: 1,
+      subtitles_enabled: true,
+      default_mode: 'auto',
+    }
     recommendationPreferences.value = {
       type_preference: 'balanced',
       actor_preference: 'balanced',
@@ -105,6 +122,10 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.default_external_search_source !== undefined) {
           defaultExternalSearchSource.value = data.default_external_search_source
         }
+        for (const key of Object.keys(playbackPreferences.value)) {
+          if (data[`playback_${key}`] !== undefined)
+            playbackPreferences.value[key] = data[`playback_${key}`]
+        }
         for (const key of Object.keys(recommendationPreferences.value)) {
           if (data[`recommendation_${key}`] !== undefined)
             recommendationPreferences.value[key] = data[`recommendation_${key}`]
@@ -151,7 +172,31 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  async function savePlaybackPreferences(changes) {
+    const epoch = sessionEpoch
+    const patch = Object.fromEntries(
+      Object.entries(changes)
+        .filter(([key]) => key in playbackPreferences.value)
+        .map(([key, value]) => [`playback_${key}`, value])
+    )
+    if (!Object.keys(patch).length) return
+    playbackPreferences.value = { ...playbackPreferences.value, ...changes }
+    await settingsApi.update(patch)
+    if (epoch !== sessionEpoch) return
+    savedValues = { ...savedValues, ...patch }
+    playbackPreferences.value = { ...playbackPreferences.value, ...changes }
+  }
+
+  function playbackPreferenceWriter() {
+    const epoch = sessionEpoch
+    return (changes) =>
+      epoch === sessionEpoch ? savePlaybackPreferences(changes) : Promise.resolve()
+  }
+
   return {
+    playbackPreferenceWriter,
+    playbackPreferences,
+    savePlaybackPreferences,
     showActorAvatar,
     displayTitle,
     fontFamily,

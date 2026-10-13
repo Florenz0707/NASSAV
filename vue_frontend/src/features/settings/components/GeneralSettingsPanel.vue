@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import AppIcon from '../../../shared/ui/AppIcon.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
+import PlaybackSettingsPanel from './PlaybackSettingsPanel.vue'
 import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 
 const props = defineProps({
@@ -47,7 +48,7 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
   <div>
     <div class="mb-6">
       <h2 class="text-xl font-semibold text-[var(--text-primary)] mb-2">通用设置</h2>
-      <p class="text-sm text-[var(--text-muted)]">仅影响当前账号的显示与搜索偏好</p>
+      <p class="text-sm text-[var(--text-muted)]">仅影响当前账号的显示、搜索与播放偏好</p>
     </div>
 
     <div class="space-y-6">
@@ -206,6 +207,10 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
         </div>
       </div>
 
+      <PlaybackSettingsPanel
+        :model-value="settings.playbackPreferences"
+        @update:model-value="emit('update-setting', 'playbackPreferences', $event)"
+      />
       <div class="flex pt-4 justify-end min-w-full">
         <AppButton :loading="saving" loading-text="保存中" @click="emit('save')"
           >保存设置</AppButton

@@ -2,7 +2,14 @@
 export async function attachPlayer(
   video,
   url,
-  { failed, position = 0, resume = false, current = () => true, mediaType = 'hls' }
+  {
+    failed,
+    position = 0,
+    resume = false,
+    current = () => true,
+    mediaType = 'hls',
+    subtitlesEnabled = true,
+  }
 ) {
   if (!url.startsWith('/nassav/api/playback-sessions/')) throw new Error('Invalid media entry')
   let hls = null,
@@ -12,6 +19,15 @@ export async function attachPlayer(
       video.currentTime = position
     if (resume) video.play().catch(() => {})
   }
+  const applyTracks = () => {
+    const tracks = Array.from(video.textTracks || []).filter((track) =>
+      ['subtitles', 'captions'].includes(track.kind)
+    )
+    for (const [index, track] of tracks.entries())
+      track.mode = subtitlesEnabled && index === 0 ? 'showing' : 'disabled'
+  }
+  video.textTracks?.addEventListener?.('addtrack', applyTracks)
+  video.addEventListener('loadedmetadata', applyTracks)
   const nativeError = () => {
     if (!destroyed) failed('浏览器无法播放此视频，请重试')
   }
@@ -20,6 +36,8 @@ export async function attachPlayer(
     destroyed = true
     video.removeEventListener('loadedmetadata', restore)
     video.removeEventListener('error', nativeError)
+    video.removeEventListener('loadedmetadata', applyTracks)
+    video.textTracks?.removeEventListener?.('addtrack', applyTracks)
     hls?.destroy()
     video.pause()
     video.removeAttribute('src')
@@ -89,6 +107,7 @@ export async function attachPlayer(
           )
         }
       })
+      hls.subtitleDisplay = subtitlesEnabled
       hls.attachMedia(video)
       hls.loadSource(url)
     }

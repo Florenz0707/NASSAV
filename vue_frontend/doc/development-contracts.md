@@ -189,3 +189,7 @@ settings store的reset清空六项偏好及loaded/in-flight请求归属；App在
 ## 推荐个人状态
 
 结果页面缓存按账号命名，旧未归属缓存不恢复；登出清空缓存与store，用户切换重新装配路由页。job/指标检查查询身份，反馈/黑名单写后投影检查登录代次，旧页不得持久化到新账号。偏好由settings store的recommendationPreferences读取用户JSON，“保存推荐偏好”只提交变更项；当前查询可使用尚未保存的选择，显式路由参数优先，缓存结果不覆盖个人数据库默认值。
+
+## 播放偏好
+
+PlaybackSettingsPanel仅发模型更新；settings store拥有个人JSON草稿、服务器基线和登录代次。playbackPreferenceWriter捕获登录代次，仅保存显式播放器变化，不提交无关设置。playbackPreferences绑定原生事件，初始化无写入、500ms合并、单请求串行，卸载移除监听；错误保持可重试草稿。设置defaultPlaybackRate防止换src时浏览器回到1倍速误写配置。播放路由auto依据个人默认模式与共享file_exists提示选模，明确local/source入口不被设置覆盖；最终播放授权和媒体身份在后端。字幕默认只作用于存在的字幕轨道。

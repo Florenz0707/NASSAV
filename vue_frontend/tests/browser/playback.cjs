@@ -172,9 +172,10 @@ async function main() {
         contentType: 'text/html',
         body: `<html><head><meta charset="UTF-8"></head><body><div id="app"></div><script type="module">
 import {createApp,h,ref} from '/node_modules/.vite/deps/vue.js?v=${browserHash}';
+import {createPinia} from '/node_modules/.vite/deps/pinia.js?v=${browserHash}';
 import Player from '/src/features/playback/components/PlaybackPlayer.vue';
 import '/src/styles/main.css';
-createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:()=>show.value=true},'打开播放器'),h('button',{onClick:()=>show.value=false},'停止播放'),h(Player,{active:show.value,avid:'DEMO-1'})])}}).mount('#app');
+createApp({setup(){const show=ref(false);return()=>h('div',[h('button',{onClick:()=>show.value=true},'打开播放器'),h('button',{onClick:()=>show.value=false},'停止播放'),h(Player,{active:show.value,avid:'DEMO-1'})])}}).use(createPinia()).mount('#app');
 </script></body></html>`,
       })
     )

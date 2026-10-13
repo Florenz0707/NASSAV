@@ -44,3 +44,11 @@ DELETE资源progress只清当前用户该AVID的所有媒体版本。保留零�
 前端阶段执行`pnpm run check`与`pre-commit run -a`，真实隔离helper/回环Vite/Playwright浏览器专项命令见[测试说明](../tests/README.md)。正式数据库尚未执行0032迁移；部署更新后运行migrate并统一API版本。回退0032会删除新增进度数据，应先备份。
 
 前端/离页阶段（feat/playback-progress-frontend，提交以Git历史为准）：最终隔离后端946 passed / 28 skipped；独立PostgreSQL进度/0032可逆迁移/任务协议29 passed；`pnpm run check`含91项测试、lint和构建通过。Chrome和Firefox真实隔离Django/SQLite/Redis/合成90秒MP4验证刷新/键盘/移动深色布局、回退、多标签、清除、路由离开、完成后从头及进度接口503不阻塞视频。合成TS/fMP4的模拟来源会话另验证确认续播、解码/拖动及一次失效刷新；不当作真实来源worker联调。浏览器关闭不保证keepalive送达，测试finally只通过授权接口清理本轮创建的会话，服务端TTL仍是生产兜底。未执行用户数据库迁移、容器部署、真机或长时验收。
+
+## 用户播放偏好（第三阶段）
+
+UserPreferences JSON增加playback_volume（数值0–1，默认0.8）、playback_muted（布尔，默认false）、playback_rate（数值0.5/0.75/1/1.25/1.5/1.75/2，默认1）、playback_subtitles_enabled（布尔，默认true）、playback_default_mode（auto/local/source，默认auto）。音量/倍速接受JSON整数与小数但拒绝布尔和数值字符串；其余已有定义仍严格按原类型。无需新增数据表或批量补写，GET缺失值只读补齐，PUT按合法键部分合并。
+
+个人设置提供显式保存；播放器加载用户配置后设置音量、静音、defaultPlaybackRate和playbackRate，原生volumechange/ratechange经500ms合并及单写入队列保存，仅写实际变化。初始化事件不回写默认值，卸载移除监听，旧登录代次的writer不再发请求/应用迟到响应。失败提示不妨碍播放，保留设置草稿供设置页重试。字幕偏好仅应用于媒体已有字幕/说明轨道，HLS沿既有引擎subtitleDisplay，原生轨道按字幕开关显示，不创造字幕或承诺外站一定提供字幕；原生菜单切换字幕本次有效，跨设备默认值通过设置页保存。
+
+通用`/play/:avid`入口使用个人默认模式；auto根据元数据索引优先local，否则source，最终文件身份仍由后端核验，失败不隐式换源。明确`?mode=local|source`优先于默认设置；详情页两个入口始终传明确mode，继续观看也保留原模式。设置不是播放进度，不影响写入权或媒体身份，不使用worker保存；source准备仍由原异步worker完成。

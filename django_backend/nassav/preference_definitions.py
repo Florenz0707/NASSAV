@@ -17,12 +17,18 @@ class PreferenceDefinition:
     default: PreferenceValue
     choices: tuple[PreferenceValue, ...] = ()
     max_length: int | None = None
+    numeric: bool = False
+    min_value: float | None = None
+    max_value: float | None = None
 
     def __post_init__(self):
         self.validate(self.default)
 
     def validate(self, value):
-        if type(value) is not type(self.default):
+        if self.numeric:
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ValueError("必须是有限数值")
+        elif type(value) is not type(self.default):
             raise ValueError("类型错误")
         if isinstance(value, float) and not math.isfinite(value):
             raise ValueError("必须是有限数值")
@@ -31,11 +37,28 @@ class PreferenceDefinition:
                 raise ValueError("不能为空")
             if self.max_length is not None and len(value) > self.max_length:
                 raise ValueError(f"最多{self.max_length}字符")
+        if self.min_value is not None and (
+            not isinstance(value, (int, float)) or value < self.min_value
+        ):
+            raise ValueError(f"不能小于{self.min_value}")
+        if self.max_value is not None and (
+            not isinstance(value, (int, float)) or value > self.max_value
+        ):
+            raise ValueError(f"不能大于{self.max_value}")
         if self.choices and value not in self.choices:
             raise ValueError("不支持的取值")
 
 
 PREFERENCE_DEFINITIONS = {
+    "playback_volume": PreferenceDefinition(
+        0.8, numeric=True, min_value=0, max_value=1
+    ),
+    "playback_muted": PreferenceDefinition(False),
+    "playback_rate": PreferenceDefinition(
+        1.0, (0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0), numeric=True
+    ),
+    "playback_subtitles_enabled": PreferenceDefinition(True),
+    "playback_default_mode": PreferenceDefinition("auto", ("auto", "local", "source")),
     "recommendation_type_preference": PreferenceDefinition(
         "balanced", ("actor_heavy", "balanced", "genre_heavy")
     ),

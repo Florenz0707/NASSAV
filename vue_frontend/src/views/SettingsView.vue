@@ -72,7 +72,7 @@ onMounted(async () => {
   <div class="settings-page">
     <div class="mb-8">
       <h1 class="text-[2rem] font-bold text-primary mb-2">个人设置</h1>
-      <p class="text-muted">当前账号的显示与搜索偏好</p>
+      <p class="text-muted">当前账号的显示、搜索与播放偏好</p>
     </div>
     <PageLoad v-if="loading" variant="spinner" text="正在加载设置" />
     <RequestError v-else-if="loadError" :message="loadError" @retry="loadSettings" />

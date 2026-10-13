@@ -8,7 +8,7 @@ const routes = [
     component: () => import('../../views/PlaybackView.vue'),
     props: (route) => ({
       avid: route.params.avid,
-      mode: route.query.mode === 'local' ? 'local' : 'source',
+      mode: ['local', 'source'].includes(route.query.mode) ? route.query.mode : 'auto',
     }),
   },
   {

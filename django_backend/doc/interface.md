@@ -1544,3 +1544,7 @@ PUT仅合并明确提交的当前键；整组提交在写入前严格校验，�
 推荐job、历史指标、反馈、重置与三类黑名单只读写当前账号；他人snapshot不可反馈，他人job返回404。演员/类别目录共享，屏蔽投影个人化。旧共享数据需显式导入。job提交遗漏偏好或limit时读取个人JSON默认值，明确传参优先，后续设置变化不改变在途job。
 
 GET/PUT `/api/setting`新增recommendation_type_preference（actor_heavy/balanced/genre_heavy）、recommendation_actor_preference及recommendation_genre_preference（familiar/balanced/rare）、recommendation_limit（JSON整数12/24/36）；默认balanced与12。原有六项字符串设置兼容，PUT仅合并提交键。
+
+### 用户播放偏好
+
+GET/PUT `/api/setting`新增playback_volume（JSON数值0–1，默认0.8）、playback_muted（布尔，默认false）、playback_rate（数值0.5/0.75/1/1.25/1.5/1.75/2，默认1）、playback_subtitles_enabled（布尔，默认true）、playback_default_mode（auto/local/source，默认auto）。仅数值项允许整数与小数等价输入，拒绝布尔、字符串、非有限和越界数；默认值补齐不写库，仍只合并提交字段。后端播放会话POST的mode默认仍是source，auto仅为前端入口选模规则。

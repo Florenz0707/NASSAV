@@ -201,3 +201,24 @@ test('out-of-order saves cannot roll back the saved baseline', async () => {
     settingsApi.update = original
   }
 })
+
+test('a former-player preference writer cannot save into a new login', async () => {
+  setActivePinia(createPinia())
+  const store = useSettingsStore(),
+    original = settingsApi.update,
+    calls = []
+  settingsApi.update = async (patch) => {
+    calls.push(patch)
+  }
+  try {
+    const oldWriter = store.playbackPreferenceWriter()
+    store.reset()
+    await oldWriter({ volume: 0.2 })
+    assert.equal(calls.length, 0)
+    await store.playbackPreferenceWriter()({ volume: 0.4, muted: true })
+    assert.deepEqual(calls, [{ playback_volume: 0.4, playback_muted: true }])
+    assert.equal(store.playbackPreferences.volume, 0.4)
+  } finally {
+    settingsApi.update = original
+  }
+})
