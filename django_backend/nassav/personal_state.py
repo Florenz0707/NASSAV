@@ -76,6 +76,15 @@ def _snapshot(avid, row):
 
 @retry_sqlite_contention
 def update_state(resource, user_id, changes, *, expected_version=None):
+    if not changes or set(changes) - {"watched", "is_favorite", "notes"}:
+        raise ValueError("未知或空个人状态字段")
+    for field in {"watched", "is_favorite"} & set(changes):
+        if not isinstance(changes[field], bool):
+            raise ValueError("状态必须是布尔值")
+    if "notes" in changes and (
+        not isinstance(changes["notes"], str) or len(changes["notes"]) > 5000
+    ):
+        raise ValueError("备注必须是最多5000字符的文本")
     with transaction.atomic():
         lock_user(user_id)
         row = UserResourceState.objects.filter(

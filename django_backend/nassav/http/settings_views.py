@@ -26,14 +26,14 @@ class UserSettingView(SchemaAPIView):
 
     def get(self, request):
         """获取所有用户设置"""
-        from nassav.user_settings import get_settings_manager
+        from nassav.personal_preferences import read_preferences
 
         try:
-            settings_manager = get_settings_manager()
-            settings = settings_manager.get_all()
+            settings = read_preferences(request.user.pk)
             serializer = UserSettingSerializer(settings)
             return Response(
-                {"code": 200, "message": "success", "data": serializer.data}
+                {"code": 200, "message": "success", "data": serializer.data},
+                headers={"Cache-Control": "private, no-store"},
             )
         except Exception as e:
             logger.error(f"获取用户设置失败: {e}")
@@ -44,7 +44,7 @@ class UserSettingView(SchemaAPIView):
 
     def put(self, request):
         """更新用户设置"""
-        from nassav.user_settings import get_settings_manager
+        from nassav.personal_preferences import update_preferences
 
         serializer = UserSettingUpdateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -54,29 +54,16 @@ class UserSettingView(SchemaAPIView):
             )
 
         try:
-            settings_manager = get_settings_manager()
-            results = settings_manager.update_batch(serializer.validated_data)
-
-            # 检查是否有更新失败的项
-            failed = {k: v for k, v in results.items() if not v}
-            if failed:
-                return Response(
-                    {
-                        "code": 500,
-                        "message": "部分设置更新失败",
-                        "data": {"failed": list(failed.keys())},
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
-            # 返回更新后的所有设置
-            updated_settings = settings_manager.get_all()
+            updated_settings = update_preferences(
+                request.user.pk, dict(serializer.validated_data)
+            )
             return Response(
                 {
                     "code": 200,
                     "message": "设置已更新",
                     "data": UserSettingSerializer(updated_settings).data,
-                }
+                },
+                headers={"Cache-Control": "private, no-store"},
             )
         except Exception as e:
             logger.error(f"更新用户设置失败: {e}")

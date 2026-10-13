@@ -41,7 +41,6 @@ from nassav.models import (
     Genre,
     GenreSourceMapping,
 )
-from nassav.user_settings import clear_settings_manager_cache
 
 
 def require(condition, message):
@@ -145,7 +144,6 @@ def main():
         content_type="application/json",
     )
     require(updated.status_code == 200, "Setting update failed")
-    clear_settings_manager_cache()
     require(
         client.get("/nassav/api/setting").json()["data"][
             "default_external_search_source"

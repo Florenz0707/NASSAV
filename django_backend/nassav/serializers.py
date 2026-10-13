@@ -85,7 +85,7 @@ class UserSettingUpdateSerializer(serializers.Serializer):
 
     enable_avatar = serializers.CharField(required=False)
     display_title = serializers.CharField(required=False)
-    font_family = serializers.CharField(required=False)
+    font_family = serializers.CharField(required=False, max_length=100)
     color_mode = serializers.CharField(required=False)
     search_result_display_style = serializers.CharField(required=False)
     default_external_search_source = serializers.ChoiceField(choices=[], required=False)
@@ -99,6 +99,11 @@ class UserSettingUpdateSerializer(serializers.Serializer):
         ).choices = [
             entry["source"] for entry in external_search_service.capabilities()
         ]
+
+    def validate(self, attrs):
+        if set(self.initial_data) - set(self.fields):
+            raise serializers.ValidationError("存在不支持的个人设置字段")
+        return attrs
 
     def validate_enable_avatar(self, value):
         """验证 enable_avatar 值"""
@@ -144,8 +149,9 @@ class ResourceSummarySerializer(serializers.Serializer):
     source = serializers.CharField(allow_blank=True)  # type: ignore
     release_date = serializers.CharField(allow_blank=True)
     has_video = serializers.BooleanField(source="file_exists")
-    watched = serializers.BooleanField()
-    is_favorite = serializers.BooleanField()
+    watched = serializers.BooleanField(source="personal_watched", default=False)
+    is_favorite = serializers.BooleanField(source="personal_is_favorite", default=False)
+    state_version = serializers.IntegerField(source="personal_state_version", default=0)
     metadata_create_time = LocalSerializerMethodField()
     metadata_update_time = LocalSerializerMethodField()
     video_create_time = LocalSerializerMethodField()
@@ -207,3 +213,38 @@ class ResourceJobSerializer(serializers.Serializer):
     refresh_m3u8 = serializers.BooleanField(default=True, required=False)
     refresh_metadata = serializers.BooleanField(default=True, required=False)
     retranslate = serializers.BooleanField(default=False, required=False)
+
+
+class StrictBooleanField(serializers.BooleanField):
+    def to_internal_value(self, data):
+        if not isinstance(data, bool):
+            raise serializers.ValidationError("必须是布尔值")
+        return data
+
+
+class ResourceStatusUpdateSerializer(serializers.Serializer):
+    watched = StrictBooleanField(required=False)
+    is_favorite = StrictBooleanField(required=False)
+    notes = serializers.CharField(
+        required=False, allow_blank=True, max_length=5000, trim_whitespace=False
+    )
+    expected_version = serializers.IntegerField(required=False, min_value=0)
+
+    def validate(self, attrs):
+        unknown = set(self.initial_data) - set(self.fields)
+        if unknown:
+            raise serializers.ValidationError("存在不支持的个人状态字段")
+        if not ({"watched", "is_favorite", "notes"} & set(attrs)):
+            raise serializers.ValidationError("未提供任何要更新的字段")
+        if "notes" in self.initial_data and not isinstance(
+            self.initial_data["notes"], str
+        ):
+            raise serializers.ValidationError({"notes": "备注必须是文本"})
+        version = self.initial_data.get("expected_version")
+        if version is not None and (
+            not isinstance(version, int) or isinstance(version, bool)
+        ):
+            raise serializers.ValidationError(
+                {"expected_version": "版本必须是非负整数"}
+            )
+        return attrs

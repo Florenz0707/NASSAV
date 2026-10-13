@@ -151,3 +151,7 @@ useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代�
 ## 共享原站事实缓存
 
 生产推荐 Jable 详情与受控刮削共享独立数据库事实缓存；批量缓存读取由协调线程持有，网络 miss 仍通过 ProxyServer 能力调度。命中不复用推荐评分或业务库存判断，黑名单和反馈每轮重算。缓存发布也使用 history generation、执行 UUID 和 deadline fence，取消/重置后旧结果不能写回。迁移 0027、TTL、缓存命中/网络尝试统计和有界清理见[持久抓取缓存](resource-cache-architecture.md)。
+
+## 第二阶段个人行为衔接
+
+收藏和观看权重改读 `UserResourceState` 中配置操作者的行，旧共享AVResource列只留作显式导入和回退快照；不统计其他账号的个人行为。当前推荐仍为单操作者服务，历史/反馈/黑名单的完整用户隔离属于[后续规划](multi-user-roadmap.md)，不得因为新表有user就开放推荐给所有账号。

@@ -145,7 +145,7 @@ class ActorDetailView(SchemaAPIView):
 
         source_name = str(
             request.query_params.get("source")
-            or external_search_service.default_source("actor")
+            or external_search_service.default_source("actor", user_id=request.user.pk)
         ).strip()
         page = _parse_positive_int(request.query_params.get("page"), 1)
         page_size = _parse_positive_int(request.query_params.get("page_size"), 20)
@@ -317,7 +317,7 @@ class GenreDetailView(SchemaAPIView):
 
         source_name = str(
             request.query_params.get("source")
-            or external_search_service.default_source("genre")
+            or external_search_service.default_source("genre", user_id=request.user.pk)
         ).strip()
         page = _parse_positive_int(request.query_params.get("page"), 1)
         page_size = _parse_positive_int(request.query_params.get("page_size"), 20)

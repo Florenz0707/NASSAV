@@ -40,4 +40,3 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 # The production manager probes availability at construction. Never probe Ollama
 # during offline collection; dedicated adapter tests supply mocked transports.
 ACTIVE_TRANSLATOR = None
-USER_SETTINGS_PATH = _root / "user_settings.ini"

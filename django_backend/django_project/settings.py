@@ -356,8 +356,6 @@ RECOMMENDATION_COVER_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR = BASE_DIR / "log"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# User settings path
-USER_SETTINGS_PATH = BASE_DIR / "config" / "user_settings.ini"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

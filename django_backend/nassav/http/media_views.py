@@ -245,23 +245,22 @@ class ResourceMetadataView(SchemaAPIView):
             metadata["file_exists"] = bool(resource.file_exists)
             metadata["file_size"] = resource.file_size if resource.file_size else None
 
-            # 添加观看和收藏状态
-            metadata["watched"] = bool(resource.watched)
-            metadata["is_favorite"] = bool(resource.is_favorite)
+            # Personal projection is request-owned; shared metadata timestamps cannot validate it.
+            from nassav.personal_state import state_snapshot
 
+            metadata.update(state_snapshot(resource, request.user.pk))
             # Conditional request handling: ETag + Last-Modified
             try:
                 import json
 
                 from nassav.utils import generate_etag_from_text
 
-                etag = generate_etag_from_text(json.dumps(metadata, sort_keys=True))
+                etag = generate_etag_from_text(
+                    json.dumps([request.user.pk, metadata], sort_keys=True)
+                )
             except Exception:
                 etag = '"0"'
 
-            ims = request.headers.get("If-Modified-Since") or request.META.get(
-                "HTTP_IF_MODIFIED_SINCE"
-            )
             inm = request.headers.get("If-None-Match") or request.META.get(
                 "HTTP_IF_NONE_MATCH"
             )
@@ -270,27 +269,17 @@ class ResourceMetadataView(SchemaAPIView):
             if inm and inm.strip() == etag:
                 resp = Response(status=status.HTTP_304_NOT_MODIFIED)
                 resp["ETag"] = etag
+                resp["Cache-Control"] = "private, no-cache"
+                resp["Vary"] = "Cookie"
                 if resource.metadata_updated_at:
                     resp["Last-Modified"] = http_date(
                         resource.metadata_updated_at.timestamp()
                     )
                 return resp
 
-            # If-Modified-Since match
-            ims_ts = parse_http_if_modified_since(ims)
-            if (
-                ims_ts is not None
-                and resource.metadata_updated_at
-                and int(resource.metadata_updated_at.timestamp()) <= ims_ts
-            ):
-                resp = Response(status=status.HTTP_304_NOT_MODIFIED)
-                resp["ETag"] = etag
-                resp["Last-Modified"] = http_date(
-                    resource.metadata_updated_at.timestamp()
-                )
-                return resp
-
             resp = build_response(200, "success", metadata)
+            resp["Cache-Control"] = "private, no-cache"
+            resp["Vary"] = "Cookie"
             resp["ETag"] = etag
             if resource.metadata_updated_at:
                 resp["Last-Modified"] = http_date(

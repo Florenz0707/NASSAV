@@ -49,14 +49,19 @@ class ResourcesListView(SchemaAPIView):
                 else:
                     params["ordering"] = sort_field
 
-        objs, pagination = list_resources(params)
+        objs, pagination = list_resources(params, user_id=request.user.pk)
         # reuse ResourceSummarySerializer
         from nassav.serializers import ResourceSummarySerializer
 
         serializer = ResourceSummarySerializer(objs, many=True)
 
         # return standardized envelope with pagination field
-        return build_response(200, "success", serializer.data, pagination=pagination)
+        response = build_response(
+            200, "success", serializer.data, pagination=pagination
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["Vary"] = "Cookie"
+        return response
 
 
 class ResourceView(SchemaAPIView):
@@ -235,7 +240,9 @@ class RefreshResourceView(SchemaAPIView):
             resource = AVResource.objects.filter(avid=avid).first()
             if resource:
                 resource.refresh_from_db()
-                resource_data = _serialize_resource_obj(resource)
+                resource_data = _serialize_resource_obj(
+                    resource, user_id=request.user.pk
+                )
             else:
                 resource_data = None
         except Exception as e:
@@ -256,7 +263,10 @@ class DeleteResourceView(SchemaAPIView):
         _ = request
         try:
             result = resource_deletion_service.delete_resource(
-                avid, serialize=_serialize_resource_obj
+                avid,
+                serialize=lambda resource: _serialize_resource_obj(
+                    resource, user_id=request.user.pk
+                ),
             )
         except ResourceTaskConflict as exc:
             return build_response(409, str(exc), None)
@@ -338,7 +348,13 @@ class ResourcesBatchView(SchemaAPIView):
             try:
                 if action == "add":
                     results.append(
-                        legacy_add_operation.execute(avid, act, _serialize_resource_obj)
+                        legacy_add_operation.execute(
+                            avid,
+                            act,
+                            lambda resource: _serialize_resource_obj(
+                                resource, user_id=request.user.pk
+                            ),
+                        )
                     )
 
                 elif action == "delete-video":
@@ -407,7 +423,10 @@ class ResourcesBatchView(SchemaAPIView):
                 elif action in ["delete", "delete-all"]:
                     try:
                         deletion = resource_deletion_service.delete_resource(
-                            avid, serialize=_serialize_resource_obj
+                            avid,
+                            serialize=lambda resource: _serialize_resource_obj(
+                                resource, user_id=request.user.pk
+                            ),
                         )
                     except ResourceTaskConflict as exc:
                         results.append(
@@ -470,7 +489,11 @@ class ResourcesBatchView(SchemaAPIView):
                 elif action == "refresh":
                     results.append(
                         legacy_refresh_operation.execute(
-                            avid, act, _serialize_resource_obj
+                            avid,
+                            act,
+                            lambda resource: _serialize_resource_obj(
+                                resource, user_id=request.user.pk
+                            ),
                         )
                     )
 
@@ -503,59 +526,38 @@ class ResourcesBatchView(SchemaAPIView):
 class ResourceStatusView(SchemaAPIView):
     """
     PATCH /api/resource/{avid}/status
-    更新资源的观看状态和收藏状态
+    更新当前用户的观看状态、收藏状态和备注
 
     请求参数:
         watched: 是否已观看 (boolean, optional)
         is_favorite: 是否收藏 (boolean, optional)
+        notes: 个人备注 (string, max 5000, optional)
+        expected_version: 当前个人状态版本 (integer, optional)
     """
 
     def patch(self, request, avid):
-        avid = avid.upper()
+        from nassav.models import AVResource
+        from nassav.personal_state import PersonalStateConflict, update_state
+        from nassav.serializers import ResourceStatusUpdateSerializer
 
+        resource = AVResource.objects.filter(avid=avid.upper()).first()
+        if resource is None:
+            return build_response(404, f"资源 {avid.upper()} 不存在", None)
+        serializer = ResourceStatusUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return build_response(400, "个人状态参数无效", serializer.errors)
+        changes = dict(serializer.validated_data)
+        expected_version = changes.pop("expected_version", None)
         try:
-            from nassav.models import AVResource
-
-            resource = AVResource.objects.filter(avid=avid).first()
-            if not resource:
-                return build_response(404, f"资源 {avid} 不存在", None)
-
-            data = request.data or {}
-            updated_fields = []
-
-            # 更新 watched 字段
-            if "watched" in data:
-                watched = data.get("watched")
-                if not isinstance(watched, bool):
-                    return build_response(400, "watched 参数必须是布尔值", None)
-                resource.watched = watched
-                updated_fields.append("watched")
-
-            # 更新 is_favorite 字段
-            if "is_favorite" in data:
-                is_favorite = data.get("is_favorite")
-                if not isinstance(is_favorite, bool):
-                    return build_response(400, "is_favorite 参数必须是布尔值", None)
-                resource.is_favorite = is_favorite
-                updated_fields.append("is_favorite")
-
-            if not updated_fields:
-                return build_response(400, "未提供任何要更新的字段", None)
-
-            resource.save(update_fields=updated_fields)
-
-            return build_response(
-                200,
-                "success",
-                {
-                    "avid": avid,
-                    "watched": resource.watched,
-                    "is_favorite": resource.is_favorite,
-                },
+            snapshot = update_state(
+                resource, request.user.pk, changes, expected_version=expected_version
             )
-        except Exception as e:
-            logger.error(f"更新资源状态失败: {e}")
-            return build_response(500, f"更新失败: {e!s}", None)
+        except PersonalStateConflict as error:
+            response = build_response(409, str(error), error.snapshot)
+        else:
+            response = build_response(200, "success", snapshot)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class ResourceJobView(SchemaAPIView):

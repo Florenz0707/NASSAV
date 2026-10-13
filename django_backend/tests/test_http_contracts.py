@@ -151,6 +151,18 @@ def test_url_and_openapi_contract_remains_identical():
         "/nassav/api/tasks/jobs/{job_id}/cleanup/retry": {"post"},
     }
     assert {path: set(schema["paths"][path]) for path in control_paths} == control_paths
+    # Authorized personal-state extension changes only this endpoint's description.
+    personal_status = schema["paths"]["/nassav/api/resource/{avid}/status"]["patch"]
+    assert personal_status["description"] == (
+        "PATCH /api/resource/{avid}/status\n更新当前用户的观看状态、收藏状态和备注\n\n"
+        "请求参数:\n    watched: 是否已观看 (boolean, optional)\n"
+        "    is_favorite: 是否收藏 (boolean, optional)\n"
+        "    notes: 个人备注 (string, max 5000, optional)\n"
+        "    expected_version: 当前个人状态版本 (integer, optional)"
+    )
+    personal_status["description"] = baseline["paths"][
+        "/nassav/api/resource/{avid}/status"
+    ]["patch"]["description"]
     assert {
         path: value
         for path, value in schema["paths"].items()

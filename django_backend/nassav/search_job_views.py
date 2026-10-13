@@ -49,7 +49,9 @@ class SearchJobSubmitView(SchemaAPIView):
         if not serializer.is_valid():
             return build_response(400, "搜索参数无效", serializer.errors)
         try:
-            snapshot, duplicate = submit_search_job(dict(serializer.validated_data))
+            snapshot, duplicate = submit_search_job(
+                dict(serializer.validated_data), user_id=request.user.pk
+            )
         except (Actor.DoesNotExist, Genre.DoesNotExist):
             return build_response(404, "搜索对象不存在", None)
         except ValueError as error:

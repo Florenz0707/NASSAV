@@ -128,3 +128,7 @@ test_playback_gateway.py 验证清单/目标策略、Range、取消和背压；t
 `test_playback_progress.py`覆盖用户/会话隔离、claim竞争、重复与乱序保存、回退、完成、清除墓碑、过期/旧代次；`test_playback_progress_migration.py`验证0031↔0032及原播放关系保持，finally恢复全部迁移叶节点。使用标准隔离设置；PostgreSQL另启临时实例，禁止指向正式库。
 
 真实浏览器从后端启动`NASSAV_LOCAL_PLAYBACK_TEST_SERVER=1 uv run python tests/helpers/local_playback_server.py`（独立SQLite/Redis/合成MP4，回环9791）；从前端启动`NASSAV_VITE_BACKEND_URL=http://127.0.0.1:9791 pnpm exec vite --host 127.0.0.1 --port 4178 --strictPort`。使用helper打印的临时storage-state路径，前端执行`NASSAV_PROGRESS_STORAGE_STATE=<临时路径> node tests/browser/playbackProgress.cjs`；Firefox加`NASSAV_BROWSER_ENGINE=firefox`，Playwright模块/浏览器安装按前端README。storage-state含临时登录凭证，禁止提交或打印内容，结束停止helper/Vite并清理专用目录。无显式storage-state时该专项跳过。
+
+## 个人资源状态与数据库设置
+
+`tests/test_personal_state.py` 验证用户隔离、并发部分修改、版本冲突、旧数据显式归属和只读幂等导入；`test_personal_state_http.py` 覆盖列表/详情/状态/设置/搜索默认值与ETag归属；`test_personal_state_migration.py` 对0033执行升级/回退/再次升级并保留旧共享数据与关系。均使用指定隔离settings，PostgreSQL验证使用独立临时数据库，不对正式实例运行测试。

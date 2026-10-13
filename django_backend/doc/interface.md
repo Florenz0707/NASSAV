@@ -84,7 +84,7 @@ scripts/generate_openapi.py 是另一离线包装，默认使用实例配置并�
 
 **配置文件自动重载**：
 
-- 配置存储在 `config/user_settings.ini` 文件中
+- 配置存储在当前登录用户的 `UserPreferences` 数据库行中；缺省值不读写文件。旧INI仅通过显式导入命令迁移。
 - 系统会自动检测配置文件的修改时间
 - 当检测到文件被外部修改时，会自动重新加载配置
 - 这确保了即使手动编辑配置文件，API 也能返回最新的设置
@@ -934,7 +934,7 @@ GET /nassav/api/resource/ABC-123/preview
   - 若需要 m3u8 链接，请使用刷新接口获取
 - 支持条件请求（ETag/Last-Modified），返回 304 节省带宽
 
-返回字段：`avid`, `original_title`, `source_title`, `translated_title`, `source`, `release_date`, `duration`, `director`, `studio`, `label`, `series`, `actors[]`, `genres[]`, `file_exists`, `file_size`, `watched`, `is_favorite`
+返回字段：`avid`, `original_title`, `source_title`, `translated_title`, `source`, `release_date`, `duration`, `director`, `studio`, `label`, `series`, `actors[]`, `genres[]`, `file_exists`, `file_size`, `watched`, `is_favorite`, `notes`, `state_version`
 
 ---
 
@@ -1373,7 +1373,7 @@ HTTP 200 的 data.state 为 `queued`、`running`、`succeeded`、`failed` 或 `c
 
 ### 默认搜索源与封面
 
-`GET/PUT /api/setting` 增加 `default_external_search_source`，允许 `jable`（默认）和 `missav`。保存到现有实例共享 `user_settings.ini`；页面临时切换不修改默认值。旧文件启动时自动补齐此项，无数据库迁移。
+`GET/PUT /api/setting` 增加 `default_external_search_source`，允许 `jable`（默认）和 `missav`。保存到当前登录用户的数据库设置；页面临时切换不修改默认值。0033及旧INI导入见[个人状态与设置](personal-state-architecture.md)。
 
 `GET /api/recommendations/cover?url=...&source=missav` 支持 MissAV 搜索封面。省略 source 保持 Jable 行为。MissAV 当前只允许实测的 `fourhoi.com`，使用源配置代理与中文页面 Referer；下载限 20 秒、5 MiB，不跟随重定向，不转发站点 Cookie，成功后原子写入现有封面缓存。
 
@@ -1520,3 +1520,15 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 ## 播放进度
 
 新增所属播放会话 progress 查询/保存/claim 和个人资源进度 DELETE，参数、错误码与归属规则见[播放进度架构](playback-progress-architecture.md#接口)。所有接口沿用operator登录、CSRF及no-store，不返回上游地址。
+
+## 个人收藏、观看和备注（第二阶段）
+
+`PATCH /api/resource/{avid}/status` 沿用地址和envelope，仅更新当前登录用户的个人状态。请求可部分提交 `watched`、`is_favorite`（严格JSON布尔值）、`notes`（纯文本，最多5000字符，空字符串清除）、`expected_version`（非负整数）。未知字段（包括user、评分）拒绝；空更新400，资源不存在404，版本冲突409且data返回当前个人快照，前端需保留编辑草稿并重新确认。
+
+成功data为 `{avid, watched, is_favorite, notes, state_version}`。无个人记录为 false/false/空备注/版本0，首写版本1；多个字段一起保存或部分保存均在短事务中完成。资源列表原有 `watched`、`is_favorite` 字段及筛选仍存在，但全部取当前用户投影，并返回 `state_version`；备注仅在详情/状态响应出现。
+
+`GET /api/resource/metadata?avid=...` 包含当前用户状态。ETag同时绑定用户和状态；带Cookie的响应标记private，只有ETag校验可返回304，单独的If-Modified-Since不再验证这组含个人状态的响应。共享元数据Last-Modified继续提供参考，不代表个人状态更新时间。
+
+`GET/PUT /api/setting` 路由和六项字符串字段保持，读取/部分保存均由数据库持有，用户身份来自会话。请求不能指定他人ID；服务器代理、Cookie、来源开关、TTL不属于个人设置。省略外部搜索source时，HTTP按当前用户默认值选择并写入已解析的任务查询；worker不读用户INI。搜索内容缓存仍是共享原站事实，不存个人状态。
+
+登录范围仍限定现有操作者。用户隔离是本阶段的数据边界，不能据此开放所有账号的任务/推荐/媒体权限。
