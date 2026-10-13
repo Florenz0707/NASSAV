@@ -88,6 +88,6 @@ INI导入只在提供有效设置值且UserPreferences行缺失时创建JSON行�
 
 ### JSON改造验证记录
 
-2026-10-13，基线5f0c5b2，独立分支feat/user-preferences-json。完整隔离后端命令 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为976通过、28在线测试跳过；临时PostgreSQL16的JSON/个人状态/接口/0033–0034升级回退再次升级共45通过；`pnpm run check` 为103项通过、lint和生产构建通过；完整 `pre-commit run -a` 通过，`makemigrations --check --dry-run` 无差异。类型测试另覆盖JSON中False与0、0.0与0的区别，同值判断不能跳过非法旧类型修复。
+2026-10-13，基线92bb752（dev已合入idle），实现提交6053401，独立分支feat/user-preferences-json，门槛通过后已合并idle。完整隔离后端命令 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为976通过、28在线测试跳过；临时PostgreSQL16的JSON/个人状态/接口/0033–0034升级回退再次升级共45通过；`pnpm run check` 为103项通过、lint和生产构建通过；完整 `pre-commit run -a` 通过，`makemigrations --check --dry-run` 无差异。类型测试另覆盖JSON中False与0、0.0与0的区别，同值判断不能跳过非法旧类型修复。
 
 Chrome/Firefox通过现有personalState隔离Django/SQLite API套件，设置页手动保存和刷新持久化正常；原settings浏览器交互及提交字段断言通过。WebSocket隔离，无真实来源/worker/正式数据库联调。未执行正式0034迁移、旧INI导入或Docker重建；回退无法保存未来JSON键、created_at及原导入时间，部署前需备份和停止旧消费者。
