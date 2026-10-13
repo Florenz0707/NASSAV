@@ -183,3 +183,5 @@ Node专项playbackProgress.test.js验证节流、重复/丢包重试、单航班
 settings store的reset清空六项偏好及loaded/in-flight请求归属；App在status/username变化时调用，资源列表reset同时清空含个人标记的结果、分页和旧查询。saveSettings返回ignored时页面不展示成功提示。API身份由后端会话决定，不发送user_id，不将INI或localStorage作为个人设置所有者。主题/字体的即时预览与手动保存契约保持。
 
 后端数据、迁移/导入及开放权限边界见[个人状态与设置](../../django_backend/doc/personal-state-architecture.md)。本阶段仍保留指定操作者登录，不把单项数据隔离当作全系统多用户访问已完成。
+
+通用设置保存相对最近加载/成功保存的基线只提交改动字段，无改动不发PUT；不把GET补齐的默认值自动全部持久化。保存失败保留差异，保存期间新的编辑在后续提交，登出/用户切换或旧请求响应不得覆盖保存基线。JSON配置定义、缺失/废弃键与0034数据迁移遵循[后端配置规则](../../django_backend/doc/personal-state-architecture.md#json设置与0034当前实现)。

@@ -163,3 +163,5 @@
 ## 个人状态与设置约束
 
 收藏、已观看、备注和通用显示/搜索设置遵循[个人状态与设置](django_backend/doc/personal-state-architecture.md)，由UserResourceState/UserPreferences按用户持有，不写旧AVResource标记、不读写用户INI、不混入共享抓取缓存或任务事件。HTTP以request.user确定身份，列表批量投影避免逐卡查询；备注版本冲突保留前端草稿，禁止旧资源/旧用户响应改写当前状态。原数据通过指定操作者的只读、幂等导入命令迁移，不能复制给所有账号。开放多账号登录仍须完成统一权限和推荐隔离。
+
+UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/校验集中在preference_definitions，业务通过有效配置入口读取，不直接消费原JSON。GET合并默认值且不写回，PUT校验后只合并提交项，不顺手删除未知存储键；前端只提交改动字段。配置删除/改名/类型演进使用新增数据迁移，保留历史迁移；旧数据导入仅创建缺失行，不再持有导入时间标记。

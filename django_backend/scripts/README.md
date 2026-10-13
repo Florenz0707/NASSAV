@@ -611,4 +611,4 @@ git show cc6ab42^:django_backend/doc/validation-status.md
 
 ## 个人数据导入
 
-`uv run python manage.py import_personal_data --username nassav [--settings-file config/user_settings.ini] [--apply]`：默认只读预览，明确原操作者后加 `--apply` 导入旧共享收藏/观看和只读INI。既有个人数据不覆盖、重复执行不复活旧状态，账号及取值错误不写入，具体维护窗口见[个人状态](../doc/personal-state-architecture.md)。
+`uv run python manage.py import_personal_data --username nassav [--settings-file config/user_settings.ini] [--apply]`：默认只读预览，明确原操作者后加 `--apply` 导入旧共享收藏/观看和只读INI。既有个人行不覆盖，0034移除导入标记后仅创建缺失行；人工删除行后再次导入可能恢复旧值，账号及取值错误不写入，具体维护窗口见[个人状态](../doc/personal-state-architecture.md)。

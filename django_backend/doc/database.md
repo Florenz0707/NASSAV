@@ -21,9 +21,9 @@ Database:
 
 `backup_database` 按当前引擎选择 SQLite 文件快照或 PostgreSQL custom-format `database.dump`。PostgreSQL 文件位于 `backup/database_postgresql_{timestamp}/`，带引擎和服务端主版本元数据。PostgreSQL 恢复命令 `restore_postgres_backup` 只接受空数据库；先创建新的空库，再在配置指向该库时执行恢复。备份目录会由 `sync_backups` 一并同步。使用 PostgreSQL 时自动清理只处理 PostgreSQL 备份，保留 SQLite 快照供回滚。
 
-## 个人状态（0033，未发布）
+## 个人状态与JSON配置（0033–0034，未发布）
 
-新增 `nassav_user_resource_state` 和 `nassav_user_preferences`，用户状态与共享资源分离。旧数据归属通过指定原操作者的命令导入，迁移不自动猜测；升级、级联和回退影响见[个人状态与设置](personal-state-architecture.md)。v2.5.0的发布叶节点仍为0032。
+0033新增 `nassav_user_resource_state` 和 `nassav_user_preferences`，用户状态与共享资源分离；0034将现有六项个人设置值搬入JSONField、删除旧六列及legacy_imported_at、增加created_at，保留用户归属和updated_at。旧数据归属通过指定原操作者的命令导入，迁移不自动猜测；升级、级联和回退影响见[个人状态与设置](personal-state-architecture.md)。v2.5.0的发布叶节点仍为0032。
 
 ## Database Overview
 

@@ -23,10 +23,24 @@ export const useSettingsStore = defineStore('settings', () => {
   let loadPromise = null
   let sessionEpoch = 0
   const loadGuard = createRequestGuard()
+  const saveGuard = createRequestGuard()
+  let savedValues = settingsPayload()
+
+  function settingsPayload() {
+    return {
+      enable_avatar: showActorAvatar.value ? 'true' : 'false',
+      display_title: displayTitle.value,
+      font_family: fontFamily.value,
+      color_mode: colorMode.value,
+      search_result_display_style: searchResultDisplayStyle.value,
+      default_external_search_source: defaultExternalSearchSource.value,
+    }
+  }
 
   function reset() {
     sessionEpoch++
     loadGuard.invalidate()
+    saveGuard.invalidate()
     loadPromise = null
     loaded.value = false
     showActorAvatar.value = true
@@ -35,6 +49,7 @@ export const useSettingsStore = defineStore('settings', () => {
     colorMode.value = 'dark'
     searchResultDisplayStyle.value = 'grid'
     defaultExternalSearchSource.value = 'jable'
+    savedValues = settingsPayload()
   }
 
   // 从后端加载设置（仅在应用启动时调用一次）
@@ -72,6 +87,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.default_external_search_source !== undefined) {
           defaultExternalSearchSource.value = data.default_external_search_source
         }
+        savedValues = settingsPayload()
         loaded.value = true
         return { success: true }
       } catch (err) {
@@ -93,18 +109,21 @@ export const useSettingsStore = defineStore('settings', () => {
   // 保存设置到后端（仅在用户手动点击保存按钮时调用）
   async function saveSettings() {
     const epoch = sessionEpoch
+    const current = settingsPayload()
+    const changes = Object.fromEntries(
+      Object.entries(current).filter(([key, value]) => value !== savedValues[key])
+    )
+    if (!Object.keys(changes).length) return { success: true, unchanged: true }
+    const ticket = saveGuard.begin()
     try {
-      await settingsApi.update({
-        enable_avatar: showActorAvatar.value ? 'true' : 'false',
-        display_title: displayTitle.value,
-        font_family: fontFamily.value,
-        color_mode: colorMode.value,
-        search_result_display_style: searchResultDisplayStyle.value,
-        default_external_search_source: defaultExternalSearchSource.value,
-      })
-      return epoch === sessionEpoch ? { success: true } : { success: false, ignored: true }
+      await settingsApi.update(changes)
+      if (epoch !== sessionEpoch || !saveGuard.current(ticket))
+        return { success: false, ignored: true }
+      savedValues = { ...savedValues, ...changes }
+      return { success: true }
     } catch (err) {
-      if (epoch !== sessionEpoch) return { success: false, ignored: true }
+      if (epoch !== sessionEpoch || !saveGuard.current(ticket))
+        return { success: false, ignored: true }
       console.error('保存用户设置失败:', err)
       throw err
     }

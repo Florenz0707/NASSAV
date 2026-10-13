@@ -101,3 +101,103 @@ test('resource list reset clears private flags and rejects the old account respo
   assert.deepEqual(list.resources.value, [])
   assert.equal(list.pagination.value.total, 0)
 })
+
+test('saving sends only changed settings, leaving GET defaults as implicit overrides', async () => {
+  setActivePinia(createPinia())
+  const store = useSettingsStore(),
+    originalGet = settingsApi.get,
+    originalUpdate = settingsApi.update,
+    calls = []
+  settingsApi.get = async () => ({
+    data: {
+      color_mode: 'dark',
+      enable_avatar: 'true',
+      display_title: 'source_title',
+      font_family: 'Mplus2',
+      search_result_display_style: 'grid',
+      default_external_search_source: 'jable',
+    },
+  })
+  settingsApi.update = async (body) => {
+    calls.push(body)
+    return { data: {} }
+  }
+  try {
+    await store.loadSettings()
+    assert.equal((await store.saveSettings()).unchanged, true)
+    assert.equal(calls.length, 0)
+    store.colorMode = 'light'
+    await store.saveSettings()
+    assert.deepEqual(calls, [{ color_mode: 'light' }])
+    await store.saveSettings()
+    assert.equal(calls.length, 1)
+    store.showActorAvatar = false
+    await store.saveSettings()
+    assert.deepEqual(calls[1], { enable_avatar: 'false' })
+  } finally {
+    settingsApi.get = originalGet
+    settingsApi.update = originalUpdate
+  }
+})
+
+test('failed partial save retains changed fields and edits made during save are still dirty', async () => {
+  setActivePinia(createPinia())
+  const store = useSettingsStore(),
+    original = settingsApi.update,
+    calls = [],
+    responses = []
+  settingsApi.update = (body) => {
+    calls.push(body)
+    const next = deferred()
+    responses.push(next)
+    return next.promise
+  }
+  const originalLog = console.error
+  console.error = () => {}
+  try {
+    store.colorMode = 'light'
+    const failed = store.saveSettings()
+    responses[0].reject({ message: 'temporary failure' })
+    await assert.rejects(failed)
+    const retry = store.saveSettings()
+    assert.deepEqual(calls[1], { color_mode: 'light' })
+    store.fontFamily = 'Custom Font'
+    responses[1].resolve({ data: {} })
+    await retry
+    const next = store.saveSettings()
+    assert.deepEqual(calls[2], { font_family: 'Custom Font' })
+    responses[2].resolve({ data: {} })
+    await next
+  } finally {
+    settingsApi.update = original
+    console.error = originalLog
+  }
+})
+
+test('out-of-order saves cannot roll back the saved baseline', async () => {
+  setActivePinia(createPinia())
+  const store = useSettingsStore(),
+    original = settingsApi.update,
+    calls = [],
+    responses = []
+  settingsApi.update = (body) => {
+    calls.push(body)
+    const next = deferred()
+    responses.push(next)
+    return next.promise
+  }
+  try {
+    store.colorMode = 'light'
+    const old = store.saveSettings()
+    store.showActorAvatar = false
+    const latest = store.saveSettings()
+    responses[1].resolve({ data: {} })
+    await latest
+    responses[0].resolve({ data: {} })
+    assert.equal((await old).ignored, true)
+    await store.saveSettings()
+    assert.equal(calls.length, 2)
+  } finally {
+    settingsApi.update = original
+  }
+})

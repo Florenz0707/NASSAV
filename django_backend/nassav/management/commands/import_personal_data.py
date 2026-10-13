@@ -8,10 +8,9 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Q
-from django.utils import timezone
 
 from nassav.models import AVResource, UserPreferences, UserResourceState
-from nassav.personal_preferences import DEFAULT_PREFERENCES, validate_preferences
+from nassav.preference_definitions import PREFERENCE_DEFINITIONS, validate_preferences
 from nassav.personal_state import lock_user
 
 
@@ -44,7 +43,7 @@ class Command(BaseCommand):
                     raise ValueError("缺少 display 节")
                 values = {
                     key: parser.get("display", key)
-                    for key in DEFAULT_PREFERENCES
+                    for key in PREFERENCE_DEFINITIONS
                     if parser.has_option("display", key)
                 }
                 validate_preferences(values)
@@ -65,12 +64,11 @@ class Command(BaseCommand):
             return
         with transaction.atomic():
             lock_user(user.pk)
-            preferences, created = UserPreferences.objects.get_or_create(
-                user=user, defaults=values
-            )
-            if preferences.legacy_imported_at:
-                self.stdout.write("已导入过，跳过；不会复活或覆盖已修改的个人状态")
-                return
+            created = False
+            if values:
+                _, created = UserPreferences.objects.get_or_create(
+                    user=user, defaults={"preferences": values}
+                )
             rows = AVResource.objects.filter(
                 Q(watched=True) | Q(is_favorite=True)
             ).iterator(chunk_size=500)
@@ -85,8 +83,11 @@ class Command(BaseCommand):
                     },
                 )
                 imported += int(new)
-            preferences.legacy_imported_at = timezone.now()
-            preferences.save(update_fields=["legacy_imported_at", "updated_at"])
+        settings_result = (
+            ("已导入" if created else "保留既有值")
+            if values
+            else "无设置输入，未创建设置行"
+        )
         self.stdout.write(
-            f"导入完成：新增 {imported} 条个人状态；设置{'已导入' if created else '保留既有值'}；源文件未修改"
+            f"导入完成：新增 {imported} 条个人状态；设置{settings_result}；源文件未修改"
         )
