@@ -608,3 +608,7 @@ git show cc6ab42^:django_backend/doc/validation-status.md
 ```
 
 当前部署步骤与近期验证边界见[部署说明](../doc/compose-deployment.md#近期改动与验证边界)，代理出口约束见[代理路由](../doc/proxy-routing.md)。历史实验结果仅对记录中的时段、来源和出口有效。
+
+## 个人数据导入
+
+`uv run python manage.py import_personal_data --username nassav [--settings-file config/user_settings.ini] [--apply]`：默认只读预览，明确原操作者后加 `--apply` 导入旧共享收藏/观看和只读INI。既有个人数据不覆盖、重复执行不复活旧状态，账号及取值错误不写入，具体维护窗口见[个人状态](../doc/personal-state-architecture.md)。
