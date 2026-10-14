@@ -37,6 +37,10 @@ def execution_epoch(user_id):
 
 
 def own_resource_ids(user_id):
+    from nassav.library_catalog import enabled, held_entries
+
+    if enabled(user_id):
+        return held_entries(user_id).values_list("pool__resource_id", flat=True)
     return (
         UserLibraryEntry.objects.filter(
             user_id=user_id,

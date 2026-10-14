@@ -193,3 +193,5 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 共享执行器只运输job/attempt身份并关闭结果存储，禁止把checkpoint/源链接复制到Celery结果。NASSAV_SHARED_LIBRARY_ENABLED默认false且依赖范围凭证；当前HTTP/配额/正式读取未完成不得用于开放普通用户。刮削翻译在正式不可变提交之前完成、失败保留旧版；下载复用现有媒体验证与停止证明，按job隔离租约/投影且保留全局槽位。恢复键从DB job身份推导，不信任保存的任意Redis key；网络实例fork与transport关闭由装配统一管理。
 
 共享库命令必须使用当前user、持久request_id回执和expected_entry_version；旧DELETE重放不得删除重添关系。意图按元数据/视频kind分代次，旧成功不覆盖最新需求；先附新订阅再撤本人旧订阅，不杀B。配额按本人video版本完整逻辑字节，未知大小保守预留，最终grant在user fence核查，超额只拒绝本人并退款。public/personal明确选择，个人凭证缺失不得回退；幂等重试先查意图账本再加载来源。source/quality/scope/credential/context与ready证据不符不得复用文件。
+
+共享模式资源展示走本人持有版本投影，不将私有标题/演员/图片复制到AVResource等全局列。版本图片使用授权入口及短读取占用，根下目录/文件NOFOLLOW且核查manifest/marker/内容，不以opaque URL代替权限；个人状态写入在user fence内重新核查持有。

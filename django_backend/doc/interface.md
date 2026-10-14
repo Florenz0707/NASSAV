@@ -1607,4 +1607,12 @@ GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit
 | GET /api/my-operations/{uuid}               | 本人version/stage/安全progress/timeline/allowed_actions，补投影不泄露底层检查点                                        |
 | POST /api/my-operations/{uuid}/cancel       | expected_version/request_id；仅撤销本人需求                                                                            |
 
-跨用户对象404，输入400，CAS/幂等换意图409，权限/配额403；源凭证不可用503。pending返回202，正式兼容版本复用200。响应private/no-store并Vary Cookie。当前没有GET /api/library/entries或版本媒体HTTP；不可把此子阶段当完整共享库上线。
+跨用户对象404，输入400，CAS/幂等换意图409，权限/配额403；源凭证不可用503。pending返回202，正式兼容版本复用200。响应private/no-store并Vary Cookie。已增加本人库GET与版本图片入口，视频与完整目录/推荐切换继续实施；不可把此子阶段当完整共享库上线。
+
+## 未发布共享库读取
+
+同上述准入与私有响应：GET /api/library/entries包含本人的active/pending关系，GET /api/library/entries/{uuid}返回本人详情、notes和image_assets。查询支持page/page_size（1–100）、membership_state、status/file_exists、source、watched/is_favorite、search、actor/genre名称片段及白名单ordering，尾部UUID稳定排序。pending只展示本人申请的AVID和来源，不借其他持有者补标题或媒体。
+
+共享开关与受管角色同时启用时，旧resources、resource/preview与resource/metadata入口也投影本人的准确版本；未启用保持旧响应。source_title等来自current_version，视频标志/大小来自独立video_version；已隔离/回收、错误pool/kind或他人私有owner的指针不能授权。公开管理员管理权限不提供他人私人详情。
+
+GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/avatar；asset_id为不含路径的opaque摘要。resource/cover入口也可读取本人版本封面。先核查有效持有，再创建登录绑定的短占用；每块传输前后重查，关闭释放，登出导致无法收尾时由原TTL兜底。无条件响应private/no-store、Vary Cookie，不能凭旧ETag绕过授权。版本图片校验归属、marker、SHA256和文件大小，根目录可按部署约定resolve，根下任何目录/文件符号链接拒绝。单图上限32MiB；本子阶段接受small/medium/large并返回原版本图，不另写缩略图缓存。不能将此图片测试视为Range/播放或真实worker联调。

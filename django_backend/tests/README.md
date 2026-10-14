@@ -160,3 +160,5 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 共享执行器：`test_shared_version_workers.py`、`test_shared_download_leases.py`、`test_startup_config.py`及既有受控流程/恢复专项。验证翻译先于版本提交、独立来源/全局代理装配、broker补派/重复消息、结果裁剪及真实Redis；来源/下载替身不代替真实worker/代理/站点联调。
 
 持有命令/配额：`test_library_commands_quota.py`、`test_library_http.py`及`test_library_commands_migration.py`覆盖最后意图/预留线程竞态、复用无新attempt、凭证失效后幂等、旧移出回执不影响新持有、超额只拒绝本人、HTTP对象隔离及0046往返；不代替真实worker/前端/媒体验收。
+
+版本库/图片专项：`test_version_library_reads.py`，验证本人投影、固定版本JPEG/短占用、路径与内容负向，以及移出后的流/个人写入。SQLite/PostgreSQL隔离HTTP不等于普通登录开放或真实视频联调。

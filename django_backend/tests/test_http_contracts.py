@@ -101,6 +101,11 @@ def test_url_and_openapi_contract_remains_identical():
         ["nassav/api/my-operations", "my-operations", "MyOperationsView"],
         ["nassav/api/library/entries", "library-entries", "LibraryEntriesView"],
         [
+            "nassav/api/library/entries/<uuid:entry_id>/images/<str:asset_id>",
+            "library-entry-image",
+            "LibraryEntryImageView",
+        ],
+        [
             "nassav/api/library/entries/<uuid:entry_id>",
             "library-entry",
             "LibraryEntryView",
@@ -206,9 +211,10 @@ def test_url_and_openapi_contract_remains_identical():
         *baseline["routes"],
     ]
     control_paths = {
+        "/nassav/api/library/entries/{entry_id}/images/{asset_id}": {"get"},
         "/nassav/api/my-operations": {"get"},
-        "/nassav/api/library/entries": {"post"},
-        "/nassav/api/library/entries/{entry_id}": {"delete"},
+        "/nassav/api/library/entries": {"get", "post"},
+        "/nassav/api/library/entries/{entry_id}": {"get", "delete"},
         "/nassav/api/library/entries/{entry_id}/operations": {"post"},
         "/nassav/api/my-operations/{operation_id}": {"get"},
         "/nassav/api/my-operations/{operation_id}/cancel": {"post"},

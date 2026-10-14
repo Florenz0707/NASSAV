@@ -289,3 +289,5 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 持有命令/配额子阶段基线4e964fd，分支`feat/library-commands-quota`：0046、本人命令回执/意图代次、ready复用、每持有者逻辑配额和HTTP写入/任务快照。库/目录/推荐/媒体版本投影、GC及正式准入仍未完成，生产开关保持关闭。
 
 持有命令/配额隔离门槛（2026-10-15）：全量SQLite1155 passed、28 skipped；随后补齐配额HTTP错误码及专用动作校验，HTTP/旧契约专项11 passed；临时PostgreSQL17 passed，含0046往返。模型迁移无差异，完整pre-commit通过。旧HTTP快照保留，只精确登记授权新增URL。未启用现有实例共享模式、没有真实Celery/媒体验收。
+
+本人库/版本图片子阶段基线d0cf4f0，分支feat/version-library-reads：批量本人投影、旧读取入口的可选切换、登录绑定图片短占用、manifest/marker/内容及NOFOLLOW校验，个人写入在user fence内再次核查持有。无新schema。SQLite全量1170 passed/28 skipped，临时PostgreSQL40 passed，完整pre-commit通过后提交；真实播放器、目录/推荐、GC与前端/普通准入继续实施。详见[版本读取记录](resource-version-architecture.md#本人库与图片读取子阶段)。

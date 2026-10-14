@@ -17,6 +17,12 @@ class SchemaAPIView(APIView):
         from nassav.library_membership import LibraryNotFound
         from nassav.api_utils import build_response
         from nassav.credential_crypto import CredentialUnavailable
+        from nassav.resource_reads import ReadLeaseNotFound, ReadLeaseConflict
+
+        if isinstance(exc, ReadLeaseNotFound):
+            return build_response(404, "对象不存在", None)
+        if isinstance(exc, ReadLeaseConflict):
+            return build_response(409, str(exc), None)
 
         if isinstance(exc, LibraryNotFound):
             return build_response(404, "对象不存在", None)

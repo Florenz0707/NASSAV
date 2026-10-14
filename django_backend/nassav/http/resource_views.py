@@ -49,6 +49,18 @@ class ResourcesListView(SchemaAPIView):
                 else:
                     params["ordering"] = sort_field
 
+        from nassav.library_catalog import enabled, list_entries
+
+        if enabled(request.user.pk):
+            try:
+                data, pagination = list_entries(request.user.pk, params)
+            except ValueError as error:
+                return build_response(400, str(error), None)
+            response = build_response(200, "success", data, pagination=pagination)
+            response["Cache-Control"] = "private, no-store"
+            response["Vary"] = "Cookie"
+            return response
+
         objs, pagination = list_resources(params, user_id=request.user.pk)
         # reuse ResourceSummarySerializer
         from nassav.serializers import ResourceSummarySerializer

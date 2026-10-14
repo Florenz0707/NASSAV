@@ -38,6 +38,7 @@ from nassav.http.library_views import (
     LibraryEntriesView,
     LibraryEntryView,
     LibraryEntryOperationsView,
+    LibraryEntryImageView,
     MyOperationView,
     MyOperationCancelView,
     MyOperationsView,
@@ -68,6 +69,11 @@ from nassav.http.viewing_views import (
 urlpatterns = [
     path("api/my-operations", MyOperationsView.as_view(), name="my-operations"),
     path("api/library/entries", LibraryEntriesView.as_view(), name="library-entries"),
+    path(
+        "api/library/entries/<uuid:entry_id>/images/<str:asset_id>",
+        LibraryEntryImageView.as_view(),
+        name="library-entry-image",
+    ),
     path(
         "api/library/entries/<uuid:entry_id>",
         LibraryEntryView.as_view(),

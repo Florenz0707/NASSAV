@@ -34,9 +34,9 @@ def lock_user(user_id):
         raise PermissionError("用户不可用")
 
 
-def project_personal_state(queryset, user_id):
+def project_personal_state(queryset, user_id, *, resource_field="pk"):
     states = UserResourceState.objects.filter(
-        user_id=user_id, resource_id=OuterRef("pk")
+        user_id=user_id, resource_id=OuterRef(resource_field)
     )
     return queryset.annotate(
         personal_watch_later=Coalesce(
@@ -94,6 +94,9 @@ def update_state(resource, user_id, changes, *, expected_version=None):
         raise ValueError("备注必须是最多5000字符的文本")
     with transaction.atomic():
         lock_user(user_id)
+        from nassav.library_catalog import lock_held_resource
+
+        lock_held_resource(user_id, resource)
         row = UserResourceState.objects.filter(
             user_id=user_id, resource=resource
         ).first()

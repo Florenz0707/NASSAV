@@ -58,6 +58,14 @@ class LibraryAPIView(SchemaAPIView):
 
 
 class LibraryEntriesView(LibraryAPIView):
+    def get(self, request):
+        from nassav.library_catalog import list_entries
+
+        data, pagination = list_entries(
+            request.user.pk, request.query_params, include_pending=True
+        )
+        return build_response(200, "success", data, pagination=pagination)
+
     def post(self, request):
         if (
             not isinstance(request.data, dict)
@@ -87,6 +95,18 @@ class LibraryEntriesView(LibraryAPIView):
 
 
 class LibraryEntryView(LibraryAPIView):
+    def get(self, request, entry_id):
+        from nassav.library_catalog import own_entry, project
+
+        return build_response(
+            200,
+            "success",
+            project(
+                own_entry(request.user.pk, entry_id=entry_id, include_pending=True),
+                detail=True,
+            ),
+        )
+
     def delete(self, request, entry_id):
         if not isinstance(request.data, dict) or set(request.data) != {
             "expected_version",
@@ -125,6 +145,19 @@ class LibraryEntryOperationsView(LibraryAPIView):
         result = composition.build_library_submission().submit(request.user.pk, payload)
         return build_response(
             202 if result["state"] != "succeeded" else 200, "success", result
+        )
+
+
+class LibraryEntryImageView(LibraryAPIView):
+    def get(self, request, entry_id, asset_id):
+        import re
+        from nassav.library_catalog import own_entry
+        from nassav.http.version_media import image_response
+
+        if re.fullmatch("[0-9a-f]{64}", asset_id) is None:
+            raise ValueError("Invalid image identity")
+        return image_response(
+            request, own_entry(request.user.pk, entry_id=entry_id), asset_id
         )
 
 

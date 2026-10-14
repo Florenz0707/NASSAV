@@ -2,7 +2,7 @@
 
 ## 实施状态
 
-P5账本子阶段新增0044及内部读取占用核心；未接入正式版本发布、源/本地播放器、封面HTTP或GC。普通账号登录、共享任务生产派发及自动回收仍关闭。当前生产仍用旧路径，不得把本文的内部模型测试当作正式媒体验收。
+0044/0045账本、发布、受控执行器及本人库/图片读取已隔离实现；源/本地播放器、完整目录/推荐投影和GC仍待接入。普通账号登录、共享任务生产派发及自动回收仍关闭。当前生产仍用旧路径，不得把本文的内部模型测试当作正式媒体验收。
 
 ## 版本与两个持有指针
 
@@ -49,3 +49,13 @@ manifest按root/kind/path/size/SHA256/marker登记；元数据只接受白名单
 专项`test_version_publication.py`使用真实加密来源记录、临时JPEG、DB及资产日志，覆盖双用户激活、撤销/取消、无公共私人数据、失败补偿、较新指针、命名空间及线程竞态；另有实际ffmpeg生成并完整解码的0.2秒MP4验证独立视频指针；不是源站下载、真实Celery或HTTP媒体验收。0045往返保留版本/manifest/持有/读取占用，仅新增CAS基准列；历史staging候选不能因为默认值就获新提交权。
 
 执行器子阶段已将两个受控workflow接入版本策略与同步翻译，生产开关默认关闭；共享库HTTP/配额与正式读取消费者仍待接入，见[共享执行器](shared-work-architecture.md#执行器子阶段)。
+
+## 本人库与图片读取子阶段
+
+基线d0cf4f0，分支feat/version-library-reads，不新增schema。library_catalog批量投影本人active/pending持有及当前元数据/独立视频版本，个人状态使用资源锚点的关联子查询。全局AVResource保持中性；私有来源的标题/关系仅在本人的授权版本投影中显示，不写Actor/Genre全局表。旧导入的public/legacy操作者关系保留明确兼容读取；有版本指针时不回退其他来源或全局数据。数据库查询限定本人、可用pool与合法pool/kind/owner/state，pending不展示他人的准备结果。
+
+LibraryImages协调授权与占用，DjangoVersionImageLocator负责manifest/marker与受限文件打开，HTTP只组装FileResponse。锁顺序是共享resource flock之后user→pool→lease；hash/stat在短DB事务外。图片以openat/NOFOLLOW遍历版本目录，实际内容SHA256及stat匹配后才读；每块传输前后检查登录、epoch和持有，关闭幂等释放。单图上限32MiB，原图响应不生成新缓存。失败打开关闭句柄/占用，登录已撤销时占用TTL兜底；稳定锁文件不unlink。
+
+个人更新在user fence内再次锁pool并核查持有，不能因权限入口旧检查通过就越过稍后移出。当前仅资源列表/详情/预览与版本cover/avatar HTTP，播放器与目录/推荐关系仍需独立接入；默认共享开关/普通准入不变。专项test_version_library_reads.py使用真实加密记录、JPEG、DB和认证HTTP，含两个用户隔离、批量查询数、猜测地址、坏marker/内容、父/末端符号链接、移出后流及个人写入拒绝；不代表真实Celery或视频媒体联调。
+
+本子阶段隔离门槛（2026-10-15）：全量SQLite1170 passed、28 skipped；PostgreSQL专项40 passed；个人状态/权限与读取专项SQLite38 passed，旧HTTP契约及读取专项21 passed。流式HTTP使用真实事务测试，关闭响应会触发Django连接清理；不得以pytest外层回滚事务冒充该生命周期。完整pre-commit通过后提交。本阶段无新迁移，现有实例/普通登录/真实视频仍未切换。

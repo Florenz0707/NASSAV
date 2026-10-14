@@ -438,6 +438,24 @@ def build_cover_locator():
     )
 
 
+def build_library_images():
+    from django.conf import settings
+    from nassav.library_assets import LibraryImages
+    from nassav.resource_reads import VersionReads
+    from nassav.resource_read_records import DjangoReadLeases
+    from nassav.version_image_files import DjangoVersionImageLocator
+
+    return LibraryImages(
+        VersionReads(DjangoReadLeases()),
+        DjangoVersionImageLocator(
+            {
+                "cover": settings.COVER_DIR,
+                "avatar": settings.AVATAR_DIR,
+            }
+        ),
+    )
+
+
 def build_translation_requests():
     from nassav.translation_requests import DjangoTranslationRequests
 

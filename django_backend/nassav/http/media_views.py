@@ -60,6 +60,21 @@ class ResourceCoverView(SchemaAPIView):
         avid = request.query_params.get("avid", "").upper()
         if not avid:
             return build_response(400, "avid参数缺失", None)
+        from nassav.library_catalog import enabled, own_entry
+
+        if enabled(request.user.pk):
+            entry = own_entry(request.user.pk, avid=avid)
+            if entry.current_version is not None:
+                from nassav.resource_media import FileCoverLocator
+
+                size = request.query_params.get("size")
+                if size and str(size).lower() not in FileCoverLocator.SIZES:
+                    return build_response(
+                        400, "size 参数无效，支持 small|medium|large", None
+                    )
+                from nassav.http.version_media import image_response
+
+                return image_response(request, entry)
         try:
             asset = build_cover_locator().locate(avid, request.query_params.get("size"))
         except InvalidThumbnailSize as error:
@@ -84,11 +99,17 @@ class ResourceCoverView(SchemaAPIView):
                 response = Response(status=status.HTTP_304_NOT_MODIFIED)
                 response["ETag"] = asset.etag
                 response["Last-Modified"] = http_date(modified)
+                if enabled(request.user.pk):
+                    response["Cache-Control"] = "private, no-store"
+                    response["Vary"] = "Cookie"
                 return response
         response = FileResponse(
             open(asset.path, "rb"), content_type=asset.content_type, as_attachment=False
         )
         response["Cache-Control"] = "public, max-age=31536000"
+        if enabled(request.user.pk):
+            response["Cache-Control"] = "private, no-store"
+            response["Vary"] = "Cookie"
         response["Last-Modified"] = http_date(modified)
         if asset.etag is not None:
             response["ETag"] = asset.etag
@@ -100,6 +121,18 @@ class ResourcePreviewView(SchemaAPIView):
 
     def get(self, request, avid):
         avid = avid.upper()
+        from nassav.library_catalog import enabled, own_entry, project
+
+        if enabled(request.user.pk):
+            data = project(own_entry(request.user.pk, avid=avid), detail=True)
+            response = build_response(
+                200,
+                "success",
+                {"metadata": data, "thumbnail_url": data["thumbnail_url"]},
+            )
+            response["Cache-Control"] = "private, no-store"
+            response["Vary"] = "Cookie"
+            return response
         # load metadata from DB if exists
         try:
             from nassav.models import AVResource
@@ -208,6 +241,18 @@ class ResourceMetadataView(SchemaAPIView):
                 {"code": 400, "message": "avid参数缺失", "data": None},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        from nassav.library_catalog import enabled, own_entry, project
+
+        if enabled(request.user.pk):
+            data = project(own_entry(request.user.pk, avid=avid), detail=True)
+            data["duration"] = (
+                f"{data['duration'] // 60}分钟" if data["duration"] else ""
+            )
+            response = build_response(200, "success", data)
+            response["Cache-Control"] = "private, no-store"
+            response["Vary"] = "Cookie"
+            return response
 
         # 从数据库读取元数据
         try:
