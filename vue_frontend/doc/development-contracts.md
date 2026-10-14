@@ -221,3 +221,17 @@ noteDialog统一处理关闭与导航离开的未保存决定，所有弹窗复�
 基线313f764，独立分支feat/personal-center-ui；本轮仅改前端及文档，后端公开接口、状态与数据库保持。前端pnpm run check包括123单元测试、lint和构建；根pre-commit run -a完整通过。Chrome/Firefox使用临时真实Django/SQLite/Redis/同账号登录和合成封面验证个人中心入口、分区设置、退出、封面上缘对齐、图标状态、长备注、弹窗焦点/关闭/清空/保存/冲突和未保存导航提示及390px深浅主题。原settings.cjs模拟API回归通过；跨设备接续Chrome通过，入口改到个人中心观看历史，显式接续/旧writer409/清除进度仍保留历史验证通过。首次浏览器尝试强制点击被遮罩覆盖的链接并未触发路由，脚本改为显式触发RouterLink导航、等待确认层退出；同AVID新快照不再重置弹窗，409草稿保持。原生beforeunload监听检查不代表能自定义浏览器警告文案。
 
 新备注关闭护栏只阻止打开的编辑器，收藏等后台保存不阻断关闭状态下的导航。提交与合并见该分支Git历史；正式服务、真实源站worker、实体设备与数据库迁移未执行，本轮不需要新增迁移。
+
+### 个人中心缓存与列表操作（未发布）
+
+PersonalCenter使用最多4个KeepAlive面板，使用viewing:section/settings:section的独立缓存key保留状态、180ms淡入位移，尊重prefers-reduced-motion；登出须ConfirmDialog确认“是否要登出”。ViewingLibrary的查询缓存归features/viewing/stores/viewing，30秒/8项/同请求去重；App身份变化重置，缓存revision及请求guard双重检查旧响应。onDeactivated停止查询、关闭确认和解除操作展示状态，卸载解除focus/visibility监听。手动刷新和重试强刷，写入成功以shared/lib/personalDataEvents无载荷事件失效，不保存个人数据到浏览器持久存储。跨标签/设备仅有TTL恢复，详细现状与后续步骤见[缓存计划](personal-cache-plan.md)。
+
+观看历史的选择限定当前页，单条/批量删除确认后提交列表queue_time，重新观看冲突保留并提示。稍后再看“移出已观看”作用于当前账号全队列的手动watched=true，不根据历史推断；列表移除不删媒体/进度。AppCheckbox新增disabled并透传原生input。ResourceCover新增squareBottom仅去除下缘圆角；原默认样式保持。详情图标操作为三等分布局，行宽贴合封面、上方间距1.2rem；备注编辑图标位于文本左侧，保持原弹窗和草稿护栏。
+
+页面过渡完成的主内容焦点恢复不得抢走已打开的aria-modal弹窗焦点；App在恢复前检查可见弹窗，弹窗继续持有焦点循环。设置面板先读取已有个人设置，不等待来源能力接口完成才显示表单。
+
+### 个人中心缓存与列表管理执行记录（2026-10-14）
+
+基线1fd241b，独立分支feat/personal-center-cache-and-actions。`pnpm run check`：125单元测试、lint和构建通过；`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：1007通过、28在线跳过。Chrome/Firefox以临时真实API/SQLite/Redis/合成MP4和封面验证分区请求次数不增长、设置保存、登出确认与取消、封面下缘直角、历史单条/批量删除、移出已观看、390px深浅主题、图标布局/1.2rem间距及备注键盘/冲突护栏；两浏览器全部最终用例通过。历史接口测试覆盖用户隔离、幂等重试、重新观看冲突及独立条目部分成功，查询缓存测试覆盖TTL/容量/在途去重/旧账号与乱序响应。
+
+首次Firefox焦点检查失败后，App增加过渡完成时已打开弹窗优先的焦点保护，复测通过；窄屏尺寸检查改为等待真实封面加载后同帧测量，并按14px小屏根字号计算1.2rem，避免加载/动画期间的错误采样。PersonalCenter原v-if/v-else共享key改为单个动态组件，viewing/settings缓存键分离；构建与实际切换通过。格式化钩子修改文件后重新暂存并执行完整pre-commit，不修改钩子配置。正式环境、外站worker及实体设备未验收，本轮无模型迁移；后端列表管理接口需与前端一起部署。执行提交见该分支Git历史；缓存规划中的外部搜索账号归属、blob回收、条件请求等后续项尚未实现。

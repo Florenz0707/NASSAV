@@ -56,18 +56,30 @@ onBeforeUnmount(() => {
       ><PersonalResourceActions :state="state" @change="editor.save"
     /></slot>
     <div class="flex items-start gap-4 min-w-0 w-full max-w-full">
-      <p class="text-secondary whitespace-pre-wrap [overflow-wrap:anywhere] flex-1 min-w-0">
-        <span class="font-medium text-primary">个人备注：</span>{{ state.savedNotes || '暂无备注' }}
-      </p>
       <AppButton
         size="sm"
         variant="neutral"
-        class="shrink-0"
+        class="shrink-0 w-8 h-8 p-0"
         :disabled="!!state.busy"
         aria-label="编辑个人备注"
+        title="编辑个人备注"
         @click="dialog.open"
-        >编辑</AppButton
       >
+        <svg
+          class="w-4 h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="m16 3 5 5L8 21H3v-5L16 3Z" />
+          <path d="m14 5 5 5" />
+        </svg>
+      </AppButton>
+      <p class="text-secondary whitespace-pre-wrap [overflow-wrap:anywhere] flex-1 min-w-0">
+        <span class="font-medium text-primary">个人备注：</span>{{ state.savedNotes || '暂无备注' }}
+      </p>
     </div>
     <p v-if="state.error && !ui.open" role="alert" class="text-sm text-accent-danger">
       {{ state.error }}

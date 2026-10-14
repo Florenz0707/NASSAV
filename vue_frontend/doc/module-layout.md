@@ -59,3 +59,5 @@ features/playback 独占在线播放会话及播放引擎生命周期；Resource
 观看列表由features/viewing/components/ViewingLibrary负责读取、分页、刷新与移除，views/ViewingView仅装配，生产入口位于个人中心，旧独立路由保持兼容。HTTP归api/viewing.js并由api/index.js导出；播放历史事件归features/playback/lib/viewingRecorder.js，独立于进度写入权。
 
 个人中心由features/personal管理功能导航与退出，复用features/viewing的列表、features/settings的PersonalSettings；views仅装配。个人状态单一editor留在PersonalResourcePanel，PersonalResourceActions展示图标状态，noteDialog负责草稿退出决定，页面slot只负责左右布局。
+
+观看查询缓存归features/viewing/stores/viewing，组件只管理选择/页码/展示guard；App登录身份变化重置。shared/lib/personalDataEvents只传递无载荷失效信号，API写成功时发布，shared不导入领域API/store。个人中心KeepAlive保留最多四个面板，停用/卸载生命周期仍须明确；缓存现状与下一步见[方案](personal-cache-plan.md)。

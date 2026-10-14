@@ -8,6 +8,7 @@ const props = defineProps({
   title: { type: String, default: '' },
   imageClass: { type: String, default: 'object-cover' },
   naturalSize: Boolean,
+  squareBottom: Boolean,
 })
 const failed = ref(false)
 watch(
@@ -19,8 +20,11 @@ watch(
 </script>
 <template>
   <div
-    class="rounded-lg overflow-hidden"
-    :class="naturalSize && url && !failed ? 'flex items-center justify-center' : 'bg-primary'"
+    class="overflow-hidden"
+    :class="[
+      squareBottom ? 'rounded-t-lg' : 'rounded-lg',
+      naturalSize && url && !failed ? 'flex items-center justify-center' : 'bg-primary',
+    ]"
   >
     <img
       v-if="url && !failed"

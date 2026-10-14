@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ConfirmDialog from '../../../shared/ui/ConfirmDialog.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
 import ViewingLibrary from '../../viewing/components/ViewingLibrary.vue'
 import PersonalSettings from '../../settings/components/PersonalSettings.vue'
@@ -17,10 +18,12 @@ const sections = [
 const current = computed(() =>
   sections.some((s) => s.value === route.params.section) ? route.params.section : 'watch-later'
 )
+const confirmLogout = ref(false)
 const error = ref(''),
   exiting = ref(false)
 async function logout() {
   if (exiting.value) return
+  confirmLogout.value = false
   exiting.value = true
   error.value = ''
   try {
@@ -48,20 +51,66 @@ async function logout() {
           @click="router.push({ name: 'PersonalCenter', params: { section: section.value } })"
           >{{ section.label }}</AppButton
         >
-        <AppButton variant="neutral" :loading="exiting" loading-text="正在退出" @click="logout"
+        <AppButton
+          variant="neutral"
+          :loading="exiting"
+          loading-text="正在退出"
+          @click="confirmLogout = true"
           >退出登录</AppButton
         >
         <p v-if="error" role="alert" class="text-accent-danger text-sm">{{ error }}</p>
       </nav>
       <div class="min-w-0">
-        <ViewingLibrary
-          v-if="['history', 'watch-later'].includes(current)"
-          :key="current"
-          :initial-kind="current"
-          embedded
-        />
-        <PersonalSettings v-else :key="current" :section="current" embedded />
+        <Transition name="personal-section" mode="out-in">
+          <KeepAlive :max="4">
+            <component
+              :is="['history', 'watch-later'].includes(current) ? ViewingLibrary : PersonalSettings"
+              :key="
+                ['history', 'watch-later'].includes(current)
+                  ? `viewing:${current}`
+                  : `settings:${current}`
+              "
+              v-bind="
+                ['history', 'watch-later'].includes(current)
+                  ? { initialKind: current }
+                  : { section: current }
+              "
+              embedded
+            />
+          </KeepAlive>
+        </Transition>
       </div>
     </div>
+    <ConfirmDialog
+      :show="confirmLogout"
+      title="退出登录"
+      message="是否要登出"
+      confirm-text="登出"
+      @confirm="logout"
+      @cancel="confirmLogout = false"
+    />
   </section>
 </template>
+
+<style scoped>
+.personal-section-enter-active,
+.personal-section-leave-active {
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+.personal-section-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.personal-section-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .personal-section-enter-active,
+  .personal-section-leave-active {
+    transition: none;
+  }
+}
+</style>

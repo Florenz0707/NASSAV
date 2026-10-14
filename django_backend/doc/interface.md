@@ -1562,3 +1562,10 @@ GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit
 - `POST /api/playback-sessions/{session_id}/viewed`：body为正整数session_generation、sequence（1–2147483647），仅接受当前登录绑定的ready未过期会话。更高sequence在真实播放开始时更新唯一历史条目；重复/更低sequence幂等、不重排。返回avid和recorded_at，不领取进度写入权。不存在/他人登录404，失效/旧代次409，参数400、未启用播放404。
 
 所有个人观看响应private,no-store，不接受user_id。读取、准备播放、播放进度claim不记录历史；播放器真实playing后上报，缓冲不重复、暂停恢复为新sequence。详见[架构](viewing-architecture.md)。
+
+### 观看列表移除操作（未发布）
+
+- `POST /api/personal/watch-later`：严格body `{action: "remove_watched"}`，移出当前账号**全列表**中watch_later和手动watched均为true的记录，返回data `{removed: 数量}`。不以播放进度/历史推断已观看；每项state_version递增，加入时间清空，收藏/备注/已观看保持。
+- `DELETE /api/personal/history`：body严格为`{entries: [{avid, queue_time}]}`，1–200条、AVID不能重复、queue_time必须带时区且来自列表。返回data数组`{avid,status}`，status为removed/absent/conflict。absence幂等；重新观看导致时间改变则保留最新记录、返回conflict，其他匹配项仍删除，HTTP200不代表每项都删除。单条也是一个元素的数组。参数400、匿名401、越权对象按absent处理，不泄露他人记录。
+
+两接口沿用CSRF、操作者准入与private,no-store；历史删除不清除资源、文件、进度及其他个人状态，无数据库迁移。已处理playing重试不复活历史，删除后新的有效playing sequence可以重新记录；尚未处理的播放上报按服务器接收顺序执行，不承诺删除正在播放视频会永久屏蔽后续观看。

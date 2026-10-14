@@ -1,4 +1,5 @@
 import api from './client.js'
+import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 import { logger } from '../shared/lib/logger.js'
 
 export const resourceApi = {
@@ -96,11 +97,11 @@ export const resourceApi = {
     }),
 
   // 删除资源
-  delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`),
+  delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`).then(personalDataChanged),
 
   // 更新个人资源状态（观看、收藏、备注及可选 expected_version）
   updateStatus: (avid, payload) =>
-    api.patch(`/resource/${encodeURIComponent(avid)}/status`, payload),
+    api.patch(`/resource/${encodeURIComponent(avid)}/status`, payload).then(personalDataChanged),
 
   // 批量操作：body 应包含 { actions: [ {action, avid, ...}, ... ] }
   batch: (payload) => {

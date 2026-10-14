@@ -5,7 +5,12 @@ from rest_framework.response import Response
 from nassav.http_base import SchemaAPIView
 from nassav.playback import records
 from nassav.playback.policy import PlaybackGatewayError
-from nassav.viewing import list_viewing, record_view
+from nassav.viewing import (
+    list_viewing,
+    record_view,
+    remove_history,
+    remove_watched_later,
+)
 
 
 class PersonalViewingView(SchemaAPIView):
@@ -33,6 +38,38 @@ class PersonalViewingView(SchemaAPIView):
             return Response(
                 {"code": 400, "message": "列表参数无效", "data": None}, status=400
             )
+
+    def delete(self, request, kind):
+        try:
+            if kind != "history" or set(request.data) != {"entries"}:
+                raise ValueError("历史记录参数无效")
+            data = remove_history(request.user.pk, request.data["entries"])
+            return Response({"code": 200, "message": "success", "data": data})
+        except (ValueError, TypeError, AttributeError) as error:
+            return Response(
+                {"code": 400, "message": str(error), "data": None}, status=400
+            )
+
+    def post(self, request, kind):
+        try:
+            if kind != "watch-later" or request.data != {"action": "remove_watched"}:
+                raise ValueError("稍后再看操作无效")
+            count = remove_watched_later(request.user.pk)
+            return Response(
+                {"code": 200, "message": "success", "data": {"removed": count}}
+            )
+        except (ValueError, TypeError, AttributeError) as error:
+            return Response(
+                {"code": 400, "message": str(error), "data": None}, status=400
+            )
+
+
+class PersonalHistoryView(PersonalViewingView):
+    http_method_names = ["get", "delete", "options"]
+
+
+class PersonalWatchLaterView(PersonalViewingView):
+    http_method_names = ["get", "post", "options"]
 
 
 class PlaybackViewedView(PersonalViewingView):

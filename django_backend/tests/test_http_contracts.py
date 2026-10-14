@@ -98,11 +98,11 @@ def test_url_and_openapi_contract_remains_identical():
     ]
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [
-        ["nassav/api/personal/history", "personal-history", "PersonalViewingView"],
+        ["nassav/api/personal/history", "personal-history", "PersonalHistoryView"],
         [
             "nassav/api/personal/watch-later",
             "personal-watch-later",
-            "PersonalViewingView",
+            "PersonalWatchLaterView",
         ],
         [
             "nassav/api/playback-sessions/<uuid:session_id>/viewed",
@@ -146,8 +146,8 @@ def test_url_and_openapi_contract_remains_identical():
         *baseline["routes"],
     ]
     control_paths = {
-        "/nassav/api/personal/history": {"get"},
-        "/nassav/api/personal/watch-later": {"get"},
+        "/nassav/api/personal/history": {"get", "delete"},
+        "/nassav/api/personal/watch-later": {"get", "post"},
         "/nassav/api/playback-sessions/{session_id}/viewed": {"post"},
         "/nassav/api/playback-progress": {"get"},
         "/nassav/api/playback-sessions/{session_id}/progress": {"get", "put"},

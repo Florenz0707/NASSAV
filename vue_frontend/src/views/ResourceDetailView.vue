@@ -258,18 +258,17 @@ async function navigateToGenre(genreName) {
         <template #default="{ state, save }">
           <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-10 items-start">
             <!-- 封面和状态按钮 -->
-            <div class="flex flex-col gap-4">
-              <div class="relative h-[310px] flex justify-center items-start">
+            <div class="flex justify-center">
+              <div class="detail-cover-actions flex flex-col gap-[1.2rem] max-w-full">
                 <ResourceCover
                   :url="coverUrl"
                   :title="displayedTitle"
                   natural-size
                   image-class="object-contain rounded-2xl shadow-lg"
-                  class="w-full h-full [&>img]:self-start"
+                  class="detail-cover"
                 />
+                <PersonalResourceActions :state="state" @change="save" />
               </div>
-
-              <PersonalResourceActions :state="state" @change="save" />
             </div>
 
             <!-- 右侧信息 -->
@@ -501,6 +500,32 @@ async function navigateToGenre(genreName) {
 
   to {
     opacity: 1;
+  }
+}
+</style>
+
+<style scoped>
+.detail-cover-actions {
+  width: min-content;
+}
+.detail-cover {
+  width: max-content;
+  max-width: 100%;
+}
+.detail-cover :deep(img) {
+  max-height: 310px;
+  max-width: min(400px, 100%);
+  width: auto;
+  height: auto;
+}
+.detail-cover :deep([role='img']) {
+  width: 100%;
+  min-width: 12rem;
+  height: 225px;
+}
+@media (max-width: 640px) {
+  .detail-cover :deep(img) {
+    max-width: calc(100vw - 4rem);
   }
 }
 </style>

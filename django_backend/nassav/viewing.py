@@ -83,3 +83,66 @@ def list_viewing(user_id, kind, page, page_size):
         item["queue_time"] = row["queue_time"].isoformat()
         data.append(item)
     return data, {"page": page, "pages": pages, "page_size": page_size, "total": total}
+
+
+@retry_sqlite_contention
+def remove_watched_later(user_id):
+    """Only explicit watched markers qualify; retain all other personal fields."""
+    with transaction.atomic():
+        lock_user(user_id)
+        return UserResourceState.objects.filter(
+            user_id=user_id, watch_later=True, watched=True
+        ).update(
+            watch_later=False,
+            watch_later_added_at=None,
+            version=F("version") + 1,
+            updated_at=timezone.now(),
+        )
+
+
+@retry_sqlite_contention
+def remove_history(user_id, entries):
+    from django.utils.dateparse import parse_datetime
+
+    if not isinstance(entries, list) or not 1 <= len(entries) <= 200:
+        raise ValueError("请选择1至200条历史记录")
+    validated = []
+    seen = set()
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {"avid", "queue_time"}:
+            raise ValueError("历史记录参数无效")
+        avid, stamp = entry["avid"], entry["queue_time"]
+        if (
+            not isinstance(avid, str)
+            or not avid
+            or avid in seen
+            or not isinstance(stamp, str)
+        ):
+            raise ValueError("历史记录参数无效")
+        stamp = parse_datetime(stamp)
+        if stamp is None or timezone.is_naive(stamp):
+            raise ValueError("历史记录时间无效")
+        seen.add(avid)
+        validated.append((avid, stamp))
+    results = []
+    with transaction.atomic():
+        lock_user(user_id)
+        rows = {
+            row["resource__avid"]: row
+            for row in UserWatchHistory.objects.filter(
+                user_id=user_id, resource__avid__in=seen
+            ).values("pk", "resource__avid", "last_watched_at")
+        }
+        deleted = []
+        for avid, stamp in validated:
+            row = rows.get(avid)
+            if row is None:
+                status = "absent"
+            elif row["last_watched_at"] != stamp:
+                status = "conflict"
+            else:
+                status = "removed"
+                deleted.append(row["pk"])
+            results.append({"avid": avid, "status": status})
+        UserWatchHistory.objects.filter(user_id=user_id, pk__in=deleted).delete()
+    return results

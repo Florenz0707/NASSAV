@@ -4,9 +4,9 @@ defineProps({ state: { type: Object, required: true } })
 const emit = defineEmits(['change'])
 </script>
 <template>
-  <div class="flex items-center justify-center gap-3">
+  <div class="grid grid-cols-3 gap-3 w-full">
     <AppButton
-      class="w-12 h-12 p-0 shrink-0"
+      class="w-full h-12 p-0 min-w-0"
       :aria-pressed="state.isFavorite"
       :variant="state.isFavorite ? 'primary' : 'neutral'"
       aria-label="收藏"
@@ -29,7 +29,7 @@ const emit = defineEmits(['change'])
       </svg>
     </AppButton>
     <AppButton
-      class="w-12 h-12 p-0 shrink-0"
+      class="w-full h-12 p-0 min-w-0"
       :aria-pressed="state.watched"
       :variant="state.watched ? 'primary' : 'neutral'"
       aria-label="已观看"
@@ -51,7 +51,7 @@ const emit = defineEmits(['change'])
       </svg>
     </AppButton>
     <AppButton
-      class="w-12 h-12 p-0 shrink-0"
+      class="w-full h-12 p-0 min-w-0"
       :aria-pressed="state.watchLater"
       :variant="state.watchLater ? 'primary' : 'neutral'"
       aria-label="稍后再看"

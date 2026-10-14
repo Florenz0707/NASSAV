@@ -74,6 +74,15 @@ async function main() {
     await page.locator('nav.navbar').getByRole('link', { name: '个人中心', exact: true }).click()
     await page.getByRole('heading', { name: '个人中心', exact: true }).waitFor()
     const navigation = page.getByRole('navigation', { name: '个人中心功能' })
+    const counts = new Map()
+    page.on('request', (request) => {
+      const path = new URL(request.url()).pathname
+      if (
+        request.method() === 'GET' &&
+        /personal\/(history|watch-later)$|\/setting$|search-capabilities$/.test(path)
+      )
+        counts.set(path, (counts.get(path) || 0) + 1)
+    })
     for (const name of ['稍后再看', '观看历史', '通用设置', '播放设置', '退出登录'])
       await navigation.getByRole('button', { name, exact: true }).waitFor()
     await navigation.getByRole('button', { name: '通用设置', exact: true }).click()
@@ -82,6 +91,15 @@ async function main() {
     await navigation.getByRole('button', { name: '播放设置', exact: true }).click()
     await page.locator('#playback-volume').waitFor()
     assert.equal(await page.getByRole('heading', { name: '通用设置', exact: true }).count(), 0)
+    await navigation.getByRole('button', { name: '观看历史', exact: true }).click()
+    await page.getByRole('heading', { name: '观看历史', exact: true }).waitFor()
+    await page.getByText('暂无观看历史', { exact: true }).waitFor()
+    const before = new Map(counts)
+    for (const name of ['通用设置', '播放设置', '观看历史']) {
+      await navigation.getByRole('button', { name, exact: true }).click()
+      await page.getByRole('heading', { name, exact: true }).waitFor()
+    }
+    assert.deepEqual(counts, before, 'section switches within TTL do not re-fetch')
     stage = 'detail alignment and icon buttons'
     await page.goto(`${origin}/resource/${avid}`, { waitUntil: 'domcontentloaded' })
     await edit.waitFor()
@@ -105,6 +123,14 @@ async function main() {
     const imageBox = await image.boundingBox(),
       avidBox = await page.getByText(avid, { exact: true }).first().boundingBox()
     assert.ok(Math.abs(imageBox.y - avidBox.y) < 2, `cover ${imageBox.y} vs info ${avidBox.y}`)
+    const boxes = await Promise.all(
+      [favorite, watched, later].map((button) => button.boundingBox())
+    )
+    assert.ok(Math.abs(boxes[0].x - imageBox.x) < 2)
+    assert.ok(Math.abs(boxes[2].x + boxes[2].width - imageBox.x - imageBox.width) < 2)
+    assert.ok(Math.abs(boxes[0].y - imageBox.y - imageBox.height - 19.2) < 2, 'cover gap is 1.2rem')
+    assert.ok(Math.abs(boxes[0].width - boxes[2].width) < 1)
+    assert.equal((await edit.innerText()).trim(), '')
     stage = 'dirty close escape route and save'
     await edit.click()
     await notes.fill('未保存的草稿')
@@ -175,6 +201,33 @@ async function main() {
       await page.locator(`body.${mode}-mode`).waitFor()
       await page.setViewportSize({ width: mode === 'dark' ? 390 : 1440, height: 1000 })
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+      await page.waitForFunction(() => {
+        const img = document.querySelector('.detail-cover img')
+        return img?.complete && img.naturalWidth > 0
+      })
+      const geometry = await panel.evaluate((node) => {
+        const box = (element) => {
+          const r = element.getBoundingClientRect()
+          return { x: r.x, y: r.y, width: r.width, height: r.height }
+        }
+        return {
+          cover: box(node.querySelector('.detail-cover img')),
+          controls: ['收藏', '已观看', '稍后再看'].map((label) =>
+            box(node.querySelector(`button[aria-label="${label}"]`))
+          ),
+          rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+        }
+      })
+      const { cover, controls, rem } = geometry
+      assert.ok(Math.abs(controls[0].x - cover.x) < 2, JSON.stringify(geometry))
+      assert.ok(
+        Math.abs(controls[2].x + controls[2].width - cover.x - cover.width) < 2,
+        JSON.stringify(geometry)
+      )
+      assert.ok(
+        Math.abs(controls[0].y - cover.y - cover.height - 1.2 * rem) < 2,
+        JSON.stringify(geometry)
+      )
       await edit.click()
       await modal.waitFor()
       await modal.getByRole('button', { name: '保存', exact: true }).waitFor()
@@ -199,6 +252,15 @@ async function main() {
       .getByRole('navigation', { name: '个人中心功能' })
       .getByRole('button', { name: '退出登录', exact: true })
       .click()
+    const logoutDialog = page.getByRole('dialog', { name: '退出登录', exact: true })
+    await logoutDialog.getByText('是否要登出', { exact: true }).waitFor()
+    await logoutDialog.getByRole('button', { name: '取消', exact: true }).click()
+    await logoutDialog.waitFor({ state: 'hidden' })
+    await page
+      .getByRole('navigation', { name: '个人中心功能' })
+      .getByRole('button', { name: '退出登录', exact: true })
+      .click()
+    await logoutDialog.getByRole('button', { name: '登出', exact: true }).click()
     await page.getByRole('button', { name: '登录', exact: true }).waitFor()
     assert.deepEqual(errors, [])
     console.log(

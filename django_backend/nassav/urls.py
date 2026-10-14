@@ -36,18 +36,22 @@ from nassav.http.playback_progress_views import (
 from nassav.http.playback_media import media_view
 from nassav.http.playback_local_media import local_media_view
 
-from nassav.http.viewing_views import PersonalViewingView, PlaybackViewedView
+from nassav.http.viewing_views import (
+    PersonalHistoryView,
+    PersonalWatchLaterView,
+    PlaybackViewedView,
+)
 
 urlpatterns = [
     path(
         "api/personal/history",
-        PersonalViewingView.as_view(),
+        PersonalHistoryView.as_view(),
         {"kind": "history"},
         name="personal-history",
     ),
     path(
         "api/personal/watch-later",
-        PersonalViewingView.as_view(),
+        PersonalWatchLaterView.as_view(),
         {"kind": "watch-later"},
         name="personal-watch-later",
     ),

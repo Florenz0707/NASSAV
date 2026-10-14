@@ -4,6 +4,7 @@ import { RouterView, useRoute } from 'vue-router'
 import { clearPlaybackDrafts } from './features/playback/lib/progressDrafts.js'
 import { useRecommendationsStore } from './features/recommendations/stores/recommendations.js'
 import { clearAllRecommendationViewStates } from './features/recommendations/stores/recommendationViewState.js'
+import { useViewingStore } from './features/viewing/stores/viewing.js'
 import Navbar from './app/components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
 import Toast from './shared/ui/Toast.vue'
@@ -24,7 +25,9 @@ watch(
   }
 )
 function restorePageFocus() {
-  if (focusAfterNavigation) mainContent.value?.focus({ preventScroll: true })
+  // A page transition may finish after a user has already opened a dialog.
+  if (focusAfterNavigation && !document.querySelector('[role="dialog"][aria-modal="true"]'))
+    mainContent.value?.focus({ preventScroll: true })
   focusAfterNavigation = false
 }
 const taskJobs = useTaskJobsStore()
@@ -48,6 +51,7 @@ onMounted(() => {
 watch(
   () => [sessionStore.status, sessionStore.username],
   ([status]) => {
+    useViewingStore().reset()
     useRecommendationsStore().reset()
     settingsStore.reset()
     resourceStore.resetResourceList()

@@ -8,8 +8,8 @@ import { useSettingsStore } from '../stores/settings.js'
 import { AVAILABLE_FONTS } from '../config/fonts.js'
 import PlaybackSettingsPanel from './PlaybackSettingsPanel.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
-const props = defineProps({ section: { type: String, default: 'all' }, embedded: Boolean })
 import GeneralSettingsPanel from './GeneralSettingsPanel.vue'
+const props = defineProps({ section: { type: String, default: 'all' }, embedded: Boolean })
 let alive = true
 onBeforeUnmount(() => {
   alive = false
@@ -63,6 +63,7 @@ const handleSaveSettings = async () => {
 
 // 组件挂载时加载数据
 onMounted(async () => {
+  void loadSettings()
   if (props.section !== 'playback') {
     try {
       const response = await sourceApi.getSearchCapabilities()
@@ -76,7 +77,6 @@ onMounted(async () => {
       if (alive) toastStore.error('获取搜索源状态失败')
     }
   }
-  if (alive) await loadSettings()
 })
 </script>
 <template>
@@ -85,6 +85,9 @@ onMounted(async () => {
       <h1 class="text-[2rem] font-bold text-primary mb-2">个人设置</h1>
       <p class="text-muted">当前账号的显示、搜索与播放偏好</p>
     </div>
+    <h2 v-if="embedded" class="text-2xl font-semibold text-primary mb-6">
+      {{ section === 'playback' ? '播放设置' : '通用设置' }}
+    </h2>
     <PageLoad v-if="loading" variant="spinner" text="正在加载设置" />
     <RequestError v-else-if="loadError" :message="loadError" @retry="loadSettings" />
     <div v-else class="tw-surface-overlay rounded-xl p-6">

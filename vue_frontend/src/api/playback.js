@@ -1,8 +1,11 @@
 import api from './client.js'
+import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 
 export const playbackApi = {
   viewed: (id, generation, sequence) =>
-    api.post(`/playback-sessions/${id}/viewed`, { session_generation: generation, sequence }),
+    api
+      .post(`/playback-sessions/${id}/viewed`, { session_generation: generation, sequence })
+      .then(personalDataChanged),
   continuations: (limit = 6) => api.get('/playback-progress', { params: { limit } }),
   progress: (id) => api.get(`/playback-sessions/${id}/progress`),
   claimProgress: (id, body) => api.post(`/playback-sessions/${id}/progress/claim`, body),

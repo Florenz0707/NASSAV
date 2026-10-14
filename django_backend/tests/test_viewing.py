@@ -154,3 +154,123 @@ def test_concurrent_history_is_unique_and_old_session_retry_is_idempotent(
         results = list(pool.map(run, range(2)))
     assert results[0] == results[1]
     assert UserWatchHistory.objects.count() == 1
+
+
+def test_queue_removals_owned_conditional_and_preserve_other_state(
+    api_client, operator_user, django_user_model, resource_factory
+):
+    from nassav.viewing import remove_history, remove_watched_later
+
+    a, b = resource_factory(avid="REMOVE-A"), resource_factory(avid="REMOVE-B")
+    other = django_user_model.objects.create_user(username="remove-other")
+    for user in [operator_user, other]:
+        update_state(
+            a,
+            user.pk,
+            {
+                "watch_later": True,
+                "watched": True,
+                "is_favorite": True,
+                "notes": "保留",
+            },
+        )
+        update_state(b, user.pk, {"watch_later": True})
+    response = api_client.post(
+        "/nassav/api/personal/watch-later", {"action": "remove_watched"}, format="json"
+    )
+    assert response.status_code == 200 and response.json()["data"] == {"removed": 1}
+    assert response["Cache-Control"] == "private, no-store"
+    row = UserResourceState.objects.get(user=operator_user, resource=a)
+    assert not row.watch_later and row.watch_later_added_at is None
+    assert row.version == 2 and row.watched and row.is_favorite and row.notes == "保留"
+    assert UserResourceState.objects.get(user=other, resource=a).watch_later
+    assert remove_watched_later(operator_user.pk) == 0
+    session = ready(operator_user, a)
+    record_view(session.pk, operator_user.pk, "view", 1, 1)
+    entry = list_viewing(operator_user.pk, "history", 1, 15)[0][0]
+    payload = {k: entry[k] for k in ["avid", "queue_time"]}
+    assert remove_history(other.pk, [payload])[0]["status"] == "absent"
+    record_view(session.pk, operator_user.pk, "view", 1, 2)
+    assert remove_history(operator_user.pk, [payload])[0]["status"] == "conflict"
+    entry = list_viewing(operator_user.pk, "history", 1, 15)[0][0]
+    payload["queue_time"] = entry["queue_time"]
+    response = api_client.delete(
+        "/nassav/api/personal/history", {"entries": [payload]}, format="json"
+    )
+    assert (
+        response.status_code == 200
+        and response.json()["data"][0]["status"] == "removed"
+    )
+    assert response["Cache-Control"] == "private, no-store"
+    assert remove_history(operator_user.pk, [payload])[0]["status"] == "absent"
+    # A processed retry does not resurrect history; a genuine new playing episode does.
+    record_view(session.pk, operator_user.pk, "view", 1, 2)
+    assert not UserWatchHistory.objects.filter(user=operator_user).exists()
+    record_view(session.pk, operator_user.pk, "view", 1, 3)
+    assert UserWatchHistory.objects.filter(user=operator_user).count() == 1
+    assert UserResourceState.objects.get(user=operator_user, resource=a).notes == "保留"
+    assert a.__class__.objects.filter(pk=a.pk).exists()
+    for body in [
+        {},
+        {"entries": []},
+        {"entries": [payload, payload]},
+        {"entries": [{"avid": a.avid, "queue_time": "bad"}]},
+        {"entries": [payload], "user_id": other.pk},
+    ]:
+        assert (
+            api_client.delete(
+                "/nassav/api/personal/history", body, format="json"
+            ).status_code
+            == 400
+        )
+    assert (
+        api_client.post("/nassav/api/personal/history", {}, format="json").status_code
+        == 405
+    )
+    assert (
+        api_client.delete(
+            "/nassav/api/personal/watch-later", {}, format="json"
+        ).status_code
+        == 405
+    )
+
+
+def test_history_batch_keeps_conflicts_and_removes_independent_entries(
+    operator_user, resource_factory
+):
+    from nassav.viewing import remove_history
+
+    a, b = resource_factory(avid="BATCH-A"), resource_factory(avid="BATCH-B")
+    first, second = ready(operator_user, a), ready(operator_user, b)
+    record_view(first.pk, operator_user.pk, "view", 1, 1)
+    record_view(second.pk, operator_user.pk, "view", 1, 1)
+    entries = [
+        {k: item[k] for k in ["avid", "queue_time"]}
+        for item in list_viewing(operator_user.pk, "history", 1, 15)[0]
+    ]
+    record_view(first.pk, operator_user.pk, "view", 1, 2)
+    result = remove_history(operator_user.pk, entries)
+    assert {row["avid"]: row["status"] for row in result} == {
+        a.avid: "conflict",
+        b.avid: "removed",
+    }
+
+
+def test_removal_requires_authenticated_operator(operator_user):
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    assert (
+        client.delete(
+            "/nassav/api/personal/history", {"entries": []}, format="json"
+        ).status_code
+        == 401
+    )
+    assert (
+        client.post(
+            "/nassav/api/personal/watch-later",
+            {"action": "remove_watched"},
+            format="json",
+        ).status_code
+        == 401
+    )

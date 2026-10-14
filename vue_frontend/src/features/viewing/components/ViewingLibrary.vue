@@ -1,13 +1,16 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onDeactivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { viewingApi } from '../../../api/viewing.js'
 import { resourceApi } from '../../../api/resources.js'
+import { useViewingStore } from '../stores/viewing.js'
 import { useSessionStore } from '../../auth/stores/session.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 import AppButton from '../../../shared/ui/AppButton.vue'
+import AppCheckbox from '../../../shared/ui/AppCheckbox.vue'
+import ConfirmDialog from '../../../shared/ui/ConfirmDialog.vue'
 import ResourceCover from '../../../shared/ui/ResourceCover.vue'
 import ResourcePagination from '../../../shared/ui/ResourcePagination.vue'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
@@ -17,28 +20,39 @@ const props = defineProps({
   initialKind: {
     type: String,
     default: 'history',
-    validator: (value) => ['history', 'watch-later'].includes(value),
+    validator: (v) => ['history', 'watch-later'].includes(v),
   },
   embedded: Boolean,
 })
 const session = useSessionStore(),
   settings = useSettingsStore(),
-  router = useRouter()
+  router = useRouter(),
+  viewing = useViewingStore()
 const kind = ref(props.initialKind),
   items = ref([]),
   loading = ref(false),
   error = ref(''),
   busy = ref('')
 const pagination = ref({ page: 1, pages: 1, page_size: 15, total: 0 })
+const selected = ref([]),
+  confirmation = ref(null)
+const allSelected = computed(
+  () => items.value.length > 0 && selected.value.length === items.value.length
+)
 const guard = createRequestGuard()
-async function load(page = pagination.value.page) {
-  if (busy.value || session.status !== 'authenticated') return
+let active = true
+async function load(page = pagination.value.page, force = false) {
+  if (!active || busy.value || session.status !== 'authenticated') return
   const ticket = guard.begin()
   loading.value = true
   error.value = ''
   try {
-    const response = await viewingApi.list(kind.value, page, pagination.value.page_size)
-    if (guard.current(ticket)) {
+    const response = await viewing.list(kind.value, page, pagination.value.page_size, force)
+    if (guard.current(ticket) && response) {
+      const previous = new Map(items.value.map((item) => [item.avid, item.queue_time]))
+      selected.value = selected.value.filter((id) =>
+        response.data.some((item) => item.avid === id && previous.get(id) === item.queue_time)
+      )
       items.value = response.data
       pagination.value = response.pagination
     }
@@ -47,47 +61,88 @@ async function load(page = pagination.value.page) {
   } finally {
     if (guard.current(ticket)) loading.value = false
   }
+  return guard.current(ticket)
 }
 watch(
   () => props.initialKind,
-  (value) => {
-    kind.value = value
+  (v) => {
+    kind.value = v
   }
 )
-function reset() {
-  guard.invalidate()
-  items.value = []
-  busy.value = ''
-  error.value = ''
-  loading.value = false
-  pagination.value = { ...pagination.value, page: 1, pages: 1, total: 0 }
-  if (session.status === 'authenticated') void load(1)
+watch(
+  () => [kind.value, session.status, session.username],
+  () => {
+    guard.invalidate()
+    items.value = []
+    selected.value = []
+    confirmation.value = null
+    busy.value = ''
+    error.value = ''
+    loading.value = false
+    pagination.value = { ...pagination.value, page: 1, pages: 1, total: 0 }
+    void load(1)
+  },
+  { immediate: true }
+)
+watch(
+  () => viewing.revision,
+  () => {
+    if (active && !busy.value) void load()
+  }
+)
+function select(avid, checked) {
+  selected.value = checked
+    ? [...new Set([...selected.value, avid])]
+    : selected.value.filter((id) => id !== avid)
 }
-watch(() => [kind.value, session.status, session.username], reset, { immediate: true })
-async function remove(item) {
+function confirmHistory(entries) {
+  confirmation.value = {
+    action: 'history',
+    entries: entries.map(({ avid, queue_time }) => ({ avid, queue_time })),
+    message: `删除这 ${entries.length} 条观看历史？资源、播放进度和个人状态会保留。`,
+  }
+}
+async function execute() {
+  const action = confirmation.value
+  confirmation.value = null
+  if (!action || busy.value) return
+  await mutate('batch', async () => {
+    if (action.action === 'watched') return viewingApi.removeWatched()
+    const result = await viewingApi.removeHistory(action.entries)
+    if (result.data.some((row) => row.status === 'conflict'))
+      return '部分资源已再次观看，已保留最新历史，请重新确认。'
+  })
+}
+async function mutate(id, operation) {
   if (busy.value) return
   const ticket = guard.begin()
-  busy.value = item.avid
+  busy.value = id
   loading.value = false
   error.value = ''
   try {
-    await resourceApi.updateStatus(item.avid, {
-      watch_later: false,
-      expected_version: item.state_version,
-    })
+    const message = await operation()
     if (guard.current(ticket)) {
       busy.value = ''
-      await load()
+      const current = await load(pagination.value.page, true)
+      if (current && typeof message === 'string') error.value = message
     }
   } catch (failure) {
     if (guard.current(ticket))
       error.value =
         failure.code === 409
           ? '资源状态已在其他页面更新，请刷新后重试'
-          : failure.message || '移除失败'
+          : failure.message || '操作失败'
   } finally {
-    if (busy.value === item.avid && guard.current(ticket)) busy.value = ''
+    if (guard.current(ticket)) busy.value = ''
   }
+}
+function remove(item) {
+  return mutate(item.avid, () =>
+    resourceApi.updateStatus(item.avid, {
+      watch_later: false,
+      expected_version: item.state_version,
+    })
+  )
 }
 function play(item) {
   window.open(
@@ -104,8 +159,19 @@ function size(value) {
   void load(1)
 }
 function visible() {
-  if (document.visibilityState === 'visible') void load()
+  if (active && document.visibilityState === 'visible') void load()
 }
+onActivated(() => {
+  active = true
+  void load()
+})
+onDeactivated(() => {
+  active = false
+  guard.invalidate()
+  loading.value = false
+  busy.value = ''
+  confirmation.value = null
+})
 onMounted(() => {
   window.addEventListener('focus', visible)
   document.addEventListener('visibilitychange', visible)
@@ -119,6 +185,7 @@ onBeforeUnmount(() => {
 <template>
   <section
     aria-labelledby="viewing-title"
+    :aria-busy="loading || !!busy"
     :class="embedded ? 'min-w-0' : 'max-w-7xl mx-auto px-4 py-8'"
   >
     <header class="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -132,6 +199,44 @@ onBeforeUnmount(() => {
         <p class="text-muted text-sm mt-2">
           观看历史按最近播放排序，同一资源只保留一条；稍后再看手动管理。
         </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <AppButton
+          variant="neutral"
+          :disabled="!!busy"
+          :loading="loading"
+          @click="load(pagination.page, true)"
+          >刷新</AppButton
+        >
+        <AppButton
+          v-if="kind === 'watch-later'"
+          :loading="busy === 'batch'"
+          variant="neutral"
+          :disabled="!!busy || loading || !items.length"
+          @click="
+            confirmation = {
+              action: 'watched',
+              message: '将当前账号稍后再看列表中的所有已标记观看资源移出？',
+            }
+          "
+          >移出已观看</AppButton
+        >
+        <template v-else>
+          <AppCheckbox
+            :checked="allSelected"
+            :indeterminate="!!selected.length && !allSelected"
+            :disabled="!!busy || loading"
+            label="选择本页全部历史"
+            @change="selected = $event ? items.map((item) => item.avid) : []"
+          />
+          <AppButton
+            variant="danger"
+            :loading="busy === 'batch'"
+            :disabled="!selected.length || !!busy || loading"
+            @click="confirmHistory(items.filter((item) => selected.includes(item.avid)))"
+            >删除所选{{ selected.length ? ` (${selected.length})` : '' }}</AppButton
+          >
+        </template>
       </div>
     </header>
     <div v-if="!embedded" class="flex flex-wrap gap-3 mb-6" role="group" aria-label="观看列表">
@@ -149,7 +254,7 @@ onBeforeUnmount(() => {
       >
     </div>
     <PageLoad v-if="loading && !items.length" text="正在读取观看列表" />
-    <RequestError v-if="error" :message="error" @retry="load()" />
+    <RequestError v-if="error" :message="error" @retry="load(pagination.page, true)" />
     <EmptyState
       v-if="!loading && !error && !items.length"
       icon="empty"
@@ -170,9 +275,17 @@ onBeforeUnmount(() => {
           ><ResourceCover
             :url="resourceApi.getCoverUrl(item.avid, 'medium')"
             :title="resolveResourceTitle(item, settings.displayTitle) || item.avid"
-            class="aspect-video rounded-none"
+            class="aspect-video"
+            square-bottom
         /></RouterLink>
         <div class="p-4 space-y-3">
+          <AppCheckbox
+            v-if="kind === 'history'"
+            :checked="selected.includes(item.avid)"
+            :disabled="!!busy || loading"
+            :label="`选择 ${item.avid}`"
+            @change="select(item.avid, $event)"
+          />
           <h2 class="text-primary font-medium line-clamp-2">
             {{ resolveResourceTitle(item, settings.displayTitle) || item.avid }}
           </h2>
@@ -191,6 +304,13 @@ onBeforeUnmount(() => {
               @click="remove(item)"
               >移除</AppButton
             >
+            <AppButton
+              v-else
+              variant="danger"
+              :disabled="!!busy || loading"
+              @click="confirmHistory([item])"
+              >删除历史</AppButton
+            >
           </div>
         </div>
       </li>
@@ -203,6 +323,13 @@ onBeforeUnmount(() => {
       :total="pagination.total"
       @change-page="load"
       @change-page-size="size"
+    />
+    <ConfirmDialog
+      :show="!!confirmation"
+      title="确认列表操作"
+      :message="confirmation?.message || ''"
+      @confirm="execute"
+      @cancel="confirmation = null"
     />
   </section>
 </template>

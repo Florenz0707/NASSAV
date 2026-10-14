@@ -294,3 +294,5 @@ NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录
 播放偏好真实隔离API浏览器验收：先按既有local_playback_server说明启动临时服务，将Vite的NASSAV_VITE_BACKEND_URL设为该临时地址，再以`NASSAV_PROGRESS_STORAGE_STATE=<临时storage-state.json> node tests/browser/playbackPreferences.cjs`执行；支持NASSAV_BROWSER_ENGINE=firefox。脚本只接受本地临时fixture，写入的是临时账号偏好，不使用部署账号。
 
 跨设备真实API验收：临时helper会输出两个不同登录的storage-state路径（均只含测试账号），以`NASSAV_PROGRESS_STORAGE_STATE=<第一份> NASSAV_PROGRESS_SECOND_STORAGE_STATE=<第二份> node tests/browser/crossDeviceContinuation.cjs`运行，支持Firefox。helper的NASSAV_LOCAL_PLAYBACK_TEST_PORT可设9791–9799，Vite后端地址同步指向该临时端口；不使用部署9790。Firefox多标签小屏检查先bringToFront再调整视口，测试有90秒上限、HTTP清理请求有界，避免浏览器后台resize无限等待。
+
+个人中心本轮真实隔离验收可运行`tests/browser/personalState.cjs`和`tests/browser/viewingManagement.cjs`：使用local_playback_server的观看fixture及`NASSAV_PERSONAL_STORAGE_STATE`临时登录文件，另设`NASSAV_BROWSER_ENGINE=firefox`复核。前者会确认登出并使该临时登录失效，后者只修改临时观看状态/历史并关闭自建播放会话；两者不得指向正式实例。未提供临时状态时跳过，完整环境准备见上述播放验收说明。
