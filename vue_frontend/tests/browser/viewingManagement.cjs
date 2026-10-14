@@ -71,6 +71,31 @@ async function main() {
       .first()
       .evaluate((n) => getComputedStyle(n).borderBottomLeftRadius)
     assert.equal(bottom, '0px')
+    async function checkHover(kind) {
+      const card = page.locator('ul li').first()
+      for (const mode of ['dark', 'light']) {
+        await page.evaluate((value) => {
+          document.body.classList.remove('dark-mode', 'light-mode')
+          document.body.classList.add(value + '-mode')
+        }, mode)
+        await card.hover()
+        await page.waitForTimeout(350)
+        const style = await card.evaluate((node) => ({
+          transform: getComputedStyle(node).transform,
+          shadow: getComputedStyle(node).boxShadow,
+        }))
+        assert.notEqual(style.transform, 'none')
+        assert.notEqual(style.shadow, 'none')
+        await page.screenshot({
+          path: `/tmp/nassav-viewing-${engine.name()}-${kind}-${mode}.png`,
+          fullPage: true,
+          animations: 'disabled',
+        })
+        await page.mouse.move(0, 0)
+        await page.waitForTimeout(350)
+      }
+    }
+    await checkHover('watch-later')
     await page.getByRole('button', { name: '移出已观看', exact: true }).click()
     await page
       .getByRole('dialog', { name: '确认列表操作' })
@@ -81,6 +106,41 @@ async function main() {
     const nav = page.getByRole('navigation', { name: '个人中心功能' })
     await nav.getByRole('button', { name: '观看历史', exact: true }).click()
     await wait(async () => (await page.locator('ul li').count()) === 2)
+    assert.equal(await page.getByRole('checkbox').count(), 0)
+    await checkHover('history')
+    const card = page.locator('ul li').first(),
+      before = await card.boundingBox(),
+      url = page.url()
+    await page.getByRole('button', { name: '批量操作', exact: true }).click()
+    const checkbox = card.getByRole('checkbox')
+    const cover = await card.locator('a').boundingBox(),
+      check = await checkbox.boundingBox()
+    assert.ok(check.x >= cover.x && check.x - cover.x < 20)
+    assert.ok(check.y >= cover.y && check.y - cover.y < 20)
+    assert.ok(Math.abs((await card.boundingBox()).height - before.height) < 1)
+    await checkbox.focus()
+    await page.keyboard.press('Space')
+    assert.equal(await checkbox.isChecked(), true)
+    assert.equal(page.url(), url, 'checkbox does not navigate to detail')
+    assert.equal(await card.evaluate((node) => node.classList.contains('is-selected')), true)
+    assert.equal(
+      await page
+        .getByRole('checkbox', { name: '选择本页全部历史' })
+        .evaluate((node) => node.indeterminate),
+      true
+    )
+    await page.getByRole('button', { name: '退出批量', exact: true }).click()
+    assert.equal(await page.getByRole('checkbox').count(), 0)
+    assert.ok(Math.abs((await card.boundingBox()).height - before.height) < 1)
+    await page.getByRole('button', { name: '批量操作', exact: true }).click()
+    assert.equal(await checkbox.isChecked(), false)
+    await page.getByRole('button', { name: '退出批量', exact: true }).click()
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await card.hover()
+    assert.equal(await card.evaluate((node) => getComputedStyle(node).transform), 'none')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await page.mouse.move(0, 0)
+
     await page
       .locator('ul li')
       .first()
@@ -91,6 +151,7 @@ async function main() {
       .getByRole('button', { name: '确认', exact: true })
       .click()
     await wait(async () => (await page.locator('ul li').count()) === 1)
+    await page.getByRole('button', { name: '批量操作', exact: true }).click()
     await page.getByRole('checkbox', { name: '选择本页全部历史' }).check()
     await page.getByRole('button', { name: /删除所选/ }).click()
     await page
@@ -119,7 +180,7 @@ async function main() {
     }
     assert.deepEqual(errors, [])
     console.log(
-      'PASS real API: queue remove watched, history single/batch delete, cover radius, 390px themes'
+      'PASS real API: queue actions, card hover/themes/reduced motion, batch mode overlay/keyboard/no layout shift, 390px themes'
     )
   } finally {
     for (const id of sessions) {

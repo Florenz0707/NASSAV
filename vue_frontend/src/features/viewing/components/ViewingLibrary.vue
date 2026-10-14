@@ -34,6 +34,7 @@ const kind = ref(props.initialKind),
   error = ref(''),
   busy = ref('')
 const pagination = ref({ page: 1, pages: 1, page_size: 15, total: 0 })
+const batchMode = ref(false)
 const selected = ref([]),
   confirmation = ref(null)
 const allSelected = computed(
@@ -75,6 +76,7 @@ watch(
     guard.invalidate()
     items.value = []
     selected.value = []
+    batchMode.value = false
     confirmation.value = null
     busy.value = ''
     error.value = ''
@@ -90,6 +92,11 @@ watch(
     if (active && !busy.value) void load()
   }
 )
+function toggleBatch() {
+  if (busy.value || loading.value) return
+  batchMode.value = !batchMode.value
+  selected.value = []
+}
 function select(avid, checked) {
   selected.value = checked
     ? [...new Set([...selected.value, avid])]
@@ -171,6 +178,8 @@ onDeactivated(() => {
   loading.value = false
   busy.value = ''
   confirmation.value = null
+  batchMode.value = false
+  selected.value = []
 })
 onMounted(() => {
   window.addEventListener('focus', visible)
@@ -222,20 +231,33 @@ onBeforeUnmount(() => {
           >移出已观看</AppButton
         >
         <template v-else>
-          <AppCheckbox
-            :checked="allSelected"
-            :indeterminate="!!selected.length && !allSelected"
-            :disabled="!!busy || loading"
-            label="选择本页全部历史"
-            @change="selected = $event ? items.map((item) => item.avid) : []"
-          />
           <AppButton
-            variant="danger"
-            :loading="busy === 'batch'"
-            :disabled="!selected.length || !!busy || loading"
-            @click="confirmHistory(items.filter((item) => selected.includes(item.avid)))"
-            >删除所选{{ selected.length ? ` (${selected.length})` : '' }}</AppButton
+            variant="neutral"
+            :disabled="!!busy || loading || (!items.length && !batchMode)"
+            :aria-pressed="batchMode"
+            @click="toggleBatch"
           >
+            {{ batchMode ? '退出批量' : '批量操作' }}
+          </AppButton>
+          <template v-if="batchMode">
+            <div class="inline-flex items-center gap-3 text-sm text-secondary">
+              <AppCheckbox
+                :checked="allSelected"
+                :indeterminate="!!selected.length && !allSelected"
+                :disabled="!!busy || loading"
+                label="选择本页全部历史"
+                @change="selected = $event ? items.map((item) => item.avid) : []"
+              />
+              <span>已选择 {{ selected.length }} 项</span>
+            </div>
+            <AppButton
+              variant="danger"
+              :loading="busy === 'batch'"
+              :disabled="!selected.length || !!busy || loading"
+              @click="confirmHistory(items.filter((item) => selected.includes(item.avid)))"
+              >删除所选</AppButton
+            >
+          </template>
         </template>
       </div>
     </header>
@@ -267,25 +289,32 @@ onBeforeUnmount(() => {
       <li
         v-for="item in items"
         :key="item.avid"
-        class="rounded-2xl bg-secondary border border-[var(--border-color)] overflow-hidden"
+        class="viewing-card rounded-2xl bg-secondary border border-[var(--border-color)] overflow-hidden"
+        :class="{ 'is-selected': batchMode && selected.includes(item.avid) }"
       >
-        <RouterLink
-          :to="{ name: 'ResourceDetail', params: { avid: item.avid } }"
-          :aria-label="`${item.avid} 资源详情`"
-          ><ResourceCover
-            :url="resourceApi.getCoverUrl(item.avid, 'medium')"
-            :title="resolveResourceTitle(item, settings.displayTitle) || item.avid"
-            class="aspect-video"
-            square-bottom
-        /></RouterLink>
+        <div class="relative overflow-hidden">
+          <div v-if="kind === 'history' && batchMode" class="absolute z-30 top-3 left-3">
+            <AppCheckbox
+              :checked="selected.includes(item.avid)"
+              :disabled="!!busy || loading"
+              :label="`选择资源 ${item.avid}`"
+              @change="select(item.avid, $event)"
+            />
+          </div>
+          <RouterLink
+            class="block"
+            :to="{ name: 'ResourceDetail', params: { avid: item.avid } }"
+            :aria-label="`${item.avid} 资源详情`"
+          >
+            <ResourceCover
+              :url="resourceApi.getCoverUrl(item.avid, 'medium')"
+              :title="resolveResourceTitle(item, settings.displayTitle) || item.avid"
+              class="aspect-video"
+              square-bottom
+            />
+          </RouterLink>
+        </div>
         <div class="p-4 space-y-3">
-          <AppCheckbox
-            v-if="kind === 'history'"
-            :checked="selected.includes(item.avid)"
-            :disabled="!!busy || loading"
-            :label="`选择 ${item.avid}`"
-            @change="select(item.avid, $event)"
-          />
           <h2 class="text-primary font-medium line-clamp-2">
             {{ resolveResourceTitle(item, settings.displayTitle) || item.avid }}
           </h2>
@@ -333,3 +362,34 @@ onBeforeUnmount(() => {
     />
   </section>
 </template>
+
+<style scoped>
+.viewing-card {
+  transition:
+    transform 250ms ease,
+    box-shadow 250ms ease,
+    border-color 250ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .viewing-card:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 12px 40px color-mix(in srgb, var(--shadow-color) 30%, transparent);
+    border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
+  }
+}
+.viewing-card:focus-within {
+  border-color: var(--accent-primary);
+}
+.viewing-card.is-selected {
+  border-color: color-mix(in srgb, var(--accent-primary) 75%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .viewing-card {
+    transition: none;
+  }
+  .viewing-card:hover {
+    transform: none;
+  }
+}
+</style>
