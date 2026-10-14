@@ -98,6 +98,28 @@ def test_url_and_openapi_contract_remains_identical():
     ]
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [
+        ["nassav/api/my-operations", "my-operations", "MyOperationsView"],
+        ["nassav/api/library/entries", "library-entries", "LibraryEntriesView"],
+        [
+            "nassav/api/library/entries/<uuid:entry_id>",
+            "library-entry",
+            "LibraryEntryView",
+        ],
+        [
+            "nassav/api/library/entries/<uuid:entry_id>/operations",
+            "library-entry-operations",
+            "LibraryEntryOperationsView",
+        ],
+        [
+            "nassav/api/my-operations/<uuid:operation_id>",
+            "my-operation",
+            "MyOperationView",
+        ],
+        [
+            "nassav/api/my-operations/<uuid:operation_id>/cancel",
+            "my-operation-cancel",
+            "MyOperationCancelView",
+        ],
         [
             "nassav/api/me/source-credentials",
             "source-credentials",
@@ -184,6 +206,12 @@ def test_url_and_openapi_contract_remains_identical():
         *baseline["routes"],
     ]
     control_paths = {
+        "/nassav/api/my-operations": {"get"},
+        "/nassav/api/library/entries": {"post"},
+        "/nassav/api/library/entries/{entry_id}": {"delete"},
+        "/nassav/api/library/entries/{entry_id}/operations": {"post"},
+        "/nassav/api/my-operations/{operation_id}": {"get"},
+        "/nassav/api/my-operations/{operation_id}/cancel": {"post"},
         "/nassav/api/me/source-credentials": {"get", "post"},
         "/nassav/api/me/source-credentials/{credential_id}": {"get", "put", "delete"},
         "/nassav/api/admin/source-credentials": {"get", "post"},

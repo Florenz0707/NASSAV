@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Sum, Case, When, F, BigIntegerField, Value
 
 from nassav.account_models import UserAccount, QuotaReservation
 from nassav.account_management import AccountConflict
@@ -17,14 +17,74 @@ def logical_used_bytes(user_id):
         UserLibraryEntry.objects.filter(
             user_id=user_id,
             state="active",
-            pool__resource__file_exists=True,
-            pool__resource__file_size__gt=0,
-        ).aggregate(total=Sum("pool__resource__file_size"))["total"]
+        ).aggregate(
+            total=Sum(
+                Case(
+                    When(
+                        video_version__isnull=False, then=F("video_version__file_size")
+                    ),
+                    When(
+                        video_version__isnull=True,
+                        pool__resource__file_exists=True,
+                        pool__resource__file_size__gt=0,
+                        then=F("pool__resource__file_size"),
+                    ),
+                    default=Value(0),
+                    output_field=BigIntegerField(),
+                )
+            )
+        )["total"]
         or 0
     )
 
 
 class DjangoQuotaReservations:
+    def reserve_operation(self, user_id, pool_id, request_id, *, downloading):
+        """Unknown-size media conservatively holds this user's remaining budget.
+
+        Final publication checks actual logical bytes again under the same user
+        fence. An unlimited account still reserves an operation slot.
+        """
+        with transaction.atomic():
+            lock_user(user_id)
+            account = UserAccount.objects.get(user_id=user_id)
+            reserved = (
+                QuotaReservation.objects.filter(
+                    user_id=user_id, state="held"
+                ).aggregate(total=Sum("amount_bytes"))["total"]
+                or 0
+            )
+            amount = 0
+            if downloading and account.storage_quota_bytes is not None:
+                amount = max(
+                    0,
+                    account.storage_quota_bytes
+                    - logical_used_bytes(user_id)
+                    - reserved,
+                )
+                if amount == 0:
+                    raise PermissionError("quota_exceeded")
+            return self.reserve(user_id, pool_id, request_id, amount)
+
+    def check_grant(self, user_id, membership, version):
+        account = UserAccount.objects.get(user_id=user_id)
+        old = (
+            membership.video_version.file_size
+            if membership.video_version is not None
+            else (
+                membership.pool.resource.file_size or 0
+                if membership.pool.resource is not None
+                and membership.pool.resource.file_exists
+                else 0
+            )
+        )
+        expected = logical_used_bytes(user_id) - old + version.file_size
+        if (
+            account.storage_quota_bytes is not None
+            and expected > account.storage_quota_bytes
+        ):
+            raise PermissionError("quota_exceeded")
+
     @retry_sqlite_contention
     def reserve(self, user_id, pool_id, request_id, amount_bytes):
         if type(user_id) is not int or user_id < 1:

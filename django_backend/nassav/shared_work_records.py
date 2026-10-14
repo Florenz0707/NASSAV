@@ -1,6 +1,8 @@
 """User -> pool -> work requests; no network, broker or filesystem under DB locks."""
 
 from datetime import timedelta
+import math
+import re
 from uuid import uuid5, uuid4
 
 from django.db import transaction
@@ -45,7 +47,50 @@ PUBLIC_STAGES = {
     "succeeded",
     "failed",
     "cancelled",
+    "source_lookup",
+    "waiting_slot",
+    "resume_validation",
+    "video_download",
+    "video_verify",
+    "resource_save",
 }
+
+
+def safe_progress(value):
+    if not isinstance(value, dict):
+        return {}
+    result = {}
+    number = value.get("percent")
+    if (
+        isinstance(number, (int, float))
+        and not isinstance(number, bool)
+        and math.isfinite(number)
+        and 0 <= number <= 100
+    ):
+        result["percent"] = number
+    for key, pattern in (
+        ("speed", r"[0-9., ]+(?:[KMGT]?i?B/s)?"),
+        ("eta", r"(?:[0-9]+:){1,2}[0-9]{2}"),
+    ):
+        text = value.get(key)
+        if isinstance(text, str) and len(text) <= 32 and re.fullmatch(pattern, text):
+            result[key] = text
+    return result
+
+
+def safe_timeline(value):
+    if not isinstance(value, list):
+        return []
+    return [
+        {"stage": item["stage"], "state": item["state"], "at": item["at"]}
+        for item in value[-100:]
+        if isinstance(item, dict)
+        and item.get("stage") in PUBLIC_STAGES
+        and item.get("state")
+        in {"queued", "running", "pausing", "paused", "cancelling"} | TERMINAL
+        and type(item.get("at")) in {int, float}
+        and math.isfinite(item["at"])
+    ]
 
 
 def operation_snapshot(row):
@@ -59,6 +104,8 @@ def operation_snapshot(row):
         "version": row.version,
         "message": row.message,
         "error_code": row.error_code or None,
+        "progress": row.progress,
+        "timeline": row.timeline,
         "allowed_actions": [] if row.state in TERMINAL else ["cancel"],
         "created_at": row.created_at.isoformat(),
         "updated_at": row.updated_at.isoformat(),
@@ -74,12 +121,16 @@ class DjangoOperationRecords:
         hint=None,
         publication=None,
         allow_private=False,
+        quotas=None,
+        manage_intents=False,
     ):
         self.task_records = task_records
         self.gc_grace = gc_grace
         self.hint = hint
         self.publication = publication
         self.allow_private = allow_private
+        self.quotas = quotas
+        self.manage_intents = manage_intents
 
     def _hint(self, row):
         if self.hint is not None:
@@ -87,6 +138,20 @@ class DjangoOperationRecords:
             user_id = row.user_id
             data = {"operation_id": str(row.pk), "version": row.version}
             transaction.on_commit(lambda: hint(user_id, data), robust=True)
+
+    @retry_sqlite_contention
+    def replay(self, user_id, request_id, request_hash):
+        digest = salted_hmac("nassav-user-operation", request_hash).hexdigest()
+        with transaction.atomic():
+            lock_user(user_id)
+            row = UserOperation.objects.filter(
+                user_id=user_id, request_id=request_id
+            ).first()
+            if row is not None:
+                if row.request_hash != digest:
+                    raise OperationConflict("request_id_reused")
+                return operation_snapshot(row)
+            return None
 
     @retry_sqlite_contention
     def subscribe(self, user_id, command):
@@ -141,9 +206,26 @@ class DjangoOperationRecords:
                 pool.save()
             entry = UserLibraryEntry.objects.filter(user_id=user_id, pool=pool).first()
             desired = {"source": spec["source"]}
-            if entry and (
-                entry.desired_spec != desired
-                or entry.access_scope != spec["access_scope"]
+            if (
+                entry
+                and not self.manage_intents
+                and (
+                    entry.desired_spec != desired
+                    or entry.access_scope != spec["access_scope"]
+                )
+            ):
+                raise OperationConflict("membership_spec_conflict")
+            expected = command.get("expected_entry_version")
+            if expected is not None and (entry is None or entry.version != expected):
+                raise OperationConflict("membership_version_conflict")
+            if (
+                self.manage_intents
+                and entry is not None
+                and spec["action"] == "add"
+                and (
+                    entry.desired_spec.get("source") != spec["source"]
+                    or entry.access_scope != spec["access_scope"]
+                )
             ):
                 raise OperationConflict("membership_spec_conflict")
             if spec["action"] != "add" and (entry is None or entry.state != "active"):
@@ -154,6 +236,58 @@ class DjangoOperationRecords:
                 desired_spec=desired,
                 access_scope=spec["access_scope"],
             )
+            generations = dict(entry.demand_generations)
+            generation = int(generations.get(spec["kind"], 1))
+            if self.manage_intents:
+                generation += 1
+                generations[spec["kind"]] = generation
+                entry.demand_generations = generations
+                entry.version += 1
+                entry.save(
+                    update_fields=["demand_generations", "version", "updated_at"]
+                )
+            reservation = None
+            if self.quotas is not None:
+                if self.manage_intents:
+                    for old in UserOperation.objects.filter(
+                        membership=entry, user_id=user_id, kind=spec["kind"]
+                    ).exclude(state__in=TERMINAL):
+                        self._release_quota(old)
+                from nassav.resource_version_models import ResourceVersionPointer
+
+                ready_video = (
+                    spec["kind"] == "download"
+                    and ResourceVersionPointer.objects.filter(
+                        pool=pool,
+                        source_name=spec["source"],
+                        access_scope=spec["access_scope"],
+                        quality=spec["quality"],
+                        kind="video",
+                        current__state="ready",
+                        current__credential_refs=spec["credential_refs"],
+                        current__context_revision=spec["context_revision"],
+                        current__work__isnull=False,
+                    ).exists()
+                )
+                reservation = self.quotas.reserve_operation(
+                    user_id,
+                    pool.pk,
+                    command["request_id"],
+                    downloading=spec["kind"] == "download" and not ready_video,
+                )
+            reused = self._reuse(
+                user_id,
+                command,
+                spec,
+                pool,
+                entry,
+                desired,
+                digest,
+                generation,
+                reservation,
+            )
+            if reused is not None:
+                return reused
             identity = specification_hash(
                 {
                     "pool_id": str(pool.pk),
@@ -214,10 +348,108 @@ class DjangoOperationRecords:
                 action=spec["action"],
                 desired_spec=desired,
                 access_scope=spec["access_scope"],
+                demand_generation=generation,
+                quota_reservation_id=reservation["reservation_id"]
+                if reservation
+                else None,
+                timeline=safe_timeline(work.job.timeline),
             )
             WorkSubscription.objects.create(operation=row, work=work)
+            if self.manage_intents:
+                old_subs = (
+                    WorkSubscription.objects.filter(
+                        operation__membership=entry,
+                        operation__user_id=user_id,
+                        operation__kind=spec["kind"],
+                        state="attached",
+                    )
+                    .exclude(operation=row)
+                    .select_related("operation")
+                    .order_by("work_id", "pk")
+                )
+                for old in old_subs:
+                    previous_work = SharedWork.objects.select_for_update().get(
+                        pk=old.work_id
+                    )
+                    self._detach(old.operation, old, previous_work, uuid4())
             self._hint(row)
             return operation_snapshot(row)
+
+    def _reuse(
+        self,
+        user_id,
+        command,
+        spec,
+        pool,
+        entry,
+        desired,
+        digest,
+        generation,
+        reservation,
+    ):
+        if self.publication is None or spec["action"] not in {"add", "download"}:
+            return None
+        from nassav.resource_version_models import ResourceVersionPointer
+
+        pointer = (
+            ResourceVersionPointer.objects.filter(
+                pool=pool,
+                source_name=spec["source"],
+                quality=spec["quality"],
+                access_scope=spec["access_scope"],
+                kind="metadata" if spec["kind"] == "scrape" else "video",
+                current__state="ready",
+            )
+            .select_related("current")
+            .first()
+        )
+        version = pointer.current if pointer is not None else None
+        if (
+            version is None
+            or version.work_id is None
+            or version.credential_refs != spec["credential_refs"]
+            or version.context_revision != spec["context_revision"]
+        ):
+            return None
+        if self.quotas is not None and spec["kind"] == "download":
+            self.quotas.check_grant(user_id, entry, version)
+        work = SharedWork.objects.select_for_update().get(pk=version.work_id)
+        self.publication.grant_locked(
+            user_id, work, entry.pk, allow_scope_change=self.manage_intents
+        )
+        row = UserOperation.objects.create(
+            user_id=user_id,
+            pool=pool,
+            membership=entry,
+            request_id=command["request_id"],
+            request_hash=digest,
+            kind=spec["kind"],
+            action=spec["action"],
+            desired_spec=desired,
+            access_scope=spec["access_scope"],
+            demand_generation=generation,
+            quota_reservation_id=reservation["reservation_id"] if reservation else None,
+            state="succeeded",
+            stage="succeeded",
+            finished_at=timezone.now(),
+        )
+        WorkSubscription.objects.create(operation=row, work=work, state="completed")
+        if self.manage_intents:
+            for old in (
+                WorkSubscription.objects.filter(
+                    operation__membership=entry,
+                    operation__user_id=user_id,
+                    operation__kind=spec["kind"],
+                    state="attached",
+                )
+                .select_related("operation")
+                .order_by("work_id", "pk")
+            ):
+                old_work = SharedWork.objects.select_for_update().get(pk=old.work_id)
+                self._detach(old.operation, old, old_work, uuid4())
+        self._release_quota(row)
+        self._hint(row)
+        return operation_snapshot(row)
 
     def get(self, user_id, operation_id):
         row = UserOperation.objects.filter(
@@ -279,6 +511,7 @@ class DjangoOperationRecords:
         row.message, row.error_code = "请求已取消", ""
         row.version += 1
         row.save()
+        self._release_quota(row)
         self._hint(row)
         if not WorkSubscription.objects.filter(work=work, state="attached").exists():
             TaskJob.objects.select_for_update().get(pk=work.job_id)
@@ -346,6 +579,12 @@ class DjangoOperationRecords:
                 or row.membership_id is None
                 or not pool.is_available
                 or pool.state in {"deleting", "cleanup_failed", "reclaimed"}
+                or (
+                    row.membership_id is not None
+                    and self.manage_intents
+                    and row.demand_generation
+                    != int(row.membership.demand_generations.get(row.kind, 1))
+                )
             ):
                 self._detach(row, subscription, work, uuid4())
                 self._release_pending(row, pool)
@@ -353,16 +592,40 @@ class DjangoOperationRecords:
             if job.state == "succeeded":
                 if self.publication is None:
                     raise OperationConflict("publication_not_ready")
-                self.publication.grant_locked(user_id, work, row.membership_id)
+                try:
+                    if self.quotas is not None and row.kind == "download":
+                        from nassav.resource_version_models import ResourceVersion
+
+                        version = ResourceVersion.objects.get(work=work, state="ready")
+                        self.quotas.check_grant(user_id, row.membership, version)
+                    self.publication.grant_locked(
+                        user_id,
+                        work,
+                        row.membership_id,
+                        allow_scope_change=self.manage_intents,
+                    )
+                except PermissionError:
+                    return self._reject_grant(row, subscription, work, pool)
             state = job.state
             stage = job.stage if job.stage in PUBLIC_STAGES else state
             message = "共享工作失败，请重试" if state == "failed" else ""
             error_code = "WORK_FAILED" if state == "failed" else ""
-            if (row.state, row.stage, row.message, row.error_code) == (
+            progress = safe_progress(job.checkpoint.get("progress"))
+            timeline = safe_timeline(job.timeline)
+            if (
+                row.state,
+                row.stage,
+                row.message,
+                row.error_code,
+                row.progress,
+                row.timeline,
+            ) == (
                 state,
                 stage,
                 message,
                 error_code,
+                progress,
+                timeline,
             ):
                 row.projected_work_version = job.version
                 row.save(update_fields=["projected_work_version"])
@@ -374,6 +637,7 @@ class DjangoOperationRecords:
                 error_code,
             )
             row.projected_work_version = job.version
+            row.progress, row.timeline = progress, timeline
             row.version += 1
             if state in TERMINAL:
                 row.stage, row.finished_at = state, timezone.now()
@@ -385,9 +649,28 @@ class DjangoOperationRecords:
             work.save()
             row.save()
             if state in TERMINAL:
+                self._release_quota(row)
                 self._release_pending(row, pool)
             self._hint(row)
             return operation_snapshot(row)
+
+    def _release_quota(self, row):
+        if self.quotas is not None and row.quota_reservation_id is not None:
+            self.quotas.release(row.user_id, row.quota_reservation_id)
+
+    def _reject_grant(self, row, subscription, work, pool):
+        row.state = row.stage = "failed"
+        row.error_code, row.message = "QUOTA_EXCEEDED", "资源大小超出本账号配额"
+        row.finished_at = timezone.now()
+        row.version += 1
+        row.save()
+        subscription.state = "completed"
+        subscription.version += 1
+        subscription.save()
+        self._release_quota(row)
+        self._release_pending(row, pool)
+        self._hint(row)
+        return operation_snapshot(row)
 
     def project_pending(self, *, limit=100):
         if type(limit) is not int or not 1 <= limit <= 200:

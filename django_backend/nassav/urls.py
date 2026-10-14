@@ -34,6 +34,14 @@ from nassav.http.credential_views import (
     AdminSourceCredentialsView,
     AdminSourceCredentialView,
 )
+from nassav.http.library_views import (
+    LibraryEntriesView,
+    LibraryEntryView,
+    LibraryEntryOperationsView,
+    MyOperationView,
+    MyOperationCancelView,
+    MyOperationsView,
+)
 
 from nassav.http.playback_views import (
     PlaybackSubmitView,
@@ -58,6 +66,28 @@ from nassav.http.viewing_views import (
 )
 
 urlpatterns = [
+    path("api/my-operations", MyOperationsView.as_view(), name="my-operations"),
+    path("api/library/entries", LibraryEntriesView.as_view(), name="library-entries"),
+    path(
+        "api/library/entries/<uuid:entry_id>",
+        LibraryEntryView.as_view(),
+        name="library-entry",
+    ),
+    path(
+        "api/library/entries/<uuid:entry_id>/operations",
+        LibraryEntryOperationsView.as_view(),
+        name="library-entry-operations",
+    ),
+    path(
+        "api/my-operations/<uuid:operation_id>",
+        MyOperationView.as_view(),
+        name="my-operation",
+    ),
+    path(
+        "api/my-operations/<uuid:operation_id>/cancel",
+        MyOperationCancelView.as_view(),
+        name="my-operation-cancel",
+    ),
     path(
         "api/me/source-credentials",
         SourceCredentialsView.as_view(),

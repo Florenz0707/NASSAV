@@ -158,3 +158,5 @@ P5账本/占用专项：`test_resource_read_leases.py`及`test_resource_version_
 P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fence_migration.py`验证真实加密引用、JPEG资产日志、指针与文件补偿、双用户取消/停用、线程CAS竞争和0045往返。`test_controlled_scrape.py`新增来源失效后owned失败收尾；没有真实共享worker/视频或网页验收。
 
 共享执行器：`test_shared_version_workers.py`、`test_shared_download_leases.py`、`test_startup_config.py`及既有受控流程/恢复专项。验证翻译先于版本提交、独立来源/全局代理装配、broker补派/重复消息、结果裁剪及真实Redis；来源/下载替身不代替真实worker/代理/站点联调。
+
+持有命令/配额：`test_library_commands_quota.py`、`test_library_http.py`及`test_library_commands_migration.py`覆盖最后意图/预留线程竞态、复用无新attempt、凭证失效后幂等、旧移出回执不影响新持有、超额只拒绝本人、HTTP对象隔离及0046往返；不代替真实worker/前端/媒体验收。

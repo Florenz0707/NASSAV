@@ -177,7 +177,7 @@ class VersionPublications:
         return version
 
     @staticmethod
-    def grant_locked(user_id, work, membership_id):
+    def grant_locked(user_id, work, membership_id, *, allow_scope_change=False):
         """Caller holds user -> pool -> work; never recreates membership."""
         version = ResourceVersion.objects.filter(work=work, state="ready").first()
         entry = UserLibraryEntry.objects.filter(
@@ -187,17 +187,32 @@ class VersionPublications:
             version is None
             or entry is None
             or version.pool_generation != work.pool_generation
-            or version.access_scope != entry.access_scope
+            or (not allow_scope_change and version.access_scope != entry.access_scope)
             or version.access_scope != work.access_scope
             or version.credential_refs != work.credential_refs
             or version.context_revision != work.spec["context_revision"]
             or (version.owner_id is not None and version.owner_id != user_id)
-            or entry.desired_spec.get("source") != version.source_name
+            or (
+                not allow_scope_change
+                and entry.desired_spec.get("source") != version.source_name
+            )
         ):
             raise OperationConflict("publication_not_ready")
         field = "current_version" if version.kind == "metadata" else "video_version"
         setattr(entry, field, version)
         entry.state = "active"
+        if version.kind == "metadata":
+            entry.desired_spec = {"source": version.source_name}
+            entry.access_scope = version.access_scope
         entry.version += 1
-        entry.save(update_fields=[field, "state", "version", "updated_at"])
+        entry.save(
+            update_fields=[
+                field,
+                "state",
+                "version",
+                "desired_spec",
+                "access_scope",
+                "updated_at",
+            ]
+        )
         return str(version.pk)

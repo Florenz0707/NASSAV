@@ -27,6 +27,7 @@ from nassav.credential_models import (
 from nassav.library_models import (
     ResourcePoolEntry as ResourcePoolEntry,
     UserLibraryEntry as UserLibraryEntry,
+    UserLibraryCommand as UserLibraryCommand,
 )
 
 from nassav.shared_work_models import (

@@ -4,7 +4,7 @@
 
 未发布P2新增0038应用账号/管理fence/审计/幂等receipt/登录绑定/配额预留，以及0039资源可用性和播放读取grant；开发叶节点为0039。结构迁移不自动授权管理员、不开放普通账号，回退新增状态丢失边界见[账号策略](account-policy-architecture.md)。正式发布v2.5.1叶节点仍为0036；下方P1的0037是该阶段当时记录。
 
-未发布P1新增0037：共享规范身份池与按用户持有关系，结构迁移不自动分配旧资源所有者。当前开发迁移叶节点为0045；v2.5.1发布叶节点仍为0036。新增表、显式导入及逆向迁移的数据损失边界见[共享池架构](resource-pool-architecture.md)。本轮只验证隔离SQLite/PostgreSQL数据库，未迁移部署实例。
+未发布P1新增0037：共享规范身份池与按用户持有关系，结构迁移不自动分配旧资源所有者。当前开发迁移叶节点为0046；v2.5.1发布叶节点仍为0036。新增表、显式导入及逆向迁移的数据损失边界见[共享池架构](resource-pool-architecture.md)。本轮只验证隔离SQLite/PostgreSQL数据库，未迁移部署实例。
 
 v2.5.1迁移叶节点为0036；从2.5.0的0032补齐0033–0036个人状态、JSON设置、推荐归属及观看列表。0027–0032的缓存、表名及播放基础见历史发布指南。已有实例按实际showmigrations升级，不把下方历史验证记录当作当前部署。维护窗口与逆向迁移数据影响见[v2.5.1发布检查](release-2.5.1.md)。
 
@@ -425,10 +425,12 @@ PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；�
 
 未发布P3范围消费者新增0041 source_credential_key_policy；开发叶节点为0041。该结构不导入秘密或切换配置，专用写入密钥fence及迁移影响见[凭证架构](source-credential-architecture.md)。
 
-未发布P4模型/核心新增0042共享work、用户operation、订阅与命令回执；开发叶节点为0045，不回填旧任务或归属，逆向新增账本丢失边界见[共享工作](shared-work-architecture.md)。
+未发布P4模型/核心新增0042共享work、用户operation、订阅与命令回执；开发叶节点为0046，不回填旧任务或归属，逆向新增账本丢失边界见[共享工作](shared-work-architecture.md)。
 
 0043新增UserOperation.projected_work_version，隔离用户的同步游标，不改业务version；升级默认0，回退保留请求/订阅/持有且仅丢游标。
 
 0044新增ResourceVersion、ResourceVersionPointer及ResourceReadLease，持有增加独立元数据/视频可空引用；没有自动导入旧文件或猜测正式版本。账本/读取内部核心与逆向损失边界见[版本架构](resource-version-architecture.md)，实际发布/网关尚待接入。
 
 0045新增ResourceVersion.base_pointer_revision用于条件发布，回退只丢此基准，保留版本/manifest/读取及持有；正式版本发布规则见[版本架构](resource-version-architecture.md#发布核心子阶段)。
+
+0046增加持有命令回执、按kind意图代次、operation预留关联及安全进度/时间线，默认不自动建立配额/回执；逆向丢新增命令与字段，保留原持有/operation/预留/版本。细节见[共享工作](shared-work-architecture.md#持有命令意图与配额子阶段)。

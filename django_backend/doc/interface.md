@@ -1593,3 +1593,18 @@ GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit
 启用新模式后，旧`/api/source/cookie`各方法返回410；原外搜凭证范围变化后的状态/取消句柄返回410，不返回旧result，不更改任务终态/version。未启用时既有契约保持。当前共享资源源播放仅system，个人源媒体待P4/P5，见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。
 
 共享执行器未发布开关`NASSAV_SHARED_LIBRARY_ENABLED`默认关闭；仅内部Celery传输IDs，没有新增可用共享库HTTP。用户operation与共享job不是同一可控身份，正式接口后续按[共享工作](shared-work-architecture.md)补齐。
+
+## 未发布共享库命令
+
+前缀`/nassav`，响应仍code/message/data/pagination；需要登录、受管角色、当前operator准入以及SHARED_LIBRARY_ENABLED。普通账号尚未开放。
+
+| 接口                                        | 行为                                                                                                                   |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| POST /api/library/entries                   | 新添加：avid、source、request_id，credential_mode为public或personal；返回entry ID/version/state、reused与本人operation |
+| DELETE /api/library/entries/{uuid}          | expected_version/request_id；持久幂等回执，释放只安排GC候选                                                            |
+| POST /api/library/entries/{uuid}/operations | 本人active持有，kind/action/source/request_id/expected_entry_version；不接受avid或owner覆盖                            |
+| GET /api/my-operations                      | 只查本人；ordering=-created_at或-updated_at，page_size 1–100及合法state                                                |
+| GET /api/my-operations/{uuid}               | 本人version/stage/安全progress/timeline/allowed_actions，补投影不泄露底层检查点                                        |
+| POST /api/my-operations/{uuid}/cancel       | expected_version/request_id；仅撤销本人需求                                                                            |
+
+跨用户对象404，输入400，CAS/幂等换意图409，权限/配额403；源凭证不可用503。pending返回202，正式兼容版本复用200。响应private/no-store并Vary Cookie。当前没有GET /api/library/entries或版本媒体HTTP；不可把此子阶段当完整共享库上线。

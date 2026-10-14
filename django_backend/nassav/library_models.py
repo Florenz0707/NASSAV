@@ -95,6 +95,7 @@ class UserLibraryEntry(models.Model):
         related_name="video_holders",
     )
     desired_spec = models.JSONField(default=dict)
+    demand_generations = models.JSONField(default=dict)
     access_scope = models.CharField(max_length=128)
     version = models.PositiveBigIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -119,5 +120,23 @@ class UserLibraryEntry(models.Model):
             models.Index(
                 fields=["user", "state", "-created_at"],
                 name="nassav_library_user_state_idx",
+            )
+        ]
+
+
+class UserLibraryCommand(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    request_id = models.UUIDField()
+    entry_id = models.UUIDField()
+    action = models.CharField(max_length=16)
+    payload_hash = models.CharField(max_length=64)
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "nassav_user_library_command"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "request_id"], name="user_library_command_unique"
             )
         ]

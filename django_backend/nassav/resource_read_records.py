@@ -76,7 +76,6 @@ class DjangoReadLeases:
             user_id=user_id,
             pool=pool,
             state="active",
-            access_scope=version.access_scope,
             **{field: version},
         ).exists()
 

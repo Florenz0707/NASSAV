@@ -66,3 +66,19 @@ P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、
 `NASSAV_SHARED_LIBRARY_ENABLED`默认false，要求同时启用范围凭证；本子阶段没有共享库HTTP、配额、版本库/媒体消费者或GC，因此尚不能用于普通用户上线。Compose将开关/密钥容器路径传给全部后端消费者，切换时统一版本与重启，不能只开开关而混跑旧写入者。后台在启用时装配ready发布证据的用户投影，提示仍只发送所属用户。
 
 专项`test_shared_version_workers.py`为真实DB/文件＋显式来源/下载替身，验证编排与装配，不是实际Celery/站点下载；`test_shared_download_leases.py`用Unix socket临时Redis验证作用域与恢复；真实worker/Proxy/来源/媒体仍按P8验收。
+
+## 持有命令、意图与配额子阶段
+
+0046保存UserLibraryCommand持久回执、持有的按kind需求generation、operation对应generation/预留及安全progress/timeline。移出回执独立于被删持有，新一轮添加后重放旧DELETE不能删新关系；用户命令只有expected_version/request_id，owner由session决定。
+
+新managed请求按kind提升本人意图，先建立新订阅再撤销本人的旧同kind需求；同公开work仍有B或新A需求时不停止。元数据与视频意图分开，保持各自已发布引用，刷新可以在成功时转向合法新来源/个人范围；失败不先改旧指针。grant只由仍存在且generation匹配的本人持有接受，不把旧执行附加到新意图。
+
+有配额账号每请求预留并发槽；未知视频大小保守预留剩余逻辑额度，既有ready视频复用不做无意义全剩余额度预留。最终grant在user fence核查当前本人逻辑总量，超额只失败该请求/退款，不终止其他人或删共享正式视频。大小来自已验证version.file_size，旧导入无video版本时保留旧文件数据兼容统计；不按物理去重后的份额减免。
+
+用户request幂等hash包含规范化意图、credential_mode和expected_entry_version，不含动态服务器凭证/version；先查本人旧回执再解析来源，撤销/改写之后重试不会重新抓取/计费。新操作只允许public系统/匿名或personal本人凭证，personal不存在拒绝，不能回退别人的Cookie。来源publish fence在派发前完成短接受事务，broker不进入DB锁。
+
+add/download可直接复用ready指针，但必须范围、来源/质量、当前credential/context及拥有者一致，不能凭AVID/文件存在复用。重添提升pool代次，只复用正式证据，不恢复旧attempt；refresh强制新准备。成功复用不创建新TaskAttempt；正在结束的work不重新附加需求。
+
+新HTTP先保留operator＋受管角色＋共享库开关准入：提交、移出、刷新/下载请求、本人operation状态/集合/取消。普通账号仍关闭。集合稳定降序分页，进度只允许数值percent和格式化速度/ETA，timeline裁剪到100条合法stage/state/time；不返回原work、订阅人数、源链接或Cookie。
+
+共享库列表/完整版本资源与媒体投影仍由后续子阶段接入；当前LibraryEntries只有POST，不应宣称它已替代旧GET资源列表。GC/正式多用户准入也仍关闭。

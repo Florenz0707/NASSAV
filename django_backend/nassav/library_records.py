@@ -7,6 +7,7 @@ from django.utils import timezone
 from nassav.db_retry import retry_sqlite_contention
 from nassav.library_membership import LibraryConflict, LibraryNotFound
 from nassav.library_models import ResourcePoolEntry, UserLibraryEntry
+from nassav.library_models import UserLibraryCommand
 from nassav.personal_models import UserResourceState
 from nassav.personal_state import lock_user
 
@@ -26,6 +27,33 @@ def membership_snapshot(entry, pool):
 class DjangoMembershipRecords:
     def __init__(self, *, detach_demand=None):
         self.detach_demand = detach_demand
+
+    @retry_sqlite_contention
+    def release_command(self, user_id, entry_id, expected_version, request_id, grace):
+        from django.utils.crypto import salted_hmac
+
+        digest = salted_hmac(
+            "nassav-library-release", f"{entry_id}:{expected_version}"
+        ).hexdigest()
+        with transaction.atomic():
+            lock_user(user_id)
+            previous = UserLibraryCommand.objects.filter(
+                user_id=user_id, request_id=request_id
+            ).first()
+            if previous is not None:
+                if previous.payload_hash != digest:
+                    raise LibraryConflict("request_id_reused")
+                return previous.result
+            result = self.release(user_id, entry_id, expected_version, grace)
+            UserLibraryCommand.objects.create(
+                user_id=user_id,
+                request_id=request_id,
+                entry_id=entry_id,
+                action="release",
+                payload_hash=digest,
+                result=result,
+            )
+            return result
 
     @retry_sqlite_contention
     def attach(self, user_id, avid, source, scope):

@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4模型/内部核心正在实施，P5账本/读取核心正在实施，P6–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0045。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4模型/内部核心正在实施，P5账本/读取核心正在实施，P6–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0046。
 
 ## 1. 目标与首版范围
 
@@ -246,8 +246,9 @@ pnpm run check
 | P1    | 基础已实现     | 0037、内部持有与显式导入；SQLite及独立PostgreSQL专项通过，见[执行记录](resource-pool-architecture.md#执行记录) |
 | P2    | 基础已实现     | 0038/0039、显式应用角色/审计/管理/配额/会话撤销；[执行记录](account-policy-architecture.md#执行记录)           |
 | P3    | 隔离实现已完成 | 0040/0041存储、范围消费者及密钥策略；生产开关保持关闭，真实站点验收待P8                                        |
-| P4    | 子阶段已实现   | 0042模型/内部订阅与取消；HTTP、worker和版本发布尚未接入                                                        |
-| P5–P8 | 待实施         | 未开放普通用户或自动回收                                                                                       |
+| P4    | 子阶段已实现   | 0042–0046订阅、生命周期、worker、持有命令与配额；消费者切换继续实施                                            |
+| P5    | 子阶段已实现   | 0044/0045不可变发布与读取核心；正式资源/媒体消费者待接入                                                       |
+| P6–P8 | 待实施         | 未开放普通用户或自动回收                                                                                       |
 
 初始计划提交ae10475，文档基线6bedcb6，分支doc/multi-user-shared-pool-plan；当时仅编写计划及导航。P0后续执行基线ae10475、分支doc/multi-user-contracts，记录见[契约验证范围](multi-user-contracts.md#验证记录与后续门槛)。两轮均检查新增链接及pre-commit完整门槛，未新增模型、接口、配置、worker或正式数据写入，也未恢复用户删除的历史文档。
 
@@ -284,3 +285,7 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 共享执行器子阶段基线5980af4，分支`feat/shared-version-workers`：受控流程策略、ID-only持久派发/worker、范围来源装配/全局代理、翻译先于不可变发布、独立下载租约及默认关闭开关。尚无共享库HTTP/配额、正式版本查询/媒体/GC或普通登录开放；完整P4/P5仍在执行。
 
 共享执行器隔离门槛（2026-10-15）：全量SQLite1140 passed、28 skipped；临时PostgreSQL专项75 passed；模型迁移无差异；完整pre-commit通过。默认装配检查覆盖独立来源及全局scraper代理，真实临时Redis验证租约与恢复；来源/下载替身只证明编排，不代表真实worker/站点下载、HTTP版本读取或正式实例已迁移。
+
+持有命令/配额子阶段基线4e964fd，分支`feat/library-commands-quota`：0046、本人命令回执/意图代次、ready复用、每持有者逻辑配额和HTTP写入/任务快照。库/目录/推荐/媒体版本投影、GC及正式准入仍未完成，生产开关保持关闭。
+
+持有命令/配额隔离门槛（2026-10-15）：全量SQLite1155 passed、28 skipped；随后补齐配额HTTP错误码及专用动作校验，HTTP/旧契约专项11 passed；临时PostgreSQL17 passed，含0046往返。模型迁移无差异，完整pre-commit通过。旧HTTP快照保留，只精确登记授权新增URL。未启用现有实例共享模式、没有真实Celery/媒体验收。

@@ -25,6 +25,15 @@ class MembershipRecords(Protocol):
         self, user_id: int, entry_id: UUID, expected_version: int, grace: timedelta
     ) -> dict: ...
 
+    def release_command(
+        self,
+        user_id: int,
+        entry_id: UUID,
+        expected_version: int,
+        request_id: UUID,
+        grace: timedelta,
+    ) -> dict: ...
+
 
 class LibraryMembership:
     """Internal P1 interface; callers own demand/idempotency until P4 exists.
@@ -60,7 +69,7 @@ class LibraryMembership:
             raise ValueError("Invalid access scope")
         return self.records.attach(user_id, avid, source.strip().lower(), access_scope)
 
-    def release(self, user_id, entry_id, *, expected_version):
+    def release(self, user_id, entry_id, *, expected_version, request_id=None):
         self._user(user_id)
         if type(expected_version) is not int or expected_version < 1:
             raise ValueError("Invalid membership version")
@@ -68,6 +77,14 @@ class LibraryMembership:
             entry_id = UUID(str(entry_id))
         except (ValueError, TypeError, AttributeError) as error:
             raise ValueError("Invalid membership ID") from error
+        if request_id is not None:
+            try:
+                request_id = UUID(str(request_id))
+            except (ValueError, TypeError):
+                raise ValueError("Invalid library request ID") from None
+            return self.records.release_command(
+                user_id, entry_id, expected_version, request_id, self.gc_grace
+            )
         return self.records.release(user_id, entry_id, expected_version, self.gc_grace)
 
     @staticmethod

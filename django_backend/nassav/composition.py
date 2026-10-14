@@ -29,12 +29,15 @@ def build_operation_records():
     from nassav.shared_work_records import DjangoOperationRecords
     from nassav.consumers import send_operation_hint
     from nassav.resource_version_publication import VersionPublications
+    from nassav.quota_records import DjangoQuotaReservations
 
     return DjangoOperationRecords(
         build_task_records(),
         hint=send_operation_hint,
         publication=VersionPublications if settings.SHARED_LIBRARY_ENABLED else None,
         allow_private=settings.SHARED_LIBRARY_ENABLED,
+        quotas=DjangoQuotaReservations() if settings.SHARED_LIBRARY_ENABLED else None,
+        manage_intents=settings.SHARED_LIBRARY_ENABLED,
     )
 
 
@@ -942,3 +945,53 @@ def build_shared_workflow(job_id):
     except BaseException:
         WorkflowResources(None, cleanups).close()
         raise
+
+
+def build_library_submission():
+    from django.conf import settings
+    from nassav.library_submission import LibrarySubmission
+    from nassav.shared_work_dispatch import dispatch_shared
+    from nassav.source.SourceManager import source_manager
+
+    def resolve(user_id, source_name, mode):
+        if (
+            not settings.SHARED_LIBRARY_ENABLED
+            or not settings.SOURCE_CREDENTIALS_ENABLED
+        ):
+            raise ValueError("Shared library is not enabled")
+        if (
+            not isinstance(mode, str)
+            or mode not in {"public", "personal"}
+            or not isinstance(source_name, str)
+        ):
+            raise ValueError("Choose a valid source and credential mode")
+        factories = source_factories(
+            settings.PROXY_URL if settings.PROXY_ENABLED else None,
+            settings.BROWSER_FETCH_CONFIG,
+            source_manager.set_source_cookie,
+            user_id=user_id if mode == "personal" else None,
+        )
+        if source_name not in factories or not settings.SOURCE_CONFIG.get(
+            source_name, {}
+        ).get("weight"):
+            raise ValueError("Source is not configured")
+        source = factories[source_name]()
+
+        def close():
+            fetcher = getattr(source, "page_fetcher", None)
+            if fetcher is not None and fetcher.browser is not None:
+                fetcher.browser.close()
+
+        try:
+            context = source.credential_context
+            if context is None:
+                raise ValueError("Scoped source context required")
+            binding = context.work_binding
+            if mode == "personal" and binding["owner_id"] != user_id:
+                raise PermissionError("Personal credential required")
+            return context, close
+        except BaseException:
+            close()
+            raise
+
+    return LibrarySubmission(build_operation_records(), resolve, dispatch_shared)

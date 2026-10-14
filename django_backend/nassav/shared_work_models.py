@@ -59,11 +59,17 @@ class UserOperation(models.Model):
     kind = models.CharField(max_length=16)
     action = models.CharField(max_length=16)
     desired_spec = models.JSONField(default=dict)
+    demand_generation = models.PositiveBigIntegerField(default=1)
+    quota_reservation = models.OneToOneField(
+        "nassav.QuotaReservation", null=True, on_delete=models.PROTECT
+    )
     access_scope = models.CharField(max_length=128)
     state = models.CharField(max_length=16, default="queued")
     version = models.PositiveBigIntegerField(default=1)
     projected_work_version = models.PositiveBigIntegerField(default=0)
     stage = models.CharField(max_length=40, default="queued")
+    progress = models.JSONField(default=dict)
+    timeline = models.JSONField(default=list)
     message = models.TextField(default="")
     error_code = models.CharField(max_length=40, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,6 +80,7 @@ class UserOperation(models.Model):
         user_id: int
         pool_id: object
         membership_id: object | None
+        quota_reservation_id: object | None
 
     class Meta:
         db_table = "nassav_user_operation"
