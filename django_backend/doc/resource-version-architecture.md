@@ -2,7 +2,7 @@
 
 ## 实施状态
 
-0044/0045账本、发布、受控执行器及本人库/图片读取已隔离实现；源/本地播放器、完整目录/推荐投影和GC仍待接入。普通账号登录、共享任务生产派发及自动回收仍关闭。当前生产仍用旧路径，不得把本文的内部模型测试当作正式媒体验收。
+0044/0045账本、发布、受控执行器及本人库/图片读取已隔离实现；本地固定版本播放已隔离接入；来源在线播放、完整目录/推荐投影和GC仍待接入。普通账号登录、共享任务生产派发及自动回收仍关闭。当前生产仍用旧路径，不得把本文的内部模型测试当作正式媒体验收。
 
 ## 版本与两个持有指针
 
@@ -59,3 +59,15 @@ LibraryImages协调授权与占用，DjangoVersionImageLocator负责manifest/mar
 个人更新在user fence内再次锁pool并核查持有，不能因权限入口旧检查通过就越过稍后移出。当前仅资源列表/详情/预览与版本cover/avatar HTTP，播放器与目录/推荐关系仍需独立接入；默认共享开关/普通准入不变。专项test_version_library_reads.py使用真实加密记录、JPEG、DB和认证HTTP，含两个用户隔离、批量查询数、猜测地址、坏marker/内容、父/末端符号链接、移出后流及个人写入拒绝；不代表真实Celery或视频媒体联调。
 
 本子阶段隔离门槛（2026-10-15）：全量SQLite1170 passed、28 skipped；PostgreSQL专项40 passed；个人状态/权限与读取专项SQLite38 passed，旧HTTP契约及读取专项21 passed。流式HTTP使用真实事务测试，关闭响应会触发Django连接清理；不得以pytest外层回滚事务冒充该生命周期。完整pre-commit通过后提交。本阶段无新迁移，现有实例/普通登录/真实视频仍未切换。
+
+## 固定本地播放子阶段
+
+基线7f0fd21，分支feat/version-bound-playback。本地提交在原resource文件锁内获取视频版本/marker/fingerprint，随后user→pool短事务核查本人准确video指针及descriptor版本一致；竞争时拒绝创建错误媒体会话。grant保存version/pool/scope和account_epoch，不返回manifest/路径/签名来源信息。既有会话读取固定旧版本，ready/retired可以完成原播放；普通移出拒绝新会话但不关闭原授权，下架、账号/角色代次或坏资产立即拒绝后续读取。
+
+DjangoVersionVideoLocator消费不可变manifest、TaskAssetTarget及真实FD，openat/NOFOLLOW拒绝父目录/末端符号链接，stat/fingerprint拒绝同大小替换；不在每个Range重新哈希大视频，发布SHA256/marker和稳定文件身份是证据。源站凭证撤销不使合法已下载静态资产变成他人资源，也不自动删视频。仅public/legacy有效持有可走旧文件兼容；已有版本坏证据不回退旧路径。
+
+ASGI传输沿原全局/单session Redis容量和取消清理流程，另由PlaybackVersionRead固定版本短占用，每20秒CAS续租、绝对期限不变；关闭不能复活同一请求的占用。HEAD、正常完成、拒绝及断开收尾关闭FD/容量/DB pin，失效登录导致DB收尾拒绝由TTL兜底。GC还必须保护所有合法开放播放session，不能只检查短pin。接续列表批量核对本人当前视频身份与标题；当前源播放的私有上下文/版本绑定仍由后续子阶段接入，不开放普通登录。
+
+专项test_version_local_playback.py使用真实加密记录、TaskAssets发布、ffmpeg生成且完整解码的MP4、认证ASGI Range/HEAD和真实临时Redis，覆盖指针竞争/固定旧版、私有范围、坏marker/内容/符号链接、移出/下架、续租/关闭与接续。不是目标站点源播放、真实共享Celery或正式实例切换。
+
+固定本地播放隔离门槛（2026-10-15）：SQLite全量1184 passed/28 skipped；PostgreSQL最终专项37 passed，另有旧本地播放/占用/权限专项39 passed。源开关开启时本地HTTP明确不读取来源凭证；实际在途disconnect归还FD、Redis容量和DB pin。角色记录移除不回退legacy授权，原session epoch变化不能重新pin。修复接续入口局部settings导入遮蔽，全量重新通过。无新迁移；完整pre-commit通过后提交，未进行现有实例、源站或真实共享Celery验收。

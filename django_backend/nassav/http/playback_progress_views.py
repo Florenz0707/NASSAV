@@ -111,7 +111,11 @@ class PlaybackContinueView(SchemaAPIView):
         from nassav.playback.continuations import list_continuations
 
         data = list_continuations(
-            request.user.pk, limit=limit, locator=build_local_video_locator()
+            request.user.pk,
+            limit=limit,
+            locator=build_local_video_locator(user_id=request.user.pk)
+            if settings.SHARED_LIBRARY_ENABLED
+            else build_local_video_locator(),
         )
         return Response(
             {"code": 200, "message": "success", "data": data},

@@ -800,9 +800,24 @@ def build_playback_validator():
     return Validator()
 
 
-def build_local_video_locator():
+def build_local_video_locator(*, user_id=None, session=None):
     from django.conf import settings
     from nassav.playback.local_files import DjangoLocalVideoLocator
+    from nassav.library_catalog import enabled
+
+    actor = session.user_id if session is not None else user_id
+    if actor is not None and enabled(actor):
+        from nassav.playback.version_files import DjangoVersionVideoLocator
+
+        if session is None or session.library_grant.get("version_id"):
+            return DjangoVersionVideoLocator(
+                settings.VIDEO_DIR,
+                settings.COVER_DIR,
+                actor,
+                version_id=session.library_grant.get("version_id")
+                if session is not None
+                else None,
+            )
 
     return DjangoLocalVideoLocator(settings.VIDEO_DIR, settings.COVER_DIR)
 
@@ -816,6 +831,14 @@ def build_local_playback_gateway():
     return LocalPlaybackGateway(
         RedisPlaybackCapacity(registry.client, settings.PLAYBACK_MAX_MEDIA_REQUESTS)
     )
+
+
+def build_playback_version_read(row, key):
+    from nassav.playback.version_reads import PlaybackVersionRead
+    from nassav.resource_reads import VersionReads
+    from nassav.resource_read_records import DjangoReadLeases
+
+    return PlaybackVersionRead(VersionReads(DjangoReadLeases()), row, key)
 
 
 def build_shared_workflow(job_id):

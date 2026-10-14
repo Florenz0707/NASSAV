@@ -91,7 +91,7 @@ def can_read_resource(user, avid, *, administrative=False):
     return False
 
 
-def grant_playback(user_id, resource):
+def grant_playback(user_id, resource, *, mode=None, descriptor=None):
     """Caller holds user fence; lock the pool before creating a session."""
     from nassav.library_models import ResourcePoolEntry
 
@@ -99,6 +99,38 @@ def grant_playback(user_id, resource):
         raise PermissionError("Resource downlisted")
     if not UserAccount.objects.filter(user_id=user_id).exists():
         return {}
+    from nassav.library_catalog import enabled, own_entry
+    from nassav.library_membership import LibraryNotFound
+
+    if enabled(user_id):
+        try:
+            pool = ResourcePoolEntry.objects.select_for_update().get(resource=resource)
+            entry = own_entry(user_id, avid=pool.canonical_avid)
+        except (ResourcePoolEntry.DoesNotExist, LibraryNotFound):
+            raise PermissionError("Resource not available") from None
+        version = entry.video_version if mode == "local" else entry.current_version
+        if version is not None:
+            if (
+                version.pool_id != pool.pk
+                or version.kind != ("video" if mode == "local" else "metadata")
+                or version.state not in {"ready", "retired"}
+                or version.published_at is None
+                or (version.owner_id is not None and version.owner_id != user_id)
+            ):
+                raise PermissionError("Resource scope not available")
+            if mode == "local" and (
+                not isinstance(descriptor, dict)
+                or descriptor.get("version_id") != str(version.pk)
+            ):
+                raise PermissionError("Media version changed")
+            return {
+                "pool_id": str(pool.pk),
+                "resource_id": resource.pk,
+                "scope": version.access_scope,
+                "version_id": str(version.pk),
+                "account_epoch": execution_epoch(user_id),
+                "context_revision": version.context_revision,
+            }
     pool = (
         ResourcePoolEntry.objects.select_for_update()
         .filter(resource=resource, is_available=True)
@@ -129,6 +161,12 @@ def can_read_playback(user, session):
     from nassav.library_models import ResourcePoolEntry
     from django.conf import settings
 
+    if session.library_grant.get("version_id") and (
+        account(user) is None
+        or session.library_grant.get("account_epoch") != execution_epoch(user.pk)
+    ):
+        return False
+
     if settings.SOURCE_CREDENTIALS_ENABLED and session.media_kind == "source":
         from nassav.credential_playback import binding_current
 
@@ -146,6 +184,30 @@ def can_read_playback(user, session):
     if account(user) is None:
         return False
     grant = session.library_grant
+    if grant.get("version_id"):
+        from nassav.resource_version_models import ResourceVersion
+
+        try:
+            return (
+                grant.get("resource_id") == session.resource.pk
+                and grant.get("account_epoch") == execution_epoch(user.pk)
+                and ResourceVersion.objects.filter(
+                    pk=grant["version_id"],
+                    pool_id=grant.get("pool_id"),
+                    pool__resource=session.resource,
+                    pool__is_available=True,
+                    pool__state__in=["ready", "preparing", "pending_gc"],
+                    state__in=["ready", "retired"],
+                    access_scope=grant.get("scope"),
+                    kind="video" if session.media_kind == "local" else "metadata",
+                )
+                .filter(
+                    Q(owner_id=user.pk) | Q(owner__isnull=True, access_scope="public")
+                )
+                .exists()
+            )
+        except (ValueError, TypeError):
+            return False
     if not grant:
         return can_read_resource(user, session.resource.avid)
     if grant.get("resource_id") != session.resource.pk or grant.get("scope") not in {

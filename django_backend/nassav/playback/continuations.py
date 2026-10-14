@@ -42,11 +42,27 @@ def list_continuations(user_id, *, limit, locator):
         for item in resource_scope.filter(avid__in=[row.avid for row in rows])
     }
     local = locator.identities({row.avid for row in rows if row.media_kind == "local"})
+    from nassav.library_catalog import enabled, held_entries, metadata
+
+    owned_metadata = {}
+    if enabled(user_id):
+        owned_metadata = {
+            entry.pool.canonical_avid: {
+                **metadata(entry),
+                "source": entry.current_version.source_name
+                if entry.current_version
+                else entry.pool.resource.source,
+            }
+            for entry in held_entries(user_id).filter(
+                pool__canonical_avid__in=[row.avid for row in rows]
+            )
+        }
     result = []
     for row in rows:
         resource = resources.get(row.avid)
         if resource is None or row.position_seconds >= row.duration_seconds - 5:
             continue
+        display = owned_metadata.get(row.avid)
         if row.media_kind == "local":
             identity = local.get(row.avid)
             if (
@@ -57,16 +73,23 @@ def list_continuations(user_id, *, limit, locator):
                 continue
         elif (
             row.media_kind != "source"
-            or row.source != str(resource.source or "").lower()
+            or row.source
+            != str(display["source"] if display else resource.source or "").lower()
         ):
             continue
         result.append(
             {
                 "avid": row.avid,
                 "mode": row.media_kind,
-                "original_title": resource.original_title,
-                "source_title": resource.source_title,
-                "translated_title": resource.translated_title,
+                "original_title": display["original_title"]
+                if display
+                else resource.original_title,
+                "source_title": display["source_title"]
+                if display
+                else resource.source_title,
+                "translated_title": display["translated_title"]
+                if display
+                else resource.translated_title,
                 "position_seconds": row.position_seconds,
                 "duration_seconds": row.duration_seconds,
                 "restore_policy": "exact" if row.media_kind == "local" else "confirm",

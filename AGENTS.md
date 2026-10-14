@@ -195,3 +195,5 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 共享库命令必须使用当前user、持久request_id回执和expected_entry_version；旧DELETE重放不得删除重添关系。意图按元数据/视频kind分代次，旧成功不覆盖最新需求；先附新订阅再撤本人旧订阅，不杀B。配额按本人video版本完整逻辑字节，未知大小保守预留，最终grant在user fence核查，超额只拒绝本人并退款。public/personal明确选择，个人凭证缺失不得回退；幂等重试先查意图账本再加载来源。source/quality/scope/credential/context与ready证据不符不得复用文件。
 
 共享模式资源展示走本人持有版本投影，不将私有标题/演员/图片复制到AVResource等全局列。版本图片使用授权入口及短读取占用，根下目录/文件NOFOLLOW且核查manifest/marker/内容，不以opaque URL代替权限；个人状态写入在user fence内重新核查持有。
+
+共享模式本地播放在创建事务核查descriptor与本人video_version相同，session固定版本和账号epoch；授权读取占用不能以Redis容量代替。坏版本不回退旧AVID文件，旧会话不得跟随当前指针切换，原播放宽限与下架即时撤销保持区分。

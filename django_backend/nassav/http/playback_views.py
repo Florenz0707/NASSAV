@@ -111,7 +111,9 @@ class PlaybackSessionView(SchemaAPIView):
                     from nassav.playback.local_files import submit_local
 
                     row = submit_local(
-                        build_local_video_locator(),
+                        build_local_video_locator(user_id=request.user.pk)
+                        if settings.SHARED_LIBRARY_ENABLED
+                        else build_local_video_locator(),
                         records,
                         request.user.pk,
                         request.session.session_key,

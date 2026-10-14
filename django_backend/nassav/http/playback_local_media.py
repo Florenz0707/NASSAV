@@ -23,7 +23,13 @@ def check_local(row, locator=None):
     if locator is None:
         from nassav.composition import build_local_video_locator
 
-        locator = build_local_video_locator()
+        from django.conf import settings
+
+        locator = (
+            build_local_video_locator(session=row)
+            if settings.SHARED_LIBRARY_ENABLED
+            else build_local_video_locator()
+        )
     try:
         locator.check(row.resource.avid, row.descriptor)
     except PlaybackGatewayError as error:
@@ -52,6 +58,7 @@ async def local_media_view(request, session_id):
     opened = False
     transferred = False
     cleanup_task = None
+    version_read = None
 
     async def cleanup():
         nonlocal cleanup_task
@@ -61,8 +68,12 @@ async def local_media_view(request, session_id):
                 if opened and manager is not None:
                     await manager.__aexit__(None, None, None)
             finally:
-                if gateway is not None:
-                    gateway.capacity.client.close()
+                try:
+                    if version_read is not None:
+                        await sync_to_async(version_read.close)()
+                finally:
+                    if gateway is not None:
+                        gateway.capacity.client.close()
 
         if cleanup_task is None:
             cleanup_task = asyncio.create_task(operation())
@@ -74,6 +85,10 @@ async def local_media_view(request, session_id):
 
     try:
         row = await sync_to_async(authorize_session)(request, session_id)
+        if row.library_grant.get("version_id"):
+            from nassav.composition import build_playback_version_read
+
+            version_read = build_playback_version_read(row, request.session.session_key)
         try:
             token = signing.TimestampSigner(salt="nassav-playback-media").unsign(
                 request.GET.get("cap", ""), max_age=records.MAX_SECONDS
@@ -87,7 +102,13 @@ async def local_media_view(request, session_id):
             build_local_playback_gateway,
         )
 
-        locator = await sync_to_async(build_local_video_locator)()
+        from django.conf import settings
+
+        locator = (
+            await sync_to_async(build_local_video_locator)(session=row)
+            if settings.SHARED_LIBRARY_ENABLED
+            else await sync_to_async(build_local_video_locator)()
+        )
         avid = await sync_to_async(lambda: row.resource.avid)()
         await sync_to_async(check_local)(row, locator)
         gateway = build_local_playback_gateway()
@@ -97,6 +118,8 @@ async def local_media_view(request, session_id):
                 request, session_id, row.generation
             )
             await sync_to_async(check_local)(current, locator)
+            if version_read is not None:
+                await sync_to_async(version_read.check)()
 
         async def opener():
             return await sync_to_async(locator.open)(avid, row.descriptor)

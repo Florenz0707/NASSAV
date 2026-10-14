@@ -77,7 +77,9 @@ def submit(
         from nassav.account_policy import grant_playback
 
         try:
-            library_grant = grant_playback(user_id, resource)
+            library_grant = grant_playback(
+                user_id, resource, mode=mode, descriptor=descriptor
+            )
         except PermissionError as error:
             raise PlaybackStopped("Resource not available") from error
         if settings.SOURCE_CREDENTIALS_ENABLED and mode == "source":

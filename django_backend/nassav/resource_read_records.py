@@ -91,6 +91,8 @@ class DjangoReadLeases:
         ).first()
         if (
             row is None
+            or not execution_epoch(user_id)
+            or row.library_grant.get("account_epoch") != execution_epoch(user_id)
             or row.library_grant.get("version_id") != str(version.pk)
             or row.library_grant.get("pool_id") != str(version.pool_id)
             or row.library_grant.get("scope") != version.access_scope

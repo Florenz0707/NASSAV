@@ -1616,3 +1616,5 @@ GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit
 共享开关与受管角色同时启用时，旧resources、resource/preview与resource/metadata入口也投影本人的准确版本；未启用保持旧响应。source_title等来自current_version，视频标志/大小来自独立video_version；已隔离/回收、错误pool/kind或他人私有owner的指针不能授权。公开管理员管理权限不提供他人私人详情。
 
 GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/avatar；asset_id为不含路径的opaque摘要。resource/cover入口也可读取本人版本封面。先核查有效持有，再创建登录绑定的短占用；每块传输前后重查，关闭释放，登出导致无法收尾时由原TTL兜底。无条件响应private/no-store、Vary Cookie，不能凭旧ETag绕过授权。版本图片校验归属、marker、SHA256和文件大小，根目录可按部署约定resolve，根下任何目录/文件符号链接拒绝。单图上限32MiB；本子阶段接受small/medium/large并返回原版本图，不另写缩略图缓存。不能将此图片测试视为Range/播放或真实worker联调。
+
+固定版本本地播放仍使用`POST /api/resources/{avid}/playback-sessions`的mode=local及原session/file Range/HEAD入口；共享模式绑定本人的video_version和账号代次，snapshot不增加源链接或内部路径。既有会话不跟随更新，新prepare/接续仍要求有效持有。源站凭证撤销不撤销合法静态下载资产；下架/角色代次变化阻断后续读取。私有来源在线准备继续实施，普通登录仍关闭。

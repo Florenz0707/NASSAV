@@ -159,7 +159,11 @@ def test_playback_pin_fixed_version_drains_after_release_but_downlist_revokes(co
         mode="local",
         descriptor={"fixture": "not-media-acceptance"},
     )
-    session.library_grant = {**session.library_grant, "version_id": str(version.pk)}
+    session.library_grant = {
+        **session.library_grant,
+        "version_id": str(version.pk),
+        "account_epoch": 1,
+    }
     session.save()
     pin = reads.pin(
         users[0].pk, keys[0], version.pk, uuid4(), playback_session_id=session.pk
@@ -218,7 +222,11 @@ def test_closed_session_and_logout_or_epoch_change_reject_old_reads(context):
         mode="local",
         descriptor={"fixture": True},
     )
-    session.library_grant = {**session.library_grant, "version_id": str(version.pk)}
+    session.library_grant = {
+        **session.library_grant,
+        "version_id": str(version.pk),
+        "account_epoch": 1,
+    }
     session.save()
     pin = reads.pin(
         users[0].pk, keys[0], version.pk, uuid4(), playback_session_id=session.pk
