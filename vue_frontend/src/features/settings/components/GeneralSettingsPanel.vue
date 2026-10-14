@@ -46,11 +46,6 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
 
 <template>
   <div>
-    <div class="mb-6">
-      <h2 class="text-xl font-semibold text-[var(--text-primary)] mb-2">通用设置</h2>
-      <p class="text-sm text-[var(--text-muted)]">仅影响当前账号的显示、搜索与播放偏好</p>
-    </div>
-
     <div class="space-y-6">
       <div class="p-4 rounded-xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)]">
         <h3 class="text-sm font-medium text-[var(--text-muted)] mb-4 uppercase tracking-wider">

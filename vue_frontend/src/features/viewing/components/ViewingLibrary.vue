@@ -133,9 +133,6 @@ onBeforeUnmount(() => {
           观看历史按最近播放排序，同一资源只保留一条；稍后再看手动管理。
         </p>
       </div>
-      <AppButton variant="neutral" :disabled="!!busy" :loading="loading" @click="load()"
-        >刷新</AppButton
-      >
     </header>
     <div v-if="!embedded" class="flex flex-wrap gap-3 mb-6" role="group" aria-label="观看列表">
       <AppButton
@@ -176,7 +173,6 @@ onBeforeUnmount(() => {
             class="aspect-video rounded-none"
         /></RouterLink>
         <div class="p-4 space-y-3">
-          <p class="text-muted text-sm">{{ item.avid }}</p>
           <h2 class="text-primary font-medium line-clamp-2">
             {{ resolveResourceTitle(item, settings.displayTitle) || item.avid }}
           </h2>
