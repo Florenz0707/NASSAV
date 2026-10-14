@@ -7,6 +7,7 @@ from nassav.http_base import SchemaAPIView
 from nassav.models import Actor, Genre
 from nassav.search_jobs import (
     SearchJobAlreadyFinished,
+    SearchJobAccessExpired,
     cancel_search_job,
     get_search_job,
     search_job_token,
@@ -87,6 +88,8 @@ class SearchJobStatusView(SchemaAPIView):
             )
         except (ValueError, TypeError) as error:
             return build_response(400, str(error), None)
+        except SearchJobAccessExpired as error:
+            return build_response(410, str(error), None)
         except Exception:
             return build_response(503, "搜索任务状态暂不可用", None)
         if snapshot is None:
@@ -111,6 +114,8 @@ class SearchJobCancelView(SchemaAPIView):
             return build_response(403, "搜索任务访问凭证无效", None)
         try:
             snapshot = get_search_job(task_id)
+        except SearchJobAccessExpired as error:
+            return build_response(410, str(error), None)
         except Exception:
             return build_response(503, "搜索任务状态暂不可用", None)
         from nassav.account_policy import execution_epoch

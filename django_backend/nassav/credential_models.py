@@ -8,6 +8,22 @@ from django.db import models
 from django.utils import timezone
 
 
+class SourceCredentialKeyPolicy(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    active_key_id = models.CharField(max_length=64)
+    version = models.PositiveBigIntegerField(default=1)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "nassav_source_credential_key_policy"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(id=1, version__gte=1),
+                name="source_key_policy_singleton",
+            )
+        ]
+
+
 class SourceCredential(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     source_name = models.CharField(max_length=50)

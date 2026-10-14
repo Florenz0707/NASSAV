@@ -166,19 +166,21 @@ def test_separate_worker_processes_share_proxy_capacity(proxy_redis):
 
     context = multiprocessing.get_context("spawn")
     release, acquired = context.Event(), context.Queue()
+    ready = context.Barrier(4)
     endpoint = "http://shared-proxy:8191"
     key = RedisProxyCapacity(proxy_redis, endpoint, 2).key
 
     socket_path = proxy_redis.connection_pool.connection_kwargs["path"]
     processes = [
         context.Process(
-            target=request_slot, args=(socket_path, endpoint, release, acquired)
+            target=request_slot, args=(socket_path, endpoint, release, acquired, ready)
         )
         for _ in range(3)
     ]
     for process in processes:
         process.start()
     try:
+        ready.wait(timeout=10)
         first = [acquired.get(timeout=2), acquired.get(timeout=2)]
         assert proxy_redis.zcard(key) == 2
         with pytest.raises(queue.Empty):

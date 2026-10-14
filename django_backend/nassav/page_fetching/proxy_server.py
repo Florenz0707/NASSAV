@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from threading import Event
 from typing import Protocol, TypeVar
+from dataclasses import dataclass
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -19,8 +20,19 @@ class ProxyCapacityError(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class ProxySessionCapabilities:
+    isolated_contexts: bool = False
+    challenge_replay: bool = False
+    cookie_injection: bool = False
+    user_agent_binding: bool = False
+    context_revision: str = "anonymous-v1"
+
+
 class ProxyServer(Protocol):
     """Operations must own their sessions; only the consumer merges results."""
+
+    session_capabilities: ProxySessionCapabilities
 
     def ordered(
         self,
@@ -36,12 +48,20 @@ class ProxyServer(Protocol):
 
 
 class OrderedProxyServer:
-    def __init__(self, max_concurrency: int = 1, *, capacity=None, worker_scope=None):
+    def __init__(
+        self,
+        max_concurrency: int = 1,
+        *,
+        capacity=None,
+        worker_scope=None,
+        session_capabilities=None,
+    ):
         if isinstance(max_concurrency, bool) or not 1 <= max_concurrency <= 8:
             raise ValueError("Proxy server concurrency must be between 1 and 8")
         self.max_concurrency = max_concurrency
         self.capacity = capacity
         self.worker_scope = worker_scope or nullcontext
+        self.session_capabilities = session_capabilities or ProxySessionCapabilities()
 
     @contextmanager
     def slot(self, timeout_ms: int, *, check: Callable[[], None]):

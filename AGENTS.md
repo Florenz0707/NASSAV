@@ -182,4 +182,4 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 
 ## 来源凭证开发约束
 
-新增加密凭证和刷新快照遵循[凭证架构](django_backend/doc/source-credential-architecture.md)。专用keyring不可回退SECRET_KEY或明文；HTTP只返回元信息，禁止秘密进入日志、审计、任务参数或公共缓存。来源host由服务端配置决定，个人凭证不自动提升公共。刷新须检查凭证version、快照context、owner/generation/lease及执行归属，人工更新/撤销使旧结果失效；只释放本人租约。旧Cookie显式分类导入，未知账号Cookie隔离，不双写或自动清除。当前存储协议不表示旧抓取消费者已切换，切换必须独立验证。
+新增加密凭证和刷新快照遵循[凭证架构](django_backend/doc/source-credential-architecture.md)。专用keyring不可回退SECRET_KEY或明文；HTTP只返回元信息，禁止秘密进入日志、审计、任务参数或公共缓存。来源host由服务端配置决定，个人凭证不自动提升公共。刷新须检查凭证version、快照context、owner/generation/lease及执行归属，人工更新/撤销使旧结果失效；只释放本人租约。旧Cookie显式分类导入，未知账号Cookie隔离，不双写或自动清除。新模式默认关闭，启用时全部消费者统一重启，不混跑旧Cookie写入者。ProxyServer声明会话能力，私人请求不得将匿名HTML视为成功；原站Cookie禁止跟随重定向或发往CDN。DB缓存和推荐终态先取得key policy/actor/credential fence，再进入既有短提交；Redis仅用失效版本命名空间，不持DB锁调用Redis。旧active key writer不得绕过DB key policy，轮换保留历史密钥且CAS预检。共享正式媒体当前只用system，私人资产待P4/P5。

@@ -35,6 +35,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         "video_viewed",
     ]
 
+    DEFAULT_DOMAIN = "jable.tv"
+
     def __init__(
         self,
         proxy: str | None = None,
@@ -55,7 +57,7 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         self.facts_cache = facts_cache
         self.strict_failures = strict_failures
         source_config = settings.SOURCE_CONFIG.get("jable", {})
-        self.domain = source_config.get("domain", "jable.tv")
+        self.domain = source_config.get("domain", self.DEFAULT_DOMAIN)
         self.browser_fetch_strategy = validate_strategy(
             source_config.get("browser_fetch_strategy", "direct_first")
         )
@@ -85,6 +87,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
         write_guard: Callable[[], bool] | None = None,
     ) -> bool:
         """Acquire and verify a paired browser session for explicit refreshes."""
+        if self.credential_context is not None:
+            return False
         if self.page_fetcher.browser is None:
             return super().set_cookie_auto(force_refresh, write_guard=write_guard)
         record = self._sessions.repository.get_cookie_record(self.get_source_name())
@@ -326,6 +330,8 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
             return {}
 
         if self.cache_enabled:
+            if self.credential_context is not None:
+                self.credential_context.check()
             cache.set(cache_key, deepcopy(payload), timeout=self.cache_ttl_default)
         return payload
 
@@ -609,7 +615,15 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
     def _build_cache_key(self, kind: str, **kwargs) -> str:
         segments = [f"{name}={kwargs[name]}" for name in sorted(kwargs)]
         payload = "|".join(segments)
-        return f"jable:search:{self.domain}:{kind}:{payload}"
+        scope = ""
+        if self.credential_context is not None:
+            import hashlib
+
+            scope = (
+                hashlib.sha256(self.credential_context.scope_key.encode()).hexdigest()
+                + ":"
+            )
+        return f"jable:search:{self.domain}:{scope}{kind}:{payload}"
 
     def _get_cached_items(self, key: str) -> list[dict] | None:
         if not self.cache_enabled:
@@ -628,7 +642,13 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
     ) -> None:
         if not self.cache_enabled:
             return
-        cache.set(key, deepcopy(payload), timeout=max(int(ttl_seconds), 1))
+
+        def publish():
+            cache.set(key, deepcopy(payload), timeout=max(int(ttl_seconds), 1))
+
+        if self.credential_context is not None:
+            self.credential_context.check()
+        publish()  # Versioned namespace; no network while a DB fence is held.
 
     def _build_search_url(self, keyword: str, page: int = 1) -> str:
         encoded = quote(keyword.strip())
@@ -723,9 +743,12 @@ class Jable(SourceBase, ListingSource, RecommendationSource):
                 else "listing"
             ),
             session_handler=self
-            if active_fetcher.session_reuse_enabled
-            and self.proxy
-            and getattr(active_fetcher.browser, "provider", None) == "byparr"
+            if self.requires_bound_page
+            or (
+                active_fetcher.session_reuse_enabled
+                and self.proxy
+                and getattr(active_fetcher.browser, "provider", None) == "byparr"
+            )
             else None,
         )
         if not result.ok:

@@ -1589,3 +1589,5 @@ GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit
 - `DELETE /api/personal/history`：body严格为`{entries: [{avid, queue_time}]}`，1–200条、AVID不能重复、queue_time必须带时区且来自列表。返回data数组`{avid,status}`，status为removed/absent/conflict。absence幂等；重新观看导致时间改变则保留最新记录、返回conflict，其他匹配项仍删除，HTTP200不代表每项都删除。单条也是一个元素的数组。参数400、匿名401、越权对象按absent处理，不泄露他人记录。
 
 两接口沿用CSRF、操作者准入与private,no-store；历史删除不清除资源、文件、进度及其他个人状态，无数据库迁移。已处理playing重试不复活历史，删除后新的有效playing sequence可以重新记录；尚未处理的播放上报按服务器接收顺序执行，不承诺删除正在播放视频会永久屏蔽后续观看。
+
+启用新模式后，旧`/api/source/cookie`各方法返回410；原外搜凭证范围变化后的状态/取消句柄返回410，不返回旧result，不更改任务终态/version。未启用时既有契约保持。当前共享资源源播放仅system，个人源媒体待P4/P5，见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。

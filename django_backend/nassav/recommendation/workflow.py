@@ -35,10 +35,13 @@ class RecommenderManager(RecommendationWorkflow):
         *,
         metadata: dict | None = None,
         strategy_builders: dict[str, Callable] | None = None,
+        publication_fence: Callable[[Callable[[], int | None]], int | None]
+        | None = None,
     ):
         self.context, self.factories = context, dict(factories)
         self.metadata = {**self.RECOMMENDER_META, **(metadata or {})}
         self.strategy_builders = dict(strategy_builders or self.STRATEGY_BUILDERS)
+        self.publication_fence = publication_fence or (lambda persist: persist())
 
     def list_recommenders(self) -> list[dict]:
         items: list[dict] = []
@@ -134,7 +137,9 @@ class RecommenderManager(RecommendationWorkflow):
             request_fingerprint=request_fingerprint,
             filtered_history_count=filtered_history_count,
         )
-        execution.snapshot_id = self.context.persist(execution)
+        execution.snapshot_id = self.publication_fence(
+            lambda: self.context.persist(execution)
+        )
         for item in execution.run.items:
             item.snapshot_id = execution.snapshot_id
         return execution

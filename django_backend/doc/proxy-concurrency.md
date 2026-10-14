@@ -59,3 +59,5 @@ HTTP transport 和线程本地 Django 连接，包含归属检查打开的连接
 
 同一用例的调度器、容量状态和 Redis 连接池由装配共享，不随每个页面重建；
 独立 Source/浏览器 transport 只拥有当前操作的会话，关闭它不会关闭共享容量连接。
+
+凭证范围通过ProxyServer.session_capabilities声明，不由业务判断provider。当前固定适配器的能力、独立会话fork、同域刷新租约和真实验收边界见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。全局Redis容量继续控制匿名挑战，重放直连不嵌套抢占browser slot。

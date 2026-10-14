@@ -34,6 +34,10 @@ class SearchJobAlreadyFinished(Exception):
     """Cancellation lost the race to a terminal snapshot."""
 
 
+class SearchJobAccessExpired(Exception):
+    """A stored result no longer belongs to the current credential selection."""
+
+
 class RedisSearchJobStore(RedisJobStore):
     """Keep search snapshots and locks separate from resource jobs."""
 
@@ -135,7 +139,9 @@ def validate_search_query(query: dict, *, user_id=None) -> dict:
 
 
 def _query_key(query: dict) -> str:
-    domain, route = external_search_service.cache_context(query["source"])
+    domain, route = query.get(
+        "source_context"
+    ) or external_search_service.cache_context(query["source"])
     context = {
         "query": query,
         "language": "cn-v4",
@@ -188,6 +194,10 @@ def submit_search_job(
     query: dict, *, store: JobStore | None = None, user_id=None
 ) -> tuple[dict, bool]:
     query = validate_search_query(query, user_id=user_id)
+    if settings.SOURCE_CREDENTIALS_ENABLED:
+        query["source_context"] = list(
+            external_search_service.for_user(user_id).cache_context(query["source"])
+        )
     store = store or RedisSearchJobStore()
     key = _query_key(query)
     owner_epoch = None
@@ -266,6 +276,23 @@ def get_search_job(
         from copy import deepcopy
 
         snapshot = deepcopy(snapshot)
+        service = (
+            external_search_service.for_user(snapshot.get("owner_id"))
+            if settings.SOURCE_CREDENTIALS_ENABLED
+            else external_search_service
+        )
+        query = snapshot.get("query", {})
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            from nassav.credential_crypto import CredentialUnavailable
+
+            try:
+                valid_context = query.get("source_context") == list(
+                    service.cache_context(query["source"])
+                )
+            except CredentialUnavailable:
+                valid_context = False
+            if not valid_context:
+                raise SearchJobAccessExpired("来源凭证已改变，请重新搜索")
         data = snapshot["result"]["data"]
         collected = snapshot.get("collected_results")
         projected = project_library_presence(
@@ -274,7 +301,7 @@ def get_search_job(
         )
         query = snapshot.get("query", {})
         if query.get("source"):
-            projected, detail_hits = external_search_service.project_existing_details(
+            projected, detail_hits = service.project_existing_details(
                 query["source"], projected, force=query.get("force_refresh", False)
             )
             data["external_meta"] = {
@@ -358,8 +385,24 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
     if snapshot["state"] != "running":
         return snapshot
     query = snapshot["query"]
+    service = (
+        external_search_service.for_user(snapshot.get("owner_id"))
+        if settings.SOURCE_CREDENTIALS_ENABLED
+        else external_search_service
+    )
 
     def ensure_active() -> None:
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            from nassav.credential_crypto import CredentialUnavailable
+
+            try:
+                valid_context = query.get("source_context") == list(
+                    service.cache_context(query["source"])
+                )
+            except CredentialUnavailable:
+                valid_context = False
+            if not valid_context:
+                raise SearchJobCancelled
         if snapshot.get("owner_id") is not None:
             from django.contrib.auth import get_user_model
             from nassav.account_policy import execution_epoch
@@ -401,7 +444,7 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
     try:
         ensure_active()
         entity = query["entity_type"]
-        method = getattr(external_search_service, f"search_{entity}_detail")
+        method = getattr(service, f"search_{entity}_detail")
         result = method(
             **{f"{entity}_id": query["entity_id"]},
             source_name=query["source"],

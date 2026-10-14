@@ -7,6 +7,7 @@ from dataclasses import asdict
 from nassav.constants import HEADERS
 from nassav.resource_cache import CacheKey, CachePolicy
 from nassav.source.CookieRepository import proxy_route_profile
+from nassav.provider_facts import source_credential_context
 from .contracts import PlaybackResolver, PlaybackDescriptor, PlaybackStopped
 
 
@@ -16,13 +17,15 @@ class SourcePlaybackResolver(PlaybackResolver):
 
     def resolve(self, avid, source_name, control, *, force=False):
         with self.scope(source_name, control) as source:
+            context = source_credential_context(source)
             profile = proxy_route_profile(source.proxy)
             version = source.browser_session_version()
             key = CacheKey.create(
                 avid,
                 "source",
                 source_name,
-                scope=f"{source.domain}:{profile}:{version}",
+                scope=f"{source.domain}:{profile}:{version}"
+                + (f":{context.scope_key}" if context is not None else ""),
                 variant="online-playback-v2",
             )
             policy = CachePolicy(
@@ -41,11 +44,14 @@ class SourcePlaybackResolver(PlaybackResolver):
                     or (info.avid and info.avid.upper() != avid.upper())
                 ):
                     raise ValueError("Source playback unavailable")
+                session = context.load_session() if context is not None else None
                 return asdict(
                     PlaybackDescriptor(
                         info.m3u8,
                         source.last_final_url or source.get_detail_url(avid),
-                        HEADERS["User-Agent"],
+                        session.user_agent
+                        if session is not None and session.user_agent
+                        else HEADERS["User-Agent"],
                         source_name,
                         profile,
                         version,
@@ -58,8 +64,15 @@ class SourcePlaybackResolver(PlaybackResolver):
                 fetch,
                 playback=True,
                 force=force,
-                check=control.check,
-                fence=control.publish,
+                check=lambda: (
+                    control.check(),
+                    context.check() if context is not None else None,
+                ),
+                fence=lambda publish: (
+                    context.publish(lambda: control.publish(publish))
+                    if context is not None
+                    else control.publish(publish)
+                ),
             )
             return PlaybackDescriptor(**facts.payload).validate()
 

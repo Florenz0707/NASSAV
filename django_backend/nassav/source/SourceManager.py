@@ -12,6 +12,7 @@ from nassav.page_fetching.coordination import (
     session_refresh_coordinator,
 )
 from nassav.resource_contracts import SourceLookup
+from nassav.provider_facts import source_credential_context
 from nassav.scraper import AVDownloadInfo
 from nassav.source.CookieRepository import (
     SourceCookieRecord,
@@ -64,6 +65,12 @@ class SourceManager(SourceLookup):
         if target is None:
             return None
 
+        context = source_credential_context(target)
+        if context is not None:
+            record = context.load_session()
+            target.set_session(record)
+            return record
+
         shared = source_cookie_repository.get_cookie_record(source_name)
         local = source_cookie_runtime_cache.get_state(source_name)
         if (
@@ -93,6 +100,8 @@ class SourceManager(SourceLookup):
         target = self.get_source(source_name)
         if target is None:
             return
+        if source_credential_context(target) is not None:
+            raise PermissionError("Legacy runtime cookies are read-only after cutover")
         shared = source_cookie_repository.get_cookie_record(source_name)
         if (
             shared is not None
@@ -112,6 +121,8 @@ class SourceManager(SourceLookup):
         """Coordinate the old Cookie API with page refreshes across processes."""
         source = self.get_source(source_name)
         if source is None:
+            return False
+        if source_credential_context(source) is not None:
             return False
         route = proxy_route_profile(source.proxy) or "unknown"
         key = refresh_key(source.get_source_name(), source.get_home_url(), route)
@@ -190,6 +201,8 @@ class SourceManager(SourceLookup):
         if not target_source:
             logger.warning(f"未找到源 {source_name}")
             return False
+        if source_credential_context(target_source) is not None:
+            raise PermissionError("Use versioned encrypted credential writes")
 
         if not actual_name:
             return False
@@ -241,6 +254,16 @@ class SourceManager(SourceLookup):
 
         avid_upper = avid.upper()
         cache_key = f"source_info:{avid_upper}"
+        contexts = [
+            source_credential_context(source) for _, source in self.get_sources()
+        ]
+        if any(context is not None for context in contexts):
+            import hashlib
+
+            scopes = "|".join(
+                context.scope_key for context in contexts if context is not None
+            )
+            cache_key += ":" + hashlib.sha256(scopes.encode()).hexdigest()
 
         # 尝试从缓存获取
         cached_data = cache.get(cache_key)

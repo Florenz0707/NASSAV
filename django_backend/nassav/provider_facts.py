@@ -17,6 +17,12 @@ SCRAPER_POLICY = CachePolicy(
 PLAYBACK_POLICY = CachePolicy("playback-v1", frozenset({"m3u8"}), timedelta(minutes=5))
 
 
+def source_credential_context(source):
+    if getattr(source, "requires_bound_page", False) is True:
+        return source.credential_context
+    return None
+
+
 def configured_policy(policy):
     from django.conf import settings
 
@@ -30,6 +36,13 @@ def configured_policy(policy):
 
 
 def source_key(source, avid, detail_url=""):
+    context = source_credential_context(source)
+    return _source_key(
+        source, avid, detail_url, context.scope_key if context is not None else "public"
+    )
+
+
+def _source_key(source, avid, detail_url, scope):
     url = detail_url or source.get_detail_url(avid)
     parts = urlsplit(url)
     normalized = urlunsplit(
@@ -45,7 +58,7 @@ def source_key(source, avid, detail_url=""):
         avid,
         "source",
         source.get_source_name(),
-        scope=f"{source.domain}:public",
+        scope=f"{source.domain}:{scope}",
         variant=normalized,
     )
 
@@ -54,6 +67,10 @@ def playback_key(source, avid, detail_url=""):
     from nassav.source.CookieRepository import proxy_route_profile
 
     key = source_key(source, avid, detail_url)
+    context = source_credential_context(source)
+    scope = f"{source.domain}:{proxy_route_profile(source.proxy)}:{source.browser_session_version()}"
+    if context is not None:
+        scope = f"{scope}:{context.scope_key}"
     return CacheKey(
         key.avid,
         key.provider_kind,
@@ -62,7 +79,7 @@ def playback_key(source, avid, detail_url=""):
             avid,
             "source",
             key.provider_name,
-            scope=f"{source.domain}:{proxy_route_profile(source.proxy)}:{source.browser_session_version()}",
+            scope=scope,
         ).scope_key,
         key.variant_key,
     )
@@ -74,28 +91,38 @@ class SourceFactsLookup:
 
     def read_facts(self, candidates):
         result = {}
+        context = source_credential_context(self.source)
         for offset in range(0, len(candidates), 200):
+            scope = context.scope_key if context is not None else "public"
             keys = {
-                source_key(self.source, avid, url): avid
+                _source_key(self.source, avid, url, scope): avid
                 for avid, url in candidates[offset : offset + 200]
             }
             for key, value in self.cache.read_many(
                 list(keys), configured_policy(SOURCE_POLICY)
             ).items():
                 result[keys[key]] = value
+            if context is not None:
+                context.check()
         return result
 
     def read_details(self, candidates):
+        context = source_credential_context(self.source)
+        scope = context.scope_key if context is not None else "public"
         keys = {
-            source_key(self.source, avid, url): avid for avid, url in candidates[:200]
+            _source_key(self.source, avid, url, scope): avid
+            for avid, url in candidates[:200]
         }
-        return {
+        result = {
             keys[key]: value["detail"]
             for key, value in self.cache.read_many(
                 list(keys), configured_policy(SOURCE_POLICY)
             ).items()
             if value.get("detail")
         }
+        if context is not None:
+            context.check()
+        return result
 
     def resolve(self, avid, detail_url="", *, force=False, require_playback=False):
         source = self.source
@@ -104,6 +131,24 @@ class SourceFactsLookup:
         control = source.task_control
         check = control.check if control is not None else lambda: None
         fence = control.publish if control is not None else None
+        context = source_credential_context(source)
+        if context is not None:
+            execution_check, execution_fence = check, fence
+
+            def scoped_check():
+                execution_check()
+                context.check()
+
+            def scoped_fence(publish):
+                return context.publish(
+                    lambda: (
+                        execution_fence(publish)
+                        if execution_fence is not None
+                        else publish()
+                    )
+                )
+
+            check, fence = scoped_check, scoped_fence
         playback = self.cache.read_many(
             [pkey], configured_policy(PLAYBACK_POLICY), playback=True
         ).get(pkey)
@@ -114,7 +159,7 @@ class SourceFactsLookup:
             captured["html"] = html
             if link:
                 captured["playback"] = self.cache.resolve(
-                    pkey,
+                    playback_key(source, avid, detail_url),
                     configured_policy(PLAYBACK_POLICY),
                     lambda: {"m3u8": link},
                     force=True,

@@ -10,10 +10,12 @@ from nassav.source.SourceBase import SourceBase
 class Memo(SourceBase):
     """MemoJav下载器"""
 
+    DEFAULT_DOMAIN = "memojav.com"
+
     def __init__(self, proxy: str | None = None, timeout: int = 15):
         super().__init__(proxy, timeout)
         source_config = settings.SOURCE_CONFIG.get("memo", {})
-        self.domain = source_config.get("domain", "memojav.com")
+        self.domain = source_config.get("domain", self.DEFAULT_DOMAIN)
 
     def get_source_name(self) -> str:
         return "Memo"

@@ -63,6 +63,10 @@ class CredentialKeyring:
         )
         return self.active_id, base64.b64encode(nonce + cipher).decode()
 
+    def require_keys(self, key_ids):
+        if any(key_id not in self._keys for key_id in key_ids):
+            raise CredentialUnavailable("Credential historical keys are missing")
+
     def decrypt(self, key_id, ciphertext, *, context):
         try:
             key = self._keys[key_id]

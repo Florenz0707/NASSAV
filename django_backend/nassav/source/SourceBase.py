@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os
 from abc import abstractmethod
 from collections.abc import Callable
 from threading import local
 from time import monotonic
+from typing import TYPE_CHECKING
 
 from curl_cffi import requests
 from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
@@ -22,6 +25,9 @@ from nassav.source.CookieRepository import (
 )
 from nassav.source.session_lifecycle import SourceSessionLifecycle
 
+if TYPE_CHECKING:
+    from nassav.scoped_source_context import ScopedSourceContext
+
 
 class SourceBase(BrowserSessionHandler):
     """下载源基类
@@ -34,6 +40,8 @@ class SourceBase(BrowserSessionHandler):
     不负责：
     - 详细元数据（发行日期、时长、演员等）由 Scraper（JavBus）提供
     """
+
+    DEFAULT_DOMAIN = ""
 
     def __init__(
         self,
@@ -51,6 +59,7 @@ class SourceBase(BrowserSessionHandler):
         self.timeout = timeout
         self.domain = ""
         self.task_control = None
+        self.credential_context: ScopedSourceContext | None = None
         # 最近一次 fetch_html 请求的响应状态码（成功时为 None）
         self.last_error_code = None
         self._request_state = local()
@@ -103,13 +112,49 @@ class SourceBase(BrowserSessionHandler):
         self.task_control = control
 
     def _fetch(self, url, **kwargs):
+        protected = False
+        if self.credential_context is not None:
+            headers = self.credential_context.filter_headers(
+                url, kwargs.get("headers", {})
+            )
+            kwargs["headers"] = headers
+            protected = any(key.lower() == "cookie" for key in headers)
+            if protected:
+                kwargs["allow_redirects"] = False
         if self.task_control is not None:
-            return self.task_control.request("GET", url, **kwargs)
-        return requests.get(url, **kwargs)
+            response = self.task_control.request("GET", url, **kwargs)
+        else:
+            response = requests.get(url, **kwargs)
+        if protected and 300 <= response.status_code < 400:
+            raise HTTPError("Credential redirects are not permitted")
+        return response
 
     def _check_task(self) -> None:
         if self.task_control is not None:
             self.task_control.check()
+        if self.credential_context is not None:
+            self.credential_context.check()
+
+    def bind_credential_context(self, context: ScopedSourceContext):
+        self.credential_context = context
+
+    @property
+    def requires_bound_page(self):
+        return self.credential_context is not None
+
+    def bind_browser_page(self, url, result, validator):
+        if self.credential_context is None:
+            return result
+        return self.credential_context.bind_browser_page(
+            url, result, validator, self.fetch_page
+        )
+
+    def fetch_bound_browser_page(self, url, browser_fetch, validator, timeout_ms):
+        if self.credential_context is None:
+            return browser_fetch()
+        return self.credential_context.fetch_browser_page(
+            url, browser_fetch, validator, self.fetch_page, timeout_ms
+        )
 
     def set_cookie(self, cookie: str):
         self.cookie = cookie
@@ -138,9 +183,15 @@ class SourceBase(BrowserSessionHandler):
         *,
         write_guard: Callable[[], bool] | None = None,
     ) -> bool:
+        if self.credential_context is not None:
+            return False
         return self._sessions.set_cookie_auto(force_refresh, write_guard=write_guard)
 
     def load_cookie_from_db(self) -> bool:
+        if self.credential_context is not None:
+            record = self.credential_context.load_session()
+            self.set_session(record)
+            return bool(record and record.cookie)
         return self._sessions.load_cookie_from_db()
 
     @abstractmethod
@@ -164,6 +215,8 @@ class SourceBase(BrowserSessionHandler):
         timeout_seconds: float | None = None,
     ) -> PageResult:
         """Make one direct request using one immutable Cookie and UA snapshot."""
+        if self.credential_context is not None and session_override is None:
+            self.set_session(self.credential_context.load_session())
         self.last_final_url = None
         self._request_state.direct_status = None
         self._request_state.direct_failure = None
@@ -176,6 +229,7 @@ class SourceBase(BrowserSessionHandler):
             session = SourceCookieRecord(self.get_source_name().lower(), current_cookie)
         if (
             session_override is None
+            and self.credential_context is None
             and not getattr(
                 getattr(self, "page_fetcher", None), "session_reuse_enabled", True
             )
@@ -185,6 +239,14 @@ class SourceBase(BrowserSessionHandler):
         if session is None or not session.usable_on_route(
             proxy_route_profile(self.proxy)
         ):
+            if (
+                self.credential_context is not None
+                and session is not None
+                and session.cookie
+            ):
+                from nassav.credential_crypto import CredentialUnavailable
+
+                raise CredentialUnavailable("Credential route mismatch")
             session = SourceCookieRecord(self.get_source_name().lower(), "")
         self._request_state.page_session = session
         self._request_state.timeout_override = timeout_seconds
@@ -214,6 +276,8 @@ class SourceBase(BrowserSessionHandler):
             if referer:
                 headers["Referer"] = referer
             session = getattr(self._request_state, "page_session", None)
+            if session is None and self.credential_context is not None:
+                session = self.credential_context.load_session()
             if session is not None:
                 if session.cookie:
                     headers["Cookie"] = session.cookie
@@ -259,6 +323,9 @@ class SourceBase(BrowserSessionHandler):
             return None
 
     def browser_session_version(self) -> str | None:
+        if self.credential_context is not None:
+            record = self.credential_context.load_session()
+            return record.updated_at if record else None
         return self._sessions.browser_session_version()
 
     def accept_browser_session(
@@ -272,6 +339,8 @@ class SourceBase(BrowserSessionHandler):
         refresh_key_value: str | None = None,
     ) -> bool:
         self._check_task()
+        if self.credential_context is not None:
+            return False  # Scoped replay already owns persistence; never dual-write.
         original_guard = write_guard
 
         def guarded():
@@ -296,6 +365,10 @@ class SourceBase(BrowserSessionHandler):
         validator: Callable[[str], bool],
         timeout_ms: int,
     ) -> PageResult:
+        if self.credential_context is not None:
+            return self.fetch_bound_browser_page(
+                url, browser_fetch, validator, timeout_ms
+            )
         return self._sessions.coordinate_browser_fallback(
             url, failed_direct, direct_fetch, browser_fetch, validator, timeout_ms
         )

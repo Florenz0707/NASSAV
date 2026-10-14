@@ -82,8 +82,14 @@ def test_reverse_refuses_to_discard_duplicate_user_blocklists(django_user_model)
     user = django_user_model.objects.create(username="rec-reverse")
     RecommendationAvidBlocklist.objects.create(avid="DUPLICATE")
     RecommendationAvidBlocklist.objects.create(owner=user, avid="DUPLICATE")
-    with pytest.raises(RuntimeError, match="不能回退"):
-        MigrationExecutor(connection).migrate(
-            [("nassav", "0034_user_preferences_json")]
-        )
-    assert RecommendationAvidBlocklist.objects.count() == 2
+    latest = MigrationExecutor(connection).loader.graph.leaf_nodes()
+    try:
+        with pytest.raises(RuntimeError, match="不能回退"):
+            MigrationExecutor(connection).migrate(
+                [("nassav", "0034_user_preferences_json")]
+            )
+        assert RecommendationAvidBlocklist.objects.count() == 2
+    finally:
+        # Later expansion migrations already reversed before 0035 refuses.
+        # Keep the data assertion, then restore the schema for subsequent tests.
+        MigrationExecutor(connection).migrate(latest)

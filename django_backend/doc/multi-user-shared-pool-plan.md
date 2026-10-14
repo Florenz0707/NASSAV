@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储协议已交付、消费者切换执行中；P4–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0040。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0041。
 
 ## 1. 目标与首版范围
 
@@ -254,3 +254,9 @@ pnpm run check
 0040与加密凭证/快照、盲写HTTP、导入及轮换先落地，详见[凭证架构](source-credential-architecture.md)。P3仍在执行：来源工厂、网络会话、缓存发布及ProxyServer范围能力尚待切换；不把子阶段当完整P3。
 
 存储子阶段隔离门槛（2026-10-15）：全量SQLite `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为1062 passed、28 skipped；临时PostgreSQL专项为21 passed；`makemigrations --check --dry-run`无差异。`pre-commit run -a`全仓检查通过后提交。28项在线/opt-in跳过未当作目标环境通过；未执行现有实例迁移、Cookie导入或管理员引导。
+
+### P3范围消费者记录
+
+独立分支`feat/scoped-source-runtime`：0041 key policy、可选新来源模式、范围resolver/fork、ProxyServer能力、先领取刷新租约及有界复用、缓存和推荐提交fence、系统源播放引用/撤销及配套UA。详情见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。
+
+2026-10-15隔离门槛：全量SQLite1078 passed/28 skipped；PostgreSQL专项37 passed；模型迁移无差异；`pre-commit run -a`全部通过。修复两个验收辅助问题：失败逆向迁移测试恢复最新schema，跨进程容量测试在统一启动屏障后开始等待预算，原容量断言保留。真实站点账户/代理出口、普通账号准入、私人任务资产、版本与GC仍须后续验收；当前配置默认旧模式，现有实例未迁移。P4–P8继续待实施。

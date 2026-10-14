@@ -123,6 +123,15 @@ def grant_playback(user_id, resource):
 def can_read_playback(user, session):
     """A pre-authorized grant may drain after ordinary release, never after downlist."""
     from nassav.library_models import ResourcePoolEntry
+    from django.conf import settings
+
+    if settings.SOURCE_CREDENTIALS_ENABLED and session.media_kind == "source":
+        from nassav.credential_playback import binding_current
+
+        if not binding_current(
+            session.library_grant.get("source_auth"), session.source
+        ):
+            return False
 
     if ResourcePoolEntry.objects.filter(
         resource=session.resource, is_available=False

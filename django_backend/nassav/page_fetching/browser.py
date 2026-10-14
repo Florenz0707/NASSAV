@@ -6,6 +6,7 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 import requests
 
 from .contracts import BrowserPageClient, FetchFailure, PageResult
+from .proxy_server import ProxySessionCapabilities
 
 
 class _V1BrowserClient(BrowserPageClient):
@@ -111,6 +112,11 @@ class _V1BrowserClient(BrowserPageClient):
 
 
 class ByparrPageClient(_V1BrowserClient):
+    session_capabilities = ProxySessionCapabilities(
+        isolated_contexts=True,
+        challenge_replay=True,
+        context_revision="isolated-challenge-v1",
+    )
     provider = "byparr"
 
     def __init__(self, base_url: str, *, proxy_url: str | None = None):

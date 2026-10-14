@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from uuid import uuid4
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils import timezone
@@ -47,7 +48,15 @@ def snapshot(row):
     }
 
 
-def submit(user_id, key, avid, request_id, *, mode="source", descriptor=None):
+def has_submission(user_id, key, request_id):
+    return PlaybackSession.objects.filter(
+        user_id=user_id, login_hash=login_hash(key), request_id=request_id
+    ).exists()
+
+
+def submit(
+    user_id, key, avid, request_id, *, mode="source", descriptor=None, source_auth=None
+):
     if mode not in {"source", "local"} or (mode == "local" and not descriptor):
         raise ValueError("Invalid playback mode")
     now = timezone.now()
@@ -71,6 +80,12 @@ def submit(user_id, key, avid, request_id, *, mode="source", descriptor=None):
             library_grant = grant_playback(user_id, resource)
         except PermissionError as error:
             raise PlaybackStopped("Resource not available") from error
+        if settings.SOURCE_CREDENTIALS_ENABLED and mode == "source":
+            from nassav.credential_playback import binding_current
+
+            if not binding_current(source_auth, resource.source.lower()):
+                raise PlaybackStopped("Source credential changed")
+            library_grant = {**library_grant, "source_auth": source_auth}
         if (
             PlaybackSession.objects.filter(
                 user_id=user_id,
@@ -175,6 +190,14 @@ def execution_rows(token):
 
 
 def check(token):
+    if settings.SOURCE_CREDENTIALS_ENABLED:
+        from nassav.credential_playback import binding_current
+
+        row = execution_rows(token).first()
+        if row is None or not binding_current(
+            row.library_grant.get("source_auth"), row.source
+        ):
+            raise PlaybackStopped("Source credential changed")
     if not execution_rows(token).update(
         lease_until=timezone.now() + timedelta(seconds=90)
     ):
@@ -183,6 +206,8 @@ def check(token):
 
 def publish(token, operation):
     with transaction.atomic():
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            check(token)
         if not execution_rows(token).update(version=F("version")):
             raise PlaybackStopped("Playback preparation no longer owned")
         return operation()

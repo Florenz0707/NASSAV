@@ -4,7 +4,7 @@ from rest_framework.permissions import BasePermission
 
 from nassav.access import is_operator
 from nassav.api_utils import build_response
-from nassav.composition import build_credential_records
+from nassav import composition
 from nassav.credential_crypto import CredentialUnavailable
 from nassav.credential_models import SourceCredential
 from nassav.http.account_views import IsAdminOperator
@@ -60,7 +60,7 @@ class SourceCredentialsView(SchemaAPIView):
                 return build_response(404, "凭证不存在", None)
             source_name = row.source_name
         try:
-            data = build_credential_records().write(
+            data = composition.build_credential_records().write(
                 request.user.pk,
                 source_name,
                 payload,

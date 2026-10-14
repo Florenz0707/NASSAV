@@ -181,9 +181,15 @@ class ExternalSourceAdapter(ABC):
         source = self.source_lookup(self.source_name)
         if source is None:
             raise SourceSearchUnavailable("source_disabled")
+        route = proxy_route_profile(getattr(source, "proxy", None)) or "direct"
+        context = getattr(source, "credential_context", None)
+        if context is not None:
+            import hashlib
+
+            route = hashlib.sha256(context.scope_key.encode()).hexdigest()
         return (
             getattr(source, "domain", ""),
-            proxy_route_profile(getattr(source, "proxy", None)) or "direct",
+            route,
         )
 
     def validate_ordering(self, ordering: str) -> None:
@@ -507,6 +513,20 @@ class ExternalSearchService:
     DEFAULT_PAGE_SIZE = 20
     MAX_PAGE_SIZE = 100
 
+    def for_user(self, user_id):
+        if not settings.SOURCE_CREDENTIALS_ENABLED:
+            return self
+        if self._credential_bound and self._credential_user_id == user_id:
+            return self
+        service = ExternalSearchService(
+            adapters=external_search_adapters(
+                proxy_server=self.proxy_server, user_id=user_id
+            ),
+            proxy_server=self.proxy_server,
+        )
+        service._credential_bound, service._credential_user_id = True, user_id
+        return service
+
     def default_source(self, entity_type: str, *, user_id=None) -> str:
         from nassav.personal_preferences import read_preferences
 
@@ -530,6 +550,7 @@ class ExternalSearchService:
         adapters: Mapping[str, ExternalSourceAdapter] | None = None,
         proxy_server: ProxyServer | None = None,
     ):
+        self._credential_bound, self._credential_user_id = False, None
         if proxy_server is None and adapters is None:
             from nassav.page_fetching.factory import create_proxy_server
 
@@ -599,6 +620,10 @@ class ExternalSearchService:
         defer_cache_publication: bool = False,
         user_id=None,
     ) -> ExternalSearchResult:
+        if settings.SOURCE_CREDENTIALS_ENABLED and not self._credential_bound:
+            arguments = dict(locals())
+            arguments.pop("self")
+            return self.for_user(user_id).search_actor_detail(**arguments)
         from nassav.account_policy import catalog_resource_filter
 
         actor = (
@@ -661,6 +686,10 @@ class ExternalSearchService:
         defer_cache_publication: bool = False,
         user_id=None,
     ) -> ExternalSearchResult:
+        if settings.SOURCE_CREDENTIALS_ENABLED and not self._credential_bound:
+            arguments = dict(locals())
+            arguments.pop("self")
+            return self.for_user(user_id).search_genre_detail(**arguments)
         from nassav.account_policy import catalog_resource_filter
 
         genre = (

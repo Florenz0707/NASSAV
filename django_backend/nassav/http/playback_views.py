@@ -119,11 +119,26 @@ class PlaybackSessionView(SchemaAPIView):
                         command_id,
                     )
                 elif mode == "source":
-                    row = records.submit(
+                    source_auth = None
+                    if (
+                        settings.SOURCE_CREDENTIALS_ENABLED
+                        and not records.has_submission(
+                            request.user.pk, request.session.session_key, command_id
+                        )
+                    ):
+                        from nassav.composition import build_playback_source_binding
+
+                        source_auth = build_playback_source_binding(avid.upper())
+                    args = (
                         request.user.pk,
                         request.session.session_key,
                         avid.upper(),
                         command_id,
+                    )
+                    row = (
+                        records.submit(*args, source_auth=source_auth)
+                        if settings.SOURCE_CREDENTIALS_ENABLED
+                        else records.submit(*args)
                     )
                 else:
                     raise ValueError("Invalid playback mode")

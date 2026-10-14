@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from .proxy_server import ProxySessionCapabilities
 
 
 class FetchFailure(StrEnum):
@@ -40,6 +41,8 @@ class PageResult:
 class BrowserPageClient(ABC):
     """Fetch a raw browser page without deciding whether it is a business page."""
 
+    session_capabilities = ProxySessionCapabilities()
+
     def close(self) -> None:
         """Release a request-local transport, if this adapter owns one."""
 
@@ -57,6 +60,18 @@ class BrowserPageClient(ABC):
 
 class BrowserSessionHandler(ABC):
     """Session lifecycle hooks for committing and coordinating browser sessions."""
+
+    @property
+    def requires_bound_page(self) -> bool:
+        return False
+
+    def bind_browser_page(self, url, result, validator) -> PageResult:
+        return result
+
+    def fetch_bound_browser_page(
+        self, url, browser_fetch, validator, timeout_ms
+    ) -> PageResult:
+        return self.bind_browser_page(url, browser_fetch(), validator)
 
     @abstractmethod
     def browser_session_version(self) -> str | None:

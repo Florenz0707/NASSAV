@@ -176,6 +176,9 @@ class DjangoAccountCommands:
                 if action == "update":
                     # Removing ownership happens before disabling the user fence.
                     if row.user.is_active and not active:
+                        from nassav.credential_records import revoke_owned_credentials
+
+                        revoke_owned_credentials(row.user.pk)
                         self._detach_owned_work(
                             row.user.pk, actor_id, command["request_id"]
                         )

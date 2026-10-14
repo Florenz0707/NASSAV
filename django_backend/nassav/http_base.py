@@ -16,9 +16,12 @@ class SchemaAPIView(APIView):
     def handle_exception(self, exc):
         from nassav.library_membership import LibraryNotFound
         from nassav.api_utils import build_response
+        from nassav.credential_crypto import CredentialUnavailable
 
         if isinstance(exc, LibraryNotFound):
             return build_response(404, "对象不存在", None)
         if isinstance(exc, PermissionError):
             return build_response(403, "操作未授权或账号已停用", None)
+        if isinstance(exc, CredentialUnavailable):
+            return build_response(503, str(exc), None)
         return super().handle_exception(exc)

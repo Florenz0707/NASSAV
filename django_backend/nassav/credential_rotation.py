@@ -2,11 +2,16 @@
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 
 from nassav.account_models import AccountControl, UserAccount, AuditEvent
 from django.utils.crypto import salted_hmac
 from uuid import uuid4
-from nassav.credential_models import SourceCredential, SourceSessionSnapshot
+from nassav.credential_models import (
+    SourceCredential,
+    SourceSessionSnapshot,
+    SourceCredentialKeyPolicy,
+)
 from nassav.source_credentials import (
     CredentialConflict,
     credential_context,
@@ -24,6 +29,56 @@ def rotate_credentials(records, actor_id, *, apply=False, batch_size=100):
     ):
         raise PermissionError("Admin required")
     result = {}
+    before_policy = SourceCredentialKeyPolicy.objects.filter(pk=1).first()
+    required = set(
+        SourceCredential.objects.exclude(ciphertext="").values_list("key_id", flat=True)
+    ) | set(
+        SourceSessionSnapshot.objects.exclude(ciphertext="").values_list(
+            "key_id", flat=True
+        )
+    )
+    if before_policy is not None:
+        required.add(before_policy.active_key_id)
+    records.keyring.require_keys(required)
+    if apply:
+        with transaction.atomic():
+            control, _ = AccountControl.objects.get_or_create(pk=1)
+            AccountControl.objects.select_for_update().get(pk=control.pk)
+            policy, created = SourceCredentialKeyPolicy.objects.get_or_create(
+                pk=1, defaults={"active_key_id": records.keyring.active_id}
+            )
+            policy = SourceCredentialKeyPolicy.objects.select_for_update().get(
+                pk=policy.pk
+            )
+            if (0 if created else policy.version) != (
+                before_policy.version if before_policy is not None else 0
+            ):
+                raise CredentialConflict(
+                    "Credential key policy changed; rerun preflight"
+                )
+            actor = get_user_model().objects.select_for_update().get(pk=actor_id)
+            if (
+                not actor.is_active
+                or not UserAccount.objects.filter(user=actor, role="admin").exists()
+            ):
+                raise PermissionError("Admin required")
+            if policy.active_key_id != records.keyring.active_id:
+                policy.active_key_id = records.keyring.active_id
+                policy.version += 1
+                policy.updated_at = timezone.now()
+                policy.save()
+                AuditEvent.objects.create(
+                    actor=actor,
+                    request_id=uuid4(),
+                    action="source_credential.rotate_policy",
+                    object_id="source_key_policy",
+                    reason="maintenance",
+                    payload_hash=salted_hmac(
+                        "nassav-credential-key-policy",
+                        f"{policy.version}:{policy.active_key_id}",
+                    ).hexdigest(),
+                    result={"version": policy.version},
+                )
     for model, context in (
         (SourceCredential, lambda row: credential_context(reference(row))),
         (SourceSessionSnapshot, snapshot_context),
@@ -45,6 +100,7 @@ def rotate_credentials(records, actor_id, *, apply=False, batch_size=100):
             with transaction.atomic():
                 control, _ = AccountControl.objects.get_or_create(pk=1)
                 AccountControl.objects.select_for_update().get(pk=control.pk)
+                records.lock_key_policy()
                 actor = get_user_model().objects.select_for_update().get(pk=actor_id)
                 if (
                     not actor.is_active

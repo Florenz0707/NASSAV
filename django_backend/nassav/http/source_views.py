@@ -15,6 +15,7 @@ from nassav.serializers import (
     SourceCookieListSerializer,
 )
 from nassav.source.SourceManager import source_manager
+from django.conf import settings
 
 
 class SourceListView(SchemaAPIView):
@@ -55,6 +56,8 @@ class SourceCookieView(SchemaAPIView):
 
     def get(self, request):
         """获取所有源的 Cookie 配置"""
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            return build_response(410, "请使用加密凭证元信息接口", None)
         from nassav.models import SourceCookie
 
         cookies = SourceCookie.objects.all().order_by("source_name")
@@ -62,6 +65,8 @@ class SourceCookieView(SchemaAPIView):
         return Response({"code": 200, "message": "success", "data": serializer.data})
 
     def post(self, request):
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            return build_response(410, "请使用加密凭证盲写接口", None)
         data = request.data or {}
         source_name = data.get("source")
         cookie = data.get("cookie")
@@ -146,6 +151,8 @@ class SourceCookieView(SchemaAPIView):
 
     def delete(self, request):
         """删除指定源的 Cookie（设为空）"""
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            return build_response(410, "请使用版本化凭证撤销接口", None)
         source_name = request.query_params.get("source")
         if not source_name:
             return Response(

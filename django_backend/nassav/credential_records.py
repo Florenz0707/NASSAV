@@ -17,7 +17,11 @@ from nassav.account_models import (
     AuditEvent,
 )
 from nassav.credential_crypto import CredentialUnavailable
-from nassav.credential_models import SourceCredential, SourceSessionSnapshot
+from nassav.credential_models import (
+    SourceCredential,
+    SourceSessionSnapshot,
+    SourceCredentialKeyPolicy,
+)
 from nassav.db_retry import retry_sqlite_contention
 from nassav.source_credentials import (
     CredentialConflict,
@@ -56,13 +60,117 @@ def public_credential(row):
     }
 
 
+def revoke_owned_credentials(user_id):
+    """Caller holds the user fence; never resurrect on later account activation."""
+    rows = list(
+        SourceCredential.objects.select_for_update()
+        .filter(owner_id=user_id, scope="personal")
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+    SourceCredential.objects.filter(pk__in=rows).update(
+        state="revoked",
+        version=F("version") + 1,
+        ciphertext="",
+        key_id="",
+        revoked_at=timezone.now(),
+        updated_at=timezone.now(),
+    )
+    SourceSessionSnapshot.objects.filter(credential_id__in=rows).update(
+        ciphertext="",
+        key_id="",
+        refresh_owner=None,
+        lease_until=None,
+        generation=F("generation") + 1,
+        updated_at=timezone.now(),
+    )
+
+
 class DjangoCredentialRecords:
     def __init__(self, keyring, origins):
         self.keyring = keyring
         self.origins = dict(origins)
 
+    def origin_for_source(self, source_name):
+        if source_name.lower() not in self.origins:
+            raise CredentialUnavailable("Source origin is unavailable")
+        return self.origins[source_name.lower()]
+
+    def _check_key_policy(self):
+        policy = SourceCredentialKeyPolicy.objects.filter(pk=1).first()
+        if policy is not None and policy.active_key_id != self.keyring.active_id:
+            raise CredentialUnavailable("Credential writer key changed; reload keyring")
+
+    def lock_key_policy(self):
+        row, _ = SourceCredentialKeyPolicy.objects.get_or_create(
+            pk=1, defaults={"active_key_id": self.keyring.active_id}
+        )
+        row = SourceCredentialKeyPolicy.objects.select_for_update().get(pk=row.pk)
+        if row.active_key_id != self.keyring.active_id:
+            raise CredentialUnavailable("Credential writer key changed; reload keyring")
+        return row
+
+    def check_current(self, ref, *, user_id=None, source_name=None):
+        self._check_key_policy()
+        if (
+            user_id is not None
+            and not get_user_model().objects.filter(pk=user_id, is_active=True).exists()
+        ):
+            raise CredentialUnavailable("Account unavailable")
+        if ref is None:
+            from django.db.models import Q
+
+            if not source_name:
+                raise CredentialUnavailable("Anonymous source context is missing")
+            scopes = Q(scope="system")
+            if user_id is not None:
+                scopes |= Q(scope="personal", owner_id=user_id)
+            if (
+                SourceCredential.objects.filter(source_name=source_name.lower())
+                .filter(scopes)
+                .exists()
+            ):
+                raise CredentialUnavailable("Credential selection changed")
+            return
+        if not SourceCredential.objects.filter(
+            pk=ref.id,
+            version=ref.version,
+            state="active",
+            origin_host=ref.origin_host,
+            scope=ref.scope,
+            owner_id=ref.owner_id,
+            source_name=ref.source_name,
+            kind=ref.kind,
+        ).exists():
+            raise CredentialUnavailable("Credential changed")
+        if (
+            ref.owner_id
+            and not get_user_model()
+            .objects.filter(pk=ref.owner_id, is_active=True)
+            .exists()
+        ):
+            raise CredentialUnavailable("Credential owner disabled")
+
+    @retry_sqlite_contention
+    def publish_current(self, ref, callback, *, user_id=None, source_name=None):
+        with transaction.atomic():
+            self.lock_key_policy()
+            if user_id is not None:
+                actor = get_user_model().objects.select_for_update().get(pk=user_id)
+                if not actor.is_active:
+                    raise CredentialUnavailable("Account unavailable")
+            if ref is not None:
+                self._lock_ref(ref)
+            else:
+                # Serialize selection against credential creation by the actor;
+                # system creation also takes AccountControl, before user locks.
+                # Anonymous publication cannot contain an account credential.
+                self.check_current(ref, user_id=user_id, source_name=source_name)
+            return callback()
+
     def resolve(self, source_name, *, user_id=None, credential_id=None):
         """No fallback from a revoked/quarantined personal credential to system."""
+        self._check_key_policy()
         source_name = source_name.lower()
         rows = SourceCredential.objects.filter(source_name=source_name)
         if (
@@ -84,7 +192,11 @@ class DjangoCredentialRecords:
                 row = rows.filter(scope="system").first()
         if row is None:
             return None
-        if row.state != "active" or row.origin_host != self.origins.get(source_name):
+        if (
+            row.state != "active"
+            or row.origin_host != self.origins.get(source_name)
+            or (row.scope == "system" and row.kind != "clearance")
+        ):
             raise CredentialUnavailable(
                 "Credential is revoked, quarantined or has a different origin"
             )
@@ -95,6 +207,7 @@ class DjangoCredentialRecords:
         return reference(row)
 
     def secret(self, ref):
+        self._check_key_policy()
         row = SourceCredential.objects.filter(
             pk=ref.id, version=ref.version, state="active", origin_host=ref.origin_host
         ).first()
@@ -203,6 +316,7 @@ class DjangoCredentialRecords:
             if request_id is not None:
                 control, _ = AccountControl.objects.get_or_create(pk=1)
                 AccountControl.objects.select_for_update().get(pk=control.pk)
+            self.lock_key_policy()
             actor = get_user_model().objects.select_for_update().get(pk=actor_id)
             if not actor.is_active:
                 raise PermissionError("Account unavailable")
@@ -245,6 +359,9 @@ class DjangoCredentialRecords:
             row.revoked_at = timezone.now() if revoke else None
             row.updated_at = timezone.now()
             row.save()
+            from nassav.credential_playback import close_bound_playback
+
+            close_bound_playback(row.pk)
             SourceSessionSnapshot.objects.filter(credential=row).update(
                 refresh_owner=None,
                 lease_until=None,
@@ -296,6 +413,7 @@ class DjangoCredentialRecords:
         ):
             raise ValueError("Invalid refresh context")
         with transaction.atomic():
+            self.lock_key_policy()
             credential = self._lock_ref(ref)
             row, _ = SourceSessionSnapshot.objects.get_or_create(
                 credential=credential,
@@ -356,6 +474,7 @@ class DjangoCredentialRecords:
         ):
             raise ValueError("Invalid session expiry")
         with transaction.atomic():
+            self.lock_key_policy()
             self._lock_ref(claim.credential)
             check()
             row = SourceSessionSnapshot.objects.select_for_update().get(
@@ -408,6 +527,17 @@ class DjangoCredentialRecords:
         # The read must not return an old snapshot after a concurrent manual edit.
         self.secret(ref)
         return payload, f"{ref.version}:{row.version}"
+
+    def refresh_busy(self, ref, *, egress_profile, browser_context):
+        return SourceSessionSnapshot.objects.filter(
+            credential_id=ref.id,
+            credential_version=ref.version,
+            origin_host=ref.origin_host,
+            egress_profile=egress_profile,
+            browser_context=browser_context,
+            refresh_owner__isnull=False,
+            lease_until__gt=timezone.now(),
+        ).exists()
 
 
 def replace_snapshot_version(row):

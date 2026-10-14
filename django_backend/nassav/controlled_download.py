@@ -232,7 +232,8 @@ class ControlledDownload:
                     raise RuntimeError("无法获取下载信息")
                 headers = {
                     "Referer": f"https://{resolved.domain}/",
-                    "User-Agent": HEADERS["User-Agent"],
+                    "User-Agent": getattr(resolved, "user_agent", "")
+                    or HEADERS["User-Agent"],
                 }
                 records.checkpoint(token, "waiting_slot")
                 deadline = time.monotonic() + 1800
@@ -260,6 +261,9 @@ class ControlledDownload:
                     if resolved is None or not resolved.info.m3u8:
                         raise RuntimeError("无法刷新失效播放链接") from failure
                     headers["Referer"] = f"https://{resolved.domain}/"
+                    headers["User-Agent"] = (
+                        getattr(resolved, "user_agent", "") or HEADERS["User-Agent"]
+                    )
                     manifest = self.guard.describe(resolved.info.m3u8, headers, check)
                 workspace = self.assets.workspace(token, "video")
                 self.guard.prepare(

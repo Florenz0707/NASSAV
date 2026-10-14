@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 from uuid import UUID
+from typing import Protocol, Callable, TypeVar
 
 
 class CredentialConflict(RuntimeError):
@@ -102,6 +103,63 @@ class RefreshClaim:
     generation: int
     owner: UUID
     context: str
+
+
+T = TypeVar("T")
+
+
+class CredentialSessionRecords(Protocol):
+    def origin_for_source(self, source_name: str) -> str: ...
+    def resolve(
+        self, source_name: str, *, user_id: int | None = None, credential_id=None
+    ) -> CredentialReference | None: ...
+
+    def check_current(
+        self,
+        ref: CredentialReference | None,
+        *,
+        user_id: int | None = None,
+        source_name: str | None = None,
+    ) -> None: ...
+
+    def secret(self, ref: CredentialReference) -> dict[str, str]: ...
+
+    def session(
+        self, ref: CredentialReference, *, egress_profile: str, browser_context: str
+    ) -> tuple[dict[str, str], str]: ...
+
+    def publish_current(
+        self,
+        ref: CredentialReference | None,
+        callback: Callable[[], T],
+        *,
+        user_id: int | None = None,
+        source_name: str | None = None,
+    ) -> T: ...
+
+    def claim_refresh(
+        self,
+        ref: CredentialReference,
+        *,
+        egress_profile: str,
+        browser_context: str,
+        ttl_seconds: int = 60,
+    ) -> RefreshClaim | None: ...
+
+    def publish_refresh(
+        self,
+        claim: RefreshClaim,
+        secret: dict[str, str],
+        *,
+        expires_at,
+        check: Callable[[], None],
+    ) -> bool: ...
+
+    def release_refresh(self, claim: RefreshClaim) -> int: ...
+
+    def refresh_busy(
+        self, ref: CredentialReference, *, egress_profile: str, browser_context: str
+    ) -> bool: ...
 
 
 def credential_context(ref):

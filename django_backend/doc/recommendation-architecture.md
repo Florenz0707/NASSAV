@@ -167,3 +167,5 @@ useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代�
 迁移不推断旧共享数据归属，保留NULL owner待导入，业务用户不可见。维护窗口停止API/worker/Beat并备份，迁移取消旧活动推荐job，禁止混跑旧消费者。首次个人推荐前执行`uv run python manage.py import_recommendation_data --username <原操作者>`预览，确认后加`--apply`。只允许配置中的原操作者；目标已有个人推荐数据或活动job时拒绝自动合并。条目/种子/反馈关系保持，无残余旧行时再次执行为零操作，不改共享资源、缓存或文件。
 
 回退0035移除个人归属；不同用户已有相同AVID黑名单或种子身份时主动拒绝回退，不自动丢数据恢复旧唯一约束。必须先备份并明确处理冲突；回退移除新增用户state行，旧活动job不复活。删除账号级联清理所属个人推荐状态。仍保留is_operator准入，不开放注册或普通用户共享资产/任务控制权限。
+
+新来源模式下按job当前用户构造独立source context，私有事实/详情与短期查询缓存按credential版本隔离；最终context.persist也受来源fence包裹，网络仍在短提交外。当前系统不将个人结果自动提升共享资产，详见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。

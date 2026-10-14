@@ -28,6 +28,8 @@ from nassav.source.SourceBase import SourceBase
 class MissAV(SourceBase, ListingSource):
     """MissAV下载器"""
 
+    DEFAULT_DOMAIN = "missav.ai"
+
     def __init__(
         self,
         proxy: str | None = None,
@@ -45,7 +47,7 @@ class MissAV(SourceBase, ListingSource):
             refresh_coordinator=refresh_coordinator,
         )
         source_config = settings.SOURCE_CONFIG.get("missav", {})
-        self.domain = source_config.get("domain", "missav.ai")
+        self.domain = source_config.get("domain", self.DEFAULT_DOMAIN)
         self.browser_fetch_strategy = validate_strategy(
             source_config.get("browser_fetch_strategy", "browser_first")
         )
@@ -79,9 +81,12 @@ class MissAV(SourceBase, ListingSource):
             source=self.get_source_name(),
             path_kind="search" if kind == "search" else "listing",
             session_handler=self
-            if fetcher.session_reuse_enabled
-            and self.proxy
-            and getattr(fetcher.browser, "provider", None) == "byparr"
+            if self.requires_bound_page
+            or (
+                fetcher.session_reuse_enabled
+                and self.proxy
+                and getattr(fetcher.browser, "provider", None) == "byparr"
+            )
             else None,
         )
         if not result.ok:
@@ -118,9 +123,12 @@ class MissAV(SourceBase, ListingSource):
                 request_id=request_id,
                 path_kind="detail",
                 session_handler=self
-                if fetcher.session_reuse_enabled
-                and self.proxy
-                and getattr(fetcher.browser, "provider", None) == "byparr"
+                if self.requires_bound_page
+                or (
+                    fetcher.session_reuse_enabled
+                    and self.proxy
+                    and getattr(fetcher.browser, "provider", None) == "byparr"
+                )
                 else None,
             )
             if result.ok:
@@ -143,6 +151,8 @@ class MissAV(SourceBase, ListingSource):
         write_guard: Callable[[], bool] | None = None,
     ) -> bool:
         """Save browser cookies only after validating the home page."""
+        if self.credential_context is not None:
+            return False
         if not self.page_fetcher.browser:
             return super().set_cookie_auto(force_refresh, write_guard=write_guard)
         source_name = self.get_source_name()

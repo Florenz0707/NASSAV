@@ -7,6 +7,7 @@ cycles. Builders construct dependencies without performing network requests.
 from collections.abc import Callable
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
+from nassav.source_registry import source_provider_types
 
 
 def build_library_membership():
@@ -20,15 +21,25 @@ def build_credential_records():
     from django.conf import settings
     from nassav.credential_crypto import CredentialKeyring
     from nassav.credential_records import DjangoCredentialRecords
-    from nassav.source_credentials import origin_host
 
     keyring = CredentialKeyring.from_file(settings.SOURCE_CREDENTIAL_KEYRING_FILE)
-    origins = {
-        name.lower(): origin_host(data["domain"])
-        for name, data in settings.SOURCE_CONFIG.items()
-        if data.get("domain")
-    }
-    return DjangoCredentialRecords(keyring, origins)
+    return DjangoCredentialRecords(keyring, configured_source_origins())
+
+
+def configured_source_origins():
+    from django.conf import settings
+    from nassav.source_registry import configured_source_origins as origins
+
+    return origins(settings.SOURCE_CONFIG)
+
+
+def build_playback_source_binding(avid):
+    from nassav.models import AVResource
+    from nassav.credential_playback import capture_source_binding
+
+    return capture_source_binding(
+        build_credential_records(), AVResource.objects.get(avid=avid).source.lower()
+    )
 
 
 def build_account_management():
@@ -42,6 +53,7 @@ def build_account_management():
 
 
 if TYPE_CHECKING:
+    from nassav.scoped_source_context import ScopedSourceContext
     from nassav.page_fetching.factory import BrowserFetchConfig
     from nassav.page_fetching.proxy_server import ProxyServer
     from nassav.scraper.ScraperBase import ScraperBase
@@ -55,28 +67,65 @@ def source_factories(
     save_cookie: Callable[[str, str], bool],
     *,
     proxy_server: "ProxyServer | None" = None,
+    user_id: int | None = None,
+    credential_id=None,
 ) -> dict[str, Callable[[], "SourceBase"]]:
+    from django.conf import settings
     from nassav.page_fetching import create_page_fetch_service
-    from nassav.source.Jable import Jable
-    from nassav.source.Memo import Memo
-    from nassav.source.MissAV import MissAV
+    from nassav.page_fetching.factory import create_proxy_server
+
+    providers = source_provider_types()
+    Jable, Memo, MissAV = providers["jable"], providers["memo"], providers["missav"]
+
+    server = proxy_server or create_proxy_server(browser_config)
+
+    def scoped(source):
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            bind_source_credentials(
+                source, server, user_id=user_id, credential_id=credential_id
+            )
+        return source
 
     return {
-        "missav": lambda: MissAV(
-            proxy,
-            page_fetcher=create_page_fetch_service(
-                browser_config, proxy_url=proxy, proxy_server=proxy_server
-            ),
-            cookie_saver=lambda cookie: save_cookie("MissAV", cookie),
+        "missav": lambda: scoped(
+            MissAV(
+                proxy,
+                page_fetcher=create_page_fetch_service(
+                    browser_config, proxy_url=proxy, proxy_server=server
+                ),
+                cookie_saver=lambda cookie: save_cookie("MissAV", cookie),
+            )
         ),
-        "jable": lambda: Jable(
-            proxy,
-            page_fetcher=create_page_fetch_service(
-                browser_config, proxy_url=proxy, proxy_server=proxy_server
-            ),
+        "jable": lambda: scoped(
+            Jable(
+                proxy,
+                page_fetcher=create_page_fetch_service(
+                    browser_config, proxy_url=proxy, proxy_server=server
+                ),
+            )
         ),
-        "memo": lambda: Memo(proxy),
+        "memo": lambda: scoped(Memo(proxy)),
     }
+
+
+def bind_source_credentials(source, server, *, user_id=None, credential_id=None):
+    from nassav.scoped_source_context import CredentialSourceContext
+    from nassav.source.CookieRepository import proxy_route_profile
+
+    source.bind_credential_context(
+        CredentialSourceContext(
+            build_credential_records,
+            source.get_source_name(),
+            user_id=user_id,
+            credential_id=credential_id,
+            egress_profile=proxy_route_profile(source.proxy) or "direct",
+            browser_context=server.session_capabilities.context_revision,
+            capabilities=server.session_capabilities,
+            check=lambda: (
+                source.task_control.check() if source.task_control is not None else None
+            ),
+        )
+    )
 
 
 def scraper_factories(proxy: str | None) -> dict[str, Callable[[], "ScraperBase"]]:
@@ -99,7 +148,9 @@ def translator_factories() -> dict[str, Callable[[int, str], "TranslatorBase"]]:
     }
 
 
-def external_search_adapters(*, proxy_server: "ProxyServer | None" = None):
+def external_search_adapters(
+    *, proxy_server: "ProxyServer | None" = None, user_id=None
+):
     from nassav.external_search import (
         JableExternalSourceAdapter,
         MissAVExternalSourceAdapter,
@@ -114,16 +165,53 @@ def external_search_adapters(*, proxy_server: "ProxyServer | None" = None):
         settings.BROWSER_FETCH_CONFIG,
         source_manager.set_source_cookie,
         proxy_server=proxy_server or create_proxy_server(settings.BROWSER_FETCH_CONFIG),
+        user_id=user_id,
     )
 
+    templates = (
+        {
+            name: factory()
+            for name, factory in factories.items()
+            if settings.SOURCE_CONFIG.get(name, {}).get("weight", 0)
+        }
+        if settings.SOURCE_CREDENTIALS_ENABLED
+        else None
+    )
+
+    def lookup(name):
+        return (
+            templates.get(name.lower())
+            if templates is not None
+            else source_manager.get_source(name)
+        )
+
+    def factory(name):
+        source = factories[name]()
+        template = lookup(name)
+        if (
+            templates is not None
+            and template is not None
+            and template.credential_context is not None
+        ):
+            source.bind_credential_context(
+                template.credential_context.fork(
+                    lambda: (
+                        source.task_control.check()
+                        if source.task_control is not None
+                        else None
+                    )
+                )
+            )
+        return source
+
     def scope(name):
-        return lambda check: _controlled_source_scope(factories[name], check)
+        return lambda check: _controlled_source_scope(lambda: factory(name), check)
 
     def facts_lookup(name, items):
         from nassav.provider_facts import SourceFactsLookup
         from nassav.source.SourceBase import SourceBase
 
-        source = source_manager.get_source(name)
+        source = lookup(name)
         if not isinstance(source, SourceBase):
             return {}
         return SourceFactsLookup(build_provider_facts_cache(), source).read_facts(
@@ -132,10 +220,12 @@ def external_search_adapters(*, proxy_server: "ProxyServer | None" = None):
 
     return {
         "jable": JableExternalSourceAdapter(
-            source_scope=scope("jable"), facts_lookup=facts_lookup
+            source_scope=scope("jable"), facts_lookup=facts_lookup, source_lookup=lookup
         ),
         "missav": MissAVExternalSourceAdapter(
-            source_scope=scope("missav"), facts_lookup=facts_lookup
+            source_scope=scope("missav"),
+            facts_lookup=facts_lookup,
+            source_lookup=lookup,
         ),
         "memo": PlaceholderExternalSourceAdapter("memo"),
     }
@@ -235,9 +325,10 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
     )
 
     proxy_server = create_proxy_server(settings.BROWSER_FETCH_CONFIG)
+    credential_context: list["ScopedSourceContext | None"] = [None]
 
     def source_factory():
-        return Jable(
+        source = Jable(
             proxy=settings.PROXY_URL if settings.PROXY_ENABLED else None,
             strict_failures=True,
             facts_cache=build_provider_facts_cache(),
@@ -247,6 +338,22 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
                 proxy_server=proxy_server,
             ),
         )
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            bound = credential_context[0]
+            if bound is None:
+                bind_source_credentials(source, proxy_server, user_id=user_id)
+                credential_context[0] = source.credential_context
+            else:
+                source.bind_credential_context(
+                    bound.fork(
+                        lambda: (
+                            source.task_control.check()
+                            if source.task_control is not None
+                            else None
+                        )
+                    )
+                )
+        return source
 
     def jable_factory(strategy):
         from nassav.source.search_contracts import SourceSearchUnavailable
@@ -277,11 +384,16 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
             **strategy.recommender_kwargs,
         )
 
+    def persist_scoped(persist):
+        bound = credential_context[0]
+        return bound.publish(persist) if bound is not None else persist()
+
     return RecommenderManager(
         context
         if context is not None
         else DjangoRecommendationContext(user_id=user_id),
         {"jable_page_lookup": jable_factory},
+        publication_fence=persist_scoped,
     )
 
 

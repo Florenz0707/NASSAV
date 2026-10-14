@@ -68,3 +68,5 @@ P5 最终完整隔离验证：`uv run pytest tests/ --ds=django_project.refactor
 ## 在线播放准备
 
 P1 使用独立 online-playback-v2 播放事实，包含 manifest_url、实际 Referer、UA、来源/出口与会话版本、schema 和 omit Cookie 策略；不读取旧 m3u8-only 行。TTL 沿用 PlaybackTTLSeconds，发布受 PlaybackSession 执行 fence 约束。正式下载消费者保持 playback-v1，不因在线播放改变下载代理或续传契约。详见[在线播放架构](online-playback-architecture.md)。
+
+启用范围凭证后，Source事实/播放key包括credential/version/host/出口/context，并在DB publish外层核查专用key policy、actor和credential。批量详情只在批次边界查询授权。旧public命名空间不作为个人结果来源，Redis迟到数据只留于失效版本命名空间，见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。

@@ -19,6 +19,7 @@ from nassav.account_models import (
 )
 
 from nassav.credential_models import (
+    SourceCredentialKeyPolicy as SourceCredentialKeyPolicy,
     SourceCredential as SourceCredential,
     SourceSessionSnapshot as SourceSessionSnapshot,
 )

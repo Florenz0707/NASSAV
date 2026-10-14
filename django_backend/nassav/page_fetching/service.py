@@ -67,12 +67,24 @@ class PageFetchService:
         path_kind: str = "page",
     ) -> PageResult:
         request_id = request_id or uuid4().hex[:12]
-        if not self.session_reuse_enabled:
+        if not self.session_reuse_enabled and not (
+            session_handler is not None and session_handler.requires_bound_page is True
+        ):
             session_handler = None
         started = monotonic()
         direct_ms = 0
         browser_ms = 0
         browser_calls = 0
+
+        def raw_browser_page():
+            nonlocal browser_calls, browser_ms
+            browser = self.browser
+            assert browser is not None
+            started = monotonic()
+            result = browser.fetch(url, timeout_ms=self.timeout_ms)
+            browser_calls += 1
+            browser_ms += round((monotonic() - started) * 1000)
+            return result
 
         def report(result: PageResult) -> PageResult:
             self._check()
@@ -126,10 +138,17 @@ class PageFetchService:
                             source,
                             type(error).__name__,
                         )
-                browser_started = monotonic()
-                result = self.browser.fetch(url, timeout_ms=self.timeout_ms)
-                browser_ms += round((monotonic() - browser_started) * 1000)
-                browser_calls += 1
+                if (
+                    session_handler is not None
+                    and session_handler.requires_bound_page is True
+                ):
+                    result = session_handler.fetch_bound_browser_page(
+                        url, raw_browser_page, validator, self.timeout_ms
+                    )
+                    if result.provider == "direct":
+                        direct_ms += result.elapsed_ms
+                else:
+                    result = raw_browser_page()
                 if result.failure == FetchFailure.CONNECTION:
                     self.browser_unavailable = True
             else:
@@ -183,7 +202,7 @@ class PageFetchService:
                     url,
                     result,
                     direct_fetch,
-                    lambda: browser.fetch(url, timeout_ms=self.timeout_ms),
+                    raw_browser_page,
                     validator,
                     self.timeout_ms,
                 )
@@ -192,10 +211,7 @@ class PageFetchService:
                     and coordinated.provider != "direct"
                 ):
                     self.browser_unavailable = True
-                if coordinated.provider != "direct":
-                    browser_calls += 1
-                    browser_ms += coordinated.elapsed_ms
-                else:
+                if coordinated.provider == "direct":
                     direct_ms += coordinated.elapsed_ms
                 try:
                     version = session_handler.browser_session_version()

@@ -25,8 +25,12 @@ def import_legacy_credentials(records, actor_id, *, apply=False):
         raise PermissionError("Admin required")
     inputs = list(SourceCookie.objects.order_by("source_name"))
     plan, prepared = [], []
+    names = set()
     for old in inputs:
         source = old.source_name.lower()
+        if source in names:
+            raise ValueError("Duplicate canonical legacy source")
+        names.add(source)
         origin = records.origins.get(source)
         if origin is None:
             raise ValueError("Legacy source origin is not configured")
@@ -58,6 +62,7 @@ def import_legacy_credentials(records, actor_id, *, apply=False):
     with transaction.atomic():
         control, _ = AccountControl.objects.get_or_create(pk=1)
         AccountControl.objects.select_for_update().get(pk=control.pk)
+        records.lock_key_policy()
         actor = get_user_model().objects.select_for_update().get(pk=actor_id)
         if (
             not actor.is_active

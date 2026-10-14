@@ -146,3 +146,5 @@ JSON配置的 `test_json_preferences.py` 覆盖缺省只读补齐、增删/改�
 跨设备覆盖test_playback_continuations.py：用户隔离、最新ledger后过滤、完成/近尾/清除/删除、来源或本地文件版本变化、批量固定查询数、登录绑定/保存权转移及旧writer拒绝。独立PostgreSQL测试库必须使用UTF8（例如TEST.CHARSET=UTF8与TEMPLATE=template0），不能用SQL_ASCII验证中文JSONB。local_playback_server提供两个同用户的独立登录，只在明确opt-in和9791–9799测试端口运行；退出先关闭临时播放会话，再停止其专用API/Redis并清理临时目录。
 
 观看列表验证：test_viewing.py覆盖用户/登录归属、去重置顶、恢复/重试/乱序、并发、版本冲突、删除与HTTP；test_viewing_migration.py覆盖0035→0036→0035→0036。隔离播放服务器设置NASSAV_VIEWING_TEST_FIXTURE=1额外生成LOCAL-SECOND合成MP4，供前端tests/browser/viewing.cjs真实API验收；使用两份临时登录storage state，禁止连接正式数据库。
+
+P3范围专项增加`test_scoped_source_runtime.py`：真实ORM/加密，合成匿名与带凭证页面；核查禁止匿名私人成功、Cookie/UA不串、原站/重定向/CDN、缺钥/旧key writer、账号停用后不复活、播放撤销及已完成外搜句柄410。查询预算比较1与100个候选。该专项不冒充真实网站或跨浏览器验收。

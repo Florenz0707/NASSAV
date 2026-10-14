@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from loguru import logger
 
@@ -14,6 +14,7 @@ from nassav.resource_data import AVDownloadInfo
 class ResolvedDownload:
     info: AVDownloadInfo
     domain: str
+    user_agent: str = field(default="", repr=False)
 
 
 class DownloadInfoResolver(ABC):
@@ -94,4 +95,12 @@ class ProviderDownloadInfoResolver(DownloadInfoResolver):
         adapter = gateway.sources.get_source(prepared["source_name"])
         if adapter is None:
             return None
-        return ResolvedDownload(info, adapter.domain)
+        from nassav.provider_facts import source_credential_context
+
+        context = source_credential_context(adapter)
+        session = context.load_session() if context is not None else None
+        return ResolvedDownload(
+            info,
+            adapter.domain,
+            session.user_agent if session is not None and session.user_agent else "",
+        )

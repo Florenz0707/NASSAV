@@ -140,6 +140,9 @@ def create_proxy_server(config: BrowserFetchConfig) -> ProxyServer:
         config.max_concurrency,
         capacity=RedisProxyCapacity(client, config.url, config.max_concurrency),
         worker_scope=_worker_connections,
+        session_capabilities=(
+            ByparrPageClient if config.provider == "byparr" else FlareSolverrPageClient
+        ).session_capabilities,
     )
 
 
