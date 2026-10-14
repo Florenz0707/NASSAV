@@ -262,4 +262,9 @@ def playback_prepare_task(session_id):
 
     from nassav.composition import build_playback_validator
 
-    execute(session_id, build_playback_resolver(), records, build_playback_validator())
+    resolver = (
+        build_playback_resolver(session_id=session_id)
+        if settings.SOURCE_CREDENTIALS_ENABLED
+        else build_playback_resolver()
+    )
+    execute(session_id, resolver, records, build_playback_validator())

@@ -124,8 +124,40 @@ async def media_view(request, session_id, asset_id):
     opened = False
     gateway = None
     transferred = False
+    version_read = None
+    cleanup_task = None
+
+    async def cleanup():
+        nonlocal cleanup_task
+
+        async def operation():
+            try:
+                if opened and manager is not None:
+                    await manager.__aexit__(None, None, None)
+            finally:
+                try:
+                    if version_read is not None:
+                        await sync_to_async(version_read.close)()
+                finally:
+                    if gateway is not None:
+                        gateway.registry.client.close()
+
+        if cleanup_task is None:
+            cleanup_task = asyncio.create_task(operation())
+        from nassav.playback.async_cleanup import finish_owned_task
+
+        try:
+            await asyncio.shield(cleanup_task)
+        except asyncio.CancelledError:
+            await finish_owned_task(cleanup_task)
+            raise
+
     try:
         row, descriptor = await sync_to_async(authorize)(request, session_id)
+        if row.library_grant.get("version_id"):
+            from nassav.composition import build_playback_version_read
+
+            version_read = build_playback_version_read(row, request.session.session_key)
         try:
             token = signing.TimestampSigner(salt="nassav-playback-media").unsign(
                 request.GET.get("cap", ""), max_age=records.MAX_SECONDS
@@ -150,6 +182,8 @@ async def media_view(request, session_id, asset_id):
 
         async def check():
             await sync_to_async(authorize)(request, session_id, row.generation)
+            if version_read is not None:
+                await sync_to_async(version_read.check)()
 
         async def observe(path, kind, digest, dependencies=()):
             await sync_to_async(records.observe_identity)(
@@ -170,19 +204,6 @@ async def media_view(request, session_id, asset_id):
         )
         result = await manager.__aenter__()
         opened = True
-        closed = False
-        close_lock = asyncio.Lock()
-
-        async def cleanup():
-            nonlocal closed
-            async with close_lock:
-                if not closed:
-                    closed = True
-                    try:
-                        await manager.__aexit__(None, None, None)
-                    finally:
-                        gateway.registry.client.close()
-
         if request.method == "HEAD" or result.status == 416:
             await cleanup()
             opened = False
@@ -226,9 +247,4 @@ async def media_view(request, session_id, asset_id):
 
     finally:
         if not transferred:
-            try:
-                if opened and manager is not None:
-                    await manager.__aexit__(None, None, None)
-            finally:
-                if gateway is not None:
-                    gateway.registry.client.close()
+            await cleanup()

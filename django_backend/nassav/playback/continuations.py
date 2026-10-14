@@ -52,6 +52,13 @@ def list_continuations(user_id, *, limit, locator):
                 "source": entry.current_version.source_name
                 if entry.current_version
                 else entry.pool.resource.source,
+                "_grant": {
+                    "version_id": str(entry.current_version.pk),
+                    "scope": entry.current_version.access_scope,
+                    "context_revision": entry.current_version.context_revision,
+                }
+                if entry.current_version
+                else {},
             }
             for entry in held_entries(user_id).filter(
                 pool__canonical_avid__in=[row.avid for row in rows]
@@ -75,6 +82,20 @@ def list_continuations(user_id, *, limit, locator):
             row.media_kind != "source"
             or row.source
             != str(display["source"] if display else resource.source or "").lower()
+        ):
+            continue
+        elif (
+            display
+            and display["_grant"]
+            and row.media_key
+            != media_key(
+                SimpleNamespace(
+                    media_kind="source",
+                    resource=resource,
+                    source=display["source"],
+                    library_grant=display["_grant"],
+                )
+            )
         ):
             continue
         result.append(

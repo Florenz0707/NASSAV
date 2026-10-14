@@ -164,3 +164,5 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 版本库/图片专项：`test_version_library_reads.py`，验证本人投影、固定版本JPEG/短占用、路径与内容负向，以及移出后的流/个人写入。SQLite/PostgreSQL隔离HTTP不等于普通登录开放或真实视频联调。
 
 固定本地版本专项：`test_version_local_playback.py`，真实解码MP4/发布日志/认证ASGI Range与临时Redis，兼容`test_local_playback.py`、读取占用及进度/接续测试。无线上来源或共享Celery验收声明。
+
+冻结来源播放专项：`test_version_source_playback.py`，合成HTML/上游媒体＋真实DB/ASGI/临时Redis，覆盖双用户凭证/缓存/进度、默认工厂全局代理、创建/发布fence及撤销收尾；明确不是实际私有来源账号或真实worker验收。

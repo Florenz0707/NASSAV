@@ -57,9 +57,37 @@ def configured_source_origins():
     return origins(settings.SOURCE_CONFIG)
 
 
-def build_playback_source_binding(avid):
+def build_playback_source_binding(avid, *, user_id=None):
     from nassav.models import AVResource
     from nassav.credential_playback import capture_source_binding
+    from nassav.library_catalog import enabled, own_entry
+
+    if user_id is not None and enabled(user_id):
+        entry = own_entry(user_id, avid=avid)
+        if entry.current_version is not None:
+            from nassav.credential_playback import binding_current
+
+            version = entry.current_version
+            if not binding_current(
+                version.credential_refs,
+                version.source_name,
+                owner_id=user_id,
+                access_scope=version.access_scope,
+            ):
+                raise PermissionError(
+                    "Source credential changed; refresh metadata first"
+                )
+            ref = build_credential_records().resolve(
+                version.source_name,
+                user_id=user_id if version.access_scope != "public" else None,
+                credential_id=version.credential_refs.get("credential_id"),
+            )
+            if ref is not None and (
+                str(ref.id) != version.credential_refs.get("credential_id")
+                or ref.version != version.credential_refs.get("credential_version")
+            ):
+                raise PermissionError("Source credential changed")
+            return dict(version.credential_refs)
 
     return capture_source_binding(
         build_credential_records(), AVResource.objects.get(avid=avid).source.lower()
@@ -724,24 +752,69 @@ def build_task_recovery():
     )
 
 
-def build_playback_resolver():
+def build_playback_resolver(*, session_id=None):
     from django.conf import settings
     from nassav.playback.preparation import SourcePlaybackResolver
-    from nassav.source.SourceManager import source_manager
 
-    factories = source_factories(
-        settings.PROXY_URL if settings.PROXY_ENABLED else None,
-        settings.BROWSER_FETCH_CONFIG,
-        source_manager.set_source_cookie,
-    )
+    def reject_unscoped_cookie(*args):
+        raise PermissionError("Unscoped playback cookie writes are forbidden")
+
+    legacy_manager = None
+    factories = {}
+    if session_id is None:
+        from nassav.source.SourceManager import source_manager
+
+        legacy_manager = source_manager
+        factories = source_factories(
+            settings.PROXY_URL if settings.PROXY_ENABLED else None,
+            settings.BROWSER_FETCH_CONFIG,
+            source_manager.set_source_cookie,
+        )
 
     @contextmanager
     def scope(name, control):
-        if name not in factories or source_manager.get_source(name) is None:
+        available = (
+            bool(settings.SOURCE_CONFIG.get(name, {}).get("weight"))
+            if session_id is not None
+            else legacy_manager is not None
+            and legacy_manager.get_source(name) is not None
+        )
+        if not available:
             raise ValueError("Playback source unavailable")
-        with _controlled_source_scope(
-            factories[name], control.check, control
-        ) as source:
+        selected = factories.get(name)
+        bound = None
+        expected = None
+        if session_id is not None:
+            from nassav.playback.models import PlaybackSession
+            from nassav.credential_models import SourceCredential
+            from nassav.credential_playback import session_binding_current
+
+            control.check()
+            row = PlaybackSession.objects.get(pk=session_id)
+            if row.source != name or not session_binding_current(row):
+                raise PermissionError("Source credential changed")
+            expected = row.library_grant["source_auth"]
+            ref_id = expected.get("credential_id")
+            ref = (
+                SourceCredential.objects.get(pk=ref_id) if ref_id is not None else None
+            )
+            scoped = source_factories(
+                settings.PROXY_URL if settings.PROXY_ENABLED else None,
+                settings.BROWSER_FETCH_CONFIG,
+                reject_unscoped_cookie,
+                user_id=ref.owner_id if ref is not None else None,
+                credential_id=ref_id,
+            )
+            bound = scoped.get(name)
+            selected = bound
+        if selected is None:
+            raise ValueError("Playback source unavailable")
+        with _controlled_source_scope(selected, control.check, control) as source:
+            if bound is not None and (
+                source.credential_context is None
+                or source.credential_context.work_binding["credential_refs"] != expected
+            ):
+                raise PermissionError("Source scope changed")
             yield source
 
     return SourcePlaybackResolver(

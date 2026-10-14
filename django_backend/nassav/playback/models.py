@@ -1,11 +1,14 @@
 """DB-owned sessions; Celery IDs are transport, not playback state."""
 
 from uuid import uuid4
+from typing import TYPE_CHECKING
 from django.conf import settings
 from django.db import models
 
 
 class PlaybackSession(models.Model):
+    if TYPE_CHECKING:
+        user_id: int
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     login_hash = models.CharField(max_length=64)

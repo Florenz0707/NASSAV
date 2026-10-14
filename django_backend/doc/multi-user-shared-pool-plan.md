@@ -293,3 +293,5 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 本人库/版本图片子阶段基线d0cf4f0，分支feat/version-library-reads：批量本人投影、旧读取入口的可选切换、登录绑定图片短占用、manifest/marker/内容及NOFOLLOW校验，个人写入在user fence内再次核查持有。无新schema。SQLite全量1170 passed/28 skipped，临时PostgreSQL40 passed，完整pre-commit通过后提交；真实播放器、目录/推荐、GC与前端/普通准入继续实施。详见[版本读取记录](resource-version-architecture.md#本人库与图片读取子阶段)。
 
 固定本地播放子阶段基线7f0fd21，分支feat/version-bound-playback：本人固定video版本/账号epoch、真实MP4 Range/HEAD/在途断开、不可变文件身份与独立DB读取占用、版本化标题/接续批量查询。SQLite全量1184 passed/28 skipped，PostgreSQL最终专项37 passed（另有兼容专项39 passed），完整pre-commit通过后提交。无新schema/现有实例切换；源在线播放、目录/推荐/GC及P7/P8继续实施。详见[固定本地播放](resource-version-architecture.md#固定本地播放子阶段)。
+
+冻结来源播放子阶段基线e61ef44，分支feat/scoped-version-source-playback：本人元数据版本/冻结引用、独立来源/全局代理、准备权限fence、媒体读取pin与取消安全收尾、scope/context进度账本。SQLite全量1193 passed/28 skipped，临时PostgreSQL40 passed，迁移无差异，完整pre-commit通过后提交。合成上游不代替真实账号/worker；目录/推荐、GC及P7/P8继续实施，见[冻结来源播放](resource-version-architecture.md#冻结来源播放子阶段)。

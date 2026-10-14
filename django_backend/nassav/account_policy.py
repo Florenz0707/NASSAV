@@ -130,6 +130,8 @@ def grant_playback(user_id, resource, *, mode=None, descriptor=None):
                 "version_id": str(version.pk),
                 "account_epoch": execution_epoch(user_id),
                 "context_revision": version.context_revision,
+                "source_name": version.source_name,
+                "source_auth": version.credential_refs if mode == "source" else None,
             }
     pool = (
         ResourcePoolEntry.objects.select_for_update()
@@ -168,11 +170,9 @@ def can_read_playback(user, session):
         return False
 
     if settings.SOURCE_CREDENTIALS_ENABLED and session.media_kind == "source":
-        from nassav.credential_playback import binding_current
+        from nassav.credential_playback import session_binding_current
 
-        if not binding_current(
-            session.library_grant.get("source_auth"), session.source
-        ):
+        if not session_binding_current(session):
             return False
 
     if ResourcePoolEntry.objects.filter(

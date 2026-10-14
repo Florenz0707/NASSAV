@@ -85,7 +85,18 @@ def submit(
         if settings.SOURCE_CREDENTIALS_ENABLED and mode == "source":
             from nassav.credential_playback import binding_current
 
-            if not binding_current(source_auth, resource.source.lower()):
+            source_name = library_grant.get("source_name", resource.source.lower())
+            if (
+                library_grant.get("version_id")
+                and library_grant.get("source_auth") != source_auth
+            ) or not binding_current(
+                source_auth,
+                source_name,
+                owner_id=user_id,
+                access_scope=library_grant.get("scope", "public")
+                if library_grant.get("version_id")
+                else "public",
+            ):
                 raise PlaybackStopped("Source credential changed")
             library_grant = {**library_grant, "source_auth": source_auth}
         if (
@@ -102,7 +113,7 @@ def submit(
             user_id=user_id,
             login_hash=binding,
             resource=resource,
-            source=resource.source.lower(),
+            source=library_grant.get("source_name", resource.source.lower()),
             media_kind=mode,
             state="ready" if mode == "local" else "queued",
             descriptor=descriptor or {},
@@ -193,13 +204,20 @@ def execution_rows(token):
 
 def check(token):
     if settings.SOURCE_CREDENTIALS_ENABLED:
-        from nassav.credential_playback import binding_current
+        from nassav.credential_playback import session_binding_current
 
         row = execution_rows(token).first()
-        if row is None or not binding_current(
-            row.library_grant.get("source_auth"), row.source
-        ):
+        if row is None or not session_binding_current(row):
             raise PlaybackStopped("Source credential changed")
+        if row.library_grant.get("version_id"):
+            from django.contrib.auth import get_user_model
+            from nassav.account_policy import can_read_playback
+
+            user = (
+                get_user_model().objects.filter(pk=row.user_id, is_active=True).first()
+            )
+            if user is None or not can_read_playback(user, row):
+                raise PlaybackStopped("Playback version authorization changed")
     if not execution_rows(token).update(
         lease_until=timezone.now() + timedelta(seconds=90)
     ):

@@ -26,6 +26,11 @@ def media_key(session):
     else:
         # A source ledger identifies a resource/provider, NOT proven media bytes.
         identity = {"avid": session.resource.avid, "source": session.source}
+        grant = getattr(session, "library_grant", {})
+        if grant.get("version_id"):
+            identity.update(
+                scope=grant.get("scope"), context_revision=grant.get("context_revision")
+            )
     return digest([session.media_kind, identity])
 
 

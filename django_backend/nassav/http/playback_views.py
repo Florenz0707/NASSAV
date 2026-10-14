@@ -130,7 +130,13 @@ class PlaybackSessionView(SchemaAPIView):
                     ):
                         from nassav.composition import build_playback_source_binding
 
-                        source_auth = build_playback_source_binding(avid.upper())
+                        source_auth = (
+                            build_playback_source_binding(
+                                avid.upper(), user_id=request.user.pk
+                            )
+                            if settings.SHARED_LIBRARY_ENABLED
+                            else build_playback_source_binding(avid.upper())
+                        )
                     args = (
                         request.user.pk,
                         request.session.session_key,

@@ -2,7 +2,7 @@
 
 ## 实施状态
 
-0044/0045账本、发布、受控执行器及本人库/图片读取已隔离实现；本地固定版本播放已隔离接入；来源在线播放、完整目录/推荐投影和GC仍待接入。普通账号登录、共享任务生产派发及自动回收仍关闭。当前生产仍用旧路径，不得把本文的内部模型测试当作正式媒体验收。
+0044/0045账本、发布、受控执行器及本人库/图片读取已隔离实现；本地固定版本播放已隔离接入；来源在线播放也已隔离接入；完整目录/推荐投影和GC仍待接入。普通账号登录、共享任务生产派发及自动回收仍关闭。当前生产仍用旧路径，不得把本文的内部模型测试当作正式媒体验收。
 
 ## 版本与两个持有指针
 
@@ -71,3 +71,17 @@ ASGI传输沿原全局/单session Redis容量和取消清理流程，另由Playb
 专项test_version_local_playback.py使用真实加密记录、TaskAssets发布、ffmpeg生成且完整解码的MP4、认证ASGI Range/HEAD和真实临时Redis，覆盖指针竞争/固定旧版、私有范围、坏marker/内容/符号链接、移出/下架、续租/关闭与接续。不是目标站点源播放、真实共享Celery或正式实例切换。
 
 固定本地播放隔离门槛（2026-10-15）：SQLite全量1184 passed/28 skipped；PostgreSQL最终专项37 passed，另有旧本地播放/占用/权限专项39 passed。源开关开启时本地HTTP明确不读取来源凭证；实际在途disconnect归还FD、Redis容量和DB pin。角色记录移除不回退legacy授权，原session epoch变化不能重新pin。修复接续入口局部settings导入遮蔽，全量重新通过。无新迁移；完整pre-commit通过后提交，未进行现有实例、源站或真实共享Celery验收。
+
+## 冻结来源播放子阶段
+
+基线e61ef44，分支feat/scoped-version-source-playback，无新schema。来源prepare从本人current_version读取source/credential_refs，事务外核查专用keyring可解密，短创建事务再次匹配当前版本refs，grant保存version/scope/epoch/source_name，私有source不从中性AVResource.source推断。凭证更改/撤销后旧元数据不能借新Cookieprepare，须刷新元数据；不静默退回系统或他人凭证。
+
+ID-only播放worker按session冻结引用构造独立来源，每次解析先核查当前凭证owner/version、登录用户有效性、账号epoch及pool/版本；不为了检查可用性初始化未授权的全局来源实例，非范围Cookie回写明确拒绝。来源工厂仍使用全局Proxy.url，下载代理不参与；网络/解密不进入短DB提交。旧未版本化路径保留系统引用兼容，新元数据版本的私人信息不复制到全局表。
+
+清单/密钥/分片入口每次查原固定授权及当前凭证，采用同一独立DB版本pin，原全局/单session Redis容量继续约束。异步关闭在独立cleanup task内完成；正常、HEAD、错误、撤销和断开均回收传输与占用，失效登录无法DB收尾时由既有TTL兜底。原合法播放可在移出后的原期限内完成，角色、下架和凭证撤销拒绝继续；新refresh/进度claim仍需当前有效持有。
+
+来源进度media_key在版本化会话加入scope/context_revision，避免同AVID/provider的公共与私人时间轴混用；仍仅是provider账本，绝非字节相同证据，续播继续confirm。继续观看只匹配本人当前元数据范围与最新ledger，不自动回退旧范围进度。不修改未版本化旧账本key，也不因新增模式复制历史位置。
+
+专项test_version_source_playback.py包含双用户加密记录、真实DB与短占用、默认来源装配、合成源站HTML/媒体响应、认证ASGI及真实临时Redis，验证Cookie/UA不串、全局代理传参、缓存/进度范围、HTTP提交、旧提交拒绝、在途撤销收尾。上游传输为受控替身，不能当成真实站点/个人账号、Byparr出口或Celery目标联调。
+
+冻结来源播放隔离门槛（2026-10-15）：SQLite全量1193 passed/28 skipped；临时PostgreSQL40 passed；SQLite来源/进度专项14 passed，范围/旧准备兼容30 passed。模型迁移无差异，完整pre-commit通过后提交。验证包含真实Redis和DB，但源站HTML及媒体传输是替身，不表示实际Jable/MissAV个人Cookie、Byparr或真实Celery已验收。

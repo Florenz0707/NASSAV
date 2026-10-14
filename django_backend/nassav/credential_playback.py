@@ -1,4 +1,4 @@
-"""Opaque credential binding for source playback; private media waits for P5."""
+"""Opaque credential binding for source playback and frozen private versions."""
 
 from django.db.models import F
 from django.utils import timezone
@@ -8,7 +8,7 @@ from nassav.playback.models import PlaybackSession
 
 
 def capture_source_binding(records, source_name):
-    ref = records.resolve(source_name)  # Formal shared media uses system scope only.
+    ref = records.resolve(source_name)  # Legacy/unversioned media uses system scope.
     return {
         "source_name": source_name,
         "origin_host": records.origins[source_name],
@@ -17,7 +17,7 @@ def capture_source_binding(records, source_name):
     }
 
 
-def binding_current(binding, source_name):
+def binding_current(binding, source_name, *, owner_id=None, access_scope="public"):
     from nassav.source_registry import configured_source_origins
     from django.conf import settings
 
@@ -34,7 +34,8 @@ def binding_current(binding, source_name):
         return False
     if binding["credential_id"] is None:
         return (
-            binding["credential_version"] is None
+            access_scope == "public"
+            and binding["credential_version"] is None
             and not SourceCredential.objects.filter(
                 source_name=source_name, scope="system"
             ).exists()
@@ -45,16 +46,33 @@ def binding_current(binding, source_name):
     ):
         return False
     try:
+        scope = "system" if access_scope == "public" else "personal"
+        if scope == "personal" and (
+            owner_id is None or access_scope != f"personal:{binding['credential_id']}"
+        ):
+            return False
         return SourceCredential.objects.filter(
             pk=binding["credential_id"],
             source_name=source_name,
-            scope="system",
+            scope=scope,
+            owner_id=None if scope == "system" else owner_id,
             state="active",
             version=binding["credential_version"],
             origin_host=binding["origin_host"],
         ).exists()
     except (ValueError, TypeError):
         return False
+
+
+def session_binding_current(row):
+    return binding_current(
+        row.library_grant.get("source_auth"),
+        row.source,
+        owner_id=row.user_id,
+        access_scope=row.library_grant.get("scope", "public")
+        if row.library_grant.get("version_id")
+        else "public",
+    )
 
 
 def close_bound_playback(credential_id):

@@ -197,3 +197,5 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 共享模式资源展示走本人持有版本投影，不将私有标题/演员/图片复制到AVResource等全局列。版本图片使用授权入口及短读取占用，根下目录/文件NOFOLLOW且核查manifest/marker/内容，不以opaque URL代替权限；个人状态写入在user fence内重新核查持有。
 
 共享模式本地播放在创建事务核查descriptor与本人video_version相同，session固定版本和账号epoch；授权读取占用不能以Redis容量代替。坏版本不回退旧AVID文件，旧会话不得跟随当前指针切换，原播放宽限与下架即时撤销保持区分。
+
+版本化来源播放使用本人元数据版本的冻结凭证引用与source_name，密钥可用性在创建事务外检查，创建/worker/媒体读取再次核查范围/账号代次。不得凭空共享私有引用、初始化无范围来源来替代检查，或以新Cookie复活旧元数据授权。新source进度key隔离scope/context，provider账本仍不证明字节相同。

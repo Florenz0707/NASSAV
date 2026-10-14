@@ -66,3 +66,7 @@ DB事实与播放缓存、Jable短期摘要缓存、外搜聚合缓存包含cred
 正式切换顺序：维护窗口停止所有旧写入者/播放，备份DB/旧Cookie/专用密钥；升级0041，显式分类导入并审核隔离行；所有API/worker配置同一keyring和新模式，统一重启，再验证system来源和个人范围。旧表仍有明文兼容数据及备份，清理须另做确认，不能凭结构迁移删除。普通用户准入、私人资产发布与自动GC仍关闭。
 
 范围消费者最终隔离验证（2026-10-15）：SQLite全量1078 passed/28 skipped，PostgreSQL专项37 passed；模型迁移一致，全仓pre-commit通过。新模式默认false，生产SQLite、旧Cookie、密钥文件和用户准入未修改。发布计划仍须完成P4–P8；本阶段未做真实账户网站或真实共享worker验收。
+
+## 版本化来源播放
+
+来源播放现可使用本人元数据版本冻结的个人引用；prepare解密可用性检查在事务外，创建时再次比对refs，worker按固定owner/credential重建独立来源并使用全局Proxy.url。人工更新/撤销后旧版本不借新秘密复活，需刷新元数据。HTTP只返回session状态/授权代理地址，Cookie与源站链接不回显；每个媒体请求维护固定版本占用，源进度scope/context隔离且仍confirm。见[版本播放说明](resource-version-architecture.md#冻结来源播放子阶段)，普通准入和真实来源账号验收仍未开放。
