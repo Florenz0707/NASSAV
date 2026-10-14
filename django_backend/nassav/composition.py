@@ -12,9 +12,23 @@ from nassav.source_registry import source_provider_types
 
 def build_library_membership():
     from nassav.library_membership import LibraryMembership
+
+    return LibraryMembership(build_membership_records())
+
+
+def build_membership_records():
     from nassav.library_records import DjangoMembershipRecords
 
-    return LibraryMembership(DjangoMembershipRecords())
+    return DjangoMembershipRecords(
+        detach_demand=build_operation_records().detach_membership
+    )
+
+
+def build_operation_records():
+    from nassav.shared_work_records import DjangoOperationRecords
+    from nassav.consumers import send_operation_hint
+
+    return DjangoOperationRecords(build_task_records(), hint=send_operation_hint)
 
 
 def build_credential_records():
@@ -45,10 +59,9 @@ def build_playback_source_binding(avid):
 def build_account_management():
     from nassav.account_management import AccountManagement
     from nassav.account_records import DjangoAccountCommands
-    from nassav.library_records import DjangoMembershipRecords
 
     return AccountManagement(
-        DjangoAccountCommands(DjangoMembershipRecords(), build_task_records())
+        DjangoAccountCommands(build_membership_records(), build_task_records())
     )
 
 
@@ -676,6 +689,7 @@ def build_task_recovery():
         events=build_task_resource_events(),
         redis_client=get_redis_client,
         interrupt=interrupt,
+        reconcile=build_operation_records().project_pending,
     )
 
 

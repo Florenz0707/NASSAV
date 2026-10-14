@@ -24,6 +24,9 @@ def membership_snapshot(entry, pool):
 
 
 class DjangoMembershipRecords:
+    def __init__(self, *, detach_demand=None):
+        self.detach_demand = detach_demand
+
     @retry_sqlite_contention
     def attach(self, user_id, avid, source, scope):
         with transaction.atomic():
@@ -82,6 +85,16 @@ class DjangoMembershipRecords:
                 raise LibraryConflict(
                     "version_conflict", membership_snapshot(entry, pool)
                 )
+            from nassav.shared_work_models import WorkSubscription
+
+            if self.detach_demand is not None:
+                self.detach_demand(user_id, entry.pk)
+            elif WorkSubscription.objects.filter(
+                operation__membership=entry, state="attached"
+            ).exists():
+                raise LibraryConflict("subscription_lifecycle_required")
+            # Detachment may have changed the pool's GC marker, never overwrite it.
+            pool.refresh_from_db()
             if pool.resource_id:
                 UserResourceState.objects.filter(
                     user_id=user_id, resource_id=pool.resource_id, watch_later=True

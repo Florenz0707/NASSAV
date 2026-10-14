@@ -235,7 +235,8 @@ class DjangoAccountCommands:
         QuotaReservation.objects.filter(user_id=user_id, state="held").update(
             state="released", updated_at=timezone.now()
         )
-        # P2 only has single-owner legacy jobs. P4 must replace this with subscription detach.
+        # Membership release detached only this user's shared demand. Single-owner
+        # legacy work still needs its original control protocol independently.
         jobs = (
             TaskJob.objects.filter(owner_id=user_id)
             .exclude(state__in=["succeeded", "failed", "cancelled"])

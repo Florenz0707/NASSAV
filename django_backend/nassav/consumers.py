@@ -122,6 +122,20 @@ class TaskConsumer(AsyncWebsocketConsumer):
             )
 
 
+def send_operation_hint(owner_id: int, data: dict):
+    """Private operation/version hint, never broadcast through the legacy group."""
+    channel_layer = get_channel_layer()
+    if channel_layer:
+        async_to_sync(channel_layer.group_send)(
+            f"task_user_{owner_id}",
+            {
+                "type": "task_update",
+                "update_type": "user_operation_update",
+                "data": {key: data[key] for key in ("operation_id", "version")},
+            },
+        )
+
+
 def send_task_update(update_type: str, data: dict, *, owner_id=None):
     """Send a task event to connected operator sessions."""
     channel_layer = get_channel_layer()

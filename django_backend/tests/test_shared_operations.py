@@ -21,7 +21,7 @@ def operations():
         get_user_model().objects.create_user(username=name)
         for name in ("shared-a", "shared-b")
     ]
-    tasks = DjangoTaskRecords()
+    tasks = DjangoTaskRecords(shared_execution=True)
     records = DjangoOperationRecords(tasks)
     return users, SharedOperations(records), tasks
 

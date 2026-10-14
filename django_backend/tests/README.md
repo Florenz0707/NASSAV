@@ -150,3 +150,5 @@ JSON配置的 `test_json_preferences.py` 覆盖缺省只读补齐、增删/改�
 P3范围专项增加`test_scoped_source_runtime.py`：真实ORM/加密，合成匿名与带凭证页面；核查禁止匿名私人成功、Cookie/UA不串、原站/重定向/CDN、缺钥/旧key writer、账号停用后不复活、播放撤销及已完成外搜句柄410。查询预算比较1与100个候选。该专项不冒充真实网站或跨浏览器验收。
 
 P4模型/核心专项为`test_shared_operations.py`与`test_shared_work_migration.py`：并发去重、独立取消/最后停止请求、幂等意图冻结和0042往返；没有生产HTTP/worker发布联调，见[共享工作](../doc/shared-work-architecture.md)。
+
+P4生命周期专项为`test_shared_work_lifecycle.py`、`test_user_operation_projection_migration.py`及`test_task_recovery.py`：旧执行器拒绝共享任务、释放/停用仅撤销本人、独立有界投影、迟到不复活、事务后私有提示、0042↔0043数据保持。真实共享worker、成功版本发布及配额仍待后续联调。

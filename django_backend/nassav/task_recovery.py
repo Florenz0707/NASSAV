@@ -53,9 +53,11 @@ class TaskRecovery:
         inspect=identity_status,
         stop_writers=stop_owned_writers,
         interrupt=None,
+        reconcile=None,
     ):
         self.records, self.assets = records, assets
         self.dispatch, self.events, self.redis_client = dispatch, events, redis_client
+        self.reconcile = reconcile
         self.inspect, self.stop_writers, self.interrupt = (
             inspect,
             stop_writers,
@@ -239,5 +241,11 @@ class TaskRecovery:
                 result["events"] += 1
             except Exception:
                 logger.exception("Resource event retry failed: %s", job_id)
+                result["failed"] += 1
+        if self.reconcile is not None:
+            try:
+                result["operations"] = self.reconcile(limit=min(limit, 200))
+            except Exception:
+                logger.exception("User operation projection retry failed")
                 result["failed"] += 1
         return result

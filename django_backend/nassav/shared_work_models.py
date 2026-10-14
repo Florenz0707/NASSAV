@@ -62,6 +62,7 @@ class UserOperation(models.Model):
     access_scope = models.CharField(max_length=128)
     state = models.CharField(max_length=16, default="queued")
     version = models.PositiveBigIntegerField(default=1)
+    projected_work_version = models.PositiveBigIntegerField(default=0)
     stage = models.CharField(max_length=40, default="queued")
     message = models.TextField(default="")
     error_code = models.CharField(max_length=40, default="")

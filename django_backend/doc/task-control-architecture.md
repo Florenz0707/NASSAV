@@ -4,9 +4,9 @@
 
 ## 状态所有者与依赖方向
 
-共享池P1的[持有核心](resource-pool-architecture.md)已建立，但当前TaskJob仍按owner持有且按类型/AVID去重；尚无共享订阅。不得通过放宽owner比较或直接调用内部attach，把现有job变成跨用户任务。用户需求/系统执行及版本发布按P4/P5另行接入。
+共享池P1的[持有核心](resource-pool-architecture.md)与P4的[内部订阅/投影](shared-work-architecture.md)已建立。旧TaskJob仍按owner持有且按类型/AVID去重，默认执行器不领取或派发新的shared_work；新请求/系统执行分离，但生产HTTP/版本发布尚未接入。不得通过放宽owner比较或简单打开shared_execution把旧发布流程用于共享或私人资产。
 
-[P2账号策略](account-policy-architecture.md)停用时仅对当前单owner任务请求取消，仍等待writer停止和资产收尾；P4接入后须改为撤销本用户订阅，禁止按发起人终止共享工作。管理fence仅用于管理命令，顺序在user/pool/work之前；普通业务不得反向取得它。受管WebSocket发送所属用户或明确管理范围的安全版本提示，旧全局组只供未引导operator兼容。
+[P2账号策略](account-policy-architecture.md)停用时先撤销本用户共享订阅，再对旧单owner任务请求取消；其他用户需求仍有效时共享工作继续，最后需求才请求停止，仍等待writer停止和资产收尾。管理fence仅用于管理命令，顺序在user/pool/work之前；普通业务不得反向取得它。受管WebSocket发送所属用户或明确管理范围的安全版本提示，旧全局组只供未引导operator兼容。
 
 ```mermaid
 flowchart LR

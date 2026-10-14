@@ -33,8 +33,14 @@ from nassav.task_models import TaskAttempt, TaskCommand, TaskJob
 class DjangoTaskRecords:
     """Control/read interface plus an execution interface using ExecutionToken."""
 
-    def __init__(self, reservation_lock: Callable | None = None):
+    def __init__(
+        self,
+        reservation_lock: Callable | None = None,
+        *,
+        shared_execution: bool = False,
+    ):
         self.reservation_lock = reservation_lock or (lambda avid: nullcontext())
+        self.shared_execution = shared_execution
 
     @staticmethod
     def _row(job_id: str) -> TaskJob:
@@ -309,6 +315,7 @@ class DjangoTaskRecords:
             ).first()
             if (
                 attempt is None
+                or (row.options.get("shared_work") and not self.shared_execution)
                 or row.state != "queued"
                 or (kind is not None and row.kind != kind)
                 or (role is not None and attempt.role != role)
@@ -622,6 +629,11 @@ class DjangoTaskRecords:
         """Outbox-like attempts persist before publish; duplicate publish is safe at claim."""
         sent, failed = 0, 0
         query = TaskAttempt.objects.filter(state="pending", job__state="queued")
+        if not self.shared_execution:
+            # Shared specs require version/scoped publication, never the legacy writer.
+            query = query.exclude(
+                job__options__has_key="shared_work", job__options__shared_work=True
+            )
         if kind is not None:
             query = query.filter(job__kind=kind)
         attempts = query.select_related("job").order_by("job__created_at")[:limit]

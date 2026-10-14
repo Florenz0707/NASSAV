@@ -2,9 +2,9 @@
 
 ## 当前实施边界
 
-P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、WorkSubscription及用户命令回执。仍未开放HTTP入口或普通用户登录；生产未创建共享请求，也未修改现有任务归属。不得把这一子阶段当成完整P4。
+P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、WorkSubscription及用户命令回执，0043增加每请求的projected_work_version游标。仍未开放HTTP入口或普通用户登录；生产未创建共享请求，也未修改现有任务归属。不得把这一子阶段当成完整P4。
 
-真实派发/恢复、worker提交与终态投影、配额、释放持有/账号停用联动和WebSocket尚待接入；私人产物的可执行发布需要P5不可变版本。当前内部核心只接受public，新私人需求明确拒绝，不把私人结果交给旧AVResource/文件发布流程。
+进度/失败投影、释放持有/停用联动与私有提示已接入；正式派发、成功激活与配额尚待接入；私人产物的可执行发布需要P5不可变版本。当前内部核心只接受public，新私人需求明确拒绝，不把私人结果交给旧AVResource/文件发布流程。
 
 ## 身份与规格
 
@@ -38,3 +38,17 @@ P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、
 0042是结构扩展，不自动导入或改变账号、持有、旧任务/attempt。逆向会删除新的请求、订阅和回执，旧表不能表达这些关系；切换前备份新增数据，停所有新消费者，不混跑旧版本。
 
 隔离测试`test_shared_operations.py`验证一工作多请求、真正并发创建、幂等、来源规格分离、A取消不停止B、最后取消等待writer停止和原active持有保留。`test_shared_work_migration.py`覆盖SQLite/PostgreSQL升级、回退、再次升级及旧task/attempt/membership保留。当前没有真实共享worker/媒体发布验收，不能把DB测试或手工claim当作真实Celery联调。
+
+## 生命周期子阶段
+
+旧DjangoTaskRecords默认拒绝领取和派发shared_work，JSON过滤同时保留无该键的旧任务；只有显式共享执行适配器才能领取。此开关是内部执行装配能力，不是用户权限开关；当前生产装配不启用，不能为运行共享工作而在旧builder中简单改成true。
+
+移出持有在同一user→pool事务中先脱离本人的所有attached订阅，保留关系到释放完成；账号停用复用这个入口，再按原协议处理独占旧任务。B仍有需求时A退出不停止共享job；最后需求请求停止，cancelling不重复发命令，不提前清理文件。
+
+后台恢复循环注入有界project_pending，每轮最多200条，按用户独立取得user→pool→work→task锁。每个operation有自己的底层版本游标，无公共内容变化只推进游标，不增加公开version或发送提示；不会用全局work游标跳过B，也不会让一直queued的A挡住后续批次。取消/释放及旧pool代次不会被迟到进度恢复。失败仅输出固定短消息与WORK_FAILED，不传播内部checkpoint、Cookie、来源URL或诊断。
+
+成功投影目前拒绝publication_not_ready，后台暂不选成功job；P5补齐正式版本后才能完成持有激活。不能以TaskJob.succeeded或同AVID文件存在作为激活证明。配额和新HTTP仍未开放，这一子阶段不代表完整P4。
+
+用户提示仅为operation_id/version，提交成功后发送到本人的task_user频道，不进入旧全局组或管理员广播。提示投递失败不回滚业务，由下一次授权快照补查；当前前端尚未消费新事件。
+
+0043仅增加默认0游标，原有请求/订阅/持有/工作不变；逆向只丢游标，重新升级从0重建。测试覆盖SQLite/PostgreSQL往返、双用户真实线程释放/投影竞争、停用、取消后迟到状态、无发布证据拒绝激活、批次公平与事务回滚不发提示。模拟claim/派发回调不代表真实Celery或媒体发布验收。

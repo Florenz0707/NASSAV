@@ -295,3 +295,25 @@ def test_management_command_emits_only_public_recovery_summary(context, monkeypa
     result = json.loads(output.getvalue())
     assert result["recovered"] == result["failed"] == 0
     assert "checkpoint" not in result
+
+
+def test_recovery_reconciles_user_operations_with_a_bounded_batch(context):
+    from unittest.mock import Mock
+
+    recovery = context[4]
+    recovery.reconcile = Mock(return_value={"projected": 1, "skipped": 0})
+    result = recovery.scan(limit=300)
+    recovery.reconcile.assert_called_once_with(limit=200)
+    assert result["operations"] == {"projected": 1, "skipped": 0}
+
+
+def test_projection_failure_does_not_skip_task_recovery(context):
+    from unittest.mock import Mock
+
+    recovery = context[4]
+    recovery.reconcile = Mock(
+        side_effect=RuntimeError("database temporarily unavailable")
+    )
+    result = recovery.scan()
+    assert result["failed"] == 1
+    assert result["dispatch"] == {}

@@ -178,8 +178,10 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 
 ## 应用角色与共享池（开发中）
 
-修改角色、持有、管理、配额或账号撤销前阅读[共享池](django_backend/doc/resource-pool-architecture.md)与[账号策略](django_backend/doc/account-policy-architecture.md)。UserAccount才是应用角色所有者，不从Django标志推导管理权限；普通账号登录仍关闭。未引导operator兼容路径不属于新角色授权，禁止用它绕过后续凭证/共享工作协议。管理命令必须版本/幂等/理由代码/审计，管理fence在排序user→pool→work/session之前，普通业务不反向取得它。审计清理不删除持久命令receipt；配额释放不以writer超时为证明。停用目前只取消旧单owner工作，P4须改为撤销本用户订阅。图片/媒体先授权再响应304/206，播放grant不代替P5读取占用与不可变版本。
+修改角色、持有、管理、配额或账号撤销前阅读[共享池](django_backend/doc/resource-pool-architecture.md)与[账号策略](django_backend/doc/account-policy-architecture.md)。UserAccount才是应用角色所有者，不从Django标志推导管理权限；普通账号登录仍关闭。未引导operator兼容路径不属于新角色授权，禁止用它绕过后续凭证/共享工作协议。管理命令必须版本/幂等/理由代码/审计，管理fence在排序user→pool→work/session之前，普通业务不反向取得它。审计清理不删除持久命令receipt；配额释放不以writer超时为证明。停用/移出先撤销本人共享订阅；他人仍有需求时不得终止共享job，旧单owner任务另走原停止协议。图片/媒体先授权再响应304/206，播放grant不代替P5读取占用与不可变版本。
 
 ## 来源凭证开发约束
 
 新增加密凭证和刷新快照遵循[凭证架构](django_backend/doc/source-credential-architecture.md)。专用keyring不可回退SECRET_KEY或明文；HTTP只返回元信息，禁止秘密进入日志、审计、任务参数或公共缓存。来源host由服务端配置决定，个人凭证不自动提升公共。刷新须检查凭证version、快照context、owner/generation/lease及执行归属，人工更新/撤销使旧结果失效；只释放本人租约。旧Cookie显式分类导入，未知账号Cookie隔离，不双写或自动清除。新模式默认关闭，启用时全部消费者统一重启，不混跑旧Cookie写入者。ProxyServer声明会话能力，私人请求不得将匿名HTML视为成功；原站Cookie禁止跟随重定向或发往CDN。DB缓存和推荐终态先取得key policy/actor/credential fence，再进入既有短提交；Redis仅用失效版本命名空间，不持DB锁调用Redis。旧active key writer不得绕过DB key policy，轮换保留历史密钥且CAS预检。共享正式媒体当前只用system，私人资产待P4/P5。
+
+共享请求遵循[共享工作](django_backend/doc/shared-work-architecture.md)。UserOperation与SharedWork/TaskJob身份、版本、权限分开；默认旧执行器不得派发/领取shared_work。状态按本人游标投影，不广播内部诊断；成功必须由P5发布证据激活，取消/失代次不得复活持有。user→pool→work→task锁顺序不变，禁止pool持锁后遍历取得其他user锁；提示在事务后仅发送operation_id/version。
