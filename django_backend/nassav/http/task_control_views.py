@@ -1,6 +1,6 @@
 """Authenticated versioned controls; never expose workspace paths or media keys."""
 
-from uuid import UUID
+from uuid import UUID, uuid5
 from types import SimpleNamespace
 from django.db.models import Case, When, IntegerField
 import logging
@@ -16,9 +16,17 @@ from nassav.task_control_rules import (
     TERMINAL_STATES,
 )
 from nassav.task_models import TaskJob
+from nassav.account_policy import can_admin_tasks
+from nassav.account_policy import is_app_admin
+from nassav.account_management import AccountConflict
 
 
 from nassav.task_presentation import public_snapshot as public_snapshot
+from nassav.admin_presentation import work_snapshot, work_snapshots
+
+
+def authorized_snapshot(snapshot, user):
+    return work_snapshot(public_snapshot(snapshot), user)
 
 
 def authorized_job(request, job_id):
@@ -28,8 +36,12 @@ def authorized_job(request, job_id):
         job = TaskJob.objects.get(pk=job_id)
     except TaskJob.DoesNotExist as error:
         raise TaskNotFound("任务不存在") from error
-    if job.owner_id != request.user.pk and not request.user.is_superuser:
-        raise TaskForbidden("无权读取此任务")
+    if job.owner_id != request.user.pk and not can_admin_tasks(request.user):
+        from nassav.account_policy import is_legacy_operator
+
+        if is_legacy_operator(request.user):
+            raise TaskForbidden("无权读取此任务")
+        raise TaskNotFound("任务不存在")
     return job
 
 
@@ -39,7 +51,11 @@ class TaskJobStatusView(SchemaAPIView):
         try:
             authorized_job(request, job_id)
             return build_response(
-                200, "success", public_snapshot(build_task_records().get(str(job_id)))
+                200,
+                "success",
+                authorized_snapshot(
+                    build_task_records().get(str(job_id)), request.user
+                ),
             )
         except TaskForbidden as error:
             return build_response(403, str(error), None)
@@ -58,14 +74,21 @@ class TaskControlView(SchemaAPIView):
             if type(version) is not int or version < 1:
                 raise ValueError("必须提供 expected_version 正整数")
             request_id = str(UUID(data.get("request_id", "")))
-            snapshot = records.request(
-                str(job_id),
-                action,
-                expected_version=version,
-                request_id=request_id,
-                actor_id=request.user.pk,
-                allow_all=request.user.is_superuser,
-            )
+            if is_app_admin(request.user):
+                from nassav.admin_work_commands import request_work
+
+                snapshot = request_work(
+                    request.user.pk, job_id, action, data, records=records
+                )
+            else:
+                snapshot = records.request(
+                    str(job_id),
+                    action,
+                    expected_version=version,
+                    request_id=request_id,
+                    actor_id=request.user.pk,
+                    allow_all=can_admin_tasks(request.user),
+                )
             if action == "resume":
                 from nassav.task_dispatch import dispatch_downloads, dispatch_scrapes
 
@@ -78,9 +101,15 @@ class TaskControlView(SchemaAPIView):
                 and snapshot["cleanup_state"] == "pending"
             ):
                 snapshot = build_task_assets(records).cleanup(str(job_id))
-            return build_response(202, "操作已登记", public_snapshot(snapshot))
+            return build_response(
+                202, "操作已登记", authorized_snapshot(snapshot, request.user)
+            )
+        except AccountConflict as error:
+            return build_response(409, str(error), None)
         except TaskConflict as error:
-            return build_response(409, str(error), public_snapshot(error.snapshot))
+            return build_response(
+                409, str(error), authorized_snapshot(error.snapshot, request.user)
+            )
         except TaskForbidden as error:
             return build_response(403, str(error), None)
         except TaskNotFound as error:
@@ -107,7 +136,7 @@ class TaskJobListView(SchemaAPIView):
             if ordering is not None and ordering not in {"-created_at", "-updated_at"}:
                 raise ValueError("排序仅支持创建时间或更新时间降序")
             jobs = TaskJob.objects.all()
-            if not request.user.is_superuser:
+            if not can_admin_tasks(request.user):
                 jobs = jobs.filter(owner_id=request.user.pk)
             # Long-paused jobs must remain visible ahead of recent history.
             jobs = jobs.annotate(
@@ -127,6 +156,7 @@ class TaskJobListView(SchemaAPIView):
                     (page - 1) * size : page * size
                 ]
             ]
+            snapshots = work_snapshots(snapshots, request.user)
             return build_response(
                 200,
                 "success",
@@ -171,8 +201,15 @@ class TaskBatchControlView(SchemaAPIView):
             command_request = SimpleNamespace(
                 user=request.user,
                 data={
-                    "request_id": request_id,
+                    "request_id": str(uuid5(UUID(request_id), job_id))
+                    if is_app_admin(request.user)
+                    else request_id,
                     "expected_version": item.get("expected_version"),
+                    **(
+                        {"reason": data.get("reason")}
+                        if is_app_admin(request.user)
+                        else {}
+                    ),
                 },
             )
             try:

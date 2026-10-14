@@ -67,22 +67,21 @@ class RedisSearchJobStore(RedisJobStore):
         return current
 
 
-def search_job_token(task_id: str) -> str:
-    return signing.dumps(task_id, salt="nassav.search.job")
+def search_job_token(task_id: str, *, user_id=None) -> str:
+    return signing.dumps(
+        task_id if user_id is None else [task_id, user_id], salt="nassav.search.job"
+    )
 
 
-def valid_search_job_token(task_id: str, token: str) -> bool:
+def valid_search_job_token(task_id: str, token: str, *, user_id=None) -> bool:
     try:
-        return (
-            signing.loads(
-                token,
-                salt="nassav.search.job",
-                max_age=max(
-                    86400, JOB_DEADLINE + settings.EXTERNAL_SEARCH_RESULT_TTL_SECONDS
-                ),
-            )
-            == task_id
-        )
+        return signing.loads(
+            token,
+            salt="nassav.search.job",
+            max_age=max(
+                86400, JOB_DEADLINE + settings.EXTERNAL_SEARCH_RESULT_TTL_SECONDS
+            ),
+        ) == (task_id if user_id is None else [task_id, user_id])
     except signing.BadSignature:
         return False
 
@@ -150,12 +149,17 @@ def _query_key(query: dict) -> str:
 def _publish(snapshot: dict) -> None:
     from nassav.consumers import send_task_update
 
-    # Global socket only carries routing/version; results need the signed API token.
+    # Socket carries hints only; snapshots require the owner-bound signed token.
     event = {
         key: snapshot[key] for key in ("task_id", "state", "version", "updated_at")
     }
     try:
-        send_task_update("external_search_update", event)
+        if snapshot.get("owner_id") is None:
+            send_task_update("external_search_update", event)
+        else:
+            send_task_update(
+                "external_search_update", event, owner_id=snapshot["owner_id"]
+            )
     except Exception:
         logger.warning(
             "外部搜索推送失败 task_id={}，可通过快照恢复", snapshot["task_id"]
@@ -168,13 +172,13 @@ def _save(store: JobStore, snapshot: dict) -> dict:
     return current
 
 
-def _result_payload(result: ExternalSearchResult, query: dict) -> dict:
+def _result_payload(result: ExternalSearchResult, query: dict, *, user_id=None) -> dict:
     return {
         "data": {
             "detail": result.meta.get(query["entity_type"]),
             "external_source": query["source"],
             "external_meta": result.meta,
-            "external_results": result.items,
+            "external_results": project_library_presence(result.items, user_id=user_id),
         },
         "pagination": result.pagination,
     }
@@ -186,6 +190,12 @@ def submit_search_job(
     query = validate_search_query(query, user_id=user_id)
     store = store or RedisSearchJobStore()
     key = _query_key(query)
+    owner_epoch = None
+    if user_id is not None:
+        from nassav.account_policy import execution_epoch
+
+        owner_epoch = execution_epoch(user_id)
+        key = hashlib.sha256(f"{user_id}:{owner_epoch}:{key}".encode()).hexdigest()
     task_id = str(uuid4())
     owner = store.acquire(key, task_id)
     if owner is not None:
@@ -204,6 +214,8 @@ def submit_search_job(
             raise RuntimeError("搜索正在提交，请重试")
     snapshot = dict(
         task_id=task_id,
+        owner_id=user_id,
+        owner_epoch=owner_epoch,
         job_type="external_search",
         query=query,
         query_key=key,
@@ -257,7 +269,8 @@ def get_search_job(
         data = snapshot["result"]["data"]
         collected = snapshot.get("collected_results")
         projected = project_library_presence(
-            collected if collected is not None else data["external_results"]
+            collected if collected is not None else data["external_results"],
+            user_id=snapshot.get("owner_id"),
         )
         query = snapshot.get("query", {})
         if query.get("source"):
@@ -347,6 +360,18 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
     query = snapshot["query"]
 
     def ensure_active() -> None:
+        if snapshot.get("owner_id") is not None:
+            from django.contrib.auth import get_user_model
+            from nassav.account_policy import execution_epoch
+
+            if execution_epoch(snapshot["owner_id"]) != snapshot.get("owner_epoch"):
+                raise SearchJobCancelled
+            if (
+                not get_user_model()
+                .objects.filter(pk=snapshot["owner_id"], is_active=True)
+                .exists()
+            ):
+                raise SearchJobCancelled
         current = store.get(task_id)
         if current is None or current["state"] == "cancelled":
             raise SearchJobCancelled
@@ -362,7 +387,9 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
                 **snapshot,
                 "state": "running",
                 "pages_completed": result.meta["pages_completed"],
-                "result": _result_payload(result, query),
+                "result": _result_payload(
+                    result, query, user_id=snapshot.get("owner_id")
+                ),
                 "collected_results": result.collected_items
                 if result.collected_items is not None
                 else result.items,
@@ -372,6 +399,7 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
             raise RuntimeError("搜索任务已结束")
 
     try:
+        ensure_active()
         entity = query["entity_type"]
         method = getattr(external_search_service, f"search_{entity}_detail")
         result = method(
@@ -384,9 +412,14 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
             on_progress=progress,
             should_cancel=ensure_active,
             defer_cache_publication=True,
+            **(
+                {"user_id": snapshot["owner_id"]}
+                if snapshot.get("owner_id") is not None
+                else {}
+            ),
         )
         ensure_active()
-        payload = _result_payload(result, query)
+        payload = _result_payload(result, query, user_id=snapshot.get("owner_id"))
         finished = _save(
             store,
             {
@@ -406,7 +439,20 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
                 logger.exception("外部搜索已成功，聚合缓存写入失败 task_id={}", task_id)
         return finished
     except SearchJobCancelled:
-        return store.get(task_id)
+        current = store.get(task_id)
+        if current and current["state"] in {"queued", "running"}:
+            current = _save(
+                store,
+                {
+                    **current,
+                    "state": "cancelled",
+                    "error_code": "OWNER_REVOKED",
+                    "message": "账号状态已更新，请重新搜索",
+                    "completed_at": time.time(),
+                },
+            )
+            store.release(current["query_key"], task_id)
+        return current
     except SoftTimeLimitExceeded:
         code, message = "TIMEOUT", "搜索任务超时，请重试"
     except (SourceSearchError, SourceSearchUnavailable):

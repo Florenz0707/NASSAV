@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 from uuid import uuid4
-from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils import timezone
@@ -55,7 +54,9 @@ def submit(user_id, key, avid, request_id, *, mode="source", descriptor=None):
     binding = login_hash(key)
     with transaction.atomic():
         # Serializes the per-user capacity check on both SQLite and PostgreSQL.
-        get_user_model().objects.filter(pk=user_id).update(last_login=F("last_login"))
+        from nassav.personal_state import lock_user
+
+        lock_user(user_id)
         previous = PlaybackSession.objects.filter(
             user_id=user_id, login_hash=binding, request_id=request_id
         ).first()
@@ -64,6 +65,12 @@ def submit(user_id, key, avid, request_id, *, mode="source", descriptor=None):
                 raise ValueError("Request identity conflict")
             return previous
         resource = AVResource.objects.get(avid=avid)
+        from nassav.account_policy import grant_playback
+
+        try:
+            library_grant = grant_playback(user_id, resource)
+        except PermissionError as error:
+            raise PlaybackStopped("Resource not available") from error
         if (
             PlaybackSession.objects.filter(
                 user_id=user_id,
@@ -82,6 +89,7 @@ def submit(user_id, key, avid, request_id, *, mode="source", descriptor=None):
             media_kind=mode,
             state="ready" if mode == "local" else "queued",
             descriptor=descriptor or {},
+            library_grant=library_grant,
             request_id=request_id,
             prepare_deadline=now + timedelta(seconds=300),
             dispatch_after=now,
@@ -285,6 +293,15 @@ def preparation_input(token):
 def refresh(session_id, user_id, key, expected_version, request_id):
     now = timezone.now()
     with transaction.atomic():
+        from nassav.personal_state import lock_user
+        from nassav.account_policy import grant_playback
+
+        lock_user(user_id)
+        candidate = owned(session_id, user_id, key)
+        try:
+            grant_playback(user_id, candidate.resource)
+        except PermissionError as error:
+            raise PlaybackStopped("Resource not available") from error
         row = owned_for_update(session_id, user_id, key)
         if row.last_command_id == request_id and row.refresh_count == 1:
             return row

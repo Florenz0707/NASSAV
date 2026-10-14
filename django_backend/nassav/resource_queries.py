@@ -14,7 +14,14 @@ def list_resources(params, *, user_id=None):
 
     from nassav.personal_state import project_personal_state
 
-    qs = project_personal_state(AVResource.objects.all(), user_id)
+    qs = AVResource.objects.all()
+    if user_id is not None:
+        from nassav.account_models import UserAccount
+        from nassav.account_policy import own_resource_ids
+
+        if UserAccount.objects.filter(user_id=user_id).exists():
+            qs = qs.filter(pk__in=own_resource_ids(user_id))
+    qs = project_personal_state(qs, user_id)
 
     # 优化查询：预加载关联对象，避免 N+1 查询问题
     qs = qs.prefetch_related("genres")

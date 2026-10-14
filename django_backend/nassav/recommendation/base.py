@@ -105,7 +105,6 @@ class AbstractRecommender(ABC):
         seed,
         request: RecommendationRequest,
     ) -> bool:
-
         seed_type = str(seed.seed_type or "").strip().lower()
         normalized_value = normalize_seed_value(seed.value)
         if (seed_type, normalized_value) in request.blocked_seed_name_keys:

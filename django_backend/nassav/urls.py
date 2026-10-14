@@ -2,6 +2,14 @@ from django.urls import path
 from nassav.http import task_control_views
 
 from . import auth_views
+from .http.account_views import (
+    AdminUsersView,
+    AdminUserView,
+    AdminSessionRevokeView,
+    AdminPasswordResetView,
+    AdminAuditView,
+    AdminResourceAvailabilityView,
+)
 from .http import (
     catalog_views,
     media_views,
@@ -43,6 +51,24 @@ from nassav.http.viewing_views import (
 )
 
 urlpatterns = [
+    path("api/admin/users", AdminUsersView.as_view(), name="admin-users"),
+    path("api/admin/users/<int:user_id>", AdminUserView.as_view(), name="admin-user"),
+    path(
+        "api/admin/users/<int:user_id>/revoke-sessions",
+        AdminSessionRevokeView.as_view(),
+        name="admin-user-revoke-sessions",
+    ),
+    path(
+        "api/admin/users/<int:user_id>/reset-password",
+        AdminPasswordResetView.as_view(),
+        name="admin-user-reset-password",
+    ),
+    path("api/admin/audit", AdminAuditView.as_view(), name="admin-audit"),
+    path(
+        "api/admin/resources/<uuid:pool_id>/availability",
+        AdminResourceAvailabilityView.as_view(),
+        name="admin-resource-availability",
+    ),
     path(
         "api/personal/history",
         PersonalHistoryView.as_view(),

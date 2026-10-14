@@ -1,7 +1,7 @@
 """Bounded, user-owned continue-watching projection; no source/network work."""
 
 from types import SimpleNamespace
-from django.db.models import F, OuterRef, Subquery, Exists
+from django.db.models import F, OuterRef, Subquery, Exists, Q
 from nassav.models import AVResource
 from .models import PlaybackProgress
 from .progress import media_key
@@ -11,7 +11,17 @@ def list_continuations(user_id, *, limit, locator):
     latest = PlaybackProgress.objects.filter(
         user_id=user_id, avid=OuterRef("avid")
     ).order_by("-updated_at", "-pk")
-    exists = AVResource.objects.filter(avid=OuterRef("avid"))
+    from nassav.account_models import UserAccount
+    from nassav.account_policy import own_resource_ids
+
+    resource_scope = (
+        AVResource.objects.alias(
+            managed_account=Exists(UserAccount.objects.filter(user_id=user_id))
+        )
+        .filter(Q(managed_account=False) | Q(pk__in=own_resource_ids(user_id)))
+        .exclude(pool_entry__is_available=False)
+    )
+    exists = resource_scope.filter(avid=OuterRef("avid"))
     rows = list(
         PlaybackProgress.objects.filter(user_id=user_id)
         .annotate(
@@ -29,7 +39,7 @@ def list_continuations(user_id, *, limit, locator):
     )
     resources = {
         item.avid: item
-        for item in AVResource.objects.filter(avid__in=[row.avid for row in rows])
+        for item in resource_scope.filter(avid__in=[row.avid for row in rows])
     }
     local = locator.identities({row.avid for row in rows if row.media_kind == "local"})
     result = []

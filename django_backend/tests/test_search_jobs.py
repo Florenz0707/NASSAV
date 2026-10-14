@@ -485,11 +485,11 @@ def test_read_other_pages_of_same_job_without_fetching_or_mutating(runtime, stat
 
 @pytest.mark.django_db
 def test_signed_status_pages_do_not_expose_internal_collection(
-    actor_factory, api_client, runtime
+    actor_factory, api_client, runtime, operator_user
 ):
     actor = actor_factory()
     job, _ = search_jobs.submit_search_job(
-        {"entity_type": "actor", "entity_id": actor.pk}
+        {"entity_type": "actor", "entity_id": actor.pk}, user_id=operator_user.pk
     )
     items = [{"avid": f"ITEM-{i}"} for i in range(31)]
     runtime[0].save(
@@ -508,7 +508,7 @@ def test_signed_status_pages_do_not_expose_internal_collection(
     )
     url = f"/nassav/api/search/jobs/{job['task_id']}"
     params = {
-        "token": search_jobs.search_job_token(job["task_id"]),
+        "token": search_jobs.search_job_token(job["task_id"], user_id=operator_user.pk),
         "page": 2,
         "page_size": 15,
     }
@@ -606,3 +606,46 @@ def test_reused_task_result_reprojects_library_without_mutating_snapshot(
     assert not search_jobs.get_search_job(job["task_id"])["result"]["data"][
         "external_results"
     ][0]["in_library"]
+
+
+@pytest.mark.django_db
+def test_search_handles_and_tokens_are_owned_but_public_result_cache_can_be_shared(
+    actor_factory, django_user_model, runtime
+):
+    first = django_user_model.objects.create_user(username="search-owner-a")
+    second = django_user_model.objects.create_user(username="search-owner-b")
+    query = {"entity_type": "actor", "entity_id": actor_factory().pk}
+    a, _ = search_jobs.submit_search_job(query, user_id=first.pk)
+    b, duplicate = search_jobs.submit_search_job(query, user_id=second.pk)
+    assert not duplicate and a["task_id"] != b["task_id"]
+    assert search_jobs.submit_search_job(query, user_id=first.pk)[1]
+    token = search_jobs.search_job_token(a["task_id"], user_id=first.pk)
+    assert search_jobs.valid_search_job_token(a["task_id"], token, user_id=first.pk)
+    assert not search_jobs.valid_search_job_token(
+        a["task_id"], token, user_id=second.pk
+    )
+    assert not search_jobs.valid_search_job_token(
+        a["task_id"], search_jobs.search_job_token(a["task_id"]), user_id=first.pk
+    )
+
+
+@pytest.mark.django_db
+def test_account_epoch_change_cancels_old_search_before_network(
+    actor_factory, operator_user, runtime, monkeypatch
+):
+    from nassav.account_models import UserAccount
+
+    account = UserAccount.objects.create(user=operator_user)
+    job, _ = search_jobs.submit_search_job(
+        {"entity_type": "actor", "entity_id": actor_factory().pk},
+        user_id=operator_user.pk,
+    )
+    account.version += 1
+    account.save()
+    fetch = Mock()
+    monkeypatch.setattr(
+        search_jobs.external_search_service, "search_actor_detail", fetch
+    )
+    result = search_jobs.execute_search_job(job["task_id"])
+    assert result["state"] == "cancelled"
+    fetch.assert_not_called()

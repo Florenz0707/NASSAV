@@ -79,7 +79,15 @@ def query(session):
 @retry_sqlite_contention
 def claim(session_id, user_id, key, generation, command, expected_writer_generation):
     with transaction.atomic():
-        get_user_model().objects.filter(pk=user_id).update(last_login=F("last_login"))
+        from nassav.personal_state import lock_user
+        from nassav.account_policy import grant_playback
+
+        lock_user(user_id)
+        candidate = records.owned(session_id, user_id, key)
+        try:
+            grant_playback(user_id, candidate.resource)
+        except PermissionError as error:
+            raise PlaybackGatewayError("resource_not_available", 404) from error
         session = records.owned_for_update(session_id, user_id, key)
         active(session)
         if session.generation != generation:

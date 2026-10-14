@@ -34,14 +34,29 @@ class ExternalSearchResult:
     publish_cache: Callable[[], None] | None = None
 
 
-def project_library_presence(items: list[dict]) -> list[dict]:
+def project_library_presence(items: list[dict], *, user_id=None) -> list[dict]:
     result = deepcopy(items)
     avids = {str(item.get("avid", "")).strip().upper() for item in result}
     avids.discard("")
+    resources = AVResource.objects.filter(avid__in=avids)
+    if user_id is not None:
+        from nassav.account_models import UserAccount
+        from nassav.library_models import UserLibraryEntry
+
+        if UserAccount.objects.filter(user_id=user_id).exists():
+            # Pending requests disable a second add, without granting playback.
+            resources = resources.filter(pool_entry__memberships__user_id=user_id)
+            pending = set(
+                UserLibraryEntry.objects.filter(
+                    user_id=user_id, pool__canonical_avid__in=avids
+                ).values_list("pool__canonical_avid", flat=True)
+            )
+        else:
+            pending = set()
+    else:
+        pending = set()
     existing = (
-        set(AVResource.objects.filter(avid__in=avids).values_list("avid", flat=True))
-        if avids
-        else set()
+        set(resources.values_list("avid", flat=True)) | pending if avids else set()
     )
     for item in result:
         item["in_library"] = str(item.get("avid", "")).strip().upper() in existing
@@ -582,9 +597,16 @@ class ExternalSearchService:
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
         should_cancel: Callable[[], None] | None = None,
         defer_cache_publication: bool = False,
+        user_id=None,
     ) -> ExternalSearchResult:
+        from nassav.account_policy import catalog_resource_filter
+
         actor = (
-            Actor.objects.annotate(resource_count=Count("resources"))
+            Actor.objects.annotate(
+                resource_count=Count(
+                    "resources", filter=catalog_resource_filter(user_id)
+                )
+            )
             .filter(pk=actor_id)
             .first()
         )
@@ -622,6 +644,7 @@ class ExternalSearchService:
             "avatar_url": actor.avatar_url,
             "avatar_filename": actor.avatar_filename,
         }
+        result.items = project_library_presence(result.items, user_id=user_id)
         return result
 
     def search_genre_detail(
@@ -636,9 +659,16 @@ class ExternalSearchService:
         on_progress: Callable[[ExternalSearchResult], None] | None = None,
         should_cancel: Callable[[], None] | None = None,
         defer_cache_publication: bool = False,
+        user_id=None,
     ) -> ExternalSearchResult:
+        from nassav.account_policy import catalog_resource_filter
+
         genre = (
-            Genre.objects.annotate(resource_count=Count("resources"))
+            Genre.objects.annotate(
+                resource_count=Count(
+                    "resources", filter=catalog_resource_filter(user_id)
+                )
+            )
             .filter(pk=genre_id)
             .first()
         )
@@ -674,6 +704,7 @@ class ExternalSearchService:
             "name": genre.name,
             "resource_count": getattr(genre, "resource_count", 0),
         }
+        result.items = project_library_presence(result.items, user_id=user_id)
         return result
 
     def _model_pk_or_zero(self, instance: Any) -> int:

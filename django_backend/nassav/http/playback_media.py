@@ -56,6 +56,10 @@ def authorize_session(request, session_id, generation=None):
         row = records.owned(session_id, request.user.pk, key)
     except records.PlaybackSession.DoesNotExist:
         raise PlaybackGatewayError("session_not_found", 404)
+    from nassav.account_policy import can_read_playback
+
+    if not can_read_playback(request.user, row):
+        raise PlaybackGatewayError("resource_not_available", 404)
     now = timezone.now()
     if (
         row.state != "ready"

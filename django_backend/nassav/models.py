@@ -9,6 +9,15 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+from nassav.account_models import (
+    UserAccount as UserAccount,
+    AccountControl as AccountControl,
+    AuditEvent as AuditEvent,
+    UserLoginSession as UserLoginSession,
+    QuotaReservation as QuotaReservation,
+    AdminCommandReceipt as AdminCommandReceipt,
+)
+
 from nassav.library_models import (
     ResourcePoolEntry as ResourcePoolEntry,
     UserLibraryEntry as UserLibraryEntry,

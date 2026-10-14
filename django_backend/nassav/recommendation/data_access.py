@@ -9,9 +9,24 @@ from .repository import recommendation_snapshot_repository
 
 
 class DjangoCandidateInventory(CandidateInventory):
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+
     def existing(self, avids: set[str]) -> set[str]:
         if not avids:
             return set()
+        from nassav.account_models import UserAccount
+        from nassav.library_models import UserLibraryEntry
+
+        if (
+            self.user_id is not None
+            and UserAccount.objects.filter(user_id=self.user_id).exists()
+        ):
+            return set(
+                UserLibraryEntry.objects.filter(
+                    user_id=self.user_id, pool__canonical_avid__in=avids
+                ).values_list("pool__canonical_avid", flat=True)
+            )
         return set(
             AVResource.objects.filter(avid__in=avids).values_list("avid", flat=True)
         )

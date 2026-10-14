@@ -16,7 +16,9 @@ class ActorsListView(SchemaAPIView):
 
     def get(self, request):
         from django.core.paginator import Paginator
-        from django.db.models import Count
+        from django.db.models import Count, Q
+        from nassav.account_models import UserAccount
+        from nassav.account_policy import own_resource_ids
 
         from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
         from nassav.models import Actor, ActorSourceMapping
@@ -33,7 +35,14 @@ class ActorsListView(SchemaAPIView):
         actor_id = request.query_params.get("id", "").strip()
 
         # 构建查询
-        qs = Actor.objects.annotate(resource_count=Count("resources"))
+        resource_filter = (
+            Q(resources__pk__in=own_resource_ids(request.user.pk))
+            if UserAccount.objects.filter(user_id=request.user.pk).exists()
+            else Q()
+        )
+        qs = Actor.objects.annotate(
+            resource_count=Count("resources", filter=resource_filter)
+        )
 
         # 过滤掉没有关联资源的演员（除非明确指定 ID）
         if not actor_id:
@@ -164,6 +173,7 @@ class ActorDetailView(SchemaAPIView):
                 page_size=page_size,
                 ordering=ordering,
                 force_refresh=force_refresh,
+                user_id=request.user.pk,
             )
         except Actor.DoesNotExist:
             return build_response(404, "演员不存在", None)
@@ -199,7 +209,9 @@ class GenresListView(SchemaAPIView):
 
     def get(self, request):
         from django.core.paginator import Paginator
-        from django.db.models import Count
+        from django.db.models import Count, Q
+        from nassav.account_models import UserAccount
+        from nassav.account_policy import own_resource_ids
 
         from nassav.models import Genre, GenreSourceMapping
         from nassav.recommendation.seed_profiles import (
@@ -215,7 +227,14 @@ class GenresListView(SchemaAPIView):
         genre_id = request.query_params.get("id", "").strip()
 
         # 构建查询
-        qs = Genre.objects.annotate(resource_count=Count("resources"))
+        resource_filter = (
+            Q(resources__pk__in=own_resource_ids(request.user.pk))
+            if UserAccount.objects.filter(user_id=request.user.pk).exists()
+            else Q()
+        )
+        qs = Genre.objects.annotate(
+            resource_count=Count("resources", filter=resource_filter)
+        )
 
         # 过滤掉没有关联资源的类别（除非明确指定 ID）
         if not genre_id:
@@ -340,6 +359,7 @@ class GenreDetailView(SchemaAPIView):
                 page_size=page_size,
                 ordering=ordering,
                 force_refresh=force_refresh,
+                user_id=request.user.pk,
             )
         except Genre.DoesNotExist:
             return build_response(404, "类别不存在", None)

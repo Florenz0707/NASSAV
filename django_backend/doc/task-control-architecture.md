@@ -6,6 +6,8 @@
 
 共享池P1的[持有核心](resource-pool-architecture.md)已建立，但当前TaskJob仍按owner持有且按类型/AVID去重；尚无共享订阅。不得通过放宽owner比较或直接调用内部attach，把现有job变成跨用户任务。用户需求/系统执行及版本发布按P4/P5另行接入。
 
+[P2账号策略](account-policy-architecture.md)停用时仅对当前单owner任务请求取消，仍等待writer停止和资产收尾；P4接入后须改为撤销本用户订阅，禁止按发起人终止共享工作。管理fence仅用于管理命令，顺序在user/pool/work之前；普通业务不得反向取得它。受管WebSocket发送所属用户或明确管理范围的安全版本提示，旧全局组只供未引导operator兼容。
+
 ```mermaid
 flowchart LR
     UI[Vue taskJobs] --> API[授权 HTTP 控制与查询]

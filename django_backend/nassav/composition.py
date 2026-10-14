@@ -16,6 +16,16 @@ def build_library_membership():
     return LibraryMembership(DjangoMembershipRecords())
 
 
+def build_account_management():
+    from nassav.account_management import AccountManagement
+    from nassav.account_records import DjangoAccountCommands
+    from nassav.library_records import DjangoMembershipRecords
+
+    return AccountManagement(
+        DjangoAccountCommands(DjangoMembershipRecords(), build_task_records())
+    )
+
+
 if TYPE_CHECKING:
     from nassav.page_fetching.factory import BrowserFetchConfig
     from nassav.page_fetching.proxy_server import ProxyServer
@@ -240,7 +250,7 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
                 )
         return JablePageLookupRecommender(
             jable=source,
-            candidate_inventory=DjangoCandidateInventory(),
+            candidate_inventory=DjangoCandidateInventory(user_id=user_id),
             seed_provider=strategy.seed_provider_builder(),
             factors=[builder() for builder in strategy.factor_builders],
             proxy_server=proxy_server,

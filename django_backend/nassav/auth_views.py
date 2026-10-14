@@ -49,7 +49,26 @@ def login_view(request):
     user = authenticate(request, username=username, password=password)
     if user is None or not is_operator(user):
         return _response(401, "用户名或密码错误")
-    login(request, user)
+    from django.db import transaction
+    from nassav.personal_state import lock_user
+    from nassav.account_models import UserLoginSession
+
+    try:
+        with transaction.atomic():
+            lock_user(user.pk)
+            from django.contrib.auth import get_user_model
+
+            current = get_user_model().objects.get(pk=user.pk)
+            if current.password != user.password or not is_operator(current):
+                raise PermissionError("Account changed during authentication")
+            user = current
+            login(request, user)
+            request.session.save()
+            UserLoginSession.objects.get_or_create(
+                user=user, session_id=request.session.session_key
+            )
+    except PermissionError:
+        return _response(401, "账号不可用")
     return _response(
         200, "success", {"authenticated": True, "username": user.get_username()}
     )

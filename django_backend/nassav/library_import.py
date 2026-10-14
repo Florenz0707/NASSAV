@@ -28,7 +28,8 @@ def _resources():
 
 def _validate_pool(pool, resource):
     if (
-        pool.state in {"deleting", "cleanup_failed", "reclaimed"}
+        not pool.is_available
+        or pool.state in {"deleting", "cleanup_failed", "reclaimed"}
         or pool.resource_id != resource["pk"]
     ):
         raise LibraryImportConflict(f"池身份或生命周期冲突: {resource['identity']}")

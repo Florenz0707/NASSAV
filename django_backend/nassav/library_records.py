@@ -31,6 +31,8 @@ class DjangoMembershipRecords:
             # get_or_create isolates a raced insert in a savepoint on PostgreSQL.
             pool, _ = ResourcePoolEntry.objects.get_or_create(canonical_avid=avid)
             pool = ResourcePoolEntry.objects.select_for_update().get(pk=pool.pk)
+            if not pool.is_available:
+                raise LibraryConflict("resource_unavailable")
             if pool.state in {"deleting", "cleanup_failed"}:
                 raise LibraryConflict("resource_reclaiming")
             existing = UserLibraryEntry.objects.filter(

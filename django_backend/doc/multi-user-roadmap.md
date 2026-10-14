@@ -2,7 +2,7 @@
 
 状态：个人播放进度、第二阶段个人状态/JSON设置、第三阶段推荐隔离/播放设置及第四阶段跨设备接续已实现，尚未开放多用户业务访问。当前 `is_operator` 只允许配置指定的启用账号；已有 PlaybackSession.user 不代表整个资源库已经支持多用户。个人进度实现状态见[播放进度架构](playback-progress-architecture.md)，本轮状态与迁移见[个人状态与设置](personal-state-architecture.md)。
 
-后续多用户准入、来源Cookie归属及共享资源池的完整实施顺序、迁移草稿和验收门槛见[执行计划](multi-user-shared-pool-plan.md)。[P0契约与消费者清单](multi-user-contracts.md)已交付，[共享池P1基础](resource-pool-architecture.md)新增0037与内部持有/导入；不代表当前已支持共享订阅或自动回收。
+后续多用户准入、来源Cookie归属及共享资源池的完整实施顺序、迁移草稿和验收门槛见[执行计划](multi-user-shared-pool-plan.md)。[P0契约与消费者清单](multi-user-contracts.md)、[共享池P1基础](resource-pool-architecture.md)及[P2账号策略](account-policy-architecture.md)已交付；仍未开放普通用户、共享订阅或自动回收。
 
 ## 共享事实与个人状态
 

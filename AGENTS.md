@@ -175,3 +175,7 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 ## 观看列表约束
 
 观看历史与稍后观看遵循[个人观看列表](django_backend/doc/viewing-architecture.md)。历史唯一(user,resource)，真实播放/恢复更新队首，play之后的playing才上报；缓冲、读取、准备、claim和重试不新增事件。按会话generation/sequence拒绝旧执行或幂等去重，不绑定进度writer，只读播放同样记录。稍后观看沿用个人状态version与手动移除，不自动标记已观看或删队列；资源删除级联历史/稍后观看，播放进度仍按原规则保留。查询绑定request.user，不持久化个人列表到浏览器存储，不据旧进度推测回填历史。
+
+## 应用角色与共享池（开发中）
+
+修改角色、持有、管理、配额或账号撤销前阅读[共享池](django_backend/doc/resource-pool-architecture.md)与[账号策略](django_backend/doc/account-policy-architecture.md)。UserAccount才是应用角色所有者，不从Django标志推导管理权限；普通账号登录仍关闭。未引导operator兼容路径不属于新角色授权，禁止用它绕过后续凭证/共享工作协议。管理命令必须版本/幂等/理由代码/审计，管理fence在排序user→pool→work/session之前，普通业务不反向取得它。审计清理不删除持久命令receipt；配额释放不以writer超时为证明。停用目前只取消旧单owner工作，P4须改为撤销本用户订阅。图片/媒体先授权再响应304/206，播放grant不代替P5读取占用与不可变版本。

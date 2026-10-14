@@ -25,6 +25,7 @@ class ResourcePoolEntry(models.Model):
     )
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     canonical_avid = models.CharField(max_length=50, unique=True)
+    is_available = models.BooleanField(default=True)
     resource = models.OneToOneField(
         "nassav.AVResource",
         null=True,

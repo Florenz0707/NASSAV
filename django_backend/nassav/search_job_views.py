@@ -37,7 +37,7 @@ def public_snapshot(snapshot: dict) -> dict:
     return {
         key: value
         for key, value in snapshot.items()
-        if key not in {"query_key", "collected_results"}
+        if key not in {"query_key", "collected_results", "owner_id", "owner_epoch"}
     }
 
 
@@ -63,7 +63,7 @@ class SearchJobSubmitView(SchemaAPIView):
         data = {
             **public_snapshot(snapshot),
             "duplicate": duplicate,
-            "token": search_job_token(snapshot["task_id"]),
+            "token": search_job_token(snapshot["task_id"], user_id=request.user.pk),
         }
         return build_response(202, "搜索任务已提交", data)
 
@@ -71,7 +71,9 @@ class SearchJobSubmitView(SchemaAPIView):
 class SearchJobStatusView(SchemaAPIView):
     def get(self, request, task_id):
         task_id = str(task_id)
-        if not valid_search_job_token(task_id, request.query_params.get("token", "")):
+        if not valid_search_job_token(
+            task_id, request.query_params.get("token", ""), user_id=request.user.pk
+        ):
             return build_response(403, "搜索任务访问凭证无效", None)
         try:
             page = request.query_params.get("page")
@@ -89,14 +91,36 @@ class SearchJobStatusView(SchemaAPIView):
             return build_response(503, "搜索任务状态暂不可用", None)
         if snapshot is None:
             return build_response(404, "搜索任务已过期或不存在，请重新搜索", None)
+        from nassav.account_policy import execution_epoch
+
+        if snapshot.get("owner_id") != request.user.pk or snapshot.get(
+            "owner_epoch"
+        ) != execution_epoch(request.user.pk):
+            return build_response(404, "搜索任务不存在", None)
         return build_response(200, "success", public_snapshot(snapshot))
 
 
 class SearchJobCancelView(SchemaAPIView):
     def post(self, request, task_id):
+        if not isinstance(request.data, dict):
+            return build_response(400, "请求必须为对象", None)
         task_id = str(task_id)
-        if not valid_search_job_token(task_id, request.data.get("token", "")):
+        if not valid_search_job_token(
+            task_id, request.data.get("token", ""), user_id=request.user.pk
+        ):
             return build_response(403, "搜索任务访问凭证无效", None)
+        try:
+            snapshot = get_search_job(task_id)
+        except Exception:
+            return build_response(503, "搜索任务状态暂不可用", None)
+        from nassav.account_policy import execution_epoch
+
+        if (
+            snapshot is None
+            or snapshot.get("owner_id") != request.user.pk
+            or snapshot.get("owner_epoch") != execution_epoch(request.user.pk)
+        ):
+            return build_response(404, "搜索任务不存在", None)
         try:
             snapshot = cancel_search_job(task_id)
         except SearchJobAlreadyFinished:

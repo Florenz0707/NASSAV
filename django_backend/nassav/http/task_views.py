@@ -151,6 +151,11 @@ class TaskQueueStatusView(SchemaAPIView):
 
         try:
             queue_status = get_full_task_queue()
+            from nassav.account_policy import is_legacy_operator
+            from nassav.admin_presentation import queue_snapshot
+
+            if not is_legacy_operator(request.user):
+                queue_status = queue_snapshot(queue_status)
             return build_response(200, "success", queue_status)
         except Exception as e:
             logger.error(f"获取任务队列状态失败: {e}")

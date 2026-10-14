@@ -627,6 +627,9 @@ class ResourceJobStatusView(SchemaAPIView):
             return build_response(503, "任务状态暂不可用", None)
         if snapshot is None:
             return build_response(404, "任务不存在或已过期", None)
+        from nassav.admin_presentation import work_snapshot
+
+        snapshot = work_snapshot(snapshot, request.user)
         return build_response(200, "success", snapshot)
 
 

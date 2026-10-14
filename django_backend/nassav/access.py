@@ -24,4 +24,8 @@ class OperatorSessionAuthentication(SessionAuthentication):
 
 class IsOperator(BasePermission):
     def has_permission(self, request, view):
-        return is_operator(request.user)
+        if not is_operator(request.user):
+            return False
+        from nassav.account_policy import permit_business_view
+
+        return permit_business_view(request, view)

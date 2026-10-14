@@ -228,7 +228,13 @@ def execute(job_id, *, manager_builder=None):
     if manager_builder is None:
         from nassav.composition import build_recommendation_manager
 
-        manager_builder = build_recommendation_manager
+        def default_manager_builder(*, context, control):
+            return build_recommendation_manager(
+                context=context, control=control, user_id=getattr(job, "owner_id", None)
+            )
+
+        manager_builder = default_manager_builder
+
     try:
         with control.phase(max(0.1, budget.deadline - budget.clock())):
             manager = manager_builder(context=context, control=control)

@@ -14,6 +14,20 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ## 访问与会话（P1）
 
+未发布P2新增应用角色与管理接口，仍保留下述operator登录门禁。新管理端点要求显式应用admin，不以Django超级用户或用户名自动提权；无UserAccount的原operator只保留旧路径兼容。权限、对象与撤销边界见[账号策略](account-policy-architecture.md)。
+
+| 管理接口（/nassav/api前缀）                  | 请求/响应                                                                                                                     |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| GET /admin/users                             | page/page_size（最多100）；只返回账号、角色、启用状态、version和配额，无个人备注/历史                                         |
+| POST /admin/users                            | username/password（盲写）、可选role/is_active，request_id/reason；201返回账号投影                                             |
+| PATCH /admin/users/{user_id}                 | expected_version/request_id/reason与明确修改的role/is_active/storage_quota_bytes/max_active_operations；部分更新，不接收owner |
+| POST /admin/users/{user_id}/revoke-sessions  | expected_version/request_id/reason；撤销登录与播放，不终止其他用户工作                                                        |
+| POST /admin/users/{user_id}/reset-password   | 上述控制字段＋password；仅返回账号投影                                                                                        |
+| GET /admin/audit                             | 最新100条非敏感动作元信息，不返回请求正文或密码                                                                               |
+| POST /admin/resources/{pool_id}/availability | expected_version/request_id/reason/available；下架立即拒绝新读并关闭会话，保留文件                                            |
+
+reason仅接受bootstrap/security/maintenance/user_request/quota_adjustment；参数400、动作403、对象404、版本/幂等/最后管理员冲突409。响应沿用envelope并no-store。未新增普通库operation接口，仍待P4；外搜token已绑定当前用户，旧未绑定句柄需重新搜索。
+
 目标为经同源 HTTPS 反向代理访问的单用户会话。`NASSAV_OPERATOR_USERNAME` 指定唯一可访问业务数据的 Django 账号（默认 `nassav`）；账号必须处于启用状态。浏览器先调用公开的会话接口取得 CSRF cookie，再以该账号登录。所有 `/nassav/api/` 业务端点统一要求此账号的有效 session；匿名请求返回 HTTP 401，其他账号返回 HTTP 403。跨站请求不开放 CORS。
 
 | 访问级别 | 端点                                                                                             | 规则                                                                                          |

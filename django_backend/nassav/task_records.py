@@ -180,6 +180,13 @@ class DjangoTaskRecords:
         active_key = f"{kind}:{avid}"
         try:
             with self.reservation_lock(avid), transaction.atomic():
+                if owner_id is not None:
+                    from nassav.personal_state import lock_user
+
+                    try:
+                        lock_user(owner_id)
+                    except PermissionError as error:
+                        raise TaskForbidden("任务所属账号不可用") from error
                 now = timezone.now().timestamp()
                 row = TaskJob.objects.create(
                     kind=kind,
