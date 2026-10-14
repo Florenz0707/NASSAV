@@ -8,6 +8,14 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+
+def build_library_membership():
+    from nassav.library_membership import LibraryMembership
+    from nassav.library_records import DjangoMembershipRecords
+
+    return LibraryMembership(DjangoMembershipRecords())
+
+
 if TYPE_CHECKING:
     from nassav.page_fetching.factory import BrowserFetchConfig
     from nassav.page_fetching.proxy_server import ProxyServer

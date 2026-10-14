@@ -4,6 +4,8 @@
 
 ## 状态所有者与依赖方向
 
+共享池P1的[持有核心](resource-pool-architecture.md)已建立，但当前TaskJob仍按owner持有且按类型/AVID去重；尚无共享订阅。不得通过放宽owner比较或直接调用内部attach，把现有job变成跨用户任务。用户需求/系统执行及版本发布按P4/P5另行接入。
+
 ```mermaid
 flowchart LR
     UI[Vue taskJobs] --> API[授权 HTTP 控制与查询]

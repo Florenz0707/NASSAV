@@ -611,6 +611,10 @@ git show cc6ab42^:django_backend/doc/validation-status.md
 
 ## 个人数据导入
 
+### 旧资源持有导入（0037）
+
+`uv run python manage.py import_resource_library --username <配置中的原操作者>`默认只读预览；显式加`--apply`才写入共享池与该账号持有。维护窗口先备份并停止资源写者，确认原操作者、规范番号冲突及已有池身份；重复运行保留已编辑关系，但已移出关系会重新导入。不修改资源/个人标记/文件/Cookie，访问范围先按原操作者私有标记，详见[共享池架构](../doc/resource-pool-architecture.md)。
+
 `uv run python manage.py import_personal_data --username nassav [--settings-file config/user_settings.ini] [--apply]`：默认只读预览，明确原操作者后加 `--apply` 导入旧共享收藏/观看和只读INI。既有个人行不覆盖，0034移除导入标记后仅创建缺失行；人工删除行后再次导入可能恢复旧值，账号及取值错误不写入，具体维护窗口见[个人状态](../doc/personal-state-architecture.md)。
 
 ### 旧共享推荐归属导入

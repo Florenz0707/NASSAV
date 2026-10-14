@@ -4,6 +4,8 @@
 
 ## 首选命令与依赖
 
+共享池P1专项为`tests/test_library_membership.py`和`tests/test_library_migration.py`：独立事务barrier覆盖并发添加/最后释放竞态，迁移覆盖0036→0037→0036→0037。SQLite使用下方隔离设置；PostgreSQL须使用独立空测试库与同样无凭证/无外部网络设置，不能覆盖已有实例库。
+
 需要 Python 3.12+、uv、已同步的开发依赖以及系统 redis-server。完整命令：
 
 ```bash

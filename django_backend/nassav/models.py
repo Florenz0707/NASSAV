@@ -9,6 +9,11 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+from nassav.library_models import (
+    ResourcePoolEntry as ResourcePoolEntry,
+    UserLibraryEntry as UserLibraryEntry,
+)
+
 # Explicit re-exports also register split task models with Django.
 from nassav.recommendation_models import (
     RecommendationJob as RecommendationJob,
