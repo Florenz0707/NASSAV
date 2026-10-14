@@ -336,3 +336,24 @@ def test_warm_structured_source_commits_without_html_artifact(context):
     assert AVResource.objects.filter(avid="SCRAPE-1").exists()
     assert not (assets.roots["cover"] / "SCRAPE-1.html").exists()
     assert (assets.roots["cover"] / "SCRAPE-1.jpg").exists()
+
+
+def test_invalid_source_failure_still_finishes_owned_attempt(context, monkeypatch):
+    from nassav.credential_crypto import CredentialUnavailable
+    from nassav.task_models import TaskAttempt, TaskJob
+
+    runner, records, _, job, _, _, _ = context
+
+    def broken_check(_):
+        raise CredentialUnavailable("Source revoked fixture")
+
+    def preparation(_):
+        monkeypatch.setattr(records, "check", broken_check)
+        raise CredentialUnavailable("Source revoked fixture")
+
+    runner.preparation = preparation
+    result = runner.run(job["job_id"], job["task_id"])
+    assert result["state"] == "failed" and result["error_code"] == "SCRAPE_FAILED"
+    attempt = TaskAttempt.objects.get(pk=job["task_id"])
+    assert attempt.state == "failed" and attempt.stopped_at is not None
+    assert TaskJob.objects.get(pk=job["job_id"]).active_key is None

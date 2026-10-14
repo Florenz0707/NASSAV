@@ -66,10 +66,20 @@ def operation_snapshot(row):
 
 
 class DjangoOperationRecords:
-    def __init__(self, task_records, *, gc_grace=timedelta(hours=24), hint=None):
+    def __init__(
+        self,
+        task_records,
+        *,
+        gc_grace=timedelta(hours=24),
+        hint=None,
+        publication=None,
+        allow_private=False,
+    ):
         self.task_records = task_records
         self.gc_grace = gc_grace
         self.hint = hint
+        self.publication = publication
+        self.allow_private = allow_private
 
     def _hint(self, row):
         if self.hint is not None:
@@ -98,7 +108,25 @@ class DjangoOperationRecords:
             ).exists():
                 raise OperationConflict("request_id_reused")
             if spec["access_scope"] != "public":
-                raise OperationConflict("private_publication_not_ready")
+                if not self.allow_private or self.publication is None:
+                    raise OperationConflict("private_publication_not_ready")
+                from nassav.credential_models import SourceCredential
+
+                ref = spec["credential_refs"]
+                if (
+                    not ref.get("credential_id")
+                    or spec["access_scope"] != f"personal:{ref['credential_id']}"
+                    or not SourceCredential.objects.filter(
+                        pk=ref["credential_id"],
+                        owner_id=user_id,
+                        scope="personal",
+                        version=ref["credential_version"],
+                        origin_host=ref["origin_host"],
+                        source_name=spec["source"],
+                        state="active",
+                    ).exists()
+                ):
+                    raise PermissionError("Credential scope not available")
             pool, _ = ResourcePoolEntry.objects.get_or_create(
                 canonical_avid=command["avid"]
             )
@@ -253,6 +281,7 @@ class DjangoOperationRecords:
         row.save()
         self._hint(row)
         if not WorkSubscription.objects.filter(work=work, state="attached").exists():
+            TaskJob.objects.select_for_update().get(pk=work.job_id)
             snapshot = self.task_records.get(str(work.job_id))
             if snapshot["state"] not in TERMINAL | {"cancelling"}:
                 self.task_records.request(
@@ -322,8 +351,9 @@ class DjangoOperationRecords:
                 self._release_pending(row, pool)
                 return operation_snapshot(row)
             if job.state == "succeeded":
-                # Task success alone is not evidence of a scoped, immutable asset.
-                raise OperationConflict("publication_not_ready")
+                if self.publication is None:
+                    raise OperationConflict("publication_not_ready")
+                self.publication.grant_locked(user_id, work, row.membership_id)
             state = job.state
             stage = job.stage if job.stage in PUBLIC_STAGES else state
             message = "共享工作失败，请重试" if state == "failed" else ""
@@ -367,7 +397,6 @@ class DjangoOperationRecords:
                 user__is_active=True, subscription__state="attached"
             )
             .exclude(state__in=TERMINAL)
-            .exclude(subscription__work__job__state="succeeded")
             .filter(
                 Q(projected_work_version__lt=F("subscription__work__job__version"))
                 | Q(pool__is_available=False)
@@ -375,8 +404,10 @@ class DjangoOperationRecords:
                 | Q(membership__isnull=True)
             )
             .order_by("updated_at", "pk")
-            .values_list("user_id", "pk")[:limit]
         )
+        if self.publication is None:
+            candidates = candidates.exclude(subscription__work__job__state="succeeded")
+        candidates = candidates.values_list("user_id", "pk")[:limit]
         projected, skipped = 0, 0
         for user_id, operation_id in list(candidates):
             try:

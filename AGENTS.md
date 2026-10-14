@@ -187,3 +187,5 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 共享请求遵循[共享工作](django_backend/doc/shared-work-architecture.md)。UserOperation与SharedWork/TaskJob身份、版本、权限分开；默认旧执行器不得派发/领取shared_work。状态按本人游标投影，不广播内部诊断；成功必须由P5发布证据激活，取消/失代次不得复活持有。user→pool→work→task锁顺序不变，禁止pool持锁后遍历取得其他user锁；提示在事务后仅发送operation_id/version。
 
 版本/占用遵循[资源版本](django_backend/doc/resource-version-architecture.md)。元数据与视频指针分离，已发布数据不可原地改写；公开版本owner为空，其他范围仅所属用户，不授予管理员私人媒体权。读取固定version/登录/账号epoch，移出仅允许已有合法播放grant在原期限续读，不能新授权或延长；GC同时检查占用和仍可续读的播放session，不能用lease超时替代writer停止。当前发布/网关接入未完成，不在旧流程直接启共享执行。
+
+共享版本发布复用TaskAssets日志/文件锁及DjangoSharedExecutionRecords来源→pool→work→task fence；public工作上下文actor必须为空，不能绑定最初提交人。新目标限定对应versions/UUID，禁止旧AVID/头像全局路径。指针同时核对父版本/revision，未完成翻译和源链接不写正式展示snapshot；旧token与仍owned的来源失效区分收尾，不留下running ghost。成功激活需发布证据，私人数据不能写共享AVResource列；目录/推荐/媒体消费须显式投影版本。

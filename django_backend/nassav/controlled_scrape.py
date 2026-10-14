@@ -243,7 +243,8 @@ class ControlledScrape:
         except Exception:
             logger.exception("受控刮削失败: %s", job_id)
             try:
-                check()
+                # finish itself checks execution/control ownership. Re-checking
+                # an invalid source here would strand a still-owned attempt.
                 snapshot = records.finish(
                     token,
                     "failed",
@@ -252,6 +253,8 @@ class ControlledScrape:
                 )
             except (TaskPauseRequested, TaskCancelRequested):
                 snapshot = records.acknowledge_stop(token, checkpoint=checkpoint)
+            except TaskExecutionInvalid:
+                return {"status": "ignored", "job_id": job_id}
         if snapshot["cleanup_state"] == "pending":
             snapshot = assets.cleanup(job_id)
         self._project(snapshot)

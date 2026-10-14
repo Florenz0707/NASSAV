@@ -15,6 +15,7 @@ class ResourceVersion(models.Model):
         "nassav.SharedWork", null=True, on_delete=models.PROTECT
     )
     parent = models.ForeignKey("self", null=True, on_delete=models.PROTECT)
+    base_pointer_revision = models.PositiveBigIntegerField(default=1)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT
     )

@@ -154,3 +154,5 @@ P4模型/核心专项为`test_shared_operations.py`与`test_shared_work_migratio
 P4生命周期专项为`test_shared_work_lifecycle.py`、`test_user_operation_projection_migration.py`及`test_task_recovery.py`：旧执行器拒绝共享任务、释放/停用仅撤销本人、独立有界投影、迟到不复活、事务后私有提示、0042↔0043数据保持。真实共享worker、成功版本发布及配额仍待后续联调。
 
 P5账本/占用专项：`test_resource_read_leases.py`及`test_resource_version_migration.py`，验证版本范围/独立指针、登录和epoch隔离、播放原期限内续读、线程并发续租/释放与0044往返；没有真实文件/Range/worker发布验收。
+
+P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fence_migration.py`验证真实加密引用、JPEG资产日志、指针与文件补偿、双用户取消/停用、线程CAS竞争和0045往返。`test_controlled_scrape.py`新增来源失效后owned失败收尾；没有真实共享worker/视频或网页验收。

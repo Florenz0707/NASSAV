@@ -1,6 +1,7 @@
 """Per-operation source authorization; anonymous browser pages require bound replay."""
 
 from datetime import datetime, timedelta, timezone
+import hashlib
 from dataclasses import replace
 from typing import Callable, Protocol
 from urllib.parse import urlsplit
@@ -22,6 +23,9 @@ from nassav.source_credentials import (
 
 
 class ScopedSourceContext(Protocol):
+    @property
+    def work_binding(self) -> dict: ...
+
     @property
     def scope_key(self) -> str: ...
 
@@ -118,6 +122,29 @@ class CredentialSourceContext:
         records, ref = self._load()
         self.check()
         return f"{ref.cache_scope if ref else 'anonymous'}:{self.egress_profile}:{self.browser_context}"
+
+    @property
+    def work_binding(self):
+        records, ref = self._load()
+        self.check()
+        return {
+            "access_scope": f"personal:{ref.id}"
+            if ref is not None and ref.scope == "personal"
+            else "public",
+            "owner_id": ref.owner_id if ref is not None else None,
+            "actor_id": self.user_id,
+            "context_revision": hashlib.sha256(
+                f"{self.scope_key}:shared-publication-v1".encode()
+            ).hexdigest(),
+            "credential_refs": {
+                "source_name": self.source_name,
+                "origin_host": ref.origin_host
+                if ref is not None
+                else records.origin_for_source(self.source_name),
+                "credential_id": str(ref.id) if ref is not None else None,
+                "credential_version": ref.version if ref is not None else None,
+            },
+        }
 
     def check(self):
         self.check_execution()

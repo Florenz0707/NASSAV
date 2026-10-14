@@ -31,3 +31,19 @@ GC未来不仅检查has_readers，还要检查仍可续读的合法播放session
 0044增加三表和两个可空持有指针；不改旧资源/工作/关系、不自动建立正式manifest、不导入文件。逆向丢版本、指针和占用，旧表不能表示新增范围/谱系；回退前停止新消费者并备份这些数据与匹配资产，不能宣称回退恢复媒体。
 
 专项`test_resource_read_leases.py`覆盖私有范围负向、登录/账号epoch、原播放宽限、指针切换、续租/释放真实线程竞争及幂等并发。`test_resource_version_migration.py`覆盖0043→0044→0043→0044及旧资源/请求/订阅/持有保持。临时SQLite/PostgreSQL用于结构与权限隔离，不替代真实浏览器/worker/Range/GC验收。
+
+## 发布核心子阶段
+
+0045增加base_pointer_revision。DjangoSharedExecutionRecords消费独立来源context，先在事务外加载密钥/解析来源，再按key policy→私人owner/credential→pool→work→task取得短提交fence。公开共享工作使用actor为空的系统/匿名上下文，不能依赖第一位用户继续启用；私人work只能由对应owner范围的凭证执行。绑定只保存ID/version/host及opaque context hash，不含Cookie、UA或源链接。
+
+VersionPublications.prepare持久分配候选UUID，固定父指针与revision，恢复复用候选。正式资产目标只能位于该版本versions/UUID命名空间；共享执行适配器在准备日志提交前拒绝旧AVID路径或另一版本目标。提升、备份、校验、回滚继续由TaskAssets及原共享flock承担，不另造文件事务。发布callback只读已验证的artifact size/hash/marker，读取/哈希/复制/网络仍在事务外。
+
+manifest按root/kind/path/size/SHA256/marker登记；元数据只接受白名单展示字段及匹配AVID，拒绝m3u8、headers、用户备注、进行中的翻译等。HTML只属于临时工作区，不进入新正式manifest。视频发布要求一项MP4资产，其真实ffprobe/完整解码仍须下载workflow在提交前验证，publisher不重新读大文件或宣称文件扩展名等于媒体合格。
+
+短发布同时CAS父指针与revision，更新失败保留旧指针/字节；较新指针拒绝旧候选并补偿新文件。AVResource仅作稳定个人状态/历史锚点，新私人标题、关系和URL不写共享列。实际库/目录/推荐读取仍待下一消费者子阶段适配版本投影，不能把空共享锚点当成新版资源信息。
+
+用户请求成功须经注入的grant_locked验证ready版本及work/代次/范围/owner/来源/context证据；只激活仍attached且存在的本人持有，不重新创建取消/移出的关系。生产默认投影器尚未装配publisher，新HTTP/配额/worker派发/正式媒体读取仍未开放，完整P4/P5未完成。
+
+来源或pool失效属于仍owned执行的失败，而非旧token静默ignored；旧token仍由原TaskExecutionInvalid拒绝。刮削失败收尾直接用finish检查执行/控制归属，不重复检查已失效来源，避免owned attempt滞留running；取消优先且网络/写入者必须已退出。
+
+专项`test_version_publication.py`使用真实加密来源记录、临时JPEG、DB及资产日志，覆盖双用户激活、撤销/取消、无公共私人数据、失败补偿、较新指针、命名空间及线程竞态；另有实际ffmpeg生成并完整解码的0.2秒MP4验证独立视频指针；不是源站下载、真实Celery或HTTP媒体验收。0045往返保留版本/manifest/持有/读取占用，仅新增CAS基准列；历史staging候选不能因为默认值就获新提交权。

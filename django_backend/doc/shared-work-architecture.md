@@ -47,7 +47,7 @@ P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、
 
 后台恢复循环注入有界project_pending，每轮最多200条，按用户独立取得user→pool→work→task锁。每个operation有自己的底层版本游标，无公共内容变化只推进游标，不增加公开version或发送提示；不会用全局work游标跳过B，也不会让一直queued的A挡住后续批次。取消/释放及旧pool代次不会被迟到进度恢复。失败仅输出固定短消息与WORK_FAILED，不传播内部checkpoint、Cookie、来源URL或诊断。
 
-成功投影目前拒绝publication_not_ready，后台暂不选成功job；P5补齐正式版本后才能完成持有激活。不能以TaskJob.succeeded或同AVID文件存在作为激活证明。配额和新HTTP仍未开放，这一子阶段不代表完整P4。
+默认投影器仍拒绝publication_not_ready且暂不选成功job；P5发布核心已提供可注入grant证据，注入后只激活仍attached的本人持有，生产装配待后续接入。不能以TaskJob.succeeded或同AVID文件存在作为激活证明。配额和新HTTP仍未开放，这一子阶段不代表完整P4。
 
 用户提示仅为operation_id/version，提交成功后发送到本人的task_user频道，不进入旧全局组或管理员广播。提示投递失败不回滚业务，由下一次授权快照补查；当前前端尚未消费新事件。
 
