@@ -82,6 +82,18 @@ class UserLibraryEntry(models.Model):
         ResourcePoolEntry, on_delete=models.PROTECT, related_name="memberships"
     )
     state = models.CharField(max_length=16, default="pending")
+    current_version = models.ForeignKey(
+        "nassav.ResourceVersion",
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="metadata_holders",
+    )
+    video_version = models.ForeignKey(
+        "nassav.ResourceVersion",
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="video_holders",
+    )
     desired_spec = models.JSONField(default=dict)
     access_scope = models.CharField(max_length=128)
     version = models.PositiveBigIntegerField(default=1)

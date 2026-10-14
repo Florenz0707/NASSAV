@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4模型/内部核心正在实施，P5–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0043。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4模型/内部核心正在实施，P5账本/读取核心正在实施，P6–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0044。
 
 ## 1. 目标与首版范围
 
@@ -272,3 +272,7 @@ P4模型/核心隔离门槛（2026-10-15）：SQLite全量1087 passed、28 skipp
 P4生命周期子阶段基线e2682f1，分支`feat/shared-work-lifecycle`：0043逐用户游标、后台有界进度/失败投影、移出/停用联动、事务后私有提示以及旧派发/领取保护。完整P4的成功激活、配额及HTTP仍待P5发布协议接入，不开放普通账号。
 
 生命周期子阶段隔离门槛（2026-10-15）：全量SQLite1101 passed、28 skipped；临时PostgreSQL专项41 passed；模型迁移无差异；完整pre-commit通过。执行记录不包含真实共享Celery、源站账号、正式媒体或部署数据库验收。
+
+P5账本子阶段基线d57421c，分支`feat/resource-version-ledger`：0044及内部读取占用，详见[资源版本](resource-version-architecture.md)。尚未接入正式发布、播放器/封面/GC及旧文件导入，完整P4/P5仍在执行。
+
+P5账本隔离门槛（2026-10-15）：全量SQLite1111 passed、28 skipped；临时PostgreSQL专项10 passed；模型迁移无差异；完整pre-commit通过。仅DB/授权占用核心，未打开媒体或验证真实版本发布。

@@ -36,6 +36,12 @@ from nassav.shared_work_models import (
     UserOperationCommand as UserOperationCommand,
 )
 
+from nassav.resource_version_models import (
+    ResourceVersion as ResourceVersion,
+    ResourceVersionPointer as ResourceVersionPointer,
+    ResourceReadLease as ResourceReadLease,
+)
+
 # Explicit re-exports also register split task models with Django.
 from nassav.recommendation_models import (
     RecommendationJob as RecommendationJob,

@@ -185,3 +185,5 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 新增加密凭证和刷新快照遵循[凭证架构](django_backend/doc/source-credential-architecture.md)。专用keyring不可回退SECRET_KEY或明文；HTTP只返回元信息，禁止秘密进入日志、审计、任务参数或公共缓存。来源host由服务端配置决定，个人凭证不自动提升公共。刷新须检查凭证version、快照context、owner/generation/lease及执行归属，人工更新/撤销使旧结果失效；只释放本人租约。旧Cookie显式分类导入，未知账号Cookie隔离，不双写或自动清除。新模式默认关闭，启用时全部消费者统一重启，不混跑旧Cookie写入者。ProxyServer声明会话能力，私人请求不得将匿名HTML视为成功；原站Cookie禁止跟随重定向或发往CDN。DB缓存和推荐终态先取得key policy/actor/credential fence，再进入既有短提交；Redis仅用失效版本命名空间，不持DB锁调用Redis。旧active key writer不得绕过DB key policy，轮换保留历史密钥且CAS预检。共享正式媒体当前只用system，私人资产待P4/P5。
 
 共享请求遵循[共享工作](django_backend/doc/shared-work-architecture.md)。UserOperation与SharedWork/TaskJob身份、版本、权限分开；默认旧执行器不得派发/领取shared_work。状态按本人游标投影，不广播内部诊断；成功必须由P5发布证据激活，取消/失代次不得复活持有。user→pool→work→task锁顺序不变，禁止pool持锁后遍历取得其他user锁；提示在事务后仅发送operation_id/version。
+
+版本/占用遵循[资源版本](django_backend/doc/resource-version-architecture.md)。元数据与视频指针分离，已发布数据不可原地改写；公开版本owner为空，其他范围仅所属用户，不授予管理员私人媒体权。读取固定version/登录/账号epoch，移出仅允许已有合法播放grant在原期限续读，不能新授权或延长；GC同时检查占用和仍可续读的播放session，不能用lease超时替代writer停止。当前发布/网关接入未完成，不在旧流程直接启共享执行。
