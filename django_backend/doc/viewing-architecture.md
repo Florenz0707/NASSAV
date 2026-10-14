@@ -34,7 +34,7 @@ Firefox最终复核通过：双登录创建的每个页面均先bringToFront再�
 
 主题截图最终使用body.dark-mode/light-mode切换，并断言主题token不同；初版脚本误用html.dark，复查修正后两浏览器最终深浅截图分别验收。原生MP4请求随关闭页面中断时，隔离API偶有ASGI未完成响应日志；会话最终closed已核查，无浏览器pageerror，本轮不修改既有媒体流生命周期。
 
-## 列表管理与前端缓存（未发布）
+## 列表管理与前端缓存（v2.5.1）
 
 viewing.remove_history/remove_watched_later沿用短用户写入fence，先校验全部输入再写，网络不进入事务。历史单条/批量按当前账号+AVID+列表时间匹配，重新观看冲突逐项保留；批量最多200项，一次读候选并批量删除。稍后再看按全账号队列中手动watched移出，递增个人版本，仅改watch_later及加入时间。历史删除不删除进度；已处理sequence重试不重新创建，新的有效playing仍可加入。没有新表或迁移。
 

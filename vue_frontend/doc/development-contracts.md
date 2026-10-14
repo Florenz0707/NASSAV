@@ -222,7 +222,7 @@ noteDialog统一处理关闭与导航离开的未保存决定，所有弹窗复�
 
 新备注关闭护栏只阻止打开的编辑器，收藏等后台保存不阻断关闭状态下的导航。提交与合并见该分支Git历史；正式服务、真实源站worker、实体设备与数据库迁移未执行，本轮不需要新增迁移。
 
-### 个人中心缓存与列表操作（未发布）
+### 个人中心缓存与列表操作（v2.5.1）
 
 PersonalCenter使用最多4个KeepAlive面板，使用viewing:section/settings:section的独立缓存key保留状态、180ms淡入位移，尊重prefers-reduced-motion；登出须ConfirmDialog确认“是否要登出”。ViewingLibrary的查询缓存归features/viewing/stores/viewing，30秒/8项/同请求去重；App身份变化重置，缓存revision及请求guard双重检查旧响应。onDeactivated停止查询、关闭确认和解除操作展示状态，卸载解除focus/visibility监听。手动刷新和重试强刷，写入成功以shared/lib/personalDataEvents无载荷事件失效，不保存个人数据到浏览器持久存储。跨标签/设备仅有TTL恢复，详细现状与后续步骤见[缓存计划](personal-cache-plan.md)。
 

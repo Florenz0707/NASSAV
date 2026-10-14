@@ -47,7 +47,7 @@ python3 scripts/compose_stack.py --mode sqlite run --rm --no-deps api python man
 
 settings store读取和保存仍经已有setting接口；App在会话身份变化时reset，清空偏好和资源列表中的个人标记，使旧load/save响应失效。页面临时预览仍需点击“保存设置”，后端真值为UserPreferences，不以本地storage或进程对象作为长期状态。
 
-评分和开放多账号登录仍未实现；观看历史与稍后观看见[个人观看列表](viewing-architecture.md)；推荐用户化、播放偏好及跨设备接续已在第三/第四阶段实现，共享资产仍沿用操作者权限。正式升级依次应用0033–0035并运行适用的显式旧数据导入，不混跑旧INI/AVResource标记或全局推荐写入者。
+评分和开放多账号登录仍未实现；观看历史与稍后观看见[个人观看列表](viewing-architecture.md)；推荐用户化、播放偏好及跨设备接续已在第三/第四阶段实现，共享资产仍沿用操作者权限。正式升级依次应用0033–0036并运行适用的显式旧数据导入，不混跑旧INI/AVResource标记或全局推荐写入者。
 
 ## 本轮验证与发布边界
 
@@ -93,3 +93,5 @@ INI导入只在提供有效设置值且UserPreferences行缺失时创建JSON行�
 Chrome/Firefox通过现有personalState隔离Django/SQLite API套件，设置页手动保存和刷新持久化正常；原settings浏览器交互及提交字段断言通过。WebSocket隔离，无真实来源/worker/正式数据库联调。未执行正式0034迁移、旧INI导入或Docker重建；回退无法保存未来JSON键、created_at及原导入时间，部署前需备份和停止旧消费者。
 
 个人中心UI集中观看列表、通用/播放设置和退出，不改后端状态所有者/接口/数据库。备注编辑弹窗的关闭、Escape及路由离开先提示未保存修改，原生标签页离开提示由浏览器决定；失败/冲突仍保留草稿。详情备注展示仅使用保存过的文本，清空后须保存，不提前伪装成功。
+
+发布升级及两类旧数据导入的维护窗口顺序见[v2.5.1发布检查](release-2.5.1.md)。

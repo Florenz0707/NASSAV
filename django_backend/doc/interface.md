@@ -1523,9 +1523,9 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 
 ## 个人收藏、观看和备注（第二阶段）
 
-`PATCH /api/resource/{avid}/status` 沿用地址和envelope，仅更新当前登录用户的个人状态。请求可部分提交 `watched`、`is_favorite`（严格JSON布尔值）、`notes`（纯文本，最多5000字符，空字符串清除）、`expected_version`（非负整数）。未知字段（包括user、评分）拒绝；空更新400，资源不存在404，版本冲突409且data返回当前个人快照，前端需保留编辑草稿并重新确认。
+`PATCH /api/resource/{avid}/status` 沿用地址和envelope，仅更新当前登录用户的个人状态。请求可部分提交 `watched`、`is_favorite`、`watch_later`（严格JSON布尔值）、`notes`（纯文本，最多5000字符，空字符串清除）、`expected_version`（非负整数）。未知字段（包括user、评分）拒绝；空更新400，资源不存在404，版本冲突409且data返回当前个人快照，前端需保留编辑草稿并重新确认。
 
-成功data为 `{avid, watched, is_favorite, notes, state_version}`。无个人记录为 false/false/空备注/版本0，首写版本1；多个字段一起保存或部分保存均在短事务中完成。资源列表原有 `watched`、`is_favorite` 字段及筛选仍存在，但全部取当前用户投影，并返回 `state_version`；备注仅在详情/状态响应出现。
+成功data为 `{avid, watched, is_favorite, watch_later, notes, state_version}`。无个人记录为 false/false/false/空备注/版本0，首写版本1；多个字段一起保存或部分保存均在短事务中完成。资源列表原有 `watched`、`is_favorite` 字段及筛选仍存在，但全部取当前用户投影，并返回 `state_version`；备注仅在详情/状态响应出现。
 
 `GET /api/resource/metadata?avid=...` 包含当前用户状态。ETag同时绑定用户和状态；带Cookie的响应标记private，只有ETag校验可返回304，单独的If-Modified-Since不再验证这组含个人状态的响应。共享元数据Last-Modified继续提供参考，不代表个人状态更新时间。
 
@@ -1539,7 +1539,7 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 
 PUT仅合并明确提交的当前键；整组提交在写入前严格校验，未知/废弃键、null、错误类型或非法枚举返回400且不部分写入。空对象返回当前有效值且不建行；已有存储值相同不更新时间。缺失项保留隐式默认值，显式保存默认值成为覆盖值。不会按当前版本清除原JSON中的未知键；删除/改名需要显式数据迁移。当前没有键别名或重置接口，null不表示删除。完整行为、导入及回退见[个人状态与设置](personal-state-architecture.md#json设置与0034当前实现)。
 
-## 推荐个人归属（未发布）
+## 推荐个人归属（v2.5.1）
 
 推荐job、历史指标、反馈、重置与三类黑名单只读写当前账号；他人snapshot不可反馈，他人job返回404。演员/类别目录共享，屏蔽投影个人化。旧共享数据需显式导入。job提交遗漏偏好或limit时读取个人JSON默认值，明确传参优先，后续设置变化不改变在途job。
 
@@ -1563,7 +1563,7 @@ GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit
 
 所有个人观看响应private,no-store，不接受user_id。读取、准备播放、播放进度claim不记录历史；播放器真实playing后上报，缓冲不重复、暂停恢复为新sequence。详见[架构](viewing-architecture.md)。
 
-### 观看列表移除操作（未发布）
+### 观看列表移除操作（v2.5.1）
 
 - `POST /api/personal/watch-later`：严格body `{action: "remove_watched"}`，移出当前账号**全列表**中watch_later和手动watched均为true的记录，返回data `{removed: 数量}`。不以播放进度/历史推断已观看；每项state_version递增，加入时间清空，收藏/备注/已观看保持。
 - `DELETE /api/personal/history`：body严格为`{entries: [{avid, queue_time}]}`，1–200条、AVID不能重复、queue_time必须带时区且来自列表。返回data数组`{avid,status}`，status为removed/absent/conflict。absence幂等；重新观看导致时间改变则保留最新记录、返回conflict，其他匹配项仍删除，HTTP200不代表每项都删除。单条也是一个元素的数组。参数400、匿名401、越权对象按absent处理，不泄露他人记录。
