@@ -98,6 +98,26 @@ def test_url_and_openapi_contract_remains_identical():
     ]
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [
+        [
+            "nassav/api/me/source-credentials",
+            "source-credentials",
+            "SourceCredentialsView",
+        ],
+        [
+            "nassav/api/me/source-credentials/<uuid:credential_id>",
+            "source-credential",
+            "SourceCredentialView",
+        ],
+        [
+            "nassav/api/admin/source-credentials",
+            "admin-source-credentials",
+            "AdminSourceCredentialsView",
+        ],
+        [
+            "nassav/api/admin/source-credentials/<uuid:credential_id>",
+            "admin-source-credential",
+            "AdminSourceCredentialView",
+        ],
         ["nassav/api/admin/users", "admin-users", "AdminUsersView"],
         ["nassav/api/admin/users/<int:user_id>", "admin-user", "AdminUserView"],
         [
@@ -164,6 +184,14 @@ def test_url_and_openapi_contract_remains_identical():
         *baseline["routes"],
     ]
     control_paths = {
+        "/nassav/api/me/source-credentials": {"get", "post"},
+        "/nassav/api/me/source-credentials/{credential_id}": {"get", "put", "delete"},
+        "/nassav/api/admin/source-credentials": {"get", "post"},
+        "/nassav/api/admin/source-credentials/{credential_id}": {
+            "get",
+            "put",
+            "delete",
+        },
         "/nassav/api/admin/users": {"get", "post"},
         "/nassav/api/admin/users/{user_id}": {"patch"},
         "/nassav/api/admin/users/{user_id}/revoke-sessions": {"post"},

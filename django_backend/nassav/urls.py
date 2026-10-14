@@ -28,6 +28,13 @@ from .search_job_views import (
 
 app_name = "nassav"
 
+from nassav.http.credential_views import (
+    SourceCredentialsView,
+    SourceCredentialView,
+    AdminSourceCredentialsView,
+    AdminSourceCredentialView,
+)
+
 from nassav.http.playback_views import (
     PlaybackSubmitView,
     PlaybackStatusView,
@@ -51,6 +58,26 @@ from nassav.http.viewing_views import (
 )
 
 urlpatterns = [
+    path(
+        "api/me/source-credentials",
+        SourceCredentialsView.as_view(),
+        name="source-credentials",
+    ),
+    path(
+        "api/me/source-credentials/<uuid:credential_id>",
+        SourceCredentialView.as_view(),
+        name="source-credential",
+    ),
+    path(
+        "api/admin/source-credentials",
+        AdminSourceCredentialsView.as_view(),
+        name="admin-source-credentials",
+    ),
+    path(
+        "api/admin/source-credentials/<uuid:credential_id>",
+        AdminSourceCredentialView.as_view(),
+        name="admin-source-credential",
+    ),
     path("api/admin/users", AdminUsersView.as_view(), name="admin-users"),
     path("api/admin/users/<int:user_id>", AdminUserView.as_view(), name="admin-user"),
     path(

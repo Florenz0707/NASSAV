@@ -57,6 +57,9 @@ else:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 NASSAV_OPERATOR_USERNAME = os.getenv("NASSAV_OPERATOR_USERNAME", "nassav").strip()
+SOURCE_CREDENTIAL_KEYRING_FILE = os.getenv(
+    "NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE", ""
+).strip()
 if not NASSAV_OPERATOR_USERNAME:
     raise RuntimeError("NASSAV_OPERATOR_USERNAME must not be empty")
 

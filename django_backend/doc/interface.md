@@ -12,6 +12,12 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ---
 
+## 来源凭证（未发布P3存储子阶段）
+
+所有响应no-store，普通账号登录仍关闭。`GET/POST /api/me/source-credentials`只列本人状态或创建；`GET/PUT/DELETE /api/me/source-credentials/{id}`只操作本人对象。POST提供source_name/cookie/user_agent/可选kind/expected_version=0，PUT盲写同字段但不接受source_name，DELETE只提供expected_version。不存在/跨用户404，参数400，CAS409，缺钥503；响应不包含秘密、密文或key_id。
+
+管理员系统端点为`/api/admin/source-credentials`及`/{id}`，方法相同；额外必须request_id及reason（security/maintenance/user_request），系统写入仅允许clearance。身份与来源由服务端决定，禁止owner/host输入。详见[凭证架构](source-credential-architecture.md)。现有SourceCookie接口和抓取尚未切换，保存新凭证不会改变旧消费者行为。
+
 ## 访问与会话（P1）
 
 未发布P2新增应用角色与管理接口，仍保留下述operator登录门禁。新管理端点要求显式应用admin，不以Django超级用户或用户名自动提权；无UserAccount的原operator只保留旧路径兼容。权限、对象与撤销边界见[账号策略](account-policy-architecture.md)。

@@ -24,6 +24,7 @@ os.environ.update(
     NASSAV_ENV_PATH=str(_root / "absent.env"),
     NASSAV_RESOURCE_DIR=str(_root / "resource"),
     NASSAV_SECURE_COOKIES="false",
+    NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE="",
 )
 os.environ.pop("NASSAV_COMPOSE_DB_MODE", None)
 os.environ.pop("NASSAV_DB_MODE_FILE", None)

@@ -2,6 +2,10 @@
 
 本目录包含维护、数据重建和验证脚本；参数与用法按下文分类维护。历史一次性脚本处置通过 Git 追溯，当前验证边界见[部署与验证边界](../doc/compose-deployment.md#近期改动与验证边界)。
 
+## 来源凭证维护
+
+管理命令`create_source_credential_keyring`、`import_source_credentials`、`rotate_source_credentials`的用途、权限、默认预览、有界重加密和密钥备份要求见[凭证架构](../doc/source-credential-architecture.md#显式导入与轮换)。导入不覆盖新凭证，不改旧表；未知Cookie加密隔离。不要用这些命令自动开放多用户或切换正在运行的旧消费者。
+
 ## 任务下载停止与恢复探针
 
 `probe_task_download_control.py` 只使用 ffmpeg 合成媒体及回环 HTTP，拒绝未知版本二进制和已存在的工作目录，不连接 Django/DB/Redis。运行参数为 `--binary <固定二进制绝对路径>` 和 `--workspace <不存在的目录>`；工作区保留日志、媒体和 report.json，退出码非零表示能力门槛失败。依赖 Linux `/proc`、ffmpeg、libx264 与固定 N_m3u8DL-RE。实验结束后可删除该新建工作区；不得指定正式资源目录。当前停止与续传边界见[任务控制架构](../doc/task-control-architecture.md#下载续传边界)。

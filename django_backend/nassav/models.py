@@ -18,6 +18,11 @@ from nassav.account_models import (
     AdminCommandReceipt as AdminCommandReceipt,
 )
 
+from nassav.credential_models import (
+    SourceCredential as SourceCredential,
+    SourceSessionSnapshot as SourceSessionSnapshot,
+)
+
 from nassav.library_models import (
     ResourcePoolEntry as ResourcePoolEntry,
     UserLibraryEntry as UserLibraryEntry,

@@ -1,5 +1,7 @@
 # 数据库与迁移
 
+未发布P3存储子阶段新增0040的SourceCredential/SourceSessionSnapshot；开发叶节点为0040，不自动导入旧Cookie、不切换消费者，详见[凭证架构](source-credential-architecture.md)。新增表逆向会丢失凭证/快照，回退前必须备份密钥及数据，不能将个人凭证压回一份全局Cookie。
+
 未发布P2新增0038应用账号/管理fence/审计/幂等receipt/登录绑定/配额预留，以及0039资源可用性和播放读取grant；开发叶节点为0039。结构迁移不自动授权管理员、不开放普通账号，回退新增状态丢失边界见[账号策略](account-policy-architecture.md)。正式发布v2.5.1叶节点仍为0036；下方P1的0037是该阶段当时记录。
 
 未发布P1新增0037：共享规范身份池与按用户持有关系，结构迁移不自动分配旧资源所有者。当前开发迁移叶节点为0037；v2.5.1发布叶节点仍为0036。新增表、显式导入及逆向迁移的数据损失边界见[共享池架构](resource-pool-architecture.md)。本轮只验证隔离SQLite/PostgreSQL数据库，未迁移部署实例。

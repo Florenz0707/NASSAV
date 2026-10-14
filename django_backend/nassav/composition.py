@@ -16,6 +16,21 @@ def build_library_membership():
     return LibraryMembership(DjangoMembershipRecords())
 
 
+def build_credential_records():
+    from django.conf import settings
+    from nassav.credential_crypto import CredentialKeyring
+    from nassav.credential_records import DjangoCredentialRecords
+    from nassav.source_credentials import origin_host
+
+    keyring = CredentialKeyring.from_file(settings.SOURCE_CREDENTIAL_KEYRING_FILE)
+    origins = {
+        name.lower(): origin_host(data["domain"])
+        for name, data in settings.SOURCE_CONFIG.items()
+        if data.get("domain")
+    }
+    return DjangoCredentialRecords(keyring, origins)
+
+
 def build_account_management():
     from nassav.account_management import AccountManagement
     from nassav.account_records import DjangoAccountCommands

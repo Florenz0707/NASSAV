@@ -4,6 +4,8 @@
 
 ## 首选命令与依赖
 
+P3存储专项为`test_source_credentials.py`和`test_source_credential_migration.py`，覆盖加密/缺钥/篡改、A/B隔离、租约/代次、人工修改/撤销/停用、导入分类、轮换、盲写HTTP及0039→0040往返。真实浏览器账户重放尚未验收，旧消费者也未切换。
+
 P2专项为`tests/test_account_management.py`、`tests/test_account_access.py`、`tests/test_account_migration.py`，并复核外搜/访问控制：覆盖最后管理员与配额竞争、幂等审计/撤销、HTTP/图片/媒体/WS拒绝、来源缓存库存按用户投影及0037–0039往返。普通账号登录仍关闭，隔离验证不等同正式多用户验收。
 
 共享池P1专项为`tests/test_library_membership.py`和`tests/test_library_migration.py`：独立事务barrier覆盖并发添加/最后释放竞态，迁移覆盖0036→0037→0036→0037。SQLite使用下方隔离设置；PostgreSQL须使用独立空测试库与同样无凭证/无外部网络设置，不能覆盖已有实例库。

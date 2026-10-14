@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0039。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储协议已交付、消费者切换执行中；P4–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0040。
 
 ## 1. 目标与首版范围
 
@@ -248,3 +248,9 @@ pnpm run check
 | P3–P8 | 待实施     | 未开放普通用户、共享订阅、私有凭证或自动回收                                                                   |
 
 初始计划提交ae10475，文档基线6bedcb6，分支doc/multi-user-shared-pool-plan；当时仅编写计划及导航。P0后续执行基线ae10475、分支doc/multi-user-contracts，记录见[契约验证范围](multi-user-contracts.md#验证记录与后续门槛)。两轮均检查新增链接及pre-commit完整门槛，未新增模型、接口、配置、worker或正式数据写入，也未恢复用户删除的历史文档。
+
+### P3存储子阶段记录
+
+0040与加密凭证/快照、盲写HTTP、导入及轮换先落地，详见[凭证架构](source-credential-architecture.md)。P3仍在执行：来源工厂、网络会话、缓存发布及ProxyServer范围能力尚待切换；不把子阶段当完整P3。
+
+存储子阶段隔离门槛（2026-10-15）：全量SQLite `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为1062 passed、28 skipped；临时PostgreSQL专项为21 passed；`makemigrations --check --dry-run`无差异。`pre-commit run -a`全仓检查通过后提交。28项在线/opt-in跳过未当作目标环境通过；未执行现有实例迁移、Cookie导入或管理员引导。

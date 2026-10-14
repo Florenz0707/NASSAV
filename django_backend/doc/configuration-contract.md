@@ -53,3 +53,7 @@ BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受
 `ExternalSearch.CacheEnabled` 默认 true，控制完整聚合结果缓存；`ExternalSearch.AggregateTTLSeconds` 默认 300，范围 1–86400 秒，关闭使用 CacheEnabled=false。结果缓存采用 Redis/Django cache，不新增数据库表。键隔离演员/类别身份、来源、域名、出口、排序及采集页数，缓存完整集合供不同分页复用。API/scrape worker 同步重启使配置生效。ResultTTLSeconds 控制任务身份复用，与聚合缓存独立，设为 0 仍可能命中来源或聚合缓存；强制重新搜索跳过相应读取。
 
 异步任务缓存回调仅在授权终态为 succeeded 后执行，取消先赢不得写成功缓存；失败/部分结果不发布完整聚合缓存。缓存只保存列表原站字段，不保存 in_library/detail_cached 等投影；读取时批量查询当前库存与已有有效数据库详情，不为列表追加详情请求。已有详情可补充缺失标题/封面，列表不被伪装成完整来源元数据/m3u8；添加时仍补齐缺失事实。
+
+## 专用来源凭证密钥（未发布）
+
+`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`指定权限0600的专用AES密钥JSON文件，仅新凭证存储/导入/轮换消费者使用。缺失或无权读取时明确不可用，不回退SECRET_KEY。格式、轮换及备份见[凭证架构](source-credential-architecture.md)。不将真实文件写进配置示例或Git；容器挂载必须保留私有权限。旧抓取仍走原Cookie，尚未切换。
