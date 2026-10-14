@@ -59,14 +59,14 @@ onBeforeUnmount(() => {
       <AppButton
         size="sm"
         variant="neutral"
-        class="shrink-0 w-8 h-8 p-0"
+        class="shrink-0 w-7 h-7 p-0"
         :disabled="!!state.busy"
         aria-label="编辑个人备注"
         title="编辑个人备注"
         @click="dialog.open"
       >
         <svg
-          class="w-4 h-4"
+          class="w-3 h-3"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

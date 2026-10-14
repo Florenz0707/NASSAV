@@ -27,30 +27,28 @@ const modes = [
       class="text-sm font-medium text-muted uppercase tracking-wider"
       >默认播放偏好</component
     >
-    <p class="text-muted text-sm">
-      当前账号在各设备上的默认偏好；播放器音量、静音与倍速变化会自动保存。
-    </p>
     <div
       class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
     >
-      <label for="playback-volume" class="text-secondary"
-        >默认音量 {{ Math.round(modelValue.volume * 100) }}%</label
-      >
-      <input
-        id="playback-volume"
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        :value="modelValue.volume"
-        class="w-40 accent-[var(--accent-primary)]"
-        @input="update('volume', Number($event.target.value))"
-      />
+      <label for="playback-volume" class="text-primary">默认音量 </label>
+      <div class="flex items-center gap-4">
+        <input
+          id="playback-volume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          :value="modelValue.volume"
+          class="w-50 accent-[var(--accent-primary)]"
+          @input="update('volume', Number($event.target.value))"
+        />
+        <span>{{ Math.round(modelValue.volume * 100) }} %</span>
+      </div>
     </div>
     <div
       class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
     >
-      <span class="text-secondary">默认静音</span>
+      <span class="text-primary">默认静音</span>
       <AppButton
         variant="neutral"
         role="switch"
@@ -63,7 +61,7 @@ const modes = [
     <div
       class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
     >
-      <label for="playback-rate" class="text-secondary">默认倍速</label>
+      <label for="playback-rate" class="text-primary">默认倍速</label>
       <CustomSelect
         id="playback-rate"
         aria-label="默认倍速"
@@ -76,7 +74,7 @@ const modes = [
     <div
       class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
     >
-      <span class="text-secondary">显示字幕（视频提供字幕时）</span>
+      <span class="text-primary">显示字幕（视频提供字幕时）</span>
       <AppButton
         variant="neutral"
         role="switch"
@@ -89,7 +87,7 @@ const modes = [
     <div
       class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
     >
-      <label for="playback-mode" class="text-secondary">默认播放模式</label>
+      <label for="playback-mode" class="text-primary">默认播放模式</label>
       <CustomSelect
         id="playback-mode"
         aria-label="默认播放模式"

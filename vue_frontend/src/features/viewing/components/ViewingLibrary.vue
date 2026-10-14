@@ -205,18 +205,8 @@ onBeforeUnmount(() => {
           class="text-2xl font-semibold text-primary"
           >{{ embedded ? (kind === 'history' ? '观看历史' : '稍后再看') : '我的观看' }}</component
         >
-        <p class="text-muted text-sm mt-2">
-          观看历史按最近播放排序，同一资源只保留一条；稍后再看手动管理。
-        </p>
       </div>
       <div class="flex flex-wrap items-center gap-3">
-        <AppButton
-          variant="neutral"
-          :disabled="!!busy"
-          :loading="loading"
-          @click="load(pagination.page, true)"
-          >刷新</AppButton
-        >
         <AppButton
           v-if="kind === 'watch-later'"
           :loading="busy === 'batch'"
@@ -225,10 +215,10 @@ onBeforeUnmount(() => {
           @click="
             confirmation = {
               action: 'watched',
-              message: '将当前账号稍后再看列表中的所有已标记观看资源移出？',
+              message: '确定要清除已观看资源吗？',
             }
           "
-          >移出已观看</AppButton
+          >清除已观看资源</AppButton
         >
         <template v-else>
           <AppButton
