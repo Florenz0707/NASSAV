@@ -31,7 +31,7 @@ const modes = [
       class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--border-white-5)]"
     >
       <label for="playback-volume" class="text-primary">默认音量 </label>
-      <div class="flex items-center gap-4">
+      <div class="flex w-full max-w-[17rem] items-center gap-4">
         <input
           id="playback-volume"
           type="range"
@@ -39,10 +39,13 @@ const modes = [
           max="1"
           step="0.01"
           :value="modelValue.volume"
-          class="w-50 accent-[var(--accent-primary)]"
+          class="min-w-0 flex-1 accent-[var(--accent-primary)]"
+          :aria-valuetext="`${Math.round(modelValue.volume * 100)}%`"
           @input="update('volume', Number($event.target.value))"
         />
-        <span>{{ Math.round(modelValue.volume * 100) }} %</span>
+        <output for="playback-volume" class="w-14 shrink-0 text-right tabular-nums text-primary"
+          >{{ Math.round(modelValue.volume * 100) }} %</output
+        >
       </div>
     </div>
     <div

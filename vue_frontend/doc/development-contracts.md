@@ -241,3 +241,9 @@ PersonalCenter使用最多4个KeepAlive面板，使用viewing:section/settings:s
 观看历史默认隐藏多选控件，按下“批量操作”才在封面左上角叠加公共AppCheckbox，位置/样式沿用资源库；勾选不触发资源导航，也不改变封面或卡片高度。批量栏提供本页全选、已选计数和删除所选，退出批量、切换列表/身份或停用面板时清理选择；单条历史删除保持原确认与后端时间冲突保护。两个观看列表的卡片支持鼠标悬停轻微上浮、主题阴影及边框反馈，键盘focus-within显示边框，减少动态偏好下禁用位移与过渡；触屏不强制悬停位移。
 
 本轮基线a1a10ac，独立分支enhancement/viewing-card-interactions。pnpm run check的125项单元测试、lint与构建通过；Chrome/Firefox使用临时真实Django/SQLite/Redis与合成媒体验证两类卡片深浅主题悬停、减少动态偏好、默认隐藏选择、左上角叠加位置、键盘Space/半选状态、选择不导航、退出后清空、卡片高度稳定、单条/批量删除及390px布局，截图已检查。根pre-commit完整门槛在格式化后重新执行，通过后提交合并idle；正式实例/实体设备不属于本轮验收范围。
+
+### 个人中心布局稳定性
+
+桌面个人中心导航固定12rem，内容列minmax(0,1fr)；导航按钮填满列宽，移动端仍自动换行。html预留scrollbar-gutter:stable，长短页和面板过渡期间滚动条出现/消失不改变内容的可用宽度，不强制在短页绘制滚动条。音量控件组最大17rem、可按容器缩小，百分比output固定3.5rem并使用tabular-nums，slider占剩余宽度，0/9/99/100%变化不影响位置；input提供对应百分比aria-valuetext，output关联slider。
+
+本轮基线f3e05ca，独立分支fix/personal-center-layout-stability。原音量滑块在0%到100%间约20px水平位移已用Chrome/Firefox复现；隔离浏览器默认覆盖式滚动条下未复现导航位移，修复以固定导航列和稳定滚动条占位消除长短页宽度变化来源。pnpm run check含125单元测试、lint和构建；根pre-commit完整执行。personalLayout.cjs使用模拟API验证1440/1024/390/320px切换全过程导航位置/尺寸、弹窗滚动锁与取消恢复、0/9/10/99/100%滑块固定及无横向溢出，两浏览器通过后合并idle。布局截图已检查，不代表真实服务或实体设备验收。

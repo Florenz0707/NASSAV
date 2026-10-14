@@ -252,6 +252,8 @@ body.light-mode {
 }
 
 html {
+  /* Reserve the scrollbar lane across short/long pages and panel transitions. */
+  scrollbar-gutter: stable;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

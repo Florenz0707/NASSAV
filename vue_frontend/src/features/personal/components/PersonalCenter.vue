@@ -41,11 +41,12 @@ async function logout() {
       <h1 id="personal-center-title" class="text-2xl font-semibold text-primary">个人中心</h1>
       <p class="text-muted text-sm mt-2">管理当前账号的观看列表与个人偏好</p>
     </header>
-    <div class="grid grid-cols-1 lg:grid-cols-[12rem_1fr] gap-8 items-start">
-      <nav aria-label="个人中心功能" class="flex flex-wrap lg:flex-col gap-2">
+    <div class="grid grid-cols-1 lg:grid-cols-[12rem_minmax(0,1fr)] gap-8 items-start">
+      <nav aria-label="个人中心功能" class="flex flex-wrap lg:flex-col gap-2 self-start lg:w-48">
         <AppButton
           v-for="section in sections"
           :key="section.value"
+          class="lg:w-full whitespace-nowrap"
           :variant="current === section.value ? 'primary' : 'neutral'"
           :aria-current="current === section.value ? 'page' : undefined"
           @click="router.push({ name: 'PersonalCenter', params: { section: section.value } })"
@@ -53,6 +54,7 @@ async function logout() {
         >
         <AppButton
           variant="neutral"
+          class="lg:w-full whitespace-nowrap"
           :loading="exiting"
           loading-text="正在退出"
           @click="confirmLogout = true"
