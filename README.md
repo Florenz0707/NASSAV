@@ -57,6 +57,8 @@ v2.5.1新增个人资源状态、JSON设置、推荐归属、播放偏好、跨�
 
 ## 后续设计
 
+- [多用户、来源凭证与共享资源池执行计划](django_backend/doc/multi-user-shared-pool-plan.md)：P0–P8待实施，涵盖管理员权限、凭证隔离、共享工作订阅、版本更新与最后持有者释放后的安全回收。
+
 - [基于来源 HLS 的在线播放设计与执行计划](django_backend/doc/online-playback-design.md)：P0–P5 计划；P1–P4 已实现受控 HLS 网关、详情页播放器与一次失效刷新，默认关闭，目标环境边界见[验收记录](django_backend/doc/online-playback-acceptance.md)。
 
 ## 版本更新
