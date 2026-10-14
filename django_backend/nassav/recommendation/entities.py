@@ -105,6 +105,7 @@ class RecommendationRequest:
     actor_preference: str = "balanced"
     genre_preference: str = "balanced"
     unverified_candidate_count: int = field(default=0, repr=False)
+    user_id: int | None = field(default=None, repr=False)
     history_generation: int | None = field(default=None, repr=False)
     force_refresh_external: bool = False
     detail_attempted_avids: set[str] = field(default_factory=set, repr=False)

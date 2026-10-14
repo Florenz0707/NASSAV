@@ -180,6 +180,70 @@ Node专项playbackProgress.test.js验证节流、重复/丢包重试、单航班
 
 资源详情装配 `features/resources/components/PersonalResourcePanel.vue`，输入resource快照，updated事件只表示当前资源/用户的成功或冲突快照。`personalResourceEditor`管理备注草稿、版本、保存错误及忙碌状态；所有状态写入带expected_version，冲突保留草稿且不自动重试。切换资源、用户、登出、卸载使旧响应失效，不发布旧toast或覆盖新实体。保存确认前不伪装成功；清空先修改草稿，保存后生效。备注最多5000字符，仅当文本处理，不使用v-html，不持久化本地草稿。收藏/已观看是个人手动标记，播放结束不自动修改。
 
-settings store的reset清空六项偏好及loaded/in-flight请求归属；App在status/username变化时调用，资源列表reset同时清空含个人标记的结果、分页和旧查询。saveSettings返回ignored时页面不展示成功提示。API身份由后端会话决定，不发送user_id，不将INI或localStorage作为个人设置所有者。主题/字体的即时预览与手动保存契约保持。
+settings store的reset清空通用、推荐和播放偏好及loaded/in-flight请求归属；App在status/username变化时调用，资源列表reset同时清空含个人标记的结果、分页和旧查询。saveSettings返回ignored时页面不展示成功提示。API身份由后端会话决定，不发送user_id，不将INI或localStorage作为个人设置所有者。主题/字体的即时预览与手动保存契约保持。
 
 后端数据、迁移/导入及开放权限边界见[个人状态与设置](../../django_backend/doc/personal-state-architecture.md)。本阶段仍保留指定操作者登录，不把单项数据隔离当作全系统多用户访问已完成。
+
+通用设置保存相对最近加载/成功保存的基线只提交改动字段，无改动不发PUT；不把GET补齐的默认值自动全部持久化。保存失败保留差异，保存期间新的编辑在后续提交，登出/用户切换或旧请求响应不得覆盖保存基线。JSON配置定义、缺失/废弃键与0034数据迁移遵循[后端配置规则](../../django_backend/doc/personal-state-architecture.md#json设置与0034当前实现)。
+
+## 推荐个人状态
+
+结果页面缓存按账号命名，旧未归属缓存不恢复；登出清空缓存与store，用户切换重新装配路由页。job/指标检查查询身份，反馈/黑名单写后投影检查登录代次，旧页不得持久化到新账号。偏好由settings store的recommendationPreferences读取用户JSON，“保存推荐偏好”只提交变更项；当前查询可使用尚未保存的选择，显式路由参数优先，缓存结果不覆盖个人数据库默认值。
+
+## 播放偏好
+
+PlaybackSettingsPanel仅发模型更新；settings store拥有个人JSON草稿、服务器基线和登录代次。playbackPreferenceWriter捕获登录代次，仅保存显式播放器变化，不提交无关设置。playbackPreferences绑定原生事件，初始化无写入、500ms合并、单请求串行，卸载移除监听；错误保持可重试草稿。设置defaultPlaybackRate防止换src时浏览器回到1倍速误写配置。播放路由auto依据个人默认模式与共享file_exists提示选模，明确local/source入口不被设置覆盖；最终播放授权和媒体身份在后端。字幕默认只作用于存在的字幕轨道。
+
+## 跨设备接续
+
+首页继续观看组件已移除；进度接续协议保持，入口由个人中心观看历史或资源详情提供。个人中心复用ViewingLibrary，历史与进度清除保持不同语义；播放在无opener的新标签页打开，通用入口遵循用户播放模式偏好。
+
+进度模块消费writer_active/is_writer提示，打开页不claim；另一页持权则由用户明确接续、从头或只读播放。接续先重读DB，再CAS领取，位置以claim返回值为准；409不自动抢回，可显式重新接续。有效离线草稿仅在没有其他活跃writer且版本/代次匹配时恢复，claim版本已变则丢弃该兜底。卸载/换媒体仍停止监听并保留原串行保存队列；小屏16:9播放器内提示有自己的滚动区域，按钮完整可达。
+
+## 观看历史与稍后观看
+
+PersonalResourcePanel/personalResourceEditor增加watch_later，复用个人state_version冲突与草稿保护。ViewingLibrary拥有页码/列表/错误/移除状态，切换列表或用户及卸载使旧响应失效，窗口回到前台重新读取；不持久化个人列表到localStorage。移除过程中不启动分页查询，失败保留内容并提供重试，跨页冲突须刷新。
+
+viewingRecorder仅在video的play后真实playing事件上报当前会话/代次/sequence；缓冲和重试保持sequence，暂停后重新播放增加sequence，播放器重绑同会话继承计数。事件记录与progress.claim/save独立，“仅播放不保存”仍记录历史；打开页面/loadedmetadata不记录。卸载解除play/playing监听，旧响应不改新播放器错误，失败可明确重试。不自动标记已观看或移除稍后观看。
+
+## 个人中心与备注编辑
+
+/personal/:section?由PersonalCenterView装配features/personal/PersonalCenter，section允许watch-later/history/general/playback，默认稍后再看。导航仅保留个人中心入口，退出按钮属于中心；原/settings和/resources/viewing地址保留兼容。ViewingLibrary支持embedded/initialKind，沿用原查询所有者和卸载护栏。PersonalSettings归features/settings，通用与播放设置分开装配，SettingsView仅为旧路由入口；后端配置/保存契约不变，卸载后的能力查询与设置响应不触发旧提示。
+
+PersonalResourcePanel唯一持有个人editor，可用default作用域插槽(state/save)将图标操作置于封面下；备注展示在插槽后，宽度限制为页面内容。PersonalResourceActions只渲染state并emit change(changes,action)，选中variant primary、未选中neutral，aria-pressed/title/可访问名称说明状态，按钮图标不放长文字。
+
+noteDialog统一处理关闭与导航离开的未保存决定，所有弹窗复用useDialog。清空只改草稿，保存成功后关闭，失败/409保留；关闭/Escape/换路由可继续编辑或放弃，标签页关闭用浏览器原生beforeunload提示（文案由浏览器决定）。账号/实体更换及卸载使待决导航和旧保存失效，解除监听；保存进行中拒绝关闭。备注仅文本展示，长词/多行换行，不写浏览器存储。
+
+个人中心saveSettings(section)仅提交当前general/playback分区的差异，不保存另一分区或推荐草稿；缺省all维持旧调用契约。播放设置保存不应用隐藏的字体预览，未改动分区不发PUT。原/settings仍提供组合设置入口。
+
+### 个人中心UI执行记录（2026-10-14）
+
+基线313f764，独立分支feat/personal-center-ui；本轮仅改前端及文档，后端公开接口、状态与数据库保持。前端pnpm run check包括123单元测试、lint和构建；根pre-commit run -a完整通过。Chrome/Firefox使用临时真实Django/SQLite/Redis/同账号登录和合成封面验证个人中心入口、分区设置、退出、封面上缘对齐、图标状态、长备注、弹窗焦点/关闭/清空/保存/冲突和未保存导航提示及390px深浅主题。原settings.cjs模拟API回归通过；跨设备接续Chrome通过，入口改到个人中心观看历史，显式接续/旧writer409/清除进度仍保留历史验证通过。首次浏览器尝试强制点击被遮罩覆盖的链接并未触发路由，脚本改为显式触发RouterLink导航、等待确认层退出；同AVID新快照不再重置弹窗，409草稿保持。原生beforeunload监听检查不代表能自定义浏览器警告文案。
+
+新备注关闭护栏只阻止打开的编辑器，收藏等后台保存不阻断关闭状态下的导航。提交与合并见该分支Git历史；正式服务、真实源站worker、实体设备与数据库迁移未执行，本轮不需要新增迁移。
+
+### 个人中心缓存与列表操作（v2.5.1）
+
+PersonalCenter使用最多4个KeepAlive面板，使用viewing:section/settings:section的独立缓存key保留状态、180ms淡入位移，尊重prefers-reduced-motion；登出须ConfirmDialog确认“是否要登出”。ViewingLibrary的查询缓存归features/viewing/stores/viewing，30秒/8项/同请求去重；App身份变化重置，缓存revision及请求guard双重检查旧响应。onDeactivated停止查询、关闭确认和解除操作展示状态，卸载解除focus/visibility监听。手动刷新和重试强刷，写入成功以shared/lib/personalDataEvents无载荷事件失效，不保存个人数据到浏览器持久存储。跨标签/设备仅有TTL恢复，详细现状与后续步骤见[缓存计划](personal-cache-plan.md)。
+
+观看历史的选择限定当前页，单条/批量删除确认后提交列表queue_time，重新观看冲突保留并提示。稍后再看“移出已观看”作用于当前账号全队列的手动watched=true，不根据历史推断；列表移除不删媒体/进度。AppCheckbox新增disabled并透传原生input。ResourceCover新增squareBottom仅去除下缘圆角；原默认样式保持。详情图标操作为三等分布局，行宽贴合封面、上方间距1.2rem；备注编辑图标位于文本左侧，保持原弹窗和草稿护栏。
+
+页面过渡完成的主内容焦点恢复不得抢走已打开的aria-modal弹窗焦点；App在恢复前检查可见弹窗，弹窗继续持有焦点循环。设置面板先读取已有个人设置，不等待来源能力接口完成才显示表单。
+
+### 个人中心缓存与列表管理执行记录（2026-10-14）
+
+基线e5622a3，独立分支feat/personal-center-cache-and-actions，功能提交e72493a。`pnpm run check`：125单元测试、lint和构建通过；`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：1007通过、28在线跳过。Chrome/Firefox以临时真实API/SQLite/Redis/合成MP4和封面验证分区请求次数不增长、设置保存、登出确认与取消、封面下缘直角、历史单条/批量删除、移出已观看、390px深浅主题、图标布局/1.2rem间距及备注键盘/冲突护栏；两浏览器全部最终用例通过。历史接口测试覆盖用户隔离、幂等重试、重新观看冲突及独立条目部分成功，查询缓存测试覆盖TTL/容量/在途去重/旧账号与乱序响应。
+
+首次Firefox焦点检查失败后，App增加过渡完成时已打开弹窗优先的焦点保护，复测通过；窄屏尺寸检查改为等待真实封面加载后同帧测量，并按14px小屏根字号计算1.2rem，避免加载/动画期间的错误采样。PersonalCenter原v-if/v-else共享key改为单个动态组件，viewing/settings缓存键分离；构建与实际切换通过。格式化钩子修改文件后重新暂存并执行完整pre-commit，不修改钩子配置。正式环境、外站worker及实体设备未验收，本轮无模型迁移；后端列表管理接口需与前端一起部署。执行提交见该分支Git历史；缓存规划中的外部搜索账号归属、blob回收、条件请求等后续项尚未实现。
+
+### 观看卡片交互
+
+观看历史默认隐藏多选控件，按下“批量操作”才在封面左上角叠加公共AppCheckbox，位置/样式沿用资源库；勾选不触发资源导航，也不改变封面或卡片高度。批量栏提供本页全选、已选计数和删除所选，退出批量、切换列表/身份或停用面板时清理选择；单条历史删除保持原确认与后端时间冲突保护。两个观看列表的卡片支持鼠标悬停轻微上浮、主题阴影及边框反馈，键盘focus-within显示边框，减少动态偏好下禁用位移与过渡；触屏不强制悬停位移。
+
+本轮基线a1a10ac，独立分支enhancement/viewing-card-interactions。pnpm run check的125项单元测试、lint与构建通过；Chrome/Firefox使用临时真实Django/SQLite/Redis与合成媒体验证两类卡片深浅主题悬停、减少动态偏好、默认隐藏选择、左上角叠加位置、键盘Space/半选状态、选择不导航、退出后清空、卡片高度稳定、单条/批量删除及390px布局，截图已检查。根pre-commit完整门槛在格式化后重新执行，通过后提交合并idle；正式实例/实体设备不属于本轮验收范围。
+
+### 个人中心布局稳定性
+
+桌面个人中心导航固定12rem，内容列minmax(0,1fr)；导航按钮填满列宽，移动端仍自动换行。html预留scrollbar-gutter:stable，长短页和面板过渡期间滚动条出现/消失不改变内容的可用宽度，不强制在短页绘制滚动条。音量控件组最大17rem、可按容器缩小，百分比output固定3.5rem并使用tabular-nums，slider占剩余宽度，0/9/99/100%变化不影响位置；input提供对应百分比aria-valuetext，output关联slider。
+
+本轮基线f3e05ca，独立分支fix/personal-center-layout-stability。原音量滑块在0%到100%间约20px水平位移已用Chrome/Firefox复现；隔离浏览器默认覆盖式滚动条下未复现导航位移，修复以固定导航列和稳定滚动条占位消除长短页宽度变化来源。pnpm run check含125单元测试、lint和构建；根pre-commit完整执行。personalLayout.cjs使用模拟API验证1440/1024/390/320px切换全过程导航位置/尺寸、弹窗滚动锁与取消恢复、0/9/10/99/100%滑块固定及无横向溢出，两浏览器通过后合并idle。布局截图已检查，不代表真实服务或实体设备验收。

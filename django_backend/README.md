@@ -1,6 +1,6 @@
 # NASSAV Django Backend
 
-当前版本：**2.5.0**。升级维护窗口见[v2.5.0发布检查](doc/release-2.5.0.md)。
+当前版本：**2.5.1**。升级维护窗口见[v2.5.1发布检查](doc/release-2.5.1.md)。
 
 Django API、Celery 任务和 Channels WebSocket 后端。本文件提供**本地开发入口**；全栈容器部署见[Compose 部署说明](doc/compose-deployment.md)，接口与权限见[接口文档](doc/interface.md)。
 
@@ -79,7 +79,7 @@ MIT License
 
 推荐生产入口是 `POST /nassav/api/recommendations/jobs`，在 scrape 队列执行；旧 GET 推荐保留同步兼容。下载/刮削 TaskJob 与 RecommendationJob 分别持有状态，不共用暂停/恢复协议。推荐来源与浏览器出口使用全局 Proxy.url，浏览器服务的控制连接直连；外部搜索和推荐共用 ProxyServer 并发能力。
 
-从2.4.5升级到2.5.0，先按维护窗口停止旧消费者，备份并应用0027–0032，随后统一API、所有worker、Beat及前端/Nginx；0028改表名禁止混跑。命令与回退影响见[v2.5.0发布检查](doc/release-2.5.0.md)。所有进程保持相同 BrowserFetch.max_concurrency、代理 endpoint 与 Redis 容量域；默认两路，设置 1 可恢复串行。部署使用已有[Compose 入口](doc/compose-deployment.md)，本次文档更新不代替在线迁移或部署操作。
+从2.5.0升级须在维护窗口备份数据库及旧INI、停止旧消费者、应用0033–0036，并显式导入原操作者的旧个人标记/INI及推荐数据，然后统一API、所有worker、Beat及前端/Nginx。更早版本先按2.5.0历史指南补齐0027–0032，0028改表名禁止混跑。命令与回退影响见[v2.5.1发布检查](doc/release-2.5.1.md)。所有进程保持相同 BrowserFetch.max_concurrency、代理 endpoint 与 Redis 容量域；默认两路，设置 1 可恢复串行。部署使用已有[Compose 入口](doc/compose-deployment.md)，本次文档更新不代替在线迁移或部署操作。
 
 推荐任务包含排队在内的硬期限为 300 秒，网络提前 30 秒收尾；已有核验结果可部分成功，取消、硬超时与来源失败不转成部分成功。详情尝试预算跨补召回共享，来源列表与详情缓存可复用，历史不作为推荐结果缓存；本地推荐封面目前没有自动过期清理，详见[推荐说明](doc/recommendation.md)。
 

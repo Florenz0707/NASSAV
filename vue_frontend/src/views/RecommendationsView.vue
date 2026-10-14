@@ -7,6 +7,7 @@ import RecommendationInformation from '../features/recommendations/components/Re
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useSessionStore } from '../features/auth/stores/session.js'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import RecommendationPreferences from '../features/recommendations/components/RecommendationPreferences.vue'
@@ -23,6 +24,9 @@ import { useResourceStore } from '../features/resources/stores/resource.js'
 import { useSettingsStore } from '../features/settings/stores/settings.js'
 import { useToastStore } from '../shared/stores/toast.js'
 
+const sessionStore = useSessionStore()
+const pageOwner = sessionStore.username
+const preferencesSaving = ref(false)
 const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
@@ -131,7 +135,12 @@ function serializeSet(value) {
 }
 
 function saveViewState() {
-  if (!initialized.value) return
+  if (
+    !initialized.value ||
+    sessionStore.status !== 'authenticated' ||
+    sessionStore.username !== pageOwner
+  )
+    return
   const state = {
     typePreference: typePreference.value,
     actorPreference: actorPreference.value,
@@ -149,17 +158,13 @@ function saveViewState() {
     scrollY: window.scrollY || 0,
     elapsedSeconds: resultElapsedSeconds.value,
   }
-  saveRecommendationViewState(state)
+  saveRecommendationViewState(state, window.sessionStorage, pageOwner)
 }
 
 function restoreViewState() {
-  const state = restoreRecommendationViewState()
+  const state = restoreRecommendationViewState(window.sessionStorage, pageOwner)
   if (!state) return null
 
-  typePreference.value = state.typePreference || typePreference.value
-  actorPreference.value = state.actorPreference || actorPreference.value
-  genrePreference.value = state.genrePreference || genrePreference.value
-  limit.value = Number.parseInt(state.limit, 10) || 24
   items.value = Array.isArray(state.items) ? state.items : []
   seeds.value = Array.isArray(state.seeds) ? state.seeds : []
   resultElapsedSeconds.value = Number.isFinite(state.elapsedSeconds) ? state.elapsedSeconds : null
@@ -375,7 +380,7 @@ function handleResetRecommendations() {
   error.value = ''
   clearPageRecommendations()
   invalidateBlacklistCache()
-  clearRecommendationViewState()
+  clearRecommendationViewState(window.sessionStorage, pageOwner)
   toastStore.success('当前推荐列表已清空')
 }
 
@@ -393,7 +398,7 @@ async function handleResetRecommendationHistory() {
     await recommendationStore.resetHistory()
     clearPageRecommendations()
     invalidateBlacklistCache()
-    clearRecommendationViewState()
+    clearRecommendationViewState(window.sessionStorage, pageOwner)
     await loadRecommendationMetrics()
     toastStore.success('推荐历史已重置，黑名单已保留')
   } catch (err) {
@@ -418,6 +423,24 @@ function handleGlobalKeydown(event) {
       return
     }
     closeReasonPanel()
+  }
+}
+
+async function savePreferences() {
+  preferencesSaving.value = true
+  settingsStore.recommendationPreferences = {
+    type_preference: typePreference.value,
+    actor_preference: actorPreference.value,
+    genre_preference: genrePreference.value,
+    limit: limit.value,
+  }
+  try {
+    const result = await settingsStore.saveSettings()
+    if (pageActive && result.success) toastStore.success('推荐偏好已保存')
+  } catch {
+    if (pageActive) toastStore.error('推荐偏好保存失败，请重试')
+  } finally {
+    if (pageActive) preferencesSaving.value = false
   }
 }
 
@@ -459,6 +482,14 @@ let pageActive = true
 onMounted(async () => {
   await settingsStore.loadSettings()
   if (!pageActive) return
+  typePreference.value =
+    route.query.type_preference || settingsStore.recommendationPreferences.type_preference
+  actorPreference.value =
+    route.query.actor_preference || settingsStore.recommendationPreferences.actor_preference
+  genrePreference.value =
+    route.query.genre_preference || settingsStore.recommendationPreferences.genre_preference
+  limit.value =
+    Number.parseInt(route.query.limit, 10) || settingsStore.recommendationPreferences.limit
   const restoredState = restoreViewState()
   loadRecommendationMetrics()
   initialized.value = true
@@ -676,6 +707,9 @@ onBeforeUnmount(() => {
           v-model:genre-preference="genrePreference"
           v-model:limit="limit"
         />
+        <AppButton class="mt-3" :loading="preferencesSaving" @click="savePreferences"
+          >保存推荐偏好</AppButton
+        >
       </template>
     </RecommendationBlacklist>
   </div>

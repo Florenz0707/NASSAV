@@ -1,6 +1,6 @@
 # 数据库与迁移
 
-v2.5.0迁移叶节点为0032；0027–0032分别新增缓存、规范表名及实现播放/个人进度。已有实例按实际showmigrations升级，不把下方历史验证记录当作当前部署。维护窗口与逆向迁移数据影响见[v2.5.0发布检查](release-2.5.0.md)。
+v2.5.1迁移叶节点为0036；从2.5.0的0032补齐0033–0036个人状态、JSON设置、推荐归属及观看列表。0027–0032的缓存、表名及播放基础见历史发布指南。已有实例按实际showmigrations升级，不把下方历史验证记录当作当前部署。维护窗口与逆向迁移数据影响见[v2.5.1发布检查](release-2.5.1.md)。
 
 SQLite 是本地和默认 Compose 数据库，由 `Database.Path` 或 `DATABASE_PATH` 指定，Compose 中的文件及 WAL/SHM 位于 `deploy-data/db/`。本地开发可在忽略的 `config/config.yaml` 中将 `Database.Engine` 设为 `postgres`，并配置 `Host`、`Port`、`Name`、`User`、`Schema` 及 `Password` 或 `PasswordFile`；环境变量可覆盖对应值。`Schema` 默认 `public`，需预先存在且应用账号需有权限；应用不会自动创建 schema。例如：
 
@@ -21,9 +21,9 @@ Database:
 
 `backup_database` 按当前引擎选择 SQLite 文件快照或 PostgreSQL custom-format `database.dump`。PostgreSQL 文件位于 `backup/database_postgresql_{timestamp}/`，带引擎和服务端主版本元数据。PostgreSQL 恢复命令 `restore_postgres_backup` 只接受空数据库；先创建新的空库，再在配置指向该库时执行恢复。备份目录会由 `sync_backups` 一并同步。使用 PostgreSQL 时自动清理只处理 PostgreSQL 备份，保留 SQLite 快照供回滚。
 
-## 个人状态（0033，未发布）
+## 个人状态与JSON配置（0033–0034，v2.5.1）
 
-新增 `nassav_user_resource_state` 和 `nassav_user_preferences`，用户状态与共享资源分离。旧数据归属通过指定原操作者的命令导入，迁移不自动猜测；升级、级联和回退影响见[个人状态与设置](personal-state-architecture.md)。v2.5.0的发布叶节点仍为0032。
+0033新增 `nassav_user_resource_state` 和 `nassav_user_preferences`，用户状态与共享资源分离；0034将现有六项个人设置值搬入JSONField、删除旧六列及legacy_imported_at、增加created_at，保留用户归属和updated_at。旧数据归属通过指定原操作者的命令导入，迁移不自动猜测；升级、级联和回退影响见[个人状态与设置](personal-state-architecture.md)。v2.5.0的历史发布叶节点为0032，当前须升至0036。
 
 ## Database Overview
 
@@ -57,8 +57,8 @@ Database:
     - `cover_filename` (Char, nullable): 相对于 `resource/{avid}/` 的封面文件名（仍把文件保存到磁盘）。
     - `file_exists` (Boolean, db_index): 指示 MP4 是否已下载并存在于磁盘上。
     - `file_size` (BigInteger, nullable): MP4 文件大小（字节）。
-    - `watched` (Boolean, db_index): 是否已观看。
-    - `is_favorite` (Boolean, db_index): 是否收藏。
+    - `watched` (Boolean, db_index): 旧共享已观看快照，仅用于显式导入/回退；运行时使用UserResourceState个人投影。
+    - `is_favorite` (Boolean, db_index): 旧共享收藏快照；运行时使用UserResourceState个人投影。
     - `metadata_created_at` (DateTime, nullable): 元数据首次创建时间。
     - `metadata_updated_at` (DateTime, auto_now): 元数据最后更新时间，自动更新。
     - `video_saved_at` (DateTime, nullable): 视频保存时间。
@@ -224,9 +224,8 @@ Database:
 批量按实际标题字段、指定 AVID 和 skip_existing 筛选；置 translating 前固定本批快照。翻译器异常、返回数量不匹配或逐项保存异常时，仅将本批仍 translating 的记录置 failed，保留已完成项和旧译文，不影响其他批次。HTTP 重新翻译通过 TranslationRequests 显式清空译文/重置 pending 后提交；提交失败维持已重置状态并返回既有 translation_error，不自动回滚重置。
 
 - 更新资源状态（API PATCH `/resource/{avid}/status`）:
-  - 支持更新 `watched`（是否已观看）和 `is_favorite`（是否收藏）字段。
-  - 更新时会自动触发 `metadata_updated_at` 字段更新为当前时间（auto_now=True）。
-  - 前端通过禁用浏览器缓存的HTTP headers确保获取最新的 `metadata_updated_at` 值。
+  - 部分更新当前用户的watched、is_favorite、watch_later或notes，个人version递增并支持expected_version冲突检查。
+  - 更新个人状态不修改共享metadata_updated_at；详情ETag绑定用户/个人版本，共享Last-Modified不能独立验证个人投影。
 
 - 删除资源（API/视图）:
   - `DELETE /resource/{avid}` 和批量 `delete` / `delete-all` 共用完整删除操作：删除封面、缩略图、MP4、备份目录和 `AVResource` 行。纯数据库行或纯文件仍可删除；文件步骤失败不会删除数据库行，数据库步骤失败可重试。
@@ -277,7 +276,7 @@ Database:
   - 按 `actor`：通过 `Actor` 表反向关联 `resources`（`Actor.resources.all()` 或 `AVResource.objects.filter(actors__name__icontains=...)`）。
   - 按 `genres`：类似 `AVResource.objects.filter(genres__name__in=[...])`。
   - 按标题搜索：支持 `original_title`、`source_title`、`translated_title` 的模糊匹配。
-  - 按状态过滤：`watched=True`、`is_favorite=True`、`file_exists=True` 等。
+  - 按状态过滤：watched/is_favorite使用当前用户的UserResourceState投影，file_exists等字段仍取共享资源，不读取旧共享标记快照。
   - 按翻译状态过滤：`translation_status` 字段支持精确匹配。
   - 全文/模糊匹配建议：对标题字段使用数据库的全文/trigram 扩展（在 PostgreSQL 上）以提高搜索体验。
 
@@ -405,3 +404,15 @@ PlaybackSession.media_kind（nassav_playback_session，varchar16，默认source�
 ## 个人播放进度（0032）
 
 PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；唯一(user, avid, media_key)，用户删除级联，资源/会话删除保留。清除以墓碑撤销旧写入权，不增加共享watched语义。迁移回退删除进度表，回退前备份新增个人数据；详细协议见[播放进度架构](playback-progress-architecture.md)。
+
+## 0035：推荐个人归属
+
+迁移0035增加四个owner外键，Item/ItemSeed/Feedback沿snapshot继承；黑名单/种子唯一身份增加owner并保留NULL旧数据的条件唯一约束。迁移取消旧活动推荐job，不复制给所有账号，不改正式资源/缓存/文件。维护窗口停止旧消费者、备份、迁移后，在首次个人推荐前运行import_recommendation_data预览并显式归属原操作者。不同用户出现相同旧唯一身份时回退主动拒绝，见[推荐架构](recommendation-architecture.md#用户归属第三阶段)。JSON新增推荐偏好无需增加列，GET只读补齐、PUT仅合并合法提交键。
+
+第三阶段播放设置与第四阶段跨设备接续复用0034的用户JSON及0032的PlaybackProgress，不增加表或列；本轮唯一新增结构迁移仍为0035推荐归属。继续观看查询先选择user/AVID最新ledger，再过滤完成/清除/媒体变化，资源删除不级联进度；不同登录共用个人ledger，但不能共用播放session控制权。
+
+## 0036：观看历史与稍后观看
+
+新增nassav_user_watch_history（user/resource级联外键、last_watched_at、media_kind），唯一(user,resource)，索引(user,-last_watched_at,-id)。UserResourceState新增watch_later（默认false）和watch_later_added_at（可空）；PlaybackSession新增history_sequence（默认0）和history_recorded_at（可空），用于播放事件去重与乱序保护。
+
+0036只新增空历史表/默认字段，不推测回填旧进度或watched，不修改视频和原站缓存。回退删除历史表及新增字段，原收藏/观看/备注/版本保持，新增历史/稍后观看数据会丢失；升级/回退前备份并停止混合版本消费者。正式部署须应用0036，隔离迁移验证不代替部署验收。

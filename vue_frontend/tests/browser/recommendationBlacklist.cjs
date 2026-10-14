@@ -8,7 +8,9 @@ async function main() {
   try {
     const page = await browser.newPage(),
       errors = [],
-      mutations = []
+      mutations = [],
+      preferenceWrites = []
+    let settings = { color_mode: 'light' }
     await page.routeWebSocket('**/nassav/ws/**', () => {})
     page.on('pageerror', (error) => errors.push(error.message))
     await page.route('**/nassav/api/**', async (route) => {
@@ -17,8 +19,13 @@ async function main() {
       let data = {},
         pagination
       if (url.pathname.endsWith('/auth/session')) data = { authenticated: true, username: 'audit' }
-      else if (url.pathname.endsWith('/setting')) data = { color_mode: 'light' }
-      else if (/\/(actors|genres)$/.test(url.pathname)) {
+      else if (url.pathname.endsWith('/setting')) {
+        if (request.method() === 'PUT') {
+          preferenceWrites.push(request.postDataJSON())
+          settings = { ...settings, ...request.postDataJSON() }
+        }
+        data = settings
+      } else if (/\/(actors|genres)$/.test(url.pathname)) {
         const name =
           url.searchParams.get('search') || (url.pathname.endsWith('/actors') ? 'Actor' : 'Genre')
         if (name === 'old') await new Promise((resolve) => setTimeout(resolve, 900))
@@ -49,6 +56,11 @@ async function main() {
     await page.goto(`${origin}/recommendations`)
     await page.getByRole('button', { name: '个性化', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '个性化', exact: true })
+    await dialog.getByRole('button', { name: '种子偏好', exact: true }).click()
+    await dialog.getByRole('option', { name: '类别', exact: true }).click()
+    await dialog.getByRole('button', { name: '保存推荐偏好', exact: true }).click()
+    await page.getByText('推荐偏好已保存', { exact: true }).waitFor()
+    assert.deepEqual(preferenceWrites, [{ recommendation_type_preference: 'genre_heavy' }])
     await dialog.getByText('仅看已屏蔽', { exact: true }).click()
     await dialog.locator('.blacklist-row').filter({ hasText: 'Actor' }).waitFor()
     await dialog.getByRole('button', { name: '屏蔽', exact: true }).click()

@@ -1,5 +1,3 @@
-from typing import cast
-
 from rest_framework import serializers
 from rest_framework.fields import Field
 
@@ -70,73 +68,66 @@ class SourceCookieListSerializer(serializers.Serializer):
 
 
 class UserSettingSerializer(serializers.Serializer):
-    """用户设置序列化器"""
+    """Flat API fields derived from the canonical definitions, independent of JSON storage."""
 
-    enable_avatar = serializers.CharField()
-    display_title = serializers.CharField()
-    font_family = serializers.CharField()
-    color_mode = serializers.CharField()
-    search_result_display_style = serializers.CharField()
-    default_external_search_source = serializers.CharField()
+    def get_fields(self):
+        from nassav.preference_definitions import PREFERENCE_DEFINITIONS
+
+        fields: dict[str, serializers.Field] = {}
+        for key, definition in PREFERENCE_DEFINITIONS.items():
+            default = definition.default
+            if definition.numeric:
+                fields[key] = serializers.FloatField()
+            elif definition.choices:
+                fields[key] = serializers.ChoiceField(choices=definition.choices)
+            elif isinstance(default, str):
+                if definition.max_length is None:
+                    fields[key] = serializers.CharField(trim_whitespace=False)
+                else:
+                    fields[key] = serializers.CharField(
+                        max_length=definition.max_length, trim_whitespace=False
+                    )
+            elif isinstance(default, bool):
+                fields[key] = serializers.BooleanField()
+            elif isinstance(default, int):
+                fields[key] = serializers.IntegerField()
+            else:
+                fields[key] = serializers.FloatField()
+        return fields
 
 
-class UserSettingUpdateSerializer(serializers.Serializer):
-    """用户设置更新序列化器"""
+class UserSettingUpdateSerializer(UserSettingSerializer):
+    """Strict partial updates; removed/unknown keys cannot be written."""
 
-    enable_avatar = serializers.CharField(required=False)
-    display_title = serializers.CharField(required=False)
-    font_family = serializers.CharField(required=False, max_length=100)
-    color_mode = serializers.CharField(required=False)
-    search_result_display_style = serializers.CharField(required=False)
-    default_external_search_source = serializers.ChoiceField(choices=[], required=False)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def get_fields(self):
+        fields = super().get_fields()
+        for field in fields.values():
+            field.required = False
         from nassav.external_search import external_search_service
 
-        cast(
-            serializers.ChoiceField, self.fields["default_external_search_source"]
-        ).choices = [
-            entry["source"] for entry in external_search_service.capabilities()
-        ]
+        source_field = fields.get("default_external_search_source")
+        if isinstance(source_field, serializers.ChoiceField):
+            source_field.choices = [
+                entry["source"] for entry in external_search_service.capabilities()
+            ]
+        return fields
 
-    def validate(self, attrs):
-        if set(self.initial_data) - set(self.fields):
-            raise serializers.ValidationError("存在不支持的个人设置字段")
-        return attrs
+    def to_internal_value(self, data):
+        from nassav.preference_definitions import (
+            InvalidPreference,
+            validate_preferences,
+        )
 
-    def validate_enable_avatar(self, value):
-        """验证 enable_avatar 值"""
-        if value not in ["true", "false"]:
-            raise serializers.ValidationError("enable_avatar 必须是 'true' 或 'false'")
-        return value
-
-    def validate_display_title(self, value):
-        """验证 display_title 值"""
-        valid_values = ["original_title", "source_title", "translated_title"]
-        if value not in valid_values:
-            raise serializers.ValidationError(
-                f"display_title 必须是 {', '.join(valid_values)} 之一"
+        try:
+            validate_preferences(data)
+        except InvalidPreference as error:
+            detail = (
+                {error.key: str(error)}
+                if error.key is not None
+                else {"non_field_errors": [str(error)]}
             )
-        return value
-
-    def validate_color_mode(self, value):
-        """验证 color_mode 值"""
-        valid_values = ["light", "dark"]
-        if value not in valid_values:
-            raise serializers.ValidationError(
-                f"color_mode 必须是 {', '.join(valid_values)} 之一"
-            )
-        return value
-
-    def validate_search_result_display_style(self, value):
-        """验证搜索结果展示样式"""
-        valid_values = ["grid", "masonry"]
-        if value not in valid_values:
-            raise serializers.ValidationError(
-                "search_result_display_style 必须是 grid, masonry 之一"
-            )
-        return value
+            raise serializers.ValidationError(detail) from error
+        return super().to_internal_value(data)
 
 
 class ResourceSummarySerializer(serializers.Serializer):
@@ -151,6 +142,7 @@ class ResourceSummarySerializer(serializers.Serializer):
     has_video = serializers.BooleanField(source="file_exists")
     watched = serializers.BooleanField(source="personal_watched", default=False)
     is_favorite = serializers.BooleanField(source="personal_is_favorite", default=False)
+    watch_later = serializers.BooleanField(source="personal_watch_later", default=False)
     state_version = serializers.IntegerField(source="personal_state_version", default=0)
     metadata_create_time = LocalSerializerMethodField()
     metadata_update_time = LocalSerializerMethodField()
@@ -223,6 +215,7 @@ class StrictBooleanField(serializers.BooleanField):
 
 
 class ResourceStatusUpdateSerializer(serializers.Serializer):
+    watch_later = StrictBooleanField(required=False)
     watched = StrictBooleanField(required=False)
     is_favorite = StrictBooleanField(required=False)
     notes = serializers.CharField(
@@ -234,7 +227,7 @@ class ResourceStatusUpdateSerializer(serializers.Serializer):
         unknown = set(self.initial_data) - set(self.fields)
         if unknown:
             raise serializers.ValidationError("存在不支持的个人状态字段")
-        if not ({"watched", "is_favorite", "notes"} & set(attrs)):
+        if not ({"watched", "is_favorite", "watch_later", "notes"} & set(attrs)):
             raise serializers.ValidationError("未提供任何要更新的字段")
         if "notes" in self.initial_data and not isinstance(
             self.initial_data["notes"], str

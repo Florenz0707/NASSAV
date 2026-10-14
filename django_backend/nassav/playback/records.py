@@ -40,6 +40,7 @@ def snapshot(row):
             and all(v.get("digest") for v in row.manifest_identity.values())
             else []
         ),
+        "history_sequence": row.history_sequence,
         "refresh_count": row.refresh_count,
         "created_at": row.created_at.isoformat(),
         "updated_at": row.updated_at.isoformat(),

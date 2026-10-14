@@ -64,6 +64,7 @@ test('API barrel preserves object identity and domain requests share envelope ha
       'settingsApi',
       'sourceApi',
       'taskApi',
+      'viewingApi',
     ].sort()
   )
   const original = client.defaults.adapter

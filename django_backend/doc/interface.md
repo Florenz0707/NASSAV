@@ -1523,12 +1523,49 @@ broker 失败保留 pending 并接受为 202，不伪造开始；状态存储故
 
 ## 个人收藏、观看和备注（第二阶段）
 
-`PATCH /api/resource/{avid}/status` 沿用地址和envelope，仅更新当前登录用户的个人状态。请求可部分提交 `watched`、`is_favorite`（严格JSON布尔值）、`notes`（纯文本，最多5000字符，空字符串清除）、`expected_version`（非负整数）。未知字段（包括user、评分）拒绝；空更新400，资源不存在404，版本冲突409且data返回当前个人快照，前端需保留编辑草稿并重新确认。
+`PATCH /api/resource/{avid}/status` 沿用地址和envelope，仅更新当前登录用户的个人状态。请求可部分提交 `watched`、`is_favorite`、`watch_later`（严格JSON布尔值）、`notes`（纯文本，最多5000字符，空字符串清除）、`expected_version`（非负整数）。未知字段（包括user、评分）拒绝；空更新400，资源不存在404，版本冲突409且data返回当前个人快照，前端需保留编辑草稿并重新确认。
 
-成功data为 `{avid, watched, is_favorite, notes, state_version}`。无个人记录为 false/false/空备注/版本0，首写版本1；多个字段一起保存或部分保存均在短事务中完成。资源列表原有 `watched`、`is_favorite` 字段及筛选仍存在，但全部取当前用户投影，并返回 `state_version`；备注仅在详情/状态响应出现。
+成功data为 `{avid, watched, is_favorite, watch_later, notes, state_version}`。无个人记录为 false/false/false/空备注/版本0，首写版本1；多个字段一起保存或部分保存均在短事务中完成。资源列表原有 `watched`、`is_favorite` 字段及筛选仍存在，但全部取当前用户投影，并返回 `state_version`；备注仅在详情/状态响应出现。
 
 `GET /api/resource/metadata?avid=...` 包含当前用户状态。ETag同时绑定用户和状态；带Cookie的响应标记private，只有ETag校验可返回304，单独的If-Modified-Since不再验证这组含个人状态的响应。共享元数据Last-Modified继续提供参考，不代表个人状态更新时间。
 
 `GET/PUT /api/setting` 路由和六项字符串字段保持，读取/部分保存均由数据库持有，用户身份来自会话。请求不能指定他人ID；服务器代理、Cookie、来源开关、TTL不属于个人设置。省略外部搜索source时，HTTP按当前用户默认值选择并写入已解析的任务查询；worker不读用户INI。搜索内容缓存仍是共享原站事实，不存个人状态。
 
 登录范围仍限定现有操作者。用户隔离是本阶段的数据边界，不能据此开放所有账号的任务/推荐/媒体权限。
+
+### 用户设置JSON存储（0034）
+
+`GET/PUT /api/setting` 保持原路由与扁平envelope，不要求前端包裹preferences。六项字符串字段名称不变；created_at/updated_at属于持久记录，不新增到当前设置响应。GET按当前定义合并缺省值，不建行、不补写；删除/未知键不返回，非法存储值回退默认值。
+
+PUT仅合并明确提交的当前键；整组提交在写入前严格校验，未知/废弃键、null、错误类型或非法枚举返回400且不部分写入。空对象返回当前有效值且不建行；已有存储值相同不更新时间。缺失项保留隐式默认值，显式保存默认值成为覆盖值。不会按当前版本清除原JSON中的未知键；删除/改名需要显式数据迁移。当前没有键别名或重置接口，null不表示删除。完整行为、导入及回退见[个人状态与设置](personal-state-architecture.md#json设置与0034当前实现)。
+
+## 推荐个人归属（v2.5.1）
+
+推荐job、历史指标、反馈、重置与三类黑名单只读写当前账号；他人snapshot不可反馈，他人job返回404。演员/类别目录共享，屏蔽投影个人化。旧共享数据需显式导入。job提交遗漏偏好或limit时读取个人JSON默认值，明确传参优先，后续设置变化不改变在途job。
+
+GET/PUT `/api/setting`新增recommendation_type_preference（actor_heavy/balanced/genre_heavy）、recommendation_actor_preference及recommendation_genre_preference（familiar/balanced/rare）、recommendation_limit（JSON整数12/24/36）；默认balanced与12。原有六项字符串设置兼容，PUT仅合并提交键。
+
+### 用户播放偏好
+
+GET/PUT `/api/setting`新增playback_volume（JSON数值0–1，默认0.8）、playback_muted（布尔，默认false）、playback_rate（数值0.5/0.75/1/1.25/1.5/1.75/2，默认1）、playback_subtitles_enabled（布尔，默认true）、playback_default_mode（auto/local/source，默认auto）。仅数值项允许整数与小数等价输入，拒绝布尔、字符串、非有限和越界数；默认值补齐不写库，仍只合并提交字段。后端播放会话POST的mode默认仍是source，auto仅为前端入口选模规则。
+
+### 跨设备继续观看
+
+GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit为1–24的整数，非法值400、播放未启用404、匿名401。data为数组，元素包括avid、mode(local/source)、original_title/source_title/translated_title、position_seconds、duration_seconds、restore_policy(exact/confirm)、updated_at。每资源只展示最新ledger，过滤已完成/清除/近尾、已删除资源及已失效本地文件身份；有界候选扫描，非完整观看历史，无源站URL或会话凭证，no-store。
+
+既有GET/claim/save进度快照新增writer_active、is_writer布尔字段；写入协议不变。新登录须创建自己的播放session；他人登录的session仍404。UI仅在用户明确开始/接续时领取，活跃其他页面提示转移或只读播放；领取使用服务端最新writer_generation，409须重新确认，清除仍保留零位置tombstone并使旧token失效。
+
+## 个人观看列表
+
+- `GET /api/personal/history`、`GET /api/personal/watch-later`：当前登录用户列表，page从1开始，page_size默认15、范围1–200；返回既有资源摘要并增加watch_later及queue_time（ISO8601），pagination含page/pages/page_size/total，超出末页收敛到末页。按最近观看/加入时间降序并以主键稳定排序；空列表pages为1。
+- `PATCH /api/resource/{avid}/status`新增严格布尔watch_later；复用expected_version，冲突409返回当前个人快照。true首次加入记录时间，重复true不重排；false移除，再加入重新排序。收藏/备注/已观看不受影响。
+- `POST /api/playback-sessions/{session_id}/viewed`：body为正整数session_generation、sequence（1–2147483647），仅接受当前登录绑定的ready未过期会话。更高sequence在真实播放开始时更新唯一历史条目；重复/更低sequence幂等、不重排。返回avid和recorded_at，不领取进度写入权。不存在/他人登录404，失效/旧代次409，参数400、未启用播放404。
+
+所有个人观看响应private,no-store，不接受user_id。读取、准备播放、播放进度claim不记录历史；播放器真实playing后上报，缓冲不重复、暂停恢复为新sequence。详见[架构](viewing-architecture.md)。
+
+### 观看列表移除操作（v2.5.1）
+
+- `POST /api/personal/watch-later`：严格body `{action: "remove_watched"}`，移出当前账号**全列表**中watch_later和手动watched均为true的记录，返回data `{removed: 数量}`。不以播放进度/历史推断已观看；每项state_version递增，加入时间清空，收藏/备注/已观看保持。
+- `DELETE /api/personal/history`：body严格为`{entries: [{avid, queue_time}]}`，1–200条、AVID不能重复、queue_time必须带时区且来自列表。返回data数组`{avid,status}`，status为removed/absent/conflict。absence幂等；重新观看导致时间改变则保留最新记录、返回conflict，其他匹配项仍删除，HTTP200不代表每项都删除。单条也是一个元素的数组。参数400、匿名401、越权对象按absent处理，不泄露他人记录。
+
+两接口沿用CSRF、操作者准入与private,no-store；历史删除不清除资源、文件、进度及其他个人状态，无数据库迁移。已处理playing重试不复活历史，删除后新的有效playing sequence可以重新记录；尚未处理的播放上报按服务器接收顺序执行，不承诺删除正在播放视频会永久屏蔽后续观看。

@@ -19,22 +19,72 @@ export const useSettingsStore = defineStore('settings', () => {
   // 推荐搜索结果展示样式：grid | masonry
   const searchResultDisplayStyle = ref('grid')
   const defaultExternalSearchSource = ref('jable')
+  const playbackPreferences = ref({
+    volume: 0.8,
+    muted: false,
+    rate: 1,
+    subtitles_enabled: true,
+    default_mode: 'auto',
+  })
+  const recommendationPreferences = ref({
+    type_preference: 'balanced',
+    actor_preference: 'balanced',
+    genre_preference: 'balanced',
+    limit: 12,
+  })
   const loaded = ref(false)
   let loadPromise = null
   let sessionEpoch = 0
   const loadGuard = createRequestGuard()
+  const saveGuard = createRequestGuard()
+  let savedValues = settingsPayload()
+
+  function settingsPayload() {
+    return {
+      ...Object.fromEntries(
+        Object.entries(recommendationPreferences.value).map(([key, value]) => [
+          `recommendation_${key}`,
+          value,
+        ])
+      ),
+      ...Object.fromEntries(
+        Object.entries(playbackPreferences.value).map(([key, value]) => [`playback_${key}`, value])
+      ),
+      enable_avatar: showActorAvatar.value ? 'true' : 'false',
+      display_title: displayTitle.value,
+      font_family: fontFamily.value,
+      color_mode: colorMode.value,
+      search_result_display_style: searchResultDisplayStyle.value,
+      default_external_search_source: defaultExternalSearchSource.value,
+    }
+  }
 
   function reset() {
     sessionEpoch++
     loadGuard.invalidate()
+    saveGuard.invalidate()
     loadPromise = null
     loaded.value = false
+    playbackPreferences.value = {
+      volume: 0.8,
+      muted: false,
+      rate: 1,
+      subtitles_enabled: true,
+      default_mode: 'auto',
+    }
+    recommendationPreferences.value = {
+      type_preference: 'balanced',
+      actor_preference: 'balanced',
+      genre_preference: 'balanced',
+      limit: 12,
+    }
     showActorAvatar.value = true
     displayTitle.value = 'source_title'
     fontFamily.value = 'Mplus2'
     colorMode.value = 'dark'
     searchResultDisplayStyle.value = 'grid'
     defaultExternalSearchSource.value = 'jable'
+    savedValues = settingsPayload()
   }
 
   // 从后端加载设置（仅在应用启动时调用一次）
@@ -72,6 +122,15 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.default_external_search_source !== undefined) {
           defaultExternalSearchSource.value = data.default_external_search_source
         }
+        for (const key of Object.keys(playbackPreferences.value)) {
+          if (data[`playback_${key}`] !== undefined)
+            playbackPreferences.value[key] = data[`playback_${key}`]
+        }
+        for (const key of Object.keys(recommendationPreferences.value)) {
+          if (data[`recommendation_${key}`] !== undefined)
+            recommendationPreferences.value[key] = data[`recommendation_${key}`]
+        }
+        savedValues = settingsPayload()
         loaded.value = true
         return { success: true }
       } catch (err) {
@@ -91,32 +150,68 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // 保存设置到后端（仅在用户手动点击保存按钮时调用）
-  async function saveSettings() {
+  async function saveSettings(section = 'all') {
     const epoch = sessionEpoch
+    const current = settingsPayload()
+    const changes = Object.fromEntries(
+      Object.entries(current).filter(
+        ([key, value]) =>
+          value !== savedValues[key] &&
+          (section === 'playback'
+            ? key.startsWith('playback_')
+            : section === 'general'
+              ? !key.startsWith('playback_') && !key.startsWith('recommendation_')
+              : true)
+      )
+    )
+    if (!Object.keys(changes).length) return { success: true, unchanged: true }
+    const ticket = saveGuard.begin()
     try {
-      await settingsApi.update({
-        enable_avatar: showActorAvatar.value ? 'true' : 'false',
-        display_title: displayTitle.value,
-        font_family: fontFamily.value,
-        color_mode: colorMode.value,
-        search_result_display_style: searchResultDisplayStyle.value,
-        default_external_search_source: defaultExternalSearchSource.value,
-      })
-      return epoch === sessionEpoch ? { success: true } : { success: false, ignored: true }
+      await settingsApi.update(changes)
+      if (epoch !== sessionEpoch || !saveGuard.current(ticket))
+        return { success: false, ignored: true }
+      savedValues = { ...savedValues, ...changes }
+      return { success: true }
     } catch (err) {
-      if (epoch !== sessionEpoch) return { success: false, ignored: true }
+      if (epoch !== sessionEpoch || !saveGuard.current(ticket))
+        return { success: false, ignored: true }
       console.error('保存用户设置失败:', err)
       throw err
     }
   }
 
+  async function savePlaybackPreferences(changes) {
+    const epoch = sessionEpoch
+    const patch = Object.fromEntries(
+      Object.entries(changes)
+        .filter(([key]) => key in playbackPreferences.value)
+        .map(([key, value]) => [`playback_${key}`, value])
+    )
+    if (!Object.keys(patch).length) return
+    playbackPreferences.value = { ...playbackPreferences.value, ...changes }
+    await settingsApi.update(patch)
+    if (epoch !== sessionEpoch) return
+    savedValues = { ...savedValues, ...patch }
+    playbackPreferences.value = { ...playbackPreferences.value, ...changes }
+  }
+
+  function playbackPreferenceWriter() {
+    const epoch = sessionEpoch
+    return (changes) =>
+      epoch === sessionEpoch ? savePlaybackPreferences(changes) : Promise.resolve()
+  }
+
   return {
+    playbackPreferenceWriter,
+    playbackPreferences,
+    savePlaybackPreferences,
     showActorAvatar,
     displayTitle,
     fontFamily,
     colorMode,
     searchResultDisplayStyle,
     defaultExternalSearchSource,
+    recommendationPreferences,
     loaded,
     reset,
     loadSettings,

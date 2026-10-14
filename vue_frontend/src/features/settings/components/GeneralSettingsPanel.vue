@@ -6,6 +6,7 @@ import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 
 const props = defineProps({
   saving: Boolean,
+  showSave: { type: Boolean, default: true },
   settings: {
     type: Object,
     required: true,
@@ -45,11 +46,6 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
 
 <template>
   <div>
-    <div class="mb-6">
-      <h2 class="text-xl font-semibold text-[var(--text-primary)] mb-2">通用设置</h2>
-      <p class="text-sm text-[var(--text-muted)]">仅影响当前账号的显示与搜索偏好</p>
-    </div>
-
     <div class="space-y-6">
       <div class="p-4 rounded-xl bg-surface-subtle/[0.02] border border-[var(--border-white-5)]">
         <h3 class="text-sm font-medium text-[var(--text-muted)] mb-4 uppercase tracking-wider">
@@ -206,7 +202,7 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
         </div>
       </div>
 
-      <div class="flex pt-4 justify-end min-w-full">
+      <div v-if="showSave" class="flex pt-4 justify-end min-w-full">
         <AppButton :loading="saving" loading-text="保存中" @click="emit('save')"
           >保存设置</AppButton
         >

@@ -1,6 +1,6 @@
 # NASSAV - AV 资源管理系统
 
-当前版本：**v2.5.0**。升级步骤与验收边界见[发布检查](django_backend/doc/release-2.5.0.md)。
+当前版本：**v2.5.1**。升级步骤与验收边界见[发布检查](django_backend/doc/release-2.5.1.md)。
 
 基于 Django、Celery 和 Vue 的资源管理系统，将资源收藏与管理、多源发现、个性化推荐和任务控制串成完整流程：搜索感兴趣的资源，补齐元数据，加入资源库，再按需下载。支持实时进度以及任务暂停、恢复和终止。项目基于 [Satoing/NASSAV](https://github.com/Satoing/NASSAV) 重构；历史参考代码已从当前仓库移除。
 
@@ -10,6 +10,7 @@
 - 三个 Celery 队列分别处理默认任务、刮削和下载；持久任务支持单条/批量暂停、恢复、终止与停止后的私有产物清理。
 - 推荐通过独立持久任务在 scrape worker 执行，支持进度、取消、反馈、历史避让和黑名单；外部搜索与推荐共用代理服务器并发能力。
 - 来源HLS与已下载MP4可在独立标签页播放；个人进度支持继续/从头播放、自动保存与多标签写入保护，播放功能默认关闭。
+- 个人中心提供收藏/已观看/备注、稍后再看、去重观看历史、通用/播放设置与显式跨设备接续；个人数据按账号隔离，当前仍仅允许指定操作者登录。
 - 单用户 Django 会话保护业务 API 和任务 WebSocket；登录后使用浏览器 Cookie 与 CSRF 令牌。
 - [前端页面与本地开发](vue_frontend/README.md) · [后端本地开发](django_backend/README.md) · [后端接口](django_backend/doc/interface.md) · [数据库说明](django_backend/doc/database.md)
 - [仓库开发规范](AGENTS.md) · [后端任务架构与职责](django_backend/doc/task-control-architecture.md) · [前端开发契约](vue_frontend/doc/development-contracts.md)
@@ -18,7 +19,7 @@
 
 ![首页：品牌入口与功能概览](vue_frontend/public/preview/home.jpg)
 
-查看[完整页面介绍与预览](vue_frontend/README.md#功能概览含页面与预览图)：资源库、演员/类别、外部搜索、推荐与黑名单、添加资源、任务详情及设置。预览由当前组件和示例数据生成，更新于 2026-10-08。
+查看[完整页面介绍与预览](vue_frontend/README.md#功能概览含页面与预览图)：资源库、演员/类别、外部搜索、推荐与黑名单、添加资源、任务详情及设置。预览由当时组件和示例数据生成于2026-10-08，尚未覆盖后续个人中心与播放页。
 
 ## 快速开始
 
@@ -41,14 +42,15 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 资源添加/刷新通过异步任务执行；演员和类别外部搜索支持来源选择、渐进结果、取消和终态补查。下载和批量翻译的 owner/异常收尾修复、资源/下载/翻译/推荐用例分层已实现；消费者 URL、响应字段和 Celery 任务名保持。
 
-用户此前已确认任务、资产权限与推荐系统可用。v2.5.0 提供共享原站事实缓存、外部搜索聚合/任务结果缓存、可逆表名迁移0028，以及来源/本地播放和个人进度记忆（0029–0032）；添加资源仍由受控任务补齐事实和资产，删除正式资源保留详情缓存。实现概况统一见[变更日志](CHANGES.md)，时效、清理与开发约束见[缓存架构](django_backend/doc/resource-cache-architecture.md)。
+v2.5.1新增个人资源状态、JSON设置、推荐归属、播放偏好、跨设备接续和个人观看列表（0033–0036），并优化个人中心、详情、卡片和缓存；v2.5.0已有共享抓取缓存、表名规范化、来源/本地播放与进度记忆。共享资源与服务器配置保持原有所有者，仍保留指定操作者准入；实现概况见[变更日志](CHANGES.md)。升级需显式导入旧标记/INI及共享推荐数据，步骤见[发布检查](django_backend/doc/release-2.5.1.md)。
 
-截至实现提交`9c0eb83`（2026-10-12），后端完整隔离门槛946 passed / 28 skipped，独立PostgreSQL16进度/迁移/任务专项29 passed，前端91项测试及lint/build通过。Chrome/Firefox通过真实隔离API与合成MP4进度联调；合成HLS与模拟来源会话另验证解码和刷新，早期真实来源证据见播放验收。正式HTTPS/真机已按用户要求跳过，长时及Firefox历史真实来源间歇超时仍保留限制。本次发布准备不部署、不执行正式迁移，升级及证据范围见[发布检查](django_backend/doc/release-2.5.0.md)。
+实现阶段最新完整后端隔离门槛1007通过/28在线跳过，前端125项测试及lint/build通过；PostgreSQL迁移/个人状态/推荐专项与Chrome/Firefox隔离API/模拟布局证据按阶段分别记录，不合并成一次全量联调。正式HTTPS/真机已按要求跳过，长时及Firefox历史真实来源间歇超时仍保留限制；本轮发布准备不重新宣称正式迁移、部署或真实外站worker验收。
 
 ## 文档导航
 
 - 本地开发：[后端](django_backend/README.md)、[前端](vue_frontend/README.md)
-- 播放与版本：[v2.5.0升级](django_backend/doc/release-2.5.0.md)、[播放架构](django_backend/doc/online-playback-architecture.md)、[个人进度](django_backend/doc/playback-progress-architecture.md)、[多用户规划](django_backend/doc/multi-user-roadmap.md)
+- 个人功能：[个人状态与JSON设置](django_backend/doc/personal-state-architecture.md)、[观看列表](django_backend/doc/viewing-architecture.md)、[前端缓存计划](vue_frontend/doc/personal-cache-plan.md)
+- 播放与版本：[v2.5.1升级](django_backend/doc/release-2.5.1.md)、[播放架构](django_backend/doc/online-playback-architecture.md)、[个人进度](django_backend/doc/playback-progress-architecture.md)、[多用户规划](django_backend/doc/multi-user-roadmap.md)
 - 消费者与数据：[接口与权限](django_backend/doc/interface.md)、[数据库与备份](django_backend/doc/database.md)、[推荐系统](django_backend/doc/recommendation.md)
 - 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[推荐架构](django_backend/doc/recommendation-architecture.md)、[代理并发](django_backend/doc/proxy-concurrency.md)、[持久抓取缓存](django_backend/doc/resource-cache-architecture.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
 - 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[部署与验证边界](django_backend/doc/compose-deployment.md#近期改动与验证边界)

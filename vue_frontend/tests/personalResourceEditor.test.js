@@ -121,3 +121,21 @@ test('failed save keeps notes, clear is saved explicitly, stale metadata does no
   assert.equal(state.savedNotes, '')
   assert.equal(state.error, '')
 })
+
+test('watch later uses the personal version fence and preserves notes', async () => {
+  const state = {},
+    calls = []
+  const editor = createPersonalResourceEditor({
+    state,
+    updateStatus: async (_avid, body) => {
+      calls.push(body)
+      return { data: { ...snapshot('TEST-001', 1, '原备注'), watch_later: true } }
+    },
+  })
+  editor.sync(snapshot('TEST-001', 0, '原备注'), 'one')
+  state.notes = '未保存'
+  await editor.save({ watch_later: true }, 'later')
+  assert.equal(state.watchLater, true)
+  assert.equal(state.notes, '未保存')
+  assert.deepEqual(calls, [{ watch_later: true, expected_version: 0 }])
+})

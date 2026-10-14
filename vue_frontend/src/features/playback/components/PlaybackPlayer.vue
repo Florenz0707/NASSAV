@@ -5,6 +5,9 @@ import AppButton from '../../../shared/ui/AppButton.vue'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
 import { createPlaybackSession } from '../lib/playbackSession.js'
 import { createPlaybackProgress } from '../lib/playbackProgress.js'
+import { useSettingsStore } from '../../settings/stores/settings.js'
+import { bindPlaybackPreferences } from '../lib/playbackPreferences.js'
+import { createViewingRecorder } from '../lib/viewingRecorder.js'
 import { attachPlayer } from '../lib/mediaPlayer.js'
 
 const props = defineProps({
@@ -12,6 +15,16 @@ const props = defineProps({
   avid: { type: String, required: true },
   mode: { type: String, default: 'source' },
 })
+const settings = useSettingsStore()
+const preferenceMessage = ref('')
+const historyMessage = ref('')
+const history = createViewingRecorder({
+  record: playbackApi.viewed,
+  changed: (message) => {
+    historyMessage.value = message
+  },
+})
+let releasePreferences = null
 const video = ref(null)
 const progressState = ref({ candidate: null, message: '' })
 const progress = createPlaybackProgress({
@@ -40,6 +53,10 @@ const session = createPlaybackSession({
 })
 const preparing = computed(() => ['queued', 'resolving'].includes(state.value.state))
 function releasePlayer() {
+  history.detach()
+  releasePreferences?.()
+  releasePreferences = null
+  preferenceMessage.value = ''
   void progress.detach()
   progressState.value = { candidate: null, message: '' }
   playerVersion++
@@ -81,10 +98,21 @@ watch(
     await nextTick()
     if (token !== playerVersion || !video.value) return
     try {
+      releasePreferences = bindPlaybackPreferences(video.value, {
+        preferences: settings.playbackPreferences,
+        save: settings.playbackPreferenceWriter(),
+        current: () => token === playerVersion && props.active,
+        failed: () => {
+          if (token === playerVersion)
+            preferenceMessage.value = '播放偏好保存失败，可在个人设置中重试'
+        },
+      })
+      history.bind(state.value, video.value)
       void progress.bind(state.value, video.value)
       if (token !== playerVersion || !props.active) return
       const dispose = await attachPlayer(video.value, url, {
         position,
+        subtitlesEnabled: settings.playbackPreferences.subtitles_enabled,
         mediaType: state.value.media_type || 'hls',
         resume: state.value.refresh_count === 1 && resumePlayback,
         current: () => token === playerVersion && props.active,
@@ -159,29 +187,67 @@ onBeforeUnmount(() => {
       @pause="buffering = false"
     />
     <div
-      v-if="progressState.candidate && !mediaError"
-      class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4 bg-primary/90"
+      v-if="(progressState.candidate || progressState.takeover) && !mediaError"
+      class="absolute inset-0 flex flex-col items-center justify-start sm:justify-center gap-4 p-4 bg-primary/90 overflow-y-auto"
       role="group"
       aria-label="恢复播放进度"
     >
-      <p class="text-primary text-sm text-center">
-        上次播放至 {{ resumeTime
-        }}{{
-          progressState.candidate.restore_policy === 'confirm' ? '，请确认当前来源视频是否适用' : ''
-        }}
+      <p class="text-primary text-sm text-center shrink-0">
+        <span v-if="progressState.candidate"
+          >上次播放至 {{ resumeTime
+          }}{{
+            progressState.candidate.restore_policy === 'confirm'
+              ? '，请确认当前来源视频是否适用'
+              : ''
+          }}</span
+        >
+        <span v-if="progressState.takeover" class="block mt-2"
+          >另一播放页面持有保存权，接续后将由本页保存进度。</span
+        >
       </p>
-      <div class="flex flex-wrap justify-center gap-3">
-        <AppButton @click="progress.choose(true)">继续上次播放</AppButton>
-        <AppButton variant="neutral" @click="progress.choose(false)">从头播放</AppButton>
+      <div class="flex flex-wrap justify-center gap-3 shrink-0">
+        <AppButton :loading="progressState.choosing" @click="progress.choose(true)">{{
+          progressState.takeover ? '在此接续' : '继续上次播放'
+        }}</AppButton>
+        <AppButton
+          variant="neutral"
+          :disabled="progressState.choosing"
+          @click="progress.choose(false)"
+          >从头播放</AppButton
+        >
+        <AppButton
+          v-if="progressState.takeover"
+          variant="neutral"
+          :disabled="progressState.choosing"
+          @click="progress.playWithoutSaving()"
+          >仅播放，不保存进度</AppButton
+        >
       </div>
     </div>
-    <p
-      v-if="progressState.message && !mediaError"
+    <div
+      v-if="(progressState.message || preferenceMessage || historyMessage) && !mediaError"
       role="status"
       class="absolute top-2 left-2 right-2 rounded-lg bg-secondary p-2 text-muted text-xs"
     >
-      {{ progressState.message }}
-    </p>
+      {{ progressState.message || preferenceMessage || historyMessage }}
+      <AppButton
+        v-if="historyMessage"
+        size="sm"
+        variant="neutral"
+        class="ml-2"
+        @click="history.retry()"
+        >重试记录</AppButton
+      >
+      <AppButton
+        v-if="progressState.canTakeover"
+        variant="neutral"
+        size="sm"
+        class="ml-2"
+        :loading="progressState.choosing"
+        @click="progress.choose(true)"
+        >在此接续保存</AppButton
+      >
+    </div>
     <p
       v-if="buffering && !mediaError"
       role="status"

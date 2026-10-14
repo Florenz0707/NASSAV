@@ -21,6 +21,8 @@ class PlaybackSession(models.Model):
     prepare_deadline = models.DateTimeField()
     dispatch_after = models.DateTimeField()
     descriptor = models.JSONField(default=dict)
+    history_sequence = models.PositiveIntegerField(default=0)
+    history_recorded_at = models.DateTimeField(null=True)
     refresh_count = models.PositiveSmallIntegerField(default=0)
     manifest_identity = models.JSONField(default=dict)
     error_code = models.CharField(max_length=40, blank=True)

@@ -2,13 +2,23 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
+    path: '/personal/:section?',
+    name: 'PersonalCenter',
+    component: () => import('../../views/PersonalCenterView.vue'),
+  },
+  {
+    path: '/resources/viewing',
+    name: 'Viewing',
+    component: () => import('../../views/ViewingView.vue'),
+  },
+  {
     path: '/play/:avid',
     name: 'Playback',
     meta: { layout: 'playback' },
     component: () => import('../../views/PlaybackView.vue'),
     props: (route) => ({
       avid: route.params.avid,
-      mode: route.query.mode === 'local' ? 'local' : 'source',
+      mode: ['local', 'source'].includes(route.query.mode) ? route.query.mode : 'auto',
     }),
   },
   {

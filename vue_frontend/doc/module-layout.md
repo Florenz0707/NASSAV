@@ -55,3 +55,9 @@ features/playback 独占在线播放会话及播放引擎生命周期；Resource
 播放进度模块位于features/playback/lib：playbackProgress拥有事件/写入队列/归属，progressDrafts仅管理有界个人兜底。App作为装配层在匿名状态清理兜底；auth业务模块不反向依赖播放模块。媒体引擎与API不维护个人状态，详细契约见[播放进度](development-contracts.md#播放进度记忆)。
 
 个人资源标记和备注归 `features/resources/components/PersonalResourcePanel.vue` 与 `features/resources/lib/personalResourceEditor.js`；前者展示，后者拥有编辑/版本/归属生命周期。用户通用偏好继续归 `features/settings/stores/settings.js`，持久化由后端UserPreferences拥有；App装配登出和用户切换时的reset，shared组件不依赖个人状态服务。
+
+观看列表由features/viewing/components/ViewingLibrary负责读取、分页、刷新与移除，views/ViewingView仅装配，生产入口位于个人中心，旧独立路由保持兼容。HTTP归api/viewing.js并由api/index.js导出；播放历史事件归features/playback/lib/viewingRecorder.js，独立于进度写入权。
+
+个人中心由features/personal管理功能导航与退出，复用features/viewing的列表、features/settings的PersonalSettings；views仅装配。个人状态单一editor留在PersonalResourcePanel，PersonalResourceActions展示图标状态，noteDialog负责草稿退出决定，页面slot只负责左右布局。
+
+观看查询缓存归features/viewing/stores/viewing，组件只管理选择/页码/展示guard；App登录身份变化重置。shared/lib/personalDataEvents只传递无载荷失效信号，API写成功时发布，shared不导入领域API/store。个人中心KeepAlive保留最多四个面板，停用/卸载生命周期仍须明确；缓存现状与下一步见[方案](personal-cache-plan.md)。

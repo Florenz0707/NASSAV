@@ -9,7 +9,7 @@
 
 ## 功能概览（含页面与预览图）
 
-当前版本为2.5.0；以下预览生成于2026-10-08，展示当时的真实页面组件，尚未覆盖随后新增的播放页和进度恢复提示。资源、演员、封面和任务均使用示例数据，截图不代表真实站点或 worker 联调验收；默认展示浅色主题，另附深色任务界面。
+当前版本为2.5.1；以下预览生成于2026-10-08，展示当时的真实页面组件，尚未覆盖随后新增的个人中心、播放页和进度恢复提示。资源、演员、封面和任务均使用示例数据，截图不代表真实站点或 worker 联调验收；默认展示浅色主题，另附深色任务界面。
 
 - 首页（品牌与功能入口）
   - 功能：展示品牌、下载与刮削能力介绍，提供添加资源和浏览资源库快捷入口；品牌标识与导航共用橙色渐变，背景使用彩色柔光。
@@ -149,8 +149,8 @@ pnpm preview
   - `server.proxy['/nassav/api']` 和 `server.proxy['/nassav/ws']` → `NASSAV_VITE_BACKEND_URL`（默认 `127.0.0.1:9790`）；WebSocket 随目标协议选择 ws/wss
   - `resolve.alias['@'] = '/src'`
 - 主要代码结构：
-  - 视图：`src/views/`（首页、资源库、演员/类别详情、添加、下载、推荐、设置）
-  - 业务模块：`src/features/`（resources、catalog、external-search、tasks、recommendations、cookies、settings、auth；组件与状态就近放置）
+  - 视图：`src/views/`（首页、资源库、演员/类别详情、添加、任务详情、推荐、个人中心、播放及旧设置兼容入口）
+  - 业务模块：`src/features/`（resources、catalog、external-search、tasks、recommendations、cookies、settings、auth、personal、viewing、playback；组件与状态就近放置）
   - 公共能力：`src/shared/`（ui、composables、lib、stores，无业务依赖）
   - 应用装配：`src/app/`（路由、导航、WebSocket 连接）
   - 接口封装：`src/api/`（client.js 唯一客户端，按领域分文件，index.js 保留公开导出）
@@ -231,7 +231,7 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 详情页“在线播放”使用同源授权会话、MSE/hls.js 优先、缺少 MSE 时回退原生 HLS，不保存视频文件。来源准备异步完成，独立 `/play/:avid` 页面顶部仅保留Logo，播放器居中并在加载/播放时保持16:9比例；支持拖动、暂停、错误重试、关闭标签页和卸载清理；关闭原详情页不影响播放；hls.js 对网关来源拒绝最多刷新一次，兼容检查成功才恢复位置。原生 HLS 错误无法可靠取得 HTTP 状态，使用显式重试。配置和上线条件见[后端验收](../django_backend/doc/online-playback-acceptance.md)。
 
-已下载资源的“点击播放”使用`/play/:avid?mode=local`，由后端鉴权直传MP4、支持Range，不重新刮削或下载。新增个人进度会自动节流保存，在再次打开时提供“继续上次播放/从头播放”；来源续播要求确认，本地文件版本不同不自动套用。多标签/旧响应不能覆盖新状态，进度服务失败不阻塞播放，离页保存不保证必达。详细生命周期见[开发契约](doc/development-contracts.md#播放进度记忆)，前后端必须统一更新并迁移至0032，升级见[发布检查](../django_backend/doc/release-2.5.0.md)。
+已下载资源的“点击播放”使用`/play/:avid?mode=local`，由后端鉴权直传MP4、支持Range，不重新刮削或下载。新增个人进度会自动节流保存，在再次打开时提供“继续上次播放/从头播放”；来源续播要求确认，本地文件版本不同不自动套用。多标签/旧响应不能覆盖新状态，进度服务失败不阻塞播放，离页保存不保证必达。详细生命周期见[开发契约](doc/development-contracts.md#播放进度记忆)，前后端必须统一更新并迁移至0036，升级见[发布检查](../django_backend/doc/release-2.5.1.md)。
 
 `tests/browser/playback.cjs` 默认离线，ffmpeg 生成临时 TS/fMP4 后真实解码，模拟 API 验证迟到提交、恢复、焦点和移动布局；不替代真实来源/worker。`scripts/verify-playback-live.cjs` 必须显式提供验收来源、两个已有 AVID 和临时 Playwright storage-state 文件；默认连续播放 30 秒，可选刷新，测试后尽力关闭会话，临时登录由提供者删除。驱动依赖沿用上面的 NODE_PATH，不将凭证提交到仓库。
 
@@ -290,3 +290,15 @@ NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录
 ### 个人状态验收
 
 详情页支持个人收藏、已观看和5000字符备注，冲突时保留草稿。`tests/browser/personalState.cjs` 为显式opt-in：先启动后端 `tests/helpers/local_playback_server.py` 的隔离fixture与Vite代理，再用 `NASSAV_PERSONAL_STORAGE_STATE` 指向该临时会话文件运行；`NASSAV_BROWSER_ENGINE=firefox` 可切换引擎。验证真实HTTP/SQLite、键盘保存、备注清空/刷新/冲突、筛选和设置持久化；WebSocket只隔离本轮无关连接，不代替任务/worker联调。勿使用正式会话文件。
+
+播放偏好真实隔离API浏览器验收：先按既有local_playback_server说明启动临时服务，将Vite的NASSAV_VITE_BACKEND_URL设为该临时地址，再以`NASSAV_PROGRESS_STORAGE_STATE=<临时storage-state.json> node tests/browser/playbackPreferences.cjs`执行；支持NASSAV_BROWSER_ENGINE=firefox。脚本只接受本地临时fixture，写入的是临时账号偏好，不使用部署账号。
+
+跨设备真实API验收：临时helper会输出两个不同登录的storage-state路径（均只含测试账号），以`NASSAV_PROGRESS_STORAGE_STATE=<第一份> NASSAV_PROGRESS_SECOND_STORAGE_STATE=<第二份> node tests/browser/crossDeviceContinuation.cjs`运行，支持Firefox。helper的NASSAV_LOCAL_PLAYBACK_TEST_PORT可设9791–9799，Vite后端地址同步指向该临时端口；不使用部署9790。Firefox多标签小屏检查先bringToFront再调整视口，测试有90秒上限、HTTP清理请求有界，避免浏览器后台resize无限等待。
+
+个人中心本轮真实隔离验收可运行`tests/browser/personalState.cjs`和`tests/browser/viewingManagement.cjs`：使用local_playback_server的观看fixture及`NASSAV_PERSONAL_STORAGE_STATE`临时登录文件，另设`NASSAV_BROWSER_ENGINE=firefox`复核。前者会确认登出并使该临时登录失效，后者只修改临时观看状态/历史并关闭自建播放会话；两者不得指向正式实例。未提供临时状态时跳过，完整环境准备见上述播放验收说明。
+
+## v2.5.1个人中心
+
+导航入口“个人中心”集中稍后再看、观看历史、通用设置、播放设置与退出确认。历史按最近实际观看去重，卡片批量操作显式开启；列表删除不删资源或播放进度。详情图标管理收藏/观看/稍后再看，备注只读展示并弹窗编辑。观看查询缓存30秒、最多8项，设置按登录归属复用；后续缓存隔离改进见[方案](doc/personal-cache-plan.md)。前端实现与验收证据见[开发契约](doc/development-contracts.md)，正式升级及旧数据导入见[发布检查](../django_backend/doc/release-2.5.1.md)。
+
+个人中心导航/音量布局专项为`tests/browser/personalLayout.cjs`，使用模拟API，不依赖正式账号。与上方4178 Vite示例配合运行时显式设置`NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4178`；单独运行默认4180。可用`NASSAV_BROWSER_ENGINE=firefox`复核，覆盖面板过渡、弹窗滚动锁和四种视口下百分比位数变化。

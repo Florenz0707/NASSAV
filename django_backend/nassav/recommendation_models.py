@@ -6,6 +6,9 @@ from django.db import models
 
 
 class RecommendationState(models.Model):
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE
+    )
     generation = models.PositiveBigIntegerField(default=1)
 
     class Meta:

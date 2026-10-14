@@ -100,7 +100,9 @@ def test_import_preserves_existing_state_and_settings_and_rejects_bad_file(
             settings_file=ini,
             apply=True,
         )
-    assert UserPreferences.objects.get(user=operator_user).legacy_imported_at is None
+    assert UserPreferences.objects.get(user=operator_user).preferences == {
+        "color_mode": "dark"
+    }
     ini.write_text("[display]\ncolor_mode=light\n")
     call_command(
         "import_personal_data",

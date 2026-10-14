@@ -11,6 +11,8 @@ class UserResourceState(models.Model):
     )
     watched = models.BooleanField(default=False)
     is_favorite = models.BooleanField(default=False)
+    watch_later = models.BooleanField(default=False)
+    watch_later_added_at = models.DateTimeField(null=True)
     notes = models.TextField(default="", blank=True)
     version = models.PositiveIntegerField(default=1)
     updated_at = models.DateTimeField(auto_now=True)
@@ -32,14 +34,30 @@ class UserResourceState(models.Model):
 
 class UserPreferences(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    enable_avatar = models.CharField(max_length=5, default="true")
-    display_title = models.CharField(max_length=32, default="source_title")
-    font_family = models.CharField(max_length=100, default="Mplus2")
-    color_mode = models.CharField(max_length=5, default="dark")
-    search_result_display_style = models.CharField(max_length=16, default="grid")
-    default_external_search_source = models.CharField(max_length=50, default="jable")
-    legacy_imported_at = models.DateTimeField(null=True, blank=True)
+    preferences = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "nassav_user_preferences"
+
+
+class UserWatchHistory(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    resource = models.ForeignKey("nassav.AVResource", on_delete=models.CASCADE)
+    last_watched_at = models.DateTimeField()
+    media_kind = models.CharField(max_length=16)
+
+    class Meta:
+        db_table = "nassav_user_watch_history"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "resource"], name="nassav_user_history_unique"
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "-last_watched_at", "-id"],
+                name="nassav_user_history_idx",
+            )
+        ]

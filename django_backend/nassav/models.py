@@ -6,6 +6,7 @@ import re
 from typing import TYPE_CHECKING
 
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 
 # Explicit re-exports also register split task models with Django.
@@ -24,6 +25,7 @@ from nassav.playback.models import (
 from nassav.personal_models import (
     UserResourceState as UserResourceState,
     UserPreferences as UserPreferences,
+    UserWatchHistory as UserWatchHistory,
 )
 from nassav.task_models import (
     TaskArtifact as TaskArtifact,
@@ -335,6 +337,9 @@ class AVResource(models.Model):
 
 
 class RecommendationSnapshot(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE
+    )
     recommender_id = models.CharField(max_length=64, db_index=True)
     strategy_id = models.CharField(max_length=64, db_index=True)
     request_fingerprint = models.CharField(max_length=64, db_index=True)
@@ -465,7 +470,10 @@ class RecommendationItemSeed(models.Model):
 
 
 class RecommendationAvidBlocklist(models.Model):
-    avid = models.CharField(max_length=50, unique=True, db_index=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE
+    )
+    avid = models.CharField(max_length=50, db_index=True)
     source = models.CharField(max_length=32, default="manual", db_index=True)
     reason = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -473,6 +481,16 @@ class RecommendationAvidBlocklist(models.Model):
 
     class Meta:
         db_table = "nassav_recommendation_avid_blocklist"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "avid"], name="nas_recblock_owner_avid_uniq"
+            ),
+            models.UniqueConstraint(
+                fields=["avid"],
+                condition=models.Q(owner__isnull=True),
+                name="nas_recblock_legacy_avid_uniq",
+            ),
+        ]
         ordering = ["-updated_at", "-id"]
 
     def save(self, *args, **kwargs):
@@ -486,6 +504,9 @@ class RecommendationAvidBlocklist(models.Model):
 
 
 class RecommendationSeedProfile(models.Model):
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.CASCADE
+    )
     SEED_TYPE_CHOICES = [
         ("actor", "演员"),
         ("genre", "类别"),
@@ -514,13 +535,24 @@ class RecommendationSeedProfile(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=[
+                    "owner",
+                    "seed_type",
+                    "normalized_value",
+                    "source_name",
+                    "source_identifier",
+                ],
+                name="nas_recseed_owner_identity_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=[
                     "seed_type",
                     "normalized_value",
                     "source_name",
                     "source_identifier",
                 ],
                 name="nassav_recseedprofile_identity_uniq",
-            )
+                condition=models.Q(owner__isnull=True),
+            ),
         ]
         indexes = [
             models.Index(

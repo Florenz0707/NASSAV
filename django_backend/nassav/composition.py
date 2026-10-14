@@ -186,7 +186,7 @@ def build_provider_facts_cache():
     return ProviderFactsCache(DjangoProviderFactsStore(), now=timezone.now)
 
 
-def build_recommendation_manager(*, context=None, control=None):
+def build_recommendation_manager(*, context=None, control=None, user_id=None):
     from django.conf import settings
 
     from nassav.recommendation.data_access import (
@@ -245,7 +245,9 @@ def build_recommendation_manager(*, context=None, control=None):
         )
 
     return RecommenderManager(
-        context if context is not None else DjangoRecommendationContext(),
+        context
+        if context is not None
+        else DjangoRecommendationContext(user_id=user_id),
         {"jable_page_lookup": jable_factory},
     )
 

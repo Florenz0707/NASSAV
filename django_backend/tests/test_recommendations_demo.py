@@ -490,7 +490,7 @@ def test_recommendations_endpoint_persists_snapshot_and_items(
 
 @pytest.mark.django_db
 def test_blocked_seed_profile_excludes_matching_seed_from_recommendation_pool(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationSeedProfile
     from nassav.source import Jable
@@ -500,6 +500,7 @@ def test_blocked_seed_profile_excludes_matching_seed_from_recommendation_pool(
     seed_resource.actors.add(actor)
 
     RecommendationSeedProfile.objects.create(
+        owner=operator_user,
         seed_type="actor",
         value="Alice",
         normalized_value="alice",
@@ -533,7 +534,7 @@ def test_blocked_seed_profile_excludes_matching_seed_from_recommendation_pool(
 
 @pytest.mark.django_db
 def test_blocked_seed_profile_does_not_allow_discovery_bypass(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationSeedProfile
     from nassav.source import Jable
@@ -543,6 +544,7 @@ def test_blocked_seed_profile_does_not_allow_discovery_bypass(
     seed_resource.actors.add(actor)
 
     RecommendationSeedProfile.objects.create(
+        owner=operator_user,
         seed_type="actor",
         value="Alice",
         normalized_value="alice",
@@ -604,7 +606,7 @@ def test_blocked_seed_profile_does_not_allow_discovery_bypass(
 
 @pytest.mark.django_db
 def test_seed_blacklist_excludes_blocked_keyword_but_allows_active_seed_fallback(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationSeedProfile
     from nassav.source import Jable
@@ -622,6 +624,7 @@ def test_seed_blacklist_excludes_blocked_keyword_but_allows_active_seed_fallback
     active_seed_resource.actors.add(active_actor)
 
     RecommendationSeedProfile.objects.create(
+        owner=operator_user,
         seed_type="actor",
         value="Alice",
         normalized_value="alice",
@@ -808,7 +811,7 @@ def test_recommendation_genre_block_applies_to_same_source_slug_aliases(
 
 @pytest.mark.django_db
 def test_recommendation_genre_legacy_name_only_block_filters_source_slug_aliases(
-    api_client, monkeypatch, genre_factory, resource_factory
+    api_client, operator_user, monkeypatch, genre_factory, resource_factory
 ):
     from nassav.models import GenreSourceMapping, RecommendationSeedProfile
     from nassav.source import Jable
@@ -840,6 +843,7 @@ def test_recommendation_genre_legacy_name_only_block_filters_source_slug_aliases
 
     # 模拟历史数据：只有名称维度被拉黑，没有 source slug 维度记录。
     RecommendationSeedProfile.objects.create(
+        owner=operator_user,
         seed_type="genre",
         value="多P",
         normalized_value="多p",
@@ -928,7 +932,7 @@ def test_recommendation_avid_blocklist_endpoint_lists_adds_and_removes(
 
 @pytest.mark.django_db
 def test_recommendation_avid_blocklist_filters_recalled_candidates(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationAvidBlocklist
     from nassav.source import Jable
@@ -937,6 +941,7 @@ def test_recommendation_avid_blocklist_filters_recalled_candidates(
     seed_resource = resource_factory(avid="SEED-AVID-BLOCK", original_title="Seed")
     seed_resource.actors.add(actor)
     RecommendationAvidBlocklist.objects.create(
+        owner=operator_user,
         avid="REC-AVID-BLOCK",
         source="manual",
         reason="manual",
@@ -1109,11 +1114,11 @@ def test_recommendation_feedback_endpoint_accepts_like_and_dislike(
     api_client, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationAvidBlocklist, RecommendationSeedProfile
-    from nassav.recommendation.repository import recommendation_snapshot_repository
+    from nassav.recommendation.repository import RecommendationSnapshotRepository
     from nassav.source import Jable
 
     monkeypatch.setattr(
-        recommendation_snapshot_repository, "next_random_seed", lambda: 42
+        RecommendationSnapshotRepository, "next_random_seed", lambda self: 42
     )
 
     actor = actor_factory(name="Alice")
@@ -1317,7 +1322,7 @@ def test_recommendation_dislike_feedback_does_not_block_same_avid_from_future_re
 
 @pytest.mark.django_db
 def test_recommendation_reset_endpoint_clears_history_but_preserves_blocklist(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import (
         RecommendationAvidBlocklist,
@@ -1356,6 +1361,7 @@ def test_recommendation_reset_endpoint_clears_history_but_preserves_blocklist(
     )
     assert feedback_response.status_code == 200
     RecommendationAvidBlocklist.objects.create(
+        owner=operator_user,
         avid="REC-703-A",
         source="manual",
         reason="manual",
@@ -1570,7 +1576,7 @@ def test_recommendations_endpoint_uses_actor_source_mapping_for_model_recall(
 
 @pytest.mark.django_db
 def test_recommendations_endpoint_manual_blocked_actor_excludes_mapped_seed(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import ActorSourceMapping, RecommendationSeedProfile
     from nassav.source import Jable
@@ -1587,6 +1593,7 @@ def test_recommendations_endpoint_manual_blocked_actor_excludes_mapped_seed(
         is_verified=True,
     )
     RecommendationSeedProfile.objects.create(
+        owner=operator_user,
         seed_type="actor",
         value="明里つむぎ",
         normalized_value="明里つむぎ",
@@ -1755,7 +1762,7 @@ def test_recommendations_endpoint_expands_to_lower_ranked_seeds_when_exhausted(
 
 @pytest.mark.django_db
 def test_recommendations_endpoint_tops_up_after_detail_blacklist_filter(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationSeedProfile
     from nassav.source import Jable
@@ -1780,6 +1787,7 @@ def test_recommendations_endpoint_tops_up_after_detail_blacklist_filter(
     ).actors.add(carol)
 
     RecommendationSeedProfile.objects.create(
+        owner=operator_user,
         seed_type="genre",
         value="Blocked Genre",
         normalized_value="blocked genre",
@@ -2095,7 +2103,7 @@ def test_recommendations_enriches_discovery_candidates_with_matching_seed_detail
 
 @pytest.mark.django_db
 def test_feedback_learning_profile_separates_dislike_from_avid_blocklist(
-    api_client, monkeypatch, resource_factory, actor_factory
+    api_client, operator_user, monkeypatch, resource_factory, actor_factory
 ):
     from nassav.models import RecommendationAvidBlocklist
     from nassav.recommendation.feedback import recommendation_feedback_repository
@@ -2125,17 +2133,22 @@ def test_feedback_learning_profile_separates_dislike_from_avid_blocklist(
         {"snapshot_id": snapshot_id, "avid": "REC-905-A", "feedback": "dislike"},
         format="json",
     )
-    profile = recommendation_feedback_repository.build_learning_profile()
+    profile = recommendation_feedback_repository.for_user(
+        operator_user.pk
+    ).build_learning_profile()
     assert profile.avid_scores == {}
     assert profile.seed_scores["actor:Alice"] < 0
     assert "REC-905-A" not in profile.blocked_avids
 
     RecommendationAvidBlocklist.objects.create(
+        owner=operator_user,
         avid="REC-905-A",
         source="manual",
         reason="manual",
     )
-    profile = recommendation_feedback_repository.build_learning_profile()
+    profile = recommendation_feedback_repository.for_user(
+        operator_user.pk
+    ).build_learning_profile()
     assert "REC-905-A" in profile.blocked_avids
 
 

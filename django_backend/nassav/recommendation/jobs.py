@@ -24,26 +24,38 @@ class RecommendationStopped(Exception):
     pass
 
 
-def history_generation():
-    state, _ = RecommendationState.objects.get_or_create(pk=1)
+def history_generation(user_id=None):
+    state, _ = RecommendationState.objects.get_or_create(owner_id=user_id)
     return state.generation
 
 
-def lock_history():
+def lock_history(user_id=None):
     """Acquire the shared write fence before any feedback/reset read.
 
     A write (rather than SELECT FOR UPDATE alone) also serializes SQLite.
     """
-    if not RecommendationState.objects.filter(pk=1).update(generation=F("generation")):
-        RecommendationState.objects.get_or_create(pk=1)
-        RecommendationState.objects.filter(pk=1).update(generation=F("generation"))
-    return RecommendationState.objects.get(pk=1).generation
+    if user_id is not None:
+        from nassav.personal_state import lock_user
 
-
-def fence_history(generation):
-    if not RecommendationState.objects.filter(pk=1, generation=generation).update(
+        lock_user(user_id)
+    if not RecommendationState.objects.filter(owner_id=user_id).update(
         generation=F("generation")
     ):
+        history_generation(user_id)
+        RecommendationState.objects.filter(owner_id=user_id).update(
+            generation=F("generation")
+        )
+    return RecommendationState.objects.get(owner_id=user_id).generation
+
+
+def fence_history(generation, user_id=None):
+    if user_id is not None:
+        from nassav.personal_state import lock_user
+
+        lock_user(user_id)
+    if not RecommendationState.objects.filter(
+        owner_id=user_id, generation=generation
+    ).update(generation=F("generation")):
         raise RecommendationStopped("推荐历史已经重置")
 
 
@@ -63,7 +75,7 @@ def snapshot(job):
 
 def submit(owner, parameters):
     with transaction.atomic():
-        generation = lock_history()
+        generation = lock_history(owner.pk)
         job = RecommendationJob.objects.create(
             owner=owner,
             parameters=parameters,
@@ -128,6 +140,7 @@ def recover():
 
 class JobContext(DjangoRecommendationContext):
     def __init__(self, job, token):
+        super().__init__(user_id=job.owner_id)
         self.job, self.token = job, token
         self.execution_budget: RecommendationExecutionBudget | None = None
 
@@ -142,7 +155,7 @@ class JobContext(DjangoRecommendationContext):
 
     @transaction.atomic
     def publish_cache(self, operation):
-        fence_history(self.job.history_generation)
+        fence_history(self.job.history_generation, self.job.owner_id)
         if not RecommendationJob.objects.filter(
             pk=self.job.pk,
             state="running",
@@ -164,7 +177,7 @@ class JobContext(DjangoRecommendationContext):
             and not execution.run.items
         ):
             raise TaskNetworkTimeout("网络预算耗尽且没有合格推荐")
-        fence_history(self.job.history_generation)
+        fence_history(self.job.history_generation, self.job.owner_id)
         updated = RecommendationJob.objects.filter(
             pk=self.job.pk,
             state="running",
@@ -196,7 +209,7 @@ def execute(job_id, *, manager_builder=None):
 
     def check():
         if not RecommendationJob.objects.filter(
-            pk=job_id, state="running", execution_owner=token
+            pk=job_id, state="running", execution_owner=token, owner__is_active=True
         ).exists():
             raise RecommendationStopped("推荐已取消或失效")
         if timezone.now() >= job.deadline:
@@ -230,7 +243,7 @@ def execute(job_id, *, manager_builder=None):
                 raise RecommendationManagerError("推荐结果未提交")
     except RecommendationStopped:
         RecommendationJob.objects.filter(
-            pk=job_id, state="running", execution_owner=token
+            pk=job_id, state="running", execution_owner=token, owner__is_active=True
         ).update(
             state="cancelled",
             message="推荐已取消或历史已重置",
@@ -259,7 +272,7 @@ def execute(job_id, *, manager_builder=None):
             message = "推荐执行失败，请重试"
             logger.exception("Recommendation job failed: %s", job_id)
         RecommendationJob.objects.filter(
-            pk=job_id, state="running", execution_owner=token
+            pk=job_id, state="running", execution_owner=token, owner__is_active=True
         ).update(
             state="failed",
             message=message,

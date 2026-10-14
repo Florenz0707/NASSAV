@@ -2,15 +2,11 @@
 defineOptions({ name: 'AppNavbar' })
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { useSessionStore } from '../../features/auth/stores/session.js'
-import { useToastStore } from '../../shared/stores/toast.js'
 
 defineProps({ logoOnly: Boolean })
 
 const route = useRoute()
 const router = useRouter()
-const sessionStore = useSessionStore()
-const toastStore = useToastStore()
 const showResourcesMenu = ref(false)
 const showMobileMenu = ref(false)
 const scrolled = ref(false)
@@ -37,14 +33,6 @@ const isResourcesActive = () => {
 
 const goToResources = () => {
   router.push('/resources')
-}
-
-async function handleLogout() {
-  try {
-    await sessionStore.signOut()
-  } catch {
-    toastStore.error('退出失败，请重试')
-  }
 }
 
 function handleKeydown(e) {
@@ -303,42 +291,22 @@ watch(
           <span class="nav-label">推荐</span>
         </RouterLink>
 
-        <!-- 设置 -->
-        <RouterLink to="/settings" class="nav-item" :class="{ active: isActive('/settings') }">
+        <!-- 个人中心 -->
+        <RouterLink to="/personal" class="nav-item" :class="{ active: isActive('/personal') }">
           <svg
-            class="nav-icon"
+            class="nav-icon w-5 h-5"
+            aria-hidden="true"
             viewBox="0 0 20 20"
             fill="none"
             stroke="currentColor"
             stroke-width="1.5"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <circle cx="10" cy="10" r="2.5" />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"
-            />
+            <circle cx="10" cy="6" r="3" />
+            <path stroke-linecap="round" d="M4 17v-1a6 6 0 0 1 12 0v1" />
           </svg>
-          <span class="nav-label">设置</span>
+          <span class="nav-label">个人中心</span>
         </RouterLink>
-        <button type="button" class="nav-item" aria-label="退出登录" @click="handleLogout">
-          <svg
-            class="nav-icon"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            aria-hidden="true"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M8 4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3M12 6l4 4-4 4M16 10H7"
-            />
-          </svg>
-          <span class="nav-label">退出</span>
-        </button>
       </div>
 
       <!-- Hamburger button (mobile only) -->
@@ -497,40 +465,20 @@ watch(
         推荐
       </RouterLink>
 
-      <RouterLink to="/settings" class="mobile-nav-item" :class="{ active: isActive('/settings') }">
+      <RouterLink to="/personal" class="mobile-nav-item" :class="{ active: isActive('/personal') }">
         <svg
-          class="nav-icon"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-        >
-          <circle cx="10" cy="10" r="2.5" />
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"
-          />
-        </svg>
-        设置
-      </RouterLink>
-      <button type="button" class="mobile-nav-item" @click="handleLogout">
-        <svg
-          class="nav-icon"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
+          class="nav-icon w-5 h-5"
           aria-hidden="true"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M8 4H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3M12 6l4 4-4 4M16 10H7"
-          />
+          <circle cx="10" cy="6" r="3" />
+          <path stroke-linecap="round" d="M4 17v-1a6 6 0 0 1 12 0v1" />
         </svg>
-        退出登录
-      </button>
+        个人中心
+      </RouterLink>
     </div>
   </component>
 </template>

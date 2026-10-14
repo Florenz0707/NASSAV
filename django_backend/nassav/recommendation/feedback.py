@@ -32,6 +32,34 @@ class RecommendationLearningProfile:
 
 
 class RecommendationFeedbackRepository:
+    def __init__(self, user_id=None):
+        self.user_id = user_id
+
+    def for_user(self, user_id):
+        return type(self)(user_id=user_id)
+
+    @property
+    def items(self):
+        return RecommendationItem.objects.filter(snapshot__owner_id=self.user_id)
+
+    @property
+    def feedbacks(self):
+        return RecommendationFeedback.objects.filter(
+            item__snapshot__owner_id=self.user_id
+        )
+
+    @property
+    def blocks(self):
+        return RecommendationAvidBlocklist.objects.filter(owner_id=self.user_id)
+
+    @property
+    def seed_profiles(self):
+        return (
+            recommendation_seed_profile_repository
+            if self.user_id is None
+            else recommendation_seed_profile_repository.for_user(self.user_id)
+        )
+
     VALID_FEEDBACKS = {"like", "dislike", "clear"}
 
     @transaction.atomic
@@ -52,9 +80,9 @@ class RecommendationFeedbackRepository:
 
         from .jobs import lock_history
 
-        lock_history()
+        lock_history(self.user_id)
         item = (
-            RecommendationItem.objects.select_related("snapshot")
+            self.items.select_related("snapshot")
             .filter(snapshot_id=snapshot_id, avid=normalized_avid)
             .first()
         )
@@ -62,27 +90,25 @@ class RecommendationFeedbackRepository:
             raise RecommendationFeedbackError("推荐项不存在，无法记录反馈")
 
         existing_feedback = (
-            RecommendationFeedback.objects.filter(item=item)
-            .values_list("feedback", flat=True)
-            .first()
+            self.feedbacks.filter(item=item).values_list("feedback", flat=True).first()
         )
         if normalized_feedback == "clear":
-            RecommendationFeedback.objects.filter(item=item).delete()
-            recommendation_seed_profile_repository.adjust_feedback_counts_for_item(
+            self.feedbacks.filter(item=item).delete()
+            self.seed_profiles.adjust_feedback_counts_for_item(
                 item,
                 old_feedback=existing_feedback or "",
                 new_feedback="",
             )
             return None
 
-        feedback_obj, _ = RecommendationFeedback.objects.update_or_create(
+        feedback_obj, _ = self.feedbacks.update_or_create(
             item=item,
             defaults={
                 "avid": normalized_avid,
                 "feedback": normalized_feedback,
             },
         )
-        recommendation_seed_profile_repository.adjust_feedback_counts_for_item(
+        self.seed_profiles.adjust_feedback_counts_for_item(
             item,
             old_feedback=existing_feedback or "",
             new_feedback=normalized_feedback,
@@ -90,13 +116,11 @@ class RecommendationFeedbackRepository:
         return feedback_obj
 
     def build_learning_profile(self) -> RecommendationLearningProfile:
-        blocked_avids = set(
-            RecommendationAvidBlocklist.objects.values_list("avid", flat=True)
-        )
+        blocked_avids = set(self.blocks.values_list("avid", flat=True))
         return RecommendationLearningProfile(
-            seed_scores=recommendation_seed_profile_repository.build_seed_score_map(),
+            seed_scores=self.seed_profiles.build_seed_score_map(),
             blocked_avids=blocked_avids,
-            feedback_count=RecommendationFeedback.objects.count(),
+            feedback_count=self.feedbacks.count(),
         )
 
 

@@ -792,7 +792,7 @@ HTTP 仅提交；Celery `nassav.tasks.recommendation_job_task` 在 `scrape` 队�
 | 生产推荐与受控刮削详情             | 独立 DB 原站事实，来源默认 7 天，scraper 默认 30 天；删除资源保留   | 解析版本/TTL/上下文失效；未使用 90 天可有界清理        |
 | 短期播放信息                       | 独立 DB 播放缓存，默认 5 分钟，隔离出口/会话/路径                   | 链接过期即重新获取，过期 24 小时后可清理               |
 | 旧兼容 Jable 详情入口              | Redis video_detail_v2，默认 1800 秒，不向新表回填                   | TTL 过期                                               |
-| 推荐 snapshot/items 与 SeedProfile | DB 历史、审计与偏好输入，不作为最终结果缓存                         | 用户重置历史；反馈与提交共享历史 fence                 |
+| 推荐 snapshot/items 与 SeedProfile | DB 历史、审计与偏好输入，不作为最终结果缓存                         | 用户重置历史；反馈与提交共享本用户历史 fence           |
 | RecommendationJob                  | DB 持久任务及成功结果                                               | 恢复循环清理已结束且更新超过一天的 job，不连带清理历史 |
 | 前端推荐列表                       | 同标签页 sessionStorage 保存完整跨轮去重列表、偏好与成功用时        | 清空页面/历史重置；无定时 TTL，不是后端结果缓存        |
 | 本地推荐/外部搜索封面              | cover 接口按 URL SHA-256 文件名缓存于 resource/recommendation_cover | 当前无自动 TTL/定时删除，重置历史或删除 job 不清理图片 |
