@@ -47,3 +47,5 @@ manifest按root/kind/path/size/SHA256/marker登记；元数据只接受白名单
 来源或pool失效属于仍owned执行的失败，而非旧token静默ignored；旧token仍由原TaskExecutionInvalid拒绝。刮削失败收尾直接用finish检查执行/控制归属，不重复检查已失效来源，避免owned attempt滞留running；取消优先且网络/写入者必须已退出。
 
 专项`test_version_publication.py`使用真实加密来源记录、临时JPEG、DB及资产日志，覆盖双用户激活、撤销/取消、无公共私人数据、失败补偿、较新指针、命名空间及线程竞态；另有实际ffmpeg生成并完整解码的0.2秒MP4验证独立视频指针；不是源站下载、真实Celery或HTTP媒体验收。0045往返保留版本/manifest/持有/读取占用，仅新增CAS基准列；历史staging候选不能因为默认值就获新提交权。
+
+执行器子阶段已将两个受控workflow接入版本策略与同步翻译，生产开关默认关闭；共享库HTTP/配额与正式读取消费者仍待接入，见[共享执行器](shared-work-architecture.md#执行器子阶段)。

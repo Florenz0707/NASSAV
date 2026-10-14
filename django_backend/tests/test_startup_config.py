@@ -329,3 +329,29 @@ def test_invalid_external_aggregate_cache_config_fails_startup(tmp_path, key, va
     result = startup(config_path, tmp_path / "absent.env")
     assert result.returncode != 0
     assert f"ExternalSearch.{key}" in result.stderr
+
+
+def test_shared_library_requires_scoped_source_mode(tmp_path):
+    config = tmp_path / "config.yaml"
+    write_config(config)
+    env = tmp_path / "empty.env"
+    env.write_text("")
+    result = startup(
+        config,
+        env,
+        NASSAV_SHARED_LIBRARY_ENABLED="true",
+        NASSAV_SCOPED_SOURCE_CREDENTIALS="false",
+    )
+    assert (
+        result.returncode != 0
+        and "Shared library requires scoped source credentials" in result.stderr
+    )
+
+
+def test_shared_library_rejects_invalid_boolean(tmp_path):
+    config = tmp_path / "config.yaml"
+    write_config(config)
+    env = tmp_path / "empty.env"
+    env.write_text("")
+    result = startup(config, env, NASSAV_SHARED_LIBRARY_ENABLED="maybe")
+    assert result.returncode != 0 and "NASSAV_SHARED_LIBRARY_ENABLED" in result.stderr

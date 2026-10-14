@@ -8,6 +8,7 @@ from typing import NoReturn
 from celery import shared_task
 from loguru import logger
 from nassav.task_dispatch import SubmittedTask
+from nassav.shared_work_tasks import shared_work_task as shared_work_task
 
 from nassav import download_queue
 from nassav.download_contracts import DownloadLeaseLost

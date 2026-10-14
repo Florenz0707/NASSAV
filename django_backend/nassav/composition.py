@@ -25,10 +25,17 @@ def build_membership_records():
 
 
 def build_operation_records():
+    from django.conf import settings
     from nassav.shared_work_records import DjangoOperationRecords
     from nassav.consumers import send_operation_hint
+    from nassav.resource_version_publication import VersionPublications
 
-    return DjangoOperationRecords(build_task_records(), hint=send_operation_hint)
+    return DjangoOperationRecords(
+        build_task_records(),
+        hint=send_operation_hint,
+        publication=VersionPublications if settings.SHARED_LIBRARY_ENABLED else None,
+        allow_private=settings.SHARED_LIBRARY_ENABLED,
+    )
 
 
 def build_credential_records():
@@ -672,9 +679,12 @@ def build_task_recovery():
     records = build_task_records()
 
     def dispatch(records):
+        from nassav.shared_work_dispatch import dispatch_shared
+
         return {
             "download": dispatch_downloads(records),
             "scrape": dispatch_scrapes(records),
+            "shared": dispatch_shared(),
         }
 
     def interrupt(checkpoint, cancelled):
@@ -785,3 +795,150 @@ def build_local_playback_gateway():
     return LocalPlaybackGateway(
         RedisPlaybackCapacity(registry.client, settings.PLAYBACK_MAX_MEDIA_REQUESTS)
     )
+
+
+def build_shared_workflow(job_id):
+    """Frozen source selection; each network operation owns a source/transport."""
+    from django.conf import settings
+    from nassav.shared_work_models import SharedWork
+    from nassav.credential_models import SourceCredential
+    from nassav.shared_execution_records import DjangoSharedExecutionRecords
+    from nassav.resource_version_publication import VersionPublications
+    from nassav.versioned_task_publication import (
+        VersionedScrapePublication,
+        VersionedDownloadPublication,
+    )
+    from nassav.shared_worker_resources import WorkflowResources
+    from nassav.source.SourceManager import SourceManager, source_manager
+    from nassav.scraper.ScraperManager import ScraperManager
+    from nassav.scrape_preparation import ScrapePreparation
+    from nassav.controlled_scrape import ControlledScrape
+    from nassav.controlled_download import ControlledDownload
+    from nassav.translator.TranslatorManager import TranslatorManager
+    from nassav.download_information import ProviderDownloadInfoResolver
+    from nassav.download_resume import HLSResumeGuard
+    from nassav.download_leases import DownloadLease
+    from nassav.download_queue import get_redis_client
+    from nassav.m3u8downloader import N_m3u8DL_RE
+    from nassav.resource_version_models import ResourceVersionPointer
+    from nassav.task_network import TaskBrowserSession
+
+    if not settings.SHARED_LIBRARY_ENABLED or not settings.SOURCE_CREDENTIALS_ENABLED:
+        raise ValueError("Shared execution is not enabled")
+    work = SharedWork.objects.get(job_id=job_id)
+    source_name = work.spec["source"]
+    ref_id = work.credential_refs.get("credential_id")
+    ref = SourceCredential.objects.get(pk=ref_id) if ref_id is not None else None
+    owner_id = ref.owner_id if ref is not None else None
+    proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
+    factories = source_factories(
+        proxy,
+        settings.BROWSER_FETCH_CONFIG,
+        source_manager.set_source_cookie,
+        user_id=owner_id,
+        credential_id=ref_id,
+    )
+    if source_name not in factories or not settings.SOURCE_CONFIG.get(
+        source_name, {}
+    ).get("weight"):
+        raise ValueError("Source is not configured")
+    template = factories[source_name]()
+    parent = template.credential_context
+    if parent is None:
+        raise ValueError("Scoped source context required")
+    cleanups = []
+
+    def close_source(source):
+        fetcher = getattr(source, "page_fetcher", None)
+        if fetcher is not None and fetcher.browser is not None:
+            fetcher.browser.close()
+
+    cleanups.append(lambda: close_source(template))
+    try:
+        records = DjangoSharedExecutionRecords(parent)
+        publications = VersionPublications(records)
+        assets = build_task_assets(records)
+
+        def preparation(control):
+            def fresh():
+                source = factories[source_name]()
+                source.bind_credential_context(parent.fork(control.check))
+                source.set_task_control(control)
+                fetcher = getattr(source, "page_fetcher", None)
+                if fetcher is not None:
+                    fetcher.timeout_ms = min(fetcher.timeout_ms, 60000)
+                    fetcher.set_task_control(control)
+                    if fetcher.browser is not None:
+                        fetcher.browser.set_task_transport(TaskBrowserSession(control))
+                cleanups.append(lambda: close_source(source))
+                return source
+
+            sources = SourceManager(factories={source_name: fresh}, check=control.check)
+            metadata = ScraperManager(proxy, check=control.check)
+            for _, scraper in metadata.get_scrapers():
+                scraper.set_task_control(control)
+            return ScrapePreparation(
+                sources, metadata, control, facts_cache=build_provider_facts_cache()
+            )
+
+        class NoResourceEvents:
+            def flush(self, job_id):
+                return None  # User projection follows ready publication, no legacy broadcast.
+
+        if work.spec["kind"] == "scrape":
+            policy = VersionedScrapePublication(
+                records,
+                publications,
+                lambda control: TranslatorManager(task_control=control),
+            )
+            workflow = ControlledScrape(
+                records,
+                assets,
+                preparation,
+                lambda avid: None,
+                policy.persist,
+                NoResourceEvents(),
+                publication=policy,
+            )
+        else:
+            pointer = (
+                ResourceVersionPointer.objects.filter(
+                    pool=work.pool,
+                    kind="metadata",
+                    source_name=source_name,
+                    access_scope=work.access_scope,
+                    quality="best",
+                )
+                .select_related("current")
+                .first()
+            )
+            snapshot = (
+                pointer.current.metadata
+                if pointer is not None and pointer.current is not None
+                else {
+                    "avid": work.pool.canonical_avid,
+                    "source_title": work.pool.canonical_avid,
+                }
+            )
+            policy = VersionedDownloadPublication(publications, snapshot)
+            # Preserve the existing one-download slot and AVID writer exclusion.
+            lease = DownloadLease(
+                work.pool.canonical_avid, get_redis_client, job_id=str(work.job_id)
+            )
+            cleanups.append(lease.close)
+            workflow = ControlledDownload(
+                records,
+                assets,
+                ProviderDownloadInfoResolver(
+                    preparation, preferred_source=lambda avid: source_name
+                ),
+                N_m3u8DL_RE(proxy=settings.DOWNLOAD_PROXY_URL or None),
+                lease,
+                lambda avid: None,
+                guard=HLSResumeGuard(proxy=settings.DOWNLOAD_PROXY_URL or None),
+                publication=policy,
+            )
+        return WorkflowResources(workflow, cleanups)
+    except BaseException:
+        WorkflowResources(None, cleanups).close()
+        raise

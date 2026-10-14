@@ -52,3 +52,17 @@ P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、
 用户提示仅为operation_id/version，提交成功后发送到本人的task_user频道，不进入旧全局组或管理员广播。提示投递失败不回滚业务，由下一次授权快照补查；当前前端尚未消费新事件。
 
 0043仅增加默认0游标，原有请求/订阅/持有/工作不变；逆向只丢游标，重新升级从0重建。测试覆盖SQLite/PostgreSQL往返、双用户真实线程释放/投影竞争、停用、取消后迟到状态、无发布证据拒绝激活、批次公平与事务回滚不发提示。模拟claim/派发回调不代表真实Celery或媒体发布验收。
+
+## 执行器子阶段
+
+新Celery任务`nassav.tasks.shared_work_task`只接收job ID，request.id对应持久attempt；派发只选shared_work，不进入旧Redis AVID队列/旧worker。broker失败保留pending，补派复用attempt ID，重复或旧消息不能领取或把其他running执行改失败。结果只返回status/job_id并关闭Celery结果存储，不复制私有checkpoint/源链接。
+
+`build_shared_workflow`按冻结source/credential选择模板与独立操作来源；私人owner来自可信凭证行，公开模板actor为空。来源与scraper共用全局Proxy.url；下载仍用download代理；ProxyServer能力与容量不按具体provider决定。模板不安装操作control，fork绑定当前control，新fetcher/transport任务结束逐个关闭；一个关闭异常不跳过其余清理。
+
+刮削复用ControlledScrape，新增显式publication策略；目标进入版本UUID目录，HTML只留临时工作区。翻译在短提交外完成，成功后metadata snapshot固定；翻译失败不切指针并报告failed，取消由原停止协议收尾。不会用旧AVResource所属翻译修改已发布版本。下载复用ControlledDownload、HLSResumeGuard和完整媒体验证，仅把最后目标/persist替换成版本策略。
+
+不同范围的同AVID下载持有各自job租约，仍共享一份全局下载槽位；private workspace及正式目标均独立。共享progress/queue键单独命名，不清旧AVID投影。恢复仅从可信DB job ID导出租约键，再校验归属；不接受日志中的任意Redis key。停止证明及未知writer保留规则不变。
+
+`NASSAV_SHARED_LIBRARY_ENABLED`默认false，要求同时启用范围凭证；本子阶段没有共享库HTTP、配额、版本库/媒体消费者或GC，因此尚不能用于普通用户上线。Compose将开关/密钥容器路径传给全部后端消费者，切换时统一版本与重启，不能只开开关而混跑旧写入者。后台在启用时装配ready发布证据的用户投影，提示仍只发送所属用户。
+
+专项`test_shared_version_workers.py`为真实DB/文件＋显式来源/下载替身，验证编排与装配，不是实际Celery/站点下载；`test_shared_download_leases.py`用Unix socket临时Redis验证作用域与恢复；真实worker/Proxy/来源/媒体仍按P8验收。

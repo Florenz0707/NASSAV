@@ -291,3 +291,7 @@ P3/P4 更新与回滚、Compose 短时实测及真实设备/长时发布条件�
 本轮未开放多账号准入或普通用户共享资产控制，仍使用is_operator；跨设备为同账号的不同登录共享进度，各播放会话仍分别鉴权。音量/倍速/默认模式为用户设置，不替代服务器代理、容量、播放开关或Cookie配置。正式数据迁移、真实外站worker和实体设备验收由部署者单独执行，隔离浏览器测试不等同目标部署验收。
 
 v2.5.1还须应用0036观看列表及播放事件去重字段；历史不从旧进度回填。移出已观看/历史删除的新接口与个人中心前端需统一更新。正式启动前先完成import_personal_data及适用的import_recommendation_data归属导入，再进行个人推荐；原有个人数据存在时不要强行重导入。维护窗口与0033–0036回退边界见[发布检查](release-2.5.1.md)。
+
+## 未发布共享执行器开关
+
+Compose全部后端继承`NASSAV_SCOPED_SOURCE_CREDENTIALS`、`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`及`NASSAV_SHARED_LIBRARY_ENABLED`。两开关默认false；共享执行器要求范围凭证，但当前共享库HTTP/配额/正式版本读取/GC尚未完成，保持关闭。密钥路径为容器内路径（例如`/app/config/source-keys.json`，配置目录已挂载），文件只允许服务UID读取，先完成密钥备份、迁移/显式导入及全消费者维护窗口，不混跑旧Cookie/资产写入者。此配置接入不代表现有实例已迁移或允许普通账号登录。

@@ -156,3 +156,5 @@ P4生命周期专项为`test_shared_work_lifecycle.py`、`test_user_operation_pr
 P5账本/占用专项：`test_resource_read_leases.py`及`test_resource_version_migration.py`，验证版本范围/独立指针、登录和epoch隔离、播放原期限内续读、线程并发续租/释放与0044往返；没有真实文件/Range/worker发布验收。
 
 P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fence_migration.py`验证真实加密引用、JPEG资产日志、指针与文件补偿、双用户取消/停用、线程CAS竞争和0045往返。`test_controlled_scrape.py`新增来源失效后owned失败收尾；没有真实共享worker/视频或网页验收。
+
+共享执行器：`test_shared_version_workers.py`、`test_shared_download_leases.py`、`test_startup_config.py`及既有受控流程/恢复专项。验证翻译先于版本提交、独立来源/全局代理装配、broker补派/重复消息、结果裁剪及真实Redis；来源/下载替身不代替真实worker/代理/站点联调。

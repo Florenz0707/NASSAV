@@ -624,11 +624,18 @@ class DjangoTaskRecords:
         ).update(state="pending", dispatched_at=None)
 
     def dispatch_pending(
-        self, send: Callable[[dict], None], *, limit: int = 100, kind: str | None = None
+        self,
+        send: Callable[[dict], None],
+        *,
+        limit: int = 100,
+        kind: str | None = None,
+        shared_only: bool = False,
     ) -> dict:
         """Outbox-like attempts persist before publish; duplicate publish is safe at claim."""
         sent, failed = 0, 0
         query = TaskAttempt.objects.filter(state="pending", job__state="queued")
+        if shared_only:
+            query = query.filter(job__options__shared_work=True)
         if not self.shared_execution:
             # Shared specs require version/scoped publication, never the legacy writer.
             query = query.exclude(

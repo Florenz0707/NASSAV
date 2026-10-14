@@ -64,6 +64,11 @@ SOURCE_CREDENTIALS_ENABLED = boolean(
     os.getenv("NASSAV_SCOPED_SOURCE_CREDENTIALS", "false"),
     "NASSAV_SCOPED_SOURCE_CREDENTIALS",
 )
+SHARED_LIBRARY_ENABLED = boolean(
+    os.getenv("NASSAV_SHARED_LIBRARY_ENABLED", "false"), "NASSAV_SHARED_LIBRARY_ENABLED"
+)
+if SHARED_LIBRARY_ENABLED and not SOURCE_CREDENTIALS_ENABLED:
+    raise RuntimeError("Shared library requires scoped source credentials")
 if not NASSAV_OPERATOR_USERNAME:
     raise RuntimeError("NASSAV_OPERATOR_USERNAME must not be empty")
 

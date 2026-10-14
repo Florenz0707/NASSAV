@@ -121,6 +121,7 @@ class ControlledDownload:
         validate: Callable = validate_video,
         sleep: Callable = time.sleep,
         project: Callable | None = None,
+        publication=None,
     ):
         self.records, self.assets = records, assets
         self.resolver, self.downloader, self.lease = resolver, downloader, lease
@@ -131,6 +132,7 @@ class ControlledDownload:
             sleep,
         )
         self.project = project
+        self.publication = publication
 
     def _project(self, snapshot: dict, *, progress: dict | None = None):
         if self.project:
@@ -222,6 +224,8 @@ class ControlledDownload:
             )
             lease.start()
             check()
+            if self.publication is not None:
+                self.publication.begin(token)
             if job["checkpoint"].get("video_committed"):
                 success = True
             else:
@@ -317,11 +321,20 @@ class ControlledDownload:
 
                 def persist():
                     lease.check()
-                    self.persist(avid)
+                    if self.publication is not None:
+                        return self.publication.persist(token)
+                    return self.persist(avid)
 
                 self.assets.commit(
                     token,
-                    [AssetPromotion(asset_id, f"{avid}.mp4")],
+                    [
+                        AssetPromotion(
+                            asset_id,
+                            self.publication.target(token)
+                            if self.publication is not None
+                            else f"{avid}.mp4",
+                        )
+                    ],
                     persist,
                     checkpoint={"video_committed": True},
                 )

@@ -280,3 +280,7 @@ P5账本隔离门槛（2026-10-15）：全量SQLite1111 passed、28 skipped；�
 P5发布核心子阶段基线04e0214，分支`feat/scoped-version-publication`：0045、冻结来源fence、版本文件命名空间、指针CAS/资产日志、注入成功持有激活及来源失效收尾。真实worker/HTTP/配额、正式库和媒体投影、GC仍待接入；生产共享派发继续关闭。
 
 P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skipped；临时PostgreSQL专项38 passed；模型迁移无差异；完整pre-commit通过。专项含实际生成并完整解码的0.2秒MP4及真实文件日志/线程竞争；未进行来源下载、真实Celery或HTTP媒体联调。SQLite并发控制只读检查采用有界重试，不重跑文件提升。
+
+共享执行器子阶段基线5980af4，分支`feat/shared-version-workers`：受控流程策略、ID-only持久派发/worker、范围来源装配/全局代理、翻译先于不可变发布、独立下载租约及默认关闭开关。尚无共享库HTTP/配额、正式版本查询/媒体/GC或普通登录开放；完整P4/P5仍在执行。
+
+共享执行器隔离门槛（2026-10-15）：全量SQLite1140 passed、28 skipped；临时PostgreSQL专项75 passed；模型迁移无差异；完整pre-commit通过。默认装配检查覆盖独立来源及全局scraper代理，真实临时Redis验证租约与恢复；来源/下载替身只证明编排，不代表真实worker/站点下载、HTTP版本读取或正式实例已迁移。

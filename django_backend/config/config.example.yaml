@@ -54,6 +54,7 @@ Scraper:
 # 视频下载源配置
 # 可选范围凭证：NASSAV_SCOPED_SOURCE_CREDENTIALS=true（默认false）。
 # 专用密钥：NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE，切换前完成维护窗口与显式导入。
+# 共享执行器：NASSAV_SHARED_LIBRARY_ENABLED=false；须同时启用范围凭证，完整切换验收前保持关闭。
 Source:
   missav:
     domain: missav.ai

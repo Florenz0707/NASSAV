@@ -26,6 +26,7 @@ os.environ.update(
     NASSAV_SECURE_COOKIES="false",
     NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE="",
     NASSAV_SCOPED_SOURCE_CREDENTIALS="false",
+    NASSAV_SHARED_LIBRARY_ENABLED="false",
 )
 os.environ.pop("NASSAV_COMPOSE_DB_MODE", None)
 os.environ.pop("NASSAV_DB_MODE_FILE", None)

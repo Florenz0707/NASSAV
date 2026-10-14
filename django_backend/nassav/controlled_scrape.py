@@ -33,11 +33,13 @@ class ControlledScrape:
         continuation=None,
         project=None,
         existing=None,
+        publication=None,
     ):
         self.records, self.assets, self.preparation = records, assets, preparation
         self.revision, self.persist, self.events = revision, persist, events
         self.continuation, self.project = continuation, project
         self.existing = existing
+        self.publication = publication
 
     def _project(self, snapshot):
         if self.project is not None:
@@ -83,6 +85,8 @@ class ControlledScrape:
                     for key, value in process_identity(os.getpid()).items()
                 },
             )
+            if self.publication is not None:
+                self.publication.begin(token)
             if (
                 not snapshot["resource_saved"]
                 and snapshot["action"] == "refresh"
@@ -145,9 +149,11 @@ class ControlledScrape:
                 page_artifact = assets.completed(token, "cover", "page.html")
                 promotions = []
                 if page_artifact is not None:
-                    promotions.append(
-                        AssetPromotion(page_artifact, f"{snapshot['avid']}.html")
+                    target = self._target(
+                        token, "cover", f"{snapshot['avid']}.html", "html"
                     )
+                    if target is not None:
+                        promotions.append(AssetPromotion(page_artifact, target))
                 if not checkpoint.get("cover_done"):
                     stage("cover")
                     cover = assets.completed(token, "cover", "cover.jpg")
@@ -167,7 +173,10 @@ class ControlledScrape:
                 if checkpoint.get("cover_artifact"):
                     promotions.append(
                         AssetPromotion(
-                            checkpoint["cover_artifact"], f"{snapshot['avid']}.jpg"
+                            checkpoint["cover_artifact"],
+                            self._target(
+                                token, "cover", f"{snapshot['avid']}.jpg", "cover"
+                            ),
                         )
                     )
                 done = dict(checkpoint.get("avatars_done", {}))
@@ -182,7 +191,7 @@ class ControlledScrape:
                         continue
                     if name not in done:
                         stage("avatars")
-                        target = f"{name}.jpg"
+                        target = self._target(token, "avatar", f"{name}.jpg", "avatar")
                         artifact = None
                         if not assets.valid_existing("avatar", target, valid_image):
                             relative = f"avatars/{hashlib.sha256(name.encode()).hexdigest()}.jpg"
@@ -205,13 +214,15 @@ class ControlledScrape:
                         promotions.append(
                             AssetPromotion(
                                 done[name],
-                                f"{name}.jpg",
+                                self._target(token, "avatar", f"{name}.jpg", "avatar"),
                                 reuse_existing=True,
                                 reuse_if=valid_image,
                             )
                         )
                 stage("saving")
                 data = resource_input(snapshot["avid"], prepared)
+                if self.publication is not None:
+                    data = self.publication.prepare(token, data, control)
                 assets.commit(
                     token,
                     promotions,
@@ -219,7 +230,9 @@ class ControlledScrape:
                         token, data, checkpoint["base_revision"], snapshot["action"]
                     ),
                     resource_saved=True,
-                    checkpoint=lambda resource: {
+                    checkpoint=self.publication.checkpoint
+                    if self.publication is not None
+                    else lambda resource: {
                         "resource_committed": True,
                         "translation_base": translation_identity(resource),
                     },
@@ -259,3 +272,10 @@ class ControlledScrape:
             snapshot = assets.cleanup(job_id)
         self._project(snapshot)
         return snapshot
+
+    def _target(self, token, root, name, kind):
+        return (
+            self.publication.target(token, root, name, kind)
+            if self.publication is not None
+            else name
+        )

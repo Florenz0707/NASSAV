@@ -4,7 +4,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from threading import Event, RLock, Thread
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 import redis
 
@@ -43,10 +43,26 @@ class DownloadLease(DownloadOwnership):
         *,
         ttl: int = 3600,
         heartbeat_seconds: float | None = None,
+        job_id: str | None = None,
     ):
         self.avid = avid.upper()
+        self.job_id = str(UUID(job_id)) if job_id is not None else None
         self.owner = uuid4().hex
-        self.task_key = f"nassav:task_lock:{self.avid}"
+        self.task_key = (
+            f"nassav:shared_task_lock:{self.job_id}"
+            if self.job_id is not None
+            else f"nassav:task_lock:{self.avid}"
+        )
+        self.progress_key = (
+            f"nassav:shared_work_progress:{self.job_id}"
+            if self.job_id is not None
+            else f"nassav:task_progress:{self.avid}"
+        )
+        self.queue_key = (
+            "nassav:shared_work_queue"
+            if self.job_id is not None
+            else "nassav:task_queue"
+        )
         self.client_factory = client_factory
         self.ttl = ttl
         self.global_ttl = ttl
@@ -164,13 +180,13 @@ class DownloadLease(DownloadOwnership):
                 _MUTATE,
                 4,
                 self.task_key,
-                f"nassav:task_progress:{self.avid}",
-                "nassav:task_queue",
+                self.progress_key,
+                self.queue_key,
                 self.GLOBAL_KEY,
                 self.owner,
                 operation,
                 payload,
-                self.avid,
+                self.job_id if self.job_id is not None else self.avid,
                 time.time(),
                 "1" if self.global_held else "0",
             )
@@ -195,6 +211,11 @@ class DownloadLease(DownloadOwnership):
             "lease_owner": self.owner,
             "lease_task_key": self.task_key,
             "lease_global_key": self.GLOBAL_KEY,
+            **(
+                {"lease_scope": "shared", "lease_job_id": self.job_id}
+                if self.job_id is not None
+                else {}
+            ),
         }
 
     def retain_for_recovery(self) -> None:

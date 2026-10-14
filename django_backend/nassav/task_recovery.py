@@ -17,11 +17,22 @@ from nassav.task_processes import identity_status, stop_owned_writers, TaskWrite
 logger = logging.getLogger(__name__)
 
 
-def release_owned_download(identity, avid, client):
+def release_owned_download(identity, avid, client, *, job_id=None):
     owner = identity.get("lease_owner")
     if not owner:
         return
     task_key = f"nassav:task_lock:{avid}"
+    progress_key, queue_key = f"nassav:task_progress:{avid}", "nassav:task_queue"
+    if identity.get("lease_scope") == "shared":
+        from uuid import UUID
+
+        if job_id is None or identity.get("lease_job_id") != str(UUID(str(job_id))):
+            raise TaskExecutionInvalid("共享租约身份无法核查")
+        task_key = f"nassav:shared_task_lock:{job_id}"
+        progress_key, queue_key = (
+            f"nassav:shared_work_progress:{job_id}",
+            "nassav:shared_work_queue",
+        )
     # Keys are derived from the business ID, never arbitrary saved values.
     client.eval(
         """
@@ -34,10 +45,10 @@ def release_owned_download(identity, avid, client):
         4,
         task_key,
         "nassav:global_download_lock",
-        f"nassav:task_progress:{avid}",
-        "nassav:task_queue",
+        progress_key,
+        queue_key,
         owner,
-        avid,
+        str(job_id) if identity.get("lease_scope") == "shared" else avid,
     )
 
 
@@ -99,7 +110,9 @@ class TaskRecovery:
                 identity,
             )
         if attempt.job.kind == "download":
-            release_owned_download(identity, attempt.job.avid, self.redis_client())
+            release_owned_download(
+                identity, attempt.job.avid, self.redis_client(), job_id=token.job_id
+            )
         snapshot = self.records.recover_execution(
             token, identity=identity, stale_before=cutoff, interrupt=self.interrupt
         )
@@ -160,7 +173,10 @@ class TaskRecovery:
                 )
                 if attempt.job.kind == "download":
                     release_owned_download(
-                        identity, attempt.job.avid, self.redis_client()
+                        identity,
+                        attempt.job.avid,
+                        self.redis_client(),
+                        job_id=token.job_id,
                     )
                 self.records.recover_execution(
                     token,

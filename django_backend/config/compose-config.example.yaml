@@ -36,6 +36,8 @@ Scraper:
     domain: www.dmmsee.bond
 
 # 视频下载源配置
+# 范围凭证/共享执行器由Compose环境显式启用；完整P4/P5验收前保持false。
+# NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE使用容器内路径，例如/app/config/source-keys.json。
 Source:
   missav:
     domain: missav.ai
