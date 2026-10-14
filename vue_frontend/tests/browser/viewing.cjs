@@ -126,12 +126,12 @@ async function main() {
     await detail.bringToFront()
     stage = 'add watch later from detail'
     await detail.goto(`${origin}/resource/LOCAL-PLAYBACK`, { waitUntil: 'domcontentloaded' })
-    await detail.getByRole('button', { name: /^(稍后观看|已加入稍后观看)$/ }).waitFor()
-    const add = detail.getByRole('button', { name: '稍后观看', exact: true })
-    if (await add.isVisible()) await add.click()
-    await detail.getByRole('button', { name: '已加入稍后观看', exact: true }).waitFor()
+    const add = detail.getByRole('button', { name: '稍后再看', exact: true })
+    await add.waitFor()
+    if ((await add.getAttribute('aria-pressed')) !== 'true') await add.click()
+    await until(async () => (await add.getAttribute('aria-pressed')) === 'true')
     await listing.bringToFront()
-    await listing.getByRole('button', { name: '稍后观看', exact: true }).click()
+    await listing.getByRole('button', { name: '稍后再看', exact: true }).click()
     await listing.getByRole('link', { name: 'LOCAL-PLAYBACK 资源详情' }).waitFor()
     stage = 'first playback and no automatic removal'
     const first = await openPlay(a, 'LOCAL-PLAYBACK')
@@ -217,12 +217,12 @@ async function main() {
       animations: 'disabled',
     })
     stage = 'remove and refresh persists'
-    await listing.getByRole('button', { name: '稍后观看', exact: true }).click()
+    await listing.getByRole('button', { name: '稍后再看', exact: true }).click()
     await listing.getByRole('button', { name: '移除', exact: true }).click()
-    await listing.getByRole('heading', { name: '暂无稍后观看资源' }).waitFor()
+    await listing.getByRole('heading', { name: '暂无稍后再看资源' }).waitFor()
     await listing.reload()
-    await listing.getByRole('button', { name: '稍后观看', exact: true }).click()
-    await listing.getByRole('heading', { name: '暂无稍后观看资源' }).waitFor()
+    await listing.getByRole('button', { name: '稍后再看', exact: true }).click()
+    await listing.getByRole('heading', { name: '暂无稍后再看资源' }).waitFor()
     assert.deepEqual(errors, [])
     console.log(
       'PASS: real API viewing dedupe, readonly, rewatch head, watch later persistence/removal, pagination, mobile and themes'

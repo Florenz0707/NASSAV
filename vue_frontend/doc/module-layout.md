@@ -56,4 +56,6 @@ features/playback 独占在线播放会话及播放引擎生命周期；Resource
 
 个人资源标记和备注归 `features/resources/components/PersonalResourcePanel.vue` 与 `features/resources/lib/personalResourceEditor.js`；前者展示，后者拥有编辑/版本/归属生命周期。用户通用偏好继续归 `features/settings/stores/settings.js`，持久化由后端UserPreferences拥有；App装配登出和用户切换时的reset，shared组件不依赖个人状态服务。
 
-观看列表由features/viewing/components/ViewingLibrary负责读取、分页、刷新与移除，views/ViewingView仅装配，导航入口位于资源库菜单。HTTP归api/viewing.js并由api/index.js导出；播放历史事件归features/playback/lib/viewingRecorder.js，独立于进度写入权。
+观看列表由features/viewing/components/ViewingLibrary负责读取、分页、刷新与移除，views/ViewingView仅装配，生产入口位于个人中心，旧独立路由保持兼容。HTTP归api/viewing.js并由api/index.js导出；播放历史事件归features/playback/lib/viewingRecorder.js，独立于进度写入权。
+
+个人中心由features/personal管理功能导航与退出，复用features/viewing的列表、features/settings的PersonalSettings；views仅装配。个人状态单一editor留在PersonalResourcePanel，PersonalResourceActions展示图标状态，noteDialog负责草稿退出决定，页面slot只负责左右布局。

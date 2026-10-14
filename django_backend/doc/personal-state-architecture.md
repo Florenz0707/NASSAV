@@ -43,7 +43,7 @@ python3 scripts/compose_stack.py --mode sqlite run --rm --no-deps api python man
 
 ## 前端职责与维护
 
-详情页只装配 `PersonalResourcePanel`，组件使用公共AppButton/AppInput并发出updated快照。`personalResourceEditor`独占备注草稿、保存忙碌状态、错误和版本；切换资源、用户、登出及卸载使旧请求失效。跨页面冲突保留草稿，接收当前服务端版本后必须由用户再次点击保存；清空先修改草稿，保存后才清除数据库备注。备注只作为文本显示，不插入HTML；草稿不写入浏览器持久存储。
+详情页装配 `PersonalResourcePanel`，它独占editor，通过作用域插槽装配图标状态按钮，备注以页面全宽文本展示，编辑弹窗使用公共AppButton/AppInput并发出updated快照。`personalResourceEditor`独占备注草稿、保存忙碌状态、错误和版本；切换资源、用户、登出及卸载使旧请求失效。跨页面冲突保留草稿，接收当前服务端版本后必须由用户再次点击保存；清空先修改草稿，保存后才清除数据库备注。备注只作为文本显示，不插入HTML；草稿不写入浏览器持久存储。
 
 settings store读取和保存仍经已有setting接口；App在会话身份变化时reset，清空偏好和资源列表中的个人标记，使旧load/save响应失效。页面临时预览仍需点击“保存设置”，后端真值为UserPreferences，不以本地storage或进程对象作为长期状态。
 
@@ -91,3 +91,5 @@ INI导入只在提供有效设置值且UserPreferences行缺失时创建JSON行�
 2026-10-13，基线92bb752（dev已合入idle），实现提交6053401，独立分支feat/user-preferences-json，门槛通过后已合并idle。完整隔离后端命令 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -v` 为976通过、28在线测试跳过；临时PostgreSQL16的JSON/个人状态/接口/0033–0034升级回退再次升级共45通过；`pnpm run check` 为103项通过、lint和生产构建通过；完整 `pre-commit run -a` 通过，`makemigrations --check --dry-run` 无差异。类型测试另覆盖JSON中False与0、0.0与0的区别，同值判断不能跳过非法旧类型修复。
 
 Chrome/Firefox通过现有personalState隔离Django/SQLite API套件，设置页手动保存和刷新持久化正常；原settings浏览器交互及提交字段断言通过。WebSocket隔离，无真实来源/worker/正式数据库联调。未执行正式0034迁移、旧INI导入或Docker重建；回退无法保存未来JSON键、created_at及原导入时间，部署前需备份和停止旧消费者。
+
+个人中心UI集中观看列表、通用/播放设置和退出，不改后端状态所有者/接口/数据库。备注编辑弹窗的关闭、Escape及路由离开先提示未保存修改，原生标签页离开提示由浏览器决定；失败/冲突仍保留草稿。详情备注展示仅使用保存过的文本，清空后须保存，不提前伪装成功。

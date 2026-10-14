@@ -17,6 +17,7 @@ import {
   resourceDeleteOptions,
 } from '../features/resources/lib/resourceActions.js'
 import ResourceCover from '../shared/ui/ResourceCover.vue'
+import PersonalResourceActions from '../features/resources/components/PersonalResourceActions.vue'
 import PersonalResourcePanel from '../features/resources/components/PersonalResourcePanel.vue'
 
 const route = useRoute()
@@ -253,143 +254,154 @@ async function navigateToGenre(genreName) {
     <!-- 详情内容 -->
     <template v-if="metadata">
       <!-- 头部信息 -->
-      <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-10 mb-12">
-        <!-- 封面和状态按钮 -->
-        <div class="flex flex-col gap-4">
-          <div class="relative h-[310px] flex justify-center items-center">
-            <ResourceCover
-              :url="coverUrl"
-              :title="displayedTitle"
-              natural-size
-              image-class="object-contain rounded-2xl shadow-lg"
-              class="w-full h-full"
-            />
+      <PersonalResourcePanel :resource="metadata" @updated="applyPersonalState">
+        <template #default="{ state, save }">
+          <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-10 items-start">
+            <!-- 封面和状态按钮 -->
+            <div class="flex flex-col gap-4">
+              <div class="relative h-[310px] flex justify-center items-start">
+                <ResourceCover
+                  :url="coverUrl"
+                  :title="displayedTitle"
+                  natural-size
+                  image-class="object-contain rounded-2xl shadow-lg"
+                  class="w-full h-full [&>img]:self-start"
+                />
+              </div>
+
+              <PersonalResourceActions :state="state" @change="save" />
+            </div>
+
+            <!-- 右侧信息 -->
+            <div class="flex flex-col min-w-0">
+              <!-- AVID 和状态 -->
+              <div class="grid grid-cols-2 gap-4 mb-2.5">
+                <div
+                  class="inline-block px-3.5 py-1.5 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[var(--accent-primary)] w-fit"
+                  style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent)"
+                >
+                  {{ metadata.avid }}
+                </div>
+                <div
+                  class="inline-block px-3.5 py-1.5 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold w-fit"
+                  :class="
+                    metadata.file_exists
+                      ? 'text-[var(--accent-primary)]'
+                      : 'text-[var(--accent-secondary)]'
+                  "
+                  style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent)"
+                >
+                  {{ metadata.file_exists ? '已下载' : '未下载' }}
+                </div>
+              </div>
+
+              <!-- 标题 -->
+              <h1
+                class="text-[1.75rem] font-semibold text-[var(--text-primary)] leading-[1.4] mb-6"
+              >
+                {{ displayedTitle }}
+              </h1>
+
+              <!-- 元数据网格 -->
+              <div class="grid grid-cols-2 gap-4 mb-8">
+                <div v-if="metadata.release_date" class="flex flex-col gap-1">
+                  <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
+                    >发行日期</span
+                  >
+                  <span class="text-base text-[var(--text-primary)]">{{
+                    metadata.release_date
+                  }}</span>
+                </div>
+                <div v-if="metadata.duration" class="flex flex-col gap-1">
+                  <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
+                    >时长</span
+                  >
+                  <span class="text-base text-[var(--text-primary)]">{{ metadata.duration }}</span>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
+                    >来源</span
+                  >
+                  <span class="text-base text-[var(--accent-secondary)] font-medium">{{
+                    metadata.source
+                  }}</span>
+                </div>
+                <div v-if="fileSize" class="flex flex-col gap-1">
+                  <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
+                    >文件大小</span
+                  >
+                  <span class="text-base text-[var(--text-primary)]">{{ fileSize }}</span>
+                </div>
+              </div>
+
+              <!-- 操作按钮 -->
+              <div
+                class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-[560px]"
+                aria-label="资源操作"
+              >
+                <ActionMenu
+                  :label="refreshing ? '刷新中' : '刷新信息'"
+                  :options="refreshOptions"
+                  trigger-class="w-full h-14"
+                  :disabled="refreshing"
+                  @select="handleRefreshOption"
+                />
+
+                <AppButton
+                  v-if="!metadata.file_exists"
+                  tone="coral"
+                  class="w-full h-14"
+                  :loading="isSubmittingDownload"
+                  :disabled="isDownloading"
+                  @click="handleDownload"
+                >
+                  {{ isDownloading ? '下载中...' : '下载视频' }}
+                </AppButton>
+                <AppButton
+                  v-if="metadata.file_exists"
+                  tone="coral"
+                  class="w-full h-14"
+                  @click="openPlayback('local')"
+                >
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  点击播放
+                </AppButton>
+
+                <AppButton
+                  tone="coral"
+                  class="w-full h-14"
+                  @click="openPlayback('source')"
+                  title="在新标签页播放"
+                >
+                  <svg
+                    class="w-4 h-4 shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  在线播放
+                </AppButton>
+
+                <ActionMenu
+                  label="删除数据"
+                  :options="deleteOptions"
+                  trigger-class="w-full h-14"
+                  danger
+                  align="right"
+                  @select="handleDeleteOption"
+                />
+              </div>
+            </div>
           </div>
-
-          <PersonalResourcePanel :resource="metadata" @updated="applyPersonalState" />
-        </div>
-
-        <!-- 右侧信息 -->
-        <div class="flex flex-col justify-center">
-          <!-- AVID 和状态 -->
-          <div class="grid grid-cols-2 gap-4 mb-2.5">
-            <div
-              class="inline-block px-3.5 py-1.5 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold text-[var(--accent-primary)] w-fit"
-              style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent)"
-            >
-              {{ metadata.avid }}
-            </div>
-            <div
-              class="inline-block px-3.5 py-1.5 rounded-md font-['JetBrains_Mono',monospace] text-[0.9rem] font-semibold w-fit"
-              :class="
-                metadata.file_exists
-                  ? 'text-[var(--accent-primary)]'
-                  : 'text-[var(--accent-secondary)]'
-              "
-              style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent)"
-            >
-              {{ metadata.file_exists ? '已下载' : '未下载' }}
-            </div>
-          </div>
-
-          <!-- 标题 -->
-          <h1 class="text-[1.75rem] font-semibold text-[var(--text-primary)] leading-[1.4] mb-6">
-            {{ displayedTitle }}
-          </h1>
-
-          <!-- 元数据网格 -->
-          <div class="grid grid-cols-2 gap-4 mb-8">
-            <div v-if="metadata.release_date" class="flex flex-col gap-1">
-              <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
-                >发行日期</span
-              >
-              <span class="text-base text-[var(--text-primary)]">{{ metadata.release_date }}</span>
-            </div>
-            <div v-if="metadata.duration" class="flex flex-col gap-1">
-              <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
-                >时长</span
-              >
-              <span class="text-base text-[var(--text-primary)]">{{ metadata.duration }}</span>
-            </div>
-            <div class="flex flex-col gap-1">
-              <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
-                >来源</span
-              >
-              <span class="text-base text-[var(--accent-secondary)] font-medium">{{
-                metadata.source
-              }}</span>
-            </div>
-            <div v-if="fileSize" class="flex flex-col gap-1">
-              <span class="text-[0.8rem] text-[var(--text-muted)] uppercase tracking-wider"
-                >文件大小</span
-              >
-              <span class="text-base text-[var(--text-primary)]">{{ fileSize }}</span>
-            </div>
-          </div>
-
-          <!-- 操作按钮 -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-[560px]" aria-label="资源操作">
-            <ActionMenu
-              :label="refreshing ? '刷新中' : '刷新信息'"
-              :options="refreshOptions"
-              trigger-class="w-full h-14"
-              :disabled="refreshing"
-              @select="handleRefreshOption"
-            />
-
-            <AppButton
-              v-if="!metadata.file_exists"
-              tone="coral"
-              class="w-full h-14"
-              :loading="isSubmittingDownload"
-              :disabled="isDownloading"
-              @click="handleDownload"
-            >
-              {{ isDownloading ? '下载中...' : '下载视频' }}
-            </AppButton>
-            <AppButton
-              v-if="metadata.file_exists"
-              tone="coral"
-              class="w-full h-14"
-              @click="openPlayback('local')"
-            >
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              点击播放
-            </AppButton>
-
-            <AppButton
-              tone="coral"
-              class="w-full h-14"
-              @click="openPlayback('source')"
-              title="在新标签页播放"
-            >
-              <svg
-                class="w-4 h-4 shrink-0"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              在线播放
-            </AppButton>
-
-            <ActionMenu
-              label="删除数据"
-              :options="deleteOptions"
-              trigger-class="w-full h-14"
-              danger
-              align="right"
-              @select="handleDeleteOption"
-            />
-          </div>
-        </div>
-      </div>
+        </template>
+      </PersonalResourcePanel>
 
       <!-- 详细信息区域 -->
-      <div class="flex flex-col gap-8">
+      <div class="flex flex-col gap-8 mt-12">
         <section
           v-if="
             metadata.director ||

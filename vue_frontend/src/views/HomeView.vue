@@ -1,5 +1,4 @@
 <script setup>
-import ContinueWatchingPanel from '../features/playback/components/ContinueWatchingPanel.vue'
 import AppIcon from '../shared/ui/AppIcon.vue'
 import { RouterLink } from 'vue-router'
 </script>
@@ -62,8 +61,6 @@ import { RouterLink } from 'vue-router'
         </div>
       </div>
     </section>
-
-    <ContinueWatchingPanel />
 
     <!-- Features Grid (Decorative) -->
     <section class="relative z-10 px-4 pb-20 max-w-7xl mx-auto w-full">

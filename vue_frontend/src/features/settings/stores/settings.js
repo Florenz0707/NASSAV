@@ -150,11 +150,19 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // 保存设置到后端（仅在用户手动点击保存按钮时调用）
-  async function saveSettings() {
+  async function saveSettings(section = 'all') {
     const epoch = sessionEpoch
     const current = settingsPayload()
     const changes = Object.fromEntries(
-      Object.entries(current).filter(([key, value]) => value !== savedValues[key])
+      Object.entries(current).filter(
+        ([key, value]) =>
+          value !== savedValues[key] &&
+          (section === 'playback'
+            ? key.startsWith('playback_')
+            : section === 'general'
+              ? !key.startsWith('playback_') && !key.startsWith('recommendation_')
+              : true)
+      )
     )
     if (!Object.keys(changes).length) return { success: true, unchanged: true }
     const ticket = saveGuard.begin()

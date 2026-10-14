@@ -222,3 +222,28 @@ test('a former-player preference writer cannot save into a new login', async () 
     settingsApi.update = original
   }
 })
+
+test('personal center saves only the selected settings section, preserving other drafts', async () => {
+  setActivePinia(createPinia())
+  const store = useSettingsStore(),
+    original = settingsApi.update,
+    calls = []
+  settingsApi.update = async (body) => {
+    calls.push(body)
+    return { data: {} }
+  }
+  try {
+    store.colorMode = 'light'
+    store.playbackPreferences.rate = 1.5
+    store.recommendationPreferences.strategy = 'hybrid'
+    await store.saveSettings('playback')
+    assert.deepEqual(calls[0], { playback_rate: 1.5 })
+    await store.saveSettings('general')
+    assert.deepEqual(calls[1], { color_mode: 'light' })
+    assert.equal((await store.saveSettings('general')).unchanged, true)
+    await store.saveSettings()
+    assert.deepEqual(calls[2], { recommendation_strategy: 'hybrid' })
+  } finally {
+    settingsApi.update = original
+  }
+})

@@ -101,12 +101,14 @@ async function main() {
     const original = await get(a, idA)
     stage = 'second device opening'
     const home = await b.newPage()
-    await home.goto(origin + '/')
-    const panel = home.getByRole('region', { name: '继续观看', exact: true })
-    await panel.getByText('LOCAL-PLAYBACK · 本地视频', { exact: true }).waitFor()
+    await home.bringToFront()
+    await home.goto(origin + '/personal/history', { waitUntil: 'domcontentloaded' })
+    const panel = home.getByRole('region', { name: '观看历史', exact: true })
+    await panel.getByRole('link', { name: 'LOCAL-PLAYBACK 资源详情' }).waitFor()
     const opened = b.waitForEvent('page')
-    await panel.getByRole('button', { name: '继续播放', exact: true }).click()
+    await panel.getByRole('button', { name: '播放', exact: true }).click()
     const pageB = await opened
+    await pageB.bringToFront()
     await pageB.getByRole('button', { name: '在此接续', exact: true }).waitFor()
     const idB = await sid(pageB)
     assert.equal(
@@ -159,7 +161,7 @@ async function main() {
     await pageB.setViewportSize({ width: 390, height: 844 })
     const frame = await pageB.getByRole('region', { name: '视频播放器' }).boundingBox()
     assert.ok(Math.abs(frame.width / frame.height - 16 / 9) < 0.02)
-    stage = 'mobile home'
+    stage = 'mobile personal center'
     await home.bringToFront()
     await home.setViewportSize({ width: 390, height: 844 })
     await panel.scrollIntoViewIfNeeded()
@@ -195,11 +197,16 @@ async function main() {
     )
     stage = 'cleared list'
     await panel.getByRole('button', { name: '刷新', exact: true }).click()
-    await panel.getByRole('heading', { name: '暂无可接续记录', exact: true }).waitFor()
+    await panel.getByRole('link', { name: 'LOCAL-PLAYBACK 资源详情' }).waitFor()
+    assert.deepEqual(
+      (await (await b.request.get(origin + '/nassav/api/playback-progress')).json()).data,
+      [],
+      'clear progress keeps watch history'
+    )
     assert.equal((await get(b, idB)).position_seconds, 0)
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: two independent real logins, home continuation, read-only open, latest-position explicit transfer, late writer 409, mobile and cleared ledger'
+      'PASS: two independent real logins, personal-center history entry, read-only open, latest-position explicit transfer, late writer 409, mobile and cleared ledger'
     )
   } catch (error) {
     console.error(`Failure during ${stage}: ${error.message}`)

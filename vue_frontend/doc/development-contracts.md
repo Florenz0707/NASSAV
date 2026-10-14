@@ -196,7 +196,7 @@ PlaybackSettingsPanel仅发模型更新；settings store拥有个人JSON草稿�
 
 ## 跨设备接续
 
-ContinueWatchingPanel归features/playback，Home只装配。读取当前用户有界未完成列表，mount/聚焦/可见/手动刷新重读，卸载失效旧响应，刷新报错保留已有内容，禁用播放时隐藏入口。资源封面与标题复用公共模块，点击以明确mode打开无opener的新标签。
+首页继续观看组件已移除；进度接续协议保持，入口由个人中心观看历史或资源详情提供。个人中心复用ViewingLibrary，历史与进度清除保持不同语义；播放在无opener的新标签页打开，通用入口遵循用户播放模式偏好。
 
 进度模块消费writer_active/is_writer提示，打开页不claim；另一页持权则由用户明确接续、从头或只读播放。接续先重读DB，再CAS领取，位置以claim返回值为准；409不自动抢回，可显式重新接续。有效离线草稿仅在没有其他活跃writer且版本/代次匹配时恢复，claim版本已变则丢弃该兜底。卸载/换媒体仍停止监听并保留原串行保存队列；小屏16:9播放器内提示有自己的滚动区域，按钮完整可达。
 
@@ -205,3 +205,19 @@ ContinueWatchingPanel归features/playback，Home只装配。读取当前用户�
 PersonalResourcePanel/personalResourceEditor增加watch_later，复用个人state_version冲突与草稿保护。ViewingLibrary拥有页码/列表/错误/移除状态，切换列表或用户及卸载使旧响应失效，窗口回到前台重新读取；不持久化个人列表到localStorage。移除过程中不启动分页查询，失败保留内容并提供重试，跨页冲突须刷新。
 
 viewingRecorder仅在video的play后真实playing事件上报当前会话/代次/sequence；缓冲和重试保持sequence，暂停后重新播放增加sequence，播放器重绑同会话继承计数。事件记录与progress.claim/save独立，“仅播放不保存”仍记录历史；打开页面/loadedmetadata不记录。卸载解除play/playing监听，旧响应不改新播放器错误，失败可明确重试。不自动标记已观看或移除稍后观看。
+
+## 个人中心与备注编辑
+
+/personal/:section?由PersonalCenterView装配features/personal/PersonalCenter，section允许watch-later/history/general/playback，默认稍后再看。导航仅保留个人中心入口，退出按钮属于中心；原/settings和/resources/viewing地址保留兼容。ViewingLibrary支持embedded/initialKind，沿用原查询所有者和卸载护栏。PersonalSettings归features/settings，通用与播放设置分开装配，SettingsView仅为旧路由入口；后端配置/保存契约不变，卸载后的能力查询与设置响应不触发旧提示。
+
+PersonalResourcePanel唯一持有个人editor，可用default作用域插槽(state/save)将图标操作置于封面下；备注展示在插槽后，宽度限制为页面内容。PersonalResourceActions只渲染state并emit change(changes,action)，选中variant primary、未选中neutral，aria-pressed/title/可访问名称说明状态，按钮图标不放长文字。
+
+noteDialog统一处理关闭与导航离开的未保存决定，所有弹窗复用useDialog。清空只改草稿，保存成功后关闭，失败/409保留；关闭/Escape/换路由可继续编辑或放弃，标签页关闭用浏览器原生beforeunload提示（文案由浏览器决定）。账号/实体更换及卸载使待决导航和旧保存失效，解除监听；保存进行中拒绝关闭。备注仅文本展示，长词/多行换行，不写浏览器存储。
+
+个人中心saveSettings(section)仅提交当前general/playback分区的差异，不保存另一分区或推荐草稿；缺省all维持旧调用契约。播放设置保存不应用隐藏的字体预览，未改动分区不发PUT。原/settings仍提供组合设置入口。
+
+### 个人中心UI执行记录（2026-10-14）
+
+基线313f764，独立分支feat/personal-center-ui；本轮仅改前端及文档，后端公开接口、状态与数据库保持。前端pnpm run check包括123单元测试、lint和构建；根pre-commit run -a完整通过。Chrome/Firefox使用临时真实Django/SQLite/Redis/同账号登录和合成封面验证个人中心入口、分区设置、退出、封面上缘对齐、图标状态、长备注、弹窗焦点/关闭/清空/保存/冲突和未保存导航提示及390px深浅主题。原settings.cjs模拟API回归通过；跨设备接续Chrome通过，入口改到个人中心观看历史，显式接续/旧writer409/清除进度仍保留历史验证通过。首次浏览器尝试强制点击被遮罩覆盖的链接并未触发路由，脚本改为显式触发RouterLink导航、等待确认层退出；同AVID新快照不再重置弹窗，409草稿保持。原生beforeunload监听检查不代表能自定义浏览器警告文案。
+
+新备注关闭护栏只阻止打开的编辑器，收藏等后台保存不阻断关闭状态下的导航。提交与合并见该分支Git历史；正式服务、真实源站worker、实体设备与数据库迁移未执行，本轮不需要新增迁移。

@@ -1,7 +1,10 @@
 <script setup>
 import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
-const props = defineProps({ modelValue: { type: Object, required: true } })
+const props = defineProps({
+  modelValue: { type: Object, required: true },
+  headingTag: { type: String, default: 'h3', validator: (value) => ['h2', 'h3'].includes(value) },
+})
 const emit = defineEmits(['update:modelValue'])
 function update(field, value) {
   emit('update:modelValue', { ...props.modelValue, [field]: value })
@@ -15,7 +18,9 @@ const modes = [
 </script>
 <template>
   <section aria-labelledby="playback-settings-title" class="rounded-xl bg-primary p-4 space-y-4">
-    <h3 id="playback-settings-title" class="text-primary font-medium">播放设置</h3>
+    <component :is="headingTag" id="playback-settings-title" class="text-primary font-medium"
+      >播放设置</component
+    >
     <p class="text-muted text-sm">
       当前账号在各设备上的默认偏好；播放器音量、静音与倍速变化会自动保存。
     </p>

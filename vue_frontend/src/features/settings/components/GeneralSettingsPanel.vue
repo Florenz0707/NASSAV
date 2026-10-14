@@ -2,11 +2,11 @@
 import { computed } from 'vue'
 import AppIcon from '../../../shared/ui/AppIcon.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
-import PlaybackSettingsPanel from './PlaybackSettingsPanel.vue'
 import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 
 const props = defineProps({
   saving: Boolean,
+  showSave: { type: Boolean, default: true },
   settings: {
     type: Object,
     required: true,
@@ -207,11 +207,7 @@ const defaultExternalSearchSource = settingModel('defaultExternalSearchSource')
         </div>
       </div>
 
-      <PlaybackSettingsPanel
-        :model-value="settings.playbackPreferences"
-        @update:model-value="emit('update-setting', 'playbackPreferences', $event)"
-      />
-      <div class="flex pt-4 justify-end min-w-full">
+      <div v-if="showSave" class="flex pt-4 justify-end min-w-full">
         <AppButton :loading="saving" loading-text="保存中" @click="emit('save')"
           >保存设置</AppButton
         >

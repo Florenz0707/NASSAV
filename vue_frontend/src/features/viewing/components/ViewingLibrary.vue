@@ -13,10 +13,18 @@ import ResourcePagination from '../../../shared/ui/ResourcePagination.vue'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
 import RequestError from '../../../shared/ui/RequestError.vue'
 import EmptyState from '../../../shared/ui/EmptyState.vue'
+const props = defineProps({
+  initialKind: {
+    type: String,
+    default: 'history',
+    validator: (value) => ['history', 'watch-later'].includes(value),
+  },
+  embedded: Boolean,
+})
 const session = useSessionStore(),
   settings = useSettingsStore(),
   router = useRouter()
-const kind = ref('history'),
+const kind = ref(props.initialKind),
   items = ref([]),
   loading = ref(false),
   error = ref(''),
@@ -40,6 +48,12 @@ async function load(page = pagination.value.page) {
     if (guard.current(ticket)) loading.value = false
   }
 }
+watch(
+  () => props.initialKind,
+  (value) => {
+    kind.value = value
+  }
+)
 function reset() {
   guard.invalidate()
   items.value = []
@@ -103,19 +117,27 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <section aria-labelledby="viewing-title" class="max-w-7xl mx-auto px-4 py-8">
+  <section
+    aria-labelledby="viewing-title"
+    :class="embedded ? 'min-w-0' : 'max-w-7xl mx-auto px-4 py-8'"
+  >
     <header class="flex flex-wrap items-center justify-between gap-4 mb-6">
       <div>
-        <h1 id="viewing-title" class="text-2xl font-semibold text-primary">我的观看</h1>
+        <component
+          :is="embedded ? 'h2' : 'h1'"
+          id="viewing-title"
+          class="text-2xl font-semibold text-primary"
+          >{{ embedded ? (kind === 'history' ? '观看历史' : '稍后再看') : '我的观看' }}</component
+        >
         <p class="text-muted text-sm mt-2">
-          观看历史按最近播放排序，同一资源只保留一条；稍后观看手动管理。
+          观看历史按最近播放排序，同一资源只保留一条；稍后再看手动管理。
         </p>
       </div>
       <AppButton variant="neutral" :disabled="!!busy" :loading="loading" @click="load()"
         >刷新</AppButton
       >
     </header>
-    <div class="flex flex-wrap gap-3 mb-6" role="group" aria-label="观看列表">
+    <div v-if="!embedded" class="flex flex-wrap gap-3 mb-6" role="group" aria-label="观看列表">
       <AppButton
         :variant="kind === 'history' ? 'primary' : 'neutral'"
         :aria-pressed="kind === 'history'"
@@ -126,7 +148,7 @@ onBeforeUnmount(() => {
         :variant="kind === 'watch-later' ? 'primary' : 'neutral'"
         :aria-pressed="kind === 'watch-later'"
         @click="kind = 'watch-later'"
-        >稍后观看</AppButton
+        >稍后再看</AppButton
       >
     </div>
     <PageLoad v-if="loading && !items.length" text="正在读取观看列表" />
@@ -134,9 +156,9 @@ onBeforeUnmount(() => {
     <EmptyState
       v-if="!loading && !error && !items.length"
       icon="empty"
-      :title="kind === 'history' ? '暂无观看历史' : '暂无稍后观看资源'"
+      :title="kind === 'history' ? '暂无观看历史' : '暂无稍后再看资源'"
       :description="
-        kind === 'history' ? '视频实际开始播放后会自动记录。' : '在资源详情中点击稍后观看即可加入。'
+        kind === 'history' ? '视频实际开始播放后会自动记录。' : '在资源详情中点击稍后再看即可加入。'
       "
     />
     <ul v-if="items.length" class="grid grid-cols-1 md:grid-cols-3 gap-6">
