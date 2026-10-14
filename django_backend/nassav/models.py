@@ -29,6 +29,13 @@ from nassav.library_models import (
     UserLibraryEntry as UserLibraryEntry,
 )
 
+from nassav.shared_work_models import (
+    SharedWork as SharedWork,
+    UserOperation as UserOperation,
+    WorkSubscription as WorkSubscription,
+    UserOperationCommand as UserOperationCommand,
+)
+
 # Explicit re-exports also register split task models with Django.
 from nassav.recommendation_models import (
     RecommendationJob as RecommendationJob,

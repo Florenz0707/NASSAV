@@ -148,3 +148,5 @@ JSON配置的 `test_json_preferences.py` 覆盖缺省只读补齐、增删/改�
 观看列表验证：test_viewing.py覆盖用户/登录归属、去重置顶、恢复/重试/乱序、并发、版本冲突、删除与HTTP；test_viewing_migration.py覆盖0035→0036→0035→0036。隔离播放服务器设置NASSAV_VIEWING_TEST_FIXTURE=1额外生成LOCAL-SECOND合成MP4，供前端tests/browser/viewing.cjs真实API验收；使用两份临时登录storage state，禁止连接正式数据库。
 
 P3范围专项增加`test_scoped_source_runtime.py`：真实ORM/加密，合成匿名与带凭证页面；核查禁止匿名私人成功、Cookie/UA不串、原站/重定向/CDN、缺钥/旧key writer、账号停用后不复活、播放撤销及已完成外搜句柄410。查询预算比较1与100个候选。该专项不冒充真实网站或跨浏览器验收。
+
+P4模型/核心专项为`test_shared_operations.py`与`test_shared_work_migration.py`：并发去重、独立取消/最后停止请求、幂等意图冻结和0042往返；没有生产HTTP/worker发布联调，见[共享工作](../doc/shared-work-architecture.md)。

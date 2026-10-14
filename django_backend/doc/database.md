@@ -424,3 +424,5 @@ PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；�
 0036只新增空历史表/默认字段，不推测回填旧进度或watched，不修改视频和原站缓存。回退删除历史表及新增字段，原收藏/观看/备注/版本保持，新增历史/稍后观看数据会丢失；升级/回退前备份并停止混合版本消费者。正式部署须应用0036，隔离迁移验证不代替部署验收。
 
 未发布P3范围消费者新增0041 source_credential_key_policy；开发叶节点为0041。该结构不导入秘密或切换配置，专用写入密钥fence及迁移影响见[凭证架构](source-credential-architecture.md)。
+
+未发布P4模型/核心新增0042共享work、用户operation、订阅与命令回执；开发叶节点为0042，不回填旧任务或归属，逆向新增账本丢失边界见[共享工作](shared-work-architecture.md)。
