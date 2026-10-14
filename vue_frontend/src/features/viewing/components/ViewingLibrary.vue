@@ -221,14 +221,6 @@ onBeforeUnmount(() => {
           >清除已观看资源</AppButton
         >
         <template v-else>
-          <AppButton
-            variant="neutral"
-            :disabled="!!busy || loading || (!items.length && !batchMode)"
-            :aria-pressed="batchMode"
-            @click="toggleBatch"
-          >
-            {{ batchMode ? '退出批量' : '批量操作' }}
-          </AppButton>
           <template v-if="batchMode">
             <div class="inline-flex items-center gap-3 text-sm text-secondary">
               <AppCheckbox
@@ -245,9 +237,17 @@ onBeforeUnmount(() => {
               :loading="busy === 'batch'"
               :disabled="!selected.length || !!busy || loading"
               @click="confirmHistory(items.filter((item) => selected.includes(item.avid)))"
-              >删除所选</AppButton
+              >清除所选</AppButton
             >
           </template>
+          <AppButton
+            variant="neutral"
+            :disabled="!!busy || loading || (!items.length && !batchMode)"
+            :aria-pressed="batchMode"
+            @click="toggleBatch"
+          >
+            {{ batchMode ? '退出批量' : '批量操作' }}
+          </AppButton>
         </template>
       </div>
     </header>
@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
               variant="danger"
               :disabled="!!busy || loading"
               @click="confirmHistory([item])"
-              >删除历史</AppButton
+              >清除历史</AppButton
             >
           </div>
         </div>

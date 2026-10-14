@@ -97,8 +97,5 @@ const modes = [
         @update:model-value="update('default_mode', $event)"
       />
     </div>
-    <p class="text-muted text-xs">
-      详情页的本地/在线播放按钮与继续观看记录保留明确模式；默认模式用于通用播放入口。不会因本地播放失败自动切换源站。
-    </p>
   </section>
 </template>
