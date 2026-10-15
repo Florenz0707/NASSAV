@@ -72,3 +72,7 @@
 实际结果：7批历史、25条种子全部归nassav；352条个人AVID黑名单逐行摘要保持。原反馈/条目/种子关联、AVResource、SourceCookie、个人状态/设置及加密凭证摘要保持；历史/种子的非owner字段保持。再次执行返回[0,0,0]且两侧generation不再变化。导入前后分别保留before-recommendation-import.dump与after-recommendation-import.dump，操作脚本/日志/结果及SHA256位于前述私有恢复点。
 
 早前“推荐暂停”段落为发现保护条件时的阶段记录，现已解决。仍未完成的目标门槛是实际来源/ProxyServer与部署worker/挂载验收：TCP层实际代理localhost:7077及浏览器服务localhost:8192可达，但Jable/MissAV真实凭证resolver在只读核查中均因quarantined记录拒绝公共来源，按契约不回退匿名。需要新的、有效且已分类的clearance或对应用户个人凭证；不能启用未知旧Cookie来通过验收。来源范围/共享库/普通准入/自动GC四个开关继续false。
+
+## 后续新凭证刷新
+
+上述隔离状态是当时的阶段快照。后续已获授权获取并验证新的公共挑战凭证；两来源现为active/clearance版本2，生产范围工厂从库读取后真实重放与解析均通过。旧未知Cookie没有激活或覆盖，新恢复点及验证边界见[凭证刷新记录](source-credential-refresh-20261015.md)。本轮未切换运行配置或重启服务，真实worker/共享发布及挂载验收仍待完成。

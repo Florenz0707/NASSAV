@@ -459,3 +459,9 @@ SQLite推荐专项11 passed、PostgreSQL同组11 passed，补修原生worker fix
 后续真实来源门槛：实际全局代理localhost:7077和浏览器服务localhost:8192的TCP探测可达，但真实凭证resolver因两份quarantined记录拒绝公共来源且不回退匿名。不能激活未知旧Cookie来通过验收；需要有效且已分类的新凭证，四个新模式开关继续false。
 
 安全补导入最终结果：稳定格式化后全量SQLite1335 passed/28 skipped，SQLite/PG推荐专项各11 passed，原生组合15 passed，完整pre-commit通过；实际目标已补入7批历史/25种子，352条黑名单及反馈/个人/凭证摘要不变，重放[0,0,0]且generation不再推进。已留前后私有恢复点。功能门槛已通过，剩余真实来源门槛因隔离凭证阻断，需要操作者提供有效已分类的新凭证，不启用未知旧Cookie或四个新模式开关。
+
+### P8新系统凭证获取与真实重放
+
+基线efe37c2，分支chore/source-credential-refresh-validation。获授权后使用ProxyServer与全局代理获取新公共挑战Cookie及配套UA，验证原站、有效期、三秒直接重放与业务解析；备份后沿管理员CAS协议将两份系统凭证替换为active/clearance版本2，再从生产范围工厂读取复验。Jable/MissAV最终重放分别HTTP200/778ms、HTTP200/698ms，审计与幂等回执只读核对通过，隔离回归36 passed。详见[执行记录](source-credential-refresh-20261015.md)。
+
+早前凭证隔离阻断已解除；没有激活未知旧Cookie、修改资源详情、运行配置或重启服务。新模式统一切换与真实worker/共享发布/挂载门槛继续待验，普通准入和GC未开放；文档提交执行完整pre-commit后合并idle。
