@@ -1162,3 +1162,22 @@ def build_library_submission():
             raise
 
     return LibrarySubmission(build_operation_records(), resolve, dispatch_shared)
+
+
+def build_resource_reclaimer():
+    from pathlib import Path
+    from django.conf import settings
+    from nassav.resource_gc import ResourceReclaimer
+    from nassav.resource_gc_records import DjangoGcRecords
+    from nassav.resource_gc_storage import GcFileStorage
+
+    return ResourceReclaimer(
+        DjangoGcRecords(),
+        GcFileStorage(
+            {
+                kind: Path(getattr(settings, f"{kind.upper()}_DIR"))
+                for kind in ("cover", "avatar", "video")
+            },
+            thumbnail_root=settings.THUMBNAIL_DIR,
+        ),
+    )

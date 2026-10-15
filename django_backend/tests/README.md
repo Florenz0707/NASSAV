@@ -174,3 +174,5 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 稳定历史专项：`uv run pytest tests/test_durable_viewing_history.py tests/test_viewing.py --ds=django_project.refactoring_test_settings -v`，含真实版本/合成MP4、批量投影及0048升级回退再次升级/回收后拒绝丢数据。PostgreSQL使用独立测试实例运行同一专项；不使用部署库。
 
 回收账本专项：`uv run pytest tests/test_resource_gc_ledger.py --ds=django_project.refactoring_test_settings -v`，真实版本/加密记录、数据库并发/租约/0050往返保护；只验DB协议，不执行正式文件删除或生产GC。
+
+受控回收文件专项：`uv run pytest tests/test_resource_gc_files.py --ds=django_project.refactoring_test_settings -v`。实际图片和合成MP4，权限/崩溃、未知文件、符号链接、分批次与事务边界；只操作fixture临时目录，不删除部署数据。

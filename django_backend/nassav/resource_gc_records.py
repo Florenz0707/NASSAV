@@ -316,3 +316,150 @@ class DjangoGcRecords:
                 pool.version += 1
                 pool.save(update_fields=["state", "version", "updated_at"])
             return gc_snapshot(job)
+
+    def assets(self, token, limit=32):
+        self.check(token)
+        return list(
+            ResourceGcAsset.objects.filter(job_id=token.job_id)
+            .exclude(state="deleted")
+            .order_by("root", "relative_path")
+            .values(
+                "pk",
+                "version_id",
+                "root",
+                "relative_path",
+                "marker",
+                "sha256",
+                "size",
+                "state",
+                "fingerprint",
+            )[:limit]
+        )
+
+    def versions(self, token):
+        self.check(token)
+        job = self.intent(token.job_id)
+        rows = ResourceVersion.objects.filter(pool_id=job.pool_id, state="deleting")
+        if job.version_id:
+            rows = rows.filter(pk=job.version_id)
+        return list(rows.values_list("pk", flat=True))
+
+    @staticmethod
+    def _marker(asset):
+        if not TaskAssetTarget.objects.filter(
+            root=asset.root,
+            relative_path=asset.relative_path,
+            marker=asset.marker,
+            sha256=asset.sha256,
+        ).exists():
+            raise GcEvidenceError("asset_marker_changed")
+
+    @retry_sqlite_contention
+    def verified(self, token, asset_id, fingerprint):
+        candidate = self.intent(token.job_id)
+        with transaction.atomic():
+            self._pool(candidate.pool_id)
+            self._owned(token)
+            asset = ResourceGcAsset.objects.select_for_update().get(
+                pk=asset_id, job_id=token.job_id
+            )
+            self._marker(asset)
+            if asset.state == "deleted" or (
+                asset.state == "verified" and asset.fingerprint != fingerprint
+            ):
+                raise GcEvidenceError("asset_identity_changed")
+            asset.state, asset.fingerprint = "verified", dict(fingerprint)
+            asset.save(update_fields=["state", "fingerprint", "updated_at"])
+
+    def unlink(self, token, asset_id, remove):
+        """Only a checked stat/unlink callback; hash/copy/network must finish first.
+
+        Do not retry this transaction around a filesystem side effect. A crash
+        after unlink leaves the previously committed verified journal recoverable.
+        """
+        candidate = self.intent(token.job_id)
+        with transaction.atomic():
+            pool = self._pool(candidate.pool_id)
+            self._owned(token)
+            if pool.retained:
+                raise GcDeferred(["admin_retention"])
+            asset = ResourceGcAsset.objects.select_for_update().get(
+                pk=asset_id, job_id=token.job_id
+            )
+            if asset.state != "verified":
+                raise GcEvidenceError("asset_not_verified")
+            self._marker(asset)
+            remove()
+            TaskAssetTarget.objects.filter(
+                root=asset.root, relative_path=asset.relative_path, marker=asset.marker
+            ).update(marker=uuid4(), sha256="")
+            asset.state = "deleted"
+            asset.save(update_fields=["state", "updated_at"])
+
+    @retry_sqlite_contention
+    def yield_claim(self, token):
+        candidate = self.intent(token.job_id)
+        with transaction.atomic():
+            self._pool(candidate.pool_id)
+            job = self._owned(token)
+            job.state, job.owner, job.lease_until = "queued", None, None
+            job.revision += 1
+            job.save()
+            return gc_snapshot(job)
+
+    def complete(self, token):
+        candidate = self.intent(token.job_id)
+        with transaction.atomic():
+            pool = self._pool(candidate.pool_id)
+            job = self._owned(token)
+            target = self._version(pool, job.version_id)
+            reasons = blockers(pool, target, self.now(), job=job, resuming=True)
+            if reasons:
+                raise GcDeferred(reasons)
+            if (
+                ResourceGcAsset.objects.filter(job=job)
+                .exclude(state="deleted")
+                .exists()
+            ):
+                raise GcEvidenceError("assets_not_deleted")
+            versions = ResourceVersion.objects.filter(pool=pool, state="deleting")
+            if job.version_id:
+                versions = versions.filter(pk=job.version_id)
+            versions.update(state="reclaimed", gc_after=None, metadata={})
+            if job.version_id is None:
+                # No effective readers/sessions survived the protection recheck.
+                # Expired/released pins must not PROTECT obsolete session rows.
+                from nassav.playback.models import PlaybackSession
+                from nassav.resource_version_models import ResourceReadLease
+
+                ResourceReadLease.objects.filter(version__pool=pool).delete()
+                if pool.resource_id is not None:
+                    PlaybackSession.objects.filter(
+                        resource_id=pool.resource_id
+                    ).delete()
+                    pool.resource.delete()
+                pool.resource = None
+                pool.state, pool.gc_after = "reclaimed", None
+                pool.version += 1
+                pool.save(
+                    update_fields=[
+                        "resource",
+                        "state",
+                        "gc_after",
+                        "version",
+                        "updated_at",
+                    ]
+                )
+            job.state, job.owner, job.lease_until, job.active_key = (
+                "completed",
+                None,
+                None,
+                None,
+            )
+            job.finished_at = self.now()
+            job.revision += 1
+            job.save()
+            return gc_snapshot(job)
+
+    def status(self, job_id):
+        return gc_snapshot(self.intent(job_id))

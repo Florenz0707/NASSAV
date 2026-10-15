@@ -321,3 +321,9 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 第二轮回收全量：1238 passed/28 skipped、1项观看置顶失败。独立3e8aaf6用0049持久单调时钟修复同值/回拨及删除后CAS复用，其全量1232 passed/28 skipped、SQLite/PostgreSQL专项各17 passed。恢复后GC迁移顺延0050，继续重验；未提交迁移可顺延，历史0049保持不改。
 
 0050回收账本最终门槛（2026-10-15）：全量SQLite1244 passed/28 skipped，SQLite回收/观看/迁移组合24 passed；PostgreSQL回收/0049时钟迁移13 passed。201资产只用一次目标epoch读取，单次领取最多64版本/1024资产；超界需先按版本收尾。模型迁移无差异，完整pre-commit通过后提交，正式文件删除/生产派发仍未启用。
+
+### P6受控文件子阶段
+
+基线f2e071d，分支feat/resource-gc-files：实际NOFOLLOW/dirfd/hash/fingerprint清理、verified→unlink→deleted日志、崩溃重试、有界多批次与目录收尾、原播放/过期pin保护、稳定历史与时钟保留。只处理已确认manifest资产，不提供生产派发或管理apply。调度、未知/旧资产迁移及P7/P8继续。
+
+受控文件阶段隔离门槛（2026-10-15）：全量SQLite1256 passed/28 skipped，随后补充目录链接和失租unlink专项，最终SQLite14 passed；PostgreSQL文件/账本24 passed、最终文件14 passed。真实临时图片/合成MP4与数据库fence，不含正式站点或部署删除；完整pre-commit通过后提交。无新schema，派发/管理与P7/P8继续。
