@@ -3,6 +3,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { useDownloadQueueStore } from '../../features/resources/stores/downloadQueue.js'
 import { ref, shallowRef } from 'vue'
 import { useToastStore } from '../../shared/stores/toast.js'
+import { useUserOperationsStore } from '../../features/tasks/stores/userOperations.js'
 import { useTaskJobsStore } from '../../features/tasks/stores/taskJobs.js'
 import { useResourceStore } from '../../features/resources/stores/resource.js'
 import { useSessionStore } from '../../features/auth/stores/session.js'
@@ -32,7 +33,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
   // 连接 WebSocket
   function connect() {
     if (useSessionStore().status !== 'authenticated') return
-    queue.startTracking()
+    if (!useSessionStore().capabilities.shared_library) queue.startTracking()
     shouldReconnect.value = true
     // 如果已连接，不重复连接
     if (ws.value && (connected.value || ws.value.readyState === WebSocket.CONNECTING)) {
@@ -71,9 +72,14 @@ export const useWebSocketStore = defineStore('websocket', () => {
         logger.debug('[WebSocket] 连接成功')
         connected.value = true
         connectionFailed.value = false
-        useResourceStore().refreshPendingScrapeJobs()
-        useTaskJobsStore().poll(true)
-        useTaskJobsStore().load()
+        if (useSessionStore().capabilities.shared_library) {
+          useUserOperationsStore().poll(true)
+          useUserOperationsStore().load()
+        } else {
+          useResourceStore().refreshPendingScrapeJobs()
+          useTaskJobsStore().poll(true)
+          useTaskJobsStore().load()
+        }
         // 清除连接超时定时器
         if (connectionTimer.value) {
           clearTimeout(connectionTimer.value)
@@ -178,6 +184,12 @@ export const useWebSocketStore = defineStore('websocket', () => {
     const toastStore = useToastStore()
     const resourceStore = useResourceStore()
 
+    if (message.type === 'user_operation_update') {
+      if (useSessionStore().capabilities.shared_library) useUserOperationsStore().hint(message.data)
+      return
+    }
+    if (useSessionStore().capabilities.shared_library && message.type !== 'external_search_update')
+      return
     switch (message.type) {
       case 'external_search_update':
         notifySearchJobUpdate(message.data)

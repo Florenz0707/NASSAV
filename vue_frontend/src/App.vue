@@ -16,6 +16,7 @@ import { useActorGroupsStore } from './features/catalog/stores/actorGroups.js'
 import { useGenreGroupsStore } from './features/catalog/stores/genreGroups.js'
 import { useDownloadQueueStore } from './features/resources/stores/downloadQueue.js'
 import { useTaskJobsStore } from './features/tasks/stores/taskJobs.js'
+import { useUserOperationsStore } from './features/tasks/stores/userOperations.js'
 import { useMembershipsStore } from './features/library/stores/memberships.js'
 import { useSessionStore } from './features/auth/stores/session.js'
 
@@ -62,8 +63,13 @@ async function refreshVisibleJobs() {
   if (sessionStore.status === 'authenticated' && document.visibilityState === 'visible') {
     if (!(await sessionStore.recheck())) return
     if (sessionStore.capabilities.shared_library) useMembershipsStore().invalidate()
-    resourceStore.refreshPendingScrapeJobs()
-    taskJobs.poll(true)
+    if (sessionStore.capabilities.shared_library) {
+      useUserOperationsStore().poll(true)
+      useUserOperationsStore().load()
+    } else {
+      resourceStore.refreshPendingScrapeJobs()
+      taskJobs.poll(true)
+    }
   }
 }
 
@@ -76,6 +82,7 @@ watch(
   () => [sessionStore.status, sessionStore.identity],
   ([status, identity], previous) => {
     wsStore.disconnect()
+    useUserOperationsStore().reset()
     useMembershipsStore().reset(
       status === 'authenticated' && sessionStore.capabilities.shared_library
         ? sessionStore.identity
@@ -94,10 +101,13 @@ watch(
       clearAllRecommendationViewStates()
     }
     if (status === 'authenticated') {
-      taskJobs.start(sessionStore.identity)
+      if (sessionStore.capabilities.shared_library) {
+        taskJobs.reset()
+        useUserOperationsStore().start(sessionStore.identity)
+      } else taskJobs.start(sessionStore.identity)
       wsStore.connect()
       settingsStore.loadSettings()
-      resourceStore.restoreScrapeJobs()
+      if (!sessionStore.capabilities.shared_library) resourceStore.restoreScrapeJobs()
     } else {
       taskJobs.reset()
     }
@@ -108,6 +118,7 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', refreshVisibleJobs)
   resourceStore.stopScrapeTracking()
   taskJobs.reset()
+  useUserOperationsStore().reset()
   wsStore.disconnect()
 })
 

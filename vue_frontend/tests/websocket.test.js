@@ -221,3 +221,47 @@ test('search WebSocket events reach active search subscribers', async () => {
     state.cleanup()
   }
 })
+
+test('shared mode routes only own operation hints and never starts legacy queue tracking', async () => {
+  const context = setup()
+  const { useUserOperationsStore } = await import('../src/features/tasks/stores/userOperations.js')
+  const { useDownloadQueueStore } =
+    await import('../src/features/resources/stores/downloadQueue.js')
+  const { useTaskJobsStore } = await import('../src/features/tasks/stores/taskJobs.js')
+  context.session.capabilities = { shared_library: true }
+  const operations = useUserOperationsStore(),
+    hints = []
+  let reads = 0
+  operations.poll = () => {
+    reads++
+  }
+  operations.load = () => {
+    reads++
+  }
+  operations.hint = (event) => hints.push(event)
+  useDownloadQueueStore().startTracking = () => {
+    throw new Error('legacy queue must stay closed')
+  }
+  useTaskJobsStore().load = () => {
+    throw new Error('legacy jobs must stay closed')
+  }
+  try {
+    context.socketStore.connect()
+    const socket = FakeWebSocket.instances.at(-1)
+    socket.open()
+    assert.equal(reads, 2)
+    assert.equal(context.snapshots(), 0)
+    socket.onmessage({
+      data: JSON.stringify({ type: 'task_job_update', data: { job_id: 'shared', version: 4 } }),
+    })
+    socket.onmessage({
+      data: JSON.stringify({
+        type: 'user_operation_update',
+        data: { operation_id: 'mine', version: 5 },
+      }),
+    })
+    assert.deepEqual(hints, [{ operation_id: 'mine', version: 5 }])
+  } finally {
+    context.cleanup()
+  }
+})

@@ -186,3 +186,7 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一时间，包括HTTP/CLI和原生worker；过期字段使用该时钟，其他业务域保留自己的时间。发现器专项同时显式注入adapter/dispatcher，并覆盖相对宿主时间±5秒偏移，不依赖宿主NTP状态。生产默认构造与租约/保护逻辑不改。
 
 个人凭证UI：隔离HTTP helper增加`NASSAV_CREDENTIAL_UI_TEST_FIXTURE=1`，仅在其临时目录生成0600随机keyring并启范围凭证，普通登录和共享库仍关闭。脚本`vue_frontend/tests/browser/personalCredentials.cjs`需设置输出的`NASSAV_CREDENTIAL_STORAGE_STATE`、`NASSAV_CREDENTIAL_SECOND_STATE`及loopback前端origin；验证真实盲写/CAS/撤销与两套主题、窄屏，不添加正式资源或访问来源站点。helper中Redis客户端仍用unix://，Celery/Kombu使用对应redis+socket://，不将两者的URI误作相同协议。
+
+### 本人操作请求浏览器联调
+
+显式设置`NASSAV_LOCAL_PLAYBACK_TEST_SERVER=1 NASSAV_LOCAL_PLAYBACK_TEST_PORT=9793 NASSAV_OPERATION_UI_TEST_FIXTURE=1`运行`uv run python tests/helpers/local_playback_server.py`。仅loopback、临时SQLite/keyring/Redis/MP4；通过SharedOperations创建两位明确测试用户的公共订阅，不派发抓取worker，不修改实例数据。前端代理9793，使用打印的临时登录state：`NASSAV_OPERATION_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4187 node tests/browser/userOperations.cjs`（前端目录，Playwright环境见前端README）。测试会撤销测试请求，重跑用新的fixture或指定仍排队的`NASSAV_OPERATION_AVID`；退出服务自动清理临时数据。Celery使用独立namespaced redis+socket broker，直接Redis消费者仍用unix scheme。Chrome/Firefox通过环境选择，真实HTTP不代替普通多账号准入/真实来源/独立生产worker验收。

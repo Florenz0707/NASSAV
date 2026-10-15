@@ -1,5 +1,9 @@
 import api from './client.js'
 
 export const libraryApi = {
+  listOperations: (params) => api.get('/my-operations', { params }),
+  getOperation: (id) => api.get(`/my-operations/${encodeURIComponent(id)}`),
+  cancelOperation: (id, payload) =>
+    api.post(`/my-operations/${encodeURIComponent(id)}/cancel`, payload),
   membershipStatuses: (avids) => api.post('/library/entries/status', { avids }),
 }

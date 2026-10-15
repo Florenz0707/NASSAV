@@ -63,3 +63,5 @@ features/playback 独占在线播放会话及播放引擎生命周期；Resource
 观看查询缓存归features/viewing/stores/viewing，组件只管理选择/页码/展示guard；App登录身份变化重置。shared/lib/personalDataEvents只传递无载荷失效信号，API写成功时发布，shared不导入领域API/store。个人中心KeepAlive保留最多四个面板，停用/卸载生命周期仍须明确；缓存现状与下一步见[方案](personal-cache-plan.md)。
 
 features/library/lib/membershipLookup.js管理本人关系缓存与请求护栏；stores/memberships.js仅装配Pinia和api/library.js。其revision是前端失效信号，后端entry_id/version仍是持有命令的CAS依据，不引入全局库版本或推断他人库存。
+
+DownloadsView按会话能力装配tasks/components/UserOperationsPage或LegacyDownloadsPage（兼容/DEBUG）；公共TaskDetailsPanel仅展示。tasks/composables/operationTracking.js拥有本人请求读取、排序、版本与命令归属，stores/userOperations.js装配API和关系失效，lib/operationDetails.js只转换显示。App启动/停止跟踪，WebSocket仅转发本人版本提示，不把全局队列混入共享用户页面。

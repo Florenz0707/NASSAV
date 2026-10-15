@@ -269,3 +269,11 @@ session store额外持有sourceIdentity，从source_cache_identity读取；凭�
 ### 本人库状态缓存
 
 features/library的membershipLookup只拥有请求归属及短期状态缓存，持有关系由DB拥有。统一libraryApi分批最多100项，重复批次共享请求，重叠批次按AVID请求序号拒绝旧发布；不完整响应不得部分写入。缓存30秒、最多500项，不落浏览器存储。App按登录身份重置，共享模式回到前台完成session核查后失效；revision供消费者重新核查。未查询/失败不能解读为未持有，列表恢复应显式刷新，命令成功或operation变化需失效。当前子阶段仅提供基础查询，卡片和命令消费者随后接入。
+
+### 本人操作请求
+
+共享模式DownloadsView装配UserOperationsPage；兼容与DEBUG模式装配LegacyDownloadsPage，调试开关仍位于DownloadsView。userOperations持有原始operation_id/version快照，不把共享job ID或attempt伪装成本人标识。WebSocket只提示本人operation/version，轮询与重连补查/my-operations；共享模式不读取旧全局队列、旧任务详情或恢复旧刮削句柄。
+
+公共TaskDetailsPanel的operationMode只改变展示：隐藏暂停/恢复，取消文案为撤销本人请求；忙碌使用operationId，动作仍按allowed_actions。撤销逐项发送expected_version/request_id，结果不明时保留同一命令UUID，409补读但不自动重试，部分失败明确保留；取消不等于共享执行已停止，也不自动移出本人库。隐藏只是当前登录的本地展示偏好，快照不落本地存储。登出/身份变化使列表、提示、错误、busy和命令结果失效。
+
+operationDetails仅投影任务展示字段；名称/封面可使用当前本人库已加载数据，不按AVID读取全局标题。不具备当前active关系时不展示查看资源入口。终态变化使本人持有状态缓存失效，命令与资源列表消费者继续接入。

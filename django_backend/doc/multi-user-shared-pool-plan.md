@@ -359,3 +359,11 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 基线493ac08，分支feat/library-membership-status：无schema变更，新增最多100项的本人关系状态查询及前端30秒/500项内存缓存，entry_id/version复用现有CAS；按登录/请求序号隔离并在前台核查后失效。不新增全局库版本计数器，避免额外写入和锁顺序。消费者、本人操作与管理UI及P8继续实施，普通准入保持关闭。
 
 本人关系状态隔离门槛（2026-10-15）：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`为1291 passed/28 skipped；临时PostgreSQL关系专项20 passed。`pnpm run check`包含缓存过期、重叠请求、错误/迟到响应、切换前抑制传输及有界分批回归，lint/测试/构建通过；完整`pre-commit run -a`通过后提交。无新schema、真实站点请求或实例变更；本阶段没有视觉布局修改，后续共享库动作须继续真实HTTP浏览器验收。
+
+### P7本人操作请求界面子阶段
+
+基线59d3d99，分支feat/personal-operation-tracking：共享模式跟踪本人operation，不读取旧全局任务/队列；列表详情复用公共展示，撤销仅本人需求，CAS/幂等、部分失败、旧登录及提示乱序有独立回归。DownloadsView保留DEBUG开关，兼容模式独立装配。临时HTTP/SQLite/Redis浏览器fixture通过核心协议创建真实本人/他人订阅，不派发网络worker，不构成跨用户准入或真实来源验收。添加/刷新/下载命令与管理界面、结果图片句柄及P8继续，普通登录与自动GC未开放。
+
+本人operation界面隔离验收（2026-10-15）：Chrome单项撤销及Firefox勾选后的批量撤销通过真实HTTP/临时SQLite/Redis测试；均验证两主题、弹窗Escape、窄屏、已撤销状态与阶段、按钮禁用、隐藏后重载，前端未请求旧任务或全局队列。只读核查临时DB：两条本人请求cancelled，另一位测试用户的请求和仍有其需求的共享job保持queued。此过程未运行来源worker，不等同多账号登录或目标部署验收。
+
+本人请求界面最终门槛：`uv run pytest tests/test_library_http.py tests/test_shared_operations.py tests/test_account_access.py --ds=django_project.refactoring_test_settings -q`为23 passed；`pnpm run check`通过，包含本人请求归属、CAS冲突、结果未知幂等重试、乱序列表/提示及WebSocket不读取旧队列的回归。已有旧任务/DEBUG浏览器模拟回归通过，区别于上述真实HTTP验收。后端生产代码无变更、无schema变更；完整`pre-commit run -a`通过后提交。

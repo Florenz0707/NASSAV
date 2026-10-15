@@ -94,7 +94,13 @@ def main():
     user = get_user_model().objects.create_user(
         username=settings.NASSAV_OPERATOR_USERNAME
     )
-    if os.environ.get("NASSAV_CREDENTIAL_UI_TEST_FIXTURE") == "1":
+    if any(
+        os.environ.get(name) == "1"
+        for name in (
+            "NASSAV_CREDENTIAL_UI_TEST_FIXTURE",
+            "NASSAV_OPERATION_UI_TEST_FIXTURE",
+        )
+    ):
         import base64
         from nassav.account_models import UserAccount
 
@@ -111,10 +117,44 @@ def main():
         from django_project.celery import app
 
         # Redis.from_url consumers keep unix://; Kombu needs its socket scheme.
-        app.conf.broker_url = "redis+socket://" + str(root / "redis.sock")
+        broker = "redis+socket://" + str(root / "redis.sock")
+        # Namespaced Django keys take precedence over unprefixed assignments.
+        app.conf.update(
+            CELERY_BROKER_URL=broker,
+            CELERY_BROKER_READ_URL=broker,
+            CELERY_BROKER_WRITE_URL=broker,
+        )
         settings.SOURCE_CREDENTIALS_ENABLED = True
         settings.SOURCE_CREDENTIAL_KEYRING_FILE = str(keyfile)
         UserAccount.objects.create(user=user, role="admin")
+        if os.environ.get("NASSAV_OPERATION_UI_TEST_FIXTURE") == "1":
+            from uuid import uuid4
+            from nassav import composition
+            from nassav.shared_work import SharedOperations
+
+            settings.SHARED_LIBRARY_ENABLED = True
+            operations = SharedOperations(composition.build_operation_records())
+            other = get_user_model().objects.create_user(username="operation-other")
+            UserAccount.objects.create(user=other, role="user")
+            for actor, avid in [
+                (user, "OPERATION-UI"),
+                (other, "OPERATION-UI"),
+                (user, "OPERATION-SECOND"),
+            ]:
+                # Durable subscriptions without dispatching a network worker.
+                operations.submit(
+                    actor.pk,
+                    {
+                        "avid": avid,
+                        "source": "jable",
+                        "kind": "scrape",
+                        "action": "add",
+                        "request_id": str(uuid4()),
+                    },
+                    access_scope="public",
+                    credential_refs={},
+                    context_revision="isolated-operation-ui",
+                )
     client = Client()
     client.force_login(user)
     assert (
