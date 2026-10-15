@@ -24,3 +24,20 @@ export const systemCredentialApi = {
       : api.post(path, { source_name: source, ...body })
   },
 }
+
+export const resourceAdminApi = {
+  pools: (params) => api.get('/admin/resource-pools', { params }),
+  jobs: (params) => api.get('/admin/resource-gc-jobs', { params }),
+  preview: (id, versionId) =>
+    api.get(`/admin/resource-pools/${encodeURIComponent(id)}/gc-preview`, {
+      params: versionId ? { version_id: versionId } : {},
+    }),
+  command: ({ action, id, body }) => {
+    const key = encodeURIComponent(id)
+    if (action === 'availability') return api.post(`/admin/resources/${key}/availability`, body)
+    if (action === 'retention') return api.put(`/admin/resource-pools/${key}/retention`, body)
+    if (action === 'enqueue') return api.post(`/admin/resource-pools/${key}/gc`, body)
+    if (action === 'retry') return api.post(`/admin/resource-gc-jobs/${key}/retry`, body)
+    return Promise.reject(new Error('不支持的资源管理操作'))
+  },
+}

@@ -51,3 +51,7 @@ RESOURCE_GC_ENABLED默认false，启用须SHARED_LIBRARY_ENABLED/SOURCE_CREDENTI
 只读管理命令：`uv run python manage.py resource_gc --target <pool-uuid> [--version-id <version-uuid>]`。写请求另外指定`--action enqueue|retry|retention --actor <app-admin> --reason maintenance --request-id <uuid> --expected-version <pool-version或job-revision>`；retention还需`--retained true|false`。命令只提交持久请求，不直接rmtree。先完成维护窗口/目标验收，再开启执行；不要对未知旧资产伪造marker绕过保护。
 
 单版本保护只关联其实际指针、同范围工作与本版本原work；不同范围的暂停任务不永久占用无引用私人版本，旧未分范围writer仍阻止整池/任何版本清理。同一资源的物理操作仍共用resource flock。真实worker隔离验收使用临时Redis、原生Celery solo、实际handler、HTTP管理命令和真实临时文件，关闭eager；不代替部署或源站账号验收。
+
+## 管理界面
+
+共享模式管理中心提供资源池元信息、访问下架/恢复、保留、整池或指定UUID版本预览，以及回收记录与失败重试。前端只提交既有审计命令，不展示私密元数据/文件路径，不绕过默认关闭的RESOURCE_GC_ENABLED。预览核对对象版本/代次，排队和实际领取仍重新核查。排队成功只代表持久意图，不证明文件已删除；后台状态、journal与停止证明继续由上述协议持有。

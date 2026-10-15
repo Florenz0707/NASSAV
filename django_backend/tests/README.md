@@ -198,3 +198,5 @@ GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一
 管理员账号界面复用上述明确临时管理员fixture：前端运行`NASSAV_LIBRARY_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4188 node tests/browser/adminAccounts.cjs`。会创建一次性账号、调整配额/角色、撤销会话、重置密码、停用/启用测试用户，并验证最后管理员保护和多账号登录仍关闭。实际执行密码重置后丢弃一次HTTP响应，重试复用原request UUID；只检查脱敏审计，不记录密码。每轮使用新fixture，退出服务自动删除临时账户/数据库/keyring/Redis。
 
 系统来源凭证浏览器专项：使用上面的临时library/operator服务与状态，运行`NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_LIBRARY_STORAGE_STATE=<临时目录>/storage-state.json node vue_frontend/tests/browser/adminCredentials.cjs`（从仓库根执行）。可用`NASSAV_BROWSER_ENGINE=firefox`切换浏览器；仅允许loopback临时实例，真实HTTP/SQLite/keyring验证Cookie类型拒绝、盲写、丢失响应重放、CAS冲突/草稿、撤销及移动端嵌套焦点；不访问真实来源或部署凭证。
+
+资源生命周期浏览器专项：`node vue_frontend/tests/browser/adminResources.cjs`复用上述NODE_PATH与临时NASSAV_LIBRARY_STORAGE_STATE，默认验证GC关闭时只读预览/保留/下架、版本冲突与结果未知重试。另启动helper时显式增加`NASSAV_GC_UI_TEST_FIXTURE=1`（必须同时启用operation/library fixture），仅在独立临时库生成无文件的空池和失败回收记录并开启该实例GC；浏览器加`NASSAV_EXPECT_GC_ENABLED=1`验证真实排队与失败重试。helper不启动来源/GC worker，因此这项仅证明UI/HTTP/DB/Redis派发，文件执行沿已有原生worker专项验证，不能代替部署删除验收。

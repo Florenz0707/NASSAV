@@ -75,3 +75,5 @@ LibraryMembershipsDialog拥有管理弹窗/选择/确认装配；library/lib/mem
 features/admin拥有管理中心及独立账号/审计模块；views/ManagementView只按会话能力装配。api/admin.js复用统一HTTP客户端，公开adminApi同一对象导出。lib/adminRead.js管理有归属的查询，accountAdministration.js管理编辑/命令/草稿，组件仅展示与输入。管理页面不复用个人设置缓存，不持久化管理数据或密码；后续来源/GC页面作为独立业务区块加入管理中心。
 
 管理中心的系统来源凭证位于features/admin/components/AdminSourceCredentials、SystemCredentialEditor，审计写入状态归lib/systemCredentials，复用adminRead读取与api/admin的既有来源API委托。个人凭证仍归features/cookies，不让普通入口承担系统审计命令或共享Cookie语义。
+
+共享资源与回收记录复用AdminResources（jobs属性区分协议），确认交互由ResourceAdminDialog展示；lib/resourceAdministration负责版本/预览归属与命令重试，api/admin/resourceAdminApi负责端点装配。组件不执行文件操作或直接调用worker。

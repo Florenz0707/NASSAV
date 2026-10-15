@@ -19,6 +19,12 @@ const labels = {
   'account.update': '修改账号',
   'account.revoke_sessions': '撤销登录',
   'account.reset_password': '重置密码',
+  'source_credential.write': '保存系统凭证',
+  'source_credential.revoke': '撤销系统凭证',
+  'resource.availability': '资源访问策略',
+  gc_enqueue: '登记回收',
+  gc_retry: '重试回收',
+  gc_retention: '资源保留策略',
   'account.bootstrap': '初始化管理员',
 }
 const reasons = {

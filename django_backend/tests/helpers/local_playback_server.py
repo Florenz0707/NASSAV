@@ -180,6 +180,28 @@ def main():
                     credential_refs={},
                     context_revision="isolated-operation-ui",
                 )
+    if os.environ.get("NASSAV_GC_UI_TEST_FIXTURE") == "1":
+        if not settings.SHARED_LIBRARY_ENABLED:
+            raise SystemExit("GC UI fixture requires the isolated operation fixture")
+        from datetime import timedelta
+        from django.utils import timezone
+        from nassav.library_models import ResourcePoolEntry
+        from nassav.resource_gc_models import ResourceGcJob
+
+        settings.RESOURCE_GC_ENABLED = True
+        for avid in ["GC-UI-EMPTY", "GC-UI-RETRY"]:
+            pool = ResourcePoolEntry.objects.create(
+                canonical_avid=avid,
+                state="pending_gc",
+                gc_after=timezone.now() - timedelta(hours=1),
+            )
+            if avid == "GC-UI-RETRY":
+                ResourceGcJob.objects.create(
+                    pool=pool,
+                    pool_generation=pool.lifetime_generation,
+                    state="cleanup_failed",
+                    error_code="permission_denied",
+                )
     client = Client()
     client.force_login(user)
     assert (

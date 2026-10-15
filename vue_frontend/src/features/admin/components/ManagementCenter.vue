@@ -5,15 +5,24 @@ import AppButton from '../../../shared/ui/AppButton.vue'
 import AdminAccounts from './AdminAccounts.vue'
 import AdminAudit from './AdminAudit.vue'
 import AdminSourceCredentials from './AdminSourceCredentials.vue'
+import AdminResources from './AdminResources.vue'
+import { useSessionStore } from '../../auth/stores/session.js'
+const session = useSessionStore()
 const route = useRoute(),
   router = useRouter()
-const sections = [
+const sections = computed(() => [
   { value: 'accounts', label: '账号管理', component: AdminAccounts },
   { value: 'sources', label: '系统来源凭证', component: AdminSourceCredentials },
+  ...(session.capabilities.shared_library
+    ? [
+        { value: 'resources', label: '共享资源', component: AdminResources },
+        { value: 'gc', label: '回收记录', component: AdminResources, jobs: true },
+      ]
+    : []),
   { value: 'audit', label: '审计记录', component: AdminAudit },
-]
+])
 const current = computed(
-  () => sections.find((item) => item.value === route.params.section) || sections[0]
+  () => sections.value.find((item) => item.value === route.params.section) || sections.value[0]
 )
 </script>
 <template>
@@ -34,7 +43,12 @@ const current = computed(
           >{{ section.label }}</AppButton
         >
       </nav>
-      <component :is="current.component" :key="current.value" class="min-w-0" />
+      <component
+        :is="current.component"
+        :key="current.value"
+        :jobs="current.jobs"
+        class="min-w-0"
+      />
     </div>
   </section>
 </template>

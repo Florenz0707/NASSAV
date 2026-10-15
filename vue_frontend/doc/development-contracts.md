@@ -311,3 +311,9 @@ features/admin/lib/adminRead拥有管理查询的当前登录/请求代次；acc
 ### 系统来源凭证管理
 
 管理中心sources板块只读系统元信息，写入固定clearance类型并要求原因、目标版本与request UUID；个人账号Cookie不能通过此入口发布。systemCredentials控制器与个人凭证的盲写交互相同，但独立持有管理员审计命令：结果未知按原端点/版本/UUID重放，修改草稿才更换UUID，409保留输入且要求刷新重编辑。来源列表只限制新建，不隐藏已撤下来源的现有凭证及撤销入口。响应检查system范围/来源/ID后更新source_cache_identity，完成、丢弃、身份变化与卸载清空秘密，不落浏览器存储或审计内容。删除不直接操作文件或来源站点。
+
+### 共享资源生命周期管理
+
+管理中心resources/gc仅在共享库与app_admin能力下装配。AdminResources拥有当前分页的adminRead；resourceAdministration拥有确认时冻结的pool_version或job revision、原因与幂等UUID。下架/恢复访问、保留、回收排队和失败重试使用不同API，不能以移出关系代替物理删除或以排队响应宣称文件已清理。UI不读私密标题/持有者/路径，不修改后端执行开关。
+
+回收预览有独立请求代次，核对pool UUID/version/generation和可选版本UUID；旧预览、来源输入变化、关闭与身份切换不能授权新请求。无阻塞预览不是删除保证，后台再次核查；RESOURCE_GC_ENABLED关闭时保留只读预览/保留操作，禁止排队及重试。未知结果重放相同命令，409保留原对象版本并提示刷新，保护条件逐项展示；完成后使本人关系/封面缓存失效。弹窗复用公共控件、唯一内容滚动及嵌套确认。
