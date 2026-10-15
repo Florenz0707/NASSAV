@@ -151,10 +151,10 @@ def test_whole_pool_removes_neutral_anchor_but_retains_personal_history(
         )
     release(entries[1], users[1])
     ResourcePoolEntry.objects.filter(pk=version.pool_id).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     ResourceVersion.objects.filter(pool_id=version.pool_id).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     job_id = records.enqueue(version.pool_id)["job_id"]
     runtime = ResourceReclaimer(records, GcFileStorage(environment[2]))
@@ -170,10 +170,10 @@ def test_unmapped_legacy_path_blocks_before_claim(unheld, environment):
     (users, _, entries, _), records, version = unheld
     release(entries[1], users[1])
     ResourcePoolEntry.objects.filter(pk=version.pool_id).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     ResourceVersion.objects.filter(pool_id=version.pool_id).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     job_id = records.enqueue(version.pool_id)["job_id"]
     legacy = environment[2]["cover"] / "PUB-001.html"
@@ -244,10 +244,11 @@ def test_real_mp4_live_session_protects_then_closed_expired_pins_are_released(
         assert assets.cleanup(str(job.pk))["cleanup_state"] == "completed"
     entry = UserLibraryEntry.objects.get(user=users[0])
     release(entry, users[0])
-    past = timezone.now() - timedelta(seconds=1)
+    now = timezone.now()
+    records = DjangoGcRecords(now=lambda: now)
+    past = records.now() - timedelta(seconds=1)
     ResourcePoolEntry.objects.filter(pk=video.pool_id).update(gc_after=past)
     ResourceVersion.objects.filter(pool_id=video.pool_id).update(gc_after=past)
-    records = DjangoGcRecords()
     with pytest.raises(GcDeferred) as blocked:
         records.enqueue(video.pool_id)
     assert "playback_sessions" in blocked.value.reasons and path.exists()

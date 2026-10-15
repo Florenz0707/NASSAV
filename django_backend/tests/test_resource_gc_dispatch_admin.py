@@ -95,7 +95,7 @@ def test_retention_and_failed_retry_are_versioned_and_audited(unheld):
 def test_recovery_cas_cooldown_and_broker_failure_are_bounded(unheld):
     _, records, version = unheld
     job_id = records.enqueue(version.pool_id, version.pk)["job_id"]
-    now = timezone.now()
+    now = records.now()
     ResourceGcJob.objects.filter(pk=job_id).update(
         updated_at=now - timedelta(seconds=61)
     )
@@ -110,10 +110,13 @@ def test_recovery_cas_cooldown_and_broker_failure_are_bounded(unheld):
     assert dispatcher.recover(1) == 0
 
 
-def test_discovery_cursor_does_not_starve_after_a_protected_candidate(environment):
+@pytest.mark.parametrize("scenario_offset", [-5, 0, 5])
+def test_discovery_cursor_does_not_starve_after_a_protected_candidate(
+    environment, scenario_offset
+):
     users, _, _ = environment
-    records = DjangoGcRecords()
-    now = timezone.now()
+    now = timezone.now() + timedelta(seconds=scenario_offset)
+    records = DjangoGcRecords(now=lambda: now)
     versions = []
     for number in (1, 2):
         pool = ResourcePoolEntry.objects.create(
@@ -141,7 +144,7 @@ def test_discovery_cursor_does_not_starve_after_a_protected_candidate(environmen
         expires_at=now + timedelta(seconds=60),
         absolute_expires_at=now + timedelta(seconds=120),
     )
-    dispatcher = GcDispatcher(records, Mock())
+    dispatcher = GcDispatcher(records, Mock(), now=lambda: now)
     assert dispatcher.discover(1) == []
     found = dispatcher.discover(1)
     assert (

@@ -343,3 +343,7 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 回收验收时钟修正：基线2f8af4d，分支fix/gc-expiry-test-clock。原测试失租断言通过，但随后重新领取偶发返回deleting；墙钟回拨5秒的单变量探针复现同形失败，无新保护条件。测试改为注入协议时钟、按实际lease_until推进并覆盖立即/延迟恢复；保留全部unlink与实际删除断言，不修改生产领取/保护协议。凭证UI暂存后继续实施。
 
 时钟修正门槛（2026-10-15）：原时序30次定向重复通过，单变量回拨探针1 passed/1 failed复现；修正后SQLite回收专项27 passed、PostgreSQL文件专项15 passed，全量SQLite1278 passed/28 skipped，pre-commit完整通过。无生产代码/schema或部署修改。
+
+GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consistency。随后全量中发现候选公平性和私人范围场景因墙钟基准不同而触发grace_period。统一unheld场景、HTTP/CLI/原生worker的GC adapter协议时钟，发现器共享同一注入时间并覆盖宿主±5秒偏移；正式回收与其他域时钟均未改动。所有宽限/占用/删除断言保留。
+
+一致性门槛（2026-10-15）：GC组合专项SQLite41 passed，补充续租边界后PostgreSQL42 passed；全量SQLite1281 passed/28 skipped；完整pre-commit通过。修正仅测试时间与说明，不修改生产默认时钟、宽限、领取或清理规则。

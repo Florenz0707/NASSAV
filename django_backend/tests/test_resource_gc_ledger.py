@@ -35,19 +35,29 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def unheld(source_versions, environment):
+def unheld(source_versions, environment, monkeypatch):
     users, vault, entries, _ = source_versions
     for user, entry in zip(users, entries):
         _, _, _, assets = runtime(context(vault, user), environment[2])
         work = SharedWork.objects.get(pk=entry.current_version.work_id)
         assert assets.cleanup(str(work.job_id))["cleanup_state"] == "completed"
+    # All GC adapters created by this scenario (including HTTP/CLI/worker
+    # assembly) share one protocol clock. Other domains keep their own clocks.
+    instant = timezone.now()
+    original_init = DjangoGcRecords.__init__
+
+    def controlled_init(self, *args, **kwargs):
+        kwargs.setdefault("now", lambda: instant)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(DjangoGcRecords, "__init__", controlled_init)
     records = DjangoGcRecords()
     for entry in entries:
         entry.refresh_from_db()
     release(entries[0], users[0])
     version = entries[0].current_version
     ResourceVersion.objects.filter(pk=version.pk).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     version.refresh_from_db()
     return source_versions, records, version
@@ -103,10 +113,11 @@ def test_read_pin_and_original_session_protect_after_ordinary_release(source_ver
     row.save(update_fields=["state"])
     release(entries[0], users[0])
     version = entries[0].current_version
-    ResourceVersion.objects.filter(pk=version.pk).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
-    )
     now = timezone.now()
+    records = DjangoGcRecords(now=lambda: now)
+    ResourceVersion.objects.filter(pk=version.pk).update(
+        gc_after=records.now() - timedelta(seconds=1)
+    )
     ResourceReadLease.objects.create(
         user=users[0],
         version=version,
@@ -115,19 +126,16 @@ def test_read_pin_and_original_session_protect_after_ordinary_release(source_ver
         expires_at=now + timedelta(seconds=30),
         absolute_expires_at=now + timedelta(seconds=60),
     )
-    preview = DjangoGcRecords().preview(version.pool_id, version.pk)
+    preview = records.preview(version.pool_id, version.pk)
     assert {"read_leases", "playback_sessions"} <= set(preview["blockers"])
     playback_records.close(
         row.pk, users[0].pk, clients[0].session.session_key, row.version, uuid4()
     )
     assert (
         "playback_sessions"
-        not in DjangoGcRecords().preview(version.pool_id, version.pk)["blockers"]
+        not in records.preview(version.pool_id, version.pk)["blockers"]
     )
-    assert (
-        "read_leases"
-        in DjangoGcRecords().preview(version.pool_id, version.pk)["blockers"]
-    )
+    assert "read_leases" in records.preview(version.pool_id, version.pk)["blockers"]
 
 
 def test_paused_unknown_writer_and_pending_recovery_never_become_eligible(unheld):
@@ -182,7 +190,7 @@ def test_paused_unknown_writer_and_pending_recovery_never_become_eligible(unheld
 
 def test_last_release_sets_grace_while_another_holder_preserves_shared_version(unheld):
     (users, _, entries, _), records, version = unheld
-    now = timezone.now()
+    now = records.now()
     first = ResourceVersion.objects.get(pk=version.pk).gc_after
     with transaction.atomic():
         schedule_unused_versions(version.pool, now=now + timedelta(hours=1))
@@ -203,11 +211,11 @@ def test_readd_invalidates_queued_whole_pool_claim_and_deleting_blocks_attach(un
     (users, _, entries, _), records, version = unheld
     release(entries[1], users[1])
     ResourcePoolEntry.objects.filter(pk=version.pool_id).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     ResourceVersion.objects.filter(
         pool_id=version.pool_id, state__in=["ready", "retired"]
-    ).update(gc_after=timezone.now() - timedelta(seconds=1))
+    ).update(gc_after=records.now() - timedelta(seconds=1))
     snapshot = records.enqueue(version.pool_id)
     LibraryMembership(DjangoMembershipRecords()).attach(
         users[1].pk, version.pool.canonical_avid, source="jable", access_scope="public"
@@ -287,11 +295,11 @@ def test_pool_claim_racing_new_attach_is_linearizable(unheld):
     (users, _, entries, _), records, version = unheld
     release(entries[1], users[1])
     ResourcePoolEntry.objects.filter(pk=version.pool_id).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     ResourceVersion.objects.filter(
         pool_id=version.pool_id, state__in=["ready", "retired"]
-    ).update(gc_after=timezone.now() - timedelta(seconds=1))
+    ).update(gc_after=records.now() - timedelta(seconds=1))
     job_id = records.enqueue(version.pool_id)["job_id"]
     barrier = Barrier(2)
 
@@ -333,7 +341,7 @@ def test_expired_gc_claim_cannot_renew_or_finish_and_new_owner_is_fenced(unheld)
     job_id = records.enqueue(version.pool_id, version.pk)["job_id"]
     first = records.claim(job_id)
     ResourceGcJob.objects.filter(pk=job_id).update(
-        lease_until=timezone.now() - timedelta(seconds=1)
+        lease_until=records.now() - timedelta(seconds=1)
     )
     with pytest.raises(GcLeaseLost):
         records.check(first)
@@ -351,7 +359,7 @@ def test_pool_deadline_cannot_override_a_later_version_grace(unheld):
     (users, _, entries, _), records, version = unheld
     release(entries[1], users[1])
     ResourcePoolEntry.objects.filter(pk=version.pool_id).update(
-        gc_after=timezone.now() - timedelta(seconds=1)
+        gc_after=records.now() - timedelta(seconds=1)
     )
     assert "version_grace_period" in records.preview(version.pool_id)["blockers"]
     with pytest.raises(GcDeferred):
@@ -398,3 +406,21 @@ def test_claim_batch_checks_markers_without_per_file_queries(unheld):
         )
         == 1
     )
+
+
+def test_live_owner_renews_before_deadline_but_cannot_renew_after_expiry(unheld):
+    _, records, version = unheld
+    clock = [records.now()]
+    records.now = lambda: clock[0]
+    job_id = records.enqueue(version.pool_id, version.pk)["job_id"]
+    token = records.claim(job_id)
+    initial = ResourceGcJob.objects.get(pk=job_id)
+    clock[0] = initial.lease_until - timedelta(seconds=1)
+    records.check(token)
+    renewed = ResourceGcJob.objects.get(pk=job_id)
+    assert renewed.lease_until > initial.lease_until
+    assert renewed.owner == initial.owner
+    clock[0] = renewed.lease_until + timedelta(microseconds=1)
+    with pytest.raises(GcLeaseLost):
+        records.check(token)
+    assert ResourceGcJob.objects.get(pk=job_id).lease_until == renewed.lease_until
