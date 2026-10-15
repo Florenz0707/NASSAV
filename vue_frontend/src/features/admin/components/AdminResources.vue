@@ -109,11 +109,13 @@ onScopeDispose(() => {
         </caption>
         <thead>
           <tr class="border-b border-[var(--border-color)]">
-            <th class="p-3 text-left">{{ jobs ? '回收任务' : '资源' }}</th>
-            <th class="p-3 text-left">状态</th>
-            <th v-if="!jobs" class="p-3 text-left">访问 / 保留</th>
-            <th class="p-3 text-left">{{ jobs ? '错误代码' : '最早回收时间' }}</th>
-            <th class="p-3 text-right">操作</th>
+            <th class="p-3 text-center">{{ jobs ? '回收任务' : '资源' }}</th>
+            <th v-if="!jobs" class="p-3 text-center">版本</th>
+            <th class="p-3 text-center">状态</th>
+            <th v-if="!jobs" class="p-3 text-center">访问</th>
+            <th v-if="!jobs" class="p-3 text-center">保留</th>
+            <th class="p-3 text-center">{{ jobs ? '错误代码' : '最早回收时间' }}</th>
+            <th class="p-3 text-center">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -122,20 +124,26 @@ onScopeDispose(() => {
             :key="jobs ? row.job_id : row.pool_id"
             class="border-b border-[var(--border-color)]"
           >
-            <th scope="row" class="p-3 text-left font-medium">
-              <span class="block break-all">{{ jobs ? row.job_id : row.avid }}</span
-              ><span class="text-muted text-xs block mt-1 break-all">{{
-                jobs ? row.version_id || '整池' : '池版本 ' + row.pool_version
-              }}</span>
+            <th scope="row" class="p-3 text-center font-medium">
+              <span class="block break-all">{{ jobs ? row.job_id : row.avid }}</span>
             </th>
-            <td class="p-3 whitespace-nowrap">{{ stateLabels[row.state] || row.state }}</td>
-            <td v-if="!jobs" class="p-3 whitespace-nowrap">
-              {{ row.is_available ? '可访问' : '已下架' }} /
+            <td class="p-3 whitespace-nowrap text-center">
+              {{ jobs ? row.version_id || '整池' : '池版本 ' + row.pool_version }}
+            </td>
+            <td class="p-3 whitespace-nowrap text-center">
+              {{ stateLabels[row.state] || row.state }}
+            </td>
+            <td v-if="!jobs" class="p-3 whitespace-nowrap text-center">
+              {{ row.is_available ? '可访问' : '已下架' }}
+            </td>
+            <td v-if="!jobs" class="p-3 whitespace-nowrap text-center">
               {{ row.retained ? '已保留' : '未保留' }}
             </td>
-            <td class="p-3 text-muted">{{ jobs ? row.error_code || '无' : time(row.gc_after) }}</td>
+            <td class="p-3 text-muted text-center">
+              {{ jobs ? row.error_code || '无' : time(row.gc_after) }}
+            </td>
             <td class="p-3">
-              <div class="flex justify-end gap-2">
+              <div class="flex justify-center gap-2">
                 <AppButton
                   v-if="jobs"
                   size="sm"
@@ -145,29 +153,31 @@ onScopeDispose(() => {
                   @click="admin.open('retry', row)"
                   >重试</AppButton
                 >
-                <template v-else
-                  ><AppButton
+                <template v-else>
+                  <AppButton
                     size="sm"
                     variant="neutral"
                     :aria-label="'预览回收 ' + row.avid"
                     @click="admin.open('preview', row)"
                     >回收预览</AppButton
-                  ><AppButton
+                  >
+                  <AppButton
                     size="sm"
                     variant="neutral"
                     :disabled="['deleting', 'reclaimed'].includes(row.state)"
                     :aria-label="(row.retained ? '取消保留 ' : '保留资源 ') + row.avid"
                     @click="admin.open('retention', row)"
                     >{{ row.retained ? '取消保留' : '保留' }}</AppButton
-                  ><AppButton
+                  >
+                  <AppButton
                     size="sm"
                     :variant="row.is_available ? 'danger' : 'neutral'"
                     :disabled="['deleting', 'cleanup_failed', 'reclaimed'].includes(row.state)"
                     :aria-label="(row.is_available ? '下架资源 ' : '恢复访问 ') + row.avid"
                     @click="admin.open('availability', row)"
                     >{{ row.is_available ? '下架' : '恢复访问' }}</AppButton
-                  ></template
-                >
+                  >
+                </template>
               </div>
             </td>
           </tr>

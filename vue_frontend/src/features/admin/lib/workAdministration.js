@@ -4,10 +4,10 @@ import { createAdminRead } from './adminRead.js'
 const actions = new Set(['pause', 'resume', 'cancel', 'cleanup_retry'])
 const reasons = new Set(['maintenance', 'security', 'user_request', 'quota_adjustment'])
 export const workActionLabels = {
-  pause: '暂停执行',
-  resume: '恢复执行',
-  cancel: '终止执行',
-  cleanup_retry: '重试清理',
+  pause: '暂停',
+  resume: '恢复',
+  cancel: '终止',
+  cleanup_retry: '重试',
 }
 
 export function createWorkAdministration(

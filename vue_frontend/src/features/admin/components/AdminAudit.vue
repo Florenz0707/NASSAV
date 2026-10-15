@@ -22,10 +22,10 @@ const labels = {
   'source_credential.write': '保存系统凭证',
   'source_credential.revoke': '撤销系统凭证',
   'resource.availability': '资源访问策略',
-  'work.pause': '暂停执行',
-  'work.resume': '恢复执行',
-  'work.cancel': '终止执行',
-  'work.cleanup_retry': '重试执行清理',
+  'work.pause': '暂停',
+  'work.resume': '恢复',
+  'work.cancel': '终止',
+  'work.cleanup_retry': '重试',
   gc_enqueue: '登记回收',
   gc_retry: '重试回收',
   gc_retention: '资源保留策略',
@@ -49,11 +49,9 @@ const time = (value) => new Date(value).toLocaleString('zh-CN', { hour12: false 
       </div>
       <AppButton variant="neutral" :loading="list.loading" @click="list.load">刷新记录</AppButton>
     </header>
-    <RequestError v-if="list.error" :message="list.error" compact @retry="list.load" /><PageLoad
-      v-if="list.loading && !list.rows.length"
-      variant="spinner"
-      text="正在加载审计记录"
-    /><EmptyState
+    <RequestError v-if="list.error" :message="list.error" compact @retry="list.load" />
+    <PageLoad v-if="list.loading && !list.rows.length" variant="spinner" text="正在加载审计记录" />
+    <EmptyState
       v-else-if="!list.rows.length && !list.error"
       icon="empty"
       title="暂无审计记录"
@@ -69,24 +67,26 @@ const time = (value) => new Date(value).toLocaleString('zh-CN', { hour12: false 
         </caption>
         <thead>
           <tr class="border-b border-[var(--border-color)]">
-            <th class="p-3 text-left">时间</th>
-            <th class="p-3 text-left">操作者</th>
-            <th class="p-3 text-left">动作</th>
-            <th class="p-3 text-left">对象</th>
-            <th class="p-3 text-left">原因</th>
-            <th class="p-3 text-left">结果</th>
+            <th class="p-3 text-center">时间</th>
+            <th class="p-3 text-center">操作者</th>
+            <th class="p-3 text-center">动作</th>
+            <th class="p-3 text-center">对象</th>
+            <th class="p-3 text-center">原因</th>
+            <th class="p-3 text-center">结果</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in list.rows" :key="row.id" class="border-b border-[var(--border-color)]">
-            <td class="p-3 whitespace-nowrap text-muted">
+            <td class="p-3 whitespace-nowrap text-muted text-center">
               <time :datetime="row.created_at">{{ time(row.created_at) }}</time>
             </td>
-            <td class="p-3">{{ row.actor_id ? '#' + row.actor_id : '系统' }}</td>
-            <td class="p-3">{{ labels[row.action] || row.action }}</td>
-            <td class="p-3 break-all">{{ row.object_id }}</td>
-            <td class="p-3">{{ reasons[row.reason] || row.reason }}</td>
-            <td class="p-3">{{ row.result?.status === 'succeeded' ? '成功' : '已记录' }}</td>
+            <td class="p-3 text-center">{{ row.actor_id ? '#' + row.actor_id : '系统' }}</td>
+            <td class="p-3 text-center">{{ labels[row.action] || row.action }}</td>
+            <td class="p-3 break-all text-center">{{ row.object_id }}</td>
+            <td class="p-3 text-center">{{ reasons[row.reason] || row.reason }}</td>
+            <td class="p-3 text-center">
+              {{ row.result?.status === 'succeeded' ? '成功' : '已记录' }}
+            </td>
           </tr>
         </tbody>
       </table>

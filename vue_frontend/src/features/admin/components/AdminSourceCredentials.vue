@@ -27,7 +27,8 @@ const date = (value) => new Date(value).toLocaleString('zh-CN')
       <div class="flex gap-3">
         <AppButton variant="neutral" :loading="admin.list.loading" @click="admin.load"
           >刷新凭证</AppButton
-        ><AppButton :disabled="!admin.sources.length || admin.list.loading" @click="admin.open()"
+        >
+        <AppButton :disabled="!admin.sources.length || admin.list.loading" @click="admin.open()"
           >添加系统凭证</AppButton
         >
       </div>
@@ -66,11 +67,12 @@ const date = (value) => new Date(value).toLocaleString('zh-CN')
         </caption>
         <thead>
           <tr class="border-b border-[var(--border-color)]">
-            <th class="p-3 text-left">来源</th>
-            <th class="p-3 text-left">状态</th>
-            <th class="p-3 text-left">版本</th>
-            <th class="p-3 text-left">更新时间</th>
-            <th class="p-3 text-right">操作</th>
+            <th class="p-3 text-center">来源</th>
+            <th class="p-3 text-center">域名</th>
+            <th class="p-3 text-center">状态</th>
+            <th class="p-3 text-center">版本</th>
+            <th class="p-3 text-center">更新时间</th>
+            <th class="p-3 text-center">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -79,22 +81,21 @@ const date = (value) => new Date(value).toLocaleString('zh-CN')
             :key="row.id"
             class="border-b border-[var(--border-color)]"
           >
-            <th scope="row" class="p-3 text-left">
-              {{ row.source_name
-              }}<span class="block text-muted text-xs mt-1">{{ row.origin_host }}</span>
-            </th>
-            <td class="p-3">{{ labels[row.state] || '不可用' }}</td>
-            <td class="p-3">{{ row.version }}</td>
-            <td class="p-3 whitespace-nowrap">{{ date(row.updated_at) }}</td>
+            <th scope="row" class="p-3 text-center">{{ row.source_name }}</th>
+            <td class="p-3 text-center">{{ row.origin_host }}</td>
+            <td class="p-3 text-center">{{ labels[row.state] || '不可用' }}</td>
+            <td class="p-3 text-center">{{ row.version }}</td>
+            <td class="p-3 text-center whitespace-nowrap">{{ date(row.updated_at) }}</td>
             <td class="p-3">
-              <div class="flex justify-end gap-2">
+              <div class="flex justify-center gap-2">
                 <AppButton
                   size="sm"
                   variant="neutral"
                   :aria-label="'更新系统凭证 ' + row.source_name"
                   @click="admin.open(row)"
                   >更新</AppButton
-                ><AppButton
+                >
+                <AppButton
                   size="sm"
                   variant="danger"
                   :disabled="row.state === 'revoked'"

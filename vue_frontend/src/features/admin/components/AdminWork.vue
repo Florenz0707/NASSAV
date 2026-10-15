@@ -3,7 +3,7 @@ import { computed, onMounted, onScopeDispose } from 'vue'
 import { workAdminApi } from '../../../api/admin.js'
 import { useSessionStore } from '../../auth/stores/session.js'
 import { createWorkAdministration, workActionLabels } from '../lib/workAdministration.js'
-import { TASK_STAGE_LABELS, taskTime } from '../../tasks/lib/taskDetails.js'
+import { taskTime } from '../../tasks/lib/taskDetails.js'
 import AppButton from '../../../shared/ui/AppButton.vue'
 import CustomSelect from '../../../shared/ui/CustomSelect.vue'
 import SettingsModal from '../../../shared/ui/SettingsModal.vue'
@@ -27,10 +27,10 @@ const stateLabels = {
   succeeded: '已完成',
 }
 const cleanupLabels = {
-  pending: '等待清理',
-  running: '正在清理',
-  completed: '清理完成',
-  failed: '清理失败',
+  pending: '等待中',
+  running: '清理中',
+  completed: '已完成',
+  failed: '失败',
   not_required: '无需清理',
 }
 const pages = computed(() =>
@@ -65,6 +65,9 @@ onScopeDispose(admin.dispose)
     <header class="flex flex-wrap justify-between items-center gap-3 mb-5">
       <h2 id="admin-work-title" class="text-xl font-semibold text-primary">全局执行管理</h2>
       <div class="flex flex-wrap items-center gap-3">
+        <AppButton variant="neutral" :loading="admin.list.loading" @click="admin.load"
+          >刷新执行</AppButton
+        >
         <CustomSelect
           id="admin-work-order"
           aria-label="执行排序"
@@ -74,9 +77,7 @@ onScopeDispose(admin.dispose)
             { value: '-created_at', label: '最近创建优先' },
           ]"
           @update:model-value="ordering"
-        /><AppButton variant="neutral" :loading="admin.list.loading" @click="admin.load"
-          >刷新执行</AppButton
-        >
+        />
       </div>
     </header>
     <p class="text-muted text-sm mb-5">
@@ -107,11 +108,11 @@ onScopeDispose(admin.dispose)
         </caption>
         <thead>
           <tr class="border-b border-[var(--border-color)]">
-            <th class="p-3 text-left">执行</th>
-            <th class="p-3 text-left">状态 / 阶段</th>
-            <th class="p-3 text-left">文件清理</th>
-            <th class="p-3 text-left">更新时间</th>
-            <th class="p-3 text-right">控制</th>
+            <th class="p-3 text-center">执行</th>
+            <th class="p-3 text-center">状态</th>
+            <th class="p-3 text-center">文件清理</th>
+            <th class="p-3 text-center">更新时间</th>
+            <th class="p-3 text-center">控制</th>
           </tr>
         </thead>
         <tbody>
@@ -120,22 +121,19 @@ onScopeDispose(admin.dispose)
             :key="row.job_id"
             class="border-b border-[var(--border-color)]"
           >
-            <th scope="row" class="p-3 text-left font-medium">
+            <th scope="row" class="p-3 text-center font-medium">
               <span class="block">{{ row.avid }} · {{ row.job_type }}</span
               ><span class="block text-muted text-xs mt-1 break-all"
                 >{{ row.job_id }} · v{{ row.version }}</span
               >
             </th>
-            <td class="p-3">
-              <span class="block">{{ stateLabels[row.state] || row.state }}</span
-              ><span class="block text-muted text-xs mt-1">{{
-                TASK_STAGE_LABELS[row.state] || TASK_STAGE_LABELS[row.stage] || '等待执行'
-              }}</span>
+            <td class="p-3 text-center">{{ stateLabels[row.state] || row.state }}</td>
+            <td class="p-3 text-center">{{ cleanupLabels[row.cleanup_state] || '状态未知' }}</td>
+            <td class="p-3 text-muted text-center whitespace-nowrap">
+              {{ taskTime(row.updated_at) }}
             </td>
-            <td class="p-3">{{ cleanupLabels[row.cleanup_state] || '状态未知' }}</td>
-            <td class="p-3 text-muted whitespace-nowrap">{{ taskTime(row.updated_at) }}</td>
             <td class="p-3">
-              <div class="flex justify-end gap-2">
+              <div class="flex justify-center gap-2">
                 <AppButton
                   v-for="(label, action) in workActionLabels"
                   :key="action"
@@ -178,8 +176,8 @@ onScopeDispose(admin.dispose)
           操作针对整个执行，会影响其他仍在等待的用户。后台须确认写入者停止后才能暂停或清理，登记成功不代表已经完成。
         </p>
         <div class="space-y-2">
-          <label for="work-admin-reason" class="text-primary">操作原因</label
-          ><CustomSelect
+          <label for="work-admin-reason" class="text-primary">操作原因</label>
+          <CustomSelect
             id="work-admin-reason"
             :model-value="admin.reason"
             :options="reasons"
@@ -190,8 +188,8 @@ onScopeDispose(admin.dispose)
         </div>
         <p v-if="admin.error" role="alert" class="text-accent-danger text-sm">{{ admin.error }}</p>
         <div class="flex justify-end gap-3">
-          <AppButton variant="neutral" :disabled="admin.busy" @click="admin.close">关闭</AppButton
-          ><AppButton type="submit" :loading="admin.busy" loading-text="登记中">下一步</AppButton>
+          <AppButton variant="neutral" :disabled="admin.busy" @click="admin.close">关闭</AppButton>
+          <AppButton type="submit" :loading="admin.busy" loading-text="登记中">下一步</AppButton>
         </div>
       </form>
     </SettingsModal>

@@ -39,19 +39,20 @@ const quota = (bytes) =>
     <header class="flex flex-wrap items-center justify-between gap-3 mb-5">
       <div class="flex items-center gap-2">
         <h2 id="admin-accounts-title" class="text-xl font-semibold text-primary">账号管理</h2>
-        <InfoDialog title="账号操作说明" label="查看账号操作说明"
-          ><p class="text-secondary leading-relaxed">
+        <InfoDialog title="账号操作说明" label="查看账号操作说明">
+          <p class="text-secondary leading-relaxed">
             角色变更、停用、重置密码和撤销会话会使该用户需要重新登录。停用还会撤销个人来源凭证、移出其资源持有并撤销其任务请求。共享资源仍受其他用户的持有和播放保护。
           </p>
           <p class="text-muted text-sm mt-3">
             至少保留一个启用的应用管理员；管理权限由应用角色决定。
-          </p></InfoDialog
-        >
+          </p>
+        </InfoDialog>
       </div>
       <div class="flex gap-3">
         <AppButton variant="neutral" :loading="admin.list.loading" @click="admin.load"
           >刷新账号</AppButton
-        ><AppButton @click="admin.open('create')">创建账号</AppButton>
+        >
+        <AppButton @click="admin.open('create')">创建账号</AppButton>
       </div>
     </header>
     <p v-if="!session.capabilities.ordinary_login" class="text-muted text-sm mb-4">
@@ -82,12 +83,13 @@ const quota = (bytes) =>
         </caption>
         <thead>
           <tr class="border-b border-[var(--border-color)]">
-            <th class="p-3 text-left">账号</th>
-            <th class="p-3 text-left">角色</th>
-            <th class="p-3 text-left">状态</th>
-            <th class="p-3 text-left">存储配额</th>
-            <th class="p-3 text-left">请求上限</th>
-            <th class="p-3 text-right">操作</th>
+            <th class="p-3 text-center">id</th>
+            <th class="p-3 text-center">用户名</th>
+            <th class="p-3 text-center">角色</th>
+            <th class="p-3 text-center">状态</th>
+            <th class="p-3 text-center">存储配额</th>
+            <th class="p-3 text-center">请求上限</th>
+            <th class="p-3 text-center">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -96,31 +98,42 @@ const quota = (bytes) =>
             :key="row.user_id"
             class="border-b border-[var(--border-color)]"
           >
-            <th scope="row" class="p-3 text-left font-medium">
-              {{ row.username
-              }}<span class="block text-muted text-xs mt-1">#{{ row.user_id }}</span>
+            <th scope="row" class="p-3 text-center font-medium">
+              {{ '#' + row.user_id }}
             </th>
-            <td class="p-3">{{ row.role === 'admin' ? '管理员' : '普通用户' }}</td>
-            <td class="p-3" :class="row.is_active ? 'text-accent-success' : 'text-muted'">
+            <th scope="row" class="p-3 text-center font-medium">
+              {{ row.username }}
+            </th>
+            <td class="p-3 text-center font-medium">
+              {{ row.role === 'admin' ? '管理员' : '普通用户' }}
+            </td>
+            <td
+              class="p-3 text-center font-medium"
+              :class="row.is_active ? 'text-accent-success' : 'text-muted'"
+            >
               {{ row.is_active ? '启用' : '停用' }}
             </td>
-            <td class="p-3 whitespace-nowrap">{{ quota(row.storage_quota_bytes) }}</td>
-            <td class="p-3">{{ row.max_active_operations }}</td>
+            <td class="p-3 whitespace-nowrap text-center font-medium">
+              {{ quota(row.storage_quota_bytes) }}
+            </td>
+            <td class="p-3 text-center font-medium">{{ row.max_active_operations }}</td>
             <td class="p-3">
-              <div class="flex justify-end gap-2">
+              <div class="flex justify-center gap-3">
                 <AppButton
                   size="sm"
                   variant="neutral"
                   :aria-label="'编辑账号 ' + row.username"
                   @click="admin.open('update', row)"
                   >编辑</AppButton
-                ><AppButton
+                >
+                <AppButton
                   size="sm"
                   variant="neutral"
                   :aria-label="'撤销会话 ' + row.username"
                   @click="admin.open('revoke_sessions', row)"
                   >撤销会话</AppButton
-                ><AppButton
+                >
+                <AppButton
                   size="sm"
                   variant="danger"
                   :aria-label="'重置密码 ' + row.username"
