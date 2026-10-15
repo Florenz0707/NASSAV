@@ -120,3 +120,26 @@ class DjangoVersionImageLocator:
             raise ReadLeaseConflict("image_busy") from None
         except OSError:
             raise ReadLeaseNotFound("Image file unavailable") from None
+
+
+def open_legacy_image(root, filename):
+    if (
+        filename != Path(filename).name
+        or "\\" in filename
+        or any(ord(char) < 32 for char in filename)
+    ):
+        raise ReadLeaseNotFound("Image not available")
+    fd = None
+    try:
+        fd = open_beneath(Path(root).resolve(), filename)
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 32 * 1024 * 1024:
+            raise ReadLeaseNotFound("Image not available")
+        handle = os.fdopen(fd, "rb")
+        fd = None
+        return handle
+    except OSError:
+        raise ReadLeaseNotFound("Image not available") from None
+    finally:
+        if fd is not None:
+            os.close(fd)

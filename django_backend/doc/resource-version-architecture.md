@@ -95,3 +95,15 @@ ID-only播放worker按session冻结引用构造独立来源，每次解析先核
 0047投影已有明确active关系，逆向只删除可重建派生表；不猜测原资源归属或重新取源。专项test_owned_catalog_projection.py使用真实版本/文件发布与个人状态，验证无全局复制、稳定去重、切换/释放、坏link与单查询统计。HTTP目录、外部搜索与推荐种子仍待下一个消费者子阶段；普通准入保持关闭。
 
 用户目录基础隔离门槛（2026-10-15）：SQLite全量1198 passed/28 skipped；SQLite迁移/核心5 passed，临时PostgreSQL迁移/核心/发布17 passed，版本/媒体兼容35 passed；模型迁移无差异，完整pre-commit通过后提交。PostgreSQL逆向在派生行删除后完成延迟外键检查，再执行后续DDL，保留原子迁移。没有正式实例迁移或目录/推荐HTTP切换。
+
+## 用户目录消费者子阶段
+
+基线a5333ed，分支feat/owned-catalog-consumers。共享模式下原目录/头像、资源数字筛选、推荐本地种子/手动黑名单、外部搜索及search job统一消费本人term/current link；原未切换路径保持。目录只展示仍有本人合法current link的term，私有名称不全局提升。类型与头像查询有界批量，个人计数单次过滤join，不逐卡查询用户状态。
+
+CatalogEntity明确本地ID、规范搜索identity及空legacy_mapping_id；来源适配器接受命名实体，不误查同整数ID的全局映射。外部列表的owned-catalog-v1缓存名称身份独立于旧实体ID，来源凭证范围保持原隔离，命中重投影本人的库。队列query冻结目录namespace；旧句柄恢复与worker检查账户epoch/namespace，失效在取源前取消，取消接口不重解释旧实体。
+
+LocalPreferenceSeedProvider沿原评分/selector消费term_stats，lookup_payload只标catalog_term_id/namespace，不塞actor_id/genre_id触发旧全局映射学习。名字黑名单由本人的历史fence写入，不借目录ID操作全局Actor/Genre。更新失败/移出/旧链接不恢复旧统计；更换来源不以资源锚点旧M2M补私人关系。
+
+正式版本头像地址使用原授权image服务，旧avatar文件明确归属后由独立NOFOLLOW读取适配器打开；HTTP只组装回应。目录detail/列表私有no-store/Vary Cookie。专项test_owned_catalog_consumers.py使用真实发布/数据库、合成列表源和MemoryStore，覆盖两个用户、ID碰撞、关键词/缓存观察、任务/epoch失效、黑名单、查询预算与头像路径。不是实际上游站点、共享Celery或普通账户浏览器验收。推荐图片缓存、观看列表版本投影及受控GC仍继续实施。
+
+目录消费者隔离门槛（2026-10-15）：SQLite全量1210 passed/28 skipped；临时PostgreSQL目录/搜索兼容56 passed；SQLite目录/旧搜索50 passed、目录/旧HTTP17 passed。没有新schema，完整pre-commit通过后提交。个人来源搜索仍为替身，未打开普通账号、迁移现有实例或验收真实worker。

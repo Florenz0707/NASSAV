@@ -5,6 +5,7 @@ from copy import deepcopy
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from nassav.catalog_entities import CatalogEntity
 from contextlib import contextmanager
 from typing import Any, cast
 
@@ -198,13 +199,23 @@ class ExternalSourceAdapter(ABC):
 
     @abstractmethod
     def search_actor_items(
-        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        actor: Actor | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
         raise NotImplementedError
 
     @abstractmethod
     def search_genre_items(
-        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        genre: Genre | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
         raise NotImplementedError
 
@@ -251,13 +262,23 @@ class PlaceholderExternalSourceAdapter(ExternalSourceAdapter):
         self.implemented = False
 
     def search_actor_items(
-        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        actor: Actor | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
         _ = (actor, page, ordering, force_refresh)
         return []
 
     def search_genre_items(
-        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        genre: Genre | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
         _ = (genre, page, ordering, force_refresh)
         return []
@@ -271,7 +292,12 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         return SearchCapability(self.source_name, "Jable")
 
     def search_actor_items(
-        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        actor: Actor | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
         jable = self._get_jable_source()
         if jable is None:
@@ -282,10 +308,15 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
             return []
 
         sort_by = self._map_ordering_to_jable(ordering)
-        mapping = actor_source_mapping_service.get_actor_source_mappings(
-            actor_ids=[actor_pk],
-            source_name=self.source_name,
-        ).get(actor_pk)
+        mapping_pk = getattr(actor, "legacy_mapping_id", actor_pk)
+        mapping = (
+            actor_source_mapping_service.get_actor_source_mappings(
+                actor_ids=[mapping_pk],
+                source_name=self.source_name,
+            ).get(mapping_pk)
+            if mapping_pk is not None
+            else None
+        )
         if mapping is not None and mapping.source_actor_slug:
             records = self._call_get_model_videos(
                 jable=jable,
@@ -306,7 +337,12 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         )
 
     def search_genre_items(
-        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        genre: Genre | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
         _ = ordering
         jable = self._get_jable_source()
@@ -317,10 +353,15 @@ class JableExternalSourceAdapter(ExternalSourceAdapter):
         if genre_pk is None:
             return []
 
-        mapping = genre_source_mapping_service.get_genre_source_mappings(
-            genre_ids=[genre_pk],
-            source_name=self.source_name,
-        ).get(genre_pk)
+        mapping_pk = getattr(genre, "legacy_mapping_id", genre_pk)
+        mapping = (
+            genre_source_mapping_service.get_genre_source_mappings(
+                genre_ids=[mapping_pk],
+                source_name=self.source_name,
+            ).get(mapping_pk)
+            if mapping_pk is not None
+            else None
+        )
         if mapping is None or not mapping.source_genre_slug:
             return self._normalize_items(
                 self._call_search(
@@ -460,12 +501,22 @@ class MissAVExternalSourceAdapter(ExternalSourceAdapter):
             raise ValueError("MissAV supports descending views, likes and latest only")
 
     def search_actor_items(
-        self, *, actor: Actor, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        actor: Actor | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
-        mapping = actor_source_mapping_service.get_actor_source_mappings(
-            actor_ids=[cast(int, actor.pk)],
-            source_name=self.source_name,
-        ).get(cast(int, actor.pk))
+        mapping_pk = getattr(actor, "legacy_mapping_id", actor.pk)
+        mapping = (
+            actor_source_mapping_service.get_actor_source_mappings(
+                actor_ids=[mapping_pk],
+                source_name=self.source_name,
+            ).get(mapping_pk)
+            if mapping_pk is not None
+            else None
+        )
         term = (
             mapping.source_actor_slug
             if mapping and mapping.source_actor_slug
@@ -475,12 +526,22 @@ class MissAVExternalSourceAdapter(ExternalSourceAdapter):
         return self._search(kind, term, page, ordering, force_refresh)
 
     def search_genre_items(
-        self, *, genre: Genre, page: int, ordering: str, force_refresh: bool = False
+        self,
+        *,
+        genre: Genre | CatalogEntity,
+        page: int,
+        ordering: str,
+        force_refresh: bool = False,
     ) -> list[dict]:
-        mapping = genre_source_mapping_service.get_genre_source_mappings(
-            genre_ids=[cast(int, genre.pk)],
-            source_name=self.source_name,
-        ).get(cast(int, genre.pk))
+        mapping_pk = getattr(genre, "legacy_mapping_id", genre.pk)
+        mapping = (
+            genre_source_mapping_service.get_genre_source_mappings(
+                genre_ids=[mapping_pk],
+                source_name=self.source_name,
+            ).get(mapping_pk)
+            if mapping_pk is not None
+            else None
+        )
         term = (
             mapping.source_genre_slug
             if mapping and mapping.source_genre_slug
@@ -626,22 +687,29 @@ class ExternalSearchService:
             return self.for_user(user_id).search_actor_detail(**arguments)
         from nassav.account_policy import catalog_resource_filter
 
-        actor = (
-            Actor.objects.annotate(
-                resource_count=Count(
-                    "resources", filter=catalog_resource_filter(user_id)
+        from nassav.library_catalog import enabled
+
+        if user_id is not None and enabled(user_id):
+            from nassav.catalog_presentation import external_entity
+
+            actor = external_entity(user_id, "actor", actor_id)
+        else:
+            actor = (
+                Actor.objects.annotate(
+                    resource_count=Count(
+                        "resources", filter=catalog_resource_filter(user_id)
+                    )
                 )
+                .filter(pk=actor_id)
+                .first()
             )
-            .filter(pk=actor_id)
-            .first()
-        )
         if actor is None:
             raise Actor.DoesNotExist
         actor_pk = self._model_pk_or_zero(actor)
 
         result = self._search_items(
             entity_type="actor",
-            entity_id=actor_pk,
+            entity_id=getattr(actor, "search_identity", actor_pk),
             source_name=source_name,
             page=page,
             page_size=page_size,
@@ -692,22 +760,29 @@ class ExternalSearchService:
             return self.for_user(user_id).search_genre_detail(**arguments)
         from nassav.account_policy import catalog_resource_filter
 
-        genre = (
-            Genre.objects.annotate(
-                resource_count=Count(
-                    "resources", filter=catalog_resource_filter(user_id)
+        from nassav.library_catalog import enabled
+
+        if user_id is not None and enabled(user_id):
+            from nassav.catalog_presentation import external_entity
+
+            genre = external_entity(user_id, "genre", genre_id)
+        else:
+            genre = (
+                Genre.objects.annotate(
+                    resource_count=Count(
+                        "resources", filter=catalog_resource_filter(user_id)
+                    )
                 )
+                .filter(pk=genre_id)
+                .first()
             )
-            .filter(pk=genre_id)
-            .first()
-        )
         if genre is None:
             raise Genre.DoesNotExist
         genre_pk = self._model_pk_or_zero(genre)
 
         result = self._search_items(
             entity_type="genre",
-            entity_id=genre_pk,
+            entity_id=getattr(genre, "search_identity", genre_pk),
             source_name=source_name,
             page=page,
             page_size=page_size,
@@ -749,7 +824,7 @@ class ExternalSearchService:
         self,
         *,
         entity_type: str,
-        entity_id: int,
+        entity_id: int | str,
         source_name: str,
         page: int,
         page_size: int,

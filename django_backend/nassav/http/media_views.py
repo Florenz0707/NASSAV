@@ -22,6 +22,12 @@ class ActorAvatarView(SchemaAPIView):
     """GET /api/actors/<int:actor_id>/avatar - 返回演员头像图片"""
 
     def get(self, request, actor_id):
+        from nassav.library_catalog import enabled
+
+        if enabled(request.user.pk):
+            from nassav.http.version_media import catalog_avatar_response
+
+            return catalog_avatar_response(request, actor_id)
         from pathlib import Path
 
         from django.conf import settings

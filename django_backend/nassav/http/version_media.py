@@ -21,3 +21,44 @@ def image_response(request, entry, asset_id=None):
     except BaseException:
         handle.close()
         raise
+
+
+def catalog_avatar_response(request, term_id):
+    from django.http import HttpResponseRedirect
+    from nassav.catalog_projection import own_term, name_key
+    from nassav.catalog_presentation import avatar_urls
+    from nassav.library_catalog import held_entries
+    from nassav.library_membership import LibraryNotFound
+    from nassav.models import Actor
+
+    term = own_term(request.user.pk, "actor", term_id)
+    url = avatar_urls(request.user.pk, [term]).get(term.pk)
+    if url and "/library/entries/" in url:
+        response = HttpResponseRedirect(url)
+        response["Cache-Control"] = "private, no-store"
+        response["Vary"] = "Cookie"
+        return response
+    legacy_ids = (
+        held_entries(request.user.pk)
+        .filter(current_version__isnull=True, catalog_links__term=term)
+        .values_list("pool__resource_id", flat=True)
+    )
+    actor = next(
+        (
+            row
+            for row in Actor.objects.filter(resources__pk__in=legacy_ids).distinct()
+            if name_key(row.name) == term.name_key and row.avatar_filename
+        ),
+        None,
+    )
+    if actor is None:
+        raise LibraryNotFound("Avatar not available")
+    handle = composition.build_legacy_avatar_reader()(actor.avatar_filename)
+    try:
+        response = FileResponse(handle, content_type="image/jpeg")
+        response["Cache-Control"] = "private, no-store"
+        response["Vary"] = "Cookie"
+        return response
+    except BaseException:
+        handle.close()
+        raise

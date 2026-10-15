@@ -282,6 +282,10 @@ def list_entries(user_id, params, *, include_pending=False):
     for param, relation in (("actor", "actors"), ("genre", "genres")):
         value = params.get(param)
         if value:
+            if str(value).isdigit():
+                from nassav.catalog_projection import own_term
+
+                value = own_term(user_id, param, int(value)).name
             rows = rows.filter(
                 Q(
                     state="active",

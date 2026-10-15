@@ -19,6 +19,7 @@ from nassav.external_search import (
     project_library_presence,
 )
 from nassav.models import Actor, Genre
+from nassav.library_membership import LibraryNotFound
 from nassav.scrape_jobs import JobStore, RedisJobStore
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 
@@ -97,7 +98,14 @@ def validate_search_query(query: dict, *, user_id=None) -> dict:
         raise ValueError("搜索类型必须是 actor 或 genre")
     entity_id = int(query["entity_id"])
     model = Actor if entity == "actor" else Genre
-    if not model.objects.filter(pk=entity_id).exists():
+    from nassav.library_catalog import enabled
+
+    scoped = user_id is not None and enabled(user_id)
+    if scoped:
+        from nassav.catalog_projection import own_term
+
+        own_term(user_id, entity, entity_id)
+    elif not model.objects.filter(pk=entity_id).exists():
         raise model.DoesNotExist
     capability_rows = external_search_service.capabilities()
     source = str(query.get("source") or "").strip().lower()
@@ -127,7 +135,7 @@ def validate_search_query(query: dict, *, user_id=None) -> dict:
     force_refresh = query.get("force_refresh", False)
     if not isinstance(force_refresh, bool):
         raise ValueError("force_refresh 必须是布尔值")
-    return dict(
+    result = dict(
         entity_type=entity,
         entity_id=entity_id,
         source=source,
@@ -136,6 +144,9 @@ def validate_search_query(query: dict, *, user_id=None) -> dict:
         page_size=page_size,
         force_refresh=force_refresh,
     )
+    if scoped:
+        result["catalog_namespace"] = "owned-catalog-v1"
+    return result
 
 
 def _query_key(query: dict) -> str:
@@ -248,6 +259,25 @@ def submit_search_job(
     return snapshot, False
 
 
+def _check_catalog_namespace(snapshot):
+    from nassav.library_catalog import enabled
+
+    owner = snapshot.get("owner_id")
+    if owner is not None:
+        from nassav.account_policy import execution_epoch
+        from django.contrib.auth import get_user_model
+
+        if (
+            snapshot.get("owner_epoch") != execution_epoch(owner)
+            or not get_user_model().objects.filter(pk=owner, is_active=True).exists()
+        ):
+            raise SearchJobAccessExpired("账号状态已改变，请重新搜索")
+    query = snapshot.get("query", {})
+    expected = "owned-catalog-v1" if owner is not None and enabled(owner) else None
+    if query.get("catalog_namespace") != expected:
+        raise SearchJobAccessExpired("目录已切换，请重新搜索")
+
+
 def get_search_job(
     task_id: str,
     *,
@@ -257,6 +287,8 @@ def get_search_job(
 ) -> dict | None:
     store = store or RedisSearchJobStore()
     snapshot = store.get(task_id)
+    if snapshot:
+        _check_catalog_namespace(snapshot)
     if (
         snapshot
         and snapshot["state"] in {"queued", "running"}
@@ -339,7 +371,8 @@ def get_search_job(
 def cancel_search_job(task_id: str, *, store: JobStore | None = None) -> dict | None:
     """Persist cancellation before revoking delivery; the worker checks between pages."""
     store = store or RedisSearchJobStore()
-    snapshot = get_search_job(task_id, store=store)
+    # Cancellation does not reinterpret an entity ID or read a stored result.
+    snapshot = store.get(task_id)
     if snapshot is None or snapshot["state"] == "cancelled":
         return snapshot
     if snapshot["state"] in {"succeeded", "failed"}:
@@ -367,7 +400,7 @@ def cancel_search_job(task_id: str, *, store: JobStore | None = None) -> dict | 
 
 def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict | None:
     store = store or RedisSearchJobStore()
-    initial = get_search_job(task_id, store=store)
+    initial = store.get(task_id)
     if not initial or initial["state"] not in {"queued", "running"}:
         return initial
     snapshot: dict = initial
@@ -392,6 +425,10 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
     )
 
     def ensure_active() -> None:
+        try:
+            _check_catalog_namespace(snapshot)
+        except SearchJobAccessExpired:
+            raise SearchJobCancelled from None
         if settings.SOURCE_CREDENTIALS_ENABLED:
             from nassav.credential_crypto import CredentialUnavailable
 
@@ -500,7 +537,7 @@ def execute_search_job(task_id: str, *, store: JobStore | None = None) -> dict |
         code, message = "TIMEOUT", "搜索任务超时，请重试"
     except (SourceSearchError, SourceSearchUnavailable):
         code, message = "SOURCE_FETCH_FAILED", "外部源搜索失败，请稍后重试"
-    except (Actor.DoesNotExist, Genre.DoesNotExist):
+    except (Actor.DoesNotExist, Genre.DoesNotExist, LibraryNotFound):
         code, message = "ENTITY_NOT_FOUND", "搜索对象已不存在"
     except Exception:
         logger.exception("外部搜索任务失败 task_id={}", task_id)

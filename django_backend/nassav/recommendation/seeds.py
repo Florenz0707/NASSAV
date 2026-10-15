@@ -138,6 +138,14 @@ class LocalPreferenceSeedProvider(SeedProvider):
         only_interacted: bool = False,
         request: RecommendationRequest | None = None,
     ) -> list[RecommendationSeed]:
+        from nassav.library_catalog import enabled
+
+        if (
+            request is not None
+            and request.user_id is not None
+            and enabled(request.user_id)
+        ):
+            return self._owned_seeds(request, "actor", limit, only_interacted)
         queryset = self._annotated_queryset(
             Actor.objects, only_interacted=only_interacted, request=request
         )
@@ -160,6 +168,14 @@ class LocalPreferenceSeedProvider(SeedProvider):
         only_interacted: bool = False,
         request: RecommendationRequest | None = None,
     ) -> list[RecommendationSeed]:
+        from nassav.library_catalog import enabled
+
+        if (
+            request is not None
+            and request.user_id is not None
+            and enabled(request.user_id)
+        ):
+            return self._owned_seeds(request, "genre", limit, only_interacted)
         queryset = self._annotated_queryset(
             Genre.objects, only_interacted=only_interacted, request=request
         )
@@ -173,6 +189,46 @@ class LocalPreferenceSeedProvider(SeedProvider):
             limit=limit,
             request=request,
             seed_type="genre",
+        )
+
+    def _owned_seeds(self, request, kind, limit, only_interacted):
+        from nassav.catalog_projection import term_stats
+
+        rows = term_stats(request.user_id, kind, recent_days=self.recent_days)
+        if only_interacted:
+            rows = rows.filter(interacted_count__gt=0)
+        items = sorted(
+            rows,
+            key=lambda item: (
+                -self.preference_score_for_item(item),
+                -item.resource_count,
+                item.name,
+            ),
+        )
+        maximum = (
+            max((self.preference_score_for_item(item) for item in items), default=1)
+            or 1
+        )
+        seeds = [
+            RecommendationSeed(
+                seed_type=kind,
+                value=item.name,
+                weight=self.normalize_weight(
+                    self.preference_score_for_item(item), maximum
+                ),
+                source=f"local_{'interacted' if only_interacted else 'top'}_{kind}",
+                aliases=self._build_seed_aliases(seed_type=kind, value=item.name),
+                resource_count=item.resource_count,
+                preference_score=round(self.preference_score_for_item(item), 4),
+                lookup_payload={
+                    "catalog_term_id": item.pk,
+                    "namespace": "owned-catalog-v1",
+                },
+            )
+            for item in items
+        ]
+        return self.selector.select(
+            seeds=seeds, limit=limit, request=request, seed_type=kind
         )
 
     def _annotated_queryset(

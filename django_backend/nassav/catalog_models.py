@@ -9,6 +9,11 @@ from django.db import models
 class UserCatalogTerm(models.Model):
     if TYPE_CHECKING:
         user_id: int
+        resource_count: int
+        watched_count: int
+        favorite_count: int
+        recent_count: int
+        interacted_count: int
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     kind = models.CharField(max_length=16)
     name = models.CharField(max_length=256)

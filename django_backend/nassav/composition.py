@@ -484,6 +484,14 @@ def build_library_images():
     )
 
 
+def build_legacy_avatar_reader():
+    from functools import partial
+    from django.conf import settings
+    from nassav.version_image_files import open_legacy_image
+
+    return partial(open_legacy_image, settings.AVATAR_DIR)
+
+
 def build_translation_requests():
     from nassav.translation_requests import DjangoTranslationRequests
 

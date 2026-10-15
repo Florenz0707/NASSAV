@@ -201,3 +201,5 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 版本化来源播放使用本人元数据版本的冻结凭证引用与source_name，密钥可用性在创建事务外检查，创建/worker/媒体读取再次核查范围/账号代次。不得凭空共享私有引用、初始化无范围来源来替代检查，或以新Cookie复活旧元数据授权。新source进度key隔离scope/context，provider账本仍不证明字节相同。
 
 用户演员/类别目录以UserCatalogTerm/UserCatalogLink投影本人当前元数据持有，成功grant在user→pool事务批量同步；link不代表额外持有。不得用全局Actor/Genre的资源锚点关系代替版本事实，私有名称不全局提升；目录整数ID只是用户投影，外部搜索/推荐不得误当旧全局Actor/Genre ID。
+
+共享目录整数ID属于本人term，不当作旧全局Actor/Genre映射ID；外部搜索使用命名实体和独立cache/job namespace。推荐本地种子沿本人当前关系聚合，新lookup_payload不得冒充全局actor_id触发学习；名称黑名单按本人历史fence更新。旧目录句柄/账户epoch失效须在网络前终止。

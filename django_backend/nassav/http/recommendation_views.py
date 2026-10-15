@@ -148,6 +148,36 @@ class RecommendationFeedbackView(SchemaAPIView):
 class RecommendationSeedBlockView(SchemaAPIView):
     """POST/DELETE /api/recommendations/seed-block - 手动屏蔽或取消屏蔽 actor/genre"""
 
+    def _owned(self, request, payload, blocked):
+        from nassav.recommendation.seed_profiles import (
+            recommendation_seed_profile_repository,
+        )
+
+        try:
+            term, profile = recommendation_seed_profile_repository.for_user(
+                request.user.pk
+            ).set_catalog_block(
+                payload["seed_type"],
+                payload["id"],
+                blocked=blocked,
+                reason=payload.get("reason", "manual"),
+            )
+        except ValueError as error:
+            return build_response(400, str(error), None)
+        if profile is None:
+            return build_response(404, "屏蔽记录不存在", None)
+        return build_response(
+            200,
+            "success",
+            {
+                "seed_type": term.kind,
+                "id": term.pk,
+                "name": term.name,
+                "is_blocked": profile.is_blocked,
+                "block_reason": profile.block_reason,
+            },
+        )
+
     def post(self, request):
         from nassav.models import Actor, Genre
         from nassav.recommendation.seed_profiles import (
@@ -158,6 +188,11 @@ class RecommendationSeedBlockView(SchemaAPIView):
             payload = _parse_recommendation_seed_block_payload(request.data or {})
         except ValueError as e:
             return build_response(400, str(e), None)
+
+        from nassav.library_catalog import enabled
+
+        if enabled(request.user.pk):
+            return self._owned(request, payload, True)
 
         if payload["seed_type"] == "actor":
             try:
@@ -218,6 +253,11 @@ class RecommendationSeedBlockView(SchemaAPIView):
             payload = _parse_recommendation_seed_block_payload(request.data or {})
         except ValueError as e:
             return build_response(400, str(e), None)
+
+        from nassav.library_catalog import enabled
+
+        if enabled(request.user.pk):
+            return self._owned(request, payload, False)
 
         if payload["seed_type"] == "actor":
             try:

@@ -344,6 +344,13 @@ def permit_business_view(request, view):
             raise LibraryNotFound("Object not available")
         return True
     if name == "ActorAvatarView":
+        from nassav.library_catalog import enabled
+
+        if enabled(user.pk):
+            from nassav.catalog_projection import own_term
+
+            own_term(user.pk, "actor", view.kwargs.get("actor_id"))
+            return True
         from nassav.models import Actor
         from nassav.library_membership import LibraryNotFound
 

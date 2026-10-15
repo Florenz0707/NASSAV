@@ -169,3 +169,7 @@ useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代�
 回退0035移除个人归属；不同用户已有相同AVID黑名单或种子身份时主动拒绝回退，不自动丢数据恢复旧唯一约束。必须先备份并明确处理冲突；回退移除新增用户state行，旧活动job不复活。删除账号级联清理所属个人推荐状态。仍保留is_operator准入，不开放注册或普通用户共享资产/任务控制权限。
 
 新来源模式下按job当前用户构造独立source context，私有事实/详情与短期查询缓存按credential版本隔离；最终context.persist也受来源fence包裹，网络仍在短提交外。当前系统不将个人结果自动提升共享资产，详见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。
+
+## 共享库的本地推荐种子
+
+共享模式下LocalPreferenceSeedProvider从本人UserCatalogTerm/current link聚合资源、观看/收藏及最近持有数；不从AVResource锚点的旧全局Actor/Genre关系取种子。保持原weight/selector/黑名单算法。lookup_payload使用catalog_term_id/namespace，不冒充旧全局actor_id/genre_id；手动目录屏蔽在本人的历史fence内按规范名字写入，跨用户ID404。来源搜索以命名实体及独立cache namespace消费新目录，普通准入仍关闭。见[目录消费者](resource-version-architecture.md#用户目录消费者子阶段)。

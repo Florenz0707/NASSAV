@@ -11,10 +11,37 @@ from nassav.http_parameters import _parse_bool, _parse_positive_int
 from nassav.source.search_contracts import SourceSearchError, SourceSearchUnavailable
 
 
-class ActorsListView(SchemaAPIView):
+class CatalogView(SchemaAPIView):
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        from nassav.library_catalog import enabled
+        from django.utils.cache import patch_vary_headers
+
+        if enabled(request.user.pk):
+            response["Cache-Control"] = "private, no-store"
+            patch_vary_headers(response, ("Cookie",))
+        return response
+
+
+class ActorsListView(CatalogView):
     """GET /api/actors/ - 返回演员列表及每个演员的作品数，支持分页"""
 
     def get(self, request):
+        from nassav.library_catalog import enabled
+
+        if enabled(request.user.pk):
+            from nassav.catalog_presentation import list_terms
+
+            try:
+                data, pagination = list_terms(
+                    request.user.pk, "actor", request.query_params
+                )
+            except ValueError as error:
+                return build_response(400, str(error), None)
+            response = build_response(200, "success", data, pagination=pagination)
+            response["Cache-Control"] = "private, no-store"
+            response["Vary"] = "Cookie"
+            return response
         from django.core.paginator import Paginator
         from django.db.models import Count, Q
         from nassav.account_models import UserAccount
@@ -150,7 +177,7 @@ class ActorsListView(SchemaAPIView):
         return build_response(200, "success", data, pagination=pagination)
 
 
-class ActorDetailView(SchemaAPIView):
+class ActorDetailView(CatalogView):
     """GET /api/actors/<int:actor_id>/detail - 演员详情与外部源搜索结果"""
 
     def get(self, request, actor_id):
@@ -204,10 +231,25 @@ class ActorDetailView(SchemaAPIView):
         return build_response(200, "success", data, pagination=result.pagination)
 
 
-class GenresListView(SchemaAPIView):
+class GenresListView(CatalogView):
     """GET /api/genres/ - 返回类别列表及每个类别的作品数，支持分页"""
 
     def get(self, request):
+        from nassav.library_catalog import enabled
+
+        if enabled(request.user.pk):
+            from nassav.catalog_presentation import list_terms
+
+            try:
+                data, pagination = list_terms(
+                    request.user.pk, "genre", request.query_params
+                )
+            except ValueError as error:
+                return build_response(400, str(error), None)
+            response = build_response(200, "success", data, pagination=pagination)
+            response["Cache-Control"] = "private, no-store"
+            response["Vary"] = "Cookie"
+            return response
         from django.core.paginator import Paginator
         from django.db.models import Count, Q
         from nassav.account_models import UserAccount
@@ -336,7 +378,7 @@ class GenresListView(SchemaAPIView):
         return build_response(200, "success", data, pagination=pagination)
 
 
-class GenreDetailView(SchemaAPIView):
+class GenreDetailView(CatalogView):
     """GET /api/genres/<int:genre_id>/detail - 类别详情与外部源搜索结果"""
 
     def get(self, request, genre_id):

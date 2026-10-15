@@ -1620,3 +1620,11 @@ GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/a
 固定版本本地播放仍使用`POST /api/resources/{avid}/playback-sessions`的mode=local及原session/file Range/HEAD入口；共享模式绑定本人的video_version和账号代次，snapshot不增加源链接或内部路径。既有会话不跟随更新，新prepare/接续仍要求有效持有。源站凭证撤销不撤销合法静态下载资产；下架/角色代次变化阻断后续读取。私有来源在线准备继续实施，普通登录仍关闭。
 
 版本化来源播放仍使用原mode=source接口；server从本人current_version授权source/冻结凭证引用，不接受客户端owner/credential替代。Cookie变更后旧元数据prepare拒绝，刷新元数据后用新版本。私有范围的session状态不回显refs/Cookie/源URL；清单、密钥和分片按原登录/版本/范围授权并占用。源进度新key隔离scope/context，已有未版本化key不变。实现已隔离测试，真实来源账号/Celery验收仍待完成。
+
+## 未发布用户目录消费者
+
+共享模式及受管账户下，原actors/genres、detail/头像、resources actor/genre ID筛选以及recommendations/seed-block均解释为本人的UserCatalogTerm ID。整数ID不是旧Actor/Genre ID，跨用户/无当前关系404，不退回全局表。actors/genres分页1–100、受限排序/搜索、resource_count和is_blocked是本人当前版本/标记的投影；正式私有回应private/no-store、Vary Cookie。
+
+版本头像直接返回授权library/images地址；明确旧归属可通过actor/avatar读取旧图片，适配器拒绝路径逃逸和符号链接，不能凭另一个用户名猜测ID读取。黑名单按本人的种子名称保存，移出后的旧目录ID仍可由本人取消屏蔽，不操作同ID的全局对象。
+
+外部搜索输入entity_id沿本人的目录解析，Jable/MissAV在没有明确旧映射身份时按名称搜索；聚合缓存的owned-catalog-v1规范名称身份不与旧全局ID碰撞，命中仍重算本人库存。search job保存目录namespace，切换/账户epoch失效的旧句柄410，排队worker在网络前取消；取消旧请求只操作原记录，不再解释实体ID。普通多用户登录和目标来源/worker验收仍未开启。

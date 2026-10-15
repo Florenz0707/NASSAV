@@ -288,6 +288,33 @@ class RecommendationSeedProfileRepository:
 
     @retry_sqlite_contention
     @transaction.atomic
+    def set_catalog_block(self, kind, term_id, *, blocked, reason="manual"):
+        from .jobs import lock_history
+        from nassav.catalog_projection import own_term
+        from nassav.catalog_models import UserCatalogTerm
+        from nassav.library_membership import LibraryNotFound
+
+        lock_history(self.user_id)
+        if kind not in {"actor", "genre"} or type(blocked) is not bool:
+            raise ValueError("Invalid catalog block")
+        if blocked:
+            term = own_term(self.user_id, kind, term_id)
+            if len(term.name) > 255:
+                raise ValueError("Catalog name is too long for a recommendation seed")
+            profile = self._set_manual_block(
+                seed_type=kind, value=term.name, reason=reason
+            )
+        else:
+            term = UserCatalogTerm.objects.filter(
+                user_id=self.user_id, kind=kind, pk=term_id
+            ).first()
+            if term is None:
+                raise LibraryNotFound("Catalog object not available")
+            profile = self._clear_manual_block(seed_type=kind, value=term.name)
+        return term, profile
+
+    @retry_sqlite_contention
+    @transaction.atomic
     def block_actor(
         self,
         *,

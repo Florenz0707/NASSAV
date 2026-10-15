@@ -5,6 +5,7 @@ from rest_framework import serializers
 from nassav.api_utils import build_response
 from nassav.http_base import SchemaAPIView
 from nassav.models import Actor, Genre
+from nassav.library_membership import LibraryNotFound
 from nassav.search_jobs import (
     SearchJobAlreadyFinished,
     SearchJobAccessExpired,
@@ -53,7 +54,7 @@ class SearchJobSubmitView(SchemaAPIView):
             snapshot, duplicate = submit_search_job(
                 dict(serializer.validated_data), user_id=request.user.pk
             )
-        except (Actor.DoesNotExist, Genre.DoesNotExist):
+        except (Actor.DoesNotExist, Genre.DoesNotExist, LibraryNotFound):
             return build_response(404, "搜索对象不存在", None)
         except ValueError as error:
             return build_response(400, str(error), None)
