@@ -355,10 +355,18 @@ export const useResourceStore = defineStore('resource', () => {
     return resp
   }
 
-  async function batchDelete(avids = [], action = 'delete-all') {
+  async function batchDelete(avids = [], action = 'delete-all', evidence = null) {
     if (shared()) {
       if (action !== 'delete-all') throw new Error('共享资源仅支持移出本人的资源库')
-      const results = await libraryCommands.batch('release', avids)
+      const results = await libraryCommands.batch('release', avids, {
+        memberships:
+          evidence ||
+          Object.fromEntries(
+            resources.value
+              .filter((item) => avids.includes(item.avid))
+              .map((item) => [item.avid, item])
+          ),
+      })
       const succeeded = results.filter((item) => item.code >= 200 && item.code < 300)
       const failed = results.filter((item) => !succeeded.includes(item))
       const removed = new Set(succeeded.map((item) => item.avid))
@@ -394,10 +402,10 @@ export const useResourceStore = defineStore('resource', () => {
     return { succeeded, failed }
   }
 
-  async function removeAsset(avid, action) {
+  async function removeAsset(avid, action, membership = null) {
     if (shared()) {
       if (action !== 'delete') throw new Error('共享资源仅支持移出本人的资源库')
-      const response = await libraryCommands.execute('release', avid)
+      const response = await libraryCommands.execute('release', avid, { membership })
       resources.value = resources.value.filter((item) => item.avid !== avid)
       return response
     }

@@ -46,3 +46,9 @@ uv run python manage.py import_resource_library --username <配置中的原操�
 ## 执行记录
 
 基线8139061；独立分支`feat/resource-pool-membership`；阶段提交标题`[Feat] Add shared resource pool membership foundation`。SQLite/Pg专项命令为`uv run pytest tests/test_library_membership.py tests/test_library_migration.py --ds=<隔离设置> -v`，SQLite隔离设置为django_project.refactoring_test_settings，PostgreSQL临时设置基于相同无凭证配置仅覆盖一次性socket数据库；各12项通过，退出码0。完整SQLite门槛`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`：1019 passed、28在线项目skipped，退出码0；`makemigrations --check --dry-run`：No changes detected，退出码0。根`pre-commit run -a`修正格式和动态关联类型注解后重跑；完整门槛通过才提交合并idle。钩子配置未改，已有实例/正式worker/媒体未迁移或联调。
+
+## 当前本人持有管理（P7）
+
+上文P1描述的是基础阶段接口；当前已接入的命令/版本/回收进度见[执行计划](multi-user-shared-pool-plan.md)。`library_catalog.held_entries`仍只投影可读取产物；不能为管理不可用持有而放宽其过滤，避免标题、封面、个人字段或筛选侧信道泄露。
+
+`list_memberships`是独立只读管理投影，按user_id查询原UserLibraryEntry，包含pending和不可用池，但仅返回编号、关系UUID/version、粗粒度池可用性与时间。搜索仅匹配编号；可用标记不授予媒体权限。HTTP受共享模式/操作者/管理账号准入保护，普通多账号仍关闭。释放沿现有持久命令/配额/GC协议，前端冻结确认时的关系证据；旧确认不能自动移出重新添加的新UUID。无新表或schema迁移。

@@ -1,6 +1,7 @@
 import api from './client.js'
 
 export const libraryApi = {
+  listMemberships: (params) => api.get('/library/memberships', { params }),
   addEntry: (body) => api.post('/library/entries', body),
   releaseEntry: (id, body) =>
     api.delete(`/library/entries/${encodeURIComponent(id)}`, { data: body }),

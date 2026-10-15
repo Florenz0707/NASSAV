@@ -141,12 +141,23 @@ def main():
                     original_title="共享库命令隔离验收",
                     file_exists=False,
                 )
+                AVResource.objects.create(
+                    avid="LIBRARY-UNAVAILABLE",
+                    source="Jable",
+                    original_title="unavailable-facts-must-not-be-disclosed",
+                    file_exists=False,
+                )
                 call_command(
                     "import_resource_library",
                     username=user.username,
                     apply=True,
                     verbosity=0,
                 )
+                from nassav.library_models import ResourcePoolEntry
+
+                ResourcePoolEntry.objects.filter(
+                    canonical_avid="LIBRARY-UNAVAILABLE"
+                ).update(is_available=False)
             operations = SharedOperations(composition.build_operation_records())
             other = get_user_model().objects.create_user(username="operation-other")
             UserAccount.objects.create(user=other, role="user")

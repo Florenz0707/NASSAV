@@ -379,3 +379,9 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 基线0046f88，分支feat/shared-remote-library-state：推荐/外部卡片从本人关系获取状态，挂载合批、可见页面唯一计时器、失效/重试/卸载与长列表保留；添加能力不被恢复的旧added集合拦截。封面object URL按登录/库失效同步撤销，旧成功/错误/回退与组件旧版本不能重新发布。本阶段不改变后端协议或来源图片授权；本人结果图片句柄、管理UI与P8继续，普通准入保持关闭。
 
 远程卡片子阶段隔离验收（2026-10-15）：Chrome/Firefox通过生产RemoteLibraryActions与真实临时HTTP/SQLite的合批查询、忽略旧added、pending查看请求、定时发现本人撤销（他人需求保留）、网络故障重试与最后卸载停止计时器。仅测试宿主HTML与浏览器时钟受控，接口和持有变更真实，不等同完整推荐/外部抓取或跨用户准入验收。单元覆盖长列表保留/裁剪、旧注册不清新登录计时器、object URL撤销/并发/迟到错误回退及旧added提交护栏；完整前端与提交门槛通过后提交。
+
+### P7本人持有管理子阶段
+
+基线aa5b6c2，分支feat/library-membership-management：独立有界本人关系列表包含不可用/pending，保持正式资源过滤、不返回元数据；资源库弹窗提供单项/当前页批量移出。补强渲染关系CAS，旧行不能自动移出重新添加的新UUID；旧未知命令仍幂等重放。演员/类别批量入口同步本人移出语义并正确保留部分失败。无schema变更，管理UI/本人结果图片句柄及P8继续。
+
+本人持有管理最终隔离门槛（2026-10-15）：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`为1303 passed/28 skipped；临时PostgreSQL管理/状态/配额专项31 passed。Chrome与Firefox真实HTTP/临时SQLite/Redis通过不可用行元数据不披露/释放、嵌套Escape、另一设备释放再添加后的旧行CAS拒绝、当前页批量移出，以及窄屏/深浅/焦点/滚动恢复。只读核查他人持有、原AVResource与合成MP4仍保留。前端新增查询乱序/卸载、缺失结果计数和旧关系保护回归，完整`pnpm run check`与`pre-commit run -a`通过后提交；未触及实例/真实来源worker或自动GC。

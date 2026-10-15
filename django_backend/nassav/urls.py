@@ -37,6 +37,7 @@ from nassav.http.credential_views import (
 from nassav.http.library_views import (
     LibraryEntriesView,
     LibraryMembershipStatusView,
+    LibraryMembershipsView,
     LibraryEntryView,
     LibraryEntryOperationsView,
     LibraryEntryImageView,
@@ -104,6 +105,11 @@ urlpatterns = [
         name="admin-gc-retry",
     ),
     path("api/my-operations", MyOperationsView.as_view(), name="my-operations"),
+    path(
+        "api/library/memberships",
+        LibraryMembershipsView.as_view(),
+        name="library-memberships",
+    ),
     path("api/library/entries", LibraryEntriesView.as_view(), name="library-entries"),
     path(
         "api/library/entries/status",

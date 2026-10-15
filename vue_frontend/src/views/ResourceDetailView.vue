@@ -176,7 +176,13 @@ function goBack() {
 
 // 处理删除菜单选项
 function handleDeleteOption(option) {
-  pendingDeleteAction.value = option
+  pendingDeleteAction.value = {
+    ...option,
+    membership: {
+      entry_id: metadata.value?.entry_id,
+      entry_version: metadata.value?.entry_version,
+    },
+  }
   showConfirmDialog.value = true
 }
 
@@ -191,7 +197,7 @@ async function confirmDelete() {
       toastStore.success('视频文件已删除')
       await fetchMetadata() // 刷新元数据以更新状态
     } else {
-      await resourceStore.removeAsset(avid.value, 'delete')
+      await resourceStore.removeAsset(avid.value, 'delete', action.membership)
       toastStore.success(shared.value ? '已移出我的资源库' : '资源已删除')
       // 删除后返回上一页
       setTimeout(() => router.back(), 500)

@@ -125,6 +125,11 @@ def test_url_and_openapi_contract_remains_identical():
             "AdminGcRetryView",
         ],
         ["nassav/api/my-operations", "my-operations", "MyOperationsView"],
+        [
+            "nassav/api/library/memberships",
+            "library-memberships",
+            "LibraryMembershipsView",
+        ],
         ["nassav/api/library/entries", "library-entries", "LibraryEntriesView"],
         [
             "nassav/api/library/entries/status",
@@ -250,6 +255,7 @@ def test_url_and_openapi_contract_remains_identical():
         "/nassav/api/admin/resource-gc-jobs/{job_id}/retry": {"post"},
         "/nassav/api/library/entries/{entry_id}/images/{asset_id}": {"get"},
         "/nassav/api/my-operations": {"get"},
+        "/nassav/api/library/memberships": {"get"},
         "/nassav/api/library/entries": {"get", "post"},
         "/nassav/api/library/entries/status": {"post"},
         "/nassav/api/library/entries/{entry_id}": {"get", "delete"},

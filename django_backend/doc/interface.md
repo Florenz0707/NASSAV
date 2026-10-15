@@ -1665,3 +1665,9 @@ capabilities中的shared_library、personal_source_credentials、app_admin、res
 ### 本人持有关系批量状态
 
 `POST /api/library/entries/status`仅接受`{"avids": ["ABC-123"]}`，最多100项，规范化并按首次出现去重；空列表返回空数组。沿用共享库准入、CSRF和private/no-store、Vary Cookie。一次本人关系查询返回avid、entry_id、entry_version、membership_state、is_in_my_library、is_available；pending也属于本人库，is_available只表示池可用且状态允许读取，不授予媒体权限。未持有时关系字段为null、两个标记为false，无法区分不存在与他人独占。无标题/凭证/全局库存信息，不接受owner覆盖。前端命令仍用当前entry版本执行CAS。
+
+### 本人持有管理列表
+
+`GET /api/library/memberships`沿共享库准入，仅查询request.user的持有，包括pending、池下架和暂不可读关系；不放宽正式资源/媒体查询。返回avid、entry_id、entry_version、membership_state、is_in_my_library、is_available及created_at/updated_at，不返回标题、来源事实、图片、个人备注或其他用户数据。is_available仅指池状态，不授予媒体读取权。
+
+参数白名单为page（正整数）、page_size（1–100）、ordering（-created_at或-updated_at）、state（active/pending或空）、availability（available/unavailable或空）、search（最长64字符，仅检索AVID）。排序附加UUID保证稳定分页；拒绝owner和其他未知字段。响应含pagination且private/no-store、Vary Cookie。释放继续使用原DELETE /library/entries/{uuid}协议；管理列表不提供直接删文件能力。不可用关系可释放，跨用户UUID仍404。

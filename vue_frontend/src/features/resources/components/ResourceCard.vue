@@ -142,7 +142,10 @@ const deleteOptions = computed(() =>
 )
 
 function handleDeleteOption(option) {
-  pendingDeleteOption.value = option
+  pendingDeleteOption.value = {
+    ...option,
+    membership: { entry_id: props.resource.entry_id, entry_version: props.resource.entry_version },
+  }
   showConfirmDialog.value = true
 }
 
@@ -157,7 +160,7 @@ async function confirmDelete() {
       toastStore.success('视频文件已删除')
       emit('deleteFile', props.resource.avid)
     } else {
-      await resourceStore.removeAsset(props.resource.avid, 'delete')
+      await resourceStore.removeAsset(props.resource.avid, 'delete', option.membership)
       toastStore.success(shared.value ? '已移出我的资源库' : '资源已删除')
       emit('delete', props.resource.avid)
     }

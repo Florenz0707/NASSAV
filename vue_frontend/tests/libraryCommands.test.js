@@ -207,3 +207,23 @@ test('unknown membership and pending refresh cannot send mutations; batches pres
   commands.memberships.errors.set('AV-3', 'status offline')
   await assert.rejects(commands.execute('release', 'AV-3'), /status offline/)
 })
+
+test('a stale rendered holding cannot remove a newly re-added relation of the same AVID', async () => {
+  let deletes = 0
+  const commands = setup(
+    {
+      releaseEntry: async () => {
+        deletes++
+        return { code: 200, data: {} }
+      },
+    },
+    { ...entry(5), entry_id: 'new-entry' }
+  )
+  await assert.rejects(
+    commands.execute('release', 'AV-1', { membership: entry(2) }),
+    (error) => error.httpStatus === 409 && error.code === 'membership_version_conflict'
+  )
+  assert.equal(deletes, 0)
+  await commands.execute('release', 'AV-1', { membership: { ...entry(5), entry_id: 'new-entry' } })
+  assert.equal(deletes, 1)
+})

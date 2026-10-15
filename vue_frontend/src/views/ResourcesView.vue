@@ -1,4 +1,6 @@
 <script setup>
+import { libraryBatchOutcome } from '../features/library/lib/batchResults.js'
+import LibraryMembershipsDialog from '../features/library/components/LibraryMembershipsDialog.vue'
 import { useSessionStore } from '../features/auth/stores/session.js'
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
@@ -18,6 +20,11 @@ const resourceStore = useResourceStore()
 const shared = computed(() => Boolean(useSessionStore().capabilities.shared_library))
 const toastStore = useToastStore()
 
+function closeMemberships() {
+  showMemberships.value = false
+  fetchResourceList().catch(() => {})
+}
+const showMemberships = ref(false)
 const selectedAvids = ref(new Set())
 const batchLoading = ref(false)
 const batchBusyAction = ref('')
@@ -88,24 +95,30 @@ async function handleBatchRefresh() {
 }
 
 function summarizeBatch(response, avids, label) {
-  const results = response?.data?.results || []
-  const accepted = new Set(
-    results.filter((item) => item.code >= 200 && item.code < 300).map((item) => item.avid)
-  )
-  const failed = avids.filter((avid) => !accepted.has(avid))
-  selectedAvids.value = new Set(failed)
+  const { accepted, failed } = libraryBatchOutcome(response, avids)
+  selectedAvids.value = new Set(failed.map((item) => item.avid))
   if (failed.length)
     toastStore.error(
-      `${label}请求：已接受 ${accepted.size} 个，失败 ${failed.length} 个；保留失败项供重试`
+      `${label}请求：已接受 ${accepted.length} 个，失败 ${failed.length} 个；保留失败项供重试`
     )
-  else toastStore.success(`已接受 ${accepted.size} 个${label}请求`)
+  else toastStore.success(`已接受 ${accepted.length} 个${label}请求`)
 }
 
 const showBatchDeleteConfirm = ref(false)
 const batchDeleteAction = ref(null)
+const pendingBatch = ref({ avids: [], memberships: {} })
 
 function handleBatchDelete() {
   if (selectedAvids.value.size === 0) return
+  const avids = [...selectedAvids.value]
+  pendingBatch.value = {
+    avids,
+    memberships: Object.fromEntries(
+      resourceStore.resources
+        .filter((row) => avids.includes(row.avid))
+        .map((row) => [row.avid, { entry_id: row.entry_id, entry_version: row.entry_version }])
+    ),
+  }
   showBatchDeleteConfirm.value = true
 }
 
@@ -115,8 +128,11 @@ async function confirmBatchDelete(action) {
   showBatchDeleteConfirm.value = false
   batchLoading.value = true
   try {
-    const avids = Array.from(selectedAvids.value)
-    const { succeeded, failed } = await resourceStore.batchDelete(avids, action)
+    const { succeeded, failed } = await resourceStore.batchDelete(
+      pendingBatch.value.avids,
+      action,
+      pendingBatch.value.memberships
+    )
     const actionText = shared.value
       ? '移出我的资源库'
       : action === 'delete-video'
@@ -381,6 +397,10 @@ function onPageSizeChange(newSize) {
       <h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
         {{ shared ? '我的资源库' : '资源库' }}
       </h1>
+      <AppButton v-if="shared" variant="neutral" class="mb-4" @click="showMemberships = true"
+        >管理持有</AppButton
+      >
+      <LibraryMembershipsDialog v-if="shared && showMemberships" @close="closeMemberships" />
       <!-- Results Info -->
       <div v-if="!resourceStore.loading" class="mb-6 text-[var(--text-muted)] text-sm">
         <span>管理您的 {{ resourceStore.pagination.total }} 个资源</span>
@@ -419,7 +439,7 @@ function onPageSizeChange(newSize) {
       :title="shared ? '批量移出我的资源库' : '批量删除资源'"
       :message="
         shared
-          ? `移出所选 ${selectedAvids.size} 个本人的资源？其他用户仍持有时共享资源保留。`
+          ? `移出所选 ${pendingBatch.avids.length} 个本人的资源？其他用户仍持有时共享资源保留。`
           : `即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`
       "
       type="danger"

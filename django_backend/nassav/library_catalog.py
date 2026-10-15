@@ -331,29 +331,37 @@ def list_entries(user_id, params, *, include_pending=False):
     }
 
 
+_MEMBERSHIP_FIELDS = (
+    "pk",
+    "version",
+    "state",
+    "pool__canonical_avid",
+    "pool__is_available",
+    "pool__state",
+)
+
+
+def _membership_snapshot(row):
+    return {
+        "avid": row["pool__canonical_avid"],
+        "entry_id": str(row["pk"]),
+        "entry_version": row["version"],
+        "membership_state": row["state"],
+        "is_in_my_library": True,
+        "is_available": row["pool__is_available"]
+        and row["pool__state"] in {"ready", "preparing"},
+    }
+
+
 def membership_statuses(user_id, avids):
     """One bounded owner query; absence never exposes global inventory."""
     if len(avids) > 100:
         raise ValueError("At most 100 resource identities")
     entries = {
-        row["pool__canonical_avid"]: {
-            "entry_id": str(row["pk"]),
-            "entry_version": row["version"],
-            "membership_state": row["state"],
-            "is_in_my_library": True,
-            "is_available": row["pool__is_available"]
-            and row["pool__state"] in {"ready", "preparing"},
-        }
+        row["pool__canonical_avid"]: _membership_snapshot(row)
         for row in UserLibraryEntry.objects.filter(
             user_id=user_id, pool__canonical_avid__in=avids
-        ).values(
-            "pk",
-            "version",
-            "state",
-            "pool__canonical_avid",
-            "pool__is_available",
-            "pool__state",
-        )
+        ).values(*_MEMBERSHIP_FIELDS)
     }
     absent = {
         "entry_id": None,
@@ -362,4 +370,67 @@ def membership_statuses(user_id, avids):
         "is_in_my_library": False,
         "is_available": False,
     }
-    return [{"avid": avid, **entries.get(avid, absent)} for avid in avids]
+    return [entries.get(avid, {"avid": avid, **absent}) for avid in avids]
+
+
+def list_memberships(user_id, params):
+    """Manage own holdings even while assets cannot be read; never project facts."""
+    if set(params) - {
+        "page",
+        "page_size",
+        "ordering",
+        "state",
+        "search",
+        "availability",
+    }:
+        raise ValueError("Unknown membership query fields")
+    try:
+        page, size = int(params.get("page", 1)), int(params.get("page_size", 20))
+    except (TypeError, ValueError):
+        raise ValueError("Invalid pagination") from None
+    ordering = params.get("ordering", "-created_at")
+    if (
+        page < 1
+        or not 1 <= size <= 100
+        or ordering not in {"-created_at", "-updated_at"}
+    ):
+        raise ValueError("Invalid membership pagination/order")
+    rows = UserLibraryEntry.objects.filter(user_id=user_id)
+    state = params.get("state", "")
+    if state:
+        if state not in {"active", "pending"}:
+            raise ValueError("Invalid membership state")
+        rows = rows.filter(state=state)
+    search = str(params.get("search", "")).strip()
+    if len(search) > 64:
+        raise ValueError("Resource identity search is too long")
+    if search:
+        rows = rows.filter(pool__canonical_avid__icontains=search)
+    availability = params.get("availability", "")
+    if availability:
+        if availability not in {"available", "unavailable"}:
+            raise ValueError("Invalid membership availability")
+        condition = Q(pool__is_available=True, pool__state__in=["ready", "preparing"])
+        rows = (
+            rows.filter(condition)
+            if availability == "available"
+            else rows.exclude(condition)
+        )
+    rows = rows.order_by(ordering, "-pk").values(
+        *_MEMBERSHIP_FIELDS, "created_at", "updated_at"
+    )
+    paginator = Paginator(rows, size)
+    selected = paginator.get_page(page)
+    return [
+        {
+            **_membership_snapshot(row),
+            "created_at": row["created_at"].isoformat(),
+            "updated_at": row["updated_at"].isoformat(),
+        }
+        for row in selected.object_list
+    ], {
+        "total": paginator.count,
+        "page": selected.number,
+        "page_size": size,
+        "pages": paginator.num_pages,
+    }

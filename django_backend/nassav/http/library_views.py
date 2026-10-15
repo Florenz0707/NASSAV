@@ -254,3 +254,11 @@ class LibraryMembershipStatusView(LibraryAPIView):
         return build_response(
             200, "success", membership_statuses(request.user.pk, avids)
         )
+
+
+class LibraryMembershipsView(LibraryAPIView):
+    def get(self, request):
+        from nassav.library_catalog import list_memberships
+
+        data, pagination = list_memberships(request.user.pk, request.query_params)
+        return build_response(200, "success", data, pagination=pagination)

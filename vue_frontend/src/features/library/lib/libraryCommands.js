@@ -14,7 +14,11 @@ export function createLibraryCommands(
     commands.clear()
     pending.clear()
   }
-  function execute(action, avid, { source = '', credential_mode = 'public' } = {}) {
+  function execute(
+    action,
+    avid,
+    { source = '', credential_mode = 'public', membership = null } = {}
+  ) {
     avid = String(avid || '')
       .trim()
       .toUpperCase()
@@ -27,7 +31,14 @@ export function createLibraryCommands(
       (!source || source === 'any' || !['public', 'personal'].includes(credential_mode))
     )
       return Promise.reject(new Error('请选择明确来源和凭证范围'))
-    const key = JSON.stringify([action, avid, source, credential_mode])
+    const key = JSON.stringify([
+      action,
+      avid,
+      source,
+      credential_mode,
+      membership?.entry_id,
+      membership?.entry_version,
+    ])
     if (pending.has(key)) return pending.get(key)
     const current = epoch
     const operation = Promise.resolve().then(async () => {
@@ -40,6 +51,15 @@ export function createLibraryCommands(
           if (memberships.errors.has(avid)) throw new Error(memberships.errors.get(avid))
           const entry = memberships.get(avid)
           if (!entry) throw new Error('无法确认本人的持有状态，请重试')
+          if (
+            membership &&
+            (membership.entry_id !== entry.entry_id ||
+              membership.entry_version !== entry.entry_version)
+          )
+            throw Object.assign(new Error('持有关系已变化，请刷新列表后重试'), {
+              httpStatus: 409,
+              code: 'membership_version_conflict',
+            })
           if (
             action !== 'add' &&
             (!entry.is_in_my_library ||
@@ -100,7 +120,10 @@ export function createLibraryCommands(
     for (const avid of identities) {
       if (current !== epoch) throw obsolete()
       try {
-        const response = await execute(action, avid, options)
+        const response = await execute(action, avid, {
+          ...options,
+          membership: options.memberships?.[avid] || options.membership,
+        })
         results.push({ avid, code: response.code || 200, data: response.data })
       } catch (error) {
         if (current !== epoch) throw obsolete()
