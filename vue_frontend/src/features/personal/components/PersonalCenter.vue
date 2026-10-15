@@ -53,6 +53,13 @@ async function logout() {
           >{{ section.label }}</AppButton
         >
         <AppButton
+          v-if="session.capabilities.app_admin"
+          variant="neutral"
+          class="lg:w-full whitespace-nowrap"
+          @click="router.push({ name: 'Management', params: { section: 'accounts' } })"
+          >管理中心</AppButton
+        >
+        <AppButton
           variant="neutral"
           class="lg:w-full whitespace-nowrap"
           :loading="exiting"

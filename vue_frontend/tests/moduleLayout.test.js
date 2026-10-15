@@ -54,6 +54,7 @@ test('API barrel preserves object identity and domain requests share envelope ha
     Object.keys(api).sort(),
     [
       'actorApi',
+      'adminApi',
       'authApi',
       'downloadApi',
       'externalSearchApi',

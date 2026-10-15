@@ -194,3 +194,5 @@ GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一
 共享库命令联调在上述fixture另设置`NASSAV_LIBRARY_UI_TEST_FIXTURE=1`，仅将合成资源（含不可用样例）导入明确临时操作者，并将该测试账号活动请求配额设为8以容纳预置订阅。使用打印的state运行前端`NASSAV_LIBRARY_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4188 node tests/browser/libraryCommands.cjs`。覆盖个人凭证缺失403不回退、明确公共添加/刷新/下载、未提交关闭、本人移出，以及真实HTTP执行后故意丢弃一次响应、再次操作复用同一CAS/request UUID。每次运行需新fixture；这是可重复故障注入，不启动真实来源worker。
 
 本人持有管理复用上述一次性库fixture，运行前端`NASSAV_LIBRARY_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4188 node tests/browser/libraryMemberships.cjs`。测试会移出不可用样例、模拟另一设备重新持有同编号，再验证旧行CAS拒绝以及当前页批量移出；每次需新fixture。不查看或写入实例数据、不启动来源worker。
+
+管理员账号界面复用上述明确临时管理员fixture：前端运行`NASSAV_LIBRARY_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4188 node tests/browser/adminAccounts.cjs`。会创建一次性账号、调整配额/角色、撤销会话、重置密码、停用/启用测试用户，并验证最后管理员保护和多账号登录仍关闭。实际执行密码重置后丢弃一次HTTP响应，重试复用原request UUID；只检查脱敏审计，不记录密码。每轮使用新fixture，退出服务自动删除临时账户/数据库/keyring/Redis。

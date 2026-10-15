@@ -71,3 +71,5 @@ features/library/lib/libraryCommands.js维护命令幂等、持有CAS、结果�
 features/library/components/RemoteLibraryActions.vue是推荐/外部搜索按钮的本人状态装配层；resources/components/RemoteResourceActions.vue保留纯展示。成员store维护挂载项与唯一刷新计时器，membershipLookup管理合批、缓存和归属。App装配封面缓存身份失效，api/resources保留HTTP与object URL生命周期，卡片自身只持有当前图片展示代次。
 
 LibraryMembershipsDialog拥有管理弹窗/选择/确认装配；library/lib/membershipList.js拥有有界查询与迟到响应guard，lib/batchResults.js只归纳请求内的部分成功。列表HTTP归libraryApi，移出复用既有命令核心。资源与目录页面共用批量结果归纳，不在目录保留共享模式删除视频入口。
+
+features/admin拥有管理中心及独立账号/审计模块；views/ManagementView只按会话能力装配。api/admin.js复用统一HTTP客户端，公开adminApi同一对象导出。lib/adminRead.js管理有归属的查询，accountAdministration.js管理编辑/命令/草稿，组件仅展示与输入。管理页面不复用个人设置缓存，不持久化管理数据或密码；后续来源/GC页面作为独立业务区块加入管理中心。

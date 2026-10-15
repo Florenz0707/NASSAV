@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3–P5已完成下述隔离实现，P6已完成历史、回收账本与受控文件子阶段，派发与管理正在实施；P7/P8尚待实施，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0051。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3–P5已完成下述隔离实现，P6已完成历史、受控文件回收及派发/管理协议；P7已接入会话、个人凭证、本人请求/库命令与持有管理，管理员界面继续实施，P8待统一验收，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0051。
 
 ## 1. 目标与首版范围
 
@@ -385,3 +385,11 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 基线aa5b6c2，分支feat/library-membership-management：独立有界本人关系列表包含不可用/pending，保持正式资源过滤、不返回元数据；资源库弹窗提供单项/当前页批量移出。补强渲染关系CAS，旧行不能自动移出重新添加的新UUID；旧未知命令仍幂等重放。演员/类别批量入口同步本人移出语义并正确保留部分失败。无schema变更，管理UI/本人结果图片句柄及P8继续。
 
 本人持有管理最终隔离门槛（2026-10-15）：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`为1303 passed/28 skipped；临时PostgreSQL管理/状态/配额专项31 passed。Chrome与Firefox真实HTTP/临时SQLite/Redis通过不可用行元数据不披露/释放、嵌套Escape、另一设备释放再添加后的旧行CAS拒绝、当前页批量移出，以及窄屏/深浅/焦点/滚动恢复。只读核查他人持有、原AVResource与合成MP4仍保留。前端新增查询乱序/卸载、缺失结果计数和旧关系保护回归，完整`pnpm run check`与`pre-commit run -a`通过后提交；未触及实例/真实来源worker或自动GC。
+
+### P7管理员账号界面子阶段
+
+基线ed03628，分支feat/admin-account-ui：管理中心按应用管理员能力装配，接入已有账号创建、差量角色/启停/配额、撤销登录、密码重置与最近100条审计。命令冻结目标版本/UUID、冲突保留输入、秘密清空与当前登录归属；普通准入仍关闭，创建管理账号不自动打开登录。未改后端协议/schema，来源与GC管理、本人结果图片句柄及P8继续。
+
+管理员账号界面首轮隔离验收（2026-10-15）：Chrome配真实HTTP/临时SQLite/Redis通过创建、配额CAS冲突/保留输入、配额差量修改、密码重置丢失响应的同UUID重放、角色切换、会话撤销、停用/启用、最后管理员拒绝、普通账号登录拒绝、审计及移动端两主题/焦点。只读核查仅一条密码重置审计、启用不恢复已移出的持有、另一用户仍需要的共享job保持queued。SQLite与临时PostgreSQL账号管理/权限专项各19 passed；无后端生产代码/schema变更。
+
+管理员账号界面最终门槛：Firefox同样通过上述真实HTTP/临时数据库流程；密码重置的结果未知重试沿用原UUID/版本，数字格式变化不产生配额策略写入。最终前端check及完整pre-commit通过后提交，无正式账号创建、普通登录开放或实例数据变更。

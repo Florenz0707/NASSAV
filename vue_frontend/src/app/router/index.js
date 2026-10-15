@@ -2,6 +2,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
+    path: '/manage/:section?',
+    name: 'Management',
+    component: () => import('../../views/ManagementView.vue'),
+  },
+  {
     path: '/personal/:section?',
     name: 'PersonalCenter',
     component: () => import('../../views/PersonalCenterView.vue'),
