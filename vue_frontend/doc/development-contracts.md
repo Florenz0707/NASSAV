@@ -277,3 +277,11 @@ features/library的membershipLookup只拥有请求归属及短期状态缓存，
 公共TaskDetailsPanel的operationMode只改变展示：隐藏暂停/恢复，取消文案为撤销本人请求；忙碌使用operationId，动作仍按allowed_actions。撤销逐项发送expected_version/request_id，结果不明时保留同一命令UUID，409补读但不自动重试，部分失败明确保留；取消不等于共享执行已停止，也不自动移出本人库。隐藏只是当前登录的本地展示偏好，快照不落本地存储。登出/身份变化使列表、提示、错误、busy和命令结果失效。
 
 operationDetails仅投影任务展示字段；名称/封面可使用当前本人库已加载数据，不按AVID读取全局标题。不具备当前active关系时不展示查看资源入口。终态变化使本人持有状态缓存失效，命令与资源列表消费者继续接入。
+
+### 共享库命令与来源选择
+
+libraryCommands核心消费显式API、持有状态查询、本人operation发布和失效回调；HTTP归libraryApi，不平行使用旧资源写入口。每个命令在首次查询后固定entry UUID/version和request UUID，结果未知的重试先复用旧命令，不因关系已消失/变为pending重建意图；409只在用户再次明确操作时重新取CAS。身份变化清除命令/进行中请求，迟到成功、失败和清理不得发布至新用户。批量最多100项、逐项有界提交并保留部分失败，不把已接受等同工作已完成。
+
+App装配LibraryOperationDialog；添加页直接显式选择来源和public/personal，其他入口通过统一弹窗选择。共享模式无自动any、无旧部分刷新选项，刷新重新获取完整来源/元数据；个人凭证缺失明确失败，不能回退系统凭证。提交失败保留表单与可重试命令；弹窗忙碌时不关闭，未提交关闭不发送请求。共享CAS冲突不能沿旧409语义标记已存在。
+
+资源移出只释放本人持有/需求，卡片、详情、批量确认不能显示删除共享视频选项；文件由受控GC处理。本人operation状态和关系变更使列表重新投影，下载按钮按本人请求显示忙碌。SubmissionResults按operation_id合并，兼容job_id/task_id继续保留。推荐与外部搜索的已持有缓存覆盖随后接入，不能把缓存中全局存在标记当本人授权。

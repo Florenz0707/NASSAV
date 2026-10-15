@@ -190,3 +190,5 @@ GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一
 ### 本人操作请求浏览器联调
 
 显式设置`NASSAV_LOCAL_PLAYBACK_TEST_SERVER=1 NASSAV_LOCAL_PLAYBACK_TEST_PORT=9793 NASSAV_OPERATION_UI_TEST_FIXTURE=1`运行`uv run python tests/helpers/local_playback_server.py`。仅loopback、临时SQLite/keyring/Redis/MP4；通过SharedOperations创建两位明确测试用户的公共订阅，不派发抓取worker，不修改实例数据。前端代理9793，使用打印的临时登录state：`NASSAV_OPERATION_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4187 node tests/browser/userOperations.cjs`（前端目录，Playwright环境见前端README）。测试会撤销测试请求，重跑用新的fixture或指定仍排队的`NASSAV_OPERATION_AVID`；退出服务自动清理临时数据。Celery使用独立namespaced redis+socket broker，直接Redis消费者仍用unix scheme。Chrome/Firefox通过环境选择，真实HTTP不代替普通多账号准入/真实来源/独立生产worker验收。
+
+共享库命令联调在上述fixture另设置`NASSAV_LIBRARY_UI_TEST_FIXTURE=1`，仅将两条合成资源导入明确临时操作者，并将该测试账号活动请求配额设为8以容纳预置订阅。使用打印的state运行前端`NASSAV_LIBRARY_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4188 node tests/browser/libraryCommands.cjs`。覆盖个人凭证缺失403不回退、明确公共添加/刷新/下载、未提交关闭、本人移出，以及真实HTTP执行后故意丢弃一次响应、再次操作复用同一CAS/request UUID。每次运行需新fixture；这是可重复故障注入，不启动真实来源worker。

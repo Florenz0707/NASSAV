@@ -133,6 +133,20 @@ def main():
             from nassav.shared_work import SharedOperations
 
             settings.SHARED_LIBRARY_ENABLED = True
+            if os.environ.get("NASSAV_LIBRARY_UI_TEST_FIXTURE") == "1":
+                UserAccount.objects.filter(user=user).update(max_active_operations=8)
+                AVResource.objects.create(
+                    avid="LIBRARY-METADATA",
+                    source="Jable",
+                    original_title="共享库命令隔离验收",
+                    file_exists=False,
+                )
+                call_command(
+                    "import_resource_library",
+                    username=user.username,
+                    apply=True,
+                    verbosity=0,
+                )
             operations = SharedOperations(composition.build_operation_records())
             other = get_user_model().objects.create_user(username="operation-other")
             UserAccount.objects.create(user=other, role="user")

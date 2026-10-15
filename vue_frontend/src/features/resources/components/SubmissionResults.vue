@@ -1,4 +1,5 @@
 <script setup>
+import AppIcon from '../../../shared/ui/AppIcon.vue'
 import AppButton from '../../../shared/ui/AppButton.vue'
 import { computed } from 'vue'
 import { resolveResourceTitle } from '../lib/resourceTitle.js'
@@ -298,7 +299,8 @@ const displayedTitle = computed(() =>
               class="result-tag failed"
               :class="`error-${failedItem.code}`"
             >
-              {{ failedItem.avid }}:{{ failedItem.code }}
+              <span>{{ failedItem.avid }}:{{ failedItem.code }}</span>
+              <span v-if="failedItem.message" class="text-xs">{{ failedItem.message }}</span>
             </span>
           </div>
         </div>

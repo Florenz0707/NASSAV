@@ -1,13 +1,9 @@
 <template>
   <div class="mb-4 flex flex-wrap items-center gap-2">
     <div>
-      <button
-        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-surface-subtle/[0.06] hover:bg-[var(--bg-white-10)] transition-colors duration-200"
-        style="color: var(--text-primary)"
-        @click="$emit('toggle-batch-mode')"
-      >
-        <span class="text-sm">{{ batchMode ? '退出批量' : '批量操作' }}</span>
-      </button>
+      <AppButton variant="neutral" class="h-10 rounded-md" @click="$emit('toggle-batch-mode')">
+        {{ batchMode ? '退出批量' : '批量操作' }}
+      </AppButton>
     </div>
 
     <div v-if="batchMode" class="flex items-center gap-2 flex-wrap">
@@ -20,37 +16,40 @@
         />
         <span>已选择 {{ selectedCount }} 项</span>
       </div>
-      <button
-        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md bg-surface-subtle/[0.06] text-sm hover:bg-[var(--bg-white-10)] disabled:opacity-60 transition-colors duration-200"
-        style="color: var(--text-primary)"
+      <AppButton
+        variant="neutral"
+        class="h-10 rounded-md"
         :disabled="batchLoading"
+        :loading="batchLoading && busyAction === 'refresh'"
         @click="$emit('batch-refresh')"
+        >批量刷新</AppButton
       >
-        批量刷新
-      </button>
-      <button
-        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md text-white shadow text-sm hover:brightness-105 disabled:opacity-60 transition-all duration-200"
-        style="background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary))"
+      <AppButton
+        tone="coral"
+        class="h-10 rounded-md"
         :disabled="batchLoading"
+        :loading="batchLoading && busyAction === 'download'"
         @click="$emit('batch-download')"
+        >批量下载</AppButton
       >
-        批量下载
-      </button>
-      <button
-        class="inline-flex items-center justify-center px-3 py-2 h-10 rounded-md text-white shadow text-sm hover:brightness-95 disabled:opacity-60 transition-all duration-200"
-        style="background: var(--accent-danger)"
+      <AppButton
+        variant="danger"
+        class="h-10 rounded-md"
         :disabled="batchLoading"
+        :loading="batchLoading && busyAction === 'delete'"
         @click="$emit('batch-delete')"
+        >{{ deleteLabel }}</AppButton
       >
-        批量删除
-      </button>
     </div>
   </div>
 </template>
 
 <script setup>
+import AppButton from '../../../shared/ui/AppButton.vue'
 import AppCheckbox from '../../../shared/ui/AppCheckbox.vue'
 defineProps({
+  busyAction: { type: String, default: '' },
+  deleteLabel: { type: String, default: '批量删除' },
   batchMode: {
     type: Boolean,
     default: false,

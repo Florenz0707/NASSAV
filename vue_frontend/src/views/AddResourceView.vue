@@ -1,9 +1,11 @@
 <script setup>
+import { useSessionStore } from '../features/auth/stores/session.js'
+import { useLibraryCommandsStore } from '../features/library/stores/commands.js'
 import CookieManagementDialog from '../features/cookies/components/CookieManagementDialog.vue'
 import AppButton from '../shared/ui/AppButton.vue'
 import AppIcon from '../shared/ui/AppIcon.vue'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useResourceStore } from '../features/resources/stores/resource.js'
 import { useToastStore } from '../shared/stores/toast.js'
 import { useSettingsStore } from '../features/settings/stores/settings.js'
@@ -18,17 +20,26 @@ const resourceStore = useResourceStore()
 const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 
+const session = useSessionStore(),
+  libraryCommands = useLibraryCommandsStore()
 const showCookies = ref(false)
 const {
   avid,
   source,
+  credentialMode,
   submitting,
   result,
   sourceOptions,
   parseAvids,
   handleSubmit,
   validationError,
-} = useResourceSubmission({ resourceStore, resourceApi, toastStore })
+} = useResourceSubmission({
+  resourceStore,
+  resourceApi,
+  toastStore,
+  shared: () => Boolean(session.capabilities.shared_library),
+  libraryCommands,
+})
 
 function viewResource() {
   if (result.value?.data?.avid) {
@@ -82,7 +93,28 @@ function viewResource() {
             :disabled="submitting"
             full-width
           />
-          <p id="add-source-hint" class="form-hint">选择自动将依次尝试所有可用源</p>
+          <p id="add-source-hint" class="form-hint">
+            {{
+              session.capabilities.shared_library
+                ? '选择本次请求使用的明确来源'
+                : '选择自动将依次尝试所有可用源'
+            }}
+          </p>
+        </div>
+
+        <div v-if="session.capabilities.shared_library" class="form-group">
+          <label for="add-credential-mode" class="form-label">来源凭证</label>
+          <CustomSelect
+            id="add-credential-mode"
+            v-model="credentialMode"
+            :options="[
+              { value: 'public', label: '公共来源（系统凭证）' },
+              { value: 'personal', label: '个人来源（我的凭证）' },
+            ]"
+            :disabled="submitting"
+            full-width
+          />
+          <p class="form-hint">公共结果可共享复用；个人凭证产物仅供本人使用。</p>
         </div>
 
         <div class="flex items-stretch gap-3">
@@ -120,6 +152,12 @@ function viewResource() {
       :preferred-title="settingsStore.displayTitle"
       @view="viewResource"
     />
+    <RouterLink
+      v-if="result?.jobs?.some((item) => item.operation_id)"
+      to="/downloads"
+      class="tw-btn-primary self-center mt-4"
+      >查看我的请求</RouterLink
+    >
 
     <div class="tips-section">
       <h2 class="tips-title">使用提示</h2>

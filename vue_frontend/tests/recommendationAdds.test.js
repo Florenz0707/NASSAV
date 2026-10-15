@@ -114,3 +114,38 @@ test('409 marks existing, submission failure permits retry, unmounted late respo
   assert.deepEqual(tracker.feedback, [])
   assert.equal(tracker.added.value.size, 0)
 })
+
+test('shared operation tracking ignores another operation and does not treat CAS conflict as existing', async () => {
+  const operation = {
+    operation_id: 'owned-operation',
+    avid: item.avid,
+    action: 'add',
+    state: 'queued',
+    version: 1,
+  }
+  const tracker = setup(async () => ({ data: { operation } }))
+  await tracker.add(item)
+  tracker.jobs.value = [
+    { ...operation, operation_id: 'other-operation', state: 'succeeded', version: 2 },
+  ]
+  await nextTick()
+  assert.equal(tracker.added.value.size, 0)
+  tracker.jobs.value = [{ ...operation, state: 'succeeded', version: 3 }]
+  await nextTick()
+  assert.equal(tracker.added.value.has(item.avid), true)
+  tracker.stop()
+  const conflict = setup(async () => {
+    throw { code: 409, sharedLibrary: true, message: 'membership_version_conflict' }
+  })
+  await conflict.add(item)
+  assert.equal(conflict.added.value.size, 0)
+  assert.deepEqual(conflict.errors, ['membership_version_conflict'])
+  conflict.stop()
+  const cancelled = setup(async () => {
+    throw { code: 'user_cancelled' }
+  })
+  await cancelled.add(item)
+  assert.equal(cancelled.adding.value.size, 0)
+  assert.deepEqual(cancelled.errors, [])
+  cancelled.stop()
+})

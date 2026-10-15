@@ -367,3 +367,9 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 本人operation界面隔离验收（2026-10-15）：Chrome单项撤销及Firefox勾选后的批量撤销通过真实HTTP/临时SQLite/Redis测试；均验证两主题、弹窗Escape、窄屏、已撤销状态与阶段、按钮禁用、隐藏后重载，前端未请求旧任务或全局队列。只读核查临时DB：两条本人请求cancelled，另一位测试用户的请求和仍有其需求的共享job保持queued。此过程未运行来源worker，不等同多账号登录或目标部署验收。
 
 本人请求界面最终门槛：`uv run pytest tests/test_library_http.py tests/test_shared_operations.py tests/test_account_access.py --ds=django_project.refactoring_test_settings -q`为23 passed；`pnpm run check`通过，包含本人请求归属、CAS冲突、结果未知幂等重试、乱序列表/提示及WebSocket不读取旧队列的回归。已有旧任务/DEBUG浏览器模拟回归通过，区别于上述真实HTTP验收。后端生产代码无变更、无schema变更；完整`pre-commit run -a`通过后提交。
+
+### P7共享库命令界面子阶段
+
+基线cb9f589，分支feat/shared-library-commands-ui：添加页显式来源/公共或个人模式、共享刷新/下载统一选择弹窗、本人移出/批量移出与部分失败展示；命令固定关系及幂等证据，响应丢失后重试不先重建关系意图。旧资源写入口、自动any/部分刷新/删除共享视频不用于共享模式。测试fixture仅在显式NASSAV_LIBRARY_UI_TEST_FIXTURE下给明确临时操作者导入合成资源，不导入实例或猜测现有归属。推荐/外部卡片状态与管理UI、结果图片句柄及P8继续。
+
+共享库命令界面隔离验收（2026-10-15）：Chrome与Firefox均通过真实HTTP/临时SQLite/Redis的公共添加、完整刷新、下载与移出；缺个人凭证返回403且不回退公共，表单保留编号；未确认弹窗关闭不提交。实际移出成功后丢弃首次HTTP响应，再点击使用相同关系版本/request UUID取得幂等回执；另一条合成持有保留。Firefox另覆盖窄屏、两主题、焦点及弹窗边界；Chrome只读复核动画稳定后的移动端深浅主题截图。库命令/HTTP/配额专项25 passed；来源worker未启动，未验证实际抓取或部署资产删除。

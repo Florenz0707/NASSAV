@@ -1,4 +1,5 @@
 <script setup>
+import { useSessionStore } from '../../auth/stores/session.js'
 import { resolveResourceTitle } from '../lib/resourceTitle.js'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { resourceApi } from '../../../api/index.js'
@@ -41,6 +42,7 @@ if (typeof emit === 'function') {
 
 const route = useRoute()
 const resourceStore = useResourceStore()
+const shared = computed(() => Boolean(useSessionStore().capabilities.shared_library))
 const settingsStore = useSettingsStore()
 const coverUrl = ref('')
 const coverImage = ref(null)
@@ -109,7 +111,7 @@ const isDownloading = computed(() => downloadState.value === 'downloading')
 const isDownloadBusy = computed(() => isSubmittingDownload.value || isDownloading.value)
 
 // 生成刷新菜单选项
-const refreshOptions = resourceRefreshOptions()
+const refreshOptions = computed(() => resourceRefreshOptions(false, shared.value))
 
 function handleDownloadClick() {
   if (isDownloadBusy.value || props.resource.has_video) return
@@ -121,7 +123,9 @@ function handleRefreshOption(option) {
 }
 
 // 生成删除菜单选项
-const deleteOptions = computed(() => resourceDeleteOptions(props.resource.has_video))
+const deleteOptions = computed(() =>
+  resourceDeleteOptions(props.resource.has_video, false, shared.value)
+)
 
 function handleDeleteOption(option) {
   pendingDeleteOption.value = option
@@ -140,7 +144,7 @@ async function confirmDelete() {
       emit('deleteFile', props.resource.avid)
     } else {
       await resourceStore.removeAsset(props.resource.avid, 'delete')
-      toastStore.success('资源已删除')
+      toastStore.success(shared.value ? '已移出我的资源库' : '资源已删除')
       emit('delete', props.resource.avid)
     }
   } catch (err) {
@@ -316,7 +320,7 @@ onUnmounted(() => {
         </AppButton>
 
         <ActionMenu
-          label="删除"
+          :label="shared ? '移出' : '删除'"
           :options="deleteOptions"
           compact
           trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium "
@@ -330,10 +334,10 @@ onUnmounted(() => {
     <!-- 确认对话框 -->
     <ConfirmDialog
       v-model:show="showConfirmDialog"
-      :title="pendingDeleteOption?.action === 'deleteFile' ? '删除视频文件' : '删除资源'"
+      :title="pendingDeleteOption?.title || '删除资源'"
       :message="pendingDeleteOption?.confirm || ''"
       :type="'danger'"
-      confirm-text="确认删除"
+      :confirm-text="shared ? '确认移出' : '确认删除'"
       cancel-text="取消"
       @confirm="confirmDelete"
       @cancel="cancelDelete"

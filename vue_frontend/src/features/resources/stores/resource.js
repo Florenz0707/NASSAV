@@ -1,3 +1,7 @@
+import { useSessionStore } from '../../auth/stores/session.js'
+import { useMembershipsStore } from '../../library/stores/memberships.js'
+import { useLibraryCommandsStore } from '../../library/stores/commands.js'
+import { useUserOperationsStore } from '../../tasks/stores/userOperations.js'
 import { logger } from '../../../shared/lib/logger.js'
 import { useTaskJobsStore } from '../../tasks/stores/taskJobs.js'
 import { createResourceList } from './resourceList.js'
@@ -16,7 +20,17 @@ import {
 
 export const useResourceStore = defineStore('resource', () => {
   const taskJobs = useTaskJobsStore()
+  const session = useSessionStore(),
+    libraryCommands = useLibraryCommandsStore(),
+    operations = useUserOperationsStore()
+  const shared = () => Boolean(session.capabilities.shared_library)
   const list = createResourceList(resourceApi)
+  watch(
+    () => useMembershipsStore().revision,
+    () => {
+      if (shared()) list.refresh().catch(() => {})
+    }
+  )
   watch(
     () => taskJobs.visible,
     (jobs, previous = []) => {
@@ -41,9 +55,31 @@ export const useResourceStore = defineStore('resource', () => {
   const downloadStates = ref(new Map())
   const scrapeJobs = ref(new Map())
   const visibleScrapeJobs = computed(() =>
-    [...scrapeJobs.value.values(), ...taskJobs.visible.filter((j) => j.job_type === 'scrape')].sort(
-      (a, b) => (b.updated_at || 0) - (a.updated_at || 0)
-    )
+    shared()
+      ? operations.visible
+          .filter((item) => item.kind === 'scrape')
+          .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
+      : [
+          ...scrapeJobs.value.values(),
+          ...taskJobs.visible.filter((j) => j.job_type === 'scrape'),
+        ].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+  )
+  watch(
+    () => operations.operations,
+    (items, previous = new Map()) => {
+      if (!shared()) return
+      for (const item of items.values()) {
+        const old = previous.get(item.operation_id)
+        if (
+          old &&
+          old.stage !== item.stage &&
+          ['resource_committed', 'succeeded', 'failed', 'cancelled'].includes(item.stage)
+        ) {
+          list.refresh().catch(() => {})
+          break
+        }
+      }
+    }
   )
   const pendingJobRequests = new Set()
   const pendingJobEventVersions = new Map()
@@ -273,7 +309,11 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   // 添加新资源
-  async function addResource(avid, source = 'any') {
+  async function addResource(avid, source = 'any', options = null) {
+    if (shared())
+      return options
+        ? libraryCommands.execute('add', avid, { source, ...options })
+        : libraryCommands.request('add', avid, source)
     const generation = trackingGeneration
     loading.value = true
     error.value = null
@@ -291,6 +331,12 @@ export const useResourceStore = defineStore('resource', () => {
 
   // 刷新资源
   async function refreshResource(avid, params = null) {
+    if (shared())
+      return libraryCommands.request(
+        'refresh',
+        avid,
+        params?.source || resources.value.find((item) => item.avid === avid)?.source
+      )
     const generation = trackingGeneration
     const response = await resourceApi.refresh(avid, params)
     if (generation === trackingGeneration) registerScrapeSubmission(response.data)
@@ -299,6 +345,7 @@ export const useResourceStore = defineStore('resource', () => {
 
   // 批量刷新/删除等，使用后端批量接口
   async function batchRefresh(avids = []) {
+    if (shared()) return libraryCommands.request('refresh', avids)
     if (!Array.isArray(avids) || avids.length === 0) return
     const payload = {
       actions: avids.map((avid) => ({ action: 'refresh', avid })),
@@ -309,6 +356,15 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   async function batchDelete(avids = [], action = 'delete-all') {
+    if (shared()) {
+      if (action !== 'delete-all') throw new Error('共享资源仅支持移出本人的资源库')
+      const results = await libraryCommands.batch('release', avids)
+      const succeeded = results.filter((item) => item.code >= 200 && item.code < 300)
+      const failed = results.filter((item) => !succeeded.includes(item))
+      const removed = new Set(succeeded.map((item) => item.avid))
+      resources.value = resources.value.filter((item) => !removed.has(item.avid))
+      return { succeeded, failed }
+    }
     if (!Array.isArray(avids) || avids.length === 0) return { succeeded: [], failed: [] }
     const payload = { actions: avids.map((avid) => ({ action, avid })) }
     const resp = await resourceApi.batch(payload)
@@ -339,13 +395,25 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   async function removeAsset(avid, action) {
+    if (shared()) {
+      if (action !== 'delete') throw new Error('共享资源仅支持移出本人的资源库')
+      const response = await libraryCommands.execute('release', avid)
+      resources.value = resources.value.filter((item) => item.avid !== avid)
+      return response
+    }
     if (action === 'deleteFile') return downloadApi.deleteFile(avid)
     if (action === 'delete') return resourceApi.delete(avid)
     throw new Error('不支持的资源删除操作')
   }
 
   // 提交下载
-  async function submitDownload(avid) {
+  async function submitDownload(avid, preferredSource = '') {
+    if (shared())
+      return libraryCommands.request(
+        'download',
+        avid,
+        preferredSource || resources.value.find((item) => item.avid === avid)?.source
+      )
     const generation = trackingGeneration
     if (!avid) return null
     setDownloadState(avid, 'submitting')
@@ -365,6 +433,7 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   async function batchSubmitDownload(avids = []) {
+    if (shared()) return libraryCommands.request('download', avids)
     const generation = trackingGeneration
     if (!Array.isArray(avids) || avids.length === 0) return
     for (const avid of avids) {
@@ -401,6 +470,19 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   function getDownloadState(avid) {
+    if (shared()) {
+      if (
+        libraryCommands.intent?.action === 'download' &&
+        libraryCommands.intent.avids.includes(avid)
+      )
+        return 'submitting'
+      const latest = [...operations.operations.values()]
+        .filter((item) => item.kind === 'download' && item.avid === avid)
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0]
+      return latest && !['succeeded', 'failed', 'cancelled'].includes(latest.state)
+        ? 'downloading'
+        : null
+    }
     if (!avid) return null
     return downloadStates.value.get(avid) || null
   }

@@ -1,4 +1,5 @@
 <script setup>
+import { useSessionStore } from '../features/auth/stores/session.js'
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import RequestError from '../shared/ui/RequestError.vue'
@@ -14,10 +15,12 @@ import ConfirmDialog from '../shared/ui/ConfirmDialog.vue'
 import ResourceSearchBar from '../features/resources/components/ResourceSearchBar.vue'
 
 const resourceStore = useResourceStore()
+const shared = computed(() => Boolean(useSessionStore().capabilities.shared_library))
 const toastStore = useToastStore()
 
 const selectedAvids = ref(new Set())
 const batchLoading = ref(false)
+const batchBusyAction = ref('')
 const batchMode = ref(false)
 
 const selectedCount = computed(() => selectedAvids.value.size)
@@ -45,33 +48,57 @@ function toggleBatchMode() {
 }
 
 async function handleBatchDownload() {
+  batchBusyAction.value = 'download'
   if (selectedAvids.value.size === 0) return
   batchLoading.value = true
   try {
     const avids = Array.from(selectedAvids.value)
-    await resourceStore.batchSubmitDownload(avids)
-    toastStore.success(`已提交 ${avids.length} 个下载任务`)
-    selectedAvids.value = new Set()
+    const response = await resourceStore.batchSubmitDownload(avids)
+    if (shared.value) summarizeBatch(response, avids, '下载')
+    else {
+      toastStore.success(`已提交 ${avids.length} 个下载任务`)
+      selectedAvids.value = new Set()
+    }
     await fetchResourceList()
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || '批量提交下载失败')
   } finally {
     batchLoading.value = false
+    batchBusyAction.value = ''
   }
 }
 
 async function handleBatchRefresh() {
+  batchBusyAction.value = 'refresh'
   if (selectedAvids.value.size === 0) return
   batchLoading.value = true
   try {
     const avids = Array.from(selectedAvids.value)
-    await resourceStore.batchRefresh(avids)
-    selectedAvids.value = new Set()
+    const response = await resourceStore.batchRefresh(avids)
+    if (shared.value) summarizeBatch(response, avids, '刷新')
+    else selectedAvids.value = new Set()
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || '批量刷新失败')
   } finally {
     batchLoading.value = false
+    batchBusyAction.value = ''
   }
+}
+
+function summarizeBatch(response, avids, label) {
+  const results = response?.data?.results || []
+  const accepted = new Set(
+    results.filter((item) => item.code >= 200 && item.code < 300).map((item) => item.avid)
+  )
+  const failed = avids.filter((avid) => !accepted.has(avid))
+  selectedAvids.value = new Set(failed)
+  if (failed.length)
+    toastStore.error(
+      `${label}请求：已接受 ${accepted.size} 个，失败 ${failed.length} 个；保留失败项供重试`
+    )
+  else toastStore.success(`已接受 ${accepted.size} 个${label}请求`)
 }
 
 const showBatchDeleteConfirm = ref(false)
@@ -83,13 +110,18 @@ function handleBatchDelete() {
 }
 
 async function confirmBatchDelete(action) {
+  batchBusyAction.value = 'delete'
   batchDeleteAction.value = action
   showBatchDeleteConfirm.value = false
   batchLoading.value = true
   try {
     const avids = Array.from(selectedAvids.value)
     const { succeeded, failed } = await resourceStore.batchDelete(avids, action)
-    const actionText = action === 'delete-video' ? '删除视频' : '删除全部数据'
+    const actionText = shared.value
+      ? '移出我的资源库'
+      : action === 'delete-video'
+        ? '删除视频'
+        : '删除全部数据'
     if (failed.length) {
       toastStore.error(
         `${actionText}：成功 ${succeeded.length} 个，失败 ${failed.length} 个；可重试失败项`
@@ -100,9 +132,11 @@ async function confirmBatchDelete(action) {
     selectedAvids.value = new Set(failed.map((item) => item.avid).filter(Boolean))
     await fetchResourceList()
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || '批量删除失败')
   } finally {
     batchLoading.value = false
+    batchBusyAction.value = ''
     batchDeleteAction.value = null
   }
 }
@@ -255,6 +289,7 @@ async function handleDownload(avid) {
     await resourceStore.submitDownload(avid)
     toastStore.success(`${avid} 下载任务已提交`)
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || '下载失败')
   }
 }
@@ -264,8 +299,8 @@ watch(
   () => resourceStore.visibleScrapeJobs,
   (jobs) => {
     for (const job of jobs) {
-      if (job.state === 'succeeded' && !handledScrapeJobs.has(job.task_id)) {
-        handledScrapeJobs.add(job.task_id)
+      if (job.state === 'succeeded' && !handledScrapeJobs.has(job.operation_id || job.task_id)) {
+        handledScrapeJobs.add(job.operation_id || job.task_id)
         fetchResourceList()
       }
     }
@@ -276,6 +311,7 @@ async function handleRefresh(avid, params = null) {
   try {
     await resourceStore.refreshResource(avid, params)
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || '刷新失败')
   }
 }
@@ -286,6 +322,7 @@ async function handleDeleteResource(_avid) {
   try {
     await fetchResourceList()
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     console.error('刷新列表失败:', err)
   } finally {
     refreshing.value = false
@@ -298,6 +335,7 @@ async function handleDeleteFile(_avid) {
   try {
     await fetchResourceList()
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     console.error('刷新列表失败:', err)
   } finally {
     refreshing.value = false
@@ -310,6 +348,7 @@ async function handleManualRefresh() {
     await fetchResourceList()
     toastStore.success('列表已刷新')
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || '刷新失败')
   } finally {
     refreshing.value = false
@@ -339,7 +378,9 @@ function onPageSizeChange(newSize) {
   <div class="animate-[fadeIn_0.5s_ease]">
     <!-- Page Header -->
     <div class="mb-8">
-      <h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">资源库</h1>
+      <h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
+        {{ shared ? '我的资源库' : '资源库' }}
+      </h1>
       <!-- Results Info -->
       <div v-if="!resourceStore.loading" class="mb-6 text-[var(--text-muted)] text-sm">
         <span>管理您的 {{ resourceStore.pagination.total }} 个资源</span>
@@ -362,6 +403,8 @@ function onPageSizeChange(newSize) {
     <BatchControls
       :batch-mode="batchMode"
       :batch-loading="batchLoading"
+      :busy-action="batchBusyAction"
+      :delete-label="shared ? '批量移出' : '批量删除'"
       :selected-count="selectedCount"
       :total-count="filteredResources.length"
       @toggle-batch-mode="toggleBatchMode"
@@ -373,15 +416,19 @@ function onPageSizeChange(newSize) {
     <!-- 批量删除确认对话框 -->
     <ConfirmDialog
       v-model:show="showBatchDeleteConfirm"
-      title="批量删除资源"
-      :message="`即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`"
+      :title="shared ? '批量移出我的资源库' : '批量删除资源'"
+      :message="
+        shared
+          ? `移出所选 ${selectedAvids.size} 个本人的资源？其他用户仍持有时共享资源保留。`
+          : `即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`
+      "
       type="danger"
-      confirm-text="删除视频"
+      :confirm-text="shared ? '确认移出' : '删除视频'"
       cancel-text="取消"
-      @confirm="() => confirmBatchDelete('delete-video')"
+      @confirm="() => confirmBatchDelete(shared ? 'delete-all' : 'delete-video')"
       @cancel="() => (showBatchDeleteConfirm = false)"
     >
-      <template #extra-button>
+      <template v-if="!shared" #extra-button>
         <button class="tw-btn-danger" @click="() => confirmBatchDelete('delete-all')">
           删除全部
         </button>

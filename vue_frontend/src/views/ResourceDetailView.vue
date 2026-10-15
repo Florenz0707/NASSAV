@@ -1,4 +1,6 @@
 <script setup>
+import { useMembershipsStore } from '../features/library/stores/memberships.js'
+import { useSessionStore } from '../features/auth/stores/session.js'
 import PageLoad from '../shared/ui/PageLoad.vue'
 import RequestError from '../shared/ui/RequestError.vue'
 import { resolveResourceTitle } from '../features/resources/lib/resourceTitle.js'
@@ -23,6 +25,7 @@ import PersonalResourcePanel from '../features/resources/components/PersonalReso
 const route = useRoute()
 const router = useRouter()
 const resourceStore = useResourceStore()
+const shared = computed(() => Boolean(useSessionStore().capabilities.shared_library))
 const toastStore = useToastStore()
 const settingsStore = useSettingsStore()
 
@@ -46,10 +49,19 @@ function openPlayback(mode = 'source') {
 }
 
 // 刷新菜单选项
-const refreshOptions = resourceRefreshOptions(true)
+const refreshOptions = computed(() => resourceRefreshOptions(true, shared.value))
 
 // 删除菜单选项（根据文件是否存在动态计算）
-const deleteOptions = computed(() => resourceDeleteOptions(metadata.value?.file_exists, true))
+const deleteOptions = computed(() =>
+  resourceDeleteOptions(metadata.value?.file_exists, true, shared.value)
+)
+
+watch(
+  () => useMembershipsStore().revision,
+  () => {
+    if (shared.value) fetchMetadata(true)
+  }
+)
 
 const coverUrl = ref(null)
 const downloadState = computed(() => resourceStore.getDownloadState(avid.value))
@@ -109,6 +121,7 @@ async function fetchMetadata(bypassCache = false) {
     const response = await resourceApi.getMetadata(currentAvid, bypassCache)
     if (metadataGuard.current(request)) metadata.value = response.data
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     if (metadataGuard.current(request)) error.value = err.message || '获取元数据失败'
   } finally {
     if (metadataGuard.current(request)) loading.value = false
@@ -117,10 +130,11 @@ async function fetchMetadata(bypassCache = false) {
 
 async function handleDownload() {
   try {
-    await resourceStore.submitDownload(avid.value)
+    await resourceStore.submitDownload(avid.value, metadata.value?.source)
     toastStore.success('下载任务已提交')
   } catch (err) {
-    if (err.code === 409) {
+    if (err.code === 'user_cancelled') return
+    if (!shared.value && err.code === 409) {
       toastStore.info('视频已下载')
       // 即使已下载，也刷新元数据确保状态正确
       await fetchMetadata()
@@ -133,8 +147,12 @@ async function handleDownload() {
 async function handleRefresh(params = null) {
   refreshing.value = true
   try {
-    await resourceStore.refreshResource(avid.value, params)
+    await resourceStore.refreshResource(
+      avid.value,
+      shared.value ? { source: metadata.value?.source } : params
+    )
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || '刷新失败')
   } finally {
     refreshing.value = false
@@ -174,11 +192,12 @@ async function confirmDelete() {
       await fetchMetadata() // 刷新元数据以更新状态
     } else {
       await resourceStore.removeAsset(avid.value, 'delete')
-      toastStore.success('资源已删除')
+      toastStore.success(shared.value ? '已移出我的资源库' : '资源已删除')
       // 删除后返回上一页
       setTimeout(() => router.back(), 500)
     }
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error(err.message || `删除${action.action === 'deleteFile' ? '视频' : '资源'}失败`)
   } finally {
     pendingDeleteAction.value = null
@@ -203,6 +222,7 @@ async function navigateToActor(actorName) {
       toastStore.warning(`未找到演员：${actorName}`)
     }
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error('跳转失败')
     console.error('Navigate to actor failed:', err)
   }
@@ -221,6 +241,7 @@ async function navigateToGenre(genreName) {
       toastStore.warning(`未找到类别：${genreName}`)
     }
   } catch (err) {
+    if (err.code === 'user_cancelled') return
     toastStore.error('跳转失败')
     console.error('Navigate to genre failed:', err)
   }
@@ -386,7 +407,7 @@ async function navigateToGenre(genreName) {
                 </AppButton>
 
                 <ActionMenu
-                  label="删除数据"
+                  :label="shared ? '移出资源库' : '删除数据'"
                   :options="deleteOptions"
                   trigger-class="w-full h-14"
                   danger
@@ -483,7 +504,7 @@ async function navigateToGenre(genreName) {
       :title="pendingDeleteAction?.title || '确认操作'"
       :message="pendingDeleteAction?.message || ''"
       :type="'danger'"
-      confirm-text="确认删除"
+      :confirm-text="shared ? '确认移出' : '确认删除'"
       cancel-text="取消"
       @confirm="confirmDelete"
       @cancel="cancelDelete"

@@ -1,6 +1,17 @@
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { summarizeSubmissionJobs } from '../lib/submissionResults.js'
-export function useResourceSubmission({ resourceStore, resourceApi, toastStore }) {
+export function useResourceSubmission({
+  resourceStore,
+  resourceApi,
+  toastStore,
+  shared = () => false,
+  libraryCommands,
+}) {
+  let active = true
+  onScopeDispose(() => {
+    active = false
+  })
+  const credentialMode = ref('public')
   const validationError = ref('')
   const avid = ref('')
   watch(avid, () => {
@@ -20,7 +31,7 @@ export function useResourceSubmission({ resourceStore, resourceApi, toastStore }
     }
   )
   const sourceOptions = computed(() => [
-    { value: 'any', label: '自动' },
+    ...(shared() ? [] : [{ value: 'any', label: '自动' }]),
     ...resourceStore.sources.map((item) => ({
       value: item.toLowerCase(),
       label: item,
@@ -29,6 +40,8 @@ export function useResourceSubmission({ resourceStore, resourceApi, toastStore }
 
   onMounted(async () => {
     await resourceStore.fetchSources()
+    if (active && shared() && !sourceOptions.value.some((item) => item.value === source.value))
+      source.value = sourceOptions.value[0]?.value || ''
   })
 
   // 解析输入的 AVID 列表
@@ -49,9 +62,36 @@ export function useResourceSubmission({ resourceStore, resourceApi, toastStore }
       return
     }
 
+    if (shared() && (avids.length > 100 || !source.value || source.value === 'any')) {
+      validationError.value = avids.length > 100 ? '单次最多添加100个资源' : '请选择明确来源'
+      return
+    }
     submitting.value = true
     result.value = null
     try {
+      if (shared()) {
+        const results = await libraryCommands.batch('add', avids, {
+          source: source.value,
+          credential_mode: credentialMode.value,
+        })
+        if (!active) return
+        const accepted = results
+          .filter((item) => item.code >= 200 && item.code < 300)
+          .map((item) => ({
+            avid: item.avid,
+            operation_id: item.data.operation.operation_id,
+            snapshot: item.data.operation,
+          }))
+        const failed = results.filter((item) => !(item.code >= 200 && item.code < 300))
+        result.value = {
+          total: avids.length,
+          exists: [],
+          jobs: accepted,
+          submissionFailed: failed,
+          ...summarizeSubmissionJobs(accepted, resourceStore.visibleScrapeJobs, failed),
+        }
+        return
+      }
       if (avids.length === 1) {
         await resourceStore.addResource(avids[0], source.value)
         return
@@ -77,6 +117,7 @@ export function useResourceSubmission({ resourceStore, resourceApi, toastStore }
       }
       if (exists.length) toastStore.info(`${exists.length} 个资源已存在`)
     } catch (err) {
+      if (!active || err.code === 'user_cancelled') return
       if (err.code === 409 && avids.length === 1) {
         result.value = {
           success: [],
@@ -102,13 +143,14 @@ export function useResourceSubmission({ resourceStore, resourceApi, toastStore }
         toastStore.error(err.message || '提交失败')
       }
     } finally {
-      submitting.value = false
+      if (active) submitting.value = false
     }
   }
 
   return {
     avid,
     source,
+    credentialMode,
     submitting,
     result,
     sourceOptions,

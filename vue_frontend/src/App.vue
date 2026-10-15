@@ -17,6 +17,8 @@ import { useGenreGroupsStore } from './features/catalog/stores/genreGroups.js'
 import { useDownloadQueueStore } from './features/resources/stores/downloadQueue.js'
 import { useTaskJobsStore } from './features/tasks/stores/taskJobs.js'
 import { useUserOperationsStore } from './features/tasks/stores/userOperations.js'
+import LibraryOperationDialog from './features/library/components/LibraryOperationDialog.vue'
+import { useLibraryCommandsStore } from './features/library/stores/commands.js'
 import { useMembershipsStore } from './features/library/stores/memberships.js'
 import { useSessionStore } from './features/auth/stores/session.js'
 
@@ -83,6 +85,9 @@ watch(
   ([status, identity], previous) => {
     wsStore.disconnect()
     useUserOperationsStore().reset()
+    useLibraryCommandsStore().reset(
+      status === 'authenticated' && sessionStore.capabilities.shared_library ? identity : ''
+    )
     useMembershipsStore().reset(
       status === 'authenticated' && sessionStore.capabilities.shared_library
         ? sessionStore.identity
@@ -191,6 +196,7 @@ watch(
           </transition>
         </RouterView>
       </main>
+      <LibraryOperationDialog v-if="sessionStore.capabilities.shared_library" />
       <Toast />
     </template>
   </div>
