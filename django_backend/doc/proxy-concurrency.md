@@ -61,3 +61,7 @@ HTTP transport 和线程本地 Django 连接，包含归属检查打开的连接
 独立 Source/浏览器 transport 只拥有当前操作的会话，关闭它不会关闭共享容量连接。
 
 凭证范围通过ProxyServer.session_capabilities声明，不由业务判断provider。当前固定适配器的能力、独立会话fork、同域刷新租约和真实验收边界见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。全局Redis容量继续控制匿名挑战，重放直连不嵌套抢占browser slot。
+
+## 跨进程验收同步
+
+隔离容量测试由父进程显式释放持有者，finally负责释放、终止和join；子进程不以独立5秒观察超时提前退出slot。等待者使用30秒的测试容量预算，包含父进程5.2秒延迟回归；生产租约/限额/等待算法未调整。真实Redis保持两槽、释放前第三者不进入、释放后所有进程正常退出且计数归零的断言保留。该用例验证容量隔离，不把测试观察者调度速度当业务性能指标。

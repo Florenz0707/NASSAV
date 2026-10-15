@@ -11,8 +11,11 @@ def request_slot(socket_path, endpoint, release, acquired, ready=None):
     try:
         if ready is not None:
             ready.wait(timeout=10)
-        with RedisProxyCapacity(client, endpoint, 2).slot(2000, check=lambda: None):
+        with RedisProxyCapacity(client, endpoint, 2).slot(30000, check=lambda: None):
             acquired.put(os.getpid())
-            assert release.wait(5)
+            # The parent owns the observation window and always releases/joins
+            # children in finally. A child watchdog must not release the very
+            # slots whose continued ownership the parent is checking.
+            release.wait()
     finally:
         client.close()

@@ -1,6 +1,7 @@
 """Consumers use the same proxy capacity interface for every provider."""
 
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -159,7 +160,8 @@ def test_iterator_cannot_schedule_operations_after_scope_exit(concurrency):
     assert calls == []
 
 
-def test_separate_worker_processes_share_proxy_capacity(proxy_redis):
+@pytest.mark.parametrize("observer_delay", [0, 5.2])
+def test_separate_worker_processes_share_proxy_capacity(proxy_redis, observer_delay):
     import multiprocessing
     import queue
     from proxy_capacity_worker import request_slot
@@ -182,6 +184,7 @@ def test_separate_worker_processes_share_proxy_capacity(proxy_redis):
     try:
         ready.wait(timeout=10)
         first = [acquired.get(timeout=2), acquired.get(timeout=2)]
+        time.sleep(observer_delay)
         assert proxy_redis.zcard(key) == 2
         with pytest.raises(queue.Empty):
             acquired.get(timeout=0.1)
