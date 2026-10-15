@@ -1,7 +1,7 @@
 <script setup>
 import { useSessionStore } from '../../auth/stores/session.js'
 import { resolveResourceTitle } from '../lib/resourceTitle.js'
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { resourceApi } from '../../../api/index.js'
 import { useResourceStore } from '../stores/resource.js'
 import { useToastStore } from '../../../shared/stores/toast.js'
@@ -48,33 +48,47 @@ const coverUrl = ref('')
 const coverImage = ref(null)
 let observer = null
 let imgEl = null
+let coverRevision = 0,
+  active = true,
+  requestedCover = false
 
 async function loadCover() {
-  // Prefer backend-provided thumbnail_url or cover_url if present
-  if (props.resource) {
-    if (props.resource.thumbnail_url) {
-      coverUrl.value = props.resource.thumbnail_url
-      return
-    }
-    if (props.resource.cover_url) {
-      coverUrl.value = props.resource.cover_url
-      return
-    }
+  if (!active) return
+  requestedCover = true
+  const revision = ++coverRevision,
+    resource = props.resource
+  const publish = (url) => {
+    if (active && revision === coverRevision) coverUrl.value = url || ''
   }
-  // fallback: request server thumbnail of preferred size (avoids blob downloads)
+  if (resource.thumbnail_url || resource.cover_url) {
+    publish(resource.thumbnail_url || resource.cover_url)
+    return
+  }
   try {
-    const url = resourceApi.getCoverUrl(props.resource.avid, props.coverSize)
-    coverUrl.value = url
+    publish(resourceApi.getCoverUrl(resource.avid, props.coverSize))
   } catch {
-    // last-resort: blob object URL
     try {
-      const obj = await resourceApi.getCoverObjectUrl(props.resource.avid)
-      if (obj) coverUrl.value = obj
+      publish(await resourceApi.getCoverObjectUrl(resource.avid))
     } catch {
-      coverUrl.value = resourceApi.getCoverUrl(props.resource.avid)
+      if (active && revision === coverRevision) publish(resourceApi.getCoverUrl(resource.avid))
     }
   }
 }
+watch(
+  () => [
+    props.resource.avid,
+    props.resource.entry_id,
+    props.resource.version_id,
+    props.resource.thumbnail_url,
+    props.resource.cover_url,
+    props.coverSize,
+  ],
+  () => {
+    coverRevision++
+    coverUrl.value = ''
+    if (requestedCover) loadCover()
+  }
+)
 
 function ensureObserver() {
   if (observer) return observer
@@ -167,6 +181,8 @@ onMounted(() => {
   })
 })
 onUnmounted(() => {
+  active = false
+  coverRevision++
   if (observer && imgEl) observer.unobserve(imgEl)
 })
 </script>

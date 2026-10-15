@@ -1,4 +1,5 @@
 <script setup>
+import { useMembershipsStore } from '../../library/stores/memberships.js'
 import { useSessionStore } from '../../auth/stores/session.js'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
 import RequestError from '../../../shared/ui/RequestError.vue'
@@ -159,6 +160,10 @@ onBeforeUnmount(() => {
 const addedExternalAvids = ref(new Set())
 const { adding: addingExternalAvids, add: handleAddExternal } = useResourceAdds({
   added: addedExternalAvids,
+  alreadyAdded: (item) =>
+    session.capabilities.shared_library
+      ? Boolean(useMembershipsStore().get(item.avid)?.is_in_my_library)
+      : addedExternalAvids.value.has(item.avid),
   jobs: () => resourceStore.visibleScrapeJobs,
   submit: (avid, item) => resourceStore.addResource(avid, item.source || externalSource.value),
   onAdded: (item) => {

@@ -1,4 +1,5 @@
 <script setup>
+import { resourceApi } from './api/resources.js'
 import { computed, onMounted, onUnmounted, watch, ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { clearPlaybackDrafts } from './features/playback/lib/progressDrafts.js'
@@ -43,6 +44,11 @@ const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
 const resourceStore = useResourceStore()
 const sessionStore = useSessionStore()
+watch(
+  () => [sessionStore.identity, useMembershipsStore().revision],
+  () => resourceApi.resetCoverCache(),
+  { flush: 'sync', immediate: true }
+)
 const sourceRoute = computed(() =>
   ['Recommendations', 'ActorResources', 'GenreResources'].includes(route.name)
 )
@@ -120,6 +126,7 @@ watch(
 )
 
 onUnmounted(() => {
+  resourceApi.resetCoverCache()
   document.removeEventListener('visibilitychange', refreshVisibleJobs)
   resourceStore.stopScrapeTracking()
   taskJobs.reset()

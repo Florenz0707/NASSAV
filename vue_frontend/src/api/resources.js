@@ -2,6 +2,9 @@ import api from './client.js'
 import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 import { logger } from '../shared/lib/logger.js'
 
+let coverGeneration = 0
+const coverRevisions = new Map()
+
 export const resourceApi = {
   // 获取所有已保存资源列表（推荐使用新的 /resources 统一入口）
   getList: (params = {}) => api.get('/resources', { params }),
@@ -43,6 +46,10 @@ export const resourceApi = {
   // 获取封面对应的 object URL（使用缓存，按需请求）
   getCoverObjectUrl: async (avid) => {
     if (!avid) return null
+    const generation = coverGeneration,
+      revision = coverRevisions.get(avid) || 0
+    const current = () =>
+      generation === coverGeneration && revision === (coverRevisions.get(avid) || 0)
     // 已缓存直接返回（并刷新为最近使用）
     if (resourceApi._coverCache.has(avid)) {
       const url = resourceApi._coverCache.get(avid)
@@ -53,6 +60,8 @@ export const resourceApi = {
     }
     try {
       const blob = await resourceApi.fetchCoverBlob(avid)
+      if (!current()) return null
+      if (resourceApi._coverCache.has(avid)) return resourceApi._coverCache.get(avid)
       if (!blob) throw new Error('no blob')
       const obj = URL.createObjectURL(blob)
       resourceApi._coverCache.set(avid, obj)
@@ -69,12 +78,14 @@ export const resourceApi = {
       }
       return obj
     } catch (_e) {
+      if (!current()) return null
       // fallback to URL
       return `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover?avid=${encodeURIComponent(avid)}`
     }
   },
   // 明确撤销并删除缓存项
   revokeCoverObjectUrl: (avid) => {
+    coverRevisions.set(avid, (coverRevisions.get(avid) || 0) + 1)
     if (resourceApi._coverCache.has(avid)) {
       const url = resourceApi._coverCache.get(avid)
       try {
@@ -84,6 +95,12 @@ export const resourceApi = {
       }
       resourceApi._coverCache.delete(avid)
     }
+  },
+
+  resetCoverCache: () => {
+    coverGeneration++
+    for (const avid of resourceApi._coverCache.keys()) resourceApi.revokeCoverObjectUrl(avid)
+    coverRevisions.clear()
   },
 
   // 添加/刷新资源时只提交任务；终态由状态接口确认

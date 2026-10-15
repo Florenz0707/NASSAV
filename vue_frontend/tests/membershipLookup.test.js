@@ -160,3 +160,37 @@ test('large lists use sequential bounded batches and a bounded result cache', as
   assert.equal(lookup.get('A-0'), null)
   assert.equal(lookup.get('A-204').is_in_my_library, false)
 })
+
+test('rendered cards coalesce into one bounded lookup and identity reset suppresses a queued batch', async () => {
+  const batches = []
+  const lookup = createMembershipLookup(async (avids) => {
+    batches.push(avids)
+    return reply(avids)
+  })
+  lookup.reset('a')
+  const first = lookup.schedule(['A-1'])
+  const second = lookup.schedule(['B-1', 'A-1'])
+  await Promise.all([first, second])
+  assert.deepEqual(batches, [['A-1', 'B-1']])
+  const old = lookup.schedule(['PRIVATE-A'])
+  lookup.reset('b')
+  const current = lookup.schedule(['PUBLIC-B'])
+  await Promise.all([old, current])
+  assert.deepEqual(batches, [['A-1', 'B-1'], ['PUBLIC-B']])
+  assert.equal(lookup.get('PRIVATE-A'), null)
+})
+
+test('long rendered lists retain their current statuses and prune them when their components leave', async () => {
+  const retained = new Set(['A-1', 'A-2', 'A-3'])
+  const lookup = createMembershipLookup(async (avids) => reply(avids), {
+    limit: 2,
+    protectedKeys: () => retained,
+  })
+  lookup.reset('a')
+  await lookup.load(['A-1', 'A-2', 'A-3'])
+  assert.equal(lookup.rows.value.size, 3)
+  retained.delete('A-1')
+  lookup.prune()
+  assert.equal(lookup.rows.value.size, 2)
+  assert.equal(lookup.get('A-1'), null)
+})

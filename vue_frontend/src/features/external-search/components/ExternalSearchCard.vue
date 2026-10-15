@@ -1,5 +1,5 @@
 <script setup>
-import RemoteResourceActions from '../../resources/components/RemoteResourceActions.vue'
+import RemoteLibraryActions from '../../library/components/RemoteLibraryActions.vue'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { computed, ref, watch } from 'vue'
@@ -84,7 +84,8 @@ const metrics = computed(() => {
         <span v-if="metrics.likes">收藏 {{ metrics.likes }}</span>
       </div>
 
-      <RemoteResourceActions
+      <RemoteLibraryActions
+        :avid="item.avid"
         :adding="adding"
         :added="added"
         @add="emit('add')"

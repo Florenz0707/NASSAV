@@ -1,7 +1,15 @@
 import { onScopeDispose, ref, watch } from 'vue'
 
 // Track the submitted job, not another scrape of the same resource.
-export function useResourceAdds({ added, jobs, submit, onAdded, onError, onExisting }) {
+export function useResourceAdds({
+  added,
+  jobs,
+  submit,
+  onAdded,
+  onError,
+  onExisting,
+  alreadyAdded = (item) => added.value.has(item.avid),
+}) {
   const adding = ref(new Set())
   const pending = ref(new Map())
   let active = true
@@ -32,7 +40,7 @@ export function useResourceAdds({ added, jobs, submit, onAdded, onError, onExist
     }
   })
   async function add(item) {
-    if (!active || !item?.avid || adding.value.has(item.avid) || added.value.has(item.avid)) return
+    if (!active || !item?.avid || adding.value.has(item.avid) || alreadyAdded(item)) return
     adding.value = new Set(adding.value).add(item.avid)
     try {
       const response = await submit(item.avid, item)

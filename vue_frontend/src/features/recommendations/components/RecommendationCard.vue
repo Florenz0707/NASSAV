@@ -1,6 +1,6 @@
 <script setup>
 import AppButton from '../../../shared/ui/AppButton.vue'
-import RemoteResourceActions from '../../resources/components/RemoteResourceActions.vue'
+import RemoteLibraryActions from '../../library/components/RemoteLibraryActions.vue'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { computed, ref, watch } from 'vue'
@@ -196,7 +196,8 @@ function handleReasonsClick(event) {
         </div>
       </div>
 
-      <RemoteResourceActions
+      <RemoteLibraryActions
+        :avid="item.avid"
         :adding="adding"
         :added="added"
         @add="emit('add')"

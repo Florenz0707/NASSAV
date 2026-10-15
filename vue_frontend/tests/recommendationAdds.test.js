@@ -149,3 +149,26 @@ test('shared operation tracking ignores another operation and does not treat CAS
   assert.deepEqual(cancelled.errors, [])
   cancelled.stop()
 })
+
+test('current membership predicate overrides a stale restored added set', async () => {
+  const scope = effectScope(),
+    added = ref(new Set([item.avid]))
+  let submits = 0
+  const controls = scope.run(() =>
+    useRecommendationAdds({
+      added,
+      jobs: () => [],
+      alreadyAdded: () => false,
+      submit: async () => {
+        submits++
+        return accepted()
+      },
+      onAdded: () => {},
+      onExisting: () => {},
+      onError: () => {},
+    })
+  )
+  await controls.add(item)
+  assert.equal(submits, 1)
+  scope.stop()
+})

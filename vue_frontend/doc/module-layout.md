@@ -67,3 +67,5 @@ features/library/lib/membershipLookup.js管理本人关系缓存与请求护栏�
 DownloadsView按会话能力装配tasks/components/UserOperationsPage或LegacyDownloadsPage（兼容/DEBUG）；公共TaskDetailsPanel仅展示。tasks/composables/operationTracking.js拥有本人请求读取、排序、版本与命令归属，stores/userOperations.js装配API和关系失效，lib/operationDetails.js只转换显示。App启动/停止跟踪，WebSocket仅转发本人版本提示，不把全局队列混入共享用户页面。
 
 features/library/lib/libraryCommands.js维护命令幂等、持有CAS、结果归属和有界批量；stores/commands.js只装配依赖并拥有来源选择弹窗意图。components/LibraryOperationDialog.vue复用公共弹窗/下拉/按钮，App作为装配入口。resource store按会话能力调用共享库命令或旧兼容API，不将operation改名为job；共享入口不直删全局资源或视频。
+
+features/library/components/RemoteLibraryActions.vue是推荐/外部搜索按钮的本人状态装配层；resources/components/RemoteResourceActions.vue保留纯展示。成员store维护挂载项与唯一刷新计时器，membershipLookup管理合批、缓存和归属。App装配封面缓存身份失效，api/resources保留HTTP与object URL生命周期，卡片自身只持有当前图片展示代次。

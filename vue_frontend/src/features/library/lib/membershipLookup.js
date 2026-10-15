@@ -39,7 +39,7 @@ function checkedStatuses(data, requested) {
 // Owns only cache invalidation and request attribution. The DB owns membership.
 export function createMembershipLookup(
   fetchStatuses,
-  { now = () => performance.now(), ttl = 30000, limit = 500 } = {}
+  { now = () => performance.now(), ttl = 30000, limit = 500, protectedKeys = () => [] } = {}
 ) {
   const rows = ref(new Map()),
     loading = ref(new Set()),
@@ -48,10 +48,24 @@ export function createMembershipLookup(
   let owner = '',
     epoch = 0,
     sequence = 0
+  let scheduled = null
   const tickets = new Map(),
     batches = new Map()
+  function bounded(map) {
+    const protectedSet = new Set(protectedKeys())
+    for (const key of map.keys()) {
+      if (map.size <= limit) break
+      if (!protectedSet.has(key)) map.delete(key)
+    }
+    return map
+  }
+  function prune() {
+    if (rows.value.size > limit) rows.value = bounded(new Map(rows.value))
+    if (errors.value.size > limit) errors.value = bounded(new Map(errors.value))
+  }
   function reset(identity = '') {
     owner = identity
+    scheduled = null
     epoch++
     revision.value++
     rows.value = new Map()
@@ -89,15 +103,14 @@ export function createMembershipLookup(
           next.delete(avid)
           next.set(avid, { value, time: now() })
         }
-        while (next.size > limit) next.delete(next.keys().next().value)
-        rows.value = next
+        rows.value = bounded(next)
       } catch (error) {
         if (epoch !== expectedEpoch) return
         const next = new Map(errors.value)
         for (const avid of needed)
           if (tickets.get(avid) === ticket)
             next.set(avid, error.message || '无法确认我的资源库状态，请重试')
-        errors.value = next
+        errors.value = bounded(next)
       } finally {
         if (epoch === expectedEpoch) {
           loading.value = new Set([...loading.value].filter((avid) => tickets.get(avid) !== ticket))
@@ -119,5 +132,20 @@ export function createMembershipLookup(
     }
     return { ignored: epoch !== expectedEpoch }
   }
-  return { rows, loading, errors, revision, reset, invalidate, get, load }
+  function schedule(avids, { force = false } = {}) {
+    if (!owner) return Promise.resolve({ ignored: true })
+    if (!scheduled) {
+      const batch = { epoch, avids: new Set(), force: false, promise: null }
+      batch.promise = Promise.resolve().then(() => {
+        if (scheduled === batch) scheduled = null
+        if (epoch !== batch.epoch) return { ignored: true }
+        return load([...batch.avids], { force: batch.force })
+      })
+      scheduled = batch
+    }
+    for (const avid of avids) if (canonical(avid)) scheduled.avids.add(canonical(avid))
+    scheduled.force ||= force
+    return scheduled.promise
+  }
+  return { rows, loading, errors, revision, reset, invalidate, get, load, schedule, prune }
 }

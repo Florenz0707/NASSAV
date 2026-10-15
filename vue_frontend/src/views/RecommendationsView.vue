@@ -1,4 +1,5 @@
 <script setup>
+import { useMembershipsStore } from '../features/library/stores/memberships.js'
 import { useRecommendationAdds } from '../features/recommendations/composables/useRecommendationAdds.js'
 import InfoDialog from '../shared/ui/InfoDialog.vue'
 import { useRecommendationElapsed } from '../features/recommendations/composables/useRecommendationElapsed.js'
@@ -293,6 +294,10 @@ function continueRecommendations() {
 
 const { adding: addingAvids, add: handleAdd } = useRecommendationAdds({
   added: addedAvids,
+  alreadyAdded: (item) =>
+    sessionStore.capabilities.shared_library
+      ? Boolean(useMembershipsStore().get(item.avid)?.is_in_my_library)
+      : addedAvids.value.has(item.avid),
   jobs: () => resourceStore.visibleScrapeJobs,
   submit: (avid) => resourceStore.addResource(avid, 'any'),
   onAdded: (item) => persistRecommendationFeedback(item, 'like'),
