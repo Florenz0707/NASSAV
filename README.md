@@ -1,6 +1,6 @@
 # NASSAV - AV 资源管理系统
 
-当前版本：**v2.5.1**。升级步骤与验收边界见[发布检查](django_backend/doc/release-2.5.1.md)。
+当前版本：**v2.5.1**。升级步骤与验收边界见[当前升级与切换](django_backend/doc/multi-user-cutover.md)。
 
 基于 Django、Celery 和 Vue 的资源管理系统，将资源收藏与管理、多源发现、个性化推荐和任务控制串成完整流程：搜索感兴趣的资源，补齐元数据，加入资源库，再按需下载。支持实时进度以及任务暂停、恢复和终止。项目基于 [Satoing/NASSAV](https://github.com/Satoing/NASSAV) 重构；历史参考代码已从当前仓库移除。
 
@@ -42,24 +42,24 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 资源添加/刷新通过异步任务执行；演员和类别外部搜索支持来源选择、渐进结果、取消和终态补查。下载和批量翻译的 owner/异常收尾修复、资源/下载/翻译/推荐用例分层已实现；消费者 URL、响应字段和 Celery 任务名保持。
 
-v2.5.1新增个人资源状态、JSON设置、推荐归属、播放偏好、跨设备接续和个人观看列表（0033–0036），并优化个人中心、详情、卡片和缓存；v2.5.0已有共享抓取缓存、表名规范化、来源/本地播放与进度记忆。共享资源与服务器配置保持原有所有者，仍保留指定操作者准入；实现概况见[变更日志](CHANGES.md)。升级需显式导入旧标记/INI及共享推荐数据，步骤见[发布检查](django_backend/doc/release-2.5.1.md)。
+v2.5.1新增个人资源状态、JSON设置、推荐归属、播放偏好、跨设备接续和个人观看列表（0033–0036），并优化个人中心、详情、卡片和缓存；v2.5.0已有共享抓取缓存、表名规范化、来源/本地播放与进度记忆。共享资源与服务器配置保持原有所有者，仍保留指定操作者准入；实现概况见[变更日志](CHANGES.md)。升级需显式导入旧标记/INI及共享推荐数据，步骤见[当前升级与切换](django_backend/doc/multi-user-cutover.md)。
 
-实现阶段最新完整后端隔离门槛1007通过/28在线跳过，前端125项测试及lint/build通过；PostgreSQL迁移/个人状态/推荐专项与Chrome/Firefox隔离API/模拟布局证据按阶段分别记录，不合并成一次全量联调。正式HTTPS/真机已按要求跳过，长时及Firefox历史真实来源间歇超时仍保留限制；本轮发布准备不重新宣称正式迁移、部署或真实外站worker验收。
+本轮多用户实现的完整后端隔离门槛1329通过/28在线跳过，前端200项测试及lint/build通过；PostgreSQL迁移/个人状态/推荐专项与Chrome/Firefox隔离API/模拟布局证据按阶段分别记录，不合并成一次全量联调。正式HTTPS/真机已按要求跳过，长时及Firefox历史真实来源间歇超时仍保留限制；本轮发布准备不重新宣称正式迁移、部署或真实外站worker验收。
 
 ## 文档导航
 
 - 本地开发：[后端](django_backend/README.md)、[前端](vue_frontend/README.md)
-- 个人功能：[个人状态与JSON设置](django_backend/doc/personal-state-architecture.md)、[观看列表](django_backend/doc/viewing-architecture.md)、[前端缓存计划](vue_frontend/doc/personal-cache-plan.md)
-- 播放与版本：[v2.5.1升级](django_backend/doc/release-2.5.1.md)、[播放架构](django_backend/doc/online-playback-architecture.md)、[个人进度](django_backend/doc/playback-progress-architecture.md)、[多用户规划](django_backend/doc/multi-user-roadmap.md)
+- 个人功能：[个人状态与设置接口](django_backend/doc/interface.md)、[观看列表](django_backend/doc/viewing-architecture.md)、[前端缓存计划](vue_frontend/doc/personal-cache-plan.md)
+- 播放与版本：[版本与读取授权](django_backend/doc/resource-version-architecture.md)、[播放与进度接口](django_backend/doc/interface.md)、[多用户规划](django_backend/doc/multi-user-roadmap.md)、[升级与切换](django_backend/doc/multi-user-cutover.md)
 - 消费者与数据：[接口与权限](django_backend/doc/interface.md)、[数据库与备份](django_backend/doc/database.md)、[推荐系统](django_backend/doc/recommendation.md)
 - 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[推荐架构](django_backend/doc/recommendation-architecture.md)、[代理并发](django_backend/doc/proxy-concurrency.md)、[持久抓取缓存](django_backend/doc/resource-cache-architecture.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
 - 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[部署与验证边界](django_backend/doc/compose-deployment.md#近期改动与验证边界)
 
 ## 后续设计
 
-- [多用户、来源凭证与共享资源池执行计划](django_backend/doc/multi-user-shared-pool-plan.md)：[P0契约](django_backend/doc/multi-user-contracts.md)、[共享池P1基础](django_backend/doc/resource-pool-architecture.md)与[P2账号策略](django_backend/doc/account-policy-architecture.md)已交付；[P3范围凭证](django_backend/doc/source-credential-architecture.md)已完成隔离实现（新模式默认关闭），共享订阅与安全回收仍在后续阶段，普通账号仍不可登录。
+- [多用户、来源凭证与共享资源池执行计划](django_backend/doc/multi-user-shared-pool-plan.md)：[P0契约](django_backend/doc/multi-user-contracts.md)、[共享池P1基础](django_backend/doc/resource-pool-architecture.md)与[P2账号策略](django_backend/doc/account-policy-architecture.md)已交付；[P3范围凭证](django_backend/doc/source-credential-architecture.md)、共享订阅、版本/回收和管理界面已分阶段实现；[受控准入](django_backend/doc/multi-user-admission-architecture.md)默认关闭，P8目标验收及[切换手册](django_backend/doc/multi-user-cutover.md)区分隔离证据与实际部署。
 
-- [基于来源 HLS 的在线播放设计与执行计划](django_backend/doc/online-playback-design.md)：P0–P5 计划；P1–P4 已实现受控 HLS 网关、详情页播放器与一次失效刷新，默认关闭，目标环境边界见[验收记录](django_backend/doc/online-playback-acceptance.md)。
+- 播放后续设计见[本地播放与进度草案](django_backend/doc/local-playback-and-progress-design.md)；当前接口和验证分别查阅[接口文档](django_backend/doc/interface.md)与[测试说明](django_backend/tests/README.md)，草案不代替现行授权协议。
 
 ## 版本更新
 

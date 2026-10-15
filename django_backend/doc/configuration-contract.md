@@ -56,7 +56,7 @@ BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受
 
 ## 专用来源凭证密钥（未发布）
 
-`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`指定权限0600的专用AES密钥JSON文件，仅新凭证存储/导入/轮换消费者使用。缺失或无权读取时明确不可用，不回退SECRET_KEY。格式、轮换及备份见[凭证架构](source-credential-architecture.md)。不将真实文件写进配置示例或Git；容器挂载必须保留私有权限。旧抓取仍走原Cookie，尚未切换。
+`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`指定权限0600的专用AES密钥JSON文件，供凭证存储/导入/轮换与范围抓取、搜索、推荐、播放消费者共同使用。缺失或无权读取时明确不可用，不回退SECRET_KEY。格式、轮换及备份见[凭证架构](source-credential-architecture.md)。不将真实文件写进配置示例或Git；容器挂载必须保留私有权限。范围模式关闭时保留旧Cookie兼容；开启前依照切换手册确认分类与keyring备份。
 
 `NASSAV_SCOPED_SOURCE_CREDENTIALS`为严格布尔，默认false；true时Source使用专用加密凭证，不读写旧Cookie、不在缺钥时降级。必须同时设置keyring，统一重启API/worker，普通多用户登录仍关闭。切换和轮换顺序见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。
 

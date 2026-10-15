@@ -36,4 +36,4 @@ api/client只维护当前预条件与请求代次；session store接收授权快
 
 隔离SQLite/PostgreSQL与真实Chrome/Firefox测试覆盖登录/CSRF、默认关闭、角色/旧入口、同用户不同登录、跨Cookie旧PUT/GET/logout、泛化图片、WS握手/私有组/角色代次、个人Cookie隔离、公共工作合并、私人分离、配额、独立取消和停用。原生浏览器使用独立临时SQLite/Redis/keyring，测试账号的Django管理员标志不能越过应用角色。
 
-真实worker与目标来源/ProxyServer、旧资产迁移映射及维护窗口仍按[执行计划](multi-user-shared-pool-plan.md)验收。不得仅凭浏览器请求排队或隔离测试打开正式多用户/GC；已豁免的HTTPS/真机项不重新作为阻塞条件。
+非eager原生worker配合合成来源的发布/取消/重复消息已通过隔离专项；目标来源/ProxyServer、旧资产映射及维护窗口仍按[切换手册](multi-user-cutover.md)验收。不得仅凭浏览器请求排队或隔离测试打开正式多用户/GC；已豁免的HTTPS/真机项不重新作为阻塞条件。
