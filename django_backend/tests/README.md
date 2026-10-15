@@ -200,3 +200,5 @@ GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一
 系统来源凭证浏览器专项：使用上面的临时library/operator服务与状态，运行`NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_LIBRARY_STORAGE_STATE=<临时目录>/storage-state.json node vue_frontend/tests/browser/adminCredentials.cjs`（从仓库根执行）。可用`NASSAV_BROWSER_ENGINE=firefox`切换浏览器；仅允许loopback临时实例，真实HTTP/SQLite/keyring验证Cookie类型拒绝、盲写、丢失响应重放、CAS冲突/草稿、撤销及移动端嵌套焦点；不访问真实来源或部署凭证。
 
 资源生命周期浏览器专项：`node vue_frontend/tests/browser/adminResources.cjs`复用上述NODE_PATH与临时NASSAV_LIBRARY_STORAGE_STATE，默认验证GC关闭时只读预览/保留/下架、版本冲突与结果未知重试。另启动helper时显式增加`NASSAV_GC_UI_TEST_FIXTURE=1`（必须同时启用operation/library fixture），仅在独立临时库生成无文件的空池和失败回收记录并开启该实例GC；浏览器加`NASSAV_EXPECT_GC_ENABLED=1`验证真实排队与失败重试。helper不启动来源/GC worker，因此这项仅证明UI/HTTP/DB/Redis派发，文件执行沿已有原生worker专项验证，不能代替部署删除验收。
+
+全局执行浏览器专项：同一临时library/operator fixture下运行`node vue_frontend/tests/browser/adminWork.cjs`（上述NODE_PATH和NASSAV_LIBRARY_STORAGE_STATE）；可指定`NASSAV_WORK_UI_AVID=OPERATION-SECOND`使用第二条未执行任务，Firefox同上。真实HTTP/SQLite验证暂停响应丢失重放、恢复CAS冲突、恢复/终止、本人operation投影、审计和窄屏嵌套确认。该fixture未启动来源worker，不能据此宣称真实下载进程暂停或部署清理已通过；仍沿既有worker与文件专项门槛。

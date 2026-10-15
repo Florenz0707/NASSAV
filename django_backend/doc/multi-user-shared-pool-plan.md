@@ -409,3 +409,9 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 资源管理隔离验收（2026-10-15）：Chrome使用GC关闭的真实临时HTTP/SQLite/Redis验证预览阻塞、禁止排队、保留CAS冲突、下架响应丢失后的同UUID重放、恢复访问及两主题/窄屏。Firefox在新临时实例显式启用GC，仅对无文件空池登记回收，并将合成cleanup_failed记录重试为queued；两个真实持久请求入Redis，未启动文件/来源worker，不宣称文件删除已验收。前端补命令后列表刷新期间的busy护栏；PostgreSQL生命周期/账号专项24 passed。全量SQLite及提交门槛记录见后续。
 
 资源生命周期最终门槛：全量SQLite1303 passed/28 skipped，PostgreSQL专项24 passed；最终前端check通过。核查过渡结束后的桌面及窄屏截图，公共主题/单内容滚动/嵌套确认正常；增加畸形/不一致预览拒绝用例。完整pre-commit通过后提交，不变更生产开关、资产或归属。
+
+### P7管理员全局执行界面子阶段
+
+基线9dc2f99，分支feat/admin-shared-work-ui：管理中心接入既有全局任务列表及审计控制，allowed_actions、固定job版本/UUID、原因与二次确认；明确与本人撤销的影响边界。状态排序/分页和文件清理独立展示，不读取配置或凭证，不以登记等同停止。后端协议/schema不变，图片结果句柄与P8继续。
+
+全局执行隔离门槛（2026-10-15）：Chrome与Firefox通过真实临时HTTP/SQLite/Redis的暂停结果未知重放、恢复旧版本拒绝/刷新、恢复/终止和本人请求投影，Firefox复核暂停审计无重放重复；窄屏/两主题/嵌套Escape通过。SQLite账号/权限/共享请求专项27 passed，前端完整check通过，额外覆盖清理重试API路径与动作白名单。没有运行来源writer或声明文件已清理；完整pre-commit通过后提交。

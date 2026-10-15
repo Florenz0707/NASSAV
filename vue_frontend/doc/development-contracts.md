@@ -317,3 +317,9 @@ features/admin/lib/adminRead拥有管理查询的当前登录/请求代次；acc
 管理中心resources/gc仅在共享库与app_admin能力下装配。AdminResources拥有当前分页的adminRead；resourceAdministration拥有确认时冻结的pool_version或job revision、原因与幂等UUID。下架/恢复访问、保留、回收排队和失败重试使用不同API，不能以移出关系代替物理删除或以排队响应宣称文件已清理。UI不读私密标题/持有者/路径，不修改后端执行开关。
 
 回收预览有独立请求代次，核对pool UUID/version/generation和可选版本UUID；旧预览、来源输入变化、关闭与身份切换不能授权新请求。无阻塞预览不是删除保证，后台再次核查；RESOURCE_GC_ENABLED关闭时保留只读预览/保留操作，禁止排队及重试。未知结果重放相同命令，409保留原对象版本并提示刷新，保护条件逐项展示；完成后使本人关系/封面缓存失效。弹窗复用公共控件、唯一内容滚动及嵌套确认。
+
+### 管理员全局执行控制
+
+管理中心work复用既有/tasks/jobs审计协议，仅app_admin装配，不与本人operation跟踪混用。列表按job_id及服务端排序分页；按钮仅接受allowed_actions。workAdministration冻结任务版本、动作、审计原因和request UUID，结果未知使用原命令重试；409不采纳响应的新版本继续控制，须刷新后重新确认。动作期间及成功后的列表刷新均保持busy，迟到结果不能写入新登录。
+
+全局暂停/恢复/终止及清理重试明确提示影响其他等待者；本人撤销仍在任务详情中。HTTP202仅表示登记，清理状态独立展示，不以cancelled宣称中间产物已删除。界面只显示执行编号/AVID/类型、阶段、清理状态和时间，不展开来源配置或凭证。清理重试复用cleanup/retry端点；未知动作在API层拒绝。

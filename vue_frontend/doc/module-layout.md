@@ -77,3 +77,5 @@ features/admin拥有管理中心及独立账号/审计模块；views/ManagementV
 管理中心的系统来源凭证位于features/admin/components/AdminSourceCredentials、SystemCredentialEditor，审计写入状态归lib/systemCredentials，复用adminRead读取与api/admin的既有来源API委托。个人凭证仍归features/cookies，不让普通入口承担系统审计命令或共享Cookie语义。
 
 共享资源与回收记录复用AdminResources（jobs属性区分协议），确认交互由ResourceAdminDialog展示；lib/resourceAdministration负责版本/预览归属与命令重试，api/admin/resourceAdminApi负责端点装配。组件不执行文件操作或直接调用worker。
+
+管理员全局执行归AdminWork与lib/workAdministration；api/admin/workAdminApi适配既有任务列表分页和审计控制协议。本人operation状态继续归features/tasks，不把共享job控制能力加入普通用户页面，也不恢复旧全局队列作为个人列表。

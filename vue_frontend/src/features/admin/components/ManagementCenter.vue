@@ -6,6 +6,7 @@ import AdminAccounts from './AdminAccounts.vue'
 import AdminAudit from './AdminAudit.vue'
 import AdminSourceCredentials from './AdminSourceCredentials.vue'
 import AdminResources from './AdminResources.vue'
+import AdminWork from './AdminWork.vue'
 import { useSessionStore } from '../../auth/stores/session.js'
 const session = useSessionStore()
 const route = useRoute(),
@@ -19,6 +20,7 @@ const sections = computed(() => [
         { value: 'gc', label: '回收记录', component: AdminResources, jobs: true },
       ]
     : []),
+  { value: 'work', label: '全局执行', component: AdminWork },
   { value: 'audit', label: '审计记录', component: AdminAudit },
 ])
 const current = computed(

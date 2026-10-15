@@ -41,3 +41,20 @@ export const resourceAdminApi = {
     return Promise.reject(new Error('不支持的资源管理操作'))
   },
 }
+
+export const workAdminApi = {
+  list: async (params) => {
+    const response = await api.get('/tasks/jobs', { params })
+    return {
+      ...response,
+      data: response.data.jobs,
+      pagination: response.pagination || response.data.pagination,
+    }
+  },
+  command: ({ id, action, body }) => {
+    if (!['pause', 'resume', 'cancel', 'cleanup_retry'].includes(action))
+      return Promise.reject(new Error('不支持的共享执行操作'))
+    const suffix = action === 'cleanup_retry' ? 'cleanup/retry' : action
+    return api.post(`/tasks/jobs/${encodeURIComponent(id)}/${suffix}`, body)
+  },
+}
