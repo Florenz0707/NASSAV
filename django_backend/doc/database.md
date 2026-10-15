@@ -1,12 +1,14 @@
 # 数据库与迁移
 
+当前开发叶节点为0051。2026-10-15经授权的PostgreSQL dbb/nassav已从0036升级至0051，原字段摘要保持；后续经确认完成独立归属/admin/Cookie隔离导入，推荐合并仍暂停；详见[目标迁移记录](postgres-multi-user-migration-20261015.md)。下文各P1/P2/P3“叶节点”和未迁移表述为当阶段历史快照，不代表当前实例。
+
 未发布P3存储子阶段新增0040的SourceCredential/SourceSessionSnapshot；开发叶节点为0040，不自动导入旧Cookie、不切换消费者，详见[凭证架构](source-credential-architecture.md)。新增表逆向会丢失凭证/快照，回退前必须备份密钥及数据，不能将个人凭证压回一份全局Cookie。
 
 未发布P2新增0038应用账号/管理fence/审计/幂等receipt/登录绑定/配额预留，以及0039资源可用性和播放读取grant；开发叶节点为0039。结构迁移不自动授权管理员、不开放普通账号，回退新增状态丢失边界见[账号策略](account-policy-architecture.md)。正式发布v2.5.1叶节点仍为0036；下方P1的0037是该阶段当时记录。
 
 未发布P1新增0037：共享规范身份池与按用户持有关系，结构迁移不自动分配旧资源所有者。当前开发迁移叶节点为0046；v2.5.1发布叶节点仍为0036。新增表、显式导入及逆向迁移的数据损失边界见[共享池架构](resource-pool-architecture.md)。本轮只验证隔离SQLite/PostgreSQL数据库，未迁移部署实例。
 
-v2.5.1迁移叶节点为0036；从2.5.0的0032补齐0033–0036个人状态、JSON设置、推荐归属及观看列表。0027–0032的缓存、表名及播放基础见历史发布指南。已有实例按实际showmigrations升级，不把下方历史验证记录当作当前部署。维护窗口与逆向迁移数据影响见[v2.5.1发布检查](release-2.5.1.md)。
+v2.5.1迁移叶节点为0036；从2.5.0的0032补齐0033–0036个人状态、JSON设置、推荐归属及观看列表。0027–0032的缓存、表名及播放基础见历史发布指南。已有实例按实际showmigrations升级，不把下方历史验证记录当作当前部署。维护窗口与逆向迁移数据影响见[当前切换手册](multi-user-cutover.md)。
 
 SQLite 是本地和默认 Compose 数据库，由 `Database.Path` 或 `DATABASE_PATH` 指定，Compose 中的文件及 WAL/SHM 位于 `deploy-data/db/`。本地开发可在忽略的 `config/config.yaml` 中将 `Database.Engine` 设为 `postgres`，并配置 `Host`、`Port`、`Name`、`User`、`Schema` 及 `Password` 或 `PasswordFile`；环境变量可覆盖对应值。`Schema` 默认 `public`，需预先存在且应用账号需有权限；应用不会自动创建 schema。例如：
 

@@ -1,6 +1,6 @@
 # 多用户与共享资源池切换手册
 
-本文对应执行计划P8，描述已有命令和隔离证据，不表示现有实例已切换。新结构当前叶节点为0051；普通准入与自动回收默认关闭。入口与身份协议见[准入架构](multi-user-admission-architecture.md)，资产与回退见[版本架构](resource-version-architecture.md)和[回收架构](resource-gc-architecture.md)。
+本文对应执行计划P8，描述已有命令和隔离证据。2026-10-15经授权已将确认的PostgreSQL目标从0036升级到0051；[执行记录](postgres-multi-user-migration-20261015.md)区分结构迁移与已确认的独立归属导入及尚未完成的推荐合并/功能开放。新结构当前叶节点为0051；普通准入与自动回收默认关闭。入口与身份协议见[准入架构](multi-user-admission-architecture.md)，资产与回退见[版本架构](resource-version-architecture.md)和[回收架构](resource-gc-architecture.md)。
 
 ## 当前证据与实例边界
 
@@ -118,4 +118,4 @@ uv run python manage.py resource_gc --action preview --target <pool-UUID>
 
 ## 六、尚需操作者确认
 
-实际目标数据库和部署方式；当前配置声明PostgreSQL，而此前自动迁移授权仅明确SQLite。原操作者/旧资产归属、Cookie分类及是否具备恢复点也需核实。在这些信息明确前，不执行实际PostgreSQL迁移、业务导入、首管理员引导、启用准入或GC。隔离测试可持续运行，但不能代替这项决策。
+目标PostgreSQL迁移已获授权并完成，私有恢复点与原数据核对见执行记录。归属/admin已另获确认，693份持有、管理员及两份Cookie加密隔离已落地；推荐导入因既有352条个人黑名单保护暂停。keyring路径、备份和保留规则见执行记录；统一消费者、解决推荐合并并完成目标验收后才考虑新模式放行，普通准入/GC仍关闭。

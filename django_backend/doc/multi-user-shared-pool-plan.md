@@ -443,3 +443,9 @@ SQLite全量1325 passed/28 skipped，PostgreSQL准入/权限/启动专项22 pass
 管理员CLI在临时库模拟无可用应用管理员，验证预览只读、恢复版本/审计/撤销和同UUID重试不再次撤销。专项SQLite4 passed，PostgreSQL与GC原生派发组合18 passed；全量SQLite1329 passed/28 skipped，完整pre-commit通过。切换手册记录实际配置声明PostgreSQL、本地SQLite为旧0031且不代表活动实例；未迁移实例或打开开关，需确认目标与归属后继续部署验收。
 
 P8本轮提交：受控准入baf2bbe（基线95d7dee）；原生验收与切换手册基线baf2bbe，提交由chore/multi-user-native-acceptance记录。两阶段独立分支、质量门槛通过后合并idle；未操作实例数据库，实际PostgreSQL目标/维护窗口与旧归属需操作者确认。
+
+### P8已授权PostgreSQL结构迁移
+
+基线bf83195，分支chore/multi-user-postgres-cutover。用户新增PostgreSQL迁移授权后，核对dbb/nassav及无活动消费者，生成私有pg_dump备份、恢复到隔离UTF8 PostgreSQL预演，再执行目标0036→0051；15项迁移OK，39张原表6267条原行/字段摘要保持，0待迁移、无模型差异。只允许Django生成新模型权限，不修改原用户授权。业务导入/管理员引导仅只读预览，旧Cookie不激活，普通准入/GC仍关闭；归属及后续目标验收待确认。详情及备份位置见[执行记录](postgres-multi-user-migration-20261015.md)。完整pre-commit通过后提交合并；未将隔离测试冒充目标来源/部署验收。
+
+操作者后续确认旧归属/admin及Cookie只隔离：目标已建立693份nassav持有、显式admin；保留已有42条个人状态与设置，两份凭证加密quarantined且解密核对通过。预演遇到352条个人AVID黑名单触发推荐导入保护；7批旧历史/25种子尚未合并，已询问补空历史/种子的规则，不绕过保护。专用keyring持久保存于Git忽略的secrets，未改默认工作树源码或配置。新模式开关继续关闭。
