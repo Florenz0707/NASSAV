@@ -65,3 +65,15 @@ class UserWatchHistory(models.Model):
                 name="nassav_user_history_idx",
             )
         ]
+
+
+class UserViewingClock(models.Model):
+    """A deleted queue must not allow an old CAS timestamp to be reused."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, primary_key=True, on_delete=models.CASCADE
+    )
+    last_recorded_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "nassav_user_viewing_clock"

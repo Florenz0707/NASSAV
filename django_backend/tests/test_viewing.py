@@ -1,4 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
+from django.utils import timezone
 from uuid import uuid4
 import pytest
 from django.db import close_old_connections
@@ -7,7 +9,7 @@ from nassav.personal_state import update_state, PersonalStateConflict
 from nassav.playback import records
 from nassav.playback.models import PlaybackProgress
 from nassav.playback.policy import PlaybackGatewayError
-from nassav.viewing import record_view, list_viewing
+from nassav.viewing import record_view, list_viewing, remove_history
 
 pytestmark = pytest.mark.django_db
 
@@ -278,3 +280,65 @@ def test_removal_requires_authenticated_operator(operator_user):
         ).status_code
         == 401
     )
+
+
+@pytest.mark.parametrize("rewatch_offset", [0, -3600])
+def test_real_rewatch_always_moves_to_front_when_wall_clock_ties_or_regresses(
+    operator_user, resource_factory, monkeypatch, rewatch_offset
+):
+    first_resource = resource_factory(avid="CLOCK-1")
+    second_resource = resource_factory(avid="CLOCK-2")
+    first = ready(operator_user, first_resource)
+    second = ready(operator_user, second_resource)
+    stamp = timezone.now()
+    monkeypatch.setattr("nassav.viewing.timezone.now", lambda: stamp)
+    record_view(first.pk, operator_user.pk, "view", 1, 1)
+    record_view(second.pk, operator_user.pk, "view", 1, 1)
+    second_snapshot = list_viewing(operator_user.pk, "history", 1, 15)[0][0]
+    assert second_snapshot["avid"] == "CLOCK-2"
+    now = stamp + timedelta(seconds=rewatch_offset)
+    monkeypatch.setattr("nassav.viewing.timezone.now", lambda: now)
+    record_view(first.pk, operator_user.pk, "view", 1, 2)
+    first.refresh_from_db()
+    assert first.history_sequence == 2
+    history = list_viewing(operator_user.pk, "history", 1, 15)[0]
+    assert [item["avid"] for item in history] == ["CLOCK-1", "CLOCK-2"]
+    assert history[0]["queue_time"] > history[1]["queue_time"]
+    original = history[0]["queue_time"]
+    record_view(first.pk, operator_user.pk, "view", 1, 2)
+    assert (
+        list_viewing(operator_user.pk, "history", 1, 15)[0][0]["queue_time"] == original
+    )
+    # A delete captured before another real playing episode must not remove it.
+    record_view(second.pk, operator_user.pk, "view", 1, 2)
+    result = remove_history(
+        operator_user.pk,
+        [{"avid": "CLOCK-2", "queue_time": second_snapshot["queue_time"]}],
+    )
+    assert result == [{"avid": "CLOCK-2", "status": "conflict"}]
+
+
+def test_history_delete_and_rewatch_does_not_reuse_previous_cas_time(
+    operator_user, resource_factory, monkeypatch
+):
+    resource = resource_factory(avid="CLOCK-EMPTY")
+    row = ready(operator_user, resource)
+    now = timezone.now()
+    monkeypatch.setattr("nassav.viewing.timezone.now", lambda: now)
+    record_view(row.pk, operator_user.pk, "view", 1, 1)
+    old = list_viewing(operator_user.pk, "history", 1, 15)[0][0]
+    assert (
+        remove_history(
+            operator_user.pk, [{"avid": resource.avid, "queue_time": old["queue_time"]}]
+        )[0]["status"]
+        == "removed"
+    )
+    assert not UserWatchHistory.objects.exists()
+    record_view(row.pk, operator_user.pk, "view", 1, 2)
+    assert (
+        remove_history(
+            operator_user.pk, [{"avid": resource.avid, "queue_time": old["queue_time"]}]
+        )[0]["status"]
+        == "conflict"
+    )
+    assert UserWatchHistory.objects.count() == 1

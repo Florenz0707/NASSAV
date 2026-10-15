@@ -1,12 +1,13 @@
 """Personal queues; recording playback never acquires progress-writing ownership."""
 
+from datetime import timedelta
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Max
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from nassav.db_retry import retry_sqlite_contention
 from nassav.personal_state import lock_user, project_personal_state
-from nassav.personal_models import UserWatchHistory, UserResourceState
+from nassav.personal_models import UserWatchHistory, UserResourceState, UserViewingClock
 from nassav.library_models import ResourcePoolEntry
 from nassav.playback import records, progress
 from nassav.playback.policy import PlaybackGatewayError
@@ -38,7 +39,17 @@ def record_view(session_id, user_id, login_key, generation, sequence):
         # Monotonic episode sequences fence retries; a genuine resume can move
         # the entry to the front, but old requests cannot reorder it.
         if sequence > session.history_sequence:
+            clock, created = UserViewingClock.objects.get_or_create(user_id=user_id)
+            previous = clock.last_recorded_at
+            if created:
+                previous = UserWatchHistory.objects.filter(user_id=user_id).aggregate(
+                    value=Max("last_watched_at")
+                )["value"]
             now = timezone.now()
+            if previous is not None and now <= previous:
+                now = previous + timedelta(microseconds=1)
+            clock.last_recorded_at = now
+            clock.save(update_fields=["last_recorded_at"])
             UserWatchHistory.objects.update_or_create(
                 user_id=user_id,
                 pool=pool,

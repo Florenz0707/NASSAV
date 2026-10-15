@@ -65,6 +65,7 @@ from nassav.personal_models import (
     UserResourceState as UserResourceState,
     UserPreferences as UserPreferences,
     UserWatchHistory as UserWatchHistory,
+    UserViewingClock as UserViewingClock,
 )
 from nassav.task_models import (
     TaskArtifact as TaskArtifact,

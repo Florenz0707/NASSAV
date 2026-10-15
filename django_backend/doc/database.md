@@ -443,6 +443,10 @@ PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；�
 
 逆向仅丢可重建term/link，保留已有版本JSON/指针/关系/旧Actor/Genre。派生整数ID不保证在逆向后重建一致，切换需要关闭旧消费者并清缓存/登录；未来UI或推荐不能把此ID当稳定人物的全局身份。SQLite/PostgreSQL往返专项test_owned_catalog_migration.py验证私有与旧归属不串及业务/关系数据保持。此迁移未作用于部署实例。
 
+## 0049 观看逻辑时钟
+
+nassav_user_viewing_clock以user为主键，last_recorded_at为可空DateTime；只保存最近接受的观看逻辑时间，不保存资源/标题或用户配置。新事件与历史更新沿同一user fence原子提交；删除历史不删除该fence。迁移按已有历史最大时间回填，无新事件。能从当前历史重建时可往返；若已删除事件留下不可重建游标，拒绝回退丢失CAS保护，要求恢复备份。见[观看架构](viewing-architecture.md#单调观看时钟0049)。
+
 ## 0048 稳定观看历史
 
 UserWatchHistory新增pool（PROTECT）和仅含AVID/三个标题字段/来源的snapshot，resource改为nullable SET_NULL；唯一约束沿用名字、改为(user,pool)。历史不保护媒体字节，只保留池tombstone身份；回收不删除事件。
