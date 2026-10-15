@@ -28,14 +28,22 @@ pytestmark = pytest.mark.django_db
 
 
 def runner(
-    environment, *, translate=lambda text: "translated fixture", on_source=lambda: None
+    environment,
+    *,
+    translate=lambda text: "translated fixture",
+    on_source=lambda: None,
+    action="add",
 ):
     users, vault, roots = environment
     ctx = context(vault)
     records, publications, operations, assets = runtime(ctx, roots)
-    op = operation(users[0], ctx, operations)
-    work_job = TaskJob.objects.get()
-    attempt = TaskAttempt.objects.get()
+    if action == "refresh":
+        operations.manage_intents = True
+    op = operation(users[0], ctx, operations, action=action)
+    work_job = TaskJob.objects.get(
+        shared_work__subscriptions__operation_id=op["operation_id"]
+    )
+    attempt = TaskAttempt.objects.get(job=work_job)
     policy = VersionedScrapePublication(
         records, publications, lambda control: SimpleNamespace(translate=translate)
     )
@@ -85,6 +93,87 @@ def runner(
         publication=policy,
     )
     return users, records, operations, workflow, op, work_job, attempt, roots
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize("pause", [None, "queued", "source"])
+def test_shared_refresh_uses_version_authority_and_survives_resume(
+    environment, legacy, pause
+):
+    from nassav.library_models import ResourcePoolEntry, UserLibraryEntry
+    from nassav.models import AVResource
+
+    users = environment[0]
+    old = None
+    if legacy:
+        resource = AVResource.objects.create(
+            avid="PUB-001", original_title="legacy fixture"
+        )
+        pool = ResourcePoolEntry.objects.create(
+            canonical_avid="PUB-001", resource=resource, state="ready"
+        )
+        UserLibraryEntry.objects.create(
+            user=users[0],
+            pool=pool,
+            state="active",
+            access_scope=f"legacy:operator:{users[0].pk}",
+        )
+    else:
+        _, _, ops, initial, op, job, attempt, roots = runner(environment)
+        assert initial.run(str(job.pk), str(attempt.pk))["state"] == "succeeded"
+        ops.project(users[0].pk, op["operation_id"])
+        old = ResourceVersion.objects.get(state="ready")
+        old_metadata = dict(old.metadata)
+
+    pause_source = [pause == "source"]
+
+    def request(action):
+        current = records.get(str(job.pk))
+        return records.request(
+            str(job.pk),
+            action,
+            expected_version=current["version"],
+            request_id=str(uuid4()),
+            actor_id=users[0].pk,
+            allow_all=True,
+        )
+
+    def on_source():
+        if pause_source[0]:
+            pause_source[0] = False
+            request("pause")
+
+    _, records, ops, workflow, op, job, attempt, roots = runner(
+        environment, action="refresh", on_source=on_source
+    )
+    if pause == "queued":
+        assert request("pause")["state"] == "paused"
+        resumed = request("resume")
+        assert workflow.run(str(job.pk), str(attempt.pk))["status"] == "ignored"
+        attempt = TaskAttempt.objects.get(job=job, generation=resumed["generation"])
+    result = workflow.run(str(job.pk), str(attempt.pk))
+    if pause == "source":
+        assert result["state"] == "paused"
+        if old is not None:
+            assert ResourceVersionPointer.objects.get().current_id == old.pk
+        resumed = request("resume")
+        attempt = TaskAttempt.objects.get(job=job, generation=resumed["generation"])
+        result = workflow.run(str(job.pk), str(attempt.pk))
+
+    assert result["state"] == "succeeded", result.get("message")
+    new = ResourceVersion.objects.get(work__job=job, state="ready")
+    assert ops.project(users[0].pk, op["operation_id"])["state"] == "succeeded"
+    assert UserLibraryEntry.objects.get(user=users[0]).current_version_id == new.pk
+    assert (roots["cover"] / f"versions/{new.pk}/cover.jpg").is_file()
+    if old is not None:
+        old.refresh_from_db()
+        assert old.metadata == old_metadata
+        assert new.parent_id == old.pk
+        assert (roots["cover"] / f"versions/{old.pk}/cover.jpg").is_file()
+    else:
+        assert new.parent_id is None
+        resource.refresh_from_db()
+        assert resource.original_title == "legacy fixture"
 
 
 def test_shared_scrape_translates_before_atomic_publication_and_never_promotes_html(

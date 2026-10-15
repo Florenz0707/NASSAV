@@ -110,11 +110,16 @@ class ControlledScrape:
                 snapshot = records.get(job_id)
             if not snapshot["resource_saved"]:
                 if "base_revision" not in checkpoint:
-                    base = self.revision(snapshot["avid"])
-                    if snapshot["action"] == "add" and base is not None:
-                        raise ValueError("资源已存在")
-                    if snapshot["action"] == "refresh" and base is None:
-                        raise ValueError("资源不存在")
+                    # Version publication owns membership/parent/pointer fencing.
+                    # Legacy AVResource existence is not authority for that path,
+                    # including the first refresh of an imported membership.
+                    base = None
+                    if self.publication is None:
+                        base = self.revision(snapshot["avid"])
+                        if snapshot["action"] == "add" and base is not None:
+                            raise ValueError("资源已存在")
+                        if snapshot["action"] == "refresh" and base is None:
+                            raise ValueError("资源不存在")
                     stage("source", base_revision=base)
                 if "prepared" not in checkpoint:
                     stage("source")

@@ -79,6 +79,20 @@
 
 add/download可直接复用ready指针，但必须范围、来源/质量、当前credential/context及拥有者一致，不能凭AVID/文件存在复用。重添提升pool代次，只复用正式证据，不恢复旧attempt；refresh强制新准备。成功复用不创建新TaskAttempt；正在结束的work不重新附加需求。
 
+版本化刮削不使用旧AVResource的存在性/revision判断add或refresh：提交先核查本人持有与意图，执行由来源/pool/work/attempt fence保护，发布由VersionPublications固定parent与指针revision并CAS提交。尤其遗留持有首次刷新可能没有任何已发布版本，不能因旧revision回调为空而拒绝；没有持有的刷新仍在提交层拒绝。ControlledScrape仅在未装配publication策略时保留旧资源存在性与revision规则，检查点字段及既有协议不变。
+
+2026-10-15真实P8暴露此问题：两个公共需求中A撤销，B暂停/恢复产生generation 2后，在取源前报SCRAPE_FAILED/资源不存在。根因为共享装配的旧revision回调固定为空。新增六种回归覆盖遗留/版本化资源与直接刷新、排队暂停及来源阶段暂停恢复，修复前均复现，修复后与旧刮削/发布专项共54 passed。全量及真实副本重放结果随本阶段执行记录补齐，不以本专项替代目标验收。
+
 新HTTP先保留operator＋受管角色＋共享库开关准入：提交、移出、刷新/下载请求、本人operation状态/集合/取消。普通账号仍关闭。集合稳定降序分页，进度只允许数值percent和格式化速度/ETA，timeline裁剪到100条合法stage/state/time；不返回原work、订阅人数、源链接或Cookie。
 
 共享库列表/完整版本资源与媒体投影仍由后续子阶段接入；当前LibraryEntries只有POST，不应宣称它已替代旧GET资源列表。GC/正式多用户准入也仍关闭。
+
+## 任务追踪与本地隐藏
+
+UserOperation持久保存本人的请求状态，SharedWork/TaskJob持有共享执行状态；它们不是“不跟踪列表”。当前前端operationTracking.hide只将隐藏operation ID写入浏览器localStorage的`nassav:hidden-operations:v1:<owner>`，不调用后端、不删除请求或撤销需求。旧taskJobs兼容页同样只在本地保存隐藏ID。重载可按当前本地键恢复，换浏览器/设备不保证保留隐藏状态；没有服务端隐藏关系表，本轮也没有新增该能力。
+
+## 共享刷新修复验证
+
+分支fix/shared-scrape-refresh-existence，基线5ad69db。新增六种失败回归在修复前均报“资源不存在”；修复后SQLite与临时PostgreSQL的共享执行/旧刮削/版本专项各54 passed，完整后端隔离1341 passed/28在线跳过。无新迁移、接口或来源凭证写入，文档与代码提交执行完整pre-commit。
+
+修复后重新从既有备份恢复全新隔离PG副本，使用生产HTTP、来源、翻译与原生solo worker重放：MissAV双账号首次添加成功；A撤销/B排队暂停恢复成功，generation 2、两个attempt、旧消息不重复发布，A仍持旧版/B指向新版本；运行中全部撤销后cancelled、无ready版本、cleanup not_required。真实副本证据与运行中间产物私有保存，后续P8记录统一登记。此轮不启动或切换用户9790服务，不开放实际普通准入或GC。
