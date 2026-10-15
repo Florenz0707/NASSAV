@@ -170,3 +170,5 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 用户目录基础：`test_owned_catalog_projection.py`与`test_owned_catalog_migration.py`，当前关系/个人统计隔离、错误link和0046→0047→0046→0047往返；目前不代表目录HTTP或推荐种子已切换。
 
 目录消费者：`test_owned_catalog_consumers.py`，两个用户的HTTP/筛选/本地种子/黑名单、命名实体来源适配器、缓存公开观察、旧句柄/epoch取消以及头像路径/查询预算；列表源与队列store为替身。
+
+稳定历史专项：`uv run pytest tests/test_durable_viewing_history.py tests/test_viewing.py --ds=django_project.refactoring_test_settings -v`，含真实版本/合成MP4、批量投影及0048升级回退再次升级/回收后拒绝丢数据。PostgreSQL使用独立测试实例运行同一专项；不使用部署库。

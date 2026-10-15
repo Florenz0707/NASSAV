@@ -442,3 +442,9 @@ PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；�
 升级以200行游标读取已有active关系；有合法当前版本则只投影本人/公开ready或retired metadata名称，旧未版本化仅public或准确legacy操作者归属读旧关系。坏owner/pool/kind及未确认范围不猜测；不会创建新持有、Cookie或观看事件。显式旧导入只同步新建关系，重跑保留现有编辑/版本。运行成功grant按user→pool短事务bulk同步，原系统pool发布不取得所有user fence。
 
 逆向仅丢可重建term/link，保留已有版本JSON/指针/关系/旧Actor/Genre。派生整数ID不保证在逆向后重建一致，切换需要关闭旧消费者并清缓存/登录；未来UI或推荐不能把此ID当稳定人物的全局身份。SQLite/PostgreSQL往返专项test_owned_catalog_migration.py验证私有与旧归属不串及业务/关系数据保持。此迁移未作用于部署实例。
+
+## 0048 稳定观看历史
+
+UserWatchHistory新增pool（PROTECT）和仅含AVID/三个标题字段/来源的snapshot，resource改为nullable SET_NULL；唯一约束沿用名字、改为(user,pool)。历史不保护媒体字节，只保留池tombstone身份；回收不删除事件。
+
+按200条游标回填已有事件，缺失池仅建立稳定身份、不创建持有关系；身份与现有资源冲突时拒绝猜测。用户、时间和media_kind不变，源URL/Cookie/备注不进入snapshot。迁移后若已有resource=NULL历史，回退0047显式拒绝，不强删数据满足旧非空约束；应恢复维护窗口备份。旧资源仍存在时可往返。升级须停写、备份并统一API/worker，无文件移动或外站访问。

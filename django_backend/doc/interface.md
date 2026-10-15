@@ -1632,3 +1632,7 @@ GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/a
 ### 凭证范围推荐/外搜封面
 
 SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?source=jable|missav&url=... 使用当前用户独立来源与范围缓存，不命中旧URL-only文件。来源/URL不支持400，凭证不可用503，授权失效403，图片不可用404。HTTP private/no-store、Vary Cookie、nosniff；流开始后失效中断后续块，已发送块无法撤回。普通账号未开放，结果句柄授权随P7/P8完成。
+
+### 0048观看历史状态
+
+个人history/watch-later摘要增加is_available。共享模式展示本人版本及个人标记；history的标题/来源是当次播放快照。本人已移出或资源回收时历史仍返回，is_available=false、thumbnail_url=null、file_exists=false；不返回源URL/凭证/内部manifest。queue_time及按AVID/时间批量CAS删除契约保持。watch-later只统计并返回本人当前可用持有。

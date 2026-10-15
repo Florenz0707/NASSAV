@@ -76,7 +76,11 @@ def test_ownership_generation_terminal_expiry_and_cascade(
     with pytest.raises(PlaybackGatewayError):
         record_view(row.pk, operator_user.pk, "view", 1, 1)
     resource.delete()
-    assert not UserWatchHistory.objects.exists()
+    history = UserWatchHistory.objects.get()
+    assert history.resource_id is None
+    assert (
+        list_viewing(operator_user.pk, "history", 1, 15)[0][0]["is_available"] is False
+    )
 
 
 def test_watch_later_partial_conflict_dedup_order_and_removal(

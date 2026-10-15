@@ -44,7 +44,11 @@ class UserPreferences(models.Model):
 
 class UserWatchHistory(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    resource = models.ForeignKey("nassav.AVResource", on_delete=models.CASCADE)
+    resource = models.ForeignKey(
+        "nassav.AVResource", null=True, on_delete=models.SET_NULL
+    )
+    pool = models.ForeignKey("nassav.ResourcePoolEntry", on_delete=models.PROTECT)
+    snapshot = models.JSONField(default=dict)
     last_watched_at = models.DateTimeField()
     media_kind = models.CharField(max_length=16)
 
@@ -52,7 +56,7 @@ class UserWatchHistory(models.Model):
         db_table = "nassav_user_watch_history"
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "resource"], name="nassav_user_history_unique"
+                fields=["user", "pool"], name="nassav_user_history_unique"
             )
         ]
         indexes = [
