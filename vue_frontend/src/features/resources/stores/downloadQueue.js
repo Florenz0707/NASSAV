@@ -12,7 +12,7 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
     pendingCount = ref(0),
     totalCount = ref(0)
   const ignoredTaskIds = ref(new Set())
-  const IGNORED_KEY = 'nassav:ignored-download-tasks:v1'
+  let IGNORED_KEY = 'nassav:ignored-download-tasks:v1'
   try {
     const saved = JSON.parse(globalThis.localStorage?.getItem(IGNORED_KEY) || '[]')
     if (Array.isArray(saved))
@@ -25,7 +25,8 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
   }
   function dismissTasks(ids) {
     ignoredTaskIds.value = new Set([...ignoredTaskIds.value, ...ids].slice(-500))
-    globalThis.localStorage?.setItem(IGNORED_KEY, JSON.stringify([...ignoredTaskIds.value]))
+    if (IGNORED_KEY)
+      globalThis.localStorage?.setItem(IGNORED_KEY, JSON.stringify([...ignoredTaskIds.value]))
   }
   const titleCache = ref(new Map())
   const settings = useSettingsStore()
@@ -108,7 +109,7 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
       } catch {
         /* The next queue snapshot can retry metadata. */
       } finally {
-        fetchingMetadata.value.delete(task.avid)
+        if (generation === metadataGeneration) fetchingMetadata.value.delete(task.avid)
       }
     }
   }
@@ -149,7 +150,28 @@ export const useDownloadQueueStore = defineStore('downloadQueue', () => {
     cleanupTimer = null
   }
 
+  function beginSession(identity) {
+    stopTracking()
+    activeTasks.value = []
+    pendingTasks.value = []
+    activeCount.value = pendingCount.value = totalCount.value = 0
+    titleCache.value = new Map()
+    fetchingMetadata.value = new Set()
+    ignoredTaskIds.value = new Set()
+    IGNORED_KEY = identity ? `nassav:ignored-download-tasks:v2:${encodeURIComponent(identity)}` : ''
+    if (IGNORED_KEY) {
+      try {
+        const saved = JSON.parse(globalThis.localStorage?.getItem(IGNORED_KEY) || '[]')
+        if (Array.isArray(saved))
+          ignoredTaskIds.value = new Set(saved.filter((id) => typeof id === 'string').slice(-500))
+      } catch {
+        /* Optional browser preferences. */
+      }
+    }
+  }
+
   return {
+    beginSession,
     activeTasks,
     pendingTasks,
     activeCount,

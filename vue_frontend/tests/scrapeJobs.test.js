@@ -131,7 +131,7 @@ test('page restore fetches terminal snapshot and batch registration stays item-s
     ])
   )
   try {
-    store.restoreScrapeJobs()
+    await store.restoreScrapeJobs()
     await store.refreshPendingScrapeJobs()
     assert.equal(store.getScrapeJobForAvid('ABC-1').state, 'succeeded')
     store.registerScrapeBatch([
@@ -325,7 +325,7 @@ test('expired signed snapshots preserve already known translation failures', asy
   axios.defaults.adapter = async (config) => response(config, 404, null)
   const store = useResourceStore()
   try {
-    store.restoreScrapeJobs()
+    await store.restoreScrapeJobs()
     await new Promise(setImmediate)
     await new Promise(setImmediate)
     assert.equal(store.visibleScrapeJobs[0].translation.state, 'failed')

@@ -49,10 +49,10 @@ export const useResourceStore = defineStore('resource', () => {
   const pendingJobEventVersions = new Map()
   let scrapePollTimer = null
   let trackingGeneration = 0
-  const SCRAPE_STORAGE_KEY = 'nassav:scrape-jobs:v1'
+  let SCRAPE_STORAGE_KEY = 'nassav:scrape-jobs:v1'
 
   function persistScrapeJobs() {
-    if (typeof localStorage === 'undefined') return
+    if (!SCRAPE_STORAGE_KEY || typeof localStorage === 'undefined') return
     const current = [...scrapeJobs.value.values()].filter(
       (job) => scrapeJobNeedsPolling(job) || Date.now() / 1000 - job.updated_at < 86400
     )
@@ -87,7 +87,7 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   function restoreScrapeJobs() {
-    if (typeof localStorage === 'undefined') return
+    if (!SCRAPE_STORAGE_KEY || typeof localStorage === 'undefined') return
     try {
       const saved = JSON.parse(localStorage.getItem(SCRAPE_STORAGE_KEY) || '[]')
       if (Array.isArray(saved)) {
@@ -102,7 +102,9 @@ export const useResourceStore = defineStore('resource', () => {
     } catch {
       localStorage.removeItem(SCRAPE_STORAGE_KEY)
     }
-    Promise.allSettled([...scrapeJobs.value.keys()].map((taskId) => refreshScrapeJob(taskId)))
+    return Promise.allSettled(
+      [...scrapeJobs.value.keys()].map((taskId) => refreshScrapeJob(taskId))
+    )
   }
 
   async function refreshScrapeJob(taskId) {
@@ -139,17 +141,19 @@ export const useResourceStore = defineStore('resource', () => {
       }
       return current
     } finally {
-      pendingJobRequests.delete(taskId)
-      const pendingVersion = pendingJobEventVersions.get(taskId)
-      pendingJobEventVersions.delete(taskId)
-      const latest = scrapeJobs.value.get(taskId)
-      if (
-        generation === trackingGeneration &&
-        pendingVersion > (latest?.version || 0) &&
-        latest &&
-        !TERMINAL_JOB_STATES.has(latest.state)
-      ) {
-        refreshScrapeJob(taskId)
+      if (generation === trackingGeneration) {
+        pendingJobRequests.delete(taskId)
+        const pendingVersion = pendingJobEventVersions.get(taskId)
+        pendingJobEventVersions.delete(taskId)
+        const latest = scrapeJobs.value.get(taskId)
+        if (
+          generation === trackingGeneration &&
+          pendingVersion > (latest?.version || 0) &&
+          latest &&
+          !TERMINAL_JOB_STATES.has(latest.state)
+        ) {
+          refreshScrapeJob(taskId)
+        }
       }
     }
   }
@@ -235,36 +239,50 @@ export const useResourceStore = defineStore('resource', () => {
     scrapePollTimer = null
   }
 
+  function beginSession(identity) {
+    stopScrapeTracking()
+    pendingJobRequests.clear()
+    scrapeJobs.value = new Map()
+    downloads.value = []
+    downloadStates.value = new Map()
+    sources.value = []
+    resetResourceList()
+    SCRAPE_STORAGE_KEY = identity ? `nassav:scrape-jobs:v2:${encodeURIComponent(identity)}` : ''
+  }
+
   // 获取下载源列表
   async function fetchSources() {
+    const generation = trackingGeneration
     try {
       const response = await sourceApi.getList()
-      sources.value = response.data || []
+      if (generation === trackingGeneration) sources.value = response.data || []
     } catch (err) {
-      console.error('获取下载源失败:', err)
+      if (generation === trackingGeneration) console.error('获取下载源失败:', err)
     }
   }
 
   // 添加新资源
   async function addResource(avid, source = 'any') {
+    const generation = trackingGeneration
     loading.value = true
     error.value = null
     try {
       const response = await resourceApi.addNew(avid, source)
-      registerScrapeSubmission(response.data)
+      if (generation === trackingGeneration) registerScrapeSubmission(response.data)
       return response
     } catch (err) {
-      error.value = err.message || '添加资源失败'
+      if (generation === trackingGeneration) error.value = err.message || '添加资源失败'
       throw err
     } finally {
-      loading.value = false
+      if (generation === trackingGeneration) loading.value = false
     }
   }
 
   // 刷新资源
   async function refreshResource(avid, params = null) {
+    const generation = trackingGeneration
     const response = await resourceApi.refresh(avid, params)
-    registerScrapeSubmission(response.data)
+    if (generation === trackingGeneration) registerScrapeSubmission(response.data)
     return response
   }
 
@@ -317,13 +335,15 @@ export const useResourceStore = defineStore('resource', () => {
 
   // 提交下载
   async function submitDownload(avid) {
+    const generation = trackingGeneration
     if (!avid) return null
     setDownloadState(avid, 'submitting')
     try {
       const response = await downloadApi.submitDownload(avid)
-      setDownloadState(avid, 'downloading')
+      if (generation === trackingGeneration) setDownloadState(avid, 'downloading')
       return response
     } catch (err) {
+      if (generation !== trackingGeneration) throw err
       if (err && err.code === 409) {
         updateResourceDownloadStatus(avid, true)
       } else {
@@ -334,17 +354,20 @@ export const useResourceStore = defineStore('resource', () => {
   }
 
   async function batchSubmitDownload(avids = []) {
+    const generation = trackingGeneration
     if (!Array.isArray(avids) || avids.length === 0) return
     for (const avid of avids) {
       setDownloadState(avid, 'submitting')
     }
     try {
       const resp = await downloadApi.batchSubmit(avids)
+      if (generation !== trackingGeneration) return resp
       for (const avid of avids) {
         setDownloadState(avid, 'downloading')
       }
       return resp
     } catch (err) {
+      if (generation !== trackingGeneration) throw err
       for (const avid of avids) {
         clearDownloadState(avid)
       }
@@ -505,6 +528,7 @@ export const useResourceStore = defineStore('resource', () => {
     getScrapeJobForAvid,
     dismissScrapeJob,
     stopScrapeTracking,
+    beginSession,
     submitDownload,
     batchRefresh,
     batchDelete,

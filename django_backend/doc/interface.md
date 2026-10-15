@@ -1651,3 +1651,9 @@ SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?source=jable|miss
 | POST /api/admin/resource-gc-jobs/{job_id}/retry    | expected_version为job revision、reason/request_id；仅cleanup_failed可请求                  |
 
 理由为既有维护/安全等非敏感代码。版本/幂等冲突409，非管理员403，未知对象404，非法输入400；受保护返回409和blockers；未启执行时enqueue/retry为409 gc_not_enabled。排队成功不代表字节已删除，状态以DB快照为准。重复同request_id/同payload返回原回执，不再次发送；异payload409。
+
+## 会话能力与前端缓存身份
+
+`GET /api/auth/session`及成功登录响应保留authenticated/username，并新增user_id、account_epoch、cache_identity和capabilities。匿名或未准入账号不返回身份，capabilities为空；已准入账号只展示本账号能力，GET不创建角色或会话。cache_identity由登录会话、账号版本与功能开关派生，不返回session key/Cookie，不作授权凭证。same login稳定，换登录/账号版本/开关则变化。
+
+capabilities中的shared_library、personal_source_credentials、app_admin、resource_gc、legacy_asset_controls均为展示提示，动作仍走原对象授权。ordinary_login目前始终false，不借新增字段开放普通账号。响应no-store；后端不信任前端提交的身份、角色或cache_identity。

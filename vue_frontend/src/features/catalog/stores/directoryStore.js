@@ -42,6 +42,12 @@ export function createDirectoryStore(name, api) {
       loading.value = false
     }
 
-    return { groups, pagination, loading, error, load, cancel }
+    function reset() {
+      cancel()
+      groups.value = []
+      error.value = null
+      pagination.value = { total: 0, page: 1, page_size: 15, pages: 1 }
+    }
+    return { groups, pagination, loading, error, load, cancel, reset }
   })
 }

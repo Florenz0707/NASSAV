@@ -25,7 +25,7 @@ import { useSettingsStore } from '../features/settings/stores/settings.js'
 import { useToastStore } from '../shared/stores/toast.js'
 
 const sessionStore = useSessionStore()
-const pageOwner = sessionStore.username
+const pageOwner = sessionStore.identity
 const preferencesSaving = ref(false)
 const route = useRoute()
 const router = useRouter()
@@ -138,7 +138,7 @@ function saveViewState() {
   if (
     !initialized.value ||
     sessionStore.status !== 'authenticated' ||
-    sessionStore.username !== pageOwner
+    sessionStore.identity !== pageOwner
   )
     return
   const state = {

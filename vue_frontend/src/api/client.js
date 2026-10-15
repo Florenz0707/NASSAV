@@ -18,6 +18,20 @@ const api = axios.create({
 export const RECOMMENDATION_REQUEST_TIMEOUT = 120000
 // Five source pages can each spend 60s in the browser plus direct/control work.
 export const EXTERNAL_SEARCH_REQUEST_TIMEOUT = 450000
+let sessionGeneration = 0
+export function invalidateSessionRequests() {
+  sessionGeneration++
+}
+const sessionChanged = () => ({ code: 'session_changed', message: '登录状态已变化', data: null })
+const belongsToSession = (config) => config?._nassavSessionGeneration === sessionGeneration
+api.interceptors.request.use(
+  (config) => {
+    config._nassavSessionGeneration = sessionGeneration
+    return config
+  },
+  undefined,
+  { synchronous: true }
+)
 const unauthorizedListeners = new Set()
 
 export function onUnauthorized(listener) {
@@ -26,13 +40,19 @@ export function onUnauthorized(listener) {
 }
 
 function reportUnauthorized(error) {
-  if (error.response?.status !== 401 || error.config?.url === '/auth/login') return
+  if (
+    !belongsToSession(error.config) ||
+    error.response?.status !== 401 ||
+    error.config?.url === '/auth/login'
+  )
+    return
   for (const listener of unauthorizedListeners) listener()
 }
 
 // 响应拦截器：兼容后端统一的 envelope 格式 {code, message, data}
 api.interceptors.response.use(
   (response) => {
+    if (!belongsToSession(response.config)) return Promise.reject(sessionChanged())
     const envelope = response.data
     if (response.status >= 200 && response.status < 300) {
       // 如果是后端的 envelope 格式
@@ -58,6 +78,7 @@ api.interceptors.response.use(
     return Promise.reject({ httpStatus: response.status, data: envelope })
   },
   (error) => {
+    if (!belongsToSession(error.config)) return Promise.reject(sessionChanged())
     reportUnauthorized(error)
     if (error.response) {
       const env = error.response.data

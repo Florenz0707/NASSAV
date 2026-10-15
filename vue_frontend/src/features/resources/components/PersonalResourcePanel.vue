@@ -25,14 +25,14 @@ const editor = createPersonalResourceEditor({
 })
 const dialog = createNoteDialog({ state, ui, save: editor.save })
 watch(
-  () => [props.resource.avid, session.status, session.username],
+  () => [props.resource.avid, session.status, session.identity],
   (next, previous) => {
     if (next.some((value, index) => value !== previous[index])) dialog.reset()
   }
 )
 watch(
-  () => [props.resource, session.status, session.username],
-  () => editor.sync(props.resource, session.status === 'authenticated' ? session.username : ''),
+  () => [props.resource, session.status, session.identity],
+  () => editor.sync(props.resource, session.status === 'authenticated' ? session.identity : ''),
   { immediate: true, deep: true }
 )
 onBeforeRouteLeave(() => dialog.close())

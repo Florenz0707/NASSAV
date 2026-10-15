@@ -1,4 +1,5 @@
 <script setup>
+import { useSessionStore } from '../../auth/stores/session.js'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
 import RequestError from '../../../shared/ui/RequestError.vue'
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
@@ -22,6 +23,8 @@ const props = defineProps({
   entityId: { type: [String, Number], required: true },
 })
 const emit = defineEmits(['detail', 'resource-saved'])
+const session = useSessionStore()
+const pageOwner = session.identity
 const entityId = computed(() => props.entityId)
 const entityLabel = props.entityType === 'actor' ? '演员' : '类别'
 const router = useRouter(),
@@ -58,7 +61,7 @@ const externalError = ref('')
 const externalCancelled = ref(false)
 const cancellingExternal = ref(false)
 function externalCacheKey() {
-  return `external_cn_v4_${props.entityType}_${entityId.value}_${externalSource.value}`
+  return `external_cn_v5_${encodeURIComponent(pageOwner)}_${props.entityType}_${entityId.value}_${externalSource.value}`
 }
 function onExternalSourceChange(value) {
   cancelExternalSearch()
@@ -182,7 +185,12 @@ watch(
 )
 
 function saveExternalCache() {
-  if (externalMeta.value?.partial) return
+  if (
+    session.status !== 'authenticated' ||
+    session.identity !== pageOwner ||
+    externalMeta.value?.partial
+  )
+    return
   const key = externalCacheKey()
   sessionStorage.setItem(
     key,
@@ -232,6 +240,7 @@ async function scrollToTopAfterExternalRefresh() {
 }
 
 function restoreExternalCache() {
+  if (session.status !== 'authenticated' || session.identity !== pageOwner) return false
   const key = externalCacheKey()
   try {
     const cached = JSON.parse(sessionStorage.getItem(key))

@@ -71,7 +71,7 @@ watch(
   }
 )
 watch(
-  () => [kind.value, session.status, session.username],
+  () => [kind.value, session.status, session.identity],
   () => {
     guard.invalidate()
     items.value = []

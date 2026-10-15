@@ -8,9 +8,13 @@ import { useViewingStore } from './features/viewing/stores/viewing.js'
 import Navbar from './app/components/Navbar.vue'
 import LoginView from './views/LoginView.vue'
 import Toast from './shared/ui/Toast.vue'
+import { useToastStore } from './shared/stores/toast.js'
 import { useWebSocketStore } from './app/stores/websocket.js'
 import { useSettingsStore } from './features/settings/stores/settings.js'
 import { useResourceStore } from './features/resources/stores/resource.js'
+import { useActorGroupsStore } from './features/catalog/stores/actorGroups.js'
+import { useGenreGroupsStore } from './features/catalog/stores/genreGroups.js'
+import { useDownloadQueueStore } from './features/resources/stores/downloadQueue.js'
 import { useTaskJobsStore } from './features/tasks/stores/taskJobs.js'
 import { useSessionStore } from './features/auth/stores/session.js'
 
@@ -36,8 +40,9 @@ const settingsStore = useSettingsStore()
 const resourceStore = useResourceStore()
 const sessionStore = useSessionStore()
 
-function refreshVisibleJobs() {
+async function refreshVisibleJobs() {
   if (sessionStore.status === 'authenticated' && document.visibilityState === 'visible') {
+    if (!(await sessionStore.recheck())) return
     resourceStore.refreshPendingScrapeJobs()
     taskJobs.poll(true)
   }
@@ -49,24 +54,27 @@ onMounted(() => {
 })
 
 watch(
-  () => [sessionStore.status, sessionStore.username],
-  ([status]) => {
+  () => [sessionStore.status, sessionStore.identity],
+  ([status, identity], previous) => {
+    wsStore.disconnect()
+    useToastStore().clear()
+    resourceStore.beginSession(status === 'authenticated' ? sessionStore.identity : '')
+    useDownloadQueueStore().beginSession(status === 'authenticated' ? sessionStore.identity : '')
+    useActorGroupsStore().reset()
+    useGenreGroupsStore().reset()
+    if (status === 'anonymous' || (previous?.[1] && previous[1] !== identity)) clearPlaybackDrafts()
     useViewingStore().reset()
     useRecommendationsStore().reset()
     settingsStore.reset()
-    resourceStore.resetResourceList()
     if (status === 'anonymous') {
-      clearPlaybackDrafts()
       clearAllRecommendationViewStates()
     }
     if (status === 'authenticated') {
-      taskJobs.start(sessionStore.username)
+      taskJobs.start(sessionStore.identity)
       wsStore.connect()
       settingsStore.loadSettings()
       resourceStore.restoreScrapeJobs()
     } else {
-      wsStore.disconnect()
-      resourceStore.stopScrapeTracking()
       taskJobs.reset()
     }
   }
@@ -144,7 +152,7 @@ watch(
       >
         <RouterView v-slot="{ Component }">
           <transition name="page" mode="out-in" @after-enter="restorePageFocus">
-            <component :is="Component" :key="sessionStore.username" />
+            <component :is="Component" :key="sessionStore.identity" />
           </transition>
         </RouterView>
       </main>

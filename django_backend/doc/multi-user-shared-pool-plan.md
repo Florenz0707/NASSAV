@@ -333,3 +333,9 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 基线7e970c4，分支feat/resource-gc-dispatch-admin：0051公平发现游标、默认关闭的ID-only Celery/default派发与恢复冷却、管理预览/保留/排队/重试及审计幂等、只读默认CLI、旧写入口/布局维护关闭；修正生产builder的可选缩略图根回退。隔离原生Redis/Celery已连续三轮通过，未启正式自动GC。缓存回收、初始旧资产映射及P7/P8继续。
 
 派发与管理隔离门槛（2026-10-15）：SQLite全量1274 passed/28 skipped；最终配置/HTTP/游标/管理专项60 passed；临时PostgreSQL39 passed，含0051升级、回退、再次升级。真实Redis/Celery测试恢复current/default app及finalizer，最小顺序回归11 passed，随后全量通过。模型迁移无差异，完整pre-commit通过。现有实例未迁移、未启自动回收，P7/P8继续。
+
+### P7会话与缓存基础子阶段
+
+基线9a3ec64，分支feat/session-cache-isolation：已有登录/session补充只读能力与不透明缓存身份；前端统一请求登录代次、迟到401保护、身份变化重置/组件重建、目录/队列清理及推荐/外部搜索/任务/离线进度缓存隔离。同账号两个真实登录的HTTP/SQLite浏览器验收不替代P7跨用户或P8目标验收；普通准入保持关闭，凭证/个人库/管理UI继续。
+
+会话基础隔离门槛（2026-10-15）：SQLite全量1277 passed/28 skipped；PostgreSQL会话/权限12 passed；前端130单元测试、lint及构建通过。Chrome与临时安装的Firefox均通过真实HTTP/SQLite同账号换登录与迟到设置响应；真实MP4进度专项通过，任务详情和推荐恢复模拟浏览器回归通过。无新schema或现有实例切换；P7其余界面及P8继续。

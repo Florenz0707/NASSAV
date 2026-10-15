@@ -247,3 +247,13 @@ PersonalCenter使用最多4个KeepAlive面板，使用viewing:section/settings:s
 桌面个人中心导航固定12rem，内容列minmax(0,1fr)；导航按钮填满列宽，移动端仍自动换行。html预留scrollbar-gutter:stable，长短页和面板过渡期间滚动条出现/消失不改变内容的可用宽度，不强制在短页绘制滚动条。音量控件组最大17rem、可按容器缩小，百分比output固定3.5rem并使用tabular-nums，slider占剩余宽度，0/9/99/100%变化不影响位置；input提供对应百分比aria-valuetext，output关联slider。
 
 本轮基线f3e05ca，独立分支fix/personal-center-layout-stability。原音量滑块在0%到100%间约20px水平位移已用Chrome/Firefox复现；隔离浏览器默认覆盖式滚动条下未复现导航位移，修复以固定导航列和稳定滚动条占位消除长短页宽度变化来源。pnpm run check含125单元测试、lint和构建；根pre-commit完整执行。personalLayout.cjs使用模拟API验证1440/1024/390/320px切换全过程导航位置/尺寸、弹窗滚动锁与取消恢复、0/9/10/99/100%滑块固定及无横向溢出，两浏览器通过后合并idle。布局截图已检查，不代表真实服务或实体设备验收。
+
+## 共享模式接入：会话与缓存身份
+
+登录和session响应携带cache_identity、account_epoch及显式capabilities；cache_identity仅为不含秘密的缓存命名空间，不是授权token。普通登录仍关闭，所有动作继续由后端核查。session store以请求代次拒绝旧初始化/recheck；统一client在发请求时同步捕获本地登录代次，拒绝旧成功/旧错误，旧401不得触发新会话登出。网络错误本身不证明登录失效。
+
+App按status/identity重置资源、目录、设置、观看列表、推荐、下载队列和任务跟踪，重建WebSocket及路由组件；回到前台先recheck。推荐页面与外部搜索缓存按不透明identity命名；旧无归属缓存不恢复到新命名空间。生产刮削跟踪/旧下载隐藏ID采用v2身份命名，未装配会话的旧单元兼容入口不代表多用户准入。个人编辑器也以identity核查响应归属。
+
+播放离线草稿按identity隔离，固定捕获owner且读/写/删除均核查仍属当前登录。同一登录刷新保留有效草稿；注销或已知身份切换清除旧草稿，旧播放器的迟到收尾不得重新写入。数据库仍持有个人进度。restoreScrapeJobs返回可等待的恢复批次，不能用固定微任务数量推测异步完成。
+
+本子阶段仅接入身份与缓存基础，尚未切换共享库命令/用户operation界面或开放普通账号；P7其余界面和P8统一验收继续。真实浏览器使用临时HTTP/SQLite与同账号两个真实登录，延迟旧设置响应验证更换登录后的归属；不等同跨用户/源站/生产部署验收。

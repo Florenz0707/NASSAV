@@ -52,7 +52,7 @@ const assert = require('node:assert/strict')
         },
       ]
       await page.addInitScript(
-        (j) => localStorage.setItem('nassav:scrape-jobs:v1', JSON.stringify(j)),
+        (j) => localStorage.setItem('nassav:scrape-jobs:v2:legacy%3Aaudit', JSON.stringify(j)),
         jobs
       )
       page.on('pageerror', (e) => errors.push(e.message))
@@ -323,7 +323,9 @@ const assert = require('node:assert/strict')
         'Empty list does not add desktop scrolling'
       )
       assert.equal(
-        await page.evaluate(() => JSON.parse(localStorage.getItem('nassav:scrape-jobs:v1')).length),
+        await page.evaluate(
+          () => JSON.parse(localStorage.getItem('nassav:scrape-jobs:v2:legacy%3Aaudit')).length
+        ),
         0
       )
       for (const viewport of [

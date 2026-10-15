@@ -1,5 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useSessionStore } from '../../auth/stores/session.js'
+import { createProgressDrafts } from '../lib/progressDrafts.js'
 import { playbackApi } from '../../../api/playback.js'
 import AppButton from '../../../shared/ui/AppButton.vue'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
@@ -27,7 +29,15 @@ const history = createViewingRecorder({
 let releasePreferences = null
 const video = ref(null)
 const progressState = ref({ candidate: null, message: '' })
+const authSession = useSessionStore()
+const draftOwner = authSession.identity
 const progress = createPlaybackProgress({
+  drafts: createProgressDrafts(
+    undefined,
+    undefined,
+    draftOwner,
+    () => authSession.status === 'authenticated' && authSession.identity === draftOwner
+  ),
   api: playbackApi,
   changed: (value) => {
     progressState.value = value

@@ -25,6 +25,10 @@ export const useToastStore = defineStore('toast', () => {
     }
   }
 
+  function clear() {
+    toasts.value = []
+  }
+
   function success(message, duration) {
     return show(message, 'success', duration)
   }
@@ -43,6 +47,7 @@ export const useToastStore = defineStore('toast', () => {
 
   return {
     toasts,
+    clear,
     remove,
     success,
     error,

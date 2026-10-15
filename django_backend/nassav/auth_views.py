@@ -22,15 +22,9 @@ def _response(status: int, message: str, data=None) -> JsonResponse:
 @ensure_csrf_cookie
 def session_view(request):
     """Issue a CSRF cookie and report whether this browser has an operator session."""
-    active = is_operator(request.user)
-    return _response(
-        200,
-        "success",
-        {
-            "authenticated": active,
-            "username": request.user.get_username() if active else None,
-        },
-    )
+    from nassav.session_projection import browser_session
+
+    return _response(200, "success", browser_session(request))
 
 
 @require_POST
@@ -69,9 +63,9 @@ def login_view(request):
             )
     except PermissionError:
         return _response(401, "账号不可用")
-    return _response(
-        200, "success", {"authenticated": True, "username": user.get_username()}
-    )
+    from nassav.session_projection import browser_session
+
+    return _response(200, "success", browser_session(request))
 
 
 @require_POST
