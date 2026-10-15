@@ -12,9 +12,9 @@ from nassav.composition import build_account_management
 
 class IsAdminOperator(BasePermission):
     def has_permission(self, request, view):
-        from nassav.access import is_operator
+        from nassav.access import is_admitted
 
-        return is_operator(request.user) and is_app_admin(request.user)
+        return is_admitted(request.user) and is_app_admin(request.user)
 
 
 class AdminAccountView(SchemaAPIView):

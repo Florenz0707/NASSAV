@@ -294,4 +294,6 @@ v2.5.1还须应用0036观看列表及播放事件去重字段；历史不从旧�
 
 ## 未发布共享执行器开关
 
-Compose全部后端继承`NASSAV_SCOPED_SOURCE_CREDENTIALS`、`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`及`NASSAV_SHARED_LIBRARY_ENABLED`。两开关默认false；共享执行器要求范围凭证，但当前共享库HTTP/配额/正式版本读取/GC尚未完成，保持关闭。密钥路径为容器内路径（例如`/app/config/source-keys.json`，配置目录已挂载），文件只允许服务UID读取，先完成密钥备份、迁移/显式导入及全消费者维护窗口，不混跑旧Cookie/资产写入者。此配置接入不代表现有实例已迁移或允许普通账号登录。
+Compose全部后端继承`NASSAV_SCOPED_SOURCE_CREDENTIALS`、`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`及`NASSAV_SHARED_LIBRARY_ENABLED`。开关默认false；共享执行器要求范围凭证，HTTP/配额/正式版本读取/GC已分阶段接入，但正式目标切换仍待P8，保持关闭。密钥路径为容器内路径（例如`/app/config/source-keys.json`，配置目录已挂载），文件只允许服务UID读取，先完成密钥备份、迁移/显式导入及全消费者维护窗口，不混跑旧Cookie/资产写入者。此配置接入不代表现有实例已迁移或允许普通账号登录。
+
+多用户准入另由全部后端继承的NASSAV_MULTI_USER_ENABLED控制，默认false且依赖上述两模式。必须同步发布包含X-NASSAV-Context与WS subprotocol的新前端，先在operator范围核验，再在目标门槛通过后逐步开放；不要让旧浏览器/消费者继续提交无上下文命令。多用户模式使用应用管理中心，Django内置后台关闭，详见[准入架构](multi-user-admission-architecture.md)。本轮未修改部署开关或生产数据库。

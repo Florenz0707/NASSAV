@@ -3,7 +3,7 @@
 from django.conf import settings
 from rest_framework.permissions import BasePermission
 
-from nassav.access import is_operator
+from nassav.access import is_admitted
 from nassav.account_policy import account
 from nassav.api_utils import build_response
 from nassav.http_base import SchemaAPIView
@@ -17,7 +17,7 @@ class LibraryAdmission(BasePermission):
     def has_permission(self, request, view):
         return (
             settings.SHARED_LIBRARY_ENABLED
-            and is_operator(request.user)
+            and is_admitted(request.user)
             and account(request.user) is not None
         )
 

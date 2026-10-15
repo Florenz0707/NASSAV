@@ -33,8 +33,9 @@ class FakeWebSocket {
   static OPEN = 1
   static CLOSED = 3
   static instances = []
-  constructor(url) {
+  constructor(url, protocols) {
     this.url = url
+    this.protocols = protocols
     this.readyState = FakeWebSocket.CONNECTING
     FakeWebSocket.instances.push(this)
   }
@@ -263,5 +264,32 @@ test('shared mode routes only own operation hints and never starts legacy queue 
     assert.deepEqual(hints, [{ operation_id: 'mine', version: 5 }])
   } finally {
     context.cleanup()
+  }
+})
+
+test('managed sockets bind the expected context and recheck a changed cookie login before expiring', async () => {
+  const state = setup()
+  try {
+    state.session.identity = 'login-a'
+    state.session.capabilities = { ordinary_login: true, shared_library: true }
+    state.socketStore.connect()
+    assert.deepEqual(FakeWebSocket.instances[0].protocols, [
+      'nassav.tasks.v1',
+      'nassav.context.login-a',
+    ])
+    state.session.recheck = async () => {
+      state.session.identity = 'login-b'
+      return true
+    }
+    await FakeWebSocket.instances[0].closeWith(4401)
+    assert.equal(state.session.status, 'authenticated')
+    assert.equal(state.session.identity, 'login-b')
+    await state.fire(3000)
+    assert.deepEqual(FakeWebSocket.instances[1].protocols, [
+      'nassav.tasks.v1',
+      'nassav.context.login-b',
+    ])
+  } finally {
+    state.cleanup()
   }
 })

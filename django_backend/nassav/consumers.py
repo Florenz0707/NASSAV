@@ -12,11 +12,12 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from loguru import logger
 
-from .access import is_operator
+from .access import is_admitted
+from django.conf import settings
 
 
 class TaskConsumer(AsyncWebsocketConsumer):
-    """Send task updates only while the operator's session remains active."""
+    """Send hints only while the admitted login and browser context remain current."""
 
     async def connect(self):
         self._joined = False
@@ -24,16 +25,29 @@ class TaskConsumer(AsyncWebsocketConsumer):
         session = self.scope.get("session")
         user = self.scope.get("user")
         self._session_key = session.session_key if session else None
+        self._context = None
         if (
             user is None
             or not self._session_key
-            or not await database_sync_to_async(is_operator)(user)
+            or not await database_sync_to_async(is_admitted)(user)
         ):
             await self.close(code=4401)
             return
         self._user_id = user.pk
-        if not await self._session_active():
-            await self.close(code=4401)
+        if settings.MULTI_USER_ENABLED:
+            protocols = self.scope.get("subprotocols", [])
+            contexts = [
+                value.removeprefix("nassav.context.")
+                for value in protocols
+                if value.startswith("nassav.context.")
+            ]
+            if "nassav.tasks.v1" not in protocols or len(contexts) != 1:
+                await self.close(code=4409)
+                return
+            self._context = contexts[0]
+        rejection = await self._session_status()
+        if rejection is not None:
+            await self.close(code=rejection)
             return
         from .account_policy import is_legacy_operator, is_app_admin
 
@@ -47,7 +61,9 @@ class TaskConsumer(AsyncWebsocketConsumer):
         for group in self._groups:
             await self.channel_layer.group_add(group, self.channel_name)
         self._joined = True
-        await self.accept()
+        await self.accept(
+            subprotocol="nassav.tasks.v1" if settings.MULTI_USER_ENABLED else None
+        )
         if self._legacy or self._admin:
             self._initial_status_task = asyncio.create_task(self._send_queue_status())
 
@@ -59,19 +75,28 @@ class TaskConsumer(AsyncWebsocketConsumer):
                 await self.channel_layer.group_discard(group, self.channel_name)
 
     @database_sync_to_async
-    def _session_active(self):
+    def _session_status(self):
         from django.contrib.auth import get_user_model
 
-        return Session.objects.filter(
+        from .session_projection import browser_identity
+        from django.utils.crypto import constant_time_compare
+
+        user = get_user_model().objects.filter(pk=self._user_id).first()
+        if not Session.objects.filter(
             session_key=self._session_key, expire_date__gt=timezone.now()
-        ).exists() and is_operator(
-            get_user_model().objects.filter(pk=self._user_id).first()
-        )
+        ).exists() or not is_admitted(user):
+            return 4401
+        if settings.MULTI_USER_ENABLED and not constant_time_compare(
+            self._context or "", browser_identity(user, self._session_key) or ""
+        ):
+            return 4409
+        return None
 
     async def _require_session(self):
-        if await self._session_active():
+        rejection = await self._session_status()
+        if rejection is None:
             return True
-        await self.close(code=4401)
+        await self.close(code=rejection)
         return False
 
     async def receive(self, text_data):

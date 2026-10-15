@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, onScopeDispose } from 'vue'
 import { authApi, onUnauthorized } from '../../../api/index.js'
-import { invalidateSessionRequests } from '../../../api/client.js'
+import {
+  invalidateSessionRequests,
+  setBrowserContext,
+  onBrowserContextChanged,
+} from '../../../api/client.js'
 
 export const useSessionStore = defineStore('session', () => {
   const status = ref('checking')
@@ -9,12 +13,20 @@ export const useSessionStore = defineStore('session', () => {
   const identity = ref('')
   const sourceIdentity = ref('')
   const capabilities = ref({})
-  let unsubscribe = null
+  let unsubscribe = null,
+    unsubscribeContext = null
   let requestVersion = 0
+
+  onScopeDispose(() => {
+    requestVersion++
+    unsubscribe?.()
+    unsubscribeContext?.()
+  })
 
   function expire() {
     requestVersion++
     invalidateSessionRequests()
+    setBrowserContext()
     status.value = 'anonymous'
     username.value = null
     identity.value = ''
@@ -36,6 +48,7 @@ export const useSessionStore = defineStore('session', () => {
     identity.value = nextIdentity
     sourceIdentity.value = nextSourceIdentity
     capabilities.value = data.capabilities || {}
+    setBrowserContext(capabilities.value.ordinary_login ? nextIdentity : '')
     status.value = 'authenticated'
     return true
   }
@@ -54,6 +67,10 @@ export const useSessionStore = defineStore('session', () => {
 
   function attachUnauthorizedHandler() {
     if (!unsubscribe) unsubscribe = onUnauthorized(expire)
+    if (!unsubscribeContext)
+      unsubscribeContext = onBrowserContextChanged(() => {
+        recheck()
+      })
   }
 
   async function initialize() {

@@ -79,3 +79,5 @@ features/admin拥有管理中心及独立账号/审计模块；views/ManagementV
 共享资源与回收记录复用AdminResources（jobs属性区分协议），确认交互由ResourceAdminDialog展示；lib/resourceAdministration负责版本/预览归属与命令重试，api/admin/resourceAdminApi负责端点装配。组件不执行文件操作或直接调用worker。
 
 管理员全局执行归AdminWork与lib/workAdministration；api/admin/workAdminApi适配既有任务列表分页和审计控制协议。本人operation状态继续归features/tasks，不把共享job控制能力加入普通用户页面，也不恢复旧全局队列作为个人列表。
+
+多用户准入：features/auth/stores/session拥有授权快照；api/client提供上下文头、原生图片查询及冲突订阅，helper保持直接模块导出。app/stores/websocket核对具体登录/代次，api/playback负责keepalive同一预条件；业务模块仍拥有命令意图与异步归属。

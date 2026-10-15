@@ -13,7 +13,31 @@ class SchemaAPIView(APIView):
 
     serializer_class = EmptySchemaSerializer
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        from django.conf import settings
+        from django.utils.cache import patch_vary_headers
+
+        if settings.MULTI_USER_ENABLED:
+            response["Cache-Control"] = "private, no-store"
+            patch_vary_headers(response, ["Cookie"])
+        return response
+
+    def perform_authentication(self, request):
+        super().perform_authentication(request)
+        from nassav.browser_context import require_browser_context
+
+        require_browser_context(request)
+
     def handle_exception(self, exc):
+        from nassav.browser_context import BrowserContextChanged
+
+        if isinstance(exc, BrowserContextChanged):
+            from nassav.api_utils import build_response
+
+            return build_response(
+                409, str(exc.detail), {"error_code": "browser_context_changed"}
+            )
         from nassav.library_membership import LibraryNotFound
         from nassav.api_utils import build_response
         from nassav.credential_crypto import CredentialUnavailable

@@ -2,12 +2,12 @@
 
 from django.conf import settings
 from django.utils.crypto import salted_hmac
-from nassav.access import is_operator
+from nassav.access import is_admitted
 from nassav.account_policy import account
 
 
-def browser_session(request):
-    if not is_operator(request.user):
+def _principal(user, session_key):
+    if not is_admitted(user):
         return {
             "authenticated": False,
             "username": None,
@@ -17,7 +17,7 @@ def browser_session(request):
             "source_cache_identity": None,
             "capabilities": {},
         }
-    role = account(request.user)
+    role = account(user)
     shared = bool(settings.SHARED_LIBRARY_ENABLED and role is not None)
     admin = bool(role and role.role == "admin")
     capabilities = {
@@ -27,18 +27,37 @@ def browser_session(request):
         "resource_gc": bool(shared and admin and settings.RESOURCE_GC_ENABLED),
         "legacy_asset_controls": not settings.SHARED_LIBRARY_ENABLED
         and (role is None or admin),
-        "ordinary_login": False,
+        "ordinary_login": bool(settings.MULTI_USER_ENABLED),
     }
     epoch = role.version if role else 0
     # Never expose the session key, credentials, or a reusable authorization token.
     context = [
-        request.user.pk,
-        request.session.session_key,
+        user.pk,
+        session_key,
         epoch,
         sorted(capabilities.items()),
     ]
     identity = salted_hmac("nassav-browser-cache-v1", repr(context)).hexdigest()
-    source_identity = identity
+    return {
+        "authenticated": True,
+        "username": user.get_username(),
+        "user_id": user.pk,
+        "account_epoch": epoch,
+        "cache_identity": identity,
+        "source_cache_identity": identity,
+        "capabilities": capabilities,
+    }
+
+
+def browser_identity(user, session_key):
+    return _principal(user, session_key)["cache_identity"]
+
+
+def browser_session(request):
+    result = _principal(request.user, request.session.session_key)
+    if not result["authenticated"]:
+        return result
+    identity = result["cache_identity"]
     if settings.SOURCE_CREDENTIALS_ENABLED:
         from django.db.models import Q
         from nassav.credential_models import SourceCredential, SourceCredentialKeyPolicy
@@ -61,12 +80,5 @@ def browser_session(request):
         source_identity = salted_hmac(
             "nassav-browser-source-cache-v1", repr([identity, refs, policy])
         ).hexdigest()
-    return {
-        "authenticated": True,
-        "username": request.user.get_username(),
-        "user_id": request.user.pk,
-        "account_epoch": epoch,
-        "cache_identity": identity,
-        "source_cache_identity": source_identity,
-        "capabilities": capabilities,
-    }
+        result["source_cache_identity"] = source_identity
+    return result

@@ -7,7 +7,7 @@ from django.core import signing
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.utils import timezone
 from django.contrib.sessions.models import Session
-from nassav.access import is_operator
+from nassav.access import is_admitted
 from nassav.playback import records
 from nassav.playback.contracts import PlaybackDescriptor
 from nassav.playback.policy import PlaybackGatewayError
@@ -42,7 +42,7 @@ def asset_url(session_id, generation, asset_id, kind):
 def authorize_session(request, session_id, generation=None):
     if not settings.PLAYBACK_ENABLED:
         raise PlaybackGatewayError("playback_disabled", 404)
-    if not is_operator(request.user):
+    if not is_admitted(request.user):
         raise PlaybackGatewayError("authentication_required", 401)
     key = request.session.session_key
     if (

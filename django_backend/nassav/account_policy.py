@@ -18,6 +18,10 @@ def is_app_admin(user):
 
 
 def is_legacy_operator(user):
+    from django.conf import settings
+
+    if settings.MULTI_USER_ENABLED:
+        return False
     from nassav.access import is_operator
 
     return is_operator(user) and account(user) is None

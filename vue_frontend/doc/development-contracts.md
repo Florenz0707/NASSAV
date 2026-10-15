@@ -333,3 +333,7 @@ features/admin/lib/adminRead拥有管理查询的当前登录/请求代次；acc
 所有任务、库、管理员及播放幂等命令使用shared/lib/requestId的安全UUID v4。安全上下文优先原生randomUUID，HTTP局域网缺失该API时使用WebCrypto.getRandomValues，不用Math.random或时间戳代替随机数；缺少安全随机能力明确报错。原有控制器仍拥有命令重放/新意图边界，工具替换不在重试时创建新UUID。
 
 本人关系轮询只有已缓存快照的身份/版本/状态/可用性变化才增加领域revision，使现有资源列表与object URL失效；首次载入和相同快照不触发。先发布新快照再发revision，监听者复用新鲜缓存，禁止通过reset重查形成循环。旧登录或被替代请求不能增加当前revision。
+
+### 多用户浏览器上下文
+
+ordinary_login开启时session store拥有cache_identity，api/client仅持有X-NASSAV-Context预条件；409 browser_context_changed只读重查，不重放写入。旧响应/socket或销毁后的bootstrap不能改变新身份。原生封面/头像由API helper附加_context，keepalive带同头；本人结果图片仍用归属句柄。WS带任务/上下文两个subprotocol，旧4401先查当前Cookie，4409重查代次；上下文不替代业务owner/epoch。准入默认关闭，详见后端准入架构。

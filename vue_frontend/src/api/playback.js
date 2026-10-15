@@ -1,5 +1,5 @@
 import { createRequestId } from '../shared/lib/requestId.js'
-import api from './client.js'
+import api, { browserContextHeaders } from './client.js'
 import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 
 export const playbackApi = {
@@ -22,6 +22,7 @@ export const playbackApi = {
       credentials: 'same-origin',
       keepalive: true,
       headers: {
+        ...browserContextHeaders(),
         'Content-Type': 'application/json',
         'X-CSRFToken': decodeURIComponent(csrf || ''),
       },
@@ -52,6 +53,7 @@ export const playbackApi = {
       credentials: 'same-origin',
       keepalive: true,
       headers: {
+        ...browserContextHeaders(),
         'Content-Type': 'application/json',
         'X-CSRFToken': decodeURIComponent(csrf || ''),
       },

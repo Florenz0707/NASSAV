@@ -2,7 +2,7 @@
 
 from rest_framework.permissions import BasePermission
 
-from nassav.access import is_operator
+from nassav.access import is_admitted
 from nassav.api_utils import build_response
 from nassav import composition
 from nassav.credential_crypto import CredentialUnavailable
@@ -15,7 +15,7 @@ from nassav.source_credentials import CredentialConflict
 
 class CredentialAdmission(BasePermission):
     def has_permission(self, request, view):
-        return is_operator(request.user)
+        return is_admitted(request.user)
 
 
 class SourceCredentialsView(SchemaAPIView):

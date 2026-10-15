@@ -18,6 +18,20 @@ const api = axios.create({
 export const RECOMMENDATION_REQUEST_TIMEOUT = 120000
 // Five source pages can each spend 60s in the browser plus direct/control work.
 export const EXTERNAL_SEARCH_REQUEST_TIMEOUT = 450000
+let browserContext = ''
+export function setBrowserContext(value = '') {
+  browserContext = typeof value === 'string' ? value : ''
+}
+export function browserContextHeaders() {
+  return browserContext ? { 'X-NASSAV-Context': browserContext } : {}
+}
+export function contextualImageUrl(url) {
+  if (!browserContext) return url
+  const hash = url.indexOf('#')
+  const path = hash < 0 ? url : url.slice(0, hash)
+  const fragment = hash < 0 ? '' : url.slice(hash)
+  return `${path}${path.includes('?') ? '&' : '?'}_context=${encodeURIComponent(browserContext)}${fragment}`
+}
 let sessionGeneration = 0
 export function invalidateSessionRequests() {
   sessionGeneration++
@@ -31,11 +45,17 @@ const belongsToSession = (config) => config?._nassavSessionGeneration === sessio
 api.interceptors.request.use(
   (config) => {
     config._nassavSessionGeneration = sessionGeneration
+    Object.assign(config.headers, browserContextHeaders())
     return config
   },
   undefined,
   { synchronous: true }
 )
+const contextListeners = new Set()
+export function onBrowserContextChanged(listener) {
+  contextListeners.add(listener)
+  return () => contextListeners.delete(listener)
+}
 const unauthorizedListeners = new Set()
 
 export function onUnauthorized(listener) {
@@ -84,6 +104,12 @@ api.interceptors.response.use(
   (error) => {
     if (!belongsToSession(error.config)) return Promise.reject(sessionChanged())
     reportUnauthorized(error)
+    if (
+      error.response?.status === 409 &&
+      error.response?.data?.data?.error_code === 'browser_context_changed'
+    ) {
+      for (const listener of contextListeners) listener()
+    }
     if (error.response) {
       const env = error.response.data
       if (env && typeof env.code !== 'undefined') {

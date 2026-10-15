@@ -2,7 +2,7 @@
 
 ## 当前实施边界
 
-P3分为存储协议（4c71e7f）和范围消费者两个提交。0040新增凭证/快照，0041新增专用写入密钥fence。新模式通过`NASSAV_SCOPED_SOURCE_CREDENTIALS=true`启用，默认false保持原operator兼容路径；普通用户登录继续关闭。启用后外搜/推荐按当前用户选择凭证，刮削/下载准备和共享资源播放只使用system范围，个人产物不进入正式共享媒体。私人任务与资产版本接入属于P4/P5。
+P3分为存储协议（4c71e7f）和范围消费者两个提交。0040新增凭证/快照，0041新增专用写入密钥fence。新模式通过`NASSAV_SCOPED_SOURCE_CREDENTIALS=true`启用，默认false保持原operator兼容路径；普通准入默认关闭，显式开放受[准入架构](multi-user-admission-architecture.md)约束。启用后外搜/推荐按当前用户选择凭证，共享库命令明确public/personal模式；P4/P5已接入私人任务及不可变版本，私人产物不写全局正式元数据或公共媒体范围。
 
 运行代理证据见[代理凭证核查](source-credential-proxy-research.md)。当前匿名浏览器不会注入账户Cookie/UA，私人结果必须通过独立直连会话重放并验证，不能提交匿名页面。业务调度继续消费ProxyServer能力，不按具体provider分支。
 

@@ -202,6 +202,37 @@ def main():
                     state="cleanup_failed",
                     error_code="permission_denied",
                 )
+    if os.environ.get("NASSAV_MULTI_USER_UI_TEST_FIXTURE") == "1":
+        if not (
+            settings.SHARED_LIBRARY_ENABLED and settings.SOURCE_CREDENTIALS_ENABLED
+        ):
+            raise SystemExit(
+                "Managed multi-user UI fixture requires shared operation fixture"
+            )
+        import secrets
+
+        settings.MULTI_USER_ENABLED = True
+        member = get_user_model().objects.get(username="operation-other")
+        password = secrets.token_urlsafe(24) + "-Aa1!"
+        member.set_password(password)
+        member.is_staff = member.is_superuser = True
+        member.save()
+        manifest = root / "multi-user-fixture.json"
+        admin_password = secrets.token_urlsafe(24) + "-Aa1!"
+        user.set_password(admin_password)
+        user.save(update_fields=["password"])
+        manifest.write_text(
+            json.dumps(
+                {
+                    "admin_username": user.username,
+                    "admin_password": admin_password,
+                    "member_username": member.username,
+                    "member_password": password,
+                }
+            )
+        )
+        manifest.chmod(0o600)
+        print("ISOLATED_MULTI_USER_FIXTURE=" + str(manifest), flush=True)
     client = Client()
     client.force_login(user)
     assert (

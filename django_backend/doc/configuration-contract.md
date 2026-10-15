@@ -63,3 +63,7 @@ BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受
 ## 共享资源回收执行开关
 
 `NASSAV_RESOURCE_GC_ENABLED` 默认 `false`，必须同时启用范围凭证与共享资源库；仅在完成维护窗口、旧资产归属确认与目标验收后开启。`NASSAV_RESOURCE_GC_BATCH_SIZE` 默认 `32`，取值 `1–100`，限制每轮候选扫描、派发与单任务文件批次，不改变宽限或绕过读写保护。API、worker 与恢复消费者须使用一致配置并统一重启。管理预览和保留可先使用，执行关闭时排队及重试返回 `gc_not_enabled`。详见[共享回收](resource-gc-architecture.md)。
+
+## 多用户准入开关
+
+NASSAV_MULTI_USER_ENABLED为严格布尔，默认false，必须与SHARED_LIBRARY_ENABLED、SOURCE_CREDENTIALS_ENABLED同时开启。true仅准入启用的UserAccount，Django staff/superuser不能代替应用角色；多用户业务需要浏览器上下文预条件，内置Django后台关闭。环境/Compose样例均保持false。开关与隔离实现不等同目标切换已验收，见[准入架构](multi-user-admission-architecture.md)及[执行计划](multi-user-shared-pool-plan.md)。

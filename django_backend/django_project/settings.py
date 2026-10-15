@@ -67,6 +67,9 @@ SOURCE_CREDENTIALS_ENABLED = boolean(
 SHARED_LIBRARY_ENABLED = boolean(
     os.getenv("NASSAV_SHARED_LIBRARY_ENABLED", "false"), "NASSAV_SHARED_LIBRARY_ENABLED"
 )
+MULTI_USER_ENABLED = boolean(
+    os.getenv("NASSAV_MULTI_USER_ENABLED", "false"), "NASSAV_MULTI_USER_ENABLED"
+)
 RESOURCE_GC_ENABLED = boolean(
     os.getenv("NASSAV_RESOURCE_GC_ENABLED", "false"), "NASSAV_RESOURCE_GC_ENABLED"
 )
@@ -76,6 +79,10 @@ RESOURCE_GC_BATCH_SIZE = integer(
     1,
     100,
 )
+if MULTI_USER_ENABLED and not (SHARED_LIBRARY_ENABLED and SOURCE_CREDENTIALS_ENABLED):
+    raise RuntimeError(
+        "Multi-user admission requires shared library and scoped source credentials"
+    )
 if RESOURCE_GC_ENABLED and not SHARED_LIBRARY_ENABLED:
     raise RuntimeError("Resource GC requires shared library")
 if SHARED_LIBRARY_ENABLED and not SOURCE_CREDENTIALS_ENABLED:
@@ -116,7 +123,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # Application definition
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    "django_project.admin_config.NassavAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

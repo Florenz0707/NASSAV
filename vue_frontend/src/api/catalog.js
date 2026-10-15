@@ -1,4 +1,4 @@
-import api, { EXTERNAL_SEARCH_REQUEST_TIMEOUT } from './client.js'
+import api, { EXTERNAL_SEARCH_REQUEST_TIMEOUT, contextualImageUrl } from './client.js'
 
 export const actorApi = {
   // 获取演员列表（聚合统计）
@@ -9,7 +9,7 @@ export const actorApi = {
   // 获取演员头像图片URL
   getAvatarUrl: (actorId) => {
     const base = api.defaults.baseURL.replace(/\/$/, '')
-    return `${base}/actors/${actorId}/avatar`
+    return contextualImageUrl(`${base}/actors/${actorId}/avatar`)
   },
 }
 

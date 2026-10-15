@@ -429,3 +429,9 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 基线89e4e55，分支fix/shared-ui-cache-and-command-ids：真实Chrome探针确认HTTP非localhost缺randomUUID而getRandomValues可用，统一10处命令消费者的安全UUID工具；不改变既有幂等意图保留。关系轮询只在已知快照变化时推进领域revision，沿现有列表/封面失效通道，重复快照不重查。无后端/schema变化，P8准入与上下文护栏继续。
 
 缓存/HTTP兼容收尾隔离门槛（2026-10-15）：Chrome与Firefox均在真实非安全HTTP WebCrypto环境运行生产UUID工具，200个安全v4唯一；宿主HTML受控且无外网请求。两浏览器另配真实临时HTTP/SQLite/Redis验证关系变化revision增加一次、相同轮询不失效、合批/重试及卸载无查询循环。前端完整check通过，后端生产/schema不变；完整pre-commit通过后提交。
+
+### P8受控准入与跨Cookie子阶段
+
+基线95d7dee，分支feat/multi-user-admission-context：严格默认关闭准入开关，依赖共享库/来源范围；统一HTTP/原生媒体/WS准入，关闭可绕过审计的内置Django后台。上下文在业务前拒绝旧Cookie页面操作，读冲突只读重查，不自动重放；图片/keepalive/WS覆盖同一身份。无DDL、不启用实例开关。
+
+SQLite全量1325 passed/28 skipped，PostgreSQL准入/权限/启动专项22 passed；Chrome真实临时HTTP/SQLite/Redis/keyring双账号验证公共合并、私人隔离、配额、取消、旧GET/PUT/logout拒绝及停用/WS撤销。Firefox以全新临时实例完成相同原生双账号验收；前端check与完整pre-commit通过后提交。来源worker、受控恢复与切换手册继续，不将排队等同来源执行成功。

@@ -135,3 +135,7 @@ TaskJob。Celery 在 scrape 队列执行、DB 保存结果、HTTP 授权查询�
 ## 共享资源回收执行
 
 共享模式的正式资源回收由独立 `ResourceGcJob`/`ResourceGcAsset` 账本持有，不借用下载/刮削终态。默认关闭的 `nassav.tasks.resource_gc_task` 仅接收 job ID，走 default 队列；现有恢复循环有界发现及补派，broker 不进入事务。管理 API/CLI 只排队、设置保留或重试，不同步删除文件。旧资源写入口与旧布局修复命令在共享模式关闭；文件锁、停止证明和读取保护见[回收架构](resource-gc-architecture.md)。
+
+### 多用户准入入口
+
+默认关闭的普通登录及HTTP/WS/媒体准入见[准入架构](multi-user-admission-architecture.md)。上下文预条件在业务前拒绝跨Cookie旧页面，不能代替Operation/Task的owner与执行fence；管理员全局审计控制与本人撤销仍分开。

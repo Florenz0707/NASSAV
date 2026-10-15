@@ -384,3 +384,27 @@ def test_gc_requires_explicit_compatible_startup_configuration(
     write_config(path)
     result = startup(path, tmp_path / "absent.env", **values)
     assert result.returncode != 0 and expected in result.stderr
+
+
+def test_multi_user_admission_defaults_closed_and_requires_scoped_shared_mode(tmp_path):
+    config = tmp_path / "config.yaml"
+    write_config(config)
+    env = tmp_path / "absent.env"
+    result = startup(
+        config,
+        env,
+        NASSAV_MULTI_USER_ENABLED="true",
+        NASSAV_SHARED_LIBRARY_ENABLED="false",
+    )
+    assert result.returncode != 0
+    assert "Multi-user admission requires shared library" in result.stderr
+    result = startup(config, env, NASSAV_MULTI_USER_ENABLED="maybe")
+    assert result.returncode != 0 and "NASSAV_MULTI_USER_ENABLED" in result.stderr
+    result = startup(
+        config,
+        env,
+        NASSAV_MULTI_USER_ENABLED="true",
+        NASSAV_SHARED_LIBRARY_ENABLED="true",
+        NASSAV_SCOPED_SOURCE_CREDENTIALS="true",
+    )
+    assert result.returncode == 0, result.stderr

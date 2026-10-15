@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .access import is_operator
+from .access import is_admitted
 
 
 def _response(status: int, message: str, data=None) -> JsonResponse:
@@ -41,7 +41,7 @@ def login_view(request):
     if not isinstance(username, str) or not isinstance(password, str):
         return _response(400, "请输入用户名和密码")
     user = authenticate(request, username=username, password=password)
-    if user is None or not is_operator(user):
+    if user is None or not is_admitted(user):
         return _response(401, "用户名或密码错误")
     from django.db import transaction
     from nassav.personal_state import lock_user
@@ -53,7 +53,7 @@ def login_view(request):
             from django.contrib.auth import get_user_model
 
             current = get_user_model().objects.get(pk=user.pk)
-            if current.password != user.password or not is_operator(current):
+            if current.password != user.password or not is_admitted(current):
                 raise PermissionError("Account changed during authentication")
             user = current
             login(request, user)
@@ -71,8 +71,16 @@ def login_view(request):
 @require_POST
 @csrf_protect
 def logout_view(request):
-    if not is_operator(request.user):
+    if not is_admitted(request.user):
         return _response(401, "请先登录")
+    from nassav.browser_context import require_browser_context, BrowserContextChanged
+
+    try:
+        require_browser_context(request)
+    except BrowserContextChanged as error:
+        return _response(
+            409, str(error.detail), {"error_code": "browser_context_changed"}
+        )
     from django.conf import settings
 
     if getattr(settings, "PLAYBACK_ENABLED", False):

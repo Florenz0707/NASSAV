@@ -12,15 +12,15 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 
 ---
 
-## 来源凭证（未发布P3存储子阶段）
+## 来源凭证（范围模式）
 
-所有响应no-store，普通账号登录仍关闭。`GET/POST /api/me/source-credentials`只列本人状态或创建；`GET/PUT/DELETE /api/me/source-credentials/{id}`只操作本人对象。POST提供source_name/cookie/user_agent/可选kind/expected_version=0，PUT盲写同字段但不接受source_name，DELETE只提供expected_version。不存在/跨用户404，参数400，CAS409，缺钥503；响应不包含秘密、密文或key_id。
+所有响应no-store，普通账号登录默认关闭。`GET/POST /api/me/source-credentials`只列本人状态或创建；`GET/PUT/DELETE /api/me/source-credentials/{id}`只操作本人对象。POST提供source_name/cookie/user_agent/可选kind/expected_version=0，PUT盲写同字段但不接受source_name，DELETE只提供expected_version。不存在/跨用户404，参数400，CAS409，缺钥503；响应不包含秘密、密文或key_id。
 
-管理员系统端点为`/api/admin/source-credentials`及`/{id}`，方法相同；额外必须request_id及reason（security/maintenance/user_request），系统写入仅允许clearance。身份与来源由服务端决定，禁止owner/host输入。详见[凭证架构](source-credential-architecture.md)。现有SourceCookie接口和抓取尚未切换，保存新凭证不会改变旧消费者行为。
+管理员系统端点为`/api/admin/source-credentials`及`/{id}`，方法相同；额外必须request_id及reason（security/maintenance/user_request），系统写入仅允许clearance。身份与来源由服务端决定，禁止owner/host输入。详见[凭证架构](source-credential-architecture.md)。范围模式抓取/搜索/推荐/播放使用所选公共或个人范围；旧SourceCookie仅留兼容模式，不自动导入。
 
-## 访问与会话（P1）
+## 访问与会话
 
-未发布P2新增应用角色与管理接口，仍保留下述operator登录门禁。新管理端点要求显式应用admin，不以Django超级用户或用户名自动提权；无UserAccount的原operator只保留旧路径兼容。权限、对象与撤销边界见[账号策略](account-policy-architecture.md)。
+应用角色与管理接口已接入，默认仍保留下述operator登录门禁。新管理端点要求显式应用admin，不以Django超级用户或用户名自动提权；无UserAccount的原operator仅在多用户开关关闭时保留兼容。权限、对象与撤销边界见[账号策略](account-policy-architecture.md)。
 
 | 管理接口（/nassav/api前缀）                  | 请求/响应                                                                                                                     |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -32,23 +32,33 @@ HTTP 状态码仍与语义保持一致（200/201/404/500 等），`code` 为项�
 | GET /admin/audit                             | 最新100条非敏感动作元信息，不返回请求正文或密码                                                                               |
 | POST /admin/resources/{pool_id}/availability | expected_version/request_id/reason/available；下架立即拒绝新读并关闭会话，保留文件                                            |
 
-reason仅接受bootstrap/security/maintenance/user_request/quota_adjustment；参数400、动作403、对象404、版本/幂等/最后管理员冲突409。响应沿用envelope并no-store。未新增普通库operation接口，仍待P4；外搜token已绑定当前用户，旧未绑定句柄需重新搜索。
+reason仅接受bootstrap/security/maintenance/user_request/quota_adjustment；参数400、动作403、对象404、版本/幂等/最后管理员冲突409。响应沿用envelope并no-store。共享模式普通库命令见library/operations协议；外搜token已绑定当前用户，旧未绑定句柄需重新搜索。
 
-目标为经同源 HTTPS 反向代理访问的单用户会话。`NASSAV_OPERATOR_USERNAME` 指定唯一可访问业务数据的 Django 账号（默认 `nassav`）；账号必须处于启用状态。浏览器先调用公开的会话接口取得 CSRF cookie，再以该账号登录。所有 `/nassav/api/` 业务端点统一要求此账号的有效 session；匿名请求返回 HTTP 401，其他账号返回 HTTP 403。跨站请求不开放 CORS。
+默认兼容模式使用同源单用户会话。`NASSAV_OPERATOR_USERNAME` 指定唯一可访问业务数据的 Django 账号（默认 `nassav`）；账号必须处于启用状态。浏览器先调用公开的会话接口取得 CSRF cookie，再以该账号登录。兼容模式的业务端点统一要求此账号的有效 session；匿名请求返回 HTTP 401，其他账号返回 HTTP 403。跨站请求不开放 CORS。
 
-| 访问级别 | 端点                                                                                             | 规则                                                                                          |
-| -------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| 公开     | `GET /nassav/api/auth/session`                                                                   | 返回 `data.authenticated`、`data.username`（匿名时为 `null`），并签发 CSRF cookie；无敏感数据 |
-| 公开写入 | `POST /nassav/api/auth/login`                                                                    | JSON `{"username":"…","password":"…"}`；需要 CSRF；仅配置的账号可登录业务应用                 |
-| 登录写入 | `POST /nassav/api/auth/logout`                                                                   | 需要 operator session 与 CSRF；注销后旧 session 不能再读写或接收任务事件                      |
-| 登录可读 | `/nassav/api/` 下所有业务 GET，包括 Cookie、设置、资源、推荐、下载及任务状态                     | 只允许 operator；抓取任务 `GET /resource/jobs/{task_id}` 仍额外要求 `X-Resource-Job-Token`    |
-| 登录可写 | `/nassav/api/` 下所有业务 POST/PUT/PATCH/DELETE，包括 Cookie、设置、资源删除、推荐重置与任务提交 | 只允许 operator，并通过 Django SessionAuthentication 验证 CSRF                                |
-| 登录实时 | `WS /nassav/ws/tasks/`                                                                           | 握手前验证合法 Host、同源 Origin 和 operator session；注销或过期后不再发送事件                |
-| 仅内部   | `GET /healthz`                                                                                   | 仅 Compose 内部探针；网关不转发                                                               |
+| 访问级别 | 端点                                                                                             | 规则                                                                                                |
+| -------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 公开     | `GET /nassav/api/auth/session`                                                                   | 返回 `data.authenticated`、`data.username`（匿名时为 `null`），并签发 CSRF cookie；无敏感数据       |
+| 公开写入 | `POST /nassav/api/auth/login`                                                                    | JSON `{"username":"…","password":"…"}`；需要 CSRF；默认仅配置账号；多用户开关开启后仅启用的受管账号 |
+| 登录写入 | `POST /nassav/api/auth/logout`                                                                   | 需要准入 session、当前上下文与 CSRF；注销后旧 session 不能再读写或接收任务事件                      |
+| 登录可读 | `/nassav/api/` 下所有业务 GET，包括 Cookie、设置、资源、推荐、下载及任务状态                     | 要求准入与业务权限；抓取任务 `GET /resource/jobs/{task_id}` 仍额外要求 `X-Resource-Job-Token`       |
+| 登录可写 | `/nassav/api/` 下所有业务 POST/PUT/PATCH/DELETE，包括 Cookie、设置、资源删除、推荐重置与任务提交 | 要求准入与业务权限，并通过 Django SessionAuthentication 验证 CSRF                                   |
+| 登录实时 | `WS /nassav/ws/tasks/`                                                                           | 握手前验证合法 Host、同源 Origin、准入 session 和当前上下文；注销或过期后不再发送事件               |
+| 仅内部   | `GET /healthz`                                                                                   | 仅 Compose 内部探针；网关不转发                                                                     |
 
 会话接口响应使用本页统一 envelope。登录错误为 401，CSRF 或 Origin 校验失败为 403。浏览器请求需带 session cookie，写请求需带 `X-CSRFToken`；前端 Axios 自动处理。WebSocket 使用页面的 `ws://` 或 `wss://` 同源地址，不能使用跨站 Origin。代理必须保留原始 Host（含非标准端口）并传入可信的 `X-Forwarded-Proto`；Django `ALLOWED_HOSTS` 只校验 Host，不替代身份验证。
 
 ---
+
+## 受控多用户准入与上下文
+
+`NASSAV_MULTI_USER_ENABLED=false`为默认；true必须同时启用范围来源凭证和共享库。启用后仅active且有UserAccount的账号可登录，不开放注册；Django staff/superuser不赋予应用admin。内置`/admin/`关闭，账号控制走应用审计接口。详见[准入架构](multi-user-admission-architecture.md)。
+
+session/login的`cache_identity`绑定用户、具体登录和账号/能力代次；`capabilities.ordinary_login`指示该协议。多用户JSON请求必须带`X-NASSAV-Context`，缺失/不匹配409且`data.error_code=browser_context_changed`；客户端只读重查session，禁止自动重放原写入。logout同样检查；Cookie、CSRF和对象授权仍必需。响应private/no-store并Vary Cookie。
+
+原生AVID封面/头像GET可用`_context`查询参数；Entry UUID图片和本人结果句柄由自身授权核查。媒体流仍使用绑定具体登录的播放会话grant。进度keepalive带相同上下文头。
+
+多用户任务WS握手带subprotocol `nassav.tasks.v1`和`nassav.context.<cache_identity>`，服务器只回选前者。无效登录4401、仍有效但代次变化4409；每次收发复核，普通用户仅本人组，应用管理员另有脱敏管理组。4401先重查Cookie身份再决定重连/退出。关闭开关保留旧兼容协议。
 
 ## 内部健康检查
 

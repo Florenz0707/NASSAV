@@ -1,4 +1,4 @@
-import api from './client.js'
+import api, { contextualImageUrl } from './client.js'
 import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 import { logger } from '../shared/lib/logger.js'
 
@@ -28,7 +28,7 @@ export const resourceApi = {
     const base = api.defaults.baseURL.replace(/\/$/, '')
     let url = `${base}/resource/cover?avid=${encodeURIComponent(avid)}`
     if (size) url += `&size=${encodeURIComponent(size)}`
-    return url
+    return contextualImageUrl(url)
   },
   // 简单的 LRU 缓存用于封面 object URLs，避免重复下载并支持自动回收
   // keyed by avid -> objectUrl
@@ -80,7 +80,7 @@ export const resourceApi = {
     } catch (_e) {
       if (!current()) return null
       // fallback to URL
-      return `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover?avid=${encodeURIComponent(avid)}`
+      return resourceApi.getCoverUrl(avid)
     }
   },
   // 明确撤销并删除缓存项

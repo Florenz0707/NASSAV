@@ -2,9 +2,9 @@
 
 ## 当前实施边界
 
-P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、WorkSubscription及用户命令回执，0043增加每请求的projected_work_version游标。仍未开放HTTP入口或普通用户登录；生产未创建共享请求，也未修改现有任务归属。不得把这一子阶段当成完整P4。
+0042/0043建立共享请求和投影游标，后续已接入派发、HTTP命令、配额、不可变发布、本人列表/媒体及受控回收。公共工作按系统范围合并，私人范围按凭证隔离；旧未分范围任务不自动转换。本文后续子阶段记录按当时边界保留，当前准入见[准入架构](multi-user-admission-architecture.md)，普通登录与自动回收仍默认关闭。
 
-进度/失败投影、释放持有/停用联动与私有提示已接入；正式派发、成功激活与配额尚待接入；私人产物的可执行发布需要P5不可变版本。当前内部核心只接受public，新私人需求明确拒绝，不把私人结果交给旧AVResource/文件发布流程。
+进度/失败投影、释放持有/停用联动与私有提示、正式派发/激活/配额均已接入；私人产物使用P5不可变版本，不把私有元数据交给旧AVResource列或旧文件发布流程。
 
 ## 身份与规格
 
@@ -63,7 +63,7 @@ P4先交付模型和内部请求核心，0042扩展SharedWork、UserOperation、
 
 不同范围的同AVID下载持有各自job租约，仍共享一份全局下载槽位；private workspace及正式目标均独立。共享progress/queue键单独命名，不清旧AVID投影。恢复仅从可信DB job ID导出租约键，再校验归属；不接受日志中的任意Redis key。停止证明及未知writer保留规则不变。
 
-`NASSAV_SHARED_LIBRARY_ENABLED`默认false，要求同时启用范围凭证；本子阶段没有共享库HTTP、配额、版本库/媒体消费者或GC，因此尚不能用于普通用户上线。Compose将开关/密钥容器路径传给全部后端消费者，切换时统一版本与重启，不能只开开关而混跑旧写入者。后台在启用时装配ready发布证据的用户投影，提示仍只发送所属用户。
+`NASSAV_SHARED_LIBRARY_ENABLED`默认false，要求同时启用范围凭证；共享库HTTP、配额、版本/媒体与GC已分阶段接入，但目标验收前不能开放普通准入。Compose将开关/密钥容器路径传给全部后端消费者，切换时统一版本与重启，不能只开开关而混跑旧写入者。后台在启用时装配ready发布证据的用户投影，提示仍只发送所属用户。
 
 专项`test_shared_version_workers.py`为真实DB/文件＋显式来源/下载替身，验证编排与装配，不是实际Celery/站点下载；`test_shared_download_leases.py`用Unix socket临时Redis验证作用域与恢复；真实worker/Proxy/来源/媒体仍按P8验收。
 

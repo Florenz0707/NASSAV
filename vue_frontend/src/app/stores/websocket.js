@@ -52,7 +52,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
     logger.debug('[WebSocket] 正在连接:', wsUrl)
 
     try {
-      const socket = new WebSocket(wsUrl)
+      const session = useSessionStore()
+      const socket = session.capabilities.ordinary_login
+        ? new WebSocket(wsUrl, ['nassav.tasks.v1', `nassav.context.${session.identity}`])
+        : new WebSocket(wsUrl)
       ws.value = socket
 
       // 设置连接超时
@@ -115,7 +118,14 @@ export const useWebSocketStore = defineStore('websocket', () => {
         }
         if (event.code === 4401) {
           shouldReconnect.value = false
-          useSessionStore().expire()
+          const session = useSessionStore(),
+            identity = session.identity
+          if (session.capabilities.ordinary_login) {
+            if (await session.recheck()) {
+              shouldReconnect.value = true
+              if (!ws.value) scheduleReconnect()
+            } else if (session.identity === identity) session.expire()
+          } else session.expire()
         } else if (event.code === 4403) {
           shouldReconnect.value = false
         } else if (await useSessionStore().recheck()) {

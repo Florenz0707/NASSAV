@@ -15,6 +15,17 @@ def is_operator(user) -> bool:
     )
 
 
+def is_admitted(user) -> bool:
+    """Explicit managed admission; never upgrade Django staff to an app role."""
+    if not settings.MULTI_USER_ENABLED:
+        return is_operator(user)
+    if not (settings.SHARED_LIBRARY_ENABLED and settings.SOURCE_CREDENTIALS_ENABLED):
+        return False
+    from nassav.account_policy import account
+
+    return account(user) is not None
+
+
 class OperatorSessionAuthentication(SessionAuthentication):
     """Return 401 for missing sessions while preserving Django's CSRF checks."""
 
@@ -24,7 +35,7 @@ class OperatorSessionAuthentication(SessionAuthentication):
 
 class IsOperator(BasePermission):
     def has_permission(self, request, view):
-        if not is_operator(request.user):
+        if not is_admitted(request.user):
             return False
         from nassav.account_policy import permit_business_view
 
