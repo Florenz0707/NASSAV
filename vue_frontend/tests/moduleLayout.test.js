@@ -59,6 +59,7 @@ test('API barrel preserves object identity and domain requests share envelope ha
       'externalSearchApi',
       'genreApi',
       'onUnauthorized',
+      'personalCredentialApi',
       'recommendationApi',
       'resourceApi',
       'settingsApi',

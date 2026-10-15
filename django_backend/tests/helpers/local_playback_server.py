@@ -94,6 +94,27 @@ def main():
     user = get_user_model().objects.create_user(
         username=settings.NASSAV_OPERATOR_USERNAME
     )
+    if os.environ.get("NASSAV_CREDENTIAL_UI_TEST_FIXTURE") == "1":
+        import base64
+        from nassav.account_models import UserAccount
+
+        keyfile = root / "source-keyring.json"
+        keyfile.write_text(
+            json.dumps(
+                {
+                    "active_key_id": "ui-test",
+                    "keys": {"ui-test": base64.b64encode(os.urandom(32)).decode()},
+                }
+            )
+        )
+        keyfile.chmod(0o600)
+        from django_project.celery import app
+
+        # Redis.from_url consumers keep unix://; Kombu needs its socket scheme.
+        app.conf.broker_url = "redis+socket://" + str(root / "redis.sock")
+        settings.SOURCE_CREDENTIALS_ENABLED = True
+        settings.SOURCE_CREDENTIAL_KEYRING_FILE = str(keyfile)
+        UserAccount.objects.create(user=user, role="admin")
     client = Client()
     client.force_login(user)
     assert (

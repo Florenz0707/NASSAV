@@ -14,6 +14,7 @@ def browser_session(request):
             "user_id": None,
             "account_epoch": None,
             "cache_identity": None,
+            "source_cache_identity": None,
             "capabilities": {},
         }
     role = account(request.user)
@@ -37,11 +38,35 @@ def browser_session(request):
         sorted(capabilities.items()),
     ]
     identity = salted_hmac("nassav-browser-cache-v1", repr(context)).hexdigest()
+    source_identity = identity
+    if settings.SOURCE_CREDENTIALS_ENABLED:
+        from django.db.models import Q
+        from nassav.credential_models import SourceCredential, SourceCredentialKeyPolicy
+
+        # Only this user's private references and system metadata affect their
+        # source namespace. Ciphertexts and secrets never enter this projection.
+        refs = list(
+            SourceCredential.objects.filter(
+                Q(scope="system", owner__isnull=True)
+                | Q(scope="personal", owner_id=request.user.pk)
+            )
+            .order_by("pk")
+            .values_list("pk", "version", "state")
+        )
+        policy = (
+            SourceCredentialKeyPolicy.objects.filter(pk=1)
+            .values_list("version", flat=True)
+            .first()
+        )
+        source_identity = salted_hmac(
+            "nassav-browser-source-cache-v1", repr([identity, refs, policy])
+        ).hexdigest()
     return {
         "authenticated": True,
         "username": request.user.get_username(),
         "user_id": request.user.pk,
         "account_epoch": epoch,
         "cache_identity": identity,
+        "source_cache_identity": source_identity,
         "capabilities": capabilities,
     }

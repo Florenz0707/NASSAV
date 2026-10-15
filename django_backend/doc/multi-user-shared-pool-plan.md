@@ -347,3 +347,9 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consistency。随后全量中发现候选公平性和私人范围场景因墙钟基准不同而触发grace_period。统一unheld场景、HTTP/CLI/原生worker的GC adapter协议时钟，发现器共享同一注入时间并覆盖宿主±5秒偏移；正式回收与其他域时钟均未改动。所有宽限/占用/删除断言保留。
 
 一致性门槛（2026-10-15）：GC组合专项SQLite41 passed，补充续租边界后PostgreSQL42 passed；全量SQLite1281 passed/28 skipped；完整pre-commit通过。修正仅测试时间与说明，不修改生产默认时钟、宽限、领取或清理规则。
+
+### P7个人来源凭证子阶段
+
+基线56936a7，分支feat/personal-source-credentials-ui：添加页按模式装配个人盲写/旧兼容界面，Cookie/UA必填、CAS冲突保留草稿、撤销与未保存确认；来源缓存身份由本用户/系统元信息及密钥策略派生，HTTP写响应立即返回，来源页面重建但添加表单保留。真实Chrome/Firefox配临时HTTP/SQLite/keyring通过深浅主题、第二登录竞争、撤销、窄屏及不落浏览器存储检查，不访问真实来源站点。共享库命令/个人operation/管理UI、范围结果图片句柄及P8继续，普通准入未开放。
+
+个人凭证子阶段门槛（2026-10-15）：SQLite全量1282 passed/28 skipped，PostgreSQL凭证/会话24 passed；前端132单元测试、lint与构建通过，完整pre-commit通过。Chrome和Firefox最终均以真实HTTP/SQLite/临时0600 keyring完成两主题、字段校验、CAS冲突/重载、撤销、嵌套确认、窄屏滚动、不持久化秘密与添加表单保留检查。无新schema、真实来源请求或现有实例切换；普通准入仍关闭。

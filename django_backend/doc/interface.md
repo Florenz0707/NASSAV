@@ -1657,3 +1657,7 @@ SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?source=jable|miss
 `GET /api/auth/session`及成功登录响应保留authenticated/username，并新增user_id、account_epoch、cache_identity和capabilities。匿名或未准入账号不返回身份，capabilities为空；已准入账号只展示本账号能力，GET不创建角色或会话。cache_identity由登录会话、账号版本与功能开关派生，不返回session key/Cookie，不作授权凭证。same login稳定，换登录/账号版本/开关则变化。
 
 capabilities中的shared_library、personal_source_credentials、app_admin、resource_gc、legacy_asset_controls均为展示提示，动作仍走原对象授权。ordinary_login目前始终false，不借新增字段开放普通账号。响应no-store；后端不信任前端提交的身份、角色或cache_identity。
+
+### 来源凭证写响应的缓存上下文
+
+`GET /api/auth/session`及成功登录响应另含source_cache_identity（匿名null；范围模式关闭时与cache_identity相同）。`POST/PUT/DELETE /api/me/source-credentials`和管理员系统凭证写响应在原元信息上增加source_cache_identity，不改变id/version/state等字段，不返回秘密。配套User-Agent沿既有加密协议必须为非空可打印字符串；个人新建expected_version=0，替换/撤销使用已读版本，冲突409。个人Cookie界面不提供明文查看、复制或匿名自动获取。

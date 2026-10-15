@@ -39,6 +39,23 @@ const wsStore = useWebSocketStore()
 const settingsStore = useSettingsStore()
 const resourceStore = useResourceStore()
 const sessionStore = useSessionStore()
+const sourceRoute = computed(() =>
+  ['Recommendations', 'ActorResources', 'GenreResources'].includes(route.name)
+)
+const pageIdentity = computed(() =>
+  sourceRoute.value
+    ? `${sessionStore.identity}:${sessionStore.sourceIdentity}`
+    : sessionStore.identity
+)
+watch(
+  () => sessionStore.sourceIdentity,
+  (next, previous) => {
+    if (previous && next !== previous) {
+      useRecommendationsStore().reset()
+      resourceStore.invalidateSourceRequests()
+    }
+  }
+)
 
 async function refreshVisibleJobs() {
   if (sessionStore.status === 'authenticated' && document.visibilityState === 'visible') {
@@ -152,7 +169,7 @@ watch(
       >
         <RouterView v-slot="{ Component }">
           <transition name="page" mode="out-in" @after-enter="restorePageFocus">
-            <component :is="Component" :key="sessionStore.identity" />
+            <component :is="Component" :key="pageIdentity" />
           </transition>
         </RouterView>
       </main>

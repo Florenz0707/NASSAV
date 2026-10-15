@@ -184,3 +184,5 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 回收失租回归通过注入时钟推进到DB实际lease_until之后，覆盖立即恢复和延迟恢复；不把“墙钟减1秒”当作后续仍已过期的保证。保留旧owner不能unlink、文件保持和新owner最终物理收尾断言。真实宿主时钟可能回拨，协议测试与性能采样须使用适合的显式/单调时钟。
 
 GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一时间，包括HTTP/CLI和原生worker；过期字段使用该时钟，其他业务域保留自己的时间。发现器专项同时显式注入adapter/dispatcher，并覆盖相对宿主时间±5秒偏移，不依赖宿主NTP状态。生产默认构造与租约/保护逻辑不改。
+
+个人凭证UI：隔离HTTP helper增加`NASSAV_CREDENTIAL_UI_TEST_FIXTURE=1`，仅在其临时目录生成0600随机keyring并启范围凭证，普通登录和共享库仍关闭。脚本`vue_frontend/tests/browser/personalCredentials.cjs`需设置输出的`NASSAV_CREDENTIAL_STORAGE_STATE`、`NASSAV_CREDENTIAL_SECOND_STATE`及loopback前端origin；验证真实盲写/CAS/撤销与两套主题、窄屏，不添加正式资源或访问来源站点。helper中Redis客户端仍用unix://，Celery/Kombu使用对应redis+socket://，不将两者的URI误作相同协议。

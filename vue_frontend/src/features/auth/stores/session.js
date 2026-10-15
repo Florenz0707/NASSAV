@@ -7,6 +7,7 @@ export const useSessionStore = defineStore('session', () => {
   const status = ref('checking')
   const username = ref(null)
   const identity = ref('')
+  const sourceIdentity = ref('')
   const capabilities = ref({})
   let unsubscribe = null
   let requestVersion = 0
@@ -17,6 +18,7 @@ export const useSessionStore = defineStore('session', () => {
     status.value = 'anonymous'
     username.value = null
     identity.value = ''
+    sourceIdentity.value = ''
     capabilities.value = {}
   }
 
@@ -27,12 +29,27 @@ export const useSessionStore = defineStore('session', () => {
     }
     // Old backend responses retain single-operator compatibility, with no new rights.
     const nextIdentity = data.cache_identity || `legacy:${data.username}`
-    if (identity.value !== nextIdentity) invalidateSessionRequests()
+    const nextSourceIdentity = data.source_cache_identity || nextIdentity
+    if (identity.value !== nextIdentity || sourceIdentity.value !== nextSourceIdentity)
+      invalidateSessionRequests()
     username.value = data.username
     identity.value = nextIdentity
+    sourceIdentity.value = nextSourceIdentity
     capabilities.value = data.capabilities || {}
     status.value = 'authenticated'
     return true
+  }
+
+  function updateSourceIdentity(value) {
+    if (
+      status.value !== 'authenticated' ||
+      typeof value !== 'string' ||
+      !value ||
+      sourceIdentity.value === value
+    )
+      return
+    invalidateSessionRequests()
+    sourceIdentity.value = value
   }
 
   function attachUnauthorizedHandler() {
@@ -79,5 +96,17 @@ export const useSessionStore = defineStore('session', () => {
     if (version === requestVersion) expire()
   }
 
-  return { status, username, identity, capabilities, initialize, recheck, signIn, signOut, expire }
+  return {
+    status,
+    username,
+    identity,
+    sourceIdentity,
+    updateSourceIdentity,
+    capabilities,
+    initialize,
+    recheck,
+    signIn,
+    signOut,
+    expire,
+  }
 })

@@ -24,7 +24,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['detail', 'resource-saved'])
 const session = useSessionStore()
-const pageOwner = session.identity
+const pageOwner = session.sourceIdentity
 const entityId = computed(() => props.entityId)
 const entityLabel = props.entityType === 'actor' ? '演员' : '类别'
 const router = useRouter(),
@@ -187,7 +187,7 @@ watch(
 function saveExternalCache() {
   if (
     session.status !== 'authenticated' ||
-    session.identity !== pageOwner ||
+    session.sourceIdentity !== pageOwner ||
     externalMeta.value?.partial
   )
     return
@@ -240,7 +240,7 @@ async function scrollToTopAfterExternalRefresh() {
 }
 
 function restoreExternalCache() {
-  if (session.status !== 'authenticated' || session.identity !== pageOwner) return false
+  if (session.status !== 'authenticated' || session.sourceIdentity !== pageOwner) return false
   const key = externalCacheKey()
   try {
     const cached = JSON.parse(sessionStorage.getItem(key))

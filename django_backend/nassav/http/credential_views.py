@@ -68,7 +68,18 @@ class SourceCredentialsView(SchemaAPIView):
                 credential_id=credential_id,
                 revoke=revoke,
             )
-            return build_response(200, "success", data)
+            from nassav.session_projection import browser_session
+
+            return build_response(
+                200,
+                "success",
+                {
+                    **data,
+                    "source_cache_identity": browser_session(request)[
+                        "source_cache_identity"
+                    ],
+                },
+            )
         except ValueError as error:
             return build_response(400, str(error), None)
         except CredentialConflict as error:

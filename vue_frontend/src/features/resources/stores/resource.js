@@ -239,6 +239,17 @@ export const useResourceStore = defineStore('resource', () => {
     scrapePollTimer = null
   }
 
+  function invalidateSourceRequests() {
+    trackingGeneration++
+    pendingJobRequests.clear()
+    pendingJobEventVersions.clear()
+    loading.value = false
+    error.value = null
+    downloadStates.value = new Map(
+      [...downloadStates.value].filter(([, state]) => state !== 'submitting')
+    )
+  }
+
   function beginSession(identity) {
     stopScrapeTracking()
     pendingJobRequests.clear()
@@ -529,6 +540,7 @@ export const useResourceStore = defineStore('resource', () => {
     dismissScrapeJob,
     stopScrapeTracking,
     beginSession,
+    invalidateSourceRequests,
     submitDownload,
     batchRefresh,
     batchDelete,

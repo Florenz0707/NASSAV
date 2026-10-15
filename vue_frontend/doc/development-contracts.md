@@ -257,3 +257,11 @@ App按status/identity重置资源、目录、设置、观看列表、推荐、�
 播放离线草稿按identity隔离，固定捕获owner且读/写/删除均核查仍属当前登录。同一登录刷新保留有效草稿；注销或已知身份切换清除旧草稿，旧播放器的迟到收尾不得重新写入。数据库仍持有个人进度。restoreScrapeJobs返回可等待的恢复批次，不能用固定微任务数量推测异步完成。
 
 本子阶段仅接入身份与缓存基础，尚未切换共享库命令/用户operation界面或开放普通账号；P7其余界面和P8统一验收继续。真实浏览器使用临时HTTP/SQLite与同账号两个真实登录，延迟旧设置响应验证更换登录后的归属；不等同跨用户/源站/生产部署验收。
+
+### 个人来源凭证与来源缓存域
+
+CookieManagementDialog是模式装配入口：capabilities.personal_source_credentials为true时仅装配PersonalCredentialsDialog，否则保留独立LegacyCookieManagementDialog。usePersonalCredentials持有元信息/输入/加载与mutation归属，personalCredentialApi只用统一client；公共api/index新增对应同一对象导出。界面Cookie/UA不预填、不持久化、不显示服务端秘密；新协议两者配套必填，旧兼容界面的UA规则不变。409保留草稿，重载是用户明确读取新版本的动作，禁止自动重试覆盖。未保存关闭确认、卸载清空，消息和busy均核查当前owner与编辑代次。
+
+session store额外持有sourceIdentity，从source_cache_identity读取；凭证写成功用其返回值立即更新，无需额外session请求。来源身份变化使推荐store/来源页面及其缓存失效，拒绝旧来源请求的结果/错误/清理动作；cache_identity保持时不重建添加表单及个人设置。外部搜索/推荐用sourceIdentity命名，所有对象授权仍归后端，字段不是token。普通登录仍关闭，公共/个人提交模式及共享库/管理页面继续实施。
+
+个人凭证弹窗最大高度为视口减标准留白，内容是唯一滚动区，标题与关闭保留；复用SettingsModal/useDialog、ConfirmDialog、AppButton五态和CustomSelect键盘操作。加载超过1秒用公共spinner，失败可重试，空来源明确显示空状态；保存与撤销分别展示loading文案。

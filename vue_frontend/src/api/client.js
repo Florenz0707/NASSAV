@@ -22,7 +22,11 @@ let sessionGeneration = 0
 export function invalidateSessionRequests() {
   sessionGeneration++
 }
-const sessionChanged = () => ({ code: 'session_changed', message: '登录状态已变化', data: null })
+const sessionChanged = () => ({
+  code: 'session_changed',
+  message: '请求上下文已变化，请重试',
+  data: null,
+})
 const belongsToSession = (config) => config?._nassavSessionGeneration === sessionGeneration
 api.interceptors.request.use(
   (config) => {
