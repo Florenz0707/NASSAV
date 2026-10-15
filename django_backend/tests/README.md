@@ -204,3 +204,5 @@ GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一
 全局执行浏览器专项：同一临时library/operator fixture下运行`node vue_frontend/tests/browser/adminWork.cjs`（上述NODE_PATH和NASSAV_LIBRARY_STORAGE_STATE）；可指定`NASSAV_WORK_UI_AVID=OPERATION-SECOND`使用第二条未执行任务，Firefox同上。真实HTTP/SQLite验证暂停响应丢失重放、恢复CAS冲突、恢复/终止、本人operation投影、审计和窄屏嵌套确认。该fixture未启动来源worker，不能据此宣称真实下载进程暂停或部署清理已通过；仍沿既有worker与文件专项门槛。
 
 本人结果图片专项：后端`uv run pytest tests/test_discovery_image_handles.py tests/test_scoped_recommendation_images.py --ds=django_project.refactoring_test_settings -q`。原生浏览器先在临时library/operator helper增加`NASSAV_DISCOVERY_IMAGE_UI_TEST_FIXTURE=1`，只预填合成PNG和本人的DB/Redis结果；再从根目录运行`NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_DISCOVERY_IMAGE_FIXTURE=<打印的临时JSON路径> node vue_frontend/tests/browser/discoveryImages.cjs`，Firefox同上。测试会仅删除该临时搜索键及重置临时用户推荐历史，每次用新fixture；宿主HTML受控，卡片/HTTP/数据库/缓存文件真实，不抓取站点或接入部署数据。
+
+命令标识浏览器专项：从根目录运行`NODE_PATH=/tmp/nassav-browser-audit/node_modules node vue_frontend/tests/browser/insecureCommandIds.cjs`，Firefox同上。宿主及模块由测试拦截、不发外网请求，但浏览器真实处于非安全HTTP origin，运行生产工具的getRandomValues回退。已有remoteLibraryState原生临时接口专项另覆盖关系变更revision仅增加一次、相同轮询不失效和无查询循环。

@@ -1,3 +1,4 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 import { reactive, watch } from 'vue'
 import { createAdminRead } from './adminRead.js'
 
@@ -10,7 +11,7 @@ export function createSystemCredentials(
   api,
   currentOwner,
   updateIdentity,
-  { requestId = () => crypto.randomUUID() } = {}
+  { requestId = () => createRequestId() } = {}
 ) {
   const owner = currentOwner()
   const list = createAdminRead(api.list, currentOwner)

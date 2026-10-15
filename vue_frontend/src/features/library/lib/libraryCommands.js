@@ -1,7 +1,8 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 // Commands latch their membership CAS evidence until the outcome is known.
 export function createLibraryCommands(
   api,
-  { memberships, acceptOperation, changed, requestId = () => crypto.randomUUID() }
+  { memberships, acceptOperation, changed, requestId = () => createRequestId() }
 ) {
   let epoch = 0,
     owner = ''

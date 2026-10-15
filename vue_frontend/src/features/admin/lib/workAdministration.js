@@ -1,3 +1,4 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 import { reactive, watch } from 'vue'
 import { createAdminRead } from './adminRead.js'
 const actions = new Set(['pause', 'resume', 'cancel', 'cleanup_retry'])
@@ -12,7 +13,7 @@ export const workActionLabels = {
 export function createWorkAdministration(
   api,
   currentOwner,
-  { requestId = () => crypto.randomUUID() } = {}
+  { requestId = () => createRequestId() } = {}
 ) {
   const owner = currentOwner(),
     list = createAdminRead(api.list, currentOwner)

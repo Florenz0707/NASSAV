@@ -1,3 +1,4 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 import { computed, ref } from 'vue'
 
 const ended = new Set(['succeeded', 'failed', 'cancelled'])
@@ -7,7 +8,7 @@ export function createOperationTracking(
   api,
   {
     changed = () => {},
-    requestId = () => crypto.randomUUID(),
+    requestId = () => createRequestId(),
     storage = () => globalThis.localStorage,
   } = {}
 ) {

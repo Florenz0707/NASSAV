@@ -1,3 +1,4 @@
+import { createRequestId } from '../shared/lib/requestId.js'
 import api from './client.js'
 import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 
@@ -54,7 +55,7 @@ export const playbackApi = {
         'Content-Type': 'application/json',
         'X-CSRFToken': decodeURIComponent(csrf || ''),
       },
-      body: JSON.stringify({ expected_version: row.version, request_id: crypto.randomUUID() }),
+      body: JSON.stringify({ expected_version: row.version, request_id: createRequestId() }),
     }).catch(() => {})
   },
   close: (id, version, requestId) =>

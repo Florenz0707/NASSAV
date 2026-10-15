@@ -1,9 +1,10 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 import { createProgressDrafts } from './progressDrafts.js'
 // Progress owns event subscriptions, writer tokens and one serial save queue.
 export function createPlaybackProgress({
   api,
   changed = () => {},
-  uuid = () => crypto.randomUUID(),
+  uuid = () => createRequestId(),
   now = () => Date.now(),
   drafts = createProgressDrafts(),
 }) {

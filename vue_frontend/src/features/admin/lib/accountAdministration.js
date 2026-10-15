@@ -1,3 +1,4 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 import { reactive, watch } from 'vue'
 import { createAdminRead } from './adminRead.js'
 
@@ -17,7 +18,7 @@ const defaults = () => ({
 export function createAccountAdministration(
   api,
   currentOwner,
-  { requestId = () => crypto.randomUUID() } = {}
+  { requestId = () => createRequestId() } = {}
 ) {
   const owner = currentOwner(),
     list = createAdminRead(api.listUsers, currentOwner)

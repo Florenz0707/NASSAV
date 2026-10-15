@@ -1,3 +1,4 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 import { reactive, watch } from 'vue'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 
@@ -29,7 +30,7 @@ export function createResourceAdministration(
   currentOwner,
   canGc,
   applied,
-  { requestId = () => crypto.randomUUID() } = {}
+  { requestId = () => createRequestId() } = {}
 ) {
   const owner = currentOwner(),
     guard = createRequestGuard()

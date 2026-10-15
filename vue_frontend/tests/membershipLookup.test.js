@@ -194,3 +194,55 @@ test('long rendered lists retain their current statuses and prune them when thei
   assert.equal(lookup.rows.value.size, 2)
   assert.equal(lookup.get('A-1'), null)
 })
+
+test('peer membership changes invalidate domains once; initial and identical refreshes do not', async () => {
+  let response = status('A-1', true)
+  let calls = 0
+  const lookup = createMembershipLookup(async () => {
+    calls++
+    return { data: [response] }
+  })
+  lookup.reset('a')
+  const initial = lookup.revision.value
+  await lookup.load(['A-1'])
+  assert.equal(lookup.revision.value, initial)
+  await lookup.load(['A-1'], { force: true })
+  assert.equal(lookup.revision.value, initial)
+  response = { ...response, entry_version: 2 }
+  await lookup.load(['A-1'], { force: true })
+  assert.equal(lookup.revision.value, initial + 1)
+  assert.equal(lookup.get('A-1').entry_version, 2)
+  const before = calls
+  await lookup.schedule(['A-1'])
+  assert.equal(
+    calls,
+    before,
+    'Revision listeners reuse the fresh status rather than restart transport'
+  )
+  response = status('A-1', false)
+  await lookup.load(['A-1'], { force: true })
+  assert.equal(lookup.revision.value, initial + 2)
+  assert.equal(lookup.get('A-1').is_in_my_library, false)
+  await lookup.load(['A-1'], { force: true })
+  assert.equal(lookup.revision.value, initial + 2)
+})
+
+test('late replaced statuses cannot bump revisions or overwrite current relation', async () => {
+  const pending = deferred()
+  let calls = 0
+  const lookup = createMembershipLookup(() =>
+    ++calls === 1 ? reply(['A-1']) : calls === 2 ? pending.promise : { data: [status('A-1', true)] }
+  )
+  lookup.reset('a')
+  await lookup.load(['A-1'])
+  const old = lookup.load(['A-1'], { force: true })
+  await Promise.resolve()
+  // Switching login invalidates the earlier request ticket.
+  lookup.reset('b')
+  await lookup.load(['A-1'])
+  const revision = lookup.revision.value
+  pending.resolve({ data: [status('A-1', true, 9)] })
+  await old
+  assert.equal(lookup.revision.value, revision)
+  assert.equal(lookup.get('A-1').entry_version, 1)
+})

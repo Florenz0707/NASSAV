@@ -1,3 +1,4 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { taskApi } from '../../../api/index.js'
@@ -120,7 +121,7 @@ export const useTaskJobsStore = defineStore('taskJobs', () => {
     if (!items.length) return []
     const current = epoch,
       key = JSON.stringify([action, items])
-    const requestId = commands.get(key) || crypto.randomUUID()
+    const requestId = commands.get(key) || createRequestId()
     commands.set(key, requestId)
     busy.value = new Set([...busy.value, ...items.map((j) => j.job_id)])
     try {

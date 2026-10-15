@@ -72,6 +72,7 @@ app.use(pinia).use(router).mount('#app');window.audit={app,cache,router,added};
     const operations = (await (await page.request.get(origin + '/nassav/api/my-operations')).json())
       .data
     const operation = operations.find((item) => item.avid === 'OPERATION-UI')
+    const previousRevision = await page.evaluate(() => window.audit.cache.revision)
     const cancelled = await page.request.post(
       `${origin}/nassav/api/my-operations/${operation.operation_id}/cancel`,
       {
@@ -87,6 +88,15 @@ app.use(pinia).use(router).mount('#app');window.audit={app,cache,router,added};
     await page.clock.runFor(30000)
     await pending.getByRole('button', { name: '加入资源库', exact: true }).waitFor()
     assert.equal(batches.length, before + 1)
+    const changedRevision = await page.evaluate(() => window.audit.cache.revision)
+    assert.equal(changedRevision, previousRevision + 1)
+    await page.clock.runFor(30000)
+    assert.equal(await page.evaluate(() => window.audit.cache.revision), changedRevision)
+    assert.equal(
+      batches.length,
+      before + 2,
+      'Unchanged peer refresh must not create invalidation loops'
+    )
     let fail = true
     await page.route('**/nassav/api/library/entries/status', (route) => {
       if (fail) {

@@ -327,3 +327,9 @@ features/admin/lib/adminRead拥有管理查询的当前登录/请求代次；acc
 ### 本人推荐/搜索图片句柄
 
 推荐与外部卡片统一调用recommendationApi.getResultCoverUrl，范围模式只用服务器cover_handle，不因缓存缺少句柄回退cover_url/source请求。旧模式保持原URL代理。外部响应原thumbnail_url映射cover_url时保留句柄；图片失败或句柄缺失显示既有占位，不自动重新搜索。句柄不独立持久化或保活，随原结果缓存；服务端实时检查归属/范围/TTL。
+
+### HTTP命令标识与跨设备关系刷新
+
+所有任务、库、管理员及播放幂等命令使用shared/lib/requestId的安全UUID v4。安全上下文优先原生randomUUID，HTTP局域网缺失该API时使用WebCrypto.getRandomValues，不用Math.random或时间戳代替随机数；缺少安全随机能力明确报错。原有控制器仍拥有命令重放/新意图边界，工具替换不在重试时创建新UUID。
+
+本人关系轮询只有已缓存快照的身份/版本/状态/可用性变化才增加领域revision，使现有资源列表与object URL失效；首次载入和相同快照不触发。先发布新快照再发revision，监听者复用新鲜缓存，禁止通过reset重查形成循环。旧登录或被替代请求不能增加当前revision。

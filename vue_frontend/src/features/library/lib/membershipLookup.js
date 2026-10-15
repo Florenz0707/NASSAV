@@ -98,12 +98,17 @@ export function createMembershipLookup(
         if (epoch !== expectedEpoch) return
         const values = checkedStatuses(response.data, needed)
         const next = new Map(rows.value)
+        let changed = false
         for (const [avid, value] of values) {
           if (tickets.get(avid) !== ticket) continue
+          const previous = next.get(avid)?.value
+          if (previous && Object.keys(value).some((key) => previous[key] !== value[key]))
+            changed = true
           next.delete(avid)
           next.set(avid, { value, time: now() })
         }
         rows.value = bounded(next)
+        if (changed) revision.value++
       } catch (error) {
         if (epoch !== expectedEpoch) return
         const next = new Map(errors.value)

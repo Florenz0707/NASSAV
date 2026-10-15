@@ -423,3 +423,9 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 本人图片阶段首轮验证：图片/范围/推荐与搜索组合84 passed，补充稳定句柄专项后图片23 passed；PostgreSQL图片及推荐job专项36 passed。Chrome生产卡片配真实临时HTTP/SQLite/Redis/预填合成PNG验证两个结果句柄、URL参数拒绝、私有响应、缺句柄不回退、删除搜索键/重置历史后旧图片404。仅宿主HTML受控，不抓取真实站点；Firefox及全量门槛继续。
 
 本人结果图片最终隔离门槛（2026-10-15）：全量SQLite1314 passed/28 skipped，PostgreSQL36 passed，前端完整check通过；Chrome/Firefox均以新的临时fixture通过真实图片HTTP和生产卡片，缺句柄无URL回退、搜索TTL删除和历史重置旧句柄404。旧推荐恢复、外部渐进分页模拟回归通过。无DDL、真实来源请求或现有实例写入；完整pre-commit通过后提交，缓存收尾和P8继续。
+
+### P7缓存与HTTP命令兼容收尾
+
+基线89e4e55，分支fix/shared-ui-cache-and-command-ids：真实Chrome探针确认HTTP非localhost缺randomUUID而getRandomValues可用，统一10处命令消费者的安全UUID工具；不改变既有幂等意图保留。关系轮询只在已知快照变化时推进领域revision，沿现有列表/封面失效通道，重复快照不重查。无后端/schema变化，P8准入与上下文护栏继续。
+
+缓存/HTTP兼容收尾隔离门槛（2026-10-15）：Chrome与Firefox均在真实非安全HTTP WebCrypto环境运行生产UUID工具，200个安全v4唯一；宿主HTML受控且无外网请求。两浏览器另配真实临时HTTP/SQLite/Redis验证关系变化revision增加一次、相同轮询不失效、合批/重试及卸载无查询循环。前端完整check通过，后端生产/schema不变；完整pre-commit通过后提交。

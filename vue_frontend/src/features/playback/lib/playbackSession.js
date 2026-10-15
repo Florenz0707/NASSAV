@@ -1,8 +1,9 @@
+import { createRequestId } from '../../../shared/lib/requestId.js'
 // Owns one UI operation. A late submit is still closed, never abandoned by aborting it.
 export function createPlaybackSession({
   api,
   changed,
-  uuid = () => crypto.randomUUID(),
+  uuid = () => createRequestId(),
   interval = 1000,
 }) {
   let operation = 0,
