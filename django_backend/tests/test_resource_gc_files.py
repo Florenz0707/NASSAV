@@ -301,10 +301,17 @@ def test_hash_runs_outside_db_and_only_checked_unlink_runs_inside_short_fence(
     assert len(calls) == 1
 
 
-def test_expired_owner_cannot_unlink_even_after_file_was_verified(unheld, environment):
+@pytest.mark.parametrize("resume_delay", [0, 3600])
+def test_expired_owner_cannot_unlink_even_after_file_was_verified(
+    unheld, environment, resume_delay
+):
     from nassav.resource_gc import GcLeaseLost
 
     _, records, version = unheld
+    # Exercise protocol time explicitly. A host wall-clock rollback must not
+    # accidentally make this test's manually expired lease valid again.
+    clock = [version.gc_after + timedelta(seconds=1)]
+    records.now = lambda: clock[0]
     storage = GcFileStorage(environment[2])
     job_id = records.enqueue(version.pool_id, version.pk)["job_id"]
     with storage.locked(records.intent(job_id)):
@@ -312,12 +319,18 @@ def test_expired_owner_cannot_unlink_even_after_file_was_verified(unheld, enviro
         asset = records.assets(token)[0]
         with storage.deletion(asset, lambda: records.check(token)) as (stamp, remove):
             records.verified(token, asset["pk"], stamp)
-            ResourceGcJob.objects.filter(pk=job_id).update(
-                lease_until=timezone.now() - timedelta(seconds=1)
+            clock[0] = ResourceGcJob.objects.get(pk=job_id).lease_until + timedelta(
+                microseconds=1
             )
             unlink = Mock(wraps=remove)
             with pytest.raises(GcLeaseLost):
                 records.unlink(token, asset["pk"], unlink)
             unlink.assert_not_called()
         assert path_for(environment[2], version).exists()
-    assert ResourceReclaimer(records, storage).run(job_id)["state"] == "completed"
+    clock[0] += timedelta(seconds=resume_delay)
+    result = ResourceReclaimer(records, storage).run(job_id)
+    assert result["state"] == "completed", {
+        "result": result,
+        "lease_until": ResourceGcJob.objects.get(pk=job_id).lease_until,
+        "now": records.now(),
+    }

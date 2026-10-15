@@ -180,3 +180,5 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 派发/管理专项：`uv run pytest tests/test_resource_gc_dispatch_admin.py tests/test_gc_cursor_migration.py --ds=django_project.refactoring_test_settings -v`，含真实临时Redis/Celery solo及实际handler（非eager）到HTTP命令/文件删除，管理权限/审计幂等、公平游标、0051往返和默认关闭；使用fixture数据，不对部署库执行删除。
 
 会话能力专项：`uv run pytest tests/test_session_projection.py tests/test_account_access.py --ds=django_project.refactoring_test_settings -v`。验证匿名/未准入、同登录稳定、换登录/账号代次/开关失效与只读投影；不开放普通登录。前端真实会话时序脚本为`tests/browser/sessionCache.cjs`，使用既有隔离播放HTTP helper输出的两个同账号storage state，设置`NASSAV_PERSONAL_STORAGE_STATE`、`NASSAV_SECOND_STORAGE_STATE`和loopback的`NASSAV_BROWSER_ORIGIN`后执行；只控制旧响应送达时序，不伪造后端设置或登录结果。
+
+回收失租回归通过注入时钟推进到DB实际lease_until之后，覆盖立即恢复和延迟恢复；不把“墙钟减1秒”当作后续仍已过期的保证。保留旧owner不能unlink、文件保持和新owner最终物理收尾断言。真实宿主时钟可能回拨，协议测试与性能采样须使用适合的显式/单调时钟。

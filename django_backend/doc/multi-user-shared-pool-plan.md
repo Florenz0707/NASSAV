@@ -339,3 +339,7 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 基线9a3ec64，分支feat/session-cache-isolation：已有登录/session补充只读能力与不透明缓存身份；前端统一请求登录代次、迟到401保护、身份变化重置/组件重建、目录/队列清理及推荐/外部搜索/任务/离线进度缓存隔离。同账号两个真实登录的HTTP/SQLite浏览器验收不替代P7跨用户或P8目标验收；普通准入保持关闭，凭证/个人库/管理UI继续。
 
 会话基础隔离门槛（2026-10-15）：SQLite全量1277 passed/28 skipped；PostgreSQL会话/权限12 passed；前端130单元测试、lint及构建通过。Chrome与临时安装的Firefox均通过真实HTTP/SQLite同账号换登录与迟到设置响应；真实MP4进度专项通过，任务详情和推荐恢复模拟浏览器回归通过。无新schema或现有实例切换；P7其余界面及P8继续。
+
+回收验收时钟修正：基线2f8af4d，分支fix/gc-expiry-test-clock。原测试失租断言通过，但随后重新领取偶发返回deleting；墙钟回拨5秒的单变量探针复现同形失败，无新保护条件。测试改为注入协议时钟、按实际lease_until推进并覆盖立即/延迟恢复；保留全部unlink与实际删除断言，不修改生产领取/保护协议。凭证UI暂存后继续实施。
+
+时钟修正门槛（2026-10-15）：原时序30次定向重复通过，单变量回拨探针1 passed/1 failed复现；修正后SQLite回收专项27 passed、PostgreSQL文件专项15 passed，全量SQLite1278 passed/28 skipped，pre-commit完整通过。无生产代码/schema或部署修改。
