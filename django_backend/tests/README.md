@@ -196,3 +196,5 @@ GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一
 本人持有管理复用上述一次性库fixture，运行前端`NASSAV_LIBRARY_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4188 node tests/browser/libraryMemberships.cjs`。测试会移出不可用样例、模拟另一设备重新持有同编号，再验证旧行CAS拒绝以及当前页批量移出；每次需新fixture。不查看或写入实例数据、不启动来源worker。
 
 管理员账号界面复用上述明确临时管理员fixture：前端运行`NASSAV_LIBRARY_STORAGE_STATE=<state> NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4188 node tests/browser/adminAccounts.cjs`。会创建一次性账号、调整配额/角色、撤销会话、重置密码、停用/启用测试用户，并验证最后管理员保护和多账号登录仍关闭。实际执行密码重置后丢弃一次HTTP响应，重试复用原request UUID；只检查脱敏审计，不记录密码。每轮使用新fixture，退出服务自动删除临时账户/数据库/keyring/Redis。
+
+系统来源凭证浏览器专项：使用上面的临时library/operator服务与状态，运行`NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_LIBRARY_STORAGE_STATE=<临时目录>/storage-state.json node vue_frontend/tests/browser/adminCredentials.cjs`（从仓库根执行）。可用`NASSAV_BROWSER_ENGINE=firefox`切换浏览器；仅允许loopback临时实例，真实HTTP/SQLite/keyring验证Cookie类型拒绝、盲写、丢失响应重放、CAS冲突/草稿、撤销及移动端嵌套焦点；不访问真实来源或部署凭证。

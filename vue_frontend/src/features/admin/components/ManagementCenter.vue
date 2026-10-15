@@ -4,10 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../../../shared/ui/AppButton.vue'
 import AdminAccounts from './AdminAccounts.vue'
 import AdminAudit from './AdminAudit.vue'
+import AdminSourceCredentials from './AdminSourceCredentials.vue'
 const route = useRoute(),
   router = useRouter()
 const sections = [
   { value: 'accounts', label: '账号管理', component: AdminAccounts },
+  { value: 'sources', label: '系统来源凭证', component: AdminSourceCredentials },
   { value: 'audit', label: '审计记录', component: AdminAudit },
 ]
 const current = computed(

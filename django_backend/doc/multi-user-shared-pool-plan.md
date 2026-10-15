@@ -393,3 +393,11 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 管理员账号界面首轮隔离验收（2026-10-15）：Chrome配真实HTTP/临时SQLite/Redis通过创建、配额CAS冲突/保留输入、配额差量修改、密码重置丢失响应的同UUID重放、角色切换、会话撤销、停用/启用、最后管理员拒绝、普通账号登录拒绝、审计及移动端两主题/焦点。只读核查仅一条密码重置审计、启用不恢复已移出的持有、另一用户仍需要的共享job保持queued。SQLite与临时PostgreSQL账号管理/权限专项各19 passed；无后端生产代码/schema变更。
 
 管理员账号界面最终门槛：Firefox同样通过上述真实HTTP/临时数据库流程；密码重置的结果未知重试沿用原UUID/版本，数字格式变化不产生配额策略写入。最终前端check及完整pre-commit通过后提交，无正式账号创建、普通登录开放或实例数据变更。
+
+### P7系统来源凭证界面子阶段
+
+基线73a0c19，分支feat/admin-system-credentials-ui：管理中心接入已有system盲写/撤销协议，仅接受已分类访问验证Cookie，填写配套UA与审计原因；固定版本/UUID、结果未知重放、冲突保留、身份变化清空和来源缓存失效。个人账号Cookie不自动提升为公共凭证；现有来源元信息保留撤销入口。无后端生产代码/schema变更，资源/GC管理与本人结果图片句柄及P8继续。
+
+系统凭证界面隔离门槛（2026-10-15）：前端完整check通过；SQLite凭证专项20 passed。Chrome与Firefox配真实临时HTTP/SQLite/Redis/keyring通过账号Cookie前置拒绝、盲写、响应丢失同UUID重试、版本冲突保留输入、撤销和嵌套Escape/窄屏两主题；GET/审计/浏览器持久存储均无秘密。只使用合成Cookie，不访问真实来源。完整pre-commit通过后提交，普通登录和自动GC保持关闭。
+
+系统凭证PostgreSQL补验：同一凭证专项20 passed，独立临时数据库；前端无schema/迁移变化。

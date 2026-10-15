@@ -1,4 +1,5 @@
 import api from './client.js'
+import { sourceApi } from './sources.js'
 
 export const adminApi = {
   listUsers: (params) => api.get('/admin/users', { params }),
@@ -9,5 +10,17 @@ export const adminApi = {
     const routes = { revoke_sessions: 'revoke-sessions', reset_password: 'reset-password' }
     if (!routes[action]) return Promise.reject(new Error('不支持的账号操作'))
     return api.post(`/admin/users/${encodeURIComponent(id)}/${routes[action]}`, payload)
+  },
+}
+
+export const systemCredentialApi = {
+  list: () => api.get('/admin/source-credentials'),
+  sources: sourceApi.getList,
+  write: ({ id, source, revoke, body }) => {
+    const path = '/admin/source-credentials'
+    if (revoke) return api.delete(`${path}/${encodeURIComponent(id)}`, { data: body })
+    return id
+      ? api.put(`${path}/${encodeURIComponent(id)}`, body)
+      : api.post(path, { source_name: source, ...body })
   },
 }
