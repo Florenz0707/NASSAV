@@ -215,9 +215,9 @@ def test_readd_invalidates_queued_whole_pool_claim_and_deleting_blocks_attach(un
     assert records.claim(snapshot["job_id"]) is None
     assert ResourceGcJob.objects.get(pk=snapshot["job_id"]).state == "cancelled"
     # A version deletion does not invalidate unrelated B's new public generation.
-    with pytest.raises(GcDeferred) as blocked:
-        records.enqueue(version.pool_id, version.pk)
-    assert "memberships" in blocked.value.reasons
+    token = records.claim(records.enqueue(version.pool_id, version.pk)["job_id"])
+    assert token is not None
+    assert ResourcePoolEntry.objects.get(pk=version.pool_id).state == "ready"
 
 
 def test_manifest_or_marker_failure_does_not_cut_pointer_or_make_files_public(unheld):

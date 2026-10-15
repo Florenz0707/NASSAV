@@ -1636,3 +1636,18 @@ SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?source=jable|miss
 ### 0048观看历史状态
 
 个人history/watch-later摘要增加is_available。共享模式展示本人版本及个人标记；history的标题/来源是当次播放快照。本人已移出或资源回收时历史仍返回，is_available=false、thumbnail_url=null、file_exists=false；不返回源URL/凭证/内部manifest。queue_time及按AVID/时间批量CAS删除契约保持。watch-later只统计并返回本人当前可用持有。
+
+## 回收管理（0051）
+
+以下入口仅共享模式下configured operator + app admin开放，响应no-store；不提供他人私密标题/文件路径/Cookie。普通用户不直接控制物理回收。
+
+| 方法/路径                                          | 输入/结果                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| GET /api/admin/resource-pools                      | page/page_size 1–100；pool_id/AVID/state/version/generation/retained/availability/gc_after |
+| GET /api/admin/resource-pools/{pool_id}/gc-preview | 可选version_id；eligible/blockers，GET无写入                                               |
+| POST /api/admin/resource-pools/{pool_id}/gc        | expected_version为pool version、reason/request_id、可选version_id；返回持久GC快照          |
+| PUT /api/admin/resource-pools/{pool_id}/retention  | expected_version/reason/request_id/retained严格布尔                                        |
+| GET /api/admin/resource-gc-jobs                    | page/page_size；安全快照含job_id/pool_id/version_id/generation/state/revision/error_code   |
+| POST /api/admin/resource-gc-jobs/{job_id}/retry    | expected_version为job revision、reason/request_id；仅cleanup_failed可请求                  |
+
+理由为既有维护/安全等非敏感代码。版本/幂等冲突409，非管理员403，未知对象404，非法输入400；受保护返回409和blockers；未启执行时enqueue/retry为409 gc_not_enabled。排队成功不代表字节已删除，状态以DB快照为准。重复同request_id/同payload返回原回执，不再次发送；异payload409。

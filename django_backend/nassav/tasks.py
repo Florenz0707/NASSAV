@@ -268,3 +268,6 @@ def playback_prepare_task(session_id):
         else build_playback_resolver()
     )
     execute(session_id, resolver, records, build_playback_validator())
+
+
+from nassav.resource_gc_tasks import resource_gc_task as resource_gc_task

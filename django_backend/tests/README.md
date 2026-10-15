@@ -176,3 +176,5 @@ P5发布核心专项：`test_version_publication.py`及`test_version_pointer_fen
 回收账本专项：`uv run pytest tests/test_resource_gc_ledger.py --ds=django_project.refactoring_test_settings -v`，真实版本/加密记录、数据库并发/租约/0050往返保护；只验DB协议，不执行正式文件删除或生产GC。
 
 受控回收文件专项：`uv run pytest tests/test_resource_gc_files.py --ds=django_project.refactoring_test_settings -v`。实际图片和合成MP4，权限/崩溃、未知文件、符号链接、分批次与事务边界；只操作fixture临时目录，不删除部署数据。
+
+派发/管理专项：`uv run pytest tests/test_resource_gc_dispatch_admin.py tests/test_gc_cursor_migration.py --ds=django_project.refactoring_test_settings -v`，含真实临时Redis/Celery solo及实际handler（非eager）到HTTP命令/文件删除，管理权限/审计幂等、公平游标、0051往返和默认关闭；使用fixture数据，不对部署库执行删除。

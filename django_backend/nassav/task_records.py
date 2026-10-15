@@ -178,6 +178,10 @@ class DjangoTaskRecords:
         action: str,
         options: dict | None = None,
     ) -> tuple[dict, bool]:
+        from django.conf import settings
+
+        if settings.SHARED_LIBRARY_ENABLED:
+            raise TaskForbidden("共享模式禁止提交旧独占资产任务")
         avid = normalize_avid(avid)
         if kind not in {"download", "scrape"} or action not in (
             {"download", "mock"} if kind == "download" else {"add", "refresh"}

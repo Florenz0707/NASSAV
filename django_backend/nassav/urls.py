@@ -66,7 +66,42 @@ from nassav.http.viewing_views import (
     PlaybackViewedView,
 )
 
+from nassav.http.resource_gc_views import (
+    AdminResourcePoolsView,
+    AdminGcPreviewView,
+    AdminGcEnqueueView,
+    AdminPoolRetentionView,
+    AdminGcJobsView,
+    AdminGcRetryView,
+)
+
 urlpatterns = [
+    path(
+        "api/admin/resource-pools",
+        AdminResourcePoolsView.as_view(),
+        name="admin-resource-pools",
+    ),
+    path(
+        "api/admin/resource-pools/<uuid:pool_id>/gc-preview",
+        AdminGcPreviewView.as_view(),
+        name="admin-gc-preview",
+    ),
+    path(
+        "api/admin/resource-pools/<uuid:pool_id>/gc",
+        AdminGcEnqueueView.as_view(),
+        name="admin-gc-enqueue",
+    ),
+    path(
+        "api/admin/resource-pools/<uuid:pool_id>/retention",
+        AdminPoolRetentionView.as_view(),
+        name="admin-pool-retention",
+    ),
+    path("api/admin/resource-gc-jobs", AdminGcJobsView.as_view(), name="admin-gc-jobs"),
+    path(
+        "api/admin/resource-gc-jobs/<uuid:job_id>/retry",
+        AdminGcRetryView.as_view(),
+        name="admin-gc-retry",
+    ),
     path("api/my-operations", MyOperationsView.as_view(), name="my-operations"),
     path("api/library/entries", LibraryEntriesView.as_view(), name="library-entries"),
     path(

@@ -32,15 +32,30 @@ def blockers(pool, version, now, *, job=None, resuming=False):
     entries = UserLibraryEntry.objects.filter(pool=pool)
     if version is not None:
         entries = entries.filter(
-            Q(current_version=version) | Q(video_version=version) | Q(state="pending")
+            Q(current_version=version)
+            | Q(video_version=version)
+            | Q(state="pending", access_scope=version.access_scope)
         )
     if entries.exists():
         reasons.append("memberships")
-    if SharedWork.objects.filter(pool=pool, active_key__isnull=False).exists():
+    relevant_work = SharedWork.objects.filter(pool=pool)
+    if version is not None:
+        relevant_work = relevant_work.filter(
+            Q(pk=version.work_id) | Q(access_scope=version.access_scope)
+        )
+    if relevant_work.filter(active_key__isnull=False).exists():
         reasons.append("active_shared_work")
-    if WorkSubscription.objects.filter(work__pool=pool, state="attached").exists():
+    if WorkSubscription.objects.filter(
+        work__in=relevant_work, state="attached"
+    ).exists():
         reasons.append("subscriptions")
     jobs = TaskJob.objects.filter(avid=pool.canonical_avid)
+    if version is not None:
+        # Old unscoped writers remain a pool-wide protection. Scoped work on
+        # another immutable namespace does not hold this private version forever.
+        jobs = jobs.filter(
+            Q(shared_work__isnull=True) | Q(shared_work__in=relevant_work)
+        )
     if jobs.filter(
         Q(active_key__isnull=False) | ~Q(state__in=TERMINAL_STATES)
     ).exists():
@@ -92,6 +107,8 @@ def blockers(pool, version, now, *, job=None, resuming=False):
     )
     if job is not None:
         other = other.exclude(pk=job.pk)
+    if version is not None:
+        other = other.filter(Q(version=version) | Q(version__isnull=True))
     if other.exists():
         reasons.append("other_gc_pending")
     if version is None:

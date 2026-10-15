@@ -302,6 +302,20 @@ READ_VIEWS = frozenset(
 def permit_business_view(request, view):
     """Fail closed for unknown views once an explicit application role is assigned."""
     user = request.user
+    from django.conf import settings
+
+    if settings.SHARED_LIBRARY_ENABLED and type(view).__name__ in {
+        "ResourceView",
+        "RefreshResourceView",
+        "DeleteResourceView",
+        "ResourcesBatchView",
+        "ResourceJobView",
+        "ResourceJobBatchView",
+        "DownloadView",
+        "DownloadsBatchSubmitView",
+        "MockDownloadView",
+    }:
+        return False
     if is_legacy_operator(user):
         if type(view).__name__ in RESOURCE_VIEWS:
             avid = view.kwargs.get("avid") or request.query_params.get("avid", "")

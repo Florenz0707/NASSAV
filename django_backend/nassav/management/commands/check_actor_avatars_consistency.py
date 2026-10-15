@@ -26,6 +26,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from nassav.legacy_maintenance import require_legacy_layout
+
+        require_legacy_layout()
         from django.conf import settings
         from nassav.constants import ACTOR_AVATAR_PLACEHOLDER_URLS
         from nassav.models import Actor

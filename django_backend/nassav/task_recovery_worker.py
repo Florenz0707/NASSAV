@@ -40,6 +40,12 @@ def recovery_loop():
                 )
         except Exception:
             logger.exception("Playback recovery scan failed")
+        try:
+            from nassav.resource_gc_tasks import recover_resource_gc
+
+            recover_resource_gc()
+        except Exception:
+            logger.exception("Resource GC recovery scan failed")
         finally:
             close_old_connections()
         _stop.wait(interval)

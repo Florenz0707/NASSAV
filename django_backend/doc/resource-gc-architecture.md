@@ -2,13 +2,13 @@
 
 ## 当前实现边界
 
-0050扩展ResourceGcJob/ResourceGcAsset、pool.retained、version.gc_after及版本deleting/cleanup_failed状态。数据库账本、保护条件、领取/失租/失败fence及受控文件删除已实现；尚无定时派发或开放管理动作。普通准入和自动apply保持关闭，不能用内部claim代替完整回收工作流。
+0050扩展ResourceGcJob/ResourceGcAsset、pool.retained、version.gc_after及版本deleting/cleanup_failed状态。数据库账本、保护条件、领取/失租/失败fence及受控文件删除已实现；已接入默认关闭的有界派发及operator/admin管理入口，普通登录与正式apply仍待P8。普通准入和自动apply保持关闭，不能用内部claim代替完整回收工作流。
 
 ## 所有者与锁顺序
 
 pool是持有/生命周期真相，version是不可变范围资产，GC job是清理进展；文件journal不以业务终态推测已删除。系统enqueue按pool短fence建立幂等active_key，preview只读且仅供提示。worker先取task→resource→有序target共享flock，再claim/检查DB；任何慢哈希、复制、网络、文件锁等待必须在事务外。PostgreSQL的pool锁显式仅锁self，避免nullable resource outer join锁错误；SQLite以原值UPDATE先拿短写入fence。
 
-每次领取生成新owner/有界lease；旧owner、过期lease和整池代次变化拒绝更新。整池deleting拒绝重新添加，宽限内再次添加提升代次使旧排队GC取消。已开始的单版本清理固定UUID墓碑，不因其他范围的新生命周期而套用/删除新版本；新pending需求仍保守阻止其启动或恢复。稳定锁文件不unlink。
+每次领取生成新owner/有界lease；旧owner、过期lease和整池代次变化拒绝更新。整池deleting拒绝重新添加，宽限内再次添加提升代次使旧排队GC取消。已开始的单版本清理固定UUID墓碑，不因其他范围的新生命周期而套用/删除新版本；同范围pending需求仍保守阻止其启动或恢复。稳定锁文件不unlink。
 
 ## 保护条件与宽限
 
@@ -28,7 +28,7 @@ manifest按版本UUID/root/kind/path、size、SHA256、marker有界核查；登�
 
 共享模式禁用旧全量/视频删除入口；即使关闭开关，已有持有/版本/回收记录及保留标记仍保护资产，未受管传统资源的旧删除流程保持。新添加/旧删除并发不能绕过新池保护。
 
-0050本身不回收文件、不推测归属。尚无GC证据/保留标记/版本宽限或特殊状态时可往返；已有清理账本或保护状态后拒绝回退丢失证据，应从维护窗口备份恢复。不能运行旧schema消费者继续清理。物理回收、调度、管理预览/重试及正式切换继续分阶段实施。
+0050本身不回收文件、不推测归属。尚无GC证据/保留标记/版本宽限或特殊状态时可往返；已有清理账本或保护状态后拒绝回退丢失证据，应从维护窗口备份恢复。不能运行旧schema消费者继续清理。文件回收、派发及管理实现见下文；正式切换仍须目标验收。
 
 ## 受控文件清理子阶段
 
@@ -38,4 +38,16 @@ ResourceReclaimer只编排records/storage能力，composition装配DjangoGcRecor
 
 目录仅删除manifest已登记的父目录及版本UUID目录，逐个rmdir，不递归清空；未知文件/链接/非空目录保留并cleanup_failed。锁文件、别的版本、全局头像、推荐/播放缓存与.tasks不由此流程删除。文件全删和目录收尾后，再查保护条件，标记reclaimed；整池只移除中性正式资源行及过期/释放pin和已失效会话，保留稳定pool、个人历史快照、时钟和进度。私人版本清理不影响他人另一个版本。
 
-验证使用真实发布图片/合成MP4、真实SQL与注入IO/崩溃，分别区分权限失败、篡改/符号链接、未确认缺失及未知文件。没有正式源站、目标部署删除或自动GC验收；调度、管理、缓存回收及P7/P8继续实施。
+验证使用真实发布图片/合成MP4、真实SQL与注入IO/崩溃，分别区分权限失败、篡改/符号链接、未确认缺失及未知文件。没有正式源站、目标部署删除或自动GC验收；派发与管理实现见下文，缓存回收及P7/P8继续实施。
+
+## 派发与管理
+
+RESOURCE_GC_ENABLED默认false，启用须SHARED_LIBRARY_ENABLED/SOURCE_CREDENTIALS_ENABLED均开启；RESOURCE_GC_BATCH_SIZE默认32、范围1–100。worker现有恢复循环发现过期候选并向default队列运输GC job ID，独立Celery任务执行文件流程，HTTP不等待哈希/删除。0051单例keyset游标使被读pin/暂停工作保护的早期候选不会永远遮挡后续候选；每轮最多各扫描batch个version/pool，游标锁与pool/用户锁分开，空尾回绕。
+
+排队/过期执行按revision CAS预留60秒派发窗口，broker在事务外；失败保留DB任务，下一窗口重发，不全表发送或依赖Celery结果作为状态。cleanup_failed不自动强制重试，由管理员修复现场后用reason/expected_version/request_id提交，幂等回执与审计同事务保存。管理员保留在deleting前设置，不在已删除部分文件后恢复ready。自动任务的系统领取/资产日志保持，管理审计不含Cookie、路径、签名URL或私密标题。
+
+管理HTTP仍受configured operator与显式app admin双门槛；提供pool列表/只读预览、排队、retention及GC列表/retry，普通登录未开放。默认关闭执行时排队/retry返回409 gc_not_enabled；retention可先保护，不能借管理入口读取他人的私密状态。旧独占资产提交和旧布局修复命令在共享模式关闭；存在范围版本时旧维护工具也拒绝误判其布局。
+
+只读管理命令：`uv run python manage.py resource_gc --target <pool-uuid> [--version-id <version-uuid>]`。写请求另外指定`--action enqueue|retry|retention --actor <app-admin> --reason maintenance --request-id <uuid> --expected-version <pool-version或job-revision>`；retention还需`--retained true|false`。命令只提交持久请求，不直接rmtree。先完成维护窗口/目标验收，再开启执行；不要对未知旧资产伪造marker绕过保护。
+
+单版本保护只关联其实际指针、同范围工作与本版本原work；不同范围的暂停任务不永久占用无引用私人版本，旧未分范围writer仍阻止整池/任何版本清理。同一资源的物理操作仍共用resource flock。真实worker隔离验收使用临时Redis、原生Celery solo、实际handler、HTTP管理命令和真实临时文件，关闭eager；不代替部署或源站账号验收。

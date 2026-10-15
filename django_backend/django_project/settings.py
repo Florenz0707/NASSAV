@@ -67,6 +67,17 @@ SOURCE_CREDENTIALS_ENABLED = boolean(
 SHARED_LIBRARY_ENABLED = boolean(
     os.getenv("NASSAV_SHARED_LIBRARY_ENABLED", "false"), "NASSAV_SHARED_LIBRARY_ENABLED"
 )
+RESOURCE_GC_ENABLED = boolean(
+    os.getenv("NASSAV_RESOURCE_GC_ENABLED", "false"), "NASSAV_RESOURCE_GC_ENABLED"
+)
+RESOURCE_GC_BATCH_SIZE = integer(
+    os.getenv("NASSAV_RESOURCE_GC_BATCH_SIZE", "32"),
+    "NASSAV_RESOURCE_GC_BATCH_SIZE",
+    1,
+    100,
+)
+if RESOURCE_GC_ENABLED and not SHARED_LIBRARY_ENABLED:
+    raise RuntimeError("Resource GC requires shared library")
 if SHARED_LIBRARY_ENABLED and not SOURCE_CREDENTIALS_ENABLED:
     raise RuntimeError("Shared library requires scoped source credentials")
 if not NASSAV_OPERATOR_USERNAME:
@@ -337,6 +348,7 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # Start separate workers with -Q scrape -c 1, -Q download -c 1, and -Q default.
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ROUTES = {
+    "nassav.tasks.resource_gc_task": {"queue": "default"},
     "nassav.tasks.playback_prepare_task": {"queue": "scrape"},
     "nassav.tasks.recommendation_job_task": {"queue": "scrape"},
     "nassav.tasks.download_video_task": {"queue": "download"},

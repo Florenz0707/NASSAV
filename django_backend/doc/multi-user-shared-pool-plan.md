@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4模型/内部核心正在实施，P5账本/读取核心正在实施，P6–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0047。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3–P5已完成下述隔离实现，P6已完成历史、回收账本与受控文件子阶段，派发与管理正在实施；P7/P8尚待实施，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0051。
 
 ## 1. 目标与首版范围
 
@@ -247,8 +247,8 @@ pnpm run check
 | P2    | 基础已实现     | 0038/0039、显式应用角色/审计/管理/配额/会话撤销；[执行记录](account-policy-architecture.md#执行记录)           |
 | P3    | 隔离实现已完成 | 0040/0041存储、范围消费者及密钥策略；生产开关保持关闭，真实站点验收待P8                                        |
 | P4    | 子阶段已实现   | 0042–0046订阅、生命周期、worker、持有命令与配额；消费者切换继续实施                                            |
-| P5    | 子阶段已实现   | 0044/0045不可变发布与读取核心；正式资源/媒体消费者待接入                                                       |
-| P6–P8 | 继续实施       | 未开放普通用户或自动回收                                                                                       |
+| P5    | 子阶段已实现   | 0044/0045不可变发布、本人库/图片、固定本地及冻结来源播放、0047目录与范围消费者                                 |
+| P6–P8 | 继续实施       | P6历史/回收/派发管理已分阶段实现；P7/P8未完成，未开放普通用户或自动回收                                        |
 
 初始计划提交ae10475，文档基线6bedcb6，分支doc/multi-user-shared-pool-plan；当时仅编写计划及导航。P0后续执行基线ae10475、分支doc/multi-user-contracts，记录见[契约验证范围](multi-user-contracts.md#验证记录与后续门槛)。两轮均检查新增链接及pre-commit完整门槛，未新增模型、接口、配置、worker或正式数据写入，也未恢复用户删除的历史文档。
 
@@ -327,3 +327,9 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 基线f2e071d，分支feat/resource-gc-files：实际NOFOLLOW/dirfd/hash/fingerprint清理、verified→unlink→deleted日志、崩溃重试、有界多批次与目录收尾、原播放/过期pin保护、稳定历史与时钟保留。只处理已确认manifest资产，不提供生产派发或管理apply。调度、未知/旧资产迁移及P7/P8继续。
 
 受控文件阶段隔离门槛（2026-10-15）：全量SQLite1256 passed/28 skipped，随后补充目录链接和失租unlink专项，最终SQLite14 passed；PostgreSQL文件/账本24 passed、最终文件14 passed。真实临时图片/合成MP4与数据库fence，不含正式站点或部署删除；完整pre-commit通过后提交。无新schema，派发/管理与P7/P8继续。
+
+### P6派发与管理子阶段
+
+基线7e970c4，分支feat/resource-gc-dispatch-admin：0051公平发现游标、默认关闭的ID-only Celery/default派发与恢复冷却、管理预览/保留/排队/重试及审计幂等、只读默认CLI、旧写入口/布局维护关闭；修正生产builder的可选缩略图根回退。隔离原生Redis/Celery已连续三轮通过，未启正式自动GC。缓存回收、初始旧资产映射及P7/P8继续。
+
+派发与管理隔离门槛（2026-10-15）：SQLite全量1274 passed/28 skipped；最终配置/HTTP/游标/管理专项60 passed；临时PostgreSQL39 passed，含0051升级、回退、再次升级。真实Redis/Celery测试恢复current/default app及finalizer，最小顺序回归11 passed，随后全量通过。模型迁移无差异，完整pre-commit通过。现有实例未迁移、未启自动回收，P7/P8继续。

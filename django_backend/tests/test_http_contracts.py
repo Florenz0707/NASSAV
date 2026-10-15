@@ -98,6 +98,32 @@ def test_url_and_openapi_contract_remains_identical():
     ]
     # Authorized additions are explicit; the legacy snapshot is not regenerated.
     assert routes(get_resolver().url_patterns) == [
+        [
+            "nassav/api/admin/resource-pools",
+            "admin-resource-pools",
+            "AdminResourcePoolsView",
+        ],
+        [
+            "nassav/api/admin/resource-pools/<uuid:pool_id>/gc-preview",
+            "admin-gc-preview",
+            "AdminGcPreviewView",
+        ],
+        [
+            "nassav/api/admin/resource-pools/<uuid:pool_id>/gc",
+            "admin-gc-enqueue",
+            "AdminGcEnqueueView",
+        ],
+        [
+            "nassav/api/admin/resource-pools/<uuid:pool_id>/retention",
+            "admin-pool-retention",
+            "AdminPoolRetentionView",
+        ],
+        ["nassav/api/admin/resource-gc-jobs", "admin-gc-jobs", "AdminGcJobsView"],
+        [
+            "nassav/api/admin/resource-gc-jobs/<uuid:job_id>/retry",
+            "admin-gc-retry",
+            "AdminGcRetryView",
+        ],
         ["nassav/api/my-operations", "my-operations", "MyOperationsView"],
         ["nassav/api/library/entries", "library-entries", "LibraryEntriesView"],
         [
@@ -211,6 +237,12 @@ def test_url_and_openapi_contract_remains_identical():
         *baseline["routes"],
     ]
     control_paths = {
+        "/nassav/api/admin/resource-pools": {"get"},
+        "/nassav/api/admin/resource-pools/{pool_id}/gc-preview": {"get"},
+        "/nassav/api/admin/resource-pools/{pool_id}/gc": {"post"},
+        "/nassav/api/admin/resource-pools/{pool_id}/retention": {"put"},
+        "/nassav/api/admin/resource-gc-jobs": {"get"},
+        "/nassav/api/admin/resource-gc-jobs/{job_id}/retry": {"post"},
         "/nassav/api/library/entries/{entry_id}/images/{asset_id}": {"get"},
         "/nassav/api/my-operations": {"get"},
         "/nassav/api/library/entries": {"get", "post"},

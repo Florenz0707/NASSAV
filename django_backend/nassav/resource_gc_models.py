@@ -92,3 +92,21 @@ class ResourceGcAsset(models.Model):
                 name="resource_gc_asset_kind_size",
             ),
         ]
+
+
+class ResourceGcCursor(models.Model):
+    """Fair keyset discovery across bounded scans, with no asset authority."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1)
+    version_after = models.UUIDField(null=True)
+    pool_after = models.UUIDField(null=True)
+    revision = models.PositiveBigIntegerField(default=1)
+
+    class Meta:
+        db_table = "nassav_resource_gc_cursor"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(id=1, revision__gte=1),
+                name="resource_gc_cursor_singleton",
+            )
+        ]

@@ -15,6 +15,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from nassav.legacy_maintenance import require_legacy_layout
+
+        require_legacy_layout()
         from django.conf import settings
         from django.db import transaction
         from nassav.models import AVResource

@@ -628,3 +628,7 @@ git show cc6ab42^:django_backend/doc/validation-status.md
 ### 旧共享推荐归属导入
 
 `uv run python manage.py import_recommendation_data --username <配置中的原操作者>`默认只预览；确认后加`--apply`。维护窗口先停止旧消费者、备份并迁移0035，在首次个人推荐前导入。只向该账号导入未归属历史、反馈关系、种子计数和黑名单，已有个人数据或活动job时拒绝合并，无残余旧行时重复执行为零操作。不改共享资源/缓存/文件，回退冲突见[推荐架构](../doc/recommendation-architecture.md#用户归属第三阶段)。
+
+## 共享资源回收
+
+`manage.py resource_gc`默认只读预览，写操作要求显式action、应用管理员actor、理由、对象版本与request_id，执行另需默认关闭的RESOURCE_GC_ENABLED。参数/安全边界见[回收架构](../doc/resource-gc-architecture.md#派发与管理)。旧check_resources/videos/actor_avatars_consistency在共享/范围版本布局拒绝执行，不绕过新日志修复文件。

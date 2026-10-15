@@ -458,3 +458,7 @@ UserWatchHistory新增pool（PROTECT）和仅含AVID/三个标题字段/来源�
 新增nassav_resource_gc_job/asset：pool与nullable version目标、生命周期代次、幂等active_key、owner/lease/revision与每文件manifest证据/删除阶段；FK使用PROTECT保留审计。pool新增retained，version新增gc_after及deleting/cleanup_failed。迁移不启动清理或回填所有者，不移动文件。
 
 无新保护/清理证据时可往返；有GC job、retained、version.gc_after或新清理状态时回退拒绝丢失证据，使用备份恢复。行为和下一子阶段边界见[回收架构](resource-gc-architecture.md)。
+
+## 0051 公平回收发现游标
+
+nassav_resource_gc_cursor为单例，仅version_after/pool_after/revision，不保存删除授权、用户状态或文件证据。每轮短事务推进keyset，然后在事务外依次取得pool fence/派发；回退只丢扫描位置，重新扫描依赖原GC幂等账本，不回滚任务/资产状态。升级/回退/再次升级须保留pool与GC job原值。

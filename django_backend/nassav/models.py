@@ -32,6 +32,7 @@ from nassav.library_models import (
 
 from nassav.resource_gc_models import (
     ResourceGcJob as ResourceGcJob,
+    ResourceGcCursor as ResourceGcCursor,
     ResourceGcAsset as ResourceGcAsset,
 )
 

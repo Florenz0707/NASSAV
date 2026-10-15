@@ -59,3 +59,7 @@ BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受
 `NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`指定权限0600的专用AES密钥JSON文件，仅新凭证存储/导入/轮换消费者使用。缺失或无权读取时明确不可用，不回退SECRET_KEY。格式、轮换及备份见[凭证架构](source-credential-architecture.md)。不将真实文件写进配置示例或Git；容器挂载必须保留私有权限。旧抓取仍走原Cookie，尚未切换。
 
 `NASSAV_SCOPED_SOURCE_CREDENTIALS`为严格布尔，默认false；true时Source使用专用加密凭证，不读写旧Cookie、不在缺钥时降级。必须同时设置keyring，统一重启API/worker，普通多用户登录仍关闭。切换和轮换顺序见[凭证架构](source-credential-architecture.md#范围消费者与运行切换)。
+
+## 共享资源回收执行开关
+
+`NASSAV_RESOURCE_GC_ENABLED` 默认 `false`，必须同时启用范围凭证与共享资源库；仅在完成维护窗口、旧资产归属确认与目标验收后开启。`NASSAV_RESOURCE_GC_BATCH_SIZE` 默认 `32`，取值 `1–100`，限制每轮候选扫描、派发与单任务文件批次，不改变宽限或绕过读写保护。API、worker 与恢复消费者须使用一致配置并统一重启。管理预览和保留可先使用，执行关闭时排队及重试返回 `gc_not_enabled`。详见[共享回收](resource-gc-architecture.md)。

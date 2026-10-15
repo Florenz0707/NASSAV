@@ -111,7 +111,13 @@ class DjangoGcRecords:
         return row
 
     def preview(self, pool_id, version_id=None):
-        pool = ResourcePoolEntry.objects.select_related("resource").get(pk=pool_id)
+        pool = (
+            ResourcePoolEntry.objects.select_related("resource")
+            .filter(pk=pool_id)
+            .first()
+        )
+        if pool is None:
+            raise GcNotFound("pool_not_found")
         version = self._version(pool, version_id)
         reasons = blockers(pool, version, self.now())
         return {
@@ -144,7 +150,14 @@ class DjangoGcRecords:
             return gc_snapshot(row)
 
     def intent(self, job_id):
-        return ResourceGcJob.objects.select_related("pool", "version").get(pk=job_id)
+        row = (
+            ResourceGcJob.objects.select_related("pool", "version")
+            .filter(pk=job_id)
+            .first()
+        )
+        if row is None:
+            raise GcNotFound("gc_job_not_found")
+        return row
 
     @retry_sqlite_contention
     def claim(self, job_id):
@@ -463,3 +476,19 @@ class DjangoGcRecords:
 
     def status(self, job_id):
         return gc_snapshot(self.intent(job_id))
+
+    @retry_sqlite_contention
+    def schedule(self, pool_id):
+        from nassav.resource_gc_schedule import schedule_unused_versions
+
+        with transaction.atomic():
+            pool = self._pool(pool_id)
+            return schedule_unused_versions(pool, now=self.now())
+
+    def lock_pool(self, pool_id):
+        """Adapter capability for audited commands, inside their existing fence."""
+        from django.db import connection
+
+        if not connection.in_atomic_block:
+            raise RuntimeError("Pool write fence requires a transaction")
+        return self._pool(pool_id)

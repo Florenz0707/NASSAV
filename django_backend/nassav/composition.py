@@ -1178,6 +1178,22 @@ def build_resource_reclaimer():
                 kind: Path(getattr(settings, f"{kind.upper()}_DIR"))
                 for kind in ("cover", "avatar", "video")
             },
-            thumbnail_root=settings.THUMBNAIL_DIR,
+            thumbnail_root=getattr(
+                settings, "THUMBNAIL_DIR", Path(settings.COVER_DIR) / "thumbnails"
+            ),
+        ),
+    )
+
+
+def build_resource_gc_administration():
+    from nassav.resource_gc_admin import GcAdministration
+    from nassav.resource_gc_admin_records import DjangoGcAdminCommands
+    from nassav.resource_gc_records import DjangoGcRecords
+    from nassav.resource_gc_tasks import resource_gc_task
+
+    return GcAdministration(
+        DjangoGcAdminCommands(DjangoGcRecords()),
+        lambda job_id: resource_gc_task.apply_async(
+            args=(job_id,), queue="default", expires=300
         ),
     )

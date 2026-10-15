@@ -355,3 +355,32 @@ def test_shared_library_rejects_invalid_boolean(tmp_path):
     env.write_text("")
     result = startup(config, env, NASSAV_SHARED_LIBRARY_ENABLED="maybe")
     assert result.returncode != 0 and "NASSAV_SHARED_LIBRARY_ENABLED" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "values,expected",
+    [
+        (
+            {
+                "NASSAV_RESOURCE_GC_ENABLED": "true",
+                "NASSAV_SHARED_LIBRARY_ENABLED": "false",
+            },
+            "Resource GC requires shared library",
+        ),
+        (
+            {"NASSAV_RESOURCE_GC_BATCH_SIZE": "0"},
+            "NASSAV_RESOURCE_GC_BATCH_SIZE is out of range",
+        ),
+        (
+            {"NASSAV_RESOURCE_GC_BATCH_SIZE": "101"},
+            "NASSAV_RESOURCE_GC_BATCH_SIZE is out of range",
+        ),
+    ],
+)
+def test_gc_requires_explicit_compatible_startup_configuration(
+    tmp_path, values, expected
+):
+    path = tmp_path / "config.yaml"
+    write_config(path)
+    result = startup(path, tmp_path / "absent.env", **values)
+    assert result.returncode != 0 and expected in result.stderr
