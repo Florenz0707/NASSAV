@@ -1628,3 +1628,7 @@ GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/a
 版本头像直接返回授权library/images地址；明确旧归属可通过actor/avatar读取旧图片，适配器拒绝路径逃逸和符号链接，不能凭另一个用户名猜测ID读取。黑名单按本人的种子名称保存，移出后的旧目录ID仍可由本人取消屏蔽，不操作同ID的全局对象。
 
 外部搜索输入entity_id沿本人的目录解析，Jable/MissAV在没有明确旧映射身份时按名称搜索；聚合缓存的owned-catalog-v1规范名称身份不与旧全局ID碰撞，命中仍重算本人库存。search job保存目录namespace，切换/账户epoch失效的旧句柄410，排队worker在网络前取消；取消旧请求只操作原记录，不再解释实体ID。普通多用户登录和目标来源/worker验收仍未开启。
+
+### 凭证范围推荐/外搜封面
+
+SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?source=jable|missav&url=... 使用当前用户独立来源与范围缓存，不命中旧URL-only文件。来源/URL不支持400，凭证不可用503，授权失效403，图片不可用404。HTTP private/no-store、Vary Cookie、nosniff；流开始后失效中断后续块，已发送块无法撤回。普通账号未开放，结果句柄授权随P7/P8完成。

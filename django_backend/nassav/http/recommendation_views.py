@@ -387,6 +387,31 @@ class RecommendationCoverView(SchemaAPIView):
         cover_url = request.query_params.get("url", "").strip()
         if not cover_url:
             return build_response(400, "url 参数缺失", None)
+        if settings.SOURCE_CREDENTIALS_ENABLED:
+            from nassav.composition import build_recommendation_images
+
+            source_name = str(request.query_params.get("source", "jable")).lower()
+            try:
+                image = build_recommendation_images(request.user.pk).open(
+                    request.user.pk, source_name, cover_url
+                )
+            except ValueError:
+                return build_response(400, "封面来源不受支持", None)
+            try:
+                from urllib.parse import urlparse
+
+                mime = guess_type(urlparse(cover_url).path)[0]
+                if mime not in {"image/jpeg", "image/png", "image/webp"}:
+                    mime = "image/jpeg"
+                response = FileResponse(image, content_type=mime)
+                response["X-Content-Type-Options"] = "nosniff"
+                response.block_size = 65536
+                response["Cache-Control"] = "private, no-store"
+                response["Vary"] = "Cookie"
+                return response
+            except BaseException:
+                image.close()
+                raise
 
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         source_name = str(request.query_params.get("source", "jable")).lower()

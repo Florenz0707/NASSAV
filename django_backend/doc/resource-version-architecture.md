@@ -107,3 +107,11 @@ LocalPreferenceSeedProvider沿原评分/selector消费term_stats，lookup_payloa
 正式版本头像地址使用原授权image服务，旧avatar文件明确归属后由独立NOFOLLOW读取适配器打开；HTTP只组装回应。目录detail/列表私有no-store/Vary Cookie。专项test_owned_catalog_consumers.py使用真实发布/数据库、合成列表源和MemoryStore，覆盖两个用户、ID碰撞、关键词/缓存观察、任务/epoch失效、黑名单、查询预算与头像路径。不是实际上游站点、共享Celery或普通账户浏览器验收。推荐图片缓存、观看列表版本投影及受控GC仍继续实施。
 
 目录消费者隔离门槛（2026-10-15）：SQLite全量1210 passed/28 skipped；临时PostgreSQL目录/搜索兼容56 passed；SQLite目录/旧搜索50 passed、目录/旧HTTP17 passed。没有新schema，完整pre-commit通过后提交。个人来源搜索仍为替身，未打开普通账号、迁移现有实例或验收真实worker。
+
+## 推荐与外搜图片范围缓存
+
+凭证开关启用后，图片HTTP装配独立来源，使用全局Proxy.url，不读取下载代理。目录按source与CredentialSourceContext.scope_key摘要分层，含凭证身份/版本及出口/浏览器上下文；新模式不命中旧URL-only图片。
+
+命中、下载分块、短发布及响应读取均核查账号代次/凭证。CDN禁止重定向及第三方Cookie，仅JPEG/PNG/WebP、5 MiB上限；站内请求按origin过滤。目录逐层NOFOLLOW及固定dirfd，临时文件和rename只作用于该目录；读取拒绝符号链接/非普通文件。发布fence只做rename，网络/复制在事务外。HTTP private/no-store、Vary Cookie、nosniff；源上下文退出失败也关闭句柄。
+
+接口仍接受允许来源URL，是以当前凭证访问来源图片的代理能力，URL摘要不等于持有授权。普通账号未开放；P7/P8补本人结果图片句柄及权限验收后才开放。缓存不随释放库删除，P6另补有界回收，不与正式版本GC混用。

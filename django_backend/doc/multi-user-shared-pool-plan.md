@@ -301,3 +301,7 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 目录投影基础隔离门槛（2026-10-15）：SQLite全量1198 passed/28 skipped、临时PostgreSQL17 passed；0047往返保留旧资源/M2M/持有/版本事实，只增减可重建派生表。完整pre-commit通过后提交，现有实例未迁移；消费者与P6–P8继续。
 
 目录消费者基线a5333ed，分支feat/owned-catalog-consumers：原目录/头像/筛选与推荐本地种子/名字黑名单、命名实体外部搜索和旧job namespace/epoch fencing。SQLite全量1210 passed/28 skipped、PostgreSQL56 passed，完整pre-commit通过后提交；无新schema/普通准入。图片缓存、观看列表版本化与P6–P8继续实施，详见[目录消费者](resource-version-architecture.md#用户目录消费者子阶段)。
+
+推荐图片范围子阶段基线060e599，分支fix/scoped-recommendation-images：来源上下文目录、全局代理/独立来源、凭证及账号失效检查、受限图片/无重定向、dirfd发布与安全读取、HTTP私有缓存头。范围缓存不替代本人结果句柄授权。普通账号和自动GC保持关闭，观看历史/GC及P7/P8继续。
+
+图片范围隔离门槛（2026-10-15）：全量SQLite1220 passed/28 skipped，随后补充生产装配/目录链接检查，专项12 passed；PostgreSQL图片及凭证26 passed，最终图片专项12 passed。模型无差异；完整pre-commit通过后合并。验证使用真实加密记录/文件与合成上游，不含真实源站或普通账号准入。

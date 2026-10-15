@@ -316,6 +316,51 @@ def cover_policy_for(source_name: str):
     return factory()
 
 
+def build_recommendation_images(user_id):
+    from django.conf import settings
+    from django.contrib.auth import get_user_model
+    from nassav.account_policy import execution_epoch
+    from nassav.recommendation.images import RecommendationImages
+
+    epoch = execution_epoch(user_id)
+
+    def check(actor):
+        if (
+            actor != user_id
+            or execution_epoch(actor) != epoch
+            or not get_user_model().objects.filter(pk=actor, is_active=True).exists()
+        ):
+            raise PermissionError("Image authorization changed")
+
+    def reject_cookie(*args):
+        raise PermissionError("Unscoped image cookie write is forbidden")
+
+    @contextmanager
+    def scope(actor, name):
+        factories = source_factories(
+            settings.PROXY_URL if settings.PROXY_ENABLED else None,
+            settings.BROWSER_FETCH_CONFIG,
+            reject_cookie,
+            user_id=actor,
+        )
+        if (
+            name not in {"jable", "missav"}
+            or name not in factories
+            or not settings.SOURCE_CONFIG.get(name, {}).get("weight")
+        ):
+            raise ValueError("Source unavailable")
+        with _controlled_source_scope(factories[name], lambda: check(actor)) as source:
+            yield source
+
+    from nassav.recommendation_image_files import open_cache_image
+
+    return RecommendationImages(
+        scope,
+        check,
+        lambda path: open_cache_image(settings.RECOMMENDATION_COVER_DIR, path),
+    )
+
+
 def build_video_download_service():
     from django.conf import settings
 
