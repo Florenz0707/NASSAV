@@ -37,25 +37,34 @@
 
 ## 隔离与文件系统检查
 
-- 修复完整后端：`cd django_backend && uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`，1341 passed、28在线跳过，350.27秒。
+- 共享刷新修复完整后端：`cd django_backend && uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`，1341 passed、28在线跳过，350.27秒。
 - 共享执行/旧刮削/版本专项：`uv run pytest tests/test_shared_version_workers.py tests/test_controlled_scrape.py tests/test_version_publication.py --ds=django_project.refactoring_test_settings -q`，SQLite 54 passed；临时PostgreSQL相同专项54 passed。
 - 修复前P8原生共享worker/GC派发专项：`test_multi_user_native_acceptance.py`及`test_resource_gc_dispatch_admin.py`，18 passed；上述修复后全量再次包含这些场景。
 - 实际宿主机资源根的唯一`.p8-filesystem-*`临时子目录：`test_task_assets.py`、`test_version_publication.py`及`test_resource_gc_files.py`，58 passed。仅测试目录内临时文件与隔离数据库，结束删除该目录；证明当前UID/文件系统协议，不证明旧文件的每一种属主或未来Docker挂载。
+- 下载修复完整隔离门槛1345 passed/30 skipped（415.04秒）；固定二进制的本地HTTP 428/并发/明文与AES恢复组合22 passed（92.17秒），原生用例默认跳过、另显式运行。
 - 根目录完整`pre-commit run -a`通过后提交。前端无代码变化，未将先前浏览器/200项前端测试标为本轮重新运行。
 
 ## 任务追踪确认
 
 用户请求由UserOperation持久保存，底层执行由SharedWork/TaskJob保存；“不再跟踪”仍是浏览器localStorage中的隐藏ID，没有后端隐藏表或对应写接口。跨设备不共享隐藏状态，隐藏不撤销请求、停止任务或移出库。实现见`operationTracking.hide/start`与旧`taskJobs.hide/start`，本轮不改该行为。
 
-## 剩余项与放行边界
+## 完整视频的阻断、修复与最终验收
 
 操作者指定已下载DASS-839，若需新下载则使用MIMK-079。DASS-839已通过只读本地播放HEAD 200、Range 206、未登录拒绝及关闭后拒绝，文件大小1,315,392,265字节，前后文件身份未变，未调用worker或来源。其旧布局文件不等同于新共享视频发布。MIMK-079元数据真实获取成功，两个用户下载请求合并为一份SharedWork。临时资源总占用预算5 GiB；实际峰值812,803,505字节（约775 MiB），未触及预算。真实下载约73 MiB时通过HTTP请求暂停、确认paused后恢复，generation 2/两个attempt，恢复后继续取得数据。286.7秒时下载器正常退出但输出识别为空，任务DOWNLOAD_FAILED，未进入完整媒体校验/视频版本发布，因此此项门槛失败。
 
-失败job `6637aa8a-7ea1-48eb-9032-0c1954490977`，stage video_download；两个attempt分别stopped/failed，均有stopped_at，cleanup_state=completed，ready视频版本0、剩余视频文件0。日志只记录“未找到输出文件”；现有适配器不保留CLI诊断，不能据此断言合并、命名或网络根因。暂停恢复由独立HTTP控制观察器执行，原下载观察器的pause_resume_tested=false仅表示该观察器未发起控制；整体验收以download-controls-summary及download-combined-summary为准。
+失败job `6637aa8a-7ea1-48eb-9032-0c1954490977`，stage video_download；两个attempt分别stopped/failed，均有stopped_at，cleanup_state=completed，ready视频版本0、剩余视频文件0。当时日志只记录“未找到输出文件”，旧适配器不保留CLI诊断，因此当时不能据此断言合并、命名或网络根因。暂停恢复由独立HTTP控制观察器执行，原下载观察器的pause_resume_tested=false仅表示该观察器未发起控制；整体验收以download-controls-summary及download-combined-summary为准。
 
-按AGENTS.md质量门槛停止条件，保留P8验收分支及失败证据，暂不合并该阶段，已询问是否独立诊断修复后重验。
+当时按AGENTS.md质量门槛停止条件保留P8分支及失败证据并暂不合并；用户随后授权独立诊断修复并继续。
 
-私人来源实站按用户决定保留未完成；正式消费者验收、长时观察及未来Docker部署仍需分别登记。已豁免的HTTPS/真机项不重新设为阻塞。本轮公共链路/故障样本通过不等于所有P8目标均完成，也不自动更新用户默认工作树或重启其进程。
+独立修复926c8c3已通过1345项完整隔离测试（30跳过）、固定二进制22项专项及完整pre-commit后合并idle。真实重放确认分片请求HTTP 428，1241/1437导致CLI内部失败却退出0；默认并发32→4且记录安全诊断。参数对照完整下载/校验/共享发布及本地播放已通过，454秒、峰值1,781,908,581字节。详见[定位与反证记录](download-cli-failure-20261015.md)。最终另从原备份恢复全新副本，以已合并926c8c3及原固定二进制执行：无参数包装器、无强制线程覆盖，不使用此前已下载视频或ready版本代替新下载。最终job `e4bc92f4-df37-46d8-b22d-36ba35e08d86`完成双账号同work、真实暂停/新generation恢复、1437分片下载/合并、全量解码及不可变视频发布，446.2秒，峰值1,781,908,581字节，generation 2/两个attempt。两人指向同一视频版本`448b7ffe-09b6-4f65-bd2e-b92276eeee09`，文件870,155,788字节，固定版本本地HTTP 206通过。
+
+随后仅在副本开启GC：其他登录会话/媒体访问被拒绝；两人释放后原会话仍可Range 206、新会话拒绝；最后释放创建24小时宽限，只在副本推进gc_after后仍因playback_sessions阻塞。关闭后旧媒体拒绝，GC job `d06f7f63-b5e2-4565-aba9-081ed6453ff1`经真实default worker完成，版本reclaimed、资产日志deleted、视频已删除，元数据封面哈希保持。因此完整视频阻断已解除，首版公共来源受控验收范围通过；不将其扩展为私人实站或当前用户运行消费者已更新。独立修复926c8c3已合并idle，P8记录在最终文档门槛通过后合并。
+
+原download-summary的pause_resume_tested=false只记录该观察器未发起控制；最终download-controls-summary及download-combined-summary明确独立HTTP观察器发起的暂停恢复成功，避免错误解读为未测试。
+
+## 剩余项与放行边界
+
+私人来源实站按用户决定保留未完成；正式消费者验收、长时观察及未来Docker部署仍需分别登记。已豁免的HTTPS/真机项不重新设为阻塞。首版公共来源受控范围通过不等于当前实例所有消费者已部署验收或私人站点已验，也不自动更新用户默认工作树或重启其进程。
 
 最终实际库只读复核：资源693、持有693、受管账号1、GC记录0；Jable/MissAV均active/version 2。副本中的凭证撤销、账号停用及文件删除未发生在实际库。
 
@@ -65,4 +74,4 @@
 
 `django_backend/backup/p8-real-source-20261015T124252Z/`
 
-目录0700、文件0600，含恢复副本、脱敏结果和按私有数据处理的服务日志，不提交秘密、原始来源HTML或签名URL。修复后元数据/控制/播放/撤销重放的独立恢复点为`django_backend/backup/p8-real-source-20261015T130809Z/`。本地播放与完整下载失败、暂停恢复、停止/清理证据为`django_backend/backup/p8-real-source-20261015T132153Z/`；只保留图片资产，不归档大型视频。所有本轮临时API/worker/PostgreSQL已停止，专属目录和broker前缀已清理，未重启用户服务。本轮使用原持久keyring只读解密，未将密钥复制到该备份目录。
+目录0700、文件0600，含恢复副本、脱敏结果和按私有数据处理的服务日志，不提交秘密、原始来源HTML或签名URL。修复后元数据/控制/播放/撤销重放的独立恢复点为`django_backend/backup/p8-real-source-20261015T130809Z/`。本地播放与完整下载失败、暂停恢复、停止/清理证据为`django_backend/backup/p8-real-source-20261015T132153Z/`；只保留图片资产，不归档大型视频。HTTP 428定位与低并发对照保存于`django_backend/backup/p8-real-source-20261015T134405Z/`；正式默认调用和真实视频GC最终证据保存于`django_backend/backup/p8-real-source-20261015T135640Z/`，包含代码/二进制来源核对与私有数据库恢复点，不归档大型视频。所有本轮临时API/worker/PostgreSQL已停止，专属目录和broker前缀已清理，未重启用户服务。本轮使用原持久keyring只读解密，未将密钥复制到该备份目录。
