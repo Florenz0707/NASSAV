@@ -82,7 +82,6 @@ class VideoDownloadService(DownloadExecutor):
             output_name=avid_upper,
             referer=f"https://{domain}/",
             user_agent=HEADERS["User-Agent"],
-            thread_count=32,
             retry_count=5,
             progress_callback=progress_callback,
             cancelled=cancelled,

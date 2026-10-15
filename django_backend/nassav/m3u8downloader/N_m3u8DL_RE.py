@@ -5,6 +5,7 @@ https://github.com/nilaoda/N_m3u8DL-RE
 
 import os
 import platform
+import re
 import signal
 import subprocess
 from collections.abc import Callable
@@ -17,6 +18,51 @@ from loguru import logger
 from nassav.task_processes import writer_environment
 
 from .M3u8DownloaderBase import M3u8DownloaderBase
+
+
+class _DownloadDiagnostics:
+    """Keep fixed failure categories and bounded numbers, never native output."""
+
+    def __init__(self):
+        self.statuses = set()
+        self.segment_counts = None
+        self.failed = False
+        self.signals = set()
+
+    def observe(self, line: str):
+        line = re.sub(r"\x1b\[[0-9;]*m", "", line[:4096])
+        status = re.search(
+            r"Response status code does not indicate success:\s*([1-5]\d{2})\b",
+            line,
+        )
+        if status and len(self.statuses) < 8:
+            self.statuses.add(int(status.group(1)))
+        counts = re.search(
+            r"Segment count check not pass,\s*total:\s*(\d{1,9}),\s*downloaded:\s*(\d{1,9})\b",
+            line,
+        )
+        if counts:
+            self.segment_counts = tuple(map(int, counts.groups()))
+            self.failed = True
+        if re.search(r"\bERROR\s*:\s*Failed\b", line):
+            self.failed = True
+        for phrase, category in (
+            ("too many open files", "too_many_open_files"),
+            ("argument list too long", "argument_list_too_long"),
+            ("no space left on device", "disk_full"),
+            ("permission denied", "permission_denied"),
+        ):
+            if phrase in line.lower():
+                self.signals.add(category)
+
+    def summary(self, returncode: int) -> str:
+        facts = [f"退出码 {returncode}"]
+        facts.extend(f"上游 HTTP {status}" for status in sorted(self.statuses))
+        if self.segment_counts is not None:
+            total, downloaded = self.segment_counts
+            facts.append(f"分片 {downloaded}/{total}")
+        facts.extend(sorted(self.signals))
+        return "下载器未生成完整视频（" + "；".join(facts) + "）"
 
 
 class N_m3u8DL_RE(M3u8DownloaderBase):
@@ -44,7 +90,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         output_name: str,
         referer: str,
         user_agent: str,
-        thread_count: int = 32,
+        thread_count: int = 4,
         retry_count: int = 5,
         progress_callback: Callable | None = None,
         cancelled: Callable[[], bool] | None = None,
@@ -65,6 +111,15 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
         watchdog = None
         stopped = Event()
         cancelled_run = Event()
+        diagnostics = _DownloadDiagnostics()
+
+        def failed(returncode):
+            message = diagnostics.summary(returncode)
+            logger.error("[{}] {}", output_name, message)
+            if process_started is not None:
+                raise RuntimeError(message)
+            return False
+
         try:
             # 构建命令
             cmd = [
@@ -142,12 +197,11 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 watchdog.start()
 
             # 实时读取输出并解析进度
-            import re
-
             if process.stdout:
                 for line in process.stdout:
                     # 解析进度信息（示例格式: "已下载: 45.2% | 速度: 5.2MB/s"）
                     line = line.strip()
+                    diagnostics.observe(line)
                     if stage_callback and any(
                         word in line.lower()
                         for word in ("merging", "muxing", "合并", "混流")
@@ -176,9 +230,8 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
 
             if cancelled_run.is_set() or (cancelled and cancelled()):
                 return False
-            if returncode != 0:
-                logger.error(f"N_m3u8DL-RE 下载失败，退出码: {returncode}")
-                return False
+            if returncode != 0 or diagnostics.failed:
+                return failed(returncode)
 
             # 检查输出文件
             output_file = self.get_output_file(output_dir, output_name)
@@ -188,8 +241,7 @@ class N_m3u8DL_RE(M3u8DownloaderBase):
                 logger.info(f"[{output_name}] 下载完成: {size_mb:.1f} MB")
                 return True
             else:
-                logger.error(f"[{output_name}] 未找到输出文件")
-                return False
+                return failed(returncode)
 
         except FileNotFoundError:
             logger.error(f"N_m3u8DL-RE 工具不存在: {self.tool_path}")
