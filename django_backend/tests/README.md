@@ -214,3 +214,5 @@ P8原生worker与恢复：`uv run pytest tests/test_multi_user_native_acceptance
 安全补导入专项：`uv run pytest tests/test_recommendation_safe_import.py tests/test_recommendation_user_isolation.py --ds=django_project.refactoring_test_settings -q`。覆盖显式选项/默认拒绝、只读预览、黑名单原行和反馈关系保持、两侧旧writer代次拒绝、幂等重放，以及已有历史/种子/旧AVID黑名单/queued/running的原子拒绝；不操作实例。PostgreSQL同组使用独立UTF8临时库。
 
 跨测试模块复用pytest fixture时，使用显式同名re-export或模块级别名赋值，不能只依赖函数参数名让Ruff判定导入有用；格式化/自动修复后先核对fixture仍已注册，再运行全量门槛。原生worker专项的broker_redis沿模块赋值保留，避免自动删除导入后测试无法启动。
+
+下载器失败诊断回归：`uv run pytest tests/test_download_cli_diagnostics.py --ds=django_project.refactoring_test_settings -q`。退出码为0但分片校验失败仍拒绝，旧输出不构成成功；诊断只保留有限状态码、分片数量和固定错误类别，不记录原始CLI行、源URL或凭证。沿用`NASSAV_LOCAL_DOWNLOAD_BINARY`显式指向固定二进制可另验本地HTTP 428和四请求并发上限；默认跳过这两项，不访问外站。已有明文/AES恢复专项仍单独运行。下载分片默认并发改为4，显式参数仍可覆盖；与Celery worker数量、全局下载槽位及ProxyServer浏览器容量分别计数。

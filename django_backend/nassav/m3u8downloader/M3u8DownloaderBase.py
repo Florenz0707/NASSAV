@@ -31,7 +31,7 @@ class M3u8DownloaderBase(ABC):
         output_name: str,
         referer: str,
         user_agent: str,
-        thread_count: int = 32,
+        thread_count: int = 4,
         retry_count: int = 5,
         progress_callback: Callable | None = None,
         cancelled: Callable[[], bool] | None = None,
@@ -45,7 +45,7 @@ class M3u8DownloaderBase(ABC):
             output_name: 输出文件名（不含扩展名）
             referer: Referer 头
             user_agent: User-Agent 头
-            thread_count: 下载线程数
+            thread_count: 分片并发数，默认 4；调用方可显式覆盖
             retry_count: 重试次数
             progress_callback: 进度回调函数，参数为 (percent: float, speed: str, eta: str)
 
