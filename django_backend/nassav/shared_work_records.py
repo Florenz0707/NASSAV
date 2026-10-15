@@ -716,6 +716,9 @@ class DjangoOperationRecords:
         ):
             return
         entry.delete()
+        from nassav.resource_gc_schedule import schedule_unused_versions
+
+        schedule_unused_versions(pool, grace=self.gc_grace)
         row.membership_id = None
         if not pool.memberships.exists() and pool.state not in {
             "deleting",

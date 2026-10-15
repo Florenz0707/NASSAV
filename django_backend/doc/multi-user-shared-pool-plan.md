@@ -248,7 +248,7 @@ pnpm run check
 | P3    | 隔离实现已完成 | 0040/0041存储、范围消费者及密钥策略；生产开关保持关闭，真实站点验收待P8                                        |
 | P4    | 子阶段已实现   | 0042–0046订阅、生命周期、worker、持有命令与配额；消费者切换继续实施                                            |
 | P5    | 子阶段已实现   | 0044/0045不可变发布与读取核心；正式资源/媒体消费者待接入                                                       |
-| P6–P8 | 待实施         | 未开放普通用户或自动回收                                                                                       |
+| P6–P8 | 继续实施       | 未开放普通用户或自动回收                                                                                       |
 
 初始计划提交ae10475，文档基线6bedcb6，分支doc/multi-user-shared-pool-plan；当时仅编写计划及导航。P0后续执行基线ae10475、分支doc/multi-user-contracts，记录见[契约验证范围](multi-user-contracts.md#验证记录与后续门槛)。两轮均检查新增链接及pre-commit完整门槛，未新增模型、接口、配置、worker或正式数据写入，也未恢复用户删除的历史文档。
 
@@ -311,3 +311,13 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 基线38117f9，分支feat/durable-viewing-history：0048稳定池身份/个人展示快照、资源SET_NULL、固定版本事件核查、本人版本观看列表、不可用历史及原CAS删除。历史不保护媒体、不赋予访问权限；回收后无法无损回退旧非空关系时显式拒绝，不强删历史。后续GC状态机、UI及P8继续。
 
 历史快照隔离门槛（2026-10-15）：全量SQLite1227 passed/28 skipped，专项13 passed；临时PostgreSQL12 passed含0048往返和0036兼容，最终专项13 passed含实际MP4/批量查询。模型迁移无差异，完整pre-commit通过后提交。现有实例未执行迁移；回收仅在测试模拟资源行删除，正式GC继续实施。
+
+### P6回收账本子阶段
+
+基线daa043b，分支feat/resource-gc-ledger：0050版本宽限/管理员保留/回收与资产日志；整池与单版本真实引用保护、只读preview、幂等enqueue、owner/lease/代次领取/失败/恢复、pointer墓碑、旧删除防绕过。尚不删除文件或派发GC；物理适配器/管理/调度及P7/P8继续。开发约束见[回收架构](resource-gc-architecture.md)。
+
+回收账本首次全量：1236 passed/28 skipped、1项跨进程代理测试失败；独立41d0022修复测试观察者提前释放，未改生产容量/钩子，其全量1228 passed/28 skipped。GC改动按独立stash身份恢复到原分支，追加版本宽限专项SQLite11 passed、PostgreSQL回收/读占用20 passed后重新执行完整门槛；首次失败不记为通过。
+
+第二轮回收全量：1238 passed/28 skipped、1项观看置顶失败。独立3e8aaf6用0049持久单调时钟修复同值/回拨及删除后CAS复用，其全量1232 passed/28 skipped、SQLite/PostgreSQL专项各17 passed。恢复后GC迁移顺延0050，继续重验；未提交迁移可顺延，历史0049保持不改。
+
+0050回收账本最终门槛（2026-10-15）：全量SQLite1244 passed/28 skipped，SQLite回收/观看/迁移组合24 passed；PostgreSQL回收/0049时钟迁移13 passed。201资产只用一次目标epoch读取，单次领取最多64版本/1024资产；超界需先按版本收尾。模型迁移无差异，完整pre-commit通过后提交，正式文件删除/生产派发仍未启用。

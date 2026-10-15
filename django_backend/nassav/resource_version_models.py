@@ -32,6 +32,7 @@ class ResourceVersion(models.Model):
     media_identity = models.CharField(max_length=64, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True)
+    gc_after = models.DateTimeField(null=True)
 
     if TYPE_CHECKING:
         pool_id: UUID
@@ -58,6 +59,8 @@ class ResourceVersion(models.Model):
                         "retired",
                         "reclaimed",
                         "quarantined",
+                        "deleting",
+                        "cleanup_failed",
                     ]
                 ),
                 name="resource_version_state",

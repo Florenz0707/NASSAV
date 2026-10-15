@@ -63,6 +63,25 @@ class ResourceDeletionRepository(ABC):
 class DjangoResourceDeletionRepository(ResourceDeletionRepository):
     def get(self, avid: str) -> AVResource | None:
         from nassav.task_models import TaskJob, TaskArtifact
+        from nassav.library_models import ResourcePoolEntry, UserLibraryEntry
+        from nassav.resource_version_models import ResourceVersion
+        from nassav.resource_gc_models import ResourceGcJob
+
+        if settings.SHARED_LIBRARY_ENABLED:
+            raise ResourceTaskConflict(
+                "共享资源须通过移出与受控回收处理，不能直接删除资产"
+            )
+        pool = ResourcePoolEntry.objects.filter(canonical_avid=avid).first()
+        if pool is not None and (
+            pool.retained
+            or pool.state in {"pending_gc", "deleting", "cleanup_failed"}
+            or UserLibraryEntry.objects.filter(pool=pool).exists()
+            or ResourceVersion.objects.filter(pool=pool).exists()
+            or ResourceGcJob.objects.filter(pool=pool).exists()
+        ):
+            raise ResourceTaskConflict(
+                "共享资源须通过移出与受控回收处理，不能直接删除资产"
+            )
 
         if TaskJob.objects.filter(avid=avid, active_key__isnull=False).exists():
             raise ResourceTaskConflict("资源有运行或暂停的任务，请先终止任务")

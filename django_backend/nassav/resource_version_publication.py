@@ -215,6 +215,9 @@ class VersionPublications:
                 "updated_at",
             ]
         )
+        from nassav.resource_gc_schedule import schedule_unused_versions
+
+        schedule_unused_versions(version.pool)
         if version.kind == "metadata":
             from nassav.catalog_projection import sync_entry
 

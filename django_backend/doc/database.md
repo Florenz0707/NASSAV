@@ -452,3 +452,9 @@ nassav_user_viewing_clock以user为主键，last_recorded_at为可空DateTime；
 UserWatchHistory新增pool（PROTECT）和仅含AVID/三个标题字段/来源的snapshot，resource改为nullable SET_NULL；唯一约束沿用名字、改为(user,pool)。历史不保护媒体字节，只保留池tombstone身份；回收不删除事件。
 
 按200条游标回填已有事件，缺失池仅建立稳定身份、不创建持有关系；身份与现有资源冲突时拒绝猜测。用户、时间和media_kind不变，源URL/Cookie/备注不进入snapshot。迁移后若已有resource=NULL历史，回退0047显式拒绝，不强删数据满足旧非空约束；应恢复维护窗口备份。旧资源仍存在时可往返。升级须停写、备份并统一API/worker，无文件移动或外站访问。
+
+## 0050 回收账本
+
+新增nassav_resource_gc_job/asset：pool与nullable version目标、生命周期代次、幂等active_key、owner/lease/revision与每文件manifest证据/删除阶段；FK使用PROTECT保留审计。pool新增retained，version新增gc_after及deleting/cleanup_failed。迁移不启动清理或回填所有者，不移动文件。
+
+无新保护/清理证据时可往返；有GC job、retained、version.gc_after或新清理状态时回退拒绝丢失证据，使用备份恢复。行为和下一子阶段边界见[回收架构](resource-gc-architecture.md)。

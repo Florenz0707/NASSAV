@@ -30,6 +30,11 @@ from nassav.library_models import (
     UserLibraryCommand as UserLibraryCommand,
 )
 
+from nassav.resource_gc_models import (
+    ResourceGcJob as ResourceGcJob,
+    ResourceGcAsset as ResourceGcAsset,
+)
+
 from nassav.catalog_models import (
     UserCatalogTerm as UserCatalogTerm,
     UserCatalogLink as UserCatalogLink,

@@ -203,3 +203,7 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 用户演员/类别目录以UserCatalogTerm/UserCatalogLink投影本人当前元数据持有，成功grant在user→pool事务批量同步；link不代表额外持有。不得用全局Actor/Genre的资源锚点关系代替版本事实，私有名称不全局提升；目录整数ID只是用户投影，外部搜索/推荐不得误当旧全局Actor/Genre ID。
 
 共享目录整数ID属于本人term，不当作旧全局Actor/Genre映射ID；外部搜索使用命名实体和独立cache/job namespace。推荐本地种子沿本人当前关系聚合，新lookup_payload不得冒充全局actor_id触发学习；名称黑名单按本人历史fence更新。旧目录句柄/账户epoch失效须在网络前终止。
+
+## 共享回收开发约束
+
+回收遵循[共享回收账本](django_backend/doc/resource-gc-architecture.md)。worker文件锁在短DB领取之前；pool/version分别核对真实持有、工作/停止证明、原播放期限、读占用和retained。版本按最后释放宽限，指针不是永久引用；旧owner/失租拒绝更新，cleanup_failed不能恢复ready。资产逐文件按UUID/marker/hash日志删除，不清空目录或在线unlink锁，未知产物保留现场；未完成物理/目标验收前不启自动apply。

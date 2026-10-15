@@ -133,6 +133,9 @@ class DjangoMembershipRecords:
                     updated_at=timezone.now(),
                 )
             entry.delete()
+            from nassav.resource_gc_schedule import schedule_unused_versions
+
+            schedule_unused_versions(pool, grace=grace)
             if not pool.memberships.exists() and pool.state not in {
                 "deleting",
                 "cleanup_failed",
