@@ -85,3 +85,13 @@ ID-only播放worker按session冻结引用构造独立来源，每次解析先核
 专项test_version_source_playback.py包含双用户加密记录、真实DB与短占用、默认来源装配、合成源站HTML/媒体响应、认证ASGI及真实临时Redis，验证Cookie/UA不串、全局代理传参、缓存/进度范围、HTTP提交、旧提交拒绝、在途撤销收尾。上游传输为受控替身，不能当成真实站点/个人账号、Byparr出口或Celery目标联调。
 
 冻结来源播放隔离门槛（2026-10-15）：SQLite全量1193 passed/28 skipped；临时PostgreSQL40 passed；SQLite来源/进度专项14 passed，范围/旧准备兼容30 passed。模型迁移无差异，完整pre-commit通过后提交。验证包含真实Redis和DB，但源站HTML及媒体传输是替身，不表示实际Jable/MissAV个人Cookie、Byparr或真实Celery已验收。
+
+## 用户目录投影基础
+
+基线21b14d6，分支feat/owned-catalog-projection，新增0047。UserCatalogTerm/UserCatalogLink属于本人的查询投影：元数据grant在已有user→pool短事务批量同步，视频grant不改目录，释放持有级联link。term按用户、actor/genre及normalize_seed_value名称SHA256去重，名称不写全局Actor/Genre，个人标记由当前用户过滤join一次聚合。没有网络或逐项get_or_create；空标签不创建对象。
+
+统计沿同一held_entries授权查询，并要求link.version匹配entry.current_version；刷新失败、陈旧/交叉用户link、隔离版本不能使旧名称恢复可见。多个用户可以持有同一public元数据，但投影ID和偏好计数独立；A刷新不替换B仍持有的旧版本。旧未版本化关系仅在明确归属下投影。派生关系不新增持有，后台GC仍以正式持有/播放/writer为准。
+
+0047投影已有明确active关系，逆向只删除可重建派生表；不猜测原资源归属或重新取源。专项test_owned_catalog_projection.py使用真实版本/文件发布与个人状态，验证无全局复制、稳定去重、切换/释放、坏link与单查询统计。HTTP目录、外部搜索与推荐种子仍待下一个消费者子阶段；普通准入保持关闭。
+
+用户目录基础隔离门槛（2026-10-15）：SQLite全量1198 passed/28 skipped；SQLite迁移/核心5 passed，临时PostgreSQL迁移/核心/发布17 passed，版本/媒体兼容35 passed；模型迁移无差异，完整pre-commit通过后提交。PostgreSQL逆向在派生行删除后完成延迟外键检查，再执行后续DDL，保留原子迁移。没有正式实例迁移或目录/推荐HTTP切换。

@@ -75,6 +75,9 @@ class ResourcePoolEntry(models.Model):
 class UserLibraryEntry(models.Model):
     if TYPE_CHECKING:
         pool_id: UUID
+        user_id: int
+        current_version_id: UUID | None
+        video_version_id: UUID | None
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)

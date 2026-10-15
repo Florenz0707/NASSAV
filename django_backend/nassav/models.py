@@ -30,6 +30,11 @@ from nassav.library_models import (
     UserLibraryCommand as UserLibraryCommand,
 )
 
+from nassav.catalog_models import (
+    UserCatalogTerm as UserCatalogTerm,
+    UserCatalogLink as UserCatalogLink,
+)
+
 from nassav.shared_work_models import (
     SharedWork as SharedWork,
     UserOperation as UserOperation,

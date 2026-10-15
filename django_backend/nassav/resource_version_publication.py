@@ -215,4 +215,8 @@ class VersionPublications:
                 "updated_at",
             ]
         )
+        if version.kind == "metadata":
+            from nassav.catalog_projection import sync_entry
+
+            sync_entry(entry)
         return str(version.pk)

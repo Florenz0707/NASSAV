@@ -434,3 +434,11 @@ PlaybackProgress 独立持久化个人位置，表 nassav_playback_progress；�
 0045新增ResourceVersion.base_pointer_revision用于条件发布，回退只丢此基准，保留版本/manifest/读取及持有；正式版本发布规则见[版本架构](resource-version-architecture.md#发布核心子阶段)。
 
 0046增加持有命令回执、按kind意图代次、operation预留关联及安全进度/时间线，默认不自动建立配额/回执；逆向丢新增命令与字段，保留原持有/operation/预留/版本。细节见[共享工作](shared-work-architecture.md#持有命令意图与配额子阶段)。
+
+## 0047 用户目录投影
+
+新增nassav_user_catalog_term、nassav_user_catalog_link。term按user/kind/规范名称摘要唯一，名字只属于该用户的本地目录；link指向持有和可空metadata version，唯一entry/term，释放持有级联link。无全局Actor/Genre私人数据提升，不改共享版本/资源/用户状态。关系仅为派生查询投影，不是额外持有，不能单独阻止资产回收。
+
+升级以200行游标读取已有active关系；有合法当前版本则只投影本人/公开ready或retired metadata名称，旧未版本化仅public或准确legacy操作者归属读旧关系。坏owner/pool/kind及未确认范围不猜测；不会创建新持有、Cookie或观看事件。显式旧导入只同步新建关系，重跑保留现有编辑/版本。运行成功grant按user→pool短事务bulk同步，原系统pool发布不取得所有user fence。
+
+逆向仅丢可重建term/link，保留已有版本JSON/指针/关系/旧Actor/Genre。派生整数ID不保证在逆向后重建一致，切换需要关闭旧消费者并清缓存/登录；未来UI或推荐不能把此ID当稳定人物的全局身份。SQLite/PostgreSQL往返专项test_owned_catalog_migration.py验证私有与旧归属不串及业务/关系数据保持。此迁移未作用于部署实例。

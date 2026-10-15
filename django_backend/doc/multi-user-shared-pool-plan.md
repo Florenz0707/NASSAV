@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4模型/内部核心正在实施，P5账本/读取核心正在实施，P6–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0046。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3存储/范围消费者已完成隔离实现；P4模型/内部核心正在实施，P5账本/读取核心正在实施，P6–P8仍**尚未实现**，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0047。
 
 ## 1. 目标与首版范围
 
@@ -295,3 +295,7 @@ P5发布核心隔离门槛（2026-10-15）：全量SQLite1125 passed、28 skippe
 固定本地播放子阶段基线7f0fd21，分支feat/version-bound-playback：本人固定video版本/账号epoch、真实MP4 Range/HEAD/在途断开、不可变文件身份与独立DB读取占用、版本化标题/接续批量查询。SQLite全量1184 passed/28 skipped，PostgreSQL最终专项37 passed（另有兼容专项39 passed），完整pre-commit通过后提交。无新schema/现有实例切换；源在线播放、目录/推荐/GC及P7/P8继续实施。详见[固定本地播放](resource-version-architecture.md#固定本地播放子阶段)。
 
 冻结来源播放子阶段基线e61ef44，分支feat/scoped-version-source-playback：本人元数据版本/冻结引用、独立来源/全局代理、准备权限fence、媒体读取pin与取消安全收尾、scope/context进度账本。SQLite全量1193 passed/28 skipped，临时PostgreSQL40 passed，迁移无差异，完整pre-commit通过后提交。合成上游不代替真实账号/worker；目录/推荐、GC及P7/P8继续实施，见[冻结来源播放](resource-version-architecture.md#冻结来源播放子阶段)。
+
+用户目录投影基础基线21b14d6，分支feat/owned-catalog-projection，0047新增本人term/link与明确现有关系投影；成功激活/旧显式导入同步、移出级联，统计只读本人当前合法版本。HTTP目录/外部搜索/推荐继续实施，不开放普通账号。
+
+目录投影基础隔离门槛（2026-10-15）：SQLite全量1198 passed/28 skipped、临时PostgreSQL17 passed；0047往返保留旧资源/M2M/持有/版本事实，只增减可重建派生表。完整pre-commit通过后提交，现有实例未迁移；消费者与P6–P8继续。

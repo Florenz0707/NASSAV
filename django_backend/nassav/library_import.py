@@ -80,6 +80,10 @@ def import_legacy_library(username, *, apply=False):
                     "access_scope": f"legacy:operator:{user.pk}",
                 },
             )
+            if new:
+                from nassav.catalog_projection import sync_entry
+
+                sync_entry(entry)
             if new and pool.state == "pending_gc":
                 pool.state = "ready"
                 pool.gc_after = None

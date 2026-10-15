@@ -199,3 +199,5 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 共享模式本地播放在创建事务核查descriptor与本人video_version相同，session固定版本和账号epoch；授权读取占用不能以Redis容量代替。坏版本不回退旧AVID文件，旧会话不得跟随当前指针切换，原播放宽限与下架即时撤销保持区分。
 
 版本化来源播放使用本人元数据版本的冻结凭证引用与source_name，密钥可用性在创建事务外检查，创建/worker/媒体读取再次核查范围/账号代次。不得凭空共享私有引用、初始化无范围来源来替代检查，或以新Cookie复活旧元数据授权。新source进度key隔离scope/context，provider账本仍不证明字节相同。
+
+用户演员/类别目录以UserCatalogTerm/UserCatalogLink投影本人当前元数据持有，成功grant在user→pool事务批量同步；link不代表额外持有。不得用全局Actor/Genre的资源锚点关系代替版本事实，私有名称不全局提升；目录整数ID只是用户投影，外部搜索/推荐不得误当旧全局Actor/Genre ID。
