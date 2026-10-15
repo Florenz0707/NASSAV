@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from nassav.credential_crypto import CredentialUnavailable
 from nassav.recommendation.cover_cache import RecommendationCoverCacheService
-from nassav.recommendation.images import RecommendationImages
+from nassav.recommendation.images import RecommendationImages, source_image_context
 from nassav.recommendation_image_files import open_cache_image
 from nassav.resource_reads import ReadLeaseNotFound
 from nassav.source.Jable import Jable
@@ -35,8 +35,11 @@ def images(runtime, settings, tmp_path, monkeypatch):
     sources = []
 
     @contextmanager
-    def scope(actor, name):
+    def scope(actor, name, check_result):
+        from nassav.task_network import TaskNetworkControl
+
         source = Jable("http://global-proxy.test:8080")
+        source.set_task_control(TaskNetworkControl(check_result))
         source.bind_credential_context(context(records, actor))
         source.load_cookie_from_db()
         sources.append(source)
@@ -162,6 +165,39 @@ def test_symlink_cache_directory_cannot_be_read(tmp_path):
         open_cache_image(root, root / "scoped/cover.jpg")
 
 
+def owned_result(images, user=None):
+    from nassav.models import RecommendationSnapshot, RecommendationItem
+    from nassav.discovery_image_handles import recommendation_result
+
+    users, records, _, _, _ = images
+    user = user or users[0]
+    source = Jable("http://global-proxy.test:8080")
+    source.bind_credential_context(context(records, user.pk))
+    proof = source_image_context(source)
+    snapshot = RecommendationSnapshot.objects.create(
+        owner=user,
+        recommender_id="jable_page_lookup",
+        strategy_id="local_preference",
+        request_fingerprint="fixture",
+        request_payload={"_image_contexts_v1": {"jable": proof}},
+    )
+    row = RecommendationItem.objects.create(
+        snapshot=snapshot, rank=1, avid="IMAGE-001", source="Jable", cover_url=URL
+    )
+    payload = {
+        "items": [
+            {
+                "snapshot_id": snapshot.pk,
+                "avid": row.avid,
+                "source": row.source,
+                "cover_url": URL,
+            }
+        ]
+    }
+    result = recommendation_result(user.pk, payload)
+    return row, result, proof
+
+
 def test_http_scoped_stream_private_and_closes(images, monkeypatch):
     users, _, service, _, _ = images
     monkeypatch.setattr(
@@ -172,8 +208,14 @@ def test_http_scoped_stream_private_and_closes(images, monkeypatch):
     with override_settings(
         SOURCE_CREDENTIALS_ENABLED=True, NASSAV_OPERATOR_USERNAME=users[0].username
     ):
-        response = client.get(
+        rejected = client.get(
             "/nassav/api/recommendations/cover", {"url": URL, "source": "jable"}
+        )
+        assert rejected.status_code == 400
+        _, result, _ = owned_result(images)
+        response = client.get(
+            "/nassav/api/recommendations/cover",
+            {"handle": result["items"][0]["cover_handle"]},
         )
     assert response.status_code == 200
     assert response["Cache-Control"] == "private, no-store"

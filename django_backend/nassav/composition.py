@@ -336,7 +336,7 @@ def build_recommendation_images(user_id):
         raise PermissionError("Unscoped image cookie write is forbidden")
 
     @contextmanager
-    def scope(actor, name):
+    def scope(actor, name, check_result):
         factories = source_factories(
             settings.PROXY_URL if settings.PROXY_ENABLED else None,
             settings.BROWSER_FETCH_CONFIG,
@@ -349,7 +349,12 @@ def build_recommendation_images(user_id):
             or not settings.SOURCE_CONFIG.get(name, {}).get("weight")
         ):
             raise ValueError("Source unavailable")
-        with _controlled_source_scope(factories[name], lambda: check(actor)) as source:
+
+        def verify():
+            check(actor)
+            check_result()
+
+        with _controlled_source_scope(factories[name], verify) as source:
             yield source
 
     from nassav.recommendation_image_files import open_cache_image
@@ -422,6 +427,7 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
 
     proxy_server = create_proxy_server(settings.BROWSER_FETCH_CONFIG)
     credential_context: list["ScopedSourceContext | None"] = [None]
+    image_sources = {}
 
     def source_factory():
         source = Jable(
@@ -449,6 +455,7 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
                         )
                     )
                 )
+            image_sources["jable"] = source
         return source
 
     def jable_factory(strategy):
@@ -480,6 +487,13 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
             **strategy.recommender_kwargs,
         )
 
+    def image_contexts():
+        from nassav.recommendation.images import source_image_context
+
+        return {
+            name: source_image_context(source) for name, source in image_sources.items()
+        }
+
     def persist_scoped(persist):
         bound = credential_context[0]
         return bound.publish(persist) if bound is not None else persist()
@@ -490,6 +504,7 @@ def build_recommendation_manager(*, context=None, control=None, user_id=None):
         else DjangoRecommendationContext(user_id=user_id),
         {"jable_page_lookup": jable_factory},
         publication_fence=persist_scoped,
+        image_contexts=image_contexts,
     )
 
 

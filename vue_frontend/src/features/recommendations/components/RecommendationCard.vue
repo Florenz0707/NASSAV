@@ -5,6 +5,7 @@ import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { computed, ref, watch } from 'vue'
 import { recommendationApi } from '../../../api/index.js'
+import { useSessionStore } from '../../auth/stores/session.js'
 
 const props = defineProps({
   item: {
@@ -54,8 +55,9 @@ const settingsStore = useSettingsStore()
 const displayTitle = computed(() => resolveResourceTitle(props.item, settingsStore.displayTitle))
 const reasonsCount = computed(() => (hasReasons.value ? props.item.reasons.length : 0))
 const formattedScore = computed(() => Number(props.item?.score || 0).toFixed(1))
+const session = useSessionStore()
 const proxiedCoverUrl = computed(() =>
-  props.item?.cover_url ? recommendationApi.getCoverUrl(props.item.cover_url) : ''
+  recommendationApi.getResultCoverUrl(props.item, session.capabilities.personal_source_credentials)
 )
 
 watch(proxiedCoverUrl, () => {
@@ -95,7 +97,7 @@ function handleReasonsClick(event) {
   >
     <div class="cover-shell">
       <img
-        v-if="item.cover_url && !imageFailed"
+        v-if="proxiedCoverUrl && !imageFailed"
         :src="proxiedCoverUrl"
         :alt="displayTitle"
         class="cover-image"

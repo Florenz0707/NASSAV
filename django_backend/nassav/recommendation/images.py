@@ -1,9 +1,17 @@
 """Request-owned image lookup and stream checks, with source factories injected."""
 
+import hashlib
 from contextlib import AbstractContextManager
 from typing import Callable
 from nassav.recommendation.cover_cache import RecommendationCoverCacheService
 from nassav.resource_reads import ReadLeaseNotFound
+
+
+def source_image_context(source):
+    context = source.credential_context
+    if context is None:
+        raise PermissionError("Scoped image source required")
+    return [source.domain, hashlib.sha256(context.scope_key.encode()).hexdigest()]
 
 
 class CheckedImage:
@@ -33,15 +41,30 @@ class RecommendationImages:
             open_image,
         )
 
-    def open(self, user_id, source_name, url):
+    def open(
+        self,
+        user_id,
+        source_name,
+        url,
+        *,
+        expected_context=None,
+        check_result=lambda: None,
+    ):
+        check_result()
         self.check_actor(user_id)
         handle = None
         transferred = False
         try:
-            with self.source_scope(user_id, source_name) as source:
+            with self.source_scope(user_id, source_name, check_result) as source:
                 context = source.credential_context
                 if context is None:
                     raise PermissionError("Scoped image source required")
+                if (
+                    expected_context is not None
+                    and source_image_context(source) != expected_context
+                ):
+                    raise ReadLeaseNotFound("Image source context changed")
+                check_result()
                 service = RecommendationCoverCacheService(source)
                 if not service.is_allowed_url(url):
                     raise ValueError("Image source not supported")
@@ -52,6 +75,7 @@ class RecommendationImages:
                 context.check()
 
                 def check():
+                    check_result()
                     self.check_actor(user_id)
                     context.check()
 

@@ -462,3 +462,7 @@ UserWatchHistory新增pool（PROTECT）和仅含AVID/三个标题字段/来源�
 ## 0051 公平回收发现游标
 
 nassav_resource_gc_cursor为单例，仅version_after/pool_after/revision，不保存删除授权、用户状态或文件证据。每轮短事务推进keyset，然后在事务外依次取得pool fence/派发；回退只丢扫描位置，重新扫描依赖原GC幂等账本，不回滚任务/资产状态。升级/回退/再次升级须保留pool与GC job原值。
+
+## 本人结果图片范围证据
+
+RecommendationSnapshot.request_payload内部保留`_image_contexts_v1`，按来源记录domain与scope摘要，与推荐快照同fence发布，不含Cookie/UA且不加入公开effective_request。复用既有JSON列，无DDL/回填；缺失时不推测旧范围。图片句柄实时核查Item归属，搜索沿既有Redis上下文/TTL。详见[本人结果图片](discovery-image-architecture.md)。

@@ -173,3 +173,7 @@ useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代�
 ## 共享库的本地推荐种子
 
 共享模式下LocalPreferenceSeedProvider从本人UserCatalogTerm/current link聚合资源、观看/收藏及最近持有数；不从AVResource锚点的旧全局Actor/Genre关系取种子。保持原weight/selector/黑名单算法。lookup_payload使用catalog_term_id/namespace，不冒充旧全局actor_id/genre_id；手动目录屏蔽在本人的历史fence内按规范名字写入，跨用户ID404。来源搜索以命名实体及独立cache namespace消费新目录，普通准入仍关闭。见[目录消费者](resource-version-architecture.md#用户目录消费者子阶段)。
+
+## 本人结果图片
+
+范围模式封面仅使用服务器签发的本人结果句柄，来源/结果/账号代次均在缓存命中及流读取中检查；不得恢复任意URL代理。推荐发布通过注入image_contexts回调记录内部范围证据，旧无证据结果使用占位，不自动回填来源范围或抓取。详见[结果图片架构](discovery-image-architecture.md)。

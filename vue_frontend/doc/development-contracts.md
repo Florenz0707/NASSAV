@@ -323,3 +323,7 @@ features/admin/lib/adminRead拥有管理查询的当前登录/请求代次；acc
 管理中心work复用既有/tasks/jobs审计协议，仅app_admin装配，不与本人operation跟踪混用。列表按job_id及服务端排序分页；按钮仅接受allowed_actions。workAdministration冻结任务版本、动作、审计原因和request UUID，结果未知使用原命令重试；409不采纳响应的新版本继续控制，须刷新后重新确认。动作期间及成功后的列表刷新均保持busy，迟到结果不能写入新登录。
 
 全局暂停/恢复/终止及清理重试明确提示影响其他等待者；本人撤销仍在任务详情中。HTTP202仅表示登记，清理状态独立展示，不以cancelled宣称中间产物已删除。界面只显示执行编号/AVID/类型、阶段、清理状态和时间，不展开来源配置或凭证。清理重试复用cleanup/retry端点；未知动作在API层拒绝。
+
+### 本人推荐/搜索图片句柄
+
+推荐与外部卡片统一调用recommendationApi.getResultCoverUrl，范围模式只用服务器cover_handle，不因缓存缺少句柄回退cover_url/source请求。旧模式保持原URL代理。外部响应原thumbnail_url映射cover_url时保留句柄；图片失败或句柄缺失显示既有占位，不自动重新搜索。句柄不独立持久化或保活，随原结果缓存；服务端实时检查归属/范围/TTL。

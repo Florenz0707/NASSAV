@@ -259,6 +259,10 @@ def main():
             if (root / "redis.sock").exists():
                 break
             time.sleep(0.02)
+        if os.environ.get("NASSAV_DISCOVERY_IMAGE_UI_TEST_FIXTURE") == "1":
+            from discovery_image_fixture import install
+
+            install(settings, root, user)
         import uvicorn
         from django_project.asgi import application
 

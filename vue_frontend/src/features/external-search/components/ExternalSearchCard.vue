@@ -4,6 +4,7 @@ import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 import { useSettingsStore } from '../../settings/stores/settings.js'
 import { computed, ref, watch } from 'vue'
 import { recommendationApi } from '../../../api/index.js'
+import { useSessionStore } from '../../auth/stores/session.js'
 
 const props = defineProps({
   item: {
@@ -25,11 +26,11 @@ const emit = defineEmits(['add', 'open', 'view'])
 const settingsStore = useSettingsStore()
 const displayTitle = computed(() => resolveResourceTitle(props.item, settingsStore.displayTitle))
 const imageFailed = ref(false)
+const session = useSessionStore()
 const proxiedCoverUrl = computed(() =>
-  props.item?.cover_url
-    ? recommendationApi.getCoverUrl(props.item.cover_url, props.item.source || 'jable')
-    : ''
+  recommendationApi.getResultCoverUrl(props.item, session.capabilities.personal_source_credentials)
 )
+
 watch(proxiedCoverUrl, () => {
   imageFailed.value = false
 })
@@ -56,7 +57,7 @@ const metrics = computed(() => {
   <article class="external-search-card">
     <div class="cover-shell">
       <img
-        v-if="item.cover_url && !imageFailed"
+        v-if="proxiedCoverUrl && !imageFailed"
         :src="proxiedCoverUrl"
         :alt="displayTitle"
         class="cover-image"

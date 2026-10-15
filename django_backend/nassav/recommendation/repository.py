@@ -234,6 +234,11 @@ class RecommendationSnapshotRepository:
             strategy_id=execution.strategy_id,
             request_fingerprint=execution.request_fingerprint or "",
             request_payload={
+                **(
+                    {"_image_contexts_v1": execution.image_contexts}
+                    if execution.image_contexts
+                    else {}
+                ),
                 "limit": execution.request.limit,
                 "per_seed_limit": execution.request.per_seed_limit,
                 "actor_seed_limit": execution.request.actor_seed_limit,

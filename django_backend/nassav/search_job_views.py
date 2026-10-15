@@ -36,6 +36,9 @@ class SearchQuerySerializer(serializers.Serializer):
 
 
 def public_snapshot(snapshot: dict) -> dict:
+    from nassav.discovery_image_handles import search_snapshot
+
+    snapshot = search_snapshot(snapshot.get("owner_id"), snapshot)
     return {
         key: value
         for key, value in snapshot.items()

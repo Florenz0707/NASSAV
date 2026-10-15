@@ -45,7 +45,13 @@ class RecommendationsDemoView(SchemaAPIView):
             execution = build_recommendation_manager(user_id=request.user.pk).recommend(
                 request_params=personal_request_params(request),
             )
-            return build_response(200, "success", execution.to_dict())
+            from nassav.discovery_image_handles import recommendation_result
+
+            return build_response(
+                200,
+                "success",
+                recommendation_result(request.user.pk, execution.to_dict()),
+            )
         except RecommendationManagerError as e:
             return build_response(400, str(e), None)
         except RecommendationStopped:
@@ -73,7 +79,13 @@ class RecommendationsView(SchemaAPIView):
                 strategy_id=strategy_id,
                 request_params=personal_request_params(request),
             )
-            return build_response(200, "success", execution.to_dict())
+            from nassav.discovery_image_handles import recommendation_result
+
+            return build_response(
+                200,
+                "success",
+                recommendation_result(request.user.pk, execution.to_dict()),
+            )
         except RecommendationManagerError as e:
             return build_response(400, str(e), None)
         except RecommendationStopped:
@@ -384,23 +396,27 @@ class RecommendationCoverView(SchemaAPIView):
         from nassav.recommendation.cover_cache import RecommendationCoverCacheService
         from nassav.source import Jable
 
-        cover_url = request.query_params.get("url", "").strip()
-        if not cover_url:
-            return build_response(400, "url 参数缺失", None)
         if settings.SOURCE_CREDENTIALS_ENABLED:
             from nassav.composition import build_recommendation_images
+            from nassav.discovery_image_handles import resolve
 
-            source_name = str(request.query_params.get("source", "jable")).lower()
+            if set(request.query_params) != {"handle"}:
+                return build_response(400, "需要本人结果图片句柄，不接受来源URL", None)
+            reference = resolve(request.user.pk, request.query_params.get("handle"))
             try:
                 image = build_recommendation_images(request.user.pk).open(
-                    request.user.pk, source_name, cover_url
+                    request.user.pk,
+                    reference.source,
+                    reference.url,
+                    expected_context=reference.context,
+                    check_result=reference.check,
                 )
             except ValueError:
                 return build_response(400, "封面来源不受支持", None)
             try:
                 from urllib.parse import urlparse
 
-                mime = guess_type(urlparse(cover_url).path)[0]
+                mime = guess_type(urlparse(reference.url).path)[0]
                 if mime not in {"image/jpeg", "image/png", "image/webp"}:
                     mime = "image/jpeg"
                 response = FileResponse(image, content_type=mime)
@@ -413,6 +429,9 @@ class RecommendationCoverView(SchemaAPIView):
                 image.close()
                 raise
 
+        cover_url = request.query_params.get("url", "").strip()
+        if not cover_url:
+            return build_response(400, "url 参数缺失", None)
         proxy = settings.PROXY_URL if settings.PROXY_ENABLED else None
         source_name = str(request.query_params.get("source", "jable")).lower()
         if source_name == "missav":

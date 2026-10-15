@@ -573,7 +573,8 @@ DELETE /nassav/api/recommendations/avid-blocklist
 - 方法：GET
 - 路径：`/nassav/api/recommendations/cover`
 - Query 参数：
-  - `url`：原始推荐封面地址
+  - 范围模式：`handle`为本人推荐/搜索结果返回的`cover_handle`，不接受url/source。
+  - 旧operator兼容模式：`url`为原始推荐封面地址，`source`默认为jable。
 - 功能：后端代理并缓存推荐封面，避免前端直接访问受限站点资源
 
 ### 兼容 demo 接口
@@ -1631,7 +1632,7 @@ GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/a
 
 ### 凭证范围推荐/外搜封面
 
-SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?source=jable|missav&url=... 使用当前用户独立来源与范围缓存，不命中旧URL-only文件。来源/URL不支持400，凭证不可用503，授权失效403，图片不可用404。HTTP private/no-store、Vary Cookie、nosniff；流开始后失效中断后续块，已发送块无法撤回。普通账号未开放，结果句柄授权随P7/P8完成。
+SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?handle=... 只接受服务器在本人推荐Item或搜索结果上返回的cover_handle，不接受任意url/source。签名、归属、结果、账号代次/范围失效404，URL旧参数400，凭证不可用503，图片不可用404；不依赖客户端传入的上游地址授权。HTTP private/no-store、Vary Cookie、nosniff，流失效中断后续块。无范围证据的旧推荐和已过期搜索不签发句柄；推荐/搜索恢复响应重新投影，不为补句柄启动来源网络。设计见[本人结果图片](discovery-image-architecture.md)，普通准入仍待P8。
 
 ### 0048观看历史状态
 

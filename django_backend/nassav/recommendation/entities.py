@@ -150,6 +150,7 @@ class RecommendationExecution:
     snapshot_id: int | None = None
     request_fingerprint: str | None = None
     filtered_history_count: int = 0
+    image_contexts: dict = field(default_factory=dict, repr=False)
 
     def to_dict(self) -> dict:
         data = self.run.to_dict()

@@ -60,12 +60,16 @@ def fence_history(generation, user_id=None):
 
 
 def snapshot(job):
+    from nassav.discovery_image_handles import recommendation_result
+
     return {
         "job_id": str(job.pk),
         "version": job.version,
         "state": job.state,
         "message": job.message,
-        "result": job.result if job.state == "succeeded" else None,
+        "result": recommendation_result(job.owner_id, job.result)
+        if job.state == "succeeded"
+        else None,
         "progress": job.result if job.state == "running" else None,
         "allowed_actions": ["cancel"] if job.state in ACTIVE else [],
         "created_at": job.created_at.isoformat(),

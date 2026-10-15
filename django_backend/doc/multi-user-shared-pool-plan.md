@@ -1,6 +1,6 @@
 # 多用户、来源凭证与共享资源池执行计划
 
-制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3–P5已完成下述隔离实现，P6已完成历史、受控文件回收及派发/管理协议；P7已接入会话、个人凭证、本人请求/库命令与持有管理，管理员界面继续实施，P8待统一验收，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0051。
+制定日期：2026-10-14。代码基线：6bedcb6（v2.5.1之后的文档清理）。P0契约见[多用户契约](multi-user-contracts.md)，P1见[共享池架构](resource-pool-architecture.md)，P2见[账号策略](account-policy-architecture.md)。P3–P5已完成下述隔离实现，P6已完成历史、受控文件回收及派发/管理协议；P7已接入会话、个人凭证、本人请求/库命令与持有管理，管理员/本人结果图片已接入，缓存收尾与P8统一验收继续，普通用户登录继续关闭。本轮后续已获SQLite迁移授权；执行范围为隔离数据库，未导入现有实例、发布或清理资源。实施时重新核对HEAD、迁移叶节点和目标配置；当前开发迁移叶节点为0051。
 
 ## 1. 目标与首版范围
 
@@ -415,3 +415,11 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 基线9dc2f99，分支feat/admin-shared-work-ui：管理中心接入既有全局任务列表及审计控制，allowed_actions、固定job版本/UUID、原因与二次确认；明确与本人撤销的影响边界。状态排序/分页和文件清理独立展示，不读取配置或凭证，不以登记等同停止。后端协议/schema不变，图片结果句柄与P8继续。
 
 全局执行隔离门槛（2026-10-15）：Chrome与Firefox通过真实临时HTTP/SQLite/Redis的暂停结果未知重放、恢复旧版本拒绝/刷新、恢复/终止和本人请求投影，Firefox复核暂停审计无重放重复；窄屏/两主题/嵌套Escape通过。SQLite账号/权限/共享请求专项27 passed，前端完整check通过，额外覆盖清理重试API路径与动作白名单。没有运行来源writer或声明文件已清理；完整pre-commit通过后提交。
+
+### P7本人结果图片句柄子阶段
+
+基线97a137d，分支feat/owned-discovery-images：推荐/搜索投影签发本人结果句柄，原URL入口仅留旧模式；推荐随快照JSON保存版本化内部范围证据，搜索沿Redis证据及只读详情补图。缓存/传输检查结果、来源和账号代次，缺历史证据不猜测回填。无DDL迁移；普通准入与P8继续。
+
+本人图片阶段首轮验证：图片/范围/推荐与搜索组合84 passed，补充稳定句柄专项后图片23 passed；PostgreSQL图片及推荐job专项36 passed。Chrome生产卡片配真实临时HTTP/SQLite/Redis/预填合成PNG验证两个结果句柄、URL参数拒绝、私有响应、缺句柄不回退、删除搜索键/重置历史后旧图片404。仅宿主HTML受控，不抓取真实站点；Firefox及全量门槛继续。
+
+本人结果图片最终隔离门槛（2026-10-15）：全量SQLite1314 passed/28 skipped，PostgreSQL36 passed，前端完整check通过；Chrome/Firefox均以新的临时fixture通过真实图片HTTP和生产卡片，缺句柄无URL回退、搜索TTL删除和历史重置旧句柄404。旧推荐恢复、外部渐进分页模拟回归通过。无DDL、真实来源请求或现有实例写入；完整pre-commit通过后提交，缓存收尾和P8继续。

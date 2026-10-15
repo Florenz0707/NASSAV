@@ -28,6 +28,17 @@ export const recommendationApi = {
   unblockAvid: (payload) => api.delete('/recommendations/avid-blocklist', { data: payload }),
   // 清空推荐状态，默认由后端保留黑名单
   resetState: (payload = {}) => api.post('/recommendations/reset', payload),
+  // Scoped mode accepts server-issued owned-result handles only.
+  getResultCoverUrl: (item, scoped = false) => {
+    if (!item) return ''
+    if (!scoped)
+      return item.cover_url
+        ? recommendationApi.getCoverUrl(item.cover_url, item.source || 'jable')
+        : ''
+    if (typeof item.cover_handle !== 'string' || !item.cover_handle) return ''
+    const base = api.defaults.baseURL.replace(/\/$/, '')
+    return `${base}/recommendations/cover?handle=${encodeURIComponent(item.cover_handle)}`
+  },
   // 获取推荐封面代理地址
   getCoverUrl: (coverUrl, source = 'jable') => {
     const base = api.defaults.baseURL.replace(/\/$/, '')
