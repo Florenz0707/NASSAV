@@ -329,3 +329,37 @@ def list_entries(user_id, params, *, include_pending=False):
         "page_size": size,
         "pages": paginator.num_pages,
     }
+
+
+def membership_statuses(user_id, avids):
+    """One bounded owner query; absence never exposes global inventory."""
+    if len(avids) > 100:
+        raise ValueError("At most 100 resource identities")
+    entries = {
+        row["pool__canonical_avid"]: {
+            "entry_id": str(row["pk"]),
+            "entry_version": row["version"],
+            "membership_state": row["state"],
+            "is_in_my_library": True,
+            "is_available": row["pool__is_available"]
+            and row["pool__state"] in {"ready", "preparing"},
+        }
+        for row in UserLibraryEntry.objects.filter(
+            user_id=user_id, pool__canonical_avid__in=avids
+        ).values(
+            "pk",
+            "version",
+            "state",
+            "pool__canonical_avid",
+            "pool__is_available",
+            "pool__state",
+        )
+    }
+    absent = {
+        "entry_id": None,
+        "entry_version": None,
+        "membership_state": None,
+        "is_in_my_library": False,
+        "is_available": False,
+    }
+    return [{"avid": avid, **entries.get(avid, absent)} for avid in avids]

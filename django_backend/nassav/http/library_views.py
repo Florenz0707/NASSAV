@@ -233,3 +233,24 @@ class MyOperationsView(LibraryAPIView):
                 "pages": paginator.num_pages,
             },
         )
+
+
+class LibraryMembershipStatusView(LibraryAPIView):
+    def post(self, request):
+        from nassav.library_catalog import membership_statuses
+        from nassav.task_control_rules import normalize_avid
+
+        if (
+            not isinstance(request.data, dict)
+            or set(request.data) != {"avids"}
+            or not isinstance(request.data["avids"], list)
+            or len(request.data["avids"]) > 100
+            or any(not isinstance(value, str) for value in request.data["avids"])
+        ):
+            raise ValueError("Provide at most 100 resource identities")
+        avids = list(
+            dict.fromkeys(normalize_avid(value) for value in request.data["avids"])
+        )
+        return build_response(
+            200, "success", membership_statuses(request.user.pk, avids)
+        )

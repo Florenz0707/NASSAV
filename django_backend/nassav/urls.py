@@ -36,6 +36,7 @@ from nassav.http.credential_views import (
 )
 from nassav.http.library_views import (
     LibraryEntriesView,
+    LibraryMembershipStatusView,
     LibraryEntryView,
     LibraryEntryOperationsView,
     LibraryEntryImageView,
@@ -104,6 +105,11 @@ urlpatterns = [
     ),
     path("api/my-operations", MyOperationsView.as_view(), name="my-operations"),
     path("api/library/entries", LibraryEntriesView.as_view(), name="library-entries"),
+    path(
+        "api/library/entries/status",
+        LibraryMembershipStatusView.as_view(),
+        name="library-membership-status",
+    ),
     path(
         "api/library/entries/<uuid:entry_id>/images/<str:asset_id>",
         LibraryEntryImageView.as_view(),

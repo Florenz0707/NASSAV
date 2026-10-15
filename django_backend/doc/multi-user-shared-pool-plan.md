@@ -353,3 +353,9 @@ GC场景时间一致性补齐：基线fa7f4dd，分支fix/gc-fixture-clock-consi
 基线56936a7，分支feat/personal-source-credentials-ui：添加页按模式装配个人盲写/旧兼容界面，Cookie/UA必填、CAS冲突保留草稿、撤销与未保存确认；来源缓存身份由本用户/系统元信息及密钥策略派生，HTTP写响应立即返回，来源页面重建但添加表单保留。真实Chrome/Firefox配临时HTTP/SQLite/keyring通过深浅主题、第二登录竞争、撤销、窄屏及不落浏览器存储检查，不访问真实来源站点。共享库命令/个人operation/管理UI、范围结果图片句柄及P8继续，普通准入未开放。
 
 个人凭证子阶段门槛（2026-10-15）：SQLite全量1282 passed/28 skipped，PostgreSQL凭证/会话24 passed；前端132单元测试、lint与构建通过，完整pre-commit通过。Chrome和Firefox最终均以真实HTTP/SQLite/临时0600 keyring完成两主题、字段校验、CAS冲突/重载、撤销、嵌套确认、窄屏滚动、不持久化秘密与添加表单保留检查。无新schema、真实来源请求或现有实例切换；普通准入仍关闭。
+
+### P7本人库状态基础子阶段
+
+基线493ac08，分支feat/library-membership-status：无schema变更，新增最多100项的本人关系状态查询及前端30秒/500项内存缓存，entry_id/version复用现有CAS；按登录/请求序号隔离并在前台核查后失效。不新增全局库版本计数器，避免额外写入和锁顺序。消费者、本人操作与管理UI及P8继续实施，普通准入保持关闭。
+
+本人关系状态隔离门槛（2026-10-15）：`uv run pytest tests/ --ds=django_project.refactoring_test_settings -v`为1291 passed/28 skipped；临时PostgreSQL关系专项20 passed。`pnpm run check`包含缓存过期、重叠请求、错误/迟到响应、切换前抑制传输及有界分批回归，lint/测试/构建通过；完整`pre-commit run -a`通过后提交。无新schema、真实站点请求或实例变更；本阶段没有视觉布局修改，后续共享库动作须继续真实HTTP浏览器验收。

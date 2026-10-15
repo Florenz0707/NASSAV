@@ -16,6 +16,7 @@ import { useActorGroupsStore } from './features/catalog/stores/actorGroups.js'
 import { useGenreGroupsStore } from './features/catalog/stores/genreGroups.js'
 import { useDownloadQueueStore } from './features/resources/stores/downloadQueue.js'
 import { useTaskJobsStore } from './features/tasks/stores/taskJobs.js'
+import { useMembershipsStore } from './features/library/stores/memberships.js'
 import { useSessionStore } from './features/auth/stores/session.js'
 
 const mainContent = ref(null)
@@ -60,6 +61,7 @@ watch(
 async function refreshVisibleJobs() {
   if (sessionStore.status === 'authenticated' && document.visibilityState === 'visible') {
     if (!(await sessionStore.recheck())) return
+    if (sessionStore.capabilities.shared_library) useMembershipsStore().invalidate()
     resourceStore.refreshPendingScrapeJobs()
     taskJobs.poll(true)
   }
@@ -74,6 +76,11 @@ watch(
   () => [sessionStore.status, sessionStore.identity],
   ([status, identity], previous) => {
     wsStore.disconnect()
+    useMembershipsStore().reset(
+      status === 'authenticated' && sessionStore.capabilities.shared_library
+        ? sessionStore.identity
+        : ''
+    )
     useToastStore().clear()
     resourceStore.beginSession(status === 'authenticated' ? sessionStore.identity : '')
     useDownloadQueueStore().beginSession(status === 'authenticated' ? sessionStore.identity : '')

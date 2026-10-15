@@ -265,3 +265,7 @@ CookieManagementDialog是模式装配入口：capabilities.personal_source_crede
 session store额外持有sourceIdentity，从source_cache_identity读取；凭证写成功用其返回值立即更新，无需额外session请求。来源身份变化使推荐store/来源页面及其缓存失效，拒绝旧来源请求的结果/错误/清理动作；cache_identity保持时不重建添加表单及个人设置。外部搜索/推荐用sourceIdentity命名，所有对象授权仍归后端，字段不是token。普通登录仍关闭，公共/个人提交模式及共享库/管理页面继续实施。
 
 个人凭证弹窗最大高度为视口减标准留白，内容是唯一滚动区，标题与关闭保留；复用SettingsModal/useDialog、ConfirmDialog、AppButton五态和CustomSelect键盘操作。加载超过1秒用公共spinner，失败可重试，空来源明确显示空状态；保存与撤销分别展示loading文案。
+
+### 本人库状态缓存
+
+features/library的membershipLookup只拥有请求归属及短期状态缓存，持有关系由DB拥有。统一libraryApi分批最多100项，重复批次共享请求，重叠批次按AVID请求序号拒绝旧发布；不完整响应不得部分写入。缓存30秒、最多500项，不落浏览器存储。App按登录身份重置，共享模式回到前台完成session核查后失效；revision供消费者重新核查。未查询/失败不能解读为未持有，列表恢复应显式刷新，命令成功或operation变化需失效。当前子阶段仅提供基础查询，卡片和命令消费者随后接入。

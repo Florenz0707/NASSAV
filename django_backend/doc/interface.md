@@ -1661,3 +1661,7 @@ capabilities中的shared_library、personal_source_credentials、app_admin、res
 ### 来源凭证写响应的缓存上下文
 
 `GET /api/auth/session`及成功登录响应另含source_cache_identity（匿名null；范围模式关闭时与cache_identity相同）。`POST/PUT/DELETE /api/me/source-credentials`和管理员系统凭证写响应在原元信息上增加source_cache_identity，不改变id/version/state等字段，不返回秘密。配套User-Agent沿既有加密协议必须为非空可打印字符串；个人新建expected_version=0，替换/撤销使用已读版本，冲突409。个人Cookie界面不提供明文查看、复制或匿名自动获取。
+
+### 本人持有关系批量状态
+
+`POST /api/library/entries/status`仅接受`{"avids": ["ABC-123"]}`，最多100项，规范化并按首次出现去重；空列表返回空数组。沿用共享库准入、CSRF和private/no-store、Vary Cookie。一次本人关系查询返回avid、entry_id、entry_version、membership_state、is_in_my_library、is_available；pending也属于本人库，is_available只表示池可用且状态允许读取，不授予媒体权限。未持有时关系字段为null、两个标记为false，无法区分不存在与他人独占。无标题/凭证/全局库存信息，不接受owner覆盖。前端命令仍用当前entry版本执行CAS。
