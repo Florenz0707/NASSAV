@@ -210,3 +210,7 @@ GC测试的unheld场景同时给默认构造的真实DjangoGcRecords注入同一
 多用户准入专项：后端`uv run pytest tests/test_multi_user_admission.py --ds=django_project.refactoring_test_settings -q`。原生浏览器在上述operation/library临时helper另设`NASSAV_MULTI_USER_UI_TEST_FIXTURE=1`，只在隔离实例开启准入，生成0600的multi-user-fixture.json，不打印秘密。根目录运行`NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_MULTI_USER_FIXTURE=<打印路径> node vue_frontend/tests/browser/multiUserAdmission.cjs`，Firefox同上。Vite4188代理后端9794，NASSAV_BROWSER_BACKEND_ORIGIN直接指向后端用于admin路径校验（不经Vite API代理）。每轮新fixture；真实账号/CSRF/Cookie隔离、公共合并/私人分离、配额、取消、旧请求拒绝、停用/WS撤销；不启动来源worker。helper退出清理临时DB/账号/keyring/Redis，不能代替来源或实例切换验收。
 
 P8原生worker与恢复：`uv run pytest tests/test_multi_user_native_acceptance.py --ds=django_project.refactoring_test_settings -q`。独立Unix Redis+真实Celery solo线程非eager执行，两个本人HTTP/CSRF请求、源阶段barrier下分别0/1/2人取消、真实JPEG/版本发布及重复同task ID再次送达；仅来源Gateway合成。隔离全局Celery app/临时DB/文件，恢复CLI只操作临时账号；不触碰配置中的现有数据库或真实来源。目标切换仍见[切换手册](../doc/multi-user-cutover.md)。
+
+安全补导入专项：`uv run pytest tests/test_recommendation_safe_import.py tests/test_recommendation_user_isolation.py --ds=django_project.refactoring_test_settings -q`。覆盖显式选项/默认拒绝、只读预览、黑名单原行和反馈关系保持、两侧旧writer代次拒绝、幂等重放，以及已有历史/种子/旧AVID黑名单/queued/running的原子拒绝；不操作实例。PostgreSQL同组使用独立UTF8临时库。
+
+跨测试模块复用pytest fixture时，使用显式同名re-export或模块级别名赋值，不能只依赖函数参数名让Ruff判定导入有用；格式化/自动修复后先核对fixture仍已注册，再运行全量门槛。原生worker专项的broker_redis沿模块赋值保留，避免自动删除导入后测试无法启动。

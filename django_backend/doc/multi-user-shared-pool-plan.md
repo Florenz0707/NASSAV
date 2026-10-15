@@ -449,3 +449,13 @@ P8本轮提交：受控准入baf2bbe（基线95d7dee）；原生验收与切换�
 基线bf83195，分支chore/multi-user-postgres-cutover。用户新增PostgreSQL迁移授权后，核对dbb/nassav及无活动消费者，生成私有pg_dump备份、恢复到隔离UTF8 PostgreSQL预演，再执行目标0036→0051；15项迁移OK，39张原表6267条原行/字段摘要保持，0待迁移、无模型差异。只允许Django生成新模型权限，不修改原用户授权。业务导入/管理员引导仅只读预览，旧Cookie不激活，普通准入/GC仍关闭；归属及后续目标验收待确认。详情及备份位置见[执行记录](postgres-multi-user-migration-20261015.md)。完整pre-commit通过后提交合并；未将隔离测试冒充目标来源/部署验收。
 
 操作者后续确认旧归属/admin及Cookie只隔离：目标已建立693份nassav持有、显式admin；保留已有42条个人状态与设置，两份凭证加密quarantined且解密核对通过。预演遇到352条个人AVID黑名单触发推荐导入保护；7批旧历史/25种子尚未合并，已询问补空历史/种子的规则，不绕过保护。专用keyring持久保存于Git忽略的secrets，未改默认工作树源码或配置。新模式开关继续关闭。
+
+### P8保留个人黑名单的安全补导入
+
+基线cdc36a1，分支fix/recommendation-import-preserve-blocklist；操作者确认保留352条个人AVID黑名单并补空历史/种子。新增显式--preserve-personal-blocklist，默认严格拒绝合并不变；只在目标历史/种子和旧AVID黑名单为空、无目标活动job时转移归属，保留item/feedback和黑名单原行；两侧历史generation推进一次，重放不再推进。无schema变更。
+
+SQLite推荐专项11 passed、PostgreSQL同组11 passed，补修原生worker fixture注册后组合15 passed。原生测试曾因此前Ruff移除不同名fixture导入而报3个setup error，已使用显式模块赋值修复并在稳定格式化后重跑全量；不把未启动测试当跳过或成功。实际备份恢复预演通过7批历史/25种子归属、352条黑名单及其他个人/反馈/凭证摘要保持。完整质量门槛通过后才执行目标补导入。
+
+后续真实来源门槛：实际全局代理localhost:7077和浏览器服务localhost:8192的TCP探测可达，但真实凭证resolver因两份quarantined记录拒绝公共来源且不回退匿名。不能激活未知旧Cookie来通过验收；需要有效且已分类的新凭证，四个新模式开关继续false。
+
+安全补导入最终结果：稳定格式化后全量SQLite1335 passed/28 skipped，SQLite/PG推荐专项各11 passed，原生组合15 passed，完整pre-commit通过；实际目标已补入7批历史/25种子，352条黑名单及反馈/个人/凭证摘要不变，重放[0,0,0]且generation不再推进。已留前后私有恢复点。功能门槛已通过，剩余真实来源门槛因隔离凭证阻断，需要操作者提供有效已分类的新凭证，不启用未知旧Cookie或四个新模式开关。

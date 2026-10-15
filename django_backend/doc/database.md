@@ -1,6 +1,6 @@
 # 数据库与迁移
 
-当前开发叶节点为0051。2026-10-15经授权的PostgreSQL dbb/nassav已从0036升级至0051，原字段摘要保持；后续经确认完成独立归属/admin/Cookie隔离导入，推荐合并仍暂停；详见[目标迁移记录](postgres-multi-user-migration-20261015.md)。下文各P1/P2/P3“叶节点”和未迁移表述为当阶段历史快照，不代表当前实例。
+当前开发叶节点为0051。2026-10-15经授权的PostgreSQL dbb/nassav已从0036升级至0051，原字段摘要保持；后续经确认完成独立归属/admin/Cookie隔离导入，推荐安全补导入已完成且保留352条个人黑名单，新模式仍关闭；详见[目标迁移记录](postgres-multi-user-migration-20261015.md)。下文各P1/P2/P3“叶节点”和未迁移表述为当阶段历史快照，不代表当前实例。
 
 未发布P3存储子阶段新增0040的SourceCredential/SourceSessionSnapshot；开发叶节点为0040，不自动导入旧Cookie、不切换消费者，详见[凭证架构](source-credential-architecture.md)。新增表逆向会丢失凭证/快照，回退前必须备份密钥及数据，不能将个人凭证压回一份全局Cookie。
 

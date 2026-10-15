@@ -177,3 +177,9 @@ useRecommendationElapsed 的单调时钟用于页面等待时长，不能替代�
 ## 本人结果图片
 
 范围模式封面仅使用服务器签发的本人结果句柄，来源/结果/账号代次均在缓存命中及流读取中检查；不得恢复任意URL代理。推荐发布通过注入image_contexts回调记录内部范围证据，旧无证据结果使用占位，不自动回填来源范围或抓取。详见[结果图片架构](discovery-image-architecture.md)。
+
+## 显式旧推荐安全补导入
+
+默认import_recommendation_data仍拒绝向已有任一类个人推荐数据的账号合并。可选--preserve-personal-blocklist仅用于目标历史/种子均为空、旧无owner AVID黑名单为空的情形；保留当前个人AVID黑名单原行，不覆盖、不按AVID猜合并。存在目标queued/running job仍拒绝，检查与更新都在原操作者及历史短fence中。预览不写，apply重核条件，重放无旧数据时不推进代次。
+
+该选项成功时分别递增旧无owner与目标历史generation，既不回退目标代次，也不允许迁移前已准备的同步执行迟到写入。迁移snapshot沿原item/feedback关系改变owner，种子沿owner迁移；不重算/覆盖已有黑名单，不取源、不补旧图片范围证据。缺图片证据仍按既有句柄契约显示占位。没有该选项的旧空库导入行为保留。

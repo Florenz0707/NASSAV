@@ -632,3 +632,7 @@ git show cc6ab42^:django_backend/doc/validation-status.md
 ## 共享资源回收
 
 `manage.py resource_gc`默认只读预览，写操作要求显式action、应用管理员actor、理由、对象版本与request_id，执行另需默认关闭的RESOURCE_GC_ENABLED。参数/安全边界见[回收架构](../doc/resource-gc-architecture.md#派发与管理)。旧check_resources/videos/actor_avatars_consistency在共享/范围版本布局拒绝执行，不绕过新日志修复文件。
+
+### 保留个人资源黑名单的旧推荐补导入
+
+从django_backend目录：`uv run python manage.py import_recommendation_data --username <原操作者> --preserve-personal-blocklist`先预览，再在维护窗口增加--apply。仅目标历史/种子为空、旧AVID黑名单为空且无目标活动job时可用；当前个人黑名单完全保留。不是通用合并开关；既有历史/种子、待合并旧黑名单及活动job仍拒绝。详见[推荐架构](../doc/recommendation-architecture.md#显式旧推荐安全补导入)及[目标迁移记录](../doc/postgres-multi-user-migration-20261015.md)。

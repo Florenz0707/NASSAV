@@ -1,6 +1,6 @@
 # 多用户与共享资源池切换手册
 
-本文对应执行计划P8，描述已有命令和隔离证据。2026-10-15经授权已将确认的PostgreSQL目标从0036升级到0051；[执行记录](postgres-multi-user-migration-20261015.md)区分结构迁移与已确认的独立归属导入及尚未完成的推荐合并/功能开放。新结构当前叶节点为0051；普通准入与自动回收默认关闭。入口与身份协议见[准入架构](multi-user-admission-architecture.md)，资产与回退见[版本架构](resource-version-architecture.md)和[回收架构](resource-gc-architecture.md)。
+本文对应执行计划P8，描述已有命令和隔离证据。2026-10-15经授权已将确认的PostgreSQL目标从0036升级到0051；[执行记录](postgres-multi-user-migration-20261015.md)区分结构迁移与已确认的独立归属导入及已完成的推荐安全补导入及尚未开放的新模式。新结构当前叶节点为0051；普通准入与自动回收默认关闭。入口与身份协议见[准入架构](multi-user-admission-architecture.md)，资产与回退见[版本架构](resource-version-architecture.md)和[回收架构](resource-gc-architecture.md)。
 
 ## 当前证据与实例边界
 
@@ -41,7 +41,7 @@ uv run python manage.py import_recommendation_data --username nassav
 # 确认上面各项归属与冲突后，分别增加 --apply
 ```
 
-个人设置需要导入旧INI时，personal命令显式增加`--settings-file <旧INI路径>`，不猜文件位置。推荐目标已有个人数据/活动任务时命令会拒绝自动合并，必须先决定保留/合并方案。
+个人设置需要导入旧INI时，personal命令显式增加`--settings-file <旧INI路径>`，不猜文件位置。推荐目标已有个人数据/活动任务时默认拒绝自动合并。确认保留当前个人AVID黑名单时，可显式增加--preserve-personal-blocklist；仅目标历史/种子和旧无owner AVID黑名单均为空、无目标活动job才可补导入。先预览、备份并核对规则，不使用SQL改owner绕过fence。
 
 resource导入建立`legacy:operator:<id>`持有和目录投影，不移动媒体、不伪造manifest、不提升为public版本；旧文件沿原操作者兼容读取。后续明确选择来源/公共或个人范围执行刷新/下载，才产生有发布证据的新版本。未知旧资产会阻止整池GC，不能为了通过验收直接删除旧目录。
 
@@ -118,4 +118,4 @@ uv run python manage.py resource_gc --action preview --target <pool-UUID>
 
 ## 六、尚需操作者确认
 
-目标PostgreSQL迁移已获授权并完成，私有恢复点与原数据核对见执行记录。归属/admin已另获确认，693份持有、管理员及两份Cookie加密隔离已落地；推荐导入因既有352条个人黑名单保护暂停。keyring路径、备份和保留规则见执行记录；统一消费者、解决推荐合并并完成目标验收后才考虑新模式放行，普通准入/GC仍关闭。
+目标PostgreSQL迁移已获授权并完成，私有恢复点与原数据核对见执行记录。归属/admin已另获确认，693份持有、管理员及两份Cookie加密隔离已落地；随后使用显式安全选项完成7批历史/25种子补导入，保留352条个人黑名单。keyring与恢复点见执行记录；两来源记录仍quarantined且resolver拒绝回退，需要有效新凭证和统一消费者完成真实来源/worker/挂载门槛，普通准入/GC仍关闭。

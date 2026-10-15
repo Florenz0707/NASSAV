@@ -31,6 +31,9 @@ from test_multi_user_admission import browser
 from test_version_publication import environment as environment
 from test_resource_gc_dispatch_admin import preserve_celery_apps as preserve_celery_apps
 
+from test_session_lifecycle_contracts import isolated_redis as _isolated_redis
+
+broker_redis = _isolated_redis
 pytestmark = pytest.mark.django_db(transaction=True)
 
 

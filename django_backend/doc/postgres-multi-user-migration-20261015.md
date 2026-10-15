@@ -62,3 +62,13 @@
 本分支不新增生产代码或schema；源码仍为已通过1329项隔离后端回归、前端200项检查和原生双账号/worker专项的bf83195。上述数字是代码基线的隔离证据，本次新增证据是恢复预演、目标迁移及只读核对；文档提交另执行完整pre-commit，不把历史测试重新标作本次目标联调。
 
 最终只读复核通过：0051、资源/持有各693、显式admin、个人黑名单352、旧历史7/种子25未归属、凭证2份全部隔离，四个新模式开关仍false。另保存after-ownership.dump和SHA256（0600文件/0700目录）；专用55467预演服务已停止，包含真实恢复副本的临时集群数据目录已清理，正式5432服务未停止。完整pre-commit通过后提交并合并idle。
+
+## 推荐安全补导入已执行
+
+操作者进一步确认保留352条黑名单并补空历史/种子。独立分支fix/recommendation-import-preserve-blocklist新增--preserve-personal-blocklist，默认严格拒绝合并保持；该选项也拒绝已有历史/种子、旧AVID黑名单或活动job。旧无owner及目标历史generation各推进一次，拒绝旧同步writer，重放不再推进。无schema变更。
+
+先将after-ownership.dump恢复到全新隔离PostgreSQL预演；再通过SQLite/PG推荐专项各11项、原生worker组合15项、稳定格式化后的完整SQLite1335 passed/28 skipped及完整pre-commit，才对真实目标执行新选项。期间发现此前Ruff误删不同名fixture导入造成原生测试setup错误，已用显式模块别名修复并重跑全量，不忽略错误。
+
+实际结果：7批历史、25条种子全部归nassav；352条个人AVID黑名单逐行摘要保持。原反馈/条目/种子关联、AVResource、SourceCookie、个人状态/设置及加密凭证摘要保持；历史/种子的非owner字段保持。再次执行返回[0,0,0]且两侧generation不再变化。导入前后分别保留before-recommendation-import.dump与after-recommendation-import.dump，操作脚本/日志/结果及SHA256位于前述私有恢复点。
+
+早前“推荐暂停”段落为发现保护条件时的阶段记录，现已解决。仍未完成的目标门槛是实际来源/ProxyServer与部署worker/挂载验收：TCP层实际代理localhost:7077及浏览器服务localhost:8192可达，但Jable/MissAV真实凭证resolver在只读核查中均因quarantined记录拒绝公共来源，按契约不回退匿名。需要新的、有效且已分类的clearance或对应用户个人凭证；不能启用未知旧Cookie来通过验收。来源范围/共享库/普通准入/自动GC四个开关继续false。

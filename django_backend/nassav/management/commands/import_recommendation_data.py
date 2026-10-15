@@ -20,6 +20,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--username", required=True)
         parser.add_argument("--apply", action="store_true")
+        parser.add_argument(
+            "--preserve-personal-blocklist",
+            action="store_true",
+            help="仅补空历史/种子，保留既有个人AVID黑名单；旧AVID黑名单必须为空",
+        )
 
     def handle(self, *args, **options):
         if options["username"] != settings.NASSAV_OPERATOR_USERNAME:
@@ -43,16 +48,30 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"预览：历史/种子/资源黑名单 {counts}；未写入，确认归属后加 --apply"
             )
+            if options["preserve_personal_blocklist"]:
+                retained = RecommendationAvidBlocklist.objects.filter(
+                    owner=user
+                ).count()
+                self.stdout.write(
+                    f"安全补导入：保留目标个人AVID黑名单 {retained} 条；"
+                    "目标历史/种子与旧AVID黑名单必须为空，apply将重核活动任务"
+                )
             return
         with transaction.atomic():
-            lock_history(None)
-            lock_history(user.pk)
+            legacy_generation = lock_history(None)
+            target_generation = lock_history(user.pk)
             counts = [
                 model.objects.filter(owner__isnull=True).count() for model in models
             ]
             if any(counts):
+                preserve = options["preserve_personal_blocklist"]
+                target_models = models[:2] if preserve else models
                 if (
-                    any(model.objects.filter(owner=user).exists() for model in models)
+                    (preserve and counts[2] != 0)
+                    or any(
+                        model.objects.filter(owner=user).exists()
+                        for model in target_models
+                    )
                     or RecommendationJob.objects.filter(
                         owner=user, state__in=ACTIVE
                     ).exists()
@@ -62,10 +81,16 @@ class Command(BaseCommand):
                     )
                 for model in models:
                     model.objects.filter(owner__isnull=True).update(owner=user)
-                # Preserve the imported history generation; there are no active target jobs.
-                generation = RecommendationState.objects.get(
-                    owner__isnull=True
-                ).generation
+                if preserve:
+                    # Revoke both old synchronous writers without rewinding the
+                    # target's fence or modifying its existing personal blacklist.
+                    RecommendationState.objects.filter(owner__isnull=True).update(
+                        generation=legacy_generation + 1
+                    )
+                    generation = target_generation + 1
+                else:
+                    # Compatibility import into an otherwise empty target.
+                    generation = legacy_generation
                 RecommendationState.objects.filter(owner=user).update(
                     generation=generation
                 )
