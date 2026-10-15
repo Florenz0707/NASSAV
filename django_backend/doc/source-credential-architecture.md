@@ -55,7 +55,7 @@ uv run python manage.py rotate_source_credentials --actor-id 1 --apply --batch-s
 
 ProxyServer.session_capabilities声明隔离上下文、挑战重放、Cookie注入、UA绑定和context revision。固定Byparr仅声明前两项，不发送它会忽略的账户字段；未核查适配器默认不允许账户重放。共用原Redis全局slot，不在slot内重复抢占同一容量；同credential/context刷新由DB owner/generation租约去重。拒绝未知挑战Cookie、跨host/端口/userinfo、账户Cookie/UA替换及未验证重放，匿名HTML不作为私人结果。实际代理出口与浏览器指纹仍待目标环境验证。
 
-Source直接请求每次读当前完整快照；Cookie仅发到配置HTTPS原站默认443端口，禁止自动重定向，封面/视频CDN不转发原站Cookie。源播放descriptor使用配套UA，不携带源站Cookie。旧SourceCookie HTTP在新模式返回410，来源自动保存也不再写旧表；配置切换必须统一重启消费者，不能混跑旧写入者。
+Source直接请求每次读当前完整快照；Cookie仅发到配置HTTPS原站默认443端口，禁止自动重定向，封面/视频CDN不转发原站Cookie。源播放descriptor使用配套UA，不携带源站Cookie。旧SourceCookie处理器在新模式返回410，已引导的受管账号会先被权限层以403拒绝；来源自动保存也不再写旧表。配置切换必须统一重启消费者，不能混跑旧写入者。
 
 DB事实与播放缓存、Jable短期摘要缓存、外搜聚合缓存包含credential身份/version、host、出口及context；DB缓存/推荐最终保存使用短fence。批量详情在批次边界核查，不逐资源查询授权。Redis短期缓存只使用不可变版本命名空间并检查当前选择，迟到写入即使存在也不可恢复使用，到原TTL清理；不把Redis网络调用放进DBfence。外搜提交保存非敏感source_context，worker再核查；原凭证变化后已完成句柄返回410，不伪造新的任务version或修改终态。
 
@@ -78,3 +78,9 @@ DB事实与播放缓存、Jable短期摘要缓存、外搜聚合缓存包含cred
 会话新增source_cache_identity：基于登录缓存身份、本用户/系统凭证的ID/version/state及全局key-policy版本派生；不读取ciphertext或secret，不返回其他用户私人引用。其他用户私人更新在密钥策略不变时不失效本用户来源缓存。GET只读，凭证写响应额外返回该不透明字段，使前端立即失效来源上下文，无需先依赖下一次轮询。此标识仅用于缓存，所有真实请求仍核查原凭证与账号fence。
 
 前端将来源身份与个人页面身份分开：凭证变更重建推荐/外部搜索，拒绝旧请求结果与错误，保留添加表单；回到前台通过session核查跨设备更新。系统凭证管理、共享任务UI和普通登录准入继续按P7/P8实施。
+
+## 公共系统凭证运维验证
+
+2026-10-15已对实际Jable/MissAV执行新公共挑战凭证获取、配套UA重放、管理员CAS更新及生产范围工厂复验，见[执行记录](source-credential-refresh-20261015.md)。管理员获取流程显式不消费隔离的未知旧Cookie，仅接受挑战白名单，并在提交前验证当前出口、版本、有效期、原站和业务内容；不把此流程作为私人账户的匿名回退。更新凭证仓库不等于切换已有消费者，运行配置和统一重启仍按本页切换协议执行。
+
+随后获授权[统一切换实际服务](source-service-cutover-20261015.md)，范围凭证/共享库已开启、keyring持久配置、API和三个worker均已优雅重启；原操作者真实HTTP读取与持久配置来源重放通过。普通多用户登录和GC保持关闭，尚不代表私人来源或真实共享任务发布已验收。

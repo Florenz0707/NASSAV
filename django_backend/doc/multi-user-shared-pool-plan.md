@@ -459,3 +459,15 @@ SQLite推荐专项11 passed、PostgreSQL同组11 passed，补修原生worker fix
 后续真实来源门槛：实际全局代理localhost:7077和浏览器服务localhost:8192的TCP探测可达，但真实凭证resolver因两份quarantined记录拒绝公共来源且不回退匿名。不能激活未知旧Cookie来通过验收；需要有效且已分类的新凭证，四个新模式开关继续false。
 
 安全补导入最终结果：稳定格式化后全量SQLite1335 passed/28 skipped，SQLite/PG推荐专项各11 passed，原生组合15 passed，完整pre-commit通过；实际目标已补入7批历史/25种子，352条黑名单及反馈/个人/凭证摘要不变，重放[0,0,0]且generation不再推进。已留前后私有恢复点。功能门槛已通过，剩余真实来源门槛因隔离凭证阻断，需要操作者提供有效已分类的新凭证，不启用未知旧Cookie或四个新模式开关。
+
+### P8新系统凭证获取与真实重放
+
+基线efe37c2，分支chore/source-credential-refresh-validation。获授权后使用ProxyServer与全局代理获取新公共挑战Cookie及配套UA，验证原站、有效期、三秒直接重放与业务解析；备份后沿管理员CAS协议将两份系统凭证替换为active/clearance版本2，再从生产范围工厂读取复验。Jable/MissAV最终重放分别HTTP200/778ms、HTTP200/698ms，审计与幂等回执只读核对通过，隔离回归36 passed。详见[执行记录](source-credential-refresh-20261015.md)。
+
+早前凭证隔离阻断已解除；没有激活未知旧Cookie、修改资源详情、运行配置或重启服务。新模式统一切换与真实worker/共享发布/挂载门槛继续待验，普通准入和GC未开放；文档提交执行完整pre-commit后合并idle。
+
+### P8范围来源与共享库统一服务切换
+
+用户另行授权切换当前服务、普通登录及GC仍关闭。基线dfedb06，分支chore/scoped-source-service-cutover：核对真实DB/任务/队列空闲，备份DB和.env，优雅停止旧API/三个worker，统一持久开启范围凭证及共享库、配置keyring后重启。新进程配置一致、三个worker broker ping通过；真实HTTP原操作者能力、系统凭证元信息、本人库/资源列表通过，旧Cookie入口在受管权限层403关闭。持有693份保持；持久配置生产来源工厂再次验证Jable/MissAV均HTTP200并解析成功，临时登录已删除。
+
+启动配置隔离回归43 passed，完整pre-commit通过后提交；无新schema、资源刷新或下载。详见[切换执行记录](source-service-cutover-20261015.md)。普通多用户/GC仍false，真实共享来源任务及不可变版本发布、私人账号和挂载故障等P8门槛继续待验，不把ping和直接重放等同于完整任务验收。

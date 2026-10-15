@@ -4,7 +4,7 @@
 
 `NASSAV_MULTI_USER_ENABLED`为严格布尔，默认false。true必须同时启用共享库与范围来源凭证；准入只允许启用且具有UserAccount的账号。应用管理权限来自UserAccount.role，不从Django staff/superuser推导，不自动创建角色或开放注册。false保留配置operator的兼容登录，is_operator仅保留兼容/显式导入语义；新业务入口使用is_admitted。
 
-开关和隔离实现不等于P8目标验收完成。现有实例未切换，普通准入/自动GC默认均关闭；先统一消费者、确认旧数据归属和Cookie分类、完成keyring备份与目标门槛，再受控开放。
+开关和隔离实现不等于P8目标验收完成。[2026-10-15实际服务](source-service-cutover-20261015.md)已统一切换范围凭证及共享库，旧数据归属、新公共挑战凭证和keyring恢复点已确认；普通准入/自动GC仍关闭。继续完成真实共享任务、私人来源及资产目标门槛后，才受控开放普通登录。
 
 多用户模式关闭Django内置`/admin/`后台：其auth.User表单可以绕过应用账号命令的审计、最后管理员保护、凭证/会话/持有撤销。管理员使用已实现的管理中心；首管理员/恢复使用有维护记录的受控CLI。旧模式的Django后台行为保留。不要另行暴露User/Group表单或仅按is_staff放行。
 

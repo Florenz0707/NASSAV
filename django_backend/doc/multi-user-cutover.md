@@ -118,4 +118,6 @@ uv run python manage.py resource_gc --action preview --target <pool-UUID>
 
 ## 六、尚需操作者确认
 
-目标PostgreSQL迁移已获授权并完成，私有恢复点与原数据核对见执行记录。归属/admin已另获确认，693份持有、管理员及两份Cookie加密隔离已落地；随后使用显式安全选项完成7批历史/25种子补导入，保留352条个人黑名单。keyring与恢复点见执行记录；两来源记录仍quarantined且resolver拒绝回退，需要有效新凭证和统一消费者完成真实来源/worker/挂载门槛，普通准入/GC仍关闭。
+目标PostgreSQL迁移已获授权并完成，私有恢复点与原数据核对见执行记录。归属/admin已另获确认，693份持有、管理员及两份Cookie加密隔离已落地；随后使用显式安全选项完成7批历史/25种子补导入，保留352条个人黑名单。
+
+后续获授权获取新凭证：Jable/MissAV均通过真实公共页面、全局代理重放及生产范围工厂复验，并沿管理员CAS协议替换为active/clearance版本2，见[凭证刷新记录](source-credential-refresh-20261015.md)。随后另获授权完成[统一服务切换](source-service-cutover-20261015.md)：范围凭证/共享库开启，API与三个worker统一配置并优雅重启，真实HTTP本人库/来源元信息和持久配置下的来源重放通过；普通准入/GC仍关闭。真实共享任务发布、私人账户及挂载故障门槛继续待验，不能以broker ping替代。
