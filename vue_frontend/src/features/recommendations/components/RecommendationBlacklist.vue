@@ -89,7 +89,7 @@ async function loadBlacklistItems() {
   const request = blacklistGuard.begin()
   const cacheKey = buildBlacklistCacheKey()
   const cached = blacklistCache.get(cacheKey)
-  if (cached) {
+  if (cached && Date.now() - cached.savedAt < 60000) {
     blacklistItems.value = cached.items
     blacklistPagination.value = cached.pagination
     blacklistLoading.value = false
@@ -117,10 +117,13 @@ async function loadBlacklistItems() {
     if (!blacklistGuard.current(request)) return
     blacklistItems.value = list
     blacklistPagination.value = pagination
+    blacklistCache.delete(cacheKey)
     blacklistCache.set(cacheKey, {
+      savedAt: Date.now(),
       items: list.map((item) => ({ ...item })),
       pagination: pagination ? { ...pagination } : null,
     })
+    if (blacklistCache.size > 20) blacklistCache.delete(blacklistCache.keys().next().value)
   } catch (err) {
     if (!blacklistGuard.current(request)) return
     toastStore.error(err.message || '加载黑名单列表失败')

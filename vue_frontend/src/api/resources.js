@@ -5,7 +5,7 @@ import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 import { logger } from '../shared/lib/logger.js'
 
 const metadataCache = createQueryCache({ limit: 100 })
-onPersonalDataChanged(() => metadataCache.clear())
+onPersonalDataChanged(() => metadataCache.clear(), ['library', 'resource-detail', 'resource-state'])
 let coverGeneration = 0
 const coverRevisions = new Map()
 
@@ -145,11 +145,27 @@ export const resourceApi = {
     }),
 
   // 删除资源
-  delete: (avid) => api.delete(`/resource/${encodeURIComponent(avid)}`).then(personalDataChanged),
+  delete: (avid) =>
+    api
+      .delete(`/resource/${encodeURIComponent(avid)}`)
+      .then((response) =>
+        personalDataChanged(response, ['library', 'resource-state', 'history', 'watch-later'])
+      ),
 
   // 更新个人资源状态（观看、收藏、备注及可选 expected_version）
   updateStatus: (avid, payload) =>
-    api.patch(`/resource/${encodeURIComponent(avid)}/status`, payload).then(personalDataChanged),
+    api
+      .patch(`/resource/${encodeURIComponent(avid)}/status`, payload)
+      .then((response) =>
+        personalDataChanged(
+          response,
+          Object.keys(payload).some((key) =>
+            ['watched', 'is_favorite', 'watch_later'].includes(key)
+          )
+            ? ['resource-detail', 'resource-state', 'watch-later']
+            : ['resource-detail']
+        )
+      ),
 
   // 批量操作：body 应包含 { actions: [ {action, avid, ...}, ... ] }
   batch: (payload) => {

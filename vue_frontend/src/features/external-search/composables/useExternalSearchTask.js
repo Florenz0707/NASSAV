@@ -18,6 +18,12 @@ export function waitForSearchPoll(signal, milliseconds = 1500, listen = () => ()
   })
 }
 
+function resultWithLifetime(snapshot) {
+  return snapshot.result && Number.isFinite(snapshot.result_cache_ttl_seconds)
+    ? { ...snapshot.result, cache_ttl_seconds: snapshot.result_cache_ttl_seconds }
+    : snapshot.result
+}
+
 export async function pollExternalSearch(
   query,
   {
@@ -65,7 +71,7 @@ export async function pollExternalSearch(
           ? snapshot.version > displayedVersion
           : snapshot.result !== displayedResult)
       ) {
-        onResult(snapshot.result, snapshot)
+        onResult(resultWithLifetime(snapshot), snapshot)
         displayedVersion = snapshot.version ?? displayedVersion
         displayedResult = snapshot.result
       }
@@ -76,7 +82,7 @@ export async function pollExternalSearch(
           !snapshot.result?.pagination ||
           snapshot.result.pagination.page === desired.page
         )
-          return snapshot.result
+          return resultWithLifetime(snapshot)
       }
       if (snapshot.state === 'cancelled') return null
       if (snapshot.state === 'failed') throw new Error(snapshot.message || '搜索失败，请重试')
@@ -192,7 +198,7 @@ export function useExternalSearchTask() {
     if (Number.isFinite(response.data.version) && response.data.version < latestVersion)
       return undefined
     latestVersion = Math.max(latestVersion, response.data.version || 0)
-    return response.data.result
+    return resultWithLifetime(response.data)
   }
   function getJobHandle() {
     return submittedJob ? { task_id: submittedJob.task_id, token: submittedJob.token } : null

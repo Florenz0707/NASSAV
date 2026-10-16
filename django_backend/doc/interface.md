@@ -1682,3 +1682,7 @@ capabilities中的shared_library、personal_source_credentials、app_admin、res
 `GET /api/library/memberships`沿共享库准入，仅查询request.user的持有，包括pending、池下架和暂不可读关系；不放宽正式资源/媒体查询。返回avid、entry_id、entry_version、membership_state、is_in_my_library、is_available及created_at/updated_at，不返回标题、来源事实、图片、个人备注或其他用户数据。is_available仅指池状态，不授予媒体读取权。
 
 参数白名单为page（正整数）、page_size（1–100）、ordering（-created_at或-updated_at）、state（active/pending或空）、availability（available/unavailable或空）、search（最长64字符，仅检索AVID）。排序附加UUID保证稳定分页；拒绝owner和其他未知字段。响应含pagination且private/no-store、Vary Cookie。释放继续使用原DELETE /library/entries/{uuid}协议；管理列表不提供直接删文件能力。不可用关系可释放，跨用户UUID仍404。
+
+### 外搜结果的浏览器缓存寿命
+
+外搜任务提交/轮询的授权快照新增 `result_cache_ttl_seconds`，表示当前结果可在前端复用的剩余秒数，取配置的搜索结果复用期限与 Redis 快照保留期限的较小值。只对完整成功结果返回正值；运行中、失败、取消、配置禁用复用或已到期为0。读取不会延长此值，不返回服务器秘密；该提示不是访问授权，原任务/结果/账号/来源范围检查保持。

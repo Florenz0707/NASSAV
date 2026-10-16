@@ -26,7 +26,7 @@ export const useResourceStore = defineStore('resource', () => {
     operations = useUserOperationsStore()
   const shared = () => Boolean(session.capabilities.shared_library)
   const list = createResourceList(resourceApi)
-  onScopeDispose(onPersonalDataChanged(() => list.invalidate()))
+  onScopeDispose(onPersonalDataChanged(() => list.invalidate(), ['library', 'resource-state']))
   watch(
     () => useMembershipsStore().revision,
     () => {

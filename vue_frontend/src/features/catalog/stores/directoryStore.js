@@ -17,7 +17,7 @@ export function createDirectoryStore(name, api) {
       cache.clear()
       cancel()
     }
-    onScopeDispose(onPersonalDataChanged(invalidate))
+    onScopeDispose(onPersonalDataChanged(invalidate, ['library', 'resource-state']))
 
     // direct call to /actors to get groups
     async function load({

@@ -1,4 +1,5 @@
 <script setup>
+import { optionalSessionStorage } from '../shared/lib/sessionCache.js'
 import { useMembershipsStore } from '../features/library/stores/memberships.js'
 import { useRecommendationAdds } from '../features/recommendations/composables/useRecommendationAdds.js'
 import InfoDialog from '../shared/ui/InfoDialog.vue'
@@ -36,6 +37,7 @@ const { items, seeds, meta, metrics, blockedAvids, feedbackByAvid, loading, erro
   storeToRefs(recommendationStore)
 const elapsedSeconds = useRecommendationElapsed(loading)
 const resultElapsedSeconds = ref(null)
+const resultExpiresAt = ref(0)
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 
@@ -158,16 +160,18 @@ function saveViewState() {
     feedbackByAvid: feedbackByAvid.value || {},
     scrollY: window.scrollY || 0,
     elapsedSeconds: resultElapsedSeconds.value,
+    cacheExpiresAt: resultExpiresAt.value,
   }
-  saveRecommendationViewState(state, window.sessionStorage, pageOwner)
+  saveRecommendationViewState(state, optionalSessionStorage(), pageOwner)
 }
 
 function restoreViewState() {
-  const state = restoreRecommendationViewState(window.sessionStorage, pageOwner)
+  const state = restoreRecommendationViewState(optionalSessionStorage(), pageOwner)
   if (!state) return null
 
   items.value = Array.isArray(state.items) ? state.items : []
   seeds.value = Array.isArray(state.seeds) ? state.seeds : []
+  resultExpiresAt.value = state.cacheExpiresAt || 0
   resultElapsedSeconds.value = Number.isFinite(state.elapsedSeconds) ? state.elapsedSeconds : null
   meta.value = state.meta || null
   metrics.value = state.metrics || null
@@ -202,6 +206,7 @@ function clearPageRecommendations() {
   hasRequested.value = false
   lastLoadedConfigKey.value = ''
   resultElapsedSeconds.value = null
+  resultExpiresAt.value = 0
   closeReasonPanel()
 }
 
@@ -273,6 +278,7 @@ async function loadRecommendations(options = {}) {
     )
     if (!payload) return
     resultElapsedSeconds.value = elapsedSeconds.value
+    resultExpiresAt.value = Date.now() + 1800000
     lastLoadedConfigKey.value = requestConfigKey
     loadRecommendationMetrics()
     syncActiveReasonItem()
@@ -385,7 +391,7 @@ function handleResetRecommendations() {
   error.value = ''
   clearPageRecommendations()
   invalidateBlacklistCache()
-  clearRecommendationViewState(window.sessionStorage, pageOwner)
+  clearRecommendationViewState(optionalSessionStorage(), pageOwner)
   toastStore.success('当前推荐列表已清空')
 }
 
@@ -403,7 +409,7 @@ async function handleResetRecommendationHistory() {
     await recommendationStore.resetHistory()
     clearPageRecommendations()
     invalidateBlacklistCache()
-    clearRecommendationViewState(window.sessionStorage, pageOwner)
+    clearRecommendationViewState(optionalSessionStorage(), pageOwner)
     await loadRecommendationMetrics()
     toastStore.success('推荐历史已重置，黑名单已保留')
   } catch (err) {

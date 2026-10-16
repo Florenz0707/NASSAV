@@ -39,11 +39,34 @@ def public_snapshot(snapshot: dict) -> dict:
     from nassav.discovery_image_handles import search_snapshot
 
     snapshot = search_snapshot(snapshot.get("owner_id"), snapshot)
-    return {
+    public = {
         key: value
         for key, value in snapshot.items()
         if key not in {"query_key", "collected_results", "owner_id", "owner_epoch"}
     }
+    # A browser cache is bounded by both the reuse policy and snapshot retention.
+    # Remaining seconds avoid relying on the browser's clock matching the server.
+    import time
+    from django.conf import settings
+    from nassav.scrape_jobs import SNAPSHOT_TTL
+
+    completed = snapshot.get("completed_at")
+    updated = snapshot.get("updated_at")
+    public["result_cache_ttl_seconds"] = (
+        max(
+            0,
+            min(
+                completed + settings.EXTERNAL_SEARCH_RESULT_TTL_SECONDS,
+                updated + SNAPSHOT_TTL,
+            )
+            - time.time(),
+        )
+        if snapshot.get("state") == "succeeded"
+        and isinstance(completed, (int, float))
+        and isinstance(updated, (int, float))
+        else 0
+    )
+    return public
 
 
 class SearchJobSubmitView(SchemaAPIView):

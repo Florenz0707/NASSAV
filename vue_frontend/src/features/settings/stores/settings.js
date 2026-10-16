@@ -1,3 +1,4 @@
+import { preferencesChanged } from '../lib/preferenceEvents.js'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { settingsApi } from '../../../api/index.js'
@@ -33,6 +34,15 @@ export const useSettingsStore = defineStore('settings', () => {
     limit: 12,
   })
   const loaded = ref(false)
+  let loadedAt = -Infinity
+  let writeVersion = 0
+  const freshness = 300000
+  function dirty() {
+    return Object.entries(settingsPayload()).some(([key, value]) => value !== savedValues[key])
+  }
+  function invalidate() {
+    loadedAt = -Infinity
+  }
   let loadPromise = null
   let sessionEpoch = 0
   const loadGuard = createRequestGuard()
@@ -61,6 +71,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function reset() {
     sessionEpoch++
+    writeVersion++
+    loadedAt = -Infinity
     loadGuard.invalidate()
     saveGuard.invalidate()
     loadPromise = null
@@ -87,20 +99,20 @@ export const useSettingsStore = defineStore('settings', () => {
     savedValues = settingsPayload()
   }
 
-  // 从后端加载设置（仅在应用启动时调用一次）
+  // 复用新鲜设置；后台校验不覆盖本地未保存修改。
   async function loadSettings(force = false) {
-    if (loaded.value && !force) {
+    if (loadPromise && !force) return loadPromise
+    if (loaded.value && !force && (Date.now() - loadedAt < freshness || dirty())) {
       return { success: true, cached: true }
     }
-    if (loadPromise && !force) {
-      return loadPromise
-    }
-
+    const writes = writeVersion
     const ticket = loadGuard.begin()
     loadPromise = (async () => {
       try {
         const response = await settingsApi.get()
-        if (!loadGuard.current(ticket)) return { success: false, ignored: true }
+        if (!loadGuard.current(ticket) || writes !== writeVersion)
+          return { success: false, ignored: true }
+        if (loaded.value && !force && dirty()) return { success: true, cached: true }
         const data = response.data || {}
 
         // 后端返回的 enable_avatar 是字符串 "true"/"false"
@@ -132,9 +144,12 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         savedValues = settingsPayload()
         loaded.value = true
+        loadedAt = Date.now()
         return { success: true }
       } catch (err) {
-        if (!loadGuard.current(ticket)) return { success: false, ignored: true }
+        if (!loadGuard.current(ticket) || writes !== writeVersion)
+          return { success: false, ignored: true }
+        if (loaded.value && !force && dirty()) return { success: true, cached: true }
         console.error('加载用户设置失败:', err)
         return { success: false, error: err }
       } finally {
@@ -166,11 +181,14 @@ export const useSettingsStore = defineStore('settings', () => {
     )
     if (!Object.keys(changes).length) return { success: true, unchanged: true }
     const ticket = saveGuard.begin()
+    writeVersion++
     try {
       await settingsApi.update(changes)
       if (epoch !== sessionEpoch || !saveGuard.current(ticket))
         return { success: false, ignored: true }
       savedValues = { ...savedValues, ...changes }
+      loadedAt = Date.now()
+      preferencesChanged()
       return { success: true }
     } catch (err) {
       if (epoch !== sessionEpoch || !saveGuard.current(ticket))
@@ -188,10 +206,13 @@ export const useSettingsStore = defineStore('settings', () => {
         .map(([key, value]) => [`playback_${key}`, value])
     )
     if (!Object.keys(patch).length) return
+    writeVersion++
     playbackPreferences.value = { ...playbackPreferences.value, ...changes }
     await settingsApi.update(patch)
     if (epoch !== sessionEpoch) return
     savedValues = { ...savedValues, ...patch }
+    loadedAt = Date.now()
+    preferencesChanged()
     playbackPreferences.value = { ...playbackPreferences.value, ...changes }
   }
 
@@ -202,6 +223,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
+    invalidate,
     playbackPreferenceWriter,
     playbackPreferences,
     savePlaybackPreferences,

@@ -1,3 +1,4 @@
+import { personalDataChanged } from '../../../shared/lib/personalDataEvents.js'
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { libraryApi } from '../../../api/library.js'
@@ -17,7 +18,16 @@ export const useLibraryCommandsStore = defineStore('libraryCommands', () => {
   const core = createLibraryCommands(libraryApi, {
     memberships,
     acceptOperation: operations.apply,
-    changed: () => memberships.invalidate(),
+    changed: () => {
+      memberships.invalidate()
+      personalDataChanged(null, [
+        'library',
+        'resource-state',
+        'resource-detail',
+        'history',
+        'watch-later',
+      ])
+    },
   })
   const cancelled = () => Object.assign(new Error('已取消操作'), { code: 'user_cancelled' })
   function reset(identity = '') {

@@ -1,31 +1,42 @@
+import {
+  readSessionCache,
+  writeSessionCache,
+  clearSessionCache,
+  optionalSessionStorage,
+} from '../../../shared/lib/sessionCache.js'
 const STATE_KEY = 'nassav:recommendations:view-state'
 const stateKey = (owner) => (owner ? `${STATE_KEY}:${encodeURIComponent(owner)}` : STATE_KEY)
-
-export function saveRecommendationViewState(state, storage = window.sessionStorage, owner = '') {
-  storage.setItem(stateKey(owner), JSON.stringify(state))
+const resultKey = (state) =>
+  JSON.stringify(
+    (Array.isArray(state?.items) ? state.items : []).map((item) => [
+      item?.snapshot_id,
+      item?.avid,
+      item?.source,
+    ])
+  )
+export function saveRecommendationViewState(state, storage = optionalSessionStorage(), owner = '') {
+  const key = stateKey(owner),
+    previous = readSessionCache(storage, key)
+  return writeSessionCache(storage, key, state, {
+    prefix: STATE_KEY,
+    limit: 4,
+    expiresAt: Math.min(
+      Number.isFinite(state.cacheExpiresAt) ? state.cacheExpiresAt : Infinity,
+      previous && resultKey(previous.value) === resultKey(state) ? previous.expiresAt : Infinity
+    ),
+  })
 }
-
-export function restoreRecommendationViewState(storage = window.sessionStorage, owner = '') {
-  const raw = storage.getItem(stateKey(owner))
-  if (!raw) return null
+export function restoreRecommendationViewState(storage = optionalSessionStorage(), owner = '') {
+  const state = readSessionCache(storage, stateKey(owner))?.value
+  return state && typeof state === 'object' && !Array.isArray(state) ? state : null
+}
+export function clearRecommendationViewState(storage = optionalSessionStorage(), owner = '') {
   try {
-    const state = JSON.parse(raw)
-    if (!state || typeof state !== 'object' || Array.isArray(state))
-      throw new Error('Invalid state')
-    return state
-  } catch {
     storage.removeItem(stateKey(owner))
-    return null
+  } catch {
+    /* Optional storage. */
   }
 }
-
-export function clearRecommendationViewState(storage = window.sessionStorage, owner = '') {
-  storage.removeItem(stateKey(owner))
-}
-
-export function clearAllRecommendationViewStates(storage = window.sessionStorage) {
-  for (let index = storage.length - 1; index >= 0; index--) {
-    const key = storage.key(index)
-    if (key === STATE_KEY || key?.startsWith(`${STATE_KEY}:`)) storage.removeItem(key)
-  }
+export function clearAllRecommendationViewStates(storage = optionalSessionStorage()) {
+  clearSessionCache(storage, STATE_KEY)
 }

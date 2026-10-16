@@ -1,3 +1,4 @@
+import { personalDataChanged } from '../../../shared/lib/personalDataEvents.js'
 import { defineStore } from 'pinia'
 import { libraryApi } from '../../../api/library.js'
 import { useMembershipsStore } from '../../library/stores/memberships.js'
@@ -9,8 +10,16 @@ export const useUserOperationsStore = defineStore('userOperations', () =>
       if (
         item.state !== previous?.state &&
         ['succeeded', 'failed', 'cancelled'].includes(item.state)
-      )
+      ) {
         useMembershipsStore().invalidate()
+        personalDataChanged(null, [
+          'library',
+          'resource-state',
+          'resource-detail',
+          'history',
+          'watch-later',
+        ])
+      }
     },
   })
 )

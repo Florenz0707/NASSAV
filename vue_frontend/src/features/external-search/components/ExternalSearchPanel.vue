@@ -1,4 +1,9 @@
 <script setup>
+import {
+  readSessionCache,
+  writeSessionCache,
+  optionalSessionStorage,
+} from '../../../shared/lib/sessionCache.js'
 import { useMembershipsStore } from '../../library/stores/memberships.js'
 import { useSessionStore } from '../../auth/stores/session.js'
 import PageLoad from '../../../shared/ui/PageLoad.vue'
@@ -79,6 +84,7 @@ const availableSortOrders = computed(() =>
   )
 )
 const EXTERNAL_CACHE_TTL_MS = 1000 * 60 * 60
+let resultExpiresAt = 0
 
 // queryKey -> pageNumber -> { results, meta }
 const externalPageCache = ref({})
@@ -197,9 +203,10 @@ function saveExternalCache() {
   )
     return
   const key = externalCacheKey()
-  sessionStorage.setItem(
+  writeSessionCache(
+    optionalSessionStorage(),
     key,
-    JSON.stringify({
+    {
       results: externalResources.value,
       meta: externalMeta.value,
       page: externalPage.value,
@@ -210,7 +217,8 @@ function saveExternalCache() {
       pageCache: externalPageCache.value,
       job: getJobHandle(),
       timestamp: Date.now(),
-    })
+    },
+    { prefix: 'external_cn_v5_', ttl: EXTERNAL_CACHE_TTL_MS, expiresAt: resultExpiresAt, limit: 20 }
   )
 }
 
@@ -222,15 +230,22 @@ function getCachedExternalPage(pageNumber) {
   const queryKey = getExternalQueryKey()
   const queryCache = externalPageCache.value[queryKey]
   if (!queryCache) return null
-  return queryCache[String(pageNumber)] || null
+  const hit = queryCache[String(pageNumber)]
+  if (!hit || !(hit.expiresAt > Date.now())) return null
+  return hit
 }
 
 function setCachedExternalPage(pageNumber, payload) {
   const queryKey = getExternalQueryKey()
   if (!externalPageCache.value[queryKey]) {
     externalPageCache.value[queryKey] = {}
+    const keys = Object.keys(externalPageCache.value)
+    if (keys.length > 6) delete externalPageCache.value[keys[0]]
   }
-  externalPageCache.value[queryKey][String(pageNumber)] = payload
+  const pages = externalPageCache.value[queryKey]
+  pages[String(pageNumber)] = { ...payload, expiresAt: resultExpiresAt }
+  const keys = Object.keys(pages)
+  if (keys.length > 10) delete pages[keys.find((key) => key !== String(pageNumber))]
 }
 
 function isExternalItemInLibrary(item) {
@@ -248,8 +263,10 @@ function restoreExternalCache() {
   if (session.status !== 'authenticated' || session.sourceIdentity !== pageOwner) return false
   const key = externalCacheKey()
   try {
-    const cached = JSON.parse(sessionStorage.getItem(key))
-    if (cached && !cached.meta?.partial && Date.now() - cached.timestamp < EXTERNAL_CACHE_TTL_MS) {
+    const entry = readSessionCache(optionalSessionStorage(), key)
+    const cached = entry?.value
+    if (cached && !cached.meta?.partial) {
+      resultExpiresAt = entry.expiresAt
       restoreJob(cached.job)
       externalResources.value = cached.results
       externalMeta.value = cached.meta
@@ -269,6 +286,12 @@ function restoreExternalCache() {
 
 function applyExternalResult(response) {
   if (!response?.data || response.pagination?.page !== externalPage.value) return
+  if (Number.isFinite(response.cache_ttl_seconds)) {
+    resultExpiresAt =
+      Date.now() + Math.min(EXTERNAL_CACHE_TTL_MS, Math.max(0, response.cache_ttl_seconds) * 1000)
+  } else if (Number.isFinite(response.cache_expires_at)) {
+    resultExpiresAt = response.cache_expires_at
+  } else if (!resultExpiresAt) resultExpiresAt = Date.now() + EXTERNAL_CACHE_TTL_MS
   const existing = new Map(externalResources.value.map((item) => [item.avid, item]))
   const formattedResults = (response.data.external_results || []).map((r) => ({
     ...r,
@@ -297,6 +320,7 @@ async function changeExternalPage(p) {
       ? {
           data: { external_results: cached.results, external_meta: cached.meta },
           pagination: cached.pagination,
+          cache_expires_at: cached.expiresAt,
         }
       : await readExternalPage(p, 15)
     if (!pageReadGuard.current(request)) return
@@ -335,6 +359,7 @@ async function startExternalSearch(p = 1, forceRefresh = false) {
   const cachedPage = getCachedExternalPage(p)
   if (!forceRefresh && cachedPage) {
     loadingExternal.value = false
+    resultExpiresAt = cachedPage.expiresAt
     externalResources.value = cachedPage.results || []
     externalMeta.value = cachedPage.meta || externalMeta.value
     externalPagination.value = cachedPage.pagination || externalPagination.value
@@ -397,6 +422,7 @@ function resetExternalSearchState() {
   externalPage.value = 1
   externalPagination.value = null
   externalPageCache.value = {}
+  resultExpiresAt = 0
 }
 
 function syncExternalResourceStatus(avid, inLibrary) {

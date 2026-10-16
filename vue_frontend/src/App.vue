@@ -1,4 +1,6 @@
 <script setup>
+import { PREFERENCE_REVISION_KEY } from './features/settings/lib/preferenceEvents.js'
+import { clearSessionCache, optionalSessionStorage } from './shared/lib/sessionCache.js'
 import { resourceApi } from './api/resources.js'
 import { computed, onMounted, onUnmounted, watch, ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
@@ -72,9 +74,17 @@ watch(
   }
 )
 
+let preferenceTimer = null
+function refreshPreferences(event) {
+  if (event?.key && event.key !== PREFERENCE_REVISION_KEY) return
+  if (sessionStore.status !== 'authenticated' || document.visibilityState !== 'visible') return
+  if (event?.key) settingsStore.invalidate()
+  void settingsStore.loadSettings()
+}
 async function refreshVisibleJobs() {
   if (sessionStore.status === 'authenticated' && document.visibilityState === 'visible') {
     if (!(await sessionStore.recheck())) return
+    refreshPreferences()
     if (sessionStore.capabilities.shared_library) useMembershipsStore().invalidate()
     if (sessionStore.capabilities.shared_library) {
       useUserOperationsStore().poll(true)
@@ -88,6 +98,8 @@ async function refreshVisibleJobs() {
 
 onMounted(() => {
   document.addEventListener('visibilitychange', refreshVisibleJobs)
+  window.addEventListener('storage', refreshPreferences)
+  preferenceTimer = setInterval(refreshPreferences, 300000)
   sessionStore.initialize()
 })
 
@@ -115,6 +127,7 @@ watch(
     settingsStore.reset()
     if (status === 'anonymous') {
       clearAllRecommendationViewStates()
+      clearSessionCache(optionalSessionStorage(), 'external_cn_v5_')
     }
     if (status === 'authenticated') {
       if (sessionStore.capabilities.shared_library) {
@@ -133,6 +146,8 @@ watch(
 onUnmounted(() => {
   resourceApi.resetCoverCache()
   document.removeEventListener('visibilitychange', refreshVisibleJobs)
+  window.removeEventListener('storage', refreshPreferences)
+  clearInterval(preferenceTimer)
   resourceStore.stopScrapeTracking()
   taskJobs.reset()
   useUserOperationsStore().reset()
