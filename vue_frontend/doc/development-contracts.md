@@ -377,3 +377,9 @@ ordinary_login开启时session store拥有cache_identity，api/client仅持有X-
 `personalDataEvents` 只发送失效领域名，不携带备注、配置值、凭证或个人数据。共享请求提交和任务终态提示失效库投影；缓存不参与授权。会话存储不可用、内容损坏、配额不足时降级为不持久化，不能把成功搜索变成失败。通用设置的页签信号也不包含配置值，后续GET仍由当前登录与浏览器上下文授权。
 
 阶段分支 `enhancement/cache-lifecycle`：运行 `pnpm run check`、`pre-commit run -a`、后端隔离 pytest。Chrome/Firefox 隔离浏览器覆盖真实 App 跨页签更新/草稿保护，以及真实外搜组件翻页缓存/过期拒绝；模拟接口不代表正式部署。
+
+### 部署静态资源
+
+nginx 对 `/assets/` 下带至少8位内容哈希的 JS/CSS 使用 `public, max-age=31536000, immutable`，缺失文件返回404，不回退HTML。固定路径字体使用 `public, max-age=0, must-revalidate`，入口HTML及SPA回退使用 `no-cache`；nginx原有ETag/Last-Modified继续提供条件请求。新加固定文件名资源不能套用 immutable，更新字体时无需等待一年缓存。开发模式 Vite 不等同生产 nginx，API、WS及媒体代理保持原策略。
+
+阶段分支 `enhancement/static-asset-cache`，使用本地 nginx 镜像、当前构建产物与只读配置挂载，在隔离临时容器检查 `nginx -t`、真实响应缓存头、条件304和缺失文件404；另执行 `pnpm run check` 与 `pre-commit run -a`。临时容器验证不代表现有部署已更新，部署需同步前后端并重新构建。
