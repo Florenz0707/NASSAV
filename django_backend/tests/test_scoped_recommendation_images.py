@@ -218,7 +218,7 @@ def test_http_scoped_stream_private_and_closes(images, monkeypatch):
             {"handle": result["items"][0]["cover_handle"]},
         )
     assert response.status_code == 200
-    assert response["Cache-Control"] == "private, no-store"
+    assert response["Cache-Control"] == "private, no-cache"
     assert "Cookie" in response["Vary"]
     assert b"".join(response.streaming_content) == b"image-0"
     response.close()
@@ -272,3 +272,36 @@ def test_symlink_scope_cannot_redirect_publication(images, tmp_path):
     with pytest.raises(ReadLeaseNotFound):
         service.open(users[0].pk, "jable", URL)
     assert not responses and not list(other.iterdir())
+
+
+def test_result_image_revalidation_rechecks_current_result(
+    images, monkeypatch, settings
+):
+    settings.SOURCE_CREDENTIALS_ENABLED = True
+    users, _, service, _, responses = images
+    monkeypatch.setattr(
+        "nassav.composition.build_recommendation_images", lambda user_id: service
+    )
+    client = APIClient()
+    client.force_login(users[0])
+    row, result, _ = owned_result(images)
+    params = {"handle": result["items"][0]["cover_handle"]}
+    with override_settings(
+        SOURCE_CREDENTIALS_ENABLED=True, NASSAV_OPERATOR_USERNAME=users[0].username
+    ):
+        first = client.get("/nassav/api/recommendations/cover", params)
+        etag = first["ETag"]
+        assert b"".join(first.streaming_content) == b"image-0"
+        first.close()
+        second = client.get(
+            "/nassav/api/recommendations/cover", params, HTTP_IF_NONE_MATCH=etag
+        )
+        assert second.status_code == 304
+        assert second["Cache-Control"] == "private, no-cache"
+        assert len(responses) == 1
+        row.delete()
+        rejected = client.get(
+            "/nassav/api/recommendations/cover", params, HTTP_IF_NONE_MATCH=etag
+        )
+        assert rejected.status_code == 404
+        assert len(responses) == 1

@@ -27,7 +27,8 @@ class LibraryAPIView(SchemaAPIView):
 
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "private, no-store"
+        if not getattr(response, "_nassav_revalidated_image", False):
+            response["Cache-Control"] = "private, no-store"
         response["Vary"] = "Cookie"
         return response
 

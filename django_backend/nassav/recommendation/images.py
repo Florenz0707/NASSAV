@@ -1,6 +1,7 @@
 """Request-owned image lookup and stream checks, with source factories injected."""
 
 import hashlib
+import os
 from contextlib import AbstractContextManager
 from typing import Callable
 from nassav.recommendation.cover_cache import RecommendationCoverCacheService
@@ -17,6 +18,14 @@ def source_image_context(source):
 class CheckedImage:
     def __init__(self, handle, check):
         self.handle, self.check = handle, check
+        info = os.fstat(handle.fileno())
+        self.cache_validator = [
+            info.st_dev,
+            info.st_ino,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        ]
 
     def read(self, size=-1):
         self.check()

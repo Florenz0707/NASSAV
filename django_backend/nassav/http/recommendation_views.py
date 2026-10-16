@@ -419,12 +419,14 @@ class RecommendationCoverView(SchemaAPIView):
                 mime = guess_type(urlparse(reference.url).path)[0]
                 if mime not in {"image/jpeg", "image/png", "image/webp"}:
                     mime = "image/jpeg"
-                response = FileResponse(image, content_type=mime)
-                response["X-Content-Type-Options"] = "nosniff"
-                response.block_size = 65536
-                response["Cache-Control"] = "private, no-store"
-                response["Vary"] = "Cookie"
-                return response
+                from nassav.http.image_cache import authorized_image
+
+                return authorized_image(
+                    request,
+                    image,
+                    mime,
+                    [request.query_params.get("handle"), image.cache_validator],
+                )
             except BaseException:
                 image.close()
                 raise

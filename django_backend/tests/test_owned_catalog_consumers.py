@@ -341,7 +341,7 @@ def test_legacy_avatar_is_owned_and_refuses_path_escape(
         response = client.get(f"/nassav/api/actors/{term.pk}/avatar")
         assert (
             response.status_code == 200
-            and response["Cache-Control"] == "private, no-store"
+            and response["Cache-Control"] == "private, no-cache"
         )
         assert b"".join(response.streaming_content) == b"legacy image fixture"
         response.close()

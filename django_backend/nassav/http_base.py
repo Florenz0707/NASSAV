@@ -18,8 +18,9 @@ class SchemaAPIView(APIView):
         from django.conf import settings
         from django.utils.cache import patch_vary_headers
 
-        if settings.MULTI_USER_ENABLED:
-            response["Cache-Control"] = "private, no-store"
+        if settings.MULTI_USER_ENABLED or response.status_code >= 400:
+            if not getattr(response, "_nassav_revalidated_image", False):
+                response["Cache-Control"] = "private, no-store"
             patch_vary_headers(response, ["Cookie"])
         return response
 

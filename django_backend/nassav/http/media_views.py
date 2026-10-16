@@ -90,6 +90,16 @@ class ResourceCoverView(SchemaAPIView):
                 {"code": 404, "message": f"封面 {avid} 不存在", "data": None},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        if enabled(request.user.pk) or settings.MULTI_USER_ENABLED:
+            from nassav.http.image_cache import authorized_image, file_validator
+
+            handle = asset.path.open("rb")
+            try:
+                validator = file_validator(handle)
+            except BaseException:
+                handle.close()
+                raise
+            return authorized_image(request, handle, asset.content_type, validator)
         modified = asset.path.stat().st_mtime
         if asset.etag is not None:
             inm = request.headers.get("If-None-Match") or request.META.get(

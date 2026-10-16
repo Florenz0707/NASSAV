@@ -112,6 +112,14 @@ LocalPreferenceSeedProvider沿原评分/selector消费term_stats，lookup_payloa
 
 凭证开关启用后，图片HTTP装配独立来源，使用全局Proxy.url，不读取下载代理。目录按source与CredentialSourceContext.scope_key摘要分层，含凭证身份/版本及出口/浏览器上下文；新模式不命中旧URL-only图片。
 
-命中、下载分块、短发布及响应读取均核查账号代次/凭证。CDN禁止重定向及第三方Cookie，仅JPEG/PNG/WebP、5 MiB上限；站内请求按origin过滤。目录逐层NOFOLLOW及固定dirfd，临时文件和rename只作用于该目录；读取拒绝符号链接/非普通文件。发布fence只做rename，网络/复制在事务外。HTTP private/no-store、Vary Cookie、nosniff；源上下文退出失败也关闭句柄。
+命中、下载分块、短发布及响应读取均核查账号代次/凭证。CDN禁止重定向及第三方Cookie，仅JPEG/PNG/WebP、5 MiB上限；站内请求按origin过滤。目录逐层NOFOLLOW及固定dirfd，临时文件和rename只作用于该目录；读取拒绝符号链接/非普通文件。发布fence只做rename，网络/复制在事务外。HTTP private/no-cache、Vary Cookie、nosniff，并在授权后按下文条件缓存协议返回304；源上下文退出失败也关闭句柄。
 
 接口仍接受允许来源URL，是以当前凭证访问来源图片的代理能力，URL摘要不等于持有授权。普通账号未开放；P7/P8补本人结果图片句柄及权限验收后才开放。缓存不随释放库删除，P6另补有界回收，不与正式版本GC混用。
+
+## 图片条件缓存
+
+版本封面/头像及本人结果图片允许浏览器私有存储，使用 `private, no-cache` 和登录绑定的弱 ETag，每次使用前必须重新校验。图片专用回应由 `http/image_cache.py` 标记；API 通用层与库 API 只对该已授权回应保留条件缓存，其他多用户回应及错误保持 `no-store`。
+
+版本图片先按原协议校验持有、manifest、marker、文件内容和读取占用，再比较 ETag；304同样复查流 fence 并关闭句柄、释放占用。来源图片先解析本人结果句柄、检查账号与凭证上下文并安全打开缓存文件，再比较 ETag；文件标识使用已打开 FD 的设备/inode/大小/纳秒修改时间，不信任客户端版本。响应不增加免校验新鲜期，避免跨用户、移出、下架或凭证失效后直接使用网络缓存。媒体、凭证及控制接口不改变缓存策略，无数据库迁移。
+
+图片缓存阶段分支 `fix/authorized-image-revalidation`：专项验证版本封面/头像、本人结果图片、旧 HTTP 契约及目录头像；Chrome 隔离 HTTP 检查翻页复用并在刷新返回304，Firefox 同样渲染正常并观察到304。浏览器使用真实图片响应帮助函数和临时 HTTP 服务；权限/文件/读取占用由真实 ORM 隔离测试验证，不代表当前部署实例联调。后端执行 `uv run pytest tests/ --ds=django_project.refactoring_test_settings -q`，根目录执行 `pre-commit run -a`；无数据库迁移。

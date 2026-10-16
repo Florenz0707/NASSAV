@@ -154,7 +154,7 @@ def test_image_stream_has_owned_lease_and_cannot_be_reused_after_release(publish
         response = client.get("/nassav/api/resource/cover?avid=PUB-001&size=small")
         assert (
             response.status_code == 200
-            and response["Cache-Control"] == "private, no-store"
+            and response["Cache-Control"] == "private, no-cache"
         )
         assert "Cookie" in response["Vary"].split(", ")
         assert ResourceReadLease.objects.get().state == "active"
@@ -304,3 +304,36 @@ def test_version_relation_filters_and_video_status_use_exact_own_versions(publis
     UserLibraryEntry.objects.filter(pk=entries[1].pk).update(video_version=video)
     assert list_entries(users[1].pk, {"status": "downloaded"})[1]["total"] == 0
     assert not list_entries(users[1].pk, {})[0][0]["has_video"]
+
+
+@pytest.mark.parametrize("route", ["generic", "version"])
+def test_image_revalidation_checks_ownership_before_304_and_releases_lease(
+    published, route
+):
+    users, entries, _ = published
+    user, entry = users[0], entries[0]
+    asset_id = asset_identity(entry.current_version.manifest[0])
+    path = (
+        "/nassav/api/resource/cover?avid=PUB-001"
+        if route == "generic"
+        else f"/nassav/api/library/entries/{entry.pk}/images/{asset_id}"
+    )
+    client = client_for(user)
+    with override_settings(NASSAV_OPERATOR_USERNAME=user.username):
+        first = client.get(path)
+        etag = first["ETag"]
+        assert first["Cache-Control"] == "private, no-cache"
+        assert b"".join(first.streaming_content)
+        first.close()
+        for validator in [etag, etag[2:], f'"other", {etag}', "*"]:
+            response = client.get(path, HTTP_IF_NONE_MATCH=validator)
+            assert response.status_code == 304
+            assert response["ETag"] == etag
+            assert response["Cache-Control"] == "private, no-cache"
+            assert not response.content
+            response.close()
+            assert not ResourceReadLease.objects.filter(state="active").exists()
+        UserLibraryEntry.objects.filter(pk=entry.pk).delete()
+        response = client.get(path, HTTP_IF_NONE_MATCH=etag)
+        assert response.status_code == 404
+        assert "no-store" in response["Cache-Control"]

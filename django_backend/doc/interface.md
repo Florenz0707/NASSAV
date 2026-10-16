@@ -1626,7 +1626,7 @@ GET `/api/playback-progress?limit=6`：当前账号最近未完成记录，limit
 
 共享开关与受管角色同时启用时，旧resources、resource/preview与resource/metadata入口也投影本人的准确版本；未启用保持旧响应。source_title等来自current_version，视频标志/大小来自独立video_version；已隔离/回收、错误pool/kind或他人私有owner的指针不能授权。公开管理员管理权限不提供他人私人详情。
 
-GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/avatar；asset_id为不含路径的opaque摘要。resource/cover入口也可读取本人版本封面。先核查有效持有，再创建登录绑定的短占用；每块传输前后重查，关闭释放，登出导致无法收尾时由原TTL兜底。无条件响应private/no-store、Vary Cookie，不能凭旧ETag绕过授权。版本图片校验归属、marker、SHA256和文件大小，根目录可按部署约定resolve，根下任何目录/文件符号链接拒绝。单图上限32MiB；本子阶段接受small/medium/large并返回原版本图，不另写缩略图缓存。不能将此图片测试视为Range/播放或真实worker联调。
+GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/avatar；asset_id为不含路径的opaque摘要。resource/cover入口也可读取本人版本封面。先核查有效持有，再创建登录绑定的短占用；每块传输前后重查，关闭释放，登出导致无法收尾时由原TTL兜底。成功图片响应使用private/no-cache、Vary Cookie和登录绑定ETag；每次先核查持有、资产与读取占用，再判断If-None-Match返回304并释放占用，不能凭旧ETag绕过授权。错误仍no-store。版本图片校验归属、marker、SHA256和文件大小，根目录可按部署约定resolve，根下任何目录/文件符号链接拒绝。单图上限32MiB；本子阶段接受small/medium/large并返回原版本图，不另写缩略图缓存。不能将此图片测试视为Range/播放或真实worker联调。
 
 固定版本本地播放仍使用`POST /api/resources/{avid}/playback-sessions`的mode=local及原session/file Range/HEAD入口；共享模式绑定本人的video_version和账号代次，snapshot不增加源链接或内部路径。既有会话不跟随更新，新prepare/接续仍要求有效持有。源站凭证撤销不撤销合法静态下载资产；下架/角色代次变化阻断后续读取。私有来源在线准备继续实施，普通登录仍关闭。
 
@@ -1642,7 +1642,7 @@ GET /api/library/entries/{uuid}/images/{asset_id}返回该持有版本的cover/a
 
 ### 凭证范围推荐/外搜封面
 
-SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?handle=... 只接受服务器在本人推荐Item或搜索结果上返回的cover_handle，不接受任意url/source。签名、归属、结果、账号代次/范围失效404，URL旧参数400，凭证不可用503，图片不可用404；不依赖客户端传入的上游地址授权。HTTP private/no-store、Vary Cookie、nosniff，流失效中断后续块。无范围证据的旧推荐和已过期搜索不签发句柄；推荐/搜索恢复响应重新投影，不为补句柄启动来源网络。设计见[本人结果图片](discovery-image-architecture.md)，普通准入仍待P8。
+SOURCE_CREDENTIALS_ENABLED下，GET /api/recommendations/cover?handle=... 只接受服务器在本人推荐Item或搜索结果上返回的cover_handle，不接受任意url/source。签名、归属、结果、账号代次/范围失效404，URL旧参数400，凭证不可用503，图片不可用404；不依赖客户端传入的上游地址授权。HTTP private/no-cache、Vary Cookie、nosniff，ETag按登录、结果句柄及已打开文件身份生成；返回304前仍核查原结果、账号和来源范围，流失效中断后续块。错误仍no-store。无范围证据的旧推荐和已过期搜索不签发句柄；推荐/搜索恢复响应重新投影，不为补句柄启动来源网络。设计见[本人结果图片](discovery-image-architecture.md)，普通准入仍待P8。
 
 ### 0048观看历史状态
 

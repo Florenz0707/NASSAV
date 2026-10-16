@@ -1,26 +1,21 @@
 """Private image HTTP delivery; authorization and leases belong to the service."""
 
-from django.http import FileResponse
 from nassav import composition
 from nassav.library_assets import LibraryImages
 
 
 def image_response(request, entry, asset_id=None):
     version = LibraryImages.require_version(entry)
+    from nassav.http.image_cache import authorized_image
+    from nassav.version_image_files import image_asset
+
+    asset = image_asset(version, asset_id)
     handle, content_type, size = composition.build_library_images().open(
         request.user.pk, request.session.session_key, version, asset_id
     )
-    try:
-        response = FileResponse(handle, content_type=content_type)
-        response.block_size = 65536
-        response["Content-Length"] = str(size)
-        response["Cache-Control"] = "private, no-store"
-        response["Vary"] = "Cookie"
-        response["X-Content-Type-Options"] = "nosniff"
-        return response
-    except BaseException:
-        handle.close()
-        raise
+    return authorized_image(
+        request, handle, content_type, [str(version.pk), asset["sha256"]], size
+    )
 
 
 def catalog_avatar_response(request, term_id):
@@ -54,11 +49,11 @@ def catalog_avatar_response(request, term_id):
     if actor is None:
         raise LibraryNotFound("Avatar not available")
     handle = composition.build_legacy_avatar_reader()(actor.avatar_filename)
+    from nassav.http.image_cache import authorized_image, file_validator
+
     try:
-        response = FileResponse(handle, content_type="image/jpeg")
-        response["Cache-Control"] = "private, no-store"
-        response["Vary"] = "Cookie"
-        return response
+        validator = file_validator(handle)
     except BaseException:
         handle.close()
         raise
+    return authorized_image(request, handle, "image/jpeg", validator)
