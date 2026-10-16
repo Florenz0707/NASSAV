@@ -306,12 +306,32 @@ Compose全部后端继承`NASSAV_SCOPED_SOURCE_CREDENTIALS`、`NASSAV_SOURCE_CRE
 
 ```bash
 # PostgreSQL；SQLite 部署仅将 --mode 改为 sqlite
-python3 scripts/compose_stack.py --mode postgres --credentials config
+python3 scripts/compose_stack.py --mode postgres --credentials config --quiet
 python3 scripts/compose_stack.py --mode postgres --credentials up -d --no-deps --force-recreate api scrape-worker download-worker default-worker
 ```
 
 `--credentials` 追加 `compose.credentials.yaml`，为 API、三个 worker、migrate、beat 和 ollama-model 统一绑定文件到 `/run/nassav/source-credentials.json`，并覆盖容器内 keyring 环境变量。绑定只读、禁止自动创建宿主机路径，不主动启用任何业务开关；后续部署/运维命令继续带该参数。直接使用 Docker Compose 时，在原数据库/GPU文件之外追加 `-f compose.credentials.yaml`，不要只运行基础 SQLite 栈。
 
+显式指定文件重建的 PostgreSQL 部署，命令应保留全部覆盖文件：
+
+```bash
+docker compose -f compose.yaml -f compose.postgres.yaml -f compose.credentials.yaml up -d --build
+```
+
+若日常使用不带 `-f` 的 `docker compose up -d --build`，需把完整文件集合持久化在根 `.env`，避免下次重建丢失 keyring 挂载（Linux 示例）：
+
+```dotenv
+COMPOSE_FILE=compose.yaml:compose.postgres.yaml:compose.credentials.yaml
+NASSAV_SOURCE_CREDENTIAL_KEYRING_HOST_FILE=/absolute/path/to/existing/source-credentials.json
+NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE=/run/nassav/source-credentials.json
+```
+
+SQLite 去掉 `compose.postgres.yaml`；已有 GPU 覆盖文件也须保留。`COMPOSE_FILE` 只影响没有显式 `-f` 的原生 Compose 命令；显式 `-f`、以及自行拼接文件集合的 `compose_stack.py` 仍必须携带凭证覆盖文件或 `--credentials`，不能假定该变量会追加到显式文件后。不要在镜像中复制 keyring，也不要将容器路径填写为宿主机相对路径。`docker compose config --quiet` 只校验；完整 `config` 输出可能包含环境变量秘密，不要粘贴日志。
+
+播放提交同样在创建会话前读取 keyring。若 `/resources/{avid}/playback-sessions` 返回503，先区分响应中的凭证加载错误与媒体准备/容量错误；在服务UID下调用 `build_credential_records()`、对本人资源调用 `build_playback_source_binding()` 可只读核查，不创建播放会话，不触发来源网络，输出仅限成功/失败与安全错误类别。缺失挂载时容器的 `/healthz` 仍可能健康，不能据此判断来源凭证可用。重建前核对活动任务/播放并保留现有视频路径，重建后对全部API/worker核查只读绑定、原密钥加载及当前凭证解密。
+
 渲染预检验证来源凭证启用时的容器路径、宿主机文件存在/私有权限、全消费者绑定一致性；未启用时不要求 keyring。Unix 文件应为0600或更严格且服务 UID 可读取；重建前核对活动任务/播放及维护窗口，统一重建全部消费者。`restart` 不会应用新增挂载或环境变量，已有数据库密文必须继续使用原 keyring及历史密钥。
 
 故障定位：`Credential keyring cannot be loaded` 可能是路径不存在、无法读取或结构不合法；权限过宽另报 `must be private`。先在容器服务UID下调用加载器验证，不输出文件内容，不能通过放宽权限、退回 SECRET_KEY 或生成新密钥掩盖问题。当前实例已只读复现宿主机路径未挂载，并用临时同UID容器验证原 keyring 可加载；这不等于运行服务已应用挂载，也不代表重新刮削已完成。修复分支 `fix/compose-keyring-mount` 执行部署入口 pytest、全量隔离 pytest 和 `pre-commit run -a`，无数据库迁移。
+
+2026-10-16再次复现：原生重建仅携带基础/PostgreSQL文件，四个容器丢失独立绑定，播放创建在 `build_playback_source_binding` 报凭证加载失败并返回503。本轮将宿主机/容器keyring路径分别持久化到部署 `.env`，保留当前视频路径，四消费者使用原镜像和完整文件集合统一重建；四服务加载原密钥、解密已有active凭证及YUJ-062本人播放来源绑定只读检查通过。此前核对活动任务/播放均为0。此记录不代表真实播放出画验收；后续显式 `-f` 命令仍必须保留凭证覆盖文件。分支 `fix/persist-credential-compose-config` 更新配置示例/部署说明并执行全量 `pre-commit run -a`，无后端代码或数据库变更。
