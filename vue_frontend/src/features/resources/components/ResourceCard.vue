@@ -27,7 +27,7 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  // preferred cover size for this card: 'small'|'medium'|'large' or undefined for original
+  // small/medium/large; null or '' requests original, undefined uses the medium default.
   coverSize: {
     type: String,
     default: 'medium',
@@ -61,7 +61,9 @@ async function loadCover() {
     if (active && revision === coverRevision) coverUrl.value = url || ''
   }
   if (resource.thumbnail_url || resource.cover_url) {
-    publish(resourceApi.resolveCoverUrl(resource.thumbnail_url || resource.cover_url))
+    publish(
+      resourceApi.resolveCoverUrl(resource.thumbnail_url || resource.cover_url, props.coverSize)
+    )
     return
   }
   try {

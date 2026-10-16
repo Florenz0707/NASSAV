@@ -304,3 +304,5 @@ NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录
 个人中心导航/音量布局专项为`tests/browser/personalLayout.cjs`，使用模拟API，不依赖正式账号。与上方4178 Vite示例配合运行时显式设置`NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4178`；单独运行默认4180。可用`NASSAV_BROWSER_ENGINE=firefox`复核，覆盖面板过渡、弹窗滚动锁和四种视口下百分比位数变化。
 
 图片上下文回归：启动专用Vite后，运行`NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4196 node tests/browser/resourceImageContext.cjs`；Chromium可用NASSAV_CHROMIUM_PATH指定已有二进制，NASSAV_BROWSER_ENGINE=firefox沿现有浏览器路径选择Firefox。该脚本模拟后端对缺失_context返回409，验证生产资源卡/共享任务详情原生img请求、size/v保持和登录上下文变化，不连接部署数据库或改写权限。
+
+封面尺寸回归：同一Vite/Playwright环境运行`node tests/browser/resourceCoverSize.cjs`，验证后端提示small时卡片默认medium优先，运行中切换small/large/原图能改变实际加载尺寸，同时保留登录上下文和版本参数。可使用相同NASSAV_BROWSER_ENGINE/NASSAV_CHROMIUM_PATH/NASSAV_BROWSER_ORIGIN配置。

@@ -193,3 +193,31 @@ test('legacy and shared task projections use the supplied cover context resolver
     setBrowserContext()
   }
 })
+
+test('explicit card size overrides a server thumbnail hint while retaining context and version', () => {
+  setBrowserContext('size-login')
+  try {
+    const raw = '/nassav/api/resource/cover?avid=YUJ-036&size=small&v=version-one#cover'
+    for (const size of ['medium', 'large', 'small', null]) {
+      const url = new URL(resourceApi.resolveCoverUrl(raw, size), 'https://app.invalid')
+      assert.equal(url.searchParams.get('size'), size)
+      assert.equal(url.searchParams.get('_context'), 'size-login')
+      assert.equal(url.searchParams.get('v'), 'version-one')
+      assert.equal(url.hash, '#cover')
+    }
+    assert.equal(
+      new URL(resourceApi.resolveCoverUrl(raw), 'https://app.invalid').searchParams.get('size'),
+      'small'
+    )
+    assert.equal(
+      resourceApi.resolveCoverUrl('https://cdn.invalid/cover.jpg', 'large'),
+      'https://cdn.invalid/cover.jpg'
+    )
+    assert.equal(
+      resourceApi.resolveCoverUrl('/nassav/api/library/entries/entry/images/handle', 'medium'),
+      '/nassav/api/library/entries/entry/images/handle'
+    )
+  } finally {
+    setBrowserContext()
+  }
+})
