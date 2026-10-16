@@ -4,7 +4,7 @@
 
 ## 状态所有者与依赖方向
 
-共享池的[持有核心](resource-pool-architecture.md)与[共享请求/投影](shared-work-architecture.md)已接入生产HTTP、独立执行器和版本发布。共享模式用UserOperation持有本人需求，SharedWork/系统TaskJob持有执行；旧TaskJob兼容路径仍按owner及类型/AVID去重，未声明共享能力的执行器不得领取或派发shared_work。不能通过放宽owner比较或在旧发布流程直接打开shared_execution替代来源、持有和版本协议。公共来源真实范围见[P8验收](multi-user-p8-public-acceptance-20261015.md)，实际.env普通准入/GC由操作者确认开启；运行消费者及全部P8放行仍按该记录分别核查。
+共享池的[持有核心](resource-pool-architecture.md)与[共享请求/投影](shared-work-architecture.md)已接入生产HTTP、独立执行器和版本发布。共享模式用UserOperation持有本人需求，SharedWork/系统TaskJob持有执行；旧TaskJob兼容路径仍按owner及类型/AVID去重，未声明共享能力的执行器不得领取或派发shared_work。不能通过放宽owner比较或在旧发布流程直接打开shared_execution替代来源、持有和版本协议。公共来源真实范围见[P8验收](release-2.5.3.md#验证边界)，实际.env普通准入/GC由操作者确认开启；运行消费者及全部P8放行仍按该记录分别核查。
 
 [P2账号策略](account-policy-architecture.md)停用时先撤销本用户共享订阅，再对旧单owner任务请求取消；其他用户需求仍有效时共享工作继续，最后需求才请求停止，仍等待writer停止和资产收尾。管理fence仅用于管理命令，顺序在user/pool/work之前；普通业务不得反向取得它。受管WebSocket发送所属用户或明确管理范围的安全版本提示，旧全局组只供未引导operator兼容。
 
@@ -146,4 +146,4 @@ N_m3u8DL-RE v0.5.1-beta可能在分片数校验失败后仍退出0；不能只�
 
 分片默认并发为4，旧VideoDownloadService不再固定32；下载调用者仍可显式覆盖thread_count。降低默认并发是针对真实CDN在32并发下返回HTTP 428的保守策略，不把428统一解释为限流，也不保证所有站点/出口均可下载。不中断已有调用的参数，不自动换代理、换凭证、跳过分片或无限重试。只有实际输出通过既有完整轨道/时长/全量解码验证才发布版本。该默认值与Celery并发、全局槽位及浏览器代理容量无关。
 
-定位、反证与验证范围见[退出零但无输出的修复记录](download-cli-failure-20261015.md)。
+定位、反证与验证范围见[退出零但无输出的修复记录](task-control-architecture.md#下载续传边界)。

@@ -2,7 +2,7 @@
 
 ## 当前实现边界
 
-0050扩展ResourceGcJob/ResourceGcAsset、pool.retained、version.gc_after及版本deleting/cleanup_failed状态。数据库账本、保护条件、领取/失租/失败fence及受控文件删除已实现；已接入默认关闭的有界派发及operator/admin管理入口，普通登录与正式apply仍待P8。普通准入和自动apply保持关闭，不能用内部claim代替完整回收工作流。
+0050扩展ResourceGcJob/ResourceGcAsset、pool.retained、version.gc_after及版本deleting/cleanup_failed状态。数据库账本、保护条件、领取/失租/失败fence及受控文件删除已实现；已接入默认关闭的有界派发及operator/admin管理入口，普通准入和自动apply默认关闭，实际实例须逐项核对启用条件及目标验收。公共来源副本GC的历史证据与私人实站等剩余项见[发布检查](release-2.5.3.md#验证边界)，不能用内部claim代替完整回收工作流。
 
 ## 所有者与锁顺序
 

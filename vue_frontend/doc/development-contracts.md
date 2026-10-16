@@ -1,6 +1,6 @@
 # 前端开发契约
 
-本轮 F1–F6 后的持续开发约束。共同设计原则见[仓库开发规范](../../AGENTS.md)，阶段结果见[执行记录](refactoring-progress.md)，命令和浏览器环境见[前端 README](../README.md)。
+本轮 F1–F6 后的持续开发约束。共同设计原则见[仓库开发规范](../../AGENTS.md)，本次发布与验证范围见[发布检查](../../django_backend/doc/release-2.5.3.md)，命令和浏览器环境见[前端 README](../README.md)。
 
 ## 职责与复用入口
 
@@ -230,7 +230,7 @@ noteDialog统一处理关闭与导航离开的未保存决定，所有弹窗复�
 
 ### 个人中心缓存与列表操作（v2.5.1）
 
-PersonalCenter使用最多4个KeepAlive面板，使用viewing:section/settings:section的独立缓存key保留状态、180ms淡入位移，尊重prefers-reduced-motion；登出须ConfirmDialog确认“是否要登出”。ViewingLibrary的查询缓存归features/viewing/stores/viewing，30秒/8项/同请求去重；App身份变化重置，缓存revision及请求guard双重检查旧响应。onDeactivated停止查询、关闭确认和解除操作展示状态，卸载解除focus/visibility监听。手动刷新和重试强刷，写入成功以shared/lib/personalDataEvents无载荷事件失效，不保存个人数据到浏览器持久存储。跨标签/设备仅有TTL恢复，详细现状与后续步骤见[缓存计划](personal-cache-plan.md)。
+PersonalCenter使用最多4个KeepAlive面板，使用viewing:section/settings:section的独立缓存key保留状态、180ms淡入位移，尊重prefers-reduced-motion；登出须ConfirmDialog确认“是否要登出”。ViewingLibrary的查询缓存归features/viewing/stores/viewing，30秒/8项/同请求去重；App身份变化重置，缓存revision及请求guard双重检查旧响应。onDeactivated停止查询、关闭确认和解除操作展示状态，卸载解除focus/visibility监听。手动刷新和重试强刷，写入成功以shared/lib/personalDataEvents无载荷事件失效，不保存个人数据到浏览器持久存储。跨标签/设备仅有TTL恢复，详细现状与后续步骤见[缓存计划](cache-architecture.md)。
 
 观看历史的选择限定当前页，单条/批量删除确认后提交列表queue_time，重新观看冲突保留并提示。稍后再看“移出已观看”作用于当前账号全队列的手动watched=true，不根据历史推断；列表移除不删媒体/进度。AppCheckbox新增disabled并透传原生input。ResourceCover新增squareBottom仅去除下缘圆角；原默认样式保持。详情图标操作为三等分布局，行宽贴合封面、上方间距1.2rem；备注编辑图标位于文本左侧，保持原弹窗和草稿护栏。
 

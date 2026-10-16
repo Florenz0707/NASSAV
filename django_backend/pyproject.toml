@@ -1,6 +1,6 @@
 [project]
 name = "django-backend"
-version = "2.5.1"
+version = "2.5.3"
 description = "NASSAV Django Backend with Celery async task support"
 readme = "README.md"
 requires-python = ">=3.12"

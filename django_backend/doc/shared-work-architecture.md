@@ -49,7 +49,7 @@
 
 默认投影器仍拒绝publication_not_ready且暂不选成功job；P5发布核心已提供可注入grant证据，注入后只激活仍attached的本人持有，生产装配待后续接入。不能以TaskJob.succeeded或同AVID文件存在作为激活证明。配额和新HTTP仍未开放，这一子阶段不代表完整P4。
 
-用户提示仅为operation_id/version，提交成功后发送到本人的task_user频道，不进入旧全局组或管理员广播。提示投递失败不回滚业务，由下一次授权快照补查；当前前端尚未消费新事件。
+用户提示仅为operation_id/version，提交成功后发送到本人的task_user频道，不进入旧全局组或管理员广播。提示投递失败不回滚业务，由下一次授权快照补查；前端userOperations消费版本提示并补取授权快照，断线与轮询兜底见[前端缓存](../../vue_frontend/doc/cache-architecture.md)。
 
 0043仅增加默认0游标，原有请求/订阅/持有/工作不变；逆向只丢游标，重新升级从0重建。测试覆盖SQLite/PostgreSQL往返、双用户真实线程释放/投影竞争、停用、取消后迟到状态、无发布证据拒绝激活、批次公平与事务回滚不发提示。模拟claim/派发回调不代表真实Celery或媒体发布验收。
 

@@ -1,6 +1,6 @@
-# 共享资源池与用户持有（P1）
+# 共享资源池与用户持有
 
-P1新增0037、内部持有核心和显式旧资源导入；当前HTTP、播放、worker与前端尚未切换到共享池，仍只允许operator。P2权限、P4订阅、P5版本、P6回收未完成前，不开放普通用户，不把本阶段视为生产共享库。设计约束见[P0契约](multi-user-contracts.md)。
+0037建立资源池、个人持有核心和显式旧资源导入；当前HTTP、worker、本人库、目录与播放已接入共享工作及不可变版本协议。本文维护持有语义；任务、发布和回收分别由[共享工作](shared-work-architecture.md)、[资源版本](resource-version-architecture.md)与[回收账本](resource-gc-architecture.md)持有。普通准入/GC默认关闭，实例放行依据[切换手册](multi-user-cutover.md)与目标验收，不能从迁移号推断。
 
 ## 状态所有者与接口
 
@@ -49,6 +49,6 @@ uv run python manage.py import_resource_library --username <配置中的原操�
 
 ## 当前本人持有管理（P7）
 
-上文P1描述的是基础阶段接口；当前已接入的命令/版本/回收进度见[执行计划](multi-user-shared-pool-plan.md)。`library_catalog.held_entries`仍只投影可读取产物；不能为管理不可用持有而放宽其过滤，避免标题、封面、个人字段或筛选侧信道泄露。
+上文P1描述的是基础阶段接口；当前已接入的命令/版本/回收进度见[执行计划](multi-user-cutover.md)。`library_catalog.held_entries`仍只投影可读取产物；不能为管理不可用持有而放宽其过滤，避免标题、封面、个人字段或筛选侧信道泄露。
 
 `list_memberships`是独立只读管理投影，按user_id查询原UserLibraryEntry，包含pending和不可用池，但仅返回编号、关系UUID/version、粗粒度池可用性与时间。搜索仅匹配编号；可用标记不授予媒体权限。HTTP受共享模式/操作者/管理账号准入保护，普通多账号仍关闭。释放沿现有持久命令/配额/GC协议，前端冻结确认时的关系证据；旧确认不能自动移出重新添加的新UUID。无新表或schema迁移。

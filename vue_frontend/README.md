@@ -5,11 +5,11 @@
 
 全栈容器部署通过仓库根目录 `compose.yaml` 提供 nginx 网关，详见 [Compose 部署说明](../django_backend/doc/compose-deployment.md)。
 
-后续开发遵循[仓库开发规范](../AGENTS.md)、[前端开发契约](doc/development-contracts.md)及 [AGENT.md](AGENT.md)；阶段验证证据见[语义重构记录](doc/semantic-refactoring-progress.md)和[UX 改进记录](doc/ux-neutral-progress.md)。
+后续开发遵循[仓库开发规范](../AGENTS.md)、[前端开发契约](doc/development-contracts.md)及 [AGENT.md](AGENT.md)；缓存与请求隔离见[缓存架构](doc/cache-architecture.md)，本轮发布范围见[发布检查](../django_backend/doc/release-2.5.3.md)。
 
 ## 功能概览（含页面与预览图）
 
-当前版本为2.5.1；以下预览生成于2026-10-08，展示当时的真实页面组件，尚未覆盖随后新增的个人中心、播放页和进度恢复提示。资源、演员、封面和任务均使用示例数据，截图不代表真实站点或 worker 联调验收；默认展示浅色主题，另附深色任务界面。
+当前代码版本为2.5.3；以下预览生成于2026-10-08，展示当时的真实页面组件，尚未覆盖随后新增的个人中心、播放页和进度恢复提示。资源、演员、封面和任务均使用示例数据，截图不代表真实站点或 worker 联调验收；默认展示浅色主题，另附深色任务界面。
 
 - 首页（品牌与功能入口）
   - 功能：展示品牌、下载与刮削能力介绍，提供添加资源和浏览资源库快捷入口；品牌标识与导航共用橙色渐变，背景使用彩色柔光。
@@ -155,7 +155,7 @@ pnpm preview
   - 应用装配：`src/app/`（路由、导航、WebSocket 连接）
   - 接口封装：`src/api/`（client.js 唯一客户端，按领域分文件，index.js 保留公开导出）
 
-目录规则与状态所有者见[模块布局](doc/module-layout.md)，本轮证据见[语义与模块重构记录](doc/semantic-refactoring-progress.md)。
+目录规则与状态所有者见[模块布局](doc/module-layout.md)，本轮证据见[语义与模块重构记录](doc/development-contracts.md)。
 
 ## 常见问题（FAQ）
 
@@ -195,7 +195,7 @@ pnpm exec vite --host 127.0.0.1 --port 4178
 NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 ```
 
-有现成 Chromium 时设置 `NASSAV_CHROMIUM_PATH` 指向可执行文件；`NASSAV_BROWSER_ORIGIN` 可覆盖默认本地地址。重构阶段与验收边界见 [执行记录](doc/refactoring-progress.md)。
+有现成 Chromium 时设置 `NASSAV_CHROMIUM_PATH` 指向可执行文件；`NASSAV_BROWSER_ORIGIN` 可覆盖默认本地地址。重构阶段与验收边界见 [执行记录](doc/development-contracts.md)。
 
 浏览器套件还检查深浅主题映射、目录分页/错误/竞态及移动布局、演员与类别的手动外部搜索/部分结果/取消、黑名单读写隔离和设置保存。必须使用 Vite 开发服务以编译组件样例；真实接口由 Playwright 拦截并模拟。
 
@@ -225,13 +225,13 @@ NODE_PATH=/tmp/nassav-browser-audit/node_modules pnpm run test:browser
 
 推荐信息仅保留历史统计、刷新和重置。个性化弹窗左侧推荐偏好，右侧黑名单；桌面两列独立滚动，移动端内容整体滚动，关闭按钮保持可访问。推荐依据按演员 coral/类别 teal 显示；资源卡片与外部搜索复用操作按钮，屏蔽位于反馈右侧。添加请求按返回 job_id 跟踪，授权快照确认资源已保存即禁用按钮，即使翻译尚未结束或失败也不重复添加。
 
-回归入口为 `recommendationJobs.cjs`、`recommendationRestore.cjs`、`recommendationBlacklist.cjs`；配合公共 `components.cjs` 验证任务失败/取消/迟到响应、添加禁用、多批次刷新恢复、弹窗布局/滚动及焦点。模拟 API/WS 验收与真实来源/worker 验收分开记录，见[执行记录](doc/refactoring-progress.md)和[部署与验证边界](../django_backend/doc/compose-deployment.md#近期改动与验证边界)。
+回归入口为 `recommendationJobs.cjs`、`recommendationRestore.cjs`、`recommendationBlacklist.cjs`；配合公共 `components.cjs` 验证任务失败/取消/迟到响应、添加禁用、多批次刷新恢复、弹窗布局/滚动及焦点。模拟 API/WS 验收与真实来源/worker 验收分开记录，见[执行记录](doc/development-contracts.md)和[部署与验证边界](../django_backend/doc/compose-deployment.md#近期改动与验证边界)。
 
 ## 在线播放器验收
 
-详情页“在线播放”使用同源授权会话、MSE/hls.js 优先、缺少 MSE 时回退原生 HLS，不保存视频文件。来源准备异步完成，独立 `/play/:avid` 页面顶部仅保留Logo，播放器居中并在加载/播放时保持16:9比例；支持拖动、暂停、错误重试、关闭标签页和卸载清理；关闭原详情页不影响播放；hls.js 对网关来源拒绝最多刷新一次，兼容检查成功才恢复位置。原生 HLS 错误无法可靠取得 HTTP 状态，使用显式重试。配置和上线条件见[后端验收](../django_backend/doc/online-playback-acceptance.md)。
+详情页“在线播放”使用同源授权会话、MSE/hls.js 优先、缺少 MSE 时回退原生 HLS，不保存视频文件。来源准备异步完成，独立 `/play/:avid` 页面顶部仅保留Logo，播放器居中并在加载/播放时保持16:9比例；支持拖动、暂停、错误重试、关闭标签页和卸载清理；关闭原详情页不影响播放；hls.js 对网关来源拒绝最多刷新一次，兼容检查成功才恢复位置。原生 HLS 错误无法可靠取得 HTTP 状态，使用显式重试。配置和上线条件见[后端验收](../django_backend/doc/release-2.5.3.md#验证边界)。
 
-已下载资源的“点击播放”使用`/play/:avid?mode=local`，由后端鉴权直传MP4、支持Range，不重新刮削或下载。新增个人进度会自动节流保存，在再次打开时提供“继续上次播放/从头播放”；来源续播要求确认，本地文件版本不同不自动套用。多标签/旧响应不能覆盖新状态，进度服务失败不阻塞播放，离页保存不保证必达。详细生命周期见[开发契约](doc/development-contracts.md#播放进度记忆)，前后端必须统一更新并迁移至0036，升级见[发布检查](../django_backend/doc/release-2.5.1.md)。
+已下载资源的“点击播放”使用`/play/:avid?mode=local`，由后端鉴权直传MP4、支持Range，不重新刮削或下载。新增个人进度会自动节流保存，在再次打开时提供“继续上次播放/从头播放”；来源续播要求确认，本地文件版本不同不自动套用。多标签/旧响应不能覆盖新状态，进度服务失败不阻塞播放，离页保存不保证必达。详细生命周期见[开发契约](doc/development-contracts.md#播放进度记忆)，前后端必须统一更新并按升级说明核对当前0051迁移，升级见[发布检查](../django_backend/doc/release-2.5.3.md)。
 
 `tests/browser/playback.cjs` 默认离线，ffmpeg 生成临时 TS/fMP4 后真实解码，模拟 API 验证迟到提交、恢复、焦点和移动布局；不替代真实来源/worker。`scripts/verify-playback-live.cjs` 必须显式提供验收来源、两个已有 AVID 和临时 Playwright storage-state 文件；默认连续播放 30 秒，可选刷新，测试后尽力关闭会话，临时登录由提供者删除。驱动依赖沿用上面的 NODE_PATH，不将凭证提交到仓库。
 
@@ -265,7 +265,7 @@ for round in 1 2 3 4 5 6 7 8 9 10; do
 done
 ```
 
-正式HTTPS/真机/长时验收项目及未通过记录见[验收记录](../django_backend/doc/online-playback-acceptance.md)。
+正式HTTPS/真机/长时验收项目及未通过记录见[验收记录](../django_backend/doc/release-2.5.3.md#验证边界)。
 
 ### 已下载 MP4 真实隔离浏览器验证
 
@@ -297,9 +297,9 @@ NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录
 
 个人中心本轮真实隔离验收可运行`tests/browser/personalState.cjs`和`tests/browser/viewingManagement.cjs`：使用local_playback_server的观看fixture及`NASSAV_PERSONAL_STORAGE_STATE`临时登录文件，另设`NASSAV_BROWSER_ENGINE=firefox`复核。前者会确认登出并使该临时登录失效，后者只修改临时观看状态/历史并关闭自建播放会话；两者不得指向正式实例。未提供临时状态时跳过，完整环境准备见上述播放验收说明。
 
-## v2.5.1个人中心
+## 个人中心与管理中心
 
-导航入口“个人中心”集中稍后再看、观看历史、通用设置、播放设置与退出确认。历史按最近实际观看去重，卡片批量操作显式开启；列表删除不删资源或播放进度。详情图标管理收藏/观看/稍后再看，备注只读展示并弹窗编辑。观看查询缓存30秒、最多8项，设置按登录归属复用；后续缓存隔离改进见[方案](doc/personal-cache-plan.md)。前端实现与验收证据见[开发契约](doc/development-contracts.md)，正式升级及旧数据导入见[发布检查](../django_backend/doc/release-2.5.1.md)。
+导航入口“个人中心”集中稍后再看、观看历史、通用设置、播放设置与退出确认。历史按最近实际观看去重，卡片批量操作显式开启；列表删除不删资源或播放进度。详情图标管理收藏/观看/稍后再看，备注只读展示并弹窗编辑。观看查询缓存30秒、最多8项，设置按登录归属复用；后续缓存隔离改进见[方案](doc/cache-architecture.md)。前端实现与验收证据见[开发契约](doc/development-contracts.md)，正式升级及旧数据导入见[发布检查](../django_backend/doc/release-2.5.3.md)。
 
 个人中心导航/音量布局专项为`tests/browser/personalLayout.cjs`，使用模拟API，不依赖正式账号。与上方4178 Vite示例配合运行时显式设置`NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4178`；单独运行默认4180。可用`NASSAV_BROWSER_ENGINE=firefox`复核，覆盖面板过渡、弹窗滚动锁和四种视口下百分比位数变化。
 
@@ -308,3 +308,5 @@ NASSAV_LOCAL_PLAYBACK_STORAGE_STATE=/tmp/nassav-local-playback-http-实际目录
 封面尺寸回归：同一Vite/Playwright环境运行`node tests/browser/resourceCoverSize.cjs`，验证后端提示small时卡片默认medium优先，运行中切换small/large/原图能改变实际加载尺寸，同时保留登录上下文和版本参数。可使用相同NASSAV_BROWSER_ENGINE/NASSAV_CHROMIUM_PATH/NASSAV_BROWSER_ORIGIN配置。
 
 任务提示与时间线回归：启动专用 Vite 后运行 `NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4196 node tests/browser/taskFeedback.cjs`，可用 `NASSAV_CHROMIUM_PATH` 指定已有 Chromium。该脚本使用模拟 API 验证资源卡刷新提交的单次 toast 和任务详情中文时间线，不创建真实任务。
+
+管理中心仅对应用管理员展示，桌面导航在个人中心右侧、移动菜单末项；个人中心不重复放置。模拟浏览器检查：启动专用Vite后运行 `NODE_PATH=/tmp/nassav-browser-audit/node_modules NASSAV_BROWSER_ORIGIN=http://127.0.0.1:4196 node tests/browser/managementNavigation.cjs`，可用 `NASSAV_CHROMIUM_PATH` 指定已有Chromium，不连接正式管理接口。

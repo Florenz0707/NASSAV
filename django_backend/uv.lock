@@ -580,7 +580,7 @@ wheels = [
 
 [[package]]
 name = "django-backend"
-version = "2.5.1"
+version = "2.5.3"
 source = { editable = "." }
 dependencies = [
     { name = "bs4" },

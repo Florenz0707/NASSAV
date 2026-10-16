@@ -1,6 +1,6 @@
 # NASSAV - AV 资源管理系统
 
-当前版本：**v2.5.1**。升级步骤与验收边界见[当前升级与切换](django_backend/doc/multi-user-cutover.md)。
+当前代码版本：**v2.5.3**（发布准备）。升级步骤与验收边界见[当前升级与切换](django_backend/doc/multi-user-cutover.md)。
 
 基于 Django、Celery 和 Vue 的资源管理系统，将资源收藏与管理、多源发现、个性化推荐和任务控制串成完整流程：搜索感兴趣的资源，补齐元数据，加入资源库，再按需下载。支持实时进度以及任务暂停、恢复和终止。项目基于 [Satoing/NASSAV](https://github.com/Satoing/NASSAV) 重构；历史参考代码已从当前仓库移除。
 
@@ -10,8 +10,8 @@
 - 三个 Celery 队列分别处理默认任务、刮削和下载；持久任务支持单条/批量暂停、恢复、终止与停止后的私有产物清理。
 - 推荐通过独立持久任务在 scrape worker 执行，支持进度、取消、反馈、历史避让和黑名单；外部搜索与推荐共用代理服务器并发能力。
 - 来源HLS与已下载MP4可在独立标签页播放；个人进度支持继续/从头播放、自动保存与多标签写入保护，播放功能默认关闭。
-- 个人中心提供收藏/已观看/备注、稍后再看、去重观看历史、通用/播放设置与显式跨设备接续；个人数据按账号隔离，当前仍仅允许指定操作者登录。
-- 单用户 Django 会话保护业务 API 和任务 WebSocket；登录后使用浏览器 Cookie 与 CSRF 令牌。
+- 个人中心提供收藏/已观看/备注、稍后再看、去重观看历史、通用/播放设置与显式跨设备接续；个人数据按账号隔离；多用户准入显式开启，默认保留指定操作者登录。
+- 统一Django会话、浏览器上下文和CSRF保护HTTP、媒体与任务WebSocket；管理员通过导航栏最右侧进入管理中心。
 - [前端页面与本地开发](vue_frontend/README.md) · [后端本地开发](django_backend/README.md) · [后端接口](django_backend/doc/interface.md) · [数据库说明](django_backend/doc/database.md)
 - [仓库开发规范](AGENTS.md) · [后端任务架构与职责](django_backend/doc/task-control-architecture.md) · [前端开发契约](vue_frontend/doc/development-contracts.md)
 
@@ -42,24 +42,24 @@ PostgreSQL 模式连接外部数据库，需密码 secret 和 `compose.postgres.
 
 资源添加/刷新通过异步任务执行；演员和类别外部搜索支持来源选择、渐进结果、取消和终态补查。下载和批量翻译的 owner/异常收尾修复、资源/下载/翻译/推荐用例分层已实现；消费者 URL、响应字段和 Celery 任务名保持。
 
-v2.5.1新增个人资源状态、JSON设置、推荐归属、播放偏好、跨设备接续和个人观看列表（0033–0036），并优化个人中心、详情、卡片和缓存；v2.5.0已有共享抓取缓存、表名规范化、来源/本地播放与进度记忆。共享资源与服务器配置保持原有所有者，仍保留指定操作者准入；实现概况见[变更日志](CHANGES.md)。升级需显式导入旧标记/INI及共享推荐数据，步骤见[当前升级与切换](django_backend/doc/multi-user-cutover.md)。
+v2.5.3在个人状态与设置基础上加入共享资源库、范围加密凭证、版本化读取与回收、个人任务及管理中心，并改善查询/图片缓存、中文时间线和部署预检。普通页面不暴露共享池机制，内部权限、命令版本与取消边界保持。功能详情见[变更日志](CHANGES.md)。
 
-本轮多用户实现的完整后端隔离门槛1345通过/30跳过；前端200项测试与浏览器证据沿各阶段记录，本次后端修复未重新宣称前端全量验收。实际PostgreSQL迁移/归属导入已完成，公共来源双账号原生worker、元数据版本发布、播放授权及副本GC故障已补验，详见[P8验收与剩余项](django_backend/doc/multi-user-p8-public-acceptance-20261015.md)。MIMK-079输出缺失已独立修复，正式默认调用的完整下载/暂停恢复/校验/共享发布与视频GC验收通过；私人来源实站及正式放行不能由上述检查替代，本轮未修改实际普通登录/GC开关，操作者已确认当前.env两项true系有意开启并保留，运行消费者仍须单独核对。HTTPS/真机已按要求跳过，长时及Firefox历史来源间歇超时限制保留。
+从v2.5.1升级涉及0037–0051，结构迁移与旧资源/个人数据/凭证归属导入分开确认；从更早版本升级先检查已有迁移。完整步骤见[升级与切换](django_backend/doc/multi-user-cutover.md)，本次制品准备和历史目标验收限制见[v2.5.3发布检查](django_backend/doc/release-2.5.3.md)。本轮不执行正式迁移、部署或远端发布。
 
 ## 文档导航
 
 - 本地开发：[后端](django_backend/README.md)、[前端](vue_frontend/README.md)
-- 个人功能：[个人状态与设置接口](django_backend/doc/interface.md)、[观看列表](django_backend/doc/viewing-architecture.md)、[前端缓存计划](vue_frontend/doc/personal-cache-plan.md)
-- 播放与版本：[版本与读取授权](django_backend/doc/resource-version-architecture.md)、[播放与进度接口](django_backend/doc/interface.md)、[多用户规划](django_backend/doc/multi-user-roadmap.md)、[升级与切换](django_backend/doc/multi-user-cutover.md)
+- 个人功能：[个人状态与设置接口](django_backend/doc/interface.md)、[观看列表](django_backend/doc/viewing-architecture.md)、[前端缓存计划](vue_frontend/doc/cache-architecture.md)
+- 播放与版本：[版本与读取授权](django_backend/doc/resource-version-architecture.md)、[播放与进度接口](django_backend/doc/interface.md)、[多用户规划](django_backend/doc/resource-pool-architecture.md)、[升级与切换](django_backend/doc/multi-user-cutover.md)
 - 消费者与数据：[接口与权限](django_backend/doc/interface.md)、[数据库与备份](django_backend/doc/database.md)、[推荐系统](django_backend/doc/recommendation.md)
 - 架构与配置：[持久任务控制与资产提交](django_backend/doc/task-control-architecture.md)、[推荐架构](django_backend/doc/recommendation-architecture.md)、[代理并发](django_backend/doc/proxy-concurrency.md)、[持久抓取缓存](django_backend/doc/resource-cache-architecture.md)、[配置契约](django_backend/doc/configuration-contract.md)、[代理路由](django_backend/doc/proxy-routing.md)
 - 运行与复验：[Compose 部署](django_backend/doc/compose-deployment.md)、[进程管理](django_backend/doc/host-processes.md)、[脚本](django_backend/scripts/README.md)、[测试](django_backend/tests/README.md)、[部署与验证边界](django_backend/doc/compose-deployment.md#近期改动与验证边界)
 
-## 后续设计
+## 持续开发
 
-- [多用户、来源凭证与共享资源池执行计划](django_backend/doc/multi-user-shared-pool-plan.md)：[P0契约](django_backend/doc/multi-user-contracts.md)、[共享池P1基础](django_backend/doc/resource-pool-architecture.md)与[P2账号策略](django_backend/doc/account-policy-architecture.md)已交付；[P3范围凭证](django_backend/doc/source-credential-architecture.md)、共享订阅、版本/回收和管理界面已分阶段实现；[受控准入](django_backend/doc/multi-user-admission-architecture.md)默认关闭，P8目标验收及[切换手册](django_backend/doc/multi-user-cutover.md)区分隔离证据与实际部署。
-
-- 播放后续设计见[本地播放与进度草案](django_backend/doc/local-playback-and-progress-design.md)；当前接口和验证分别查阅[接口文档](django_backend/doc/interface.md)与[测试说明](django_backend/tests/README.md)，草案不代替现行授权协议。
+- 多用户与资产：[角色及配额](django_backend/doc/account-policy-architecture.md)、[准入与浏览器上下文](django_backend/doc/multi-user-admission-architecture.md)、[范围凭证](django_backend/doc/source-credential-architecture.md)、[共享工作](django_backend/doc/shared-work-architecture.md)、[资源版本](django_backend/doc/resource-version-architecture.md)、[回收账本](django_backend/doc/resource-gc-architecture.md)。
+- 播放及个人数据：[播放会话](django_backend/doc/online-playback-architecture.md)、[个人进度](django_backend/doc/playback-progress-architecture.md)、[个人状态与JSON设置](django_backend/doc/personal-state-architecture.md)、[观看列表](django_backend/doc/viewing-architecture.md)。
+- 前端与图片：[缓存架构](vue_frontend/doc/cache-architecture.md)、[本人结果图片](django_backend/doc/discovery-image-architecture.md)。临时方案与现场执行报告从Git历史追溯，开发以现行契约和代码为准。
 
 ## 版本更新
 

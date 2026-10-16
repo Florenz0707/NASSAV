@@ -66,4 +66,4 @@ BrowserFetch.max_concurrency 是代理服务器的公共容量配置，只接受
 
 ## 多用户准入开关
 
-NASSAV_MULTI_USER_ENABLED为严格布尔，默认false，必须与SHARED_LIBRARY_ENABLED、SOURCE_CREDENTIALS_ENABLED同时开启。true仅准入启用的UserAccount，Django staff/superuser不能代替应用角色；多用户业务需要浏览器上下文预条件，内置Django后台关闭。环境/Compose样例均保持false。开关与隔离实现不等同目标切换已验收，见[准入架构](multi-user-admission-architecture.md)及[执行计划](multi-user-shared-pool-plan.md)。
+NASSAV_MULTI_USER_ENABLED为严格布尔，默认false，必须与SHARED_LIBRARY_ENABLED、SOURCE_CREDENTIALS_ENABLED同时开启。true仅准入启用的UserAccount，Django staff/superuser不能代替应用角色；多用户业务需要浏览器上下文预条件，内置Django后台关闭。环境/Compose样例均保持false。开关与隔离实现不等同目标切换已验收，见[准入架构](multi-user-admission-architecture.md)及[执行计划](multi-user-cutover.md)。

@@ -60,7 +60,7 @@ features/playback 独占在线播放会话及播放引擎生命周期；Resource
 
 个人中心由features/personal管理功能导航与退出，复用features/viewing的列表、features/settings的PersonalSettings；views仅装配。个人状态单一editor留在PersonalResourcePanel，PersonalResourceActions展示图标状态，noteDialog负责草稿退出决定，页面slot只负责左右布局。
 
-观看查询缓存归features/viewing/stores/viewing，组件只管理选择/页码/展示guard；App登录身份变化重置。shared/lib/personalDataEvents只传递无载荷失效信号，API写成功时发布，shared不导入领域API/store。个人中心KeepAlive保留最多四个面板，停用/卸载生命周期仍须明确；缓存现状与下一步见[方案](personal-cache-plan.md)。
+观看查询缓存归features/viewing/stores/viewing，组件只管理选择/页码/展示guard；App登录身份变化重置。shared/lib/personalDataEvents只传递无载荷失效信号，API写成功时发布，shared不导入领域API/store。个人中心KeepAlive保留最多四个面板，停用/卸载生命周期仍须明确；缓存现状与下一步见[方案](cache-architecture.md)。
 
 features/library/lib/membershipLookup.js管理本人关系缓存与请求护栏；stores/memberships.js仅装配Pinia和api/library.js。其revision是前端失效信号，后端entry_id/version仍是持有命令的CAS依据，不引入全局库版本或推断他人库存。
 

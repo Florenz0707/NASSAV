@@ -74,6 +74,7 @@
   - 按钮使用公共 variant、尺寸与 loading/disabled 状态；基础样式使用合适的 CSS layer，使工具类可以覆盖显示和布局。
   - 下拉与浮窗使用 `bg-secondary`、默认语义边框（`--border-color`）、预设阴影与圆角，保证深浅主题一致。
   - 弹窗复用 `useDialog`，检查初始打开、嵌套、焦点循环/恢复和卸载清理；下拉支持键盘操作与禁用项跳过。
+- **普通用户文案**：资源与任务页面不按共享模式展示“持有关系”“本人请求”等内部术语；内部协议、权限、版本和实际操作能力判断保留，管理中心可展示必要运维信息。
 - **结构与留白**：区块（Card）、表单内外间距必须统一使用 Tailwind 标准间距尺码（如 `p-4`, `gap-3`, `mt-6`），同一层级应保持视觉一致，避免生硬和跳跃的排版。
 
 ## 验证要求
@@ -102,6 +103,7 @@
 - 发布版本同时更新`django_backend/pyproject.toml`、`django_backend/uv.lock`中的项目版本与`vue_frontend/package.json`，检查锁文件一致性；发布文档区分制品准备、远端发布和正式部署，不把历史迁移快照或隔离测试当作当前实例验收。
 - 版本变更日志统一写入根目录 [CHANGES.md](CHANGES.md)，按版本倒序排列并沿用现有分类；README 仅保留入口，不再追加版本记录
 - 后端相关改动，需要检查 `django_backend/doc/` 下文档是否需要同步更新
+- 临时执行流水、过期方案在收尾时合并到现行架构契约或发布检查，并从 Git 历史追溯；清理文档须检查所有引用，不得删除仍由 AGENTS.md、接口或数据库文档引用的有效契约。
 - 新增接口时，应更新接口文档
 - 新增或调整数据库相关行为时，应更新数据库文档
 - 新增脚本、推荐链路、服务编排或其他非显然行为时，应补充设计说明文档
@@ -116,6 +118,7 @@
   - `[Enhancement]`
   - `[Doc]`
 - 一次提交应尽量聚焦一个明确目标
+- 清理分支仅删除已合入目标分支且未被其他工作树占用的本地分支；保留 main/dev/idle，不把远端引用或未合并工作当作临时产物。
 - 未获提交授权时主动询问并给出提交信息；用户已授权分阶段提交和合并时直接执行，不重复询问
 - 本轮已授权流程：仅在 `/tmp/nassav-agent-worktree` 使用独立阶段分支，通过质量门槛后提交并合并 `idle`，结束保持工作树干净且位于 `idle`；默认工作树保留给用户使用
 
@@ -178,21 +181,21 @@ UserPreferences以JSON覆盖值保存通用设置；当前键/类型/默认值/�
 
 观看历史与稍后观看遵循[个人观看列表](django_backend/doc/viewing-architecture.md)。历史唯一(user,pool)，展示快照只保留当时本人授权标题/AVID/来源；真实播放/恢复更新队首，play之后的playing才上报；缓冲、读取、准备、claim和重试不新增事件。按会话generation/sequence拒绝旧执行或幂等去重，不绑定进度writer，只读播放同样记录。稍后观看沿用个人状态version与手动移除，不自动标记已观看或删队列；资源回收保留历史快照且不授予封面/播放权限，稍后观看仍随资源删除清理，播放进度按原规则保留。查询绑定request.user，不持久化个人列表到浏览器存储，不据旧进度推测回填历史。
 
-## 应用角色与共享池（开发中）
+## 应用角色与共享池
 
-修改角色、持有、管理、配额或账号撤销前阅读[共享池](django_backend/doc/resource-pool-architecture.md)与[账号策略](django_backend/doc/account-policy-architecture.md)。UserAccount才是应用角色所有者，不从Django标志推导管理权限；普通账号登录仍关闭。未引导operator兼容路径不属于新角色授权，禁止用它绕过后续凭证/共享工作协议。管理命令必须版本/幂等/理由代码/审计，管理fence在排序user→pool→work/session之前，普通业务不反向取得它。审计清理不删除持久命令receipt；配额释放不以writer超时为证明。停用/移出先撤销本人共享订阅；他人仍有需求时不得终止共享job，旧单owner任务另走原停止协议。图片/媒体先授权再响应304/206，播放grant不代替P5读取占用与不可变版本。
+修改角色、持有、管理、配额或账号撤销前阅读[共享池](django_backend/doc/resource-pool-architecture.md)与[账号策略](django_backend/doc/account-policy-architecture.md)。UserAccount才是应用角色所有者，不从Django标志推导管理权限；普通账号准入由显式开关控制，默认关闭，实例实际启用状态须单独核查。未引导operator兼容路径不属于新角色授权，禁止用它绕过后续凭证/共享工作协议。管理命令必须版本/幂等/理由代码/审计，管理fence在排序user→pool→work/session之前，普通业务不反向取得它。审计清理不删除持久命令receipt；配额释放不以writer超时为证明。停用/移出先撤销本人共享订阅；他人仍有需求时不得终止共享job，旧单owner任务另走原停止协议。图片/媒体先授权再响应304/206，播放grant不代替P5读取占用与不可变版本。
 
 ## 来源凭证开发约束
 
-新增加密凭证和刷新快照遵循[凭证架构](django_backend/doc/source-credential-architecture.md)。专用keyring不可回退SECRET_KEY或明文；HTTP只返回元信息，禁止秘密进入日志、审计、任务参数或公共缓存。来源host由服务端配置决定，个人凭证不自动提升公共。刷新须检查凭证version、快照context、owner/generation/lease及执行归属，人工更新/撤销使旧结果失效；只释放本人租约。旧Cookie显式分类导入，未知账号Cookie隔离，不双写或自动清除。新模式默认关闭，启用时全部消费者统一重启，不混跑旧Cookie写入者。ProxyServer声明会话能力，私人请求不得将匿名HTML视为成功；原站Cookie禁止跟随重定向或发往CDN。DB缓存和推荐终态先取得key policy/actor/credential fence，再进入既有短提交；Redis仅用失效版本命名空间，不持DB锁调用Redis。旧active key writer不得绕过DB key policy，轮换保留历史密钥且CAS预检。共享正式媒体当前只用system，私人资产待P4/P5。
+新增加密凭证和刷新快照遵循[凭证架构](django_backend/doc/source-credential-architecture.md)。专用keyring不可回退SECRET_KEY或明文；HTTP只返回元信息，禁止秘密进入日志、审计、任务参数或公共缓存。来源host由服务端配置决定，个人凭证不自动提升公共。刷新须检查凭证version、快照context、owner/generation/lease及执行归属，人工更新/撤销使旧结果失效；只释放本人租约。旧Cookie显式分类导入，未知账号Cookie隔离，不双写或自动清除。新模式默认关闭，启用时全部消费者统一重启，不混跑旧Cookie写入者。ProxyServer声明会话能力，私人请求不得将匿名HTML视为成功；原站Cookie禁止跟随重定向或发往CDN。DB缓存和推荐终态先取得key policy/actor/credential fence，再进入既有短提交；Redis仅用失效版本命名空间，不持DB锁调用Redis。旧active key writer不得绕过DB key policy，轮换保留历史密钥且CAS预检。旧无版本来源播放仅用system；版本化来源播放按本人元数据冻结引用与范围授权，私人实站验收不能用公共来源结果替代。
 
 共享请求遵循[共享工作](django_backend/doc/shared-work-architecture.md)。UserOperation与SharedWork/TaskJob身份、版本、权限分开；默认旧执行器不得派发/领取shared_work。状态按本人游标投影，不广播内部诊断；成功必须由P5发布证据激活，取消/失代次不得复活持有。user→pool→work→task锁顺序不变，禁止pool持锁后遍历取得其他user锁；提示在事务后仅发送operation_id/version。
 
-版本/占用遵循[资源版本](django_backend/doc/resource-version-architecture.md)。元数据与视频指针分离，已发布数据不可原地改写；公开版本owner为空，其他范围仅所属用户，不授予管理员私人媒体权。读取固定version/登录/账号epoch，移出仅允许已有合法播放grant在原期限续读，不能新授权或延长；GC同时检查占用和仍可续读的播放session，不能用lease超时替代writer停止。当前发布/网关接入未完成，不在旧流程直接启共享执行。
+版本/占用遵循[资源版本](django_backend/doc/resource-version-architecture.md)。元数据与视频指针分离，已发布数据不可原地改写；公开版本owner为空，其他范围仅所属用户，不授予管理员私人媒体权。读取固定version/登录/账号epoch，移出仅允许已有合法播放grant在原期限续读，不能新授权或延长；GC同时检查占用和仍可续读的播放session，不能用lease超时替代writer停止。共享发布、读取和GC必须沿现行版本协议，不在旧流程绕过这些契约。
 
 共享版本发布复用TaskAssets日志/文件锁及DjangoSharedExecutionRecords来源→pool→work→task fence；public工作上下文actor必须为空，不能绑定最初提交人。新目标限定对应versions/UUID，禁止旧AVID/头像全局路径。指针同时核对父版本/revision，未完成翻译和源链接不写正式展示snapshot；旧token与仍owned的来源失效区分收尾，不留下running ghost。成功激活需发布证据，私人数据不能写共享AVResource列；目录/推荐/媒体消费须显式投影版本。
 
-共享执行器只运输job/attempt身份并关闭结果存储，禁止把checkpoint/源链接复制到Celery结果。NASSAV_SHARED_LIBRARY_ENABLED默认false且依赖范围凭证；当前HTTP/配额/正式读取未完成不得用于开放普通用户。刮削翻译在正式不可变提交之前完成、失败保留旧版；下载复用现有媒体验证与停止证明，按job隔离租约/投影且保留全局槽位。恢复键从DB job身份推导，不信任保存的任意Redis key；网络实例fork与transport关闭由装配统一管理。
+共享执行器只运输job/attempt身份并关闭结果存储，禁止把checkpoint/源链接复制到Celery结果。NASSAV_SHARED_LIBRARY_ENABLED默认false且依赖范围凭证；开启前按切换手册核查HTTP/配额/正式读取及目标验收，不根据历史阶段记录推断放行。刮削翻译在正式不可变提交之前完成、失败保留旧版；下载复用现有媒体验证与停止证明，按job隔离租约/投影且保留全局槽位。恢复键从DB job身份推导，不信任保存的任意Redis key；网络实例fork与transport关闭由装配统一管理。
 
 共享库命令必须使用当前user、持久request_id回执和expected_entry_version；旧DELETE重放不得删除重添关系。意图按元数据/视频kind分代次，旧成功不覆盖最新需求；先附新订阅再撤本人旧订阅，不杀B。配额按本人video版本完整逻辑字节，未知大小保守预留，最终grant在user fence核查，超额只拒绝本人并退款。public/personal明确选择，个人凭证缺失不得回退；幂等重试先查意图账本再加载来源。source/quality/scope/credential/context与ready证据不符不得复用文件。
 
