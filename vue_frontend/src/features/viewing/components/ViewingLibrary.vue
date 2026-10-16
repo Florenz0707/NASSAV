@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
       icon="empty"
       :title="kind === 'history' ? '暂无观看历史' : '暂无稍后再看资源'"
       :description="
-        kind === 'history' ? '视频实际开始播放后会自动记录。' : '在资源详情中点击稍后再看即可加入。'
+        kind === 'history' ? '视频实际开始播放后会自动记录' : '在资源详情中点击稍后再看即可加入'
       "
     />
     <ul v-if="items.length" class="grid grid-cols-1 md:grid-cols-3 gap-6">
