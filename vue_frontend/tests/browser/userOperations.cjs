@@ -44,22 +44,22 @@ const assert = require('node:assert/strict')
         document.body.classList.toggle('dark-mode', mode === 'dark')
         document.body.classList.toggle('light-mode', mode === 'light')
       }, theme)
-      await page.getByRole('button', { name: '查看请求跟踪说明' }).click()
+      await page.getByRole('button', { name: '查看任务跟踪说明' }).click()
       const information = page.getByRole('dialog')
-      await information.getByText('撤销只移除本人的需求', { exact: false }).waitFor()
+      await information.getByText('取消任务不会删除已保存的资源', { exact: false }).waitFor()
       await page.keyboard.press('Escape')
       await information.waitFor({ state: 'hidden' })
     }
-    await page.getByRole('button', { name: `撤销我的请求 ${target}`, exact: true }).click()
+    await page.getByRole('button', { name: `取消任务 ${target}`, exact: true }).click()
     let dialog = page.getByRole('dialog')
-    await dialog.getByText('共享执行会继续', { exact: false }).waitFor()
+    await dialog.getByText('已保存的资源会保留', { exact: false }).waitFor()
     await dialog.getByRole('button', { name: '取消', exact: true }).click()
     assert.equal(commands.filter((path) => path.endsWith('/cancel')).length, 0)
     if (process.env.NASSAV_OPERATION_USE_BULK === '1') {
       await page.getByRole('checkbox', { name: `选择任务 ${target}`, exact: true }).check()
-      await page.getByRole('button', { name: '撤销所选请求', exact: true }).click()
-    } else await page.getByRole('button', { name: `撤销我的请求 ${target}`, exact: true }).click()
-    await page.getByRole('dialog').getByRole('button', { name: '撤销请求', exact: true }).click()
+      await page.getByRole('button', { name: '取消所选任务', exact: true }).click()
+    } else await page.getByRole('button', { name: `取消任务 ${target}`, exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: '取消任务', exact: true }).click()
     await page.waitForFunction(
       async ({ origin, id }) => {
         const response = await fetch(`${origin}/nassav/api/my-operations/${id}`)
@@ -68,15 +68,15 @@ const assert = require('node:assert/strict')
       { origin, id }
     )
     assert.equal(commands.filter((path) => path.endsWith('/cancel')).length, 1)
-    await page.getByRole('button', { name: `撤销我的请求 ${target}`, exact: true }).waitFor()
+    await page.getByRole('button', { name: `取消任务 ${target}`, exact: true }).waitFor()
     assert.equal(
-      await page.getByRole('button', { name: `撤销我的请求 ${target}`, exact: true }).isDisabled(),
+      await page.getByRole('button', { name: `取消任务 ${target}`, exact: true }).isDisabled(),
       true
     )
     const finishedRow = page
       .getByRole('row')
       .filter({ has: page.getByRole('button', { name: `不再跟踪任务 ${target}`, exact: true }) })
-    assert.equal(await finishedRow.getByText('已撤销', { exact: true }).count(), 2)
+    assert.equal(await finishedRow.getByText('已取消', { exact: true }).count(), 2)
     await page.getByRole('button', { name: `不再跟踪任务 ${target}`, exact: true }).click()
     await page.getByRole('dialog').getByRole('button', { name: '不再跟踪', exact: true }).click()
     await page
@@ -89,7 +89,7 @@ const assert = require('node:assert/strict')
       0
     )
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.getByRole('button', { name: '查看请求跟踪说明' }).click()
+    await page.getByRole('button', { name: '查看任务跟踪说明' }).click()
     dialog = page.getByRole('dialog')
     assert.ok(await dialog.isVisible())
     await page.keyboard.press('Escape')

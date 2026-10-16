@@ -40,7 +40,7 @@
 
 DEBUG_MODE 使用独立内存样例，控制模拟过渡和停止确认，不调用真实控制 API，定时器卸载清理。深浅主题、checkbox 选择数、状态筛选最小宽度、活动时间线右对齐和列表/详情布局沿用公共组件。资源链接只在已保存/已存在资源时提供，未保存标题仍可由公开检查点摘要显示。
 
-全局通知模块与开发预览已移除，Navbar 不提供通知入口。任务活动时间线归任务快照及 taskDetails 展示适配器，TaskTimeline 显示每次状态 / 阶段进入时间并右对齐；缺失时间明确显示未记录。共享任务 toast 由 userOperations 接受的本人版本快照驱动：命令提交显式标记 submitted，提示排队或当前结果；已知任务后续状态变化提示执行、成功、失败或本人撤销，首次历史载入保持安静，同状态阶段推进、重复与旧版本不重复提示。taskTimeline 统一共享请求、持久任务与历史刮削的阶段中文映射；区分下载/刮削的开始与本人请求撤销，未知阶段使用中文状态或“正在处理”，不直接展示原始英文代码，不改写事件顺序和服务器时间。
+全局通知模块与开发预览已移除，Navbar 不提供通知入口。任务活动时间线归任务快照及 taskDetails 展示适配器，TaskTimeline 显示每次状态 / 阶段进入时间并右对齐；缺失时间明确显示未记录。共享任务 toast 由 userOperations 接受的本人版本快照驱动：命令提交显式标记 submitted，提示排队或当前结果；已知任务后续状态变化提示执行、成功、失败或本人撤销，首次历史载入保持安静，同状态阶段推进、重复与旧版本不重复提示。taskTimeline 统一共享请求、持久任务与历史刮削的阶段中文映射；区分下载/刮削的开始，取消统一显示“已取消”，未知阶段使用中文状态或“正在处理”，不直接展示原始英文代码，不改写事件顺序和服务器时间。
 
 任务页以包含翻译的整体状态筛选、统计和清理：资源已保存但翻译仍排队 / 运行 / 暂不可读时继续执行中，翻译完成后已完成，翻译失败时失败，跳过或未请求翻译允许结束；历史 Redis 刮削 state 仍只表示资源保存结果；持久 TaskJob.state 是包含所属翻译的整体状态，resource_saved 独立记录资源保存结果。列表任务列只展示 AVID，全部任务视图增加类型列，以彩色 badge 标注 scrape / download；同类型筛选隐藏类型列，资源图片与名称放在详情。自定义 TaskCheckbox 保留原生键盘与半选语义，表头与行使用同一列宽和对齐方式。单条“不再跟踪”位于列表操作列，批量已结束包括已完成和失败；详情仅保留重点色“查看资源”。持久任务的单条 / 批量结束任务调用 cancel 控制 API；仅历史无 job_id 的任务不支持控制，按钮禁用并说明原因。
 
@@ -280,7 +280,7 @@ features/library的membershipLookup只拥有请求归属及短期状态缓存，
 
 共享模式DownloadsView装配UserOperationsPage；兼容与DEBUG模式装配LegacyDownloadsPage，调试开关仍位于DownloadsView。userOperations持有原始operation_id/version快照，不把共享job ID或attempt伪装成本人标识。WebSocket只提示本人operation/version，轮询与重连补查/my-operations；共享模式不读取旧全局队列、旧任务详情或恢复旧刮削句柄。
 
-公共TaskDetailsPanel的operationMode只改变展示：隐藏暂停/恢复，取消文案为撤销本人请求；忙碌使用operationId，动作仍按allowed_actions。撤销逐项发送expected_version/request_id，结果不明时保留同一命令UUID，409补读但不自动重试，部分失败明确保留；取消不等于共享执行已停止，也不自动移出本人库。隐藏只是当前登录的本地展示偏好，快照不落本地存储。登出/身份变化使列表、提示、错误、busy和命令结果失效。
+公共TaskDetailsPanel的operationMode用于控制操作能力：隐藏暂停/恢复，取消统一显示“取消任务”，不暴露订阅或共享执行机制；忙碌使用operationId，动作仍按allowed_actions。撤销逐项发送expected_version/request_id，结果不明时保留同一命令UUID，409补读但不自动重试，部分失败明确保留；取消不等于共享执行已停止，也不自动移出本人库。隐藏只是当前登录的本地展示偏好，快照不落本地存储。登出/身份变化使列表、提示、错误、busy和命令结果失效。
 
 operationDetails仅投影任务展示字段；名称/封面可使用当前本人库已加载数据，不按AVID读取全局标题。不具备当前active关系时不展示查看资源入口。终态变化使本人持有状态缓存失效，命令与资源列表消费者继续接入。
 
@@ -383,3 +383,9 @@ ordinary_login开启时session store拥有cache_identity，api/client仅持有X-
 nginx 对 `/assets/` 下带至少8位内容哈希的 JS/CSS 使用 `public, max-age=31536000, immutable`，缺失文件返回404，不回退HTML。固定路径字体使用 `public, max-age=0, must-revalidate`，入口HTML及SPA回退使用 `no-cache`；nginx原有ETag/Last-Modified继续提供条件请求。新加固定文件名资源不能套用 immutable，更新字体时无需等待一年缓存。开发模式 Vite 不等同生产 nginx，API、WS及媒体代理保持原策略。
 
 阶段分支 `enhancement/static-asset-cache`，使用本地 nginx 镜像、当前构建产物与只读配置挂载，在隔离临时容器检查 `nginx -t`、真实响应缓存头、条件304和缺失文件404；另执行 `pnpm run check` 与 `pre-commit run -a`。临时容器验证不代表现有部署已更新，部署需同步前后端并重新构建。
+
+## 普通用户界面的资源与任务术语
+
+普通页面统一显示“资源库”“删除资源”“任务”“取消任务”，标题、按钮、toast、时间线和确认框不按 shared_library 切换为“共享资源”“持有关系”“本人请求”等内部术语。来源凭证选择使用“默认凭证 / 个人凭证”，保留用户需要决定的访问方式；管理员界面保留共享池、执行器和回收等运维信息。
+
+shared_library 在会话、API 路由、任务跟踪、资源关系与权限层仍用于协议选择，不得因为统一文案就访问旧全局队列、跳过 owner/version 检查、使用全局删除代替本人资源删除，或宣称取消本人任务证明整个后台执行已停止。实际支持的删除视频、部分刷新、暂停/恢复能力继续保留，确认文案必须符合实际动作。

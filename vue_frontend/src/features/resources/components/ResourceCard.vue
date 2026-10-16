@@ -163,7 +163,7 @@ async function confirmDelete() {
       emit('deleteFile', props.resource.avid)
     } else {
       await resourceStore.removeAsset(props.resource.avid, 'delete', option.membership)
-      toastStore.success(shared.value ? '已移出我的资源库' : '资源已删除')
+      toastStore.success('资源已删除')
       emit('delete', props.resource.avid)
     }
   } catch (err) {
@@ -341,7 +341,7 @@ onUnmounted(() => {
         </AppButton>
 
         <ActionMenu
-          :label="shared ? '移出' : '删除'"
+          label="删除"
           :options="deleteOptions"
           compact
           trigger-class="h-10 px-3.5 py-2 rounded-lg font-medium "
@@ -358,7 +358,7 @@ onUnmounted(() => {
       :title="pendingDeleteOption?.title || '删除资源'"
       :message="pendingDeleteOption?.confirm || ''"
       :type="'danger'"
-      :confirm-text="shared ? '确认移出' : '确认删除'"
+      confirm-text="确认删除"
       cancel-text="取消"
       @confirm="confirmDelete"
       @cancel="cancelDelete"

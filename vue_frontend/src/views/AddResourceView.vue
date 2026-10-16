@@ -82,10 +82,10 @@ function viewResource() {
         </div>
 
         <div class="form-group">
-          <label for="add-source" class="form-label">请求源</label>
+          <label for="add-source" class="form-label">下载源</label>
           <CustomSelect
             id="add-source"
-            aria-label="请求源"
+            aria-label="下载源"
             aria-describedby="add-source-hint"
             v-model="source"
             :options="sourceOptions"
@@ -100,8 +100,8 @@ function viewResource() {
             id="add-credential-mode"
             v-model="credentialMode"
             :options="[
-              { value: 'public', label: '公共来源（系统凭证）' },
-              { value: 'personal', label: '个人来源（我的凭证）' },
+              { value: 'public', label: '默认凭证' },
+              { value: 'personal', label: '个人凭证' },
             ]"
             :disabled="submitting"
             full-width
@@ -148,7 +148,7 @@ function viewResource() {
       v-if="result?.jobs?.some((item) => item.operation_id)"
       to="/downloads"
       class="tw-btn-primary self-center mt-4"
-      >查看我的请求</RouterLink
+      >查看任务</RouterLink
     >
   </div>
 </template>

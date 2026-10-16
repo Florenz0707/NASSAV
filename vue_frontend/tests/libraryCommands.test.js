@@ -203,7 +203,7 @@ test('unknown membership and pending refresh cannot send mutations; batches pres
     /100/
   )
   commands.changeEntry({ ...entry(), membership_state: 'pending' })
-  await assert.rejects(commands.execute('refresh', 'AV-1', { source: 'jable' }), /可用持有关系/)
+  await assert.rejects(commands.execute('refresh', 'AV-1', { source: 'jable' }), /资源暂不可用/)
   commands.memberships.errors.set('AV-3', 'status offline')
   await assert.rejects(commands.execute('release', 'AV-3'), /status offline/)
 })

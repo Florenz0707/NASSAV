@@ -148,7 +148,7 @@ const assert = require('node:assert/strict')
       assert.equal((await hideButton.textContent()).trim(), '')
       assert.equal(
         await page
-          .getByRole('button', { name: '结束任务 AV-1', exact: true })
+          .getByRole('button', { name: '取消任务 AV-1', exact: true })
           .locator('svg')
           .count(),
         1
@@ -209,9 +209,9 @@ const assert = require('node:assert/strict')
       assert.equal(await firstBox.isChecked(), true)
       await page.keyboard.press('Space')
       assert.equal(await firstBox.isChecked(), false)
-      assert.equal(await page.getByRole('button', { name: '结束所选任务' }).isDisabled(), true)
+      assert.equal(await page.getByRole('button', { name: '取消所选任务' }).isDisabled(), true)
       assert.equal(
-        await page.getByRole('button', { name: '结束任务 AV-1', exact: true }).isDisabled(),
+        await page.getByRole('button', { name: '取消任务 AV-1', exact: true }).isDisabled(),
         true
       )
       assert.equal(await detail.getByRole('button', { name: '不再跟踪此任务' }).count(), 0)

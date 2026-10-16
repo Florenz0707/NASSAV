@@ -59,7 +59,7 @@ export function createOperationTracking(
       })
       if (current !== epoch || revision !== listRevision) return
       if (!Array.isArray(response.data) || !Number.isInteger(response.pagination?.total))
-        throw new Error('本人请求列表格式无效')
+        throw new Error('任务列表格式无效')
       response.data.forEach((item) => apply(item))
       page = more ? target : Math.max(page, target)
       total.value = response.pagination.total
@@ -67,7 +67,7 @@ export function createOperationTracking(
       listError.value = ''
     } catch (reason) {
       if (current === epoch && revision === listRevision)
-        listError.value = reason.message || '无法读取本人请求'
+        listError.value = reason.message || '无法读取任务列表'
     } finally {
       if (current === epoch && revision === listRevision) loading.value = false
     }
@@ -82,7 +82,7 @@ export function createOperationTracking(
         const response = await api.getOperation(id)
         if (current === epoch && response.data?.operation_id === id) return apply(response.data)
       } catch (reason) {
-        if (current === epoch && !quiet) listError.value = reason.message || '请求状态更新失败'
+        if (current === epoch && !quiet) listError.value = reason.message || '任务状态更新失败'
       } finally {
         if (current === epoch && pending.get(id) === operation) pending.delete(id)
       }

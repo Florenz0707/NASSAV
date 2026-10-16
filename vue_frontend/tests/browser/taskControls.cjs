@@ -96,7 +96,7 @@ const assert = require('node:assert/strict')
       await page.getByRole('alert').getByText('CTRL-2：任务已更新，请重试').waitFor()
       assert.equal(jobs[0].state, 'pausing')
       const detail = page.getByRole('complementary', { name: '任务明细' })
-      await detail.getByText('正在等待执行器确认停止，文件暂不删除。').waitFor()
+      await detail.getByText('正在处理任务控制操作，请稍候。').waitFor()
       jobs[0].state = 'paused'
       jobs[0].version++
       jobs[0].allowed_actions = ['resume', 'cancel']
@@ -109,11 +109,11 @@ const assert = require('node:assert/strict')
       await page.getByRole('button', { name: '恢复任务 CTRL-1', exact: true }).waitFor()
       await page.getByRole('button', { name: '恢复任务 CTRL-1', exact: true }).click()
       await row('CTRL-1').getByText('等待中', { exact: true }).waitFor()
-      await page.getByRole('button', { name: '结束任务 CTRL-1', exact: true }).click()
+      await page.getByRole('button', { name: '取消任务 CTRL-1', exact: true }).click()
       const dialog = page.getByRole('dialog')
-      await dialog.getByText(/已保存资源、正式视频和共享头像保留/).waitFor()
-      await dialog.getByRole('button', { name: '结束任务', exact: true }).click()
-      await row('CTRL-1').getByText('终止中', { exact: true }).first().waitFor()
+      await dialog.getByText(/已保存的资源会保留/).waitFor()
+      await dialog.getByRole('button', { name: '取消任务', exact: true }).click()
+      await row('CTRL-1').getByText('取消中', { exact: true }).first().waitFor()
       jobs[0].state = 'cancelled'
       jobs[0].version++
       jobs[0].cleanup_state = 'failed'
@@ -133,7 +133,7 @@ const assert = require('node:assert/strict')
       await detail.getByRole('button', { name: '重试清理', exact: true }).click()
       await detail.getByText('清理完成', { exact: true }).waitFor()
       await page.reload()
-      await row('CTRL-1').getByText('已终止', { exact: true }).first().waitFor()
+      await row('CTRL-1').getByText('已取消', { exact: true }).first().waitFor()
       await page.getByRole('button', { name: '不再跟踪任务 CTRL-1', exact: true }).click()
       await page.getByRole('dialog').getByRole('button', { name: '不再跟踪', exact: true }).click()
       await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 1)

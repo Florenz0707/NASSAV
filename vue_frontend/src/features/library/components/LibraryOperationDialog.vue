@@ -87,16 +87,14 @@ watch(
           id="operation-mode"
           v-model="mode"
           :options="[
-            { value: 'public', label: '公共来源（系统凭证）' },
-            { value: 'personal', label: '个人来源（我的凭证）' },
+            { value: 'public', label: '默认凭证' },
+            { value: 'personal', label: '个人凭证' },
           ]"
           :disabled="commands.busy"
           full-width
         />
       </div>
-      <p class="text-muted text-sm">
-        公共结果可由其他用户复用；个人凭证产物仅供本人使用。刷新会重新获取完整来源和元数据。
-      </p>
+      <p class="text-muted text-sm">选择用于访问来源网站的凭证。刷新会重新获取完整来源和元数据。</p>
       <p v-if="commands.error" role="alert" class="text-accent-danger text-sm">
         {{ commands.error }}
       </p>

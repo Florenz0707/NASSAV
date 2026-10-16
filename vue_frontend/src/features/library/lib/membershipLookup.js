@@ -23,7 +23,7 @@ function checkedStatuses(data, requested) {
         row.entry_version < 1 ||
         !['active', 'pending'].includes(row.membership_state))
     )
-      throw new Error('资源库关系版本无效')
+      throw new Error('资源状态版本无效')
     result.set(row.avid, {
       avid: row.avid,
       is_in_my_library: row.is_in_my_library,

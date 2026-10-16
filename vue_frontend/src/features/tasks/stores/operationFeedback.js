@@ -13,5 +13,5 @@ export function notifyOperationTransition(previous, item, { submitted = false } 
   else if (item.state === 'succeeded') toast.success(`${prefix}成功`)
   else if (item.state === 'failed')
     toast.error(`${prefix}失败：${item.message || '请查看任务详情'}`)
-  else if (item.state === 'cancelled') toast.info(`${item.avid} 本人请求已撤销`)
+  else if (item.state === 'cancelled') toast.info(`${item.avid} 任务已取消`)
 }

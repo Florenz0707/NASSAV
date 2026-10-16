@@ -37,8 +37,8 @@ const labels = computed(() => ({
   running: '执行中',
   pausing: '暂停中',
   paused: '已暂停',
-  cancelling: props.operationMode ? '撤销中' : '终止中',
-  cancelled: props.operationMode ? '已撤销' : '已终止',
+  cancelling: '取消中',
+  cancelled: '已取消',
   succeeded: '已完成',
   failed: '失败',
 }))
@@ -117,13 +117,7 @@ const progress = (task) =>
       <div>
         <h1 class="text-3xl font-bold text-primary">任务详情</h1>
         <div class="flex items-center gap-2 mt-2">
-          <p class="text-secondary">
-            {{
-              operationMode
-                ? '查看本人下载与刮削请求的状态、进度和失败原因'
-                : '统一查看下载与刮削的状态、进度和失败原因'
-            }}
-          </p>
+          <p class="text-secondary">统一查看下载与刮削的状态、进度和失败原因</p>
           <slot name="information" />
         </div>
       </div>
@@ -216,7 +210,7 @@ const progress = (task) =>
         variant="danger"
         :disabled="!selectedFor('cancel').length"
         @click="emit('control', 'cancel', selectedFor('cancel'))"
-        >{{ operationMode ? '撤销所选请求' : '结束所选任务' }}</AppButton
+        >取消所选任务</AppButton
       >
     </div>
     <div
@@ -261,9 +255,7 @@ const progress = (task) =>
               <th class="p-4 text-left">阶段</th>
               <th class="p-4 text-center whitespace-nowrap">不再跟踪</th>
               <th v-if="!operationMode" class="p-4 text-center whitespace-nowrap">暂停/恢复</th>
-              <th class="p-4 text-center whitespace-nowrap">
-                {{ operationMode ? '撤销请求' : '结束任务' }}
-              </th>
+              <th class="p-4 text-center whitespace-nowrap">取消任务</th>
             </tr>
           </thead>
           <tbody>
@@ -346,13 +338,9 @@ const progress = (task) =>
                   variant="danger"
                   class="w-9 h-9 p-0"
                   :disabled="!canControl(task, 'cancel')"
-                  :aria-label="(operationMode ? '撤销我的请求 ' : '结束任务 ') + task.avid"
+                  :aria-label="'取消任务 ' + task.avid"
                   :title="
-                    operationMode
-                      ? '仅撤销我的需求，有其他需求时共享执行继续'
-                      : task.jobId || debug
-                        ? '终止执行并清理未提交文件'
-                        : '历史任务不支持控制'
+                    canControl(task, 'cancel') ? '取消此任务，保留已保存的资源' : '当前任务无法取消'
                   "
                   @click="emit('control', 'cancel', [task.id])"
                   ><AppIcon name="close"
@@ -419,11 +407,7 @@ const progress = (task) =>
           v-if="['pausing', 'cancelling'].includes(selected.state)"
           class="text-muted text-sm mt-4"
         >
-          {{
-            operationMode
-              ? '正在处理本人的撤销请求；共享执行是否停止由有效需求决定。'
-              : '正在等待执行器确认停止，文件暂不删除。'
-          }}
+          正在处理任务控制操作，请稍候。
         </p>
         <p
           v-if="selected.errorCode === 'RESTART_REQUIRED'"

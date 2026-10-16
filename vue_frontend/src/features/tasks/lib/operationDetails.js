@@ -33,7 +33,7 @@ export function buildOperationDetails(
       createdAt: item.created_at,
       updatedAt: item.updated_at,
       updated: taskTime(item.updated_at),
-      timeline: buildTaskTimeline(item.timeline, { type: item.kind, personal: true }),
+      timeline: buildTaskTimeline(item.timeline, { type: item.kind }),
     }
   })
 }

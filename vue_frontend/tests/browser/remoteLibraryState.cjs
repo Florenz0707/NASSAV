@@ -59,7 +59,7 @@ app.use(pinia).use(router).mount('#app');window.audit={app,cache,router,added};
       true
     )
     await pending.getByRole('button', { name: '准备中', exact: true }).waitFor()
-    await pending.getByRole('button', { name: '查看请求', exact: true }).click()
+    await pending.getByRole('button', { name: '查看任务', exact: true }).click()
     assert.equal(
       await page.evaluate(() => window.audit.router.currentRoute.value.path),
       '/downloads'

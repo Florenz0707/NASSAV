@@ -198,7 +198,7 @@ async function confirmDelete() {
       await fetchMetadata() // 刷新元数据以更新状态
     } else {
       await resourceStore.removeAsset(avid.value, 'delete', action.membership)
-      toastStore.success(shared.value ? '已移出我的资源库' : '资源已删除')
+      toastStore.success('资源已删除')
       // 删除后返回上一页
       setTimeout(() => router.back(), 500)
     }
@@ -413,7 +413,7 @@ async function navigateToGenre(genreName) {
                 </AppButton>
 
                 <ActionMenu
-                  :label="shared ? '移出资源库' : '删除数据'"
+                  label="删除数据"
                   :options="deleteOptions"
                   trigger-class="w-full h-14"
                   danger
@@ -510,7 +510,7 @@ async function navigateToGenre(genreName) {
       :title="pendingDeleteAction?.title || '确认操作'"
       :message="pendingDeleteAction?.message || ''"
       :type="'danger'"
-      :confirm-text="shared ? '确认移出' : '确认删除'"
+      confirm-text="确认删除"
       cancel-text="取消"
       @confirm="confirmDelete"
       @cancel="cancelDelete"

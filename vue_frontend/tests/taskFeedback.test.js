@@ -60,7 +60,7 @@ test('shared timeline localizes lifecycle and source phases without leaking unkn
       '校验视频',
       '正在恢复',
       '正在处理',
-      '本人请求已撤销',
+      '已取消',
     ]
   )
   assert.equal(detail.timeline[0].at, 10)

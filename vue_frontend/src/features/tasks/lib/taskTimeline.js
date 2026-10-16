@@ -30,16 +30,15 @@ export const TASK_STAGE_LABELS = {
   video_committed: '视频已保存',
   paused: '已暂停',
   pausing: '请求暂停',
-  cancelling: '请求终止',
-  cancelled: '已终止',
+  cancelling: '取消中',
+  cancelled: '已取消',
   succeeded: '已完成',
   failed: '失败',
 }
 
 // Display policy only: preserve raw stages, event order and server timestamps.
-export function taskTimelineLabel(stage, { type = 'scrape', personal = false, state } = {}) {
+export function taskTimelineLabel(stage, { type = 'scrape', state } = {}) {
   if (stage === 'running') return type === 'download' ? '开始下载' : '开始刮削'
-  if (stage === 'cancelled' && personal) return '本人请求已撤销'
   return TASK_STAGE_LABELS[stage] || TASK_STAGE_LABELS[state] || '正在处理'
 }
 

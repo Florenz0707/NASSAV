@@ -16,13 +16,11 @@ export function resourceDeleteOptions(hasVideo, detail = false, shared = false) 
   if (shared)
     return [
       {
-        text: '移出我的资源库',
+        text: '删除资源',
         action: 'delete',
-        title: '移出我的资源库',
-        message:
-          '只移出本人的资源库并撤销本人的相关需求；其他用户的持有和播放不受影响，文件由受控回收流程处理。',
-        confirm:
-          '只移出本人的资源库并撤销本人的相关需求；其他用户的持有和播放不受影响，文件由受控回收流程处理。',
+        title: '删除资源',
+        message: '确定从资源库删除该资源并取消相关任务？',
+        confirm: '确定从资源库删除该资源并取消相关任务？',
       },
     ]
   const options = hasVideo

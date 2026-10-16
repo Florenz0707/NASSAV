@@ -101,3 +101,9 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 阶段分支 `fix/task-toast-timeline`，提交 `[Fix] Restore shared task feedback and unify timeline labels`（提交号见 Git 历史）。共享命令此前只登记 UserOperation，没有接入旧刮削 toast；现在命令标记提交，跟踪层在版本检查后分发提示，历史初次载入不通知。时间线从各适配器零散映射集中到 taskTimeline，覆盖排队、翻译、校验和恢复，未知阶段不再回显英文，保留原始状态和时间。
 
 验证入口：`node tests/taskFeedback.test.js`、`pnpm run check`、根目录 `pre-commit run -a`；Chromium 的 `tests/browser/taskFeedback.cjs` 通过生产资源卡刷新弹窗和任务详情验证提示与中文时间线。浏览器接口使用隔离模拟，不代表部署容器已更新或真实来源/worker 联调。
+
+## 2026-10-16：资源库机制对普通用户透明
+
+阶段分支 `refactor/transparent-library-copy`，提交 `[Refactor] Unify user-facing resource and task terminology`（提交号见 Git 历史）。统一资源卡、详情、目录批量操作、资源管理、添加来源凭证与任务页的标题/按钮/确认/toast/时间线，移除按模式切换的机制文案；保留实际操作能力、来源范围选择、协议路由、权限和版本检查。管理员运维术语不变。
+
+验证：`pnpm run check`、根目录 `pre-commit run -a`；Chromium 隔离 API 的 `taskFeedback.cjs` 验证资源删除确认、来源弹窗、任务说明、取消与时间线不暴露共享/持有术语，取消仍携带版本；原任务页与控制检查继续验证兼容链路。未重建部署容器或触发真实资源删除/刮削。

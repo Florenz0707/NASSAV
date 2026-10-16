@@ -51,13 +51,13 @@ export function createLibraryCommands(
           if (current !== epoch) throw obsolete()
           if (memberships.errors.has(avid)) throw new Error(memberships.errors.get(avid))
           const entry = memberships.get(avid)
-          if (!entry) throw new Error('无法确认本人的持有状态，请重试')
+          if (!entry) throw new Error('无法确认资源状态，请重试')
           if (
             membership &&
             (membership.entry_id !== entry.entry_id ||
               membership.entry_version !== entry.entry_version)
           )
-            throw Object.assign(new Error('持有关系已变化，请刷新列表后重试'), {
+            throw Object.assign(new Error('资源状态已变化，请刷新列表后重试'), {
               httpStatus: 409,
               code: 'membership_version_conflict',
             })
@@ -66,7 +66,7 @@ export function createLibraryCommands(
             (!entry.is_in_my_library ||
               (action !== 'release' && entry.membership_state !== 'active'))
           )
-            throw new Error('本人尚无可用持有关系，请重新加载列表')
+            throw new Error('资源暂不可用，请重新加载列表')
           const body =
             action === 'release'
               ? { expected_version: entry.entry_version, request_id: requestId() }

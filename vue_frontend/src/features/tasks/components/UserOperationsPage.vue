@@ -58,11 +58,7 @@ function selectedOperations() {
     <p v-if="operations.error" role="alert" class="text-accent-danger mb-4">
       {{ operations.error }}
     </p>
-    <PageLoad
-      v-if="operations.loading && !tasks.length"
-      variant="spinner"
-      text="正在加载本人请求"
-    />
+    <PageLoad v-if="operations.loading && !tasks.length" variant="spinner" text="正在加载任务" />
     <TaskDetailsPanel
       v-else
       :tasks="tasks"
@@ -75,14 +71,14 @@ function selectedOperations() {
       @dismiss="requestHide"
     >
       <template #information>
-        <InfoDialog title="本人请求跟踪说明" label="查看请求跟踪说明">
+        <InfoDialog title="任务跟踪说明" label="查看任务跟踪说明">
           <p class="text-secondary leading-relaxed">
-            当前跟踪 {{ operations.visible.length }} 个已加载请求；已隐藏
+            当前跟踪 {{ operations.visible.length }} 个已加载任务；已隐藏
             {{ operations.operations.size - operations.visible.length }} 个；服务端共
-            {{ operations.total }} 个。列表与批量操作只针对本人已加载请求。
+            {{ operations.total }} 个。列表与批量操作只针对已加载任务。
           </p>
           <p class="text-secondary mt-3 leading-relaxed">
-            撤销只移除本人的需求，其他用户仍有需求时共享执行继续。不再跟踪仅隐藏记录，不会撤销请求或移出资源库。
+            取消任务不会删除已保存的资源。不再跟踪仅隐藏记录，不会取消任务或删除资源。
           </p>
         </InfoDialog>
       </template>
@@ -106,15 +102,15 @@ function selectedOperations() {
     >
     <ConfirmDialog
       v-model:show="showCancel"
-      title="撤销我的请求"
-      :message="`撤销所选 ${selected.length} 个本人请求？其他用户仍有需求时，共享执行会继续；此操作不会移出已持有的资源。`"
-      confirm-text="撤销请求"
+      title="取消任务"
+      :message="`取消所选 ${selected.length} 个任务？已保存的资源会保留。`"
+      confirm-text="取消任务"
       @confirm="operations.cancel(selectedOperations())"
     />
     <ConfirmDialog
       v-model:show="showHide"
-      title="不再跟踪请求"
-      message="仅在当前登录的列表中隐藏这些记录，后台请求仍会继续。"
+      title="不再跟踪任务"
+      message="仅在当前登录的列表中隐藏这些记录，后台任务仍会继续。"
       confirm-text="不再跟踪"
       @confirm="operations.hide(selectedOperations())"
     />

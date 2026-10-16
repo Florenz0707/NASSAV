@@ -28,7 +28,7 @@ defineEmits(['add', 'open', 'view', 'retry'])
       :disabled="added && unavailable && !pending"
       @click="added ? $emit('view') : $emit('open')"
       >{{
-        added ? (pending ? '查看请求' : unavailable ? '暂不可用' : '查看详情') : '跳转来源'
+        added ? (pending ? '查看任务' : unavailable ? '暂不可用' : '查看详情') : '跳转来源'
       }}</AppButton
     >
     <p v-if="statusError" role="alert" class="col-span-2 text-muted text-xs">{{ statusError }}</p>

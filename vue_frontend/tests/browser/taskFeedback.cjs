@@ -7,6 +7,7 @@ const { chromium } = require('playwright')
     const errors = []
     page.on('pageerror', (error) => errors.push(error.message))
     let operation = null
+    let cancelCalls = 0
     const resource = {
       avid: 'AV-1',
       source: 'jable',
@@ -49,6 +50,22 @@ const { chromium } = require('playwright')
         }
         data = operation
       }
+      if (path.endsWith('/my-operations/operation-a/cancel')) {
+        cancelCalls++
+        assert.equal(route.request().postDataJSON().expected_version, operation.version)
+        operation = {
+          ...operation,
+          state: 'cancelled',
+          stage: 'cancelled',
+          version: operation.version + 1,
+          allowed_actions: [],
+          timeline: [
+            ...operation.timeline,
+            { stage: 'cancelled', state: 'cancelled', at: 1792108804 },
+          ],
+        }
+        data = operation
+      }
       if (path.endsWith('/my-operations')) {
         data = operation ? [operation] : []
         pagination = { page: 1, pages: 1, total: data.length }
@@ -57,8 +74,16 @@ const { chromium } = require('playwright')
       await route.fulfill({ json: { code: 200, data, ...(pagination ? { pagination } : {}) } })
     })
     await page.goto((process.env.NASSAV_BROWSER_ORIGIN || 'http://127.0.0.1:4196') + '/resources')
+    await page.getByRole('heading', { name: '资源库', exact: true }).waitFor()
+    await page.getByRole('button', { name: '删除', exact: true }).first().click()
+    await page.getByRole('menuitem', { name: '删除资源', exact: true }).click()
+    const deletion = page.getByRole('dialog')
+    assert.doesNotMatch(await deletion.innerText(), /共享|持有|本人|移出/)
+    await deletion.getByRole('button', { name: '确认删除', exact: true }).waitFor()
+    await deletion.getByRole('button', { name: '取消', exact: true }).click()
     await page.getByRole('button', { name: '刷新资源', exact: true }).first().click()
     await page.getByRole('menuitem', { name: '刷新资源', exact: true }).click()
+    assert.doesNotMatch(await page.getByRole('dialog').innerText(), /共享|复用|公共结果|产物/)
     await page.getByRole('button', { name: '确认提交', exact: true }).click()
     await page.getByRole('status').filter({ hasText: 'AV-1 刷新任务已排队' }).waitFor()
     assert.equal(
@@ -88,9 +113,22 @@ const { chromium } = require('playwright')
     assert.match(await timeline.innerText(), /开始刮削/)
     assert.match(await timeline.innerText(), /校验视频/)
     assert.doesNotMatch(await timeline.innerText(), /queued|running|translating|validating/)
+    await page.getByRole('button', { name: '查看任务跟踪说明', exact: true }).click()
+    assert.doesNotMatch(await page.getByRole('dialog').innerText(), /共享|持有|本人|撤销/)
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: '取消任务 AV-1', exact: true }).click()
+    const cancellation = page.getByRole('dialog', { name: '取消任务', exact: true })
+    assert.doesNotMatch(await cancellation.innerText(), /共享|持有|本人|撤销/)
+    await cancellation.getByRole('button', { name: '取消任务', exact: true }).click()
+    await timeline.getByText('已取消', { exact: true }).waitFor()
+    assert.equal(cancelCalls, 1)
+    assert.equal(
+      await page.getByRole('button', { name: '取消任务 AV-1', exact: true }).isDisabled(),
+      true
+    )
     assert.deepEqual(errors, [])
     console.log(
-      'PASS: shared refresh shows one toast; production task timeline displays Chinese phases'
+      'PASS: unified resource/task copy hides pool mechanics; refresh feedback and versioned cancellation remain functional'
     )
   } finally {
     await browser.close()

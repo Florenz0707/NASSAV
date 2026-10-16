@@ -318,9 +318,9 @@ function stopPolling() {
     >
     <ConfirmDialog
       v-model:show="showCancel"
-      title="结束任务"
-      :message="`终止所选 ${controlIds.length} 个任务？执行器确认停止后删除未提交的分片、封面和头像；已保存资源、正式视频和共享头像保留。`"
-      confirm-text="结束任务"
+      title="取消任务"
+      :message="`取消所选 ${controlIds.length} 个任务？已保存的资源会保留，未完成的下载和临时文件将在任务停止后清理。`"
+      confirm-text="取消任务"
       @confirm="executeControl"
     />
     <ConfirmDialog

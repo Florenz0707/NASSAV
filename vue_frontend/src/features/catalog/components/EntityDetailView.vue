@@ -126,9 +126,9 @@ function summarizeBatch(response, avids, label) {
   selectedAvids.value = new Set(failed.map((item) => item.avid))
   if (failed.length)
     toastStore.error(
-      `${label}请求：已接受 ${accepted.length} 个，失败 ${failed.length} 个；保留失败项供重试`
+      `${label}任务：已接受 ${accepted.length} 个，失败 ${failed.length} 个；保留失败项供重试`
     )
-  else toastStore.success(`已接受 ${accepted.length} 个${label}请求`)
+  else toastStore.success(`已接受 ${accepted.length} 个${label}任务`)
 }
 
 const showBatchDeleteConfirm = ref(false)
@@ -159,11 +159,7 @@ async function confirmBatchDelete(action) {
       action,
       pendingBatch.value.memberships
     )
-    const actionText = shared.value
-      ? '移出我的资源库'
-      : action === 'delete-video'
-        ? '删除视频'
-        : '删除全部数据'
+    const actionText = action === 'delete-video' ? '删除视频' : '删除资源'
     if (failed.length) {
       toastStore.error(
         `${actionText}：成功 ${succeeded.length} 个，失败 ${failed.length} 个；可重试失败项`
@@ -502,7 +498,7 @@ function goBack() {
       <BatchControls
         :batch-mode="batchMode"
         :batch-loading="batchLoading"
-        :delete-label="shared ? '批量移出' : '批量删除'"
+        delete-label="批量删除"
         :selected-count="selectedCount"
         :total-count="displayedResources.length"
         @toggle-batch-mode="toggleBatchMode"
@@ -514,14 +510,10 @@ function goBack() {
       <!-- 批量删除确认对话框 -->
       <ConfirmDialog
         v-model:show="showBatchDeleteConfirm"
-        :title="shared ? '批量移出我的资源库' : '批量删除资源'"
-        :message="
-          shared
-            ? `移出所选 ${pendingBatch.avids.length} 个本人的资源？其他用户的持有会保留。`
-            : `即将删除 ${selectedAvids.size} 个资源，请选择删除方式：`
-        "
+        title="批量删除资源"
+        :message="`即将删除所选 ${pendingBatch.avids.length} 个资源，请确认删除内容。`"
         type="danger"
-        :confirm-text="shared ? '确认移出' : '只删除视频'"
+        :confirm-text="shared ? '确认删除' : '只删除视频'"
         cancel-text="取消"
         @confirm="() => confirmBatchDelete(shared ? 'delete-all' : 'delete-video')"
         @cancel="() => (showBatchDeleteConfirm = false)"
