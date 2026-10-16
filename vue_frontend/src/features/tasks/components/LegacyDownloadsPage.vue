@@ -41,6 +41,7 @@ const tasks = computed(() =>
         metadataCache: queue.titleCache,
         preferredTitle: settings.displayTitle,
         coverUrlFor: (avid) => resourceApi.getCoverUrl(avid, 'medium'),
+        resolveCoverUrl: resourceApi.resolveCoverUrl,
       })
 )
 const showDismiss = ref(false),

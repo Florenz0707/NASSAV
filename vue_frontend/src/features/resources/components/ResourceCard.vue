@@ -61,7 +61,7 @@ async function loadCover() {
     if (active && revision === coverRevision) coverUrl.value = url || ''
   }
   if (resource.thumbnail_url || resource.cover_url) {
-    publish(resource.thumbnail_url || resource.cover_url)
+    publish(resourceApi.resolveCoverUrl(resource.thumbnail_url || resource.cover_url))
     return
   }
   try {

@@ -30,7 +30,12 @@ export function contextualImageUrl(url) {
   const hash = url.indexOf('#')
   const path = hash < 0 ? url : url.slice(0, hash)
   const fragment = hash < 0 ? '' : url.slice(hash)
-  return `${path}${path.includes('?') ? '&' : '?'}_context=${encodeURIComponent(browserContext)}${fragment}`
+  const query = path.indexOf('?')
+  const base = query < 0 ? path : path.slice(0, query)
+  const params = new URLSearchParams(query < 0 ? '' : path.slice(query + 1))
+  params.delete('_context')
+  params.append('_context', browserContext)
+  return `${base}?${params}${fragment}`
 }
 let sessionGeneration = 0
 export function invalidateSessionRequests() {

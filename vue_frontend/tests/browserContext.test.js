@@ -11,6 +11,8 @@ import api, {
 import { resourceApi } from '../src/api/resources.js'
 import { actorApi } from '../src/api/catalog.js'
 import { playbackApi } from '../src/api/playback.js'
+import { buildTaskDetails } from '../src/features/tasks/lib/taskDetails.js'
+import { buildOperationDetails } from '../src/features/tasks/lib/operationDetails.js'
 
 test('JSON requests and generic image URLs carry the current browser precondition', async () => {
   const original = api.defaults.adapter
@@ -133,6 +135,61 @@ test('disposed login state cannot publish a delayed bootstrap context', async ()
     assert.deepEqual(browserContextHeaders(), { 'X-NASSAV-Context': 'new-owner' })
   } finally {
     api.defaults.adapter = original
+    setBrowserContext()
+  }
+})
+
+test('server-provided generic covers get one current context without altering other image routes', () => {
+  setBrowserContext('new-login')
+  try {
+    const raw = '/nassav/api/resource/cover?avid=YUJ-036&size=small&v=version-1'
+    const result = new URL(resourceApi.resolveCoverUrl(raw), 'https://app.invalid')
+    assert.equal(result.searchParams.get('_context'), 'new-login')
+    assert.equal(result.searchParams.get('size'), 'small')
+    assert.equal(result.searchParams.get('v'), 'version-1')
+    const stale = resourceApi.resolveCoverUrl(`${raw}&_context=old&_context=older`)
+    assert.deepEqual(new URL(stale, 'https://app.invalid').searchParams.getAll('_context'), [
+      'new-login',
+    ])
+    assert.equal(resourceApi.resolveCoverUrl(stale), stale)
+    for (const url of [
+      '/nassav/api/library/entries/entry/images/handle',
+      '/nassav/api/recommendations/cover?handle=owned',
+      'https://cdn.invalid/cover.jpg',
+      'blob:https://app.invalid/example',
+    ])
+      assert.equal(resourceApi.resolveCoverUrl(url), url)
+  } finally {
+    setBrowserContext()
+  }
+})
+
+test('legacy and shared task projections use the supplied cover context resolver', () => {
+  setBrowserContext('task-login')
+  try {
+    const resource = {
+      avid: 'YUJ-036',
+      membership_state: 'active',
+      thumbnail_url: '/nassav/api/resource/cover?avid=YUJ-036&size=small',
+    }
+    const legacy = buildTaskDetails({
+      active: [{ avid: resource.avid, task_id: 'legacy', state: 'STARTED' }],
+      resources: [resource],
+      coverUrlFor: resourceApi.getCoverUrl,
+      resolveCoverUrl: resourceApi.resolveCoverUrl,
+    })
+    const shared = buildOperationDetails(
+      [{ operation_id: 'operation', avid: resource.avid, kind: 'scrape', state: 'running' }],
+      [resource],
+      undefined,
+      resourceApi.resolveCoverUrl
+    )
+    for (const task of [...legacy, ...shared]) {
+      const url = new URL(task.coverUrl, 'https://app.invalid')
+      assert.equal(url.searchParams.get('_context'), 'task-login')
+      assert.equal(url.searchParams.get('size'), 'small')
+    }
+  } finally {
     setBrowserContext()
   }
 })
