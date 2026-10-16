@@ -1,6 +1,8 @@
+import { createQueryCache } from '../../../shared/lib/queryCache.js'
+import { onPersonalDataChanged } from '../../../shared/lib/personalDataEvents.js'
 import { createRequestGuard } from '../../../shared/lib/requestGuard.js'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, onScopeDispose } from 'vue'
 
 export function createDirectoryStore(name, api) {
   return defineStore(name, () => {
@@ -10,6 +12,12 @@ export function createDirectoryStore(name, api) {
     const error = ref(null)
 
     const guard = createRequestGuard()
+    const cache = createQueryCache()
+    function invalidate() {
+      cache.clear()
+      cancel()
+    }
+    onScopeDispose(onPersonalDataChanged(invalidate))
 
     // direct call to /actors to get groups
     async function load({
@@ -18,6 +26,7 @@ export function createDirectoryStore(name, api) {
       order_by = 'count',
       order = 'desc',
       search,
+      force = false,
     } = {}) {
       const request = guard.begin()
       loading.value = true
@@ -25,8 +34,15 @@ export function createDirectoryStore(name, api) {
       try {
         const params = { page, page_size, order_by, order }
         if (String(search || '').trim()) params.search = String(search).trim()
-        const response = await api.getList(params)
-        if (!guard.current(request)) return
+        const key = JSON.stringify(params)
+        const hit = !force && cache.peek(key)
+        if (hit) {
+          groups.value = hit.value.data || []
+          pagination.value = hit.value.pagination || pagination.value
+          loading.value = !hit.fresh
+        }
+        const response = await cache.read(key, () => api.getList(params), { force })
+        if (!guard.current(request) || !response) return
         groups.value = response.data || []
         pagination.value = response.pagination || pagination.value
       } catch (err) {
@@ -43,11 +59,12 @@ export function createDirectoryStore(name, api) {
     }
 
     function reset() {
+      cache.clear()
       cancel()
       groups.value = []
       error.value = null
       pagination.value = { total: 0, page: 1, page_size: 15, pages: 1 }
     }
-    return { groups, pagination, loading, error, load, cancel, reset }
+    return { groups, pagination, loading, error, load, cancel, reset, invalidate }
   })
 }

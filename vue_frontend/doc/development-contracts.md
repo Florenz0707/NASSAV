@@ -355,3 +355,11 @@ ordinary_login开启时session store拥有cache_identity，api/client仅持有X-
 2026-10-16资源卡尺寸修复：ResourceCard默认coverSize=medium，优先采用后端thumbnail_url时仍须显式将coverSize传给resolveCoverUrl(url, size)，不能让后端预览用size=small绕过组件尺寸。省略解析器size保留服务器提示；显式null/空字符串去掉size使用原图，ResourceCard的undefined仍触发Vue默认medium。只改写普通封面URL，保留_context/v/fragment，外部图与归属句柄不拼接尺寸。旧布局small/medium/large规格为200/600/1200，新版本图片仍按其既有正式资产协议读取，不因此生成新版本。
 
 浏览器resourceCoverSize.cjs使用生产ResourceCard与模拟图片接口，修复前复现默认medium却实际naturalWidth=200，修复后验证600及运行中small/large/原图切换；Chrome/Firefox与上一轮图片上下文回归分开执行，不替代部署图片实测。
+
+## 读取缓存
+
+资源库和演员/类别目录以完整查询参数为键，内存缓存30秒、最多20项，并合并相同请求；过期页先恢复上次数据再后台更新。缓存读写深拷贝，展示层变更不污染缓存。`shared/lib/queryCache` 只持有缓存和请求归属，状态展示与错误仍由业务 store 持有；失败不缓存，reset/失效后旧请求不能回填。
+
+资源详情缓存30秒、最多100项，来源列表/搜索能力缓存5分钟、最多8项；API缓存键包含登录/来源请求代次。身份变化清空个人展示状态，持有代次、资源写入及任务刷新失效关联缓存。手动刷新资源列表和详情绕过缓存，不把刷新按钮变成读取旧快照；资源库/目录内存缓存不持久化到浏览器存储。图片继续使用授权URL和浏览器条件缓存，不用旧AVID-only Blob缓存绕过每次授权。普通JSON响应策略仍由后端决定，客户端不再给所有请求附带禁止缓存的通用请求头。
+
+阶段分支 `enhancement/frontend-query-cache`，执行 `pnpm run check`、`pre-commit run -a`，缓存回归覆盖翻页请求次数、请求合并、TTL、容量、手动刷新、对象隔离及旧账号响应拒绝；浏览器验证使用隔离API，不代表现有服务联调。

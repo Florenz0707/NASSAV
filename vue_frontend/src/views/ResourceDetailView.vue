@@ -119,7 +119,7 @@ async function fetchMetadata(bypassCache = false) {
   error.value = null
   try {
     const response = await resourceApi.getMetadata(currentAvid, bypassCache)
-    if (metadataGuard.current(request)) metadata.value = response.data
+    if (metadataGuard.current(request) && response) metadata.value = response.data
   } catch (err) {
     if (err.code === 'user_cancelled') return
     if (metadataGuard.current(request)) error.value = err.message || '获取元数据失败'

@@ -1,7 +1,11 @@
-import api, { contextualImageUrl } from './client.js'
+import { createQueryCache } from '../shared/lib/queryCache.js'
+import { onPersonalDataChanged } from '../shared/lib/personalDataEvents.js'
+import api, { contextualImageUrl, requestCacheIdentity } from './client.js'
 import { personalDataChanged } from '../shared/lib/personalDataEvents.js'
 import { logger } from '../shared/lib/logger.js'
 
+const metadataCache = createQueryCache({ limit: 100 })
+onPersonalDataChanged(() => metadataCache.clear())
 let coverGeneration = 0
 const coverRevisions = new Map()
 
@@ -19,8 +23,14 @@ export const resourceApi = {
     if (bypassCache) {
       params._t = Date.now()
     }
-    return api.get('/resource/metadata', { params })
+    return metadataCache.read(
+      `${requestCacheIdentity()}:${avid}`,
+      () => api.get('/resource/metadata', { params }),
+      { force: bypassCache }
+    )
   },
+
+  invalidateMetadataCache: () => metadataCache.clear(),
 
   // 获取封面图片URL（基于 axios 实例的 baseURL）
   // size: 'small'|'medium'|'large' or undefined for original

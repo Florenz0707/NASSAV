@@ -1,3 +1,4 @@
+import { onPersonalDataChanged } from '../../../shared/lib/personalDataEvents.js'
 import { useSessionStore } from '../../auth/stores/session.js'
 import { useMembershipsStore } from '../../library/stores/memberships.js'
 import { useLibraryCommandsStore } from '../../library/stores/commands.js'
@@ -6,7 +7,7 @@ import { logger } from '../../../shared/lib/logger.js'
 import { useTaskJobsStore } from '../../tasks/stores/taskJobs.js'
 import { createResourceList } from './resourceList.js'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onScopeDispose } from 'vue'
 import { downloadApi, resourceApi, sourceApi } from '../../../api/index.js'
 import {
   notifyScrapeBatch,
@@ -25,6 +26,7 @@ export const useResourceStore = defineStore('resource', () => {
     operations = useUserOperationsStore()
   const shared = () => Boolean(session.capabilities.shared_library)
   const list = createResourceList(resourceApi)
+  onScopeDispose(onPersonalDataChanged(() => list.invalidate()))
   watch(
     () => useMembershipsStore().revision,
     () => {
@@ -409,7 +411,12 @@ export const useResourceStore = defineStore('resource', () => {
       resources.value = resources.value.filter((item) => item.avid !== avid)
       return response
     }
-    if (action === 'deleteFile') return downloadApi.deleteFile(avid)
+    if (action === 'deleteFile') {
+      const response = await downloadApi.deleteFile(avid)
+      list.invalidate()
+      resourceApi.invalidateMetadataCache()
+      return response
+    }
     if (action === 'delete') return resourceApi.delete(avid)
     throw new Error('不支持的资源删除操作')
   }
@@ -615,6 +622,8 @@ export const useResourceStore = defineStore('resource', () => {
     fetchResources,
     cancelResourceQuery,
     resetResourceList,
+    invalidateResourceQueries: list.invalidate,
+    refreshResourceQueries: list.refresh,
     fetchSources,
     addResource,
     refreshResource,

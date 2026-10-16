@@ -353,6 +353,7 @@ async function handleDeleteFile(_avid) {
 }
 
 async function handleManualRefresh() {
+  resourceStore.invalidateResourceQueries()
   refreshing.value = true
   try {
     await fetchResourceList()

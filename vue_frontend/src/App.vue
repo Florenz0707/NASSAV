@@ -46,7 +46,12 @@ const resourceStore = useResourceStore()
 const sessionStore = useSessionStore()
 watch(
   () => [sessionStore.identity, useMembershipsStore().revision],
-  () => resourceApi.resetCoverCache(),
+  () => {
+    resourceApi.resetCoverCache()
+    resourceApi.invalidateMetadataCache()
+    useActorGroupsStore().invalidate()
+    useGenreGroupsStore().invalidate()
+  },
   { flush: 'sync', immediate: true }
 )
 const sourceRoute = computed(() =>

@@ -9,9 +9,6 @@ const api = axios.create({
   xsrfHeaderName: 'X-CSRFToken',
   headers: {
     'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    Pragma: 'no-cache',
-    Expires: '0',
   },
 })
 
@@ -38,6 +35,7 @@ export function contextualImageUrl(url) {
   return `${base}?${params}${fragment}`
 }
 let sessionGeneration = 0
+export const requestCacheIdentity = () => sessionGeneration
 export function invalidateSessionRequests() {
   sessionGeneration++
 }
