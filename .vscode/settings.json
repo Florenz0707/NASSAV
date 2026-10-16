@@ -1,0 +1,13 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+  "prettier.documentSelectors": ["vue_frontend/**/*.{js,jsx,ts,tsx,vue,json,css,scss,less,html}"],
+  "prettier.prettierPath": "vue_frontend/node_modules/prettier",
+  "prettier.configPath": ".prettierrc",
+  "prettier.requireConfig": true,
+  "editor.formatOnSave": true,
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}

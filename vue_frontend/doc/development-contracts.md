@@ -58,6 +58,12 @@ HTTP 202 表示入队，成功由终态快照确认；WebSocket 是通知渠道�
 
 ## 检查与维护
 
+### 编辑器与提交格式化
+
+从仓库根目录打开 VS Code，安装 Prettier 扩展并先执行 `cd vue_frontend && pnpm install --frozen-lockfile`。仓库提交的 `.vscode/settings.json` 为 Vue 显式指定 `esbenp.prettier-vscode`，覆盖个人设置中的 Volar 格式化器；Volar 仍可提供 Vue 语言服务。编辑器与 pre-commit 均使用 `vue_frontend/node_modules/prettier` 和根 `.prettierrc`，版本由前端锁文件统一管理，不再单独安装镜像钩子的 Prettier。其他 VS Code 本地文件保持忽略。
+
+保留现有规则：无分号、单引号、100 列、2 空格和 ES5 尾逗号。钩子继续检查全部文本文件并跳过无法识别的格式；在仓库根目录执行 `pre-commit run prettier -a` 可单独验证。修改规则或升级 Prettier 时同时验证编辑器与提交输出，避免使用两种格式化器轮流修改 Vue 模板。
+
 改动后执行 `pnpm run check` 和根目录 `pre-commit run -a`；不使用 `build | tail` 掩盖退出码。异步或状态改动覆盖乱序响应、失败、失效和终态；视觉与公共组件改动执行相关浏览器套件。模拟套件和真实验收分别记录。新增公开 props、事件、状态方法或缓存语义时同步本文，真实协议变更同时更新后端接口说明。
 
 任务操作列使用 eye-off SVG 表示不再跟踪，close SVG 表示结束任务，并保留可访问名称和悬停提示；批量入口使用图标加文本。复选框未选中时使用主题副文本色的加粗边框，在深浅主题中保持清晰轮廓；选中和半选继续使用主强调色。

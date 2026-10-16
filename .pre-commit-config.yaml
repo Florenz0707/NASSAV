@@ -11,11 +11,16 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
 
-  # Prettier (JS / TS / JSON / Markdown / YAML)
-  - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.9.9
+  # 与 VS Code 共用项目内 Prettier 和根配置；先安装前端依赖。
+  - repo: local
     hooks:
       - id: prettier
+        name: prettier
+        entry: >-
+          node vue_frontend/node_modules/prettier/bin/prettier.cjs
+          --config .prettierrc --write --ignore-unknown
+        language: system
+        types: [text]
 
   # Markdown 规范检查
   - repo: https://github.com/DavidAnson/markdownlint-cli2
