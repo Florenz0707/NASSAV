@@ -1,6 +1,5 @@
 <script setup>
 import { libraryBatchOutcome } from '../features/library/lib/batchResults.js'
-import LibraryMembershipsDialog from '../features/library/components/LibraryMembershipsDialog.vue'
 import { useSessionStore } from '../features/auth/stores/session.js'
 import AppButton from '../shared/ui/AppButton.vue'
 import PageLoad from '../shared/ui/PageLoad.vue'
@@ -20,11 +19,6 @@ const resourceStore = useResourceStore()
 const shared = computed(() => Boolean(useSessionStore().capabilities.shared_library))
 const toastStore = useToastStore()
 
-function closeMemberships() {
-  showMemberships.value = false
-  fetchResourceList().catch(() => {})
-}
-const showMemberships = ref(false)
 const selectedAvids = ref(new Set())
 const batchLoading = ref(false)
 const batchBusyAction = ref('')
@@ -397,10 +391,6 @@ function onPageSizeChange(newSize) {
       <h1 class="text-[2rem] font-bold text-[var(--text-primary)] mb-2">
         {{ shared ? '我的资源库' : '资源库' }}
       </h1>
-      <AppButton v-if="shared" variant="neutral" class="mb-4" @click="showMemberships = true"
-        >管理持有</AppButton
-      >
-      <LibraryMembershipsDialog v-if="shared && showMemberships" @close="closeMemberships" />
       <!-- Results Info -->
       <div v-if="!resourceStore.loading" class="mb-6 text-[var(--text-muted)] text-sm">
         <span>管理您的 {{ resourceStore.pagination.total }} 个资源</span>
@@ -540,6 +530,7 @@ function onPageSizeChange(newSize) {
   from {
     background-position: -200% 0;
   }
+
   to {
     background-position: 200% 0;
   }

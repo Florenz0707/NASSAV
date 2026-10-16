@@ -59,9 +59,6 @@ onMounted(load)
     :show-close="!busy"
     @close="close"
   >
-    <p class="text-sm text-secondary mb-6">
-      仅管理当前账号的来源 Cookie。保存后不会回显，也不会自动提升为公共凭证。
-    </p>
     <PageLoad v-if="loading && !sources.length" variant="spinner" text="加载个人来源凭证" />
     <RequestError v-else-if="error && !sources.length" :message="error" compact @retry="load" />
     <EmptyState
@@ -140,8 +137,8 @@ onMounted(load)
           :loading="loading"
           loading-text="加载中"
           @click="load"
-          >重新加载</AppButton
-        >
+          >重新加载
+        </AppButton>
         <div class="flex flex-wrap gap-3">
           <AppButton
             variant="danger"
@@ -149,7 +146,8 @@ onMounted(load)
             loading-text="撤销中"
             :disabled="busy || loading || !credential || credential.state === 'revoked'"
             @click="confirmRevoke = true"
-            >撤销</AppButton
+          >
+            撤销</AppButton
           >
           <AppButton
             type="submit"
@@ -161,11 +159,6 @@ onMounted(load)
         </div>
       </div>
     </form>
-    <template #footer
-      ><div class="flex justify-end">
-        <AppButton variant="neutral" :disabled="busy" @click="close">关闭</AppButton>
-      </div></template
-    >
   </SettingsModal>
   <ConfirmDialog
     v-model:show="confirmRevoke"

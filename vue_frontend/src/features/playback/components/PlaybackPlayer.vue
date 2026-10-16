@@ -178,10 +178,7 @@ onBeforeUnmount(() => {
     class="relative w-full aspect-video overflow-hidden rounded-2xl border border-[var(--border-color)] bg-primary"
   >
     <div v-if="preparing" class="absolute inset-0 flex items-center justify-center p-4">
-      <PageLoad
-        variant="spinner"
-        :text="mode === 'local' ? '正在读取已下载视频' : '正在准备播放，来源获取可能需要一分钟'"
-      />
+      <PageLoad variant="spinner" :text="mode === 'local' ? '正在读取资源' : '正在获取来源'" />
     </div>
     <video
       v-if="state.state === 'ready'"
@@ -246,8 +243,8 @@ onBeforeUnmount(() => {
         variant="neutral"
         class="ml-2"
         @click="history.retry()"
-        >重试记录</AppButton
-      >
+        >重试记录
+      </AppButton>
       <AppButton
         v-if="progressState.canTakeover"
         variant="neutral"

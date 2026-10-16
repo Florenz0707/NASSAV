@@ -79,27 +79,19 @@ function viewResource() {
             rows="5"
             @update:model-value="avid = $event.toUpperCase()"
           />
-          <p id="add-avids-hint" class="form-hint">支持换行、逗号、空格分隔，自动去重</p>
         </div>
 
         <div class="form-group">
-          <label for="add-source" class="form-label">下载源</label>
+          <label for="add-source" class="form-label">请求源</label>
           <CustomSelect
             id="add-source"
-            aria-label="下载源"
+            aria-label="请求源"
             aria-describedby="add-source-hint"
             v-model="source"
             :options="sourceOptions"
             :disabled="submitting"
             full-width
           />
-          <p id="add-source-hint" class="form-hint">
-            {{
-              session.capabilities.shared_library
-                ? '选择本次请求使用的明确来源'
-                : '选择自动将依次尝试所有可用源'
-            }}
-          </p>
         </div>
 
         <div v-if="session.capabilities.shared_library" class="form-group">
@@ -114,13 +106,12 @@ function viewResource() {
             :disabled="submitting"
             full-width
           />
-          <p class="form-hint">公共结果可共享复用；个人凭证产物仅供本人使用。</p>
         </div>
 
         <div class="flex items-stretch gap-3">
           <AppButton
             type="submit"
-            class="flex-1 min-w-0 text-lg flex items-center justify-center gap-2 rounded-lg px-6 py-4"
+            class="flex-1 min-w-0 text-lg flex items-center justify-center gap-2 rounded-lg px-4 py-4"
             :loading="submitting"
             loading-text="提交中"
           >
@@ -137,12 +128,13 @@ function viewResource() {
           </AppButton>
           <AppButton
             variant="neutral"
-            class="rounded-lg px-6 py-6 shrink-0"
+            class="rounded-lg px-4 py-4 shrink-0"
             aria-label="Cookie 设置"
             title="Cookie 设置"
             @click="showCookies = true"
-            ><AppIcon name="cookie"
-          /></AppButton>
+          >
+            <AppIcon name="cookie" />
+          </AppButton>
         </div>
       </form>
     </div>
@@ -158,14 +150,6 @@ function viewResource() {
       class="tw-btn-primary self-center mt-4"
       >查看我的请求</RouterLink
     >
-
-    <div class="tips-section">
-      <h2 class="tips-title">使用提示</h2>
-      <ul class="tips-list">
-        <li>封面图片和元数据会自动保存到本地</li>
-        <li>添加成功后，可以在资源详情页提交下载任务</li>
-      </ul>
-    </div>
   </div>
 </template>
 
