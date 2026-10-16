@@ -30,13 +30,19 @@ export function createOperationTracking(
     owner = '',
     timer = null
   const pending = new Map(),
-    commands = new Map()
-  function apply(item) {
+    commands = new Map(),
+    submittedIds = new Set()
+  function apply(item, { submitted = false } = {}) {
     if (!item?.operation_id || !Number.isInteger(item.version) || item.version < 1) return null
     const old = operations.value.get(item.operation_id)
-    if (old && old.version >= item.version) return old
+    const announce = submitted && !submittedIds.has(item.operation_id)
+    if (announce) submittedIds.add(item.operation_id)
+    if (old && old.version >= item.version) {
+      if (announce) changed(old, old, { submitted: true })
+      return old
+    }
     operations.value = new Map(operations.value).set(item.operation_id, item)
-    changed(item, old)
+    changed(item, old, { submitted: announce })
     return item
   }
   async function load(more = false) {
@@ -54,7 +60,7 @@ export function createOperationTracking(
       if (current !== epoch || revision !== listRevision) return
       if (!Array.isArray(response.data) || !Number.isInteger(response.pagination?.total))
         throw new Error('本人请求列表格式无效')
-      response.data.forEach(apply)
+      response.data.forEach((item) => apply(item))
       page = more ? target : Math.max(page, target)
       total.value = response.pagination.total
       hasMore.value = page < response.pagination.pages
@@ -171,6 +177,7 @@ export function createOperationTracking(
     hasMore.value = false
     pending.clear()
     commands.clear()
+    submittedIds.clear()
   }
   function start(identity) {
     reset(identity)

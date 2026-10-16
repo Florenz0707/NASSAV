@@ -95,3 +95,9 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 后端L1提交c0773bc已合并idle。分支feat/local-playback-frontend（提交见Git历史）：已下载“点击播放”打开/play/:avid?mode=local，新标签拥有会话；media_type=mp4用原生video，保持来源HLS引擎和一次刷新。本地文件错误不回退来源，AVID/模式变化清空本页位置，不新增进度持久化。
 
 执行pnpm run check（81项通过）、pre-commit run -a；现有playbackTab两主题/移动/卸载验收通过；Chrome/Firefox来源HLS合成TS/fMP4解码、拖动/暂停、一次刷新及旧结果护栏通过。本地专项使用临时SQLite、真实ASGI/Redis和90秒合成H.264/AAC MP4（含尾部moov布局），Chrome/Firefox验证首帧/解码帧、Range、拖动/暂停、独立标签、移动16:9与关闭后持久closed；仅全局WS提示用替身。可复现helper和入口见README。不替代正式Docker、实际下载视频编码、真机或长时验收。
+
+## 2026-10-16：共享任务提示与时间线
+
+阶段分支 `fix/task-toast-timeline`，提交 `[Fix] Restore shared task feedback and unify timeline labels`（提交号见 Git 历史）。共享命令此前只登记 UserOperation，没有接入旧刮削 toast；现在命令标记提交，跟踪层在版本检查后分发提示，历史初次载入不通知。时间线从各适配器零散映射集中到 taskTimeline，覆盖排队、翻译、校验和恢复，未知阶段不再回显英文，保留原始状态和时间。
+
+验证入口：`node tests/taskFeedback.test.js`、`pnpm run check`、根目录 `pre-commit run -a`；Chromium 的 `tests/browser/taskFeedback.cjs` 通过生产资源卡刷新弹窗和任务详情验证提示与中文时间线。浏览器接口使用隔离模拟，不代表部署容器已更新或真实来源/worker 联调。

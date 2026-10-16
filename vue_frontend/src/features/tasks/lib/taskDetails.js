@@ -1,50 +1,12 @@
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
-import { scrapeWorkflowStatus, SCRAPE_STAGE_LABELS } from '../stores/scrapeJobState.js'
+import { scrapeWorkflowStatus } from '../stores/scrapeJobState.js'
 
 export const isFinishedTask = (task) => ['succeeded', 'failed', 'cancelled'].includes(task.state)
-export const TASK_STAGE_LABELS = {
-  ...SCRAPE_STAGE_LABELS,
-  video_download: '下载视频',
-  video_merge: '合并视频',
-  video_verify: '校验视频',
-  resource_save: '保存资源',
-  waiting_slot: '等待下载槽位',
-  resume_validation: '校验暂停产物',
-  source: '查询来源',
-  source_done: '来源已获取',
-  source_complete: '来源已获取',
-  metadata_complete: '元数据已获取',
-  cover_complete: '封面已获取',
-  saved: '资源已保存',
-  translation_not_requested: '无需翻译',
-  translation_superseded: '翻译已被替代',
-  metadata_done: '元数据已获取',
-  cover_done: '封面已获取',
-  avatars: '获取演员头像',
-  avatars_done: '头像已获取',
-  resource_committed: '资源已保存',
-  downloading: '下载中',
-  merging: '合并视频',
-  video_committed: '视频已保存',
-  paused: '已暂停',
-  pausing: '请求暂停',
-  cancelling: '请求终止',
-  cancelled: '已终止',
-  succeeded: '已完成',
-  failed: '失败',
-}
-const timelineLabels = {
-  queued: '任务已排队',
-  running: '开始刮削',
-  failed: '刮削失败',
-  ...SCRAPE_STAGE_LABELS,
-}
+export { TASK_STAGE_LABELS } from './taskTimeline.js'
+import { buildTaskTimeline, taskTimelineLabel } from './taskTimeline.js'
 
 function scrapeTimeline(task, workflow) {
-  const events = (task.timeline || []).map((event) => ({
-    ...event,
-    label: timelineLabels[event.stage] || event.stage,
-  }))
+  const events = buildTaskTimeline(task.timeline)
   if (!events.length) {
     events.push({
       label:
@@ -52,7 +14,7 @@ function scrapeTimeline(task, workflow) {
           ? '刮削失败'
           : task.state === 'succeeded'
             ? '资源已保存'
-            : timelineLabels[task.stage] || timelineLabels[task.state]) || '状态未知',
+            : taskTimelineLabel(task.stage, { state: task.state })) || '状态未知',
       at: task.updated_at,
       state: task.state,
     })
@@ -63,7 +25,7 @@ function scrapeTimeline(task, workflow) {
   )
     events.push({
       stage: workflow.stage,
-      label: timelineLabels[workflow.stage] || '翻译状态未知',
+      label: taskTimelineLabel(workflow.stage),
       at: task.translation?.completed_at,
       state: workflow.state,
     })
@@ -185,15 +147,7 @@ export function buildTaskDetails({
     createdAt: task.created_at,
     updatedAt: task.updated_at,
     updated: taskTime(task.updated_at),
-    timeline: (task.timeline || []).map((event) => ({
-      ...event,
-      label:
-        event.stage === 'running'
-          ? task.job_type === 'download'
-            ? '开始下载'
-            : '开始刮削'
-          : TASK_STAGE_LABELS[event.stage] || timelineLabels[event.stage] || event.stage,
-    })),
+    timeline: buildTaskTimeline(task.timeline, { type: task.job_type }),
   }))
   const legacy = (task, type) =>
     !task.job_id &&

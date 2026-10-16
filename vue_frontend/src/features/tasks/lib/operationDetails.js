@@ -1,4 +1,5 @@
-import { TASK_STAGE_LABELS, taskTime } from './taskDetails.js'
+import { buildTaskTimeline } from './taskTimeline.js'
+import { taskTime } from './taskDetails.js'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 
 export function buildOperationDetails(
@@ -32,13 +33,7 @@ export function buildOperationDetails(
       createdAt: item.created_at,
       updatedAt: item.updated_at,
       updated: taskTime(item.updated_at),
-      timeline: (item.timeline || []).map((event) => ({
-        ...event,
-        label:
-          event.stage === 'cancelled'
-            ? '本人请求已撤销'
-            : TASK_STAGE_LABELS[event.stage] || event.stage,
-      })),
+      timeline: buildTaskTimeline(item.timeline, { type: item.kind, personal: true }),
     }
   })
 }

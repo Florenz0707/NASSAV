@@ -17,7 +17,7 @@ export const useLibraryCommandsStore = defineStore('libraryCommands', () => {
     generation = 0
   const core = createLibraryCommands(libraryApi, {
     memberships,
-    acceptOperation: operations.apply,
+    acceptOperation: (item) => operations.apply(item, { submitted: true }),
     changed: () => {
       memberships.invalidate()
       personalDataChanged(null, [
