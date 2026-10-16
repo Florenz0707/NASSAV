@@ -95,6 +95,7 @@ export function buildTaskDetails({
   metadataCache,
   preferredTitle,
   coverUrlFor,
+  resolveCoverUrl = (url) => url,
 }) {
   const metadataFor = (task) => ({
     ...resources.find((r) => r.avid === task.avid),
@@ -113,8 +114,9 @@ export function buildTaskDetails({
     return {
       title: title === task.avid ? '' : title,
       hasResource,
-      coverUrl:
-        resource.thumbnail_url || resource.cover_url || (hasResource ? coverUrlFor(task.avid) : ''),
+      coverUrl: resolveCoverUrl(
+        resource.thumbnail_url || resource.cover_url || (hasResource ? coverUrlFor(task.avid) : '')
+      ),
     }
   }
   const download = (task, fallbackState) => {

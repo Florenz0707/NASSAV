@@ -1,7 +1,12 @@
 import { TASK_STAGE_LABELS, taskTime } from './taskDetails.js'
 import { resolveResourceTitle } from '../../resources/lib/resourceTitle.js'
 
-export function buildOperationDetails(operations, resources = [], preferredTitle) {
+export function buildOperationDetails(
+  operations,
+  resources = [],
+  preferredTitle,
+  resolveCoverUrl = (url) => url
+) {
   const metadata = new Map(resources.map((item) => [item.avid, item]))
   return operations.map((item) => {
     const resource = metadata.get(item.avid)
@@ -13,7 +18,7 @@ export function buildOperationDetails(operations, resources = [], preferredTitle
       avid: item.avid,
       title: resource ? resolveResourceTitle(resource, preferredTitle) : '',
       hasResource: Boolean(resource?.membership_state === 'active'),
-      coverUrl: resource?.thumbnail_url || resource?.cover_url || '',
+      coverUrl: resolveCoverUrl(resource?.thumbnail_url || resource?.cover_url || ''),
       state: item.state,
       stage: item.stage,
       version: item.version,

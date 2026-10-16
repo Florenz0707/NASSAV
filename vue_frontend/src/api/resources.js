@@ -30,6 +30,15 @@ export const resourceApi = {
     if (size) url += `&size=${encodeURIComponent(size)}`
     return contextualImageUrl(url)
   },
+  // Server projections may contain generic AVID URLs; bind them at display time.
+  // Owned image handles and external/blob images keep their original URL.
+  resolveCoverUrl: (url) => {
+    if (typeof url !== 'string') return ''
+    const endpoint = `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover`
+    return url === endpoint || url.startsWith(`${endpoint}?`) || url.startsWith(`${endpoint}#`)
+      ? contextualImageUrl(url)
+      : url
+  },
   // 简单的 LRU 缓存用于封面 object URLs，避免重复下载并支持自动回收
   // keyed by avid -> objectUrl
   _coverCache: new Map(),

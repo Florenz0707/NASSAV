@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { resourceApi } from '../../../api/resources.js'
 import { useRoute, RouterLink } from 'vue-router'
 import { useUserOperationsStore } from '../stores/userOperations.js'
 import { useResourceStore } from '../../resources/stores/resource.js'
@@ -17,7 +18,12 @@ const operations = useUserOperationsStore(),
   settings = useSettingsStore()
 const route = useRoute()
 const tasks = computed(() =>
-  buildOperationDetails(operations.visible, resources.resources, settings.displayTitle)
+  buildOperationDetails(
+    operations.visible,
+    resources.resources,
+    settings.displayTitle,
+    resourceApi.resolveCoverUrl
+  )
 )
 const focused = computed(
   () => tasks.value.find((task) => task.operationId === route.query.task)?.id || ''

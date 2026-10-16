@@ -337,3 +337,11 @@ features/admin/lib/adminRead拥有管理查询的当前登录/请求代次；acc
 ### 多用户浏览器上下文
 
 ordinary_login开启时session store拥有cache_identity，api/client仅持有X-NASSAV-Context预条件；409 browser_context_changed只读重查，不重放写入。旧响应/socket或销毁后的bootstrap不能改变新身份。原生封面/头像由API helper附加_context，keepalive带同头；本人结果图片仍用归属句柄。WS带任务/上下文两个subprotocol，旧4401先查当前Cookie，4409重查代次；上下文不替代业务owner/epoch。准入默认关闭，详见后端准入架构。
+
+### 后端返回的普通图片地址与会话上下文
+
+资源卡和任务详情不能将后端返回的普通AVID thumbnail_url/cover_url直接作为img src；它们可能不含_context。通过resourceApi.resolveCoverUrl在显示时为受保护的同API封面地址绑定当前登录上下文，保持size、v和fragment，替换旧_context并去重。纯任务投影显式接收解析回调，不导入API或持有会话；共享ResourceCover仍只展示传入地址。
+
+外部图片、Blob、Entry图片和本人结果句柄不经此普通封面改写，不把会话上下文附到外站。后端缺失/旧上下文409及owner权限检查保持，不以取消校验修复图片。历史/稍后再看复用ResourceCard；会话变化仍沿现有identity重建、缓存清理及旧响应拒绝协议。
+
+2026-10-16修复分支fix/resource-cover-browser-context：原API thumbnail_url绕过helper复现409；URL幂等/参数保持和两类任务投影有单元回归，浏览器使用生产Vue组件与模拟409/图片接口覆盖资源卡、共享任务详情及两个登录上下文。与后端准入隔离测试、当前部署验收分别报告。
