@@ -345,3 +345,7 @@ ordinary_login开启时session store拥有cache_identity，api/client仅持有X-
 外部图片、Blob、Entry图片和本人结果句柄不经此普通封面改写，不把会话上下文附到外站。后端缺失/旧上下文409及owner权限检查保持，不以取消校验修复图片。历史/稍后再看复用ResourceCard；会话变化仍沿现有identity重建、缓存清理及旧响应拒绝协议。
 
 2026-10-16修复分支fix/resource-cover-browser-context：原API thumbnail_url绕过helper复现409；URL幂等/参数保持和两类任务投影有单元回归，浏览器使用生产Vue组件与模拟409/图片接口覆盖资源卡、共享任务详情及两个登录上下文。与后端准入隔离测试、当前部署验收分别报告。
+
+2026-10-16资源卡尺寸修复：ResourceCard默认coverSize=medium，优先采用后端thumbnail_url时仍须显式将coverSize传给resolveCoverUrl(url, size)，不能让后端预览用size=small绕过组件尺寸。省略解析器size保留服务器提示；显式null/空字符串去掉size使用原图，ResourceCard的undefined仍触发Vue默认medium。只改写普通封面URL，保留_context/v/fragment，外部图与归属句柄不拼接尺寸。旧布局small/medium/large规格为200/600/1200，新版本图片仍按其既有正式资产协议读取，不因此生成新版本。
+
+浏览器resourceCoverSize.cjs使用生产ResourceCard与模拟图片接口，修复前复现默认medium却实际naturalWidth=200，修复后验证600及运行中small/large/原图切换；Chrome/Firefox与上一轮图片上下文回归分开执行，不替代部署图片实测。

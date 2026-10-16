@@ -31,13 +31,25 @@ export const resourceApi = {
     return contextualImageUrl(url)
   },
   // Server projections may contain generic AVID URLs; bind them at display time.
-  // Owned image handles and external/blob images keep their original URL.
-  resolveCoverUrl: (url) => {
+  // An explicit size overrides the server hint; null/empty requests the original.
+  // Omitted size preserves the hint. Owned handles and external/blob images stay unchanged.
+  resolveCoverUrl: (url, size) => {
     if (typeof url !== 'string') return ''
     const endpoint = `${api.defaults.baseURL.replace(/\/$/, '')}/resource/cover`
-    return url === endpoint || url.startsWith(`${endpoint}?`) || url.startsWith(`${endpoint}#`)
-      ? contextualImageUrl(url)
-      : url
+    if (!(url === endpoint || url.startsWith(`${endpoint}?`) || url.startsWith(`${endpoint}#`)))
+      return url
+    if (size !== undefined) {
+      const hash = url.indexOf('#')
+      const path = hash < 0 ? url : url.slice(0, hash)
+      const fragment = hash < 0 ? '' : url.slice(hash)
+      const query = path.indexOf('?')
+      const params = new URLSearchParams(query < 0 ? '' : path.slice(query + 1))
+      params.delete('size')
+      if (size) params.set('size', size)
+      const search = params.toString()
+      url = `${query < 0 ? path : path.slice(0, query)}${search ? '?' + search : ''}${fragment}`
+    }
+    return contextualImageUrl(url)
   },
   // 简单的 LRU 缓存用于封面 object URLs，避免重复下载并支持自动回收
   // keyed by avid -> objectUrl

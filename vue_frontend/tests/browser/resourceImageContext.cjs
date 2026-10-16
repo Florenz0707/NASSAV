@@ -84,7 +84,7 @@ const { chromium, firefox } = require('playwright')
       )
       const request = images.at(-1)
       assert.equal(request.searchParams.get('_context'), value)
-      assert.equal(request.searchParams.get('size'), 'small')
+      assert.equal(request.searchParams.get('size'), 'medium')
       assert.equal(request.searchParams.get('v'), 'version-one')
       await page.locator('a[href="/downloads"]').first().click()
       await page
