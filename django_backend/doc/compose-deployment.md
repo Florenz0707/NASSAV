@@ -297,3 +297,21 @@ v2.5.1还须应用0036观看列表及播放事件去重字段；历史不从旧�
 Compose全部后端继承`NASSAV_SCOPED_SOURCE_CREDENTIALS`、`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`及`NASSAV_SHARED_LIBRARY_ENABLED`。开关默认false；共享执行器要求范围凭证，HTTP/配额/正式版本读取/GC已分阶段接入，但正式目标切换仍待P8，保持关闭。密钥路径为容器内路径（例如`/app/config/source-keys.json`，配置目录已挂载），文件只允许服务UID读取，先完成密钥备份、迁移/显式导入及全消费者维护窗口，不混跑旧Cookie/资产写入者。此配置接入不代表现有实例已迁移或允许普通账号登录。
 
 多用户准入另由全部后端继承的NASSAV_MULTI_USER_ENABLED控制，默认false且依赖上述两模式。必须同步发布包含X-NASSAV-Context与WS subprotocol的新前端，先在operator范围核验，再在目标门槛通过后逐步开放；不要让旧浏览器/消费者继续提交无上下文命令。多用户模式使用应用管理中心，Django内置后台关闭，详见[准入架构](multi-user-admission-architecture.md)。本轮未修改部署开关或生产数据库。
+
+## 独立来源 keyring 挂载
+
+宿主机绝对路径不会自动出现在容器内。原配置目录方案继续有效：把已有 keyring 放在挂载的 config 目录内，`NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE` 填对应容器路径。若原 keyring 保存在仓库外或 `secrets/`，优先采用独立只读文件绑定，避免复制、重新生成密钥或挂载整个秘密目录。
+
+在根 `.env` 设置 `NASSAV_SOURCE_CREDENTIAL_KEYRING_HOST_FILE` 为**已有**文件的宿主机绝对路径（例如 `/home/florenz/NASSAV/secrets/source-credentials.json`）。在仓库根目录执行：
+
+```bash
+# PostgreSQL；SQLite 部署仅将 --mode 改为 sqlite
+python3 scripts/compose_stack.py --mode postgres --credentials config
+python3 scripts/compose_stack.py --mode postgres --credentials up -d --no-deps --force-recreate api scrape-worker download-worker default-worker
+```
+
+`--credentials` 追加 `compose.credentials.yaml`，为 API、三个 worker、migrate、beat 和 ollama-model 统一绑定文件到 `/run/nassav/source-credentials.json`，并覆盖容器内 keyring 环境变量。绑定只读、禁止自动创建宿主机路径，不主动启用任何业务开关；后续部署/运维命令继续带该参数。直接使用 Docker Compose 时，在原数据库/GPU文件之外追加 `-f compose.credentials.yaml`，不要只运行基础 SQLite 栈。
+
+渲染预检验证来源凭证启用时的容器路径、宿主机文件存在/私有权限、全消费者绑定一致性；未启用时不要求 keyring。Unix 文件应为0600或更严格且服务 UID 可读取；重建前核对活动任务/播放及维护窗口，统一重建全部消费者。`restart` 不会应用新增挂载或环境变量，已有数据库密文必须继续使用原 keyring及历史密钥。
+
+故障定位：`Credential keyring cannot be loaded` 可能是路径不存在、无法读取或结构不合法；权限过宽另报 `must be private`。先在容器服务UID下调用加载器验证，不输出文件内容，不能通过放宽权限、退回 SECRET_KEY 或生成新密钥掩盖问题。当前实例已只读复现宿主机路径未挂载，并用临时同UID容器验证原 keyring 可加载；这不等于运行服务已应用挂载，也不代表重新刮削已完成。修复分支 `fix/compose-keyring-mount` 执行部署入口 pytest、全量隔离 pytest 和 `pre-commit run -a`，无数据库迁移。

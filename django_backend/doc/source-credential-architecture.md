@@ -11,7 +11,7 @@ P3分为存储协议（4c71e7f）和范围消费者两个提交。0040新增凭�
 - SourceCredential：每来源一个system凭证、每用户每来源一个personal凭证。UUID、范围、owner、原站host、kind和version组成AEAD附加认证上下文；凭证不能换用户、换站点或换版本后解密。个人凭证不自动公开。
 - SourceSessionSnapshot：按credential/version/host/出口摘要/browser_context唯一。加密Cookie及UA，owner/generation/lease形成刷新写入权。快照版本纳入认证上下文；不在Redis保存明文秘密。
 - 使用AES-256-GCM，每次随机nonce。专用keyring文件格式为`{"active_key_id":"k1","keys":{"k1":"<32字节密钥的base64>"}}`；Unix权限必须为0600或更严格。密钥加载、解密失败返回明确不可用，不使用SECRET_KEY或明文兜底。
-- `NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`指向该文件。供新凭证HTTP/导入/轮换及启用后的来源消费者使用，未设置时明确不可用、盲写返回503；列表仍可只读查看状态。隔离测试强制清空该环境变量。
+- `NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE`指向该文件（Docker中必须是容器路径，宿主机路径不自动挂载；可选只读绑定及独立HOST_FILE变量见[部署说明](compose-deployment.md#独立来源-keyring-挂载)）。供新凭证HTTP/导入/轮换及启用后的来源消费者使用，未设置时明确不可用、盲写返回503；列表仍可只读查看状态。隔离测试强制清空该环境变量。
 - 备份包括数据库和受保护密钥。密钥不能提交Git、写日志、放入任务参数或复制给浏览器；DB备份不等于密钥备份。
 
 ## 人工写入与刷新

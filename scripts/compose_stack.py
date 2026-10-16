@@ -6,9 +6,10 @@ import json
 import os
 import re
 import shlex
+import stat
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 BACKEND_SERVICES = {
     "migrate",
@@ -30,11 +31,13 @@ def run(command: list[str], *, capture: bool = False) -> subprocess.CompletedPro
 
 
 def compose_command(
-    mode: str, project: str, gpu: bool, profiles: list[str]
+    mode: str, project: str, gpu: bool, profiles: list[str], credentials: bool = False
 ) -> list[str]:
     command = ["docker", "compose", "-p", project, "-f", "compose.yaml"]
     if mode == "postgres":
         command += ["-f", "compose.postgres.yaml"]
+    if credentials:
+        command += ["-f", "compose.credentials.yaml"]
     if gpu:
         command += ["-f", "compose.gpu.yaml"]
     for profile in profiles:
@@ -42,11 +45,44 @@ def compose_command(
     return command
 
 
+def keyring_mount(service: dict) -> Path | None:
+    environment = service.get("environment", {})
+    if str(environment.get("NASSAV_SCOPED_SOURCE_CREDENTIALS", "")).lower() != "true":
+        return None
+    path = PurePosixPath(environment.get("NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE") or "")
+    if not path.is_absolute() or ".." in path.parts:
+        raise RuntimeError("Credential keyring needs an absolute container path")
+    candidates = []
+    for mount in service.get("volumes", []):
+        target = PurePosixPath(mount["target"])
+        if mount.get("type", "bind") == "bind" and path.is_relative_to(target):
+            candidates.append(
+                (len(target.parts), Path(mount["source"]) / path.relative_to(target))
+            )
+    if not candidates:
+        raise RuntimeError(
+            "Credential keyring is not mounted; use --credentials with NASSAV_SOURCE_CREDENTIAL_KEYRING_HOST_FILE or a valid config-directory mount"
+        )
+    host = max(candidates, key=lambda item: item[0])[1]
+    try:
+        metadata = host.stat()
+    except OSError:
+        raise RuntimeError(
+            "Mounted credential keyring file is missing or inaccessible"
+        ) from None
+    if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
+        raise RuntimeError(
+            "Credential keyring must be a private regular file (0600 or stricter)"
+        )
+    return host.resolve()
+
+
 def rendered_backend(command: list[str], mode: str) -> tuple[Path, str, str]:
     config = json.loads(
         run(command + ["config", "--format", "json"], capture=True).stdout
     )
     identities = set()
+    keyrings = set()
     for service in BACKEND_SERVICES & config["services"].keys():
         identity = config["services"][service].get("user", "")
         if not re.fullmatch(r"[1-9][0-9]*:[1-9][0-9]*", identity):
@@ -54,6 +90,8 @@ def rendered_backend(command: list[str], mode: str) -> tuple[Path, str, str]:
                 f"{service} must use numeric non-root NASSAV_UID:NASSAV_GID"
             )
         identities.add(identity)
+        keyring = keyring_mount(config["services"][service])
+        keyrings.add(keyring)
         environment = config["services"][service]["environment"]
         if (
             environment.get("NASSAV_COMPOSE_DB_MODE") != mode
@@ -62,6 +100,10 @@ def rendered_backend(command: list[str], mode: str) -> tuple[Path, str, str]:
             raise RuntimeError(
                 f"{service} has inconsistent database mode configuration"
             )
+    if len(keyrings) != 1:
+        raise RuntimeError(
+            "All backend services must use the same credential keyring mount"
+        )
     if len(identities) != 1:
         raise RuntimeError("All backend services must use the same UID:GID")
     if mode == "postgres":
@@ -129,6 +171,11 @@ def main() -> int:
         "--project", default=os.getenv("COMPOSE_PROJECT_NAME", "nassav")
     )
     parser.add_argument("--gpu", action="store_true")
+    parser.add_argument(
+        "--credentials",
+        action="store_true",
+        help="Mount the existing dedicated keyring read-only",
+    )
     parser.add_argument("--profile", action="append", default=[])
     parser.add_argument(
         "--adopt-existing",
@@ -151,7 +198,9 @@ def main() -> int:
     )
     parser.add_argument("args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
-    command = compose_command(args.mode, args.project, args.gpu, args.profile)
+    command = compose_command(
+        args.mode, args.project, args.gpu, args.profile, args.credentials
+    )
     db_dir, db_name, db_schema = rendered_backend(command, args.mode)
     marker = db_dir / MARKER
     existing = read_mode(marker)

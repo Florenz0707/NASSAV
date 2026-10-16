@@ -169,3 +169,53 @@ def test_render_rejects_root_or_inconsistent_backend_identity(
     )
     with pytest.raises(RuntimeError, match="non-root|same UID"):
         stack_module.rendered_backend(["docker", "compose"], "sqlite")
+
+
+def test_keyring_host_path_must_be_mounted_before_container_start(
+    stack_module, tmp_path
+):
+    keyring = tmp_path / "keyring.json"
+    keyring.write_text("fixture-only")
+    keyring.chmod(0o600)
+    service = {
+        "environment": {
+            "NASSAV_SCOPED_SOURCE_CREDENTIALS": "true",
+            "NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE": str(keyring),
+        },
+        "volumes": [{"type": "bind", "source": str(tmp_path), "target": "/app/config"}],
+    }
+    with pytest.raises(RuntimeError, match="not mounted"):
+        stack_module.keyring_mount(service)
+    service["environment"]["NASSAV_SOURCE_CREDENTIAL_KEYRING_FILE"] = (
+        "/app/config/keyring.json"
+    )
+    assert stack_module.keyring_mount(service) == keyring
+    keyring.chmod(0o644)
+    with pytest.raises(RuntimeError, match="private regular file"):
+        stack_module.keyring_mount(service)
+    keyring.unlink()
+    with pytest.raises(RuntimeError, match="missing or inaccessible"):
+        stack_module.keyring_mount(service)
+    service["environment"]["NASSAV_SCOPED_SOURCE_CREDENTIALS"] = "false"
+    assert stack_module.keyring_mount(service) is None
+
+
+def test_dedicated_keyring_overlay_is_explicit_and_preserves_database_selection(
+    stack_module,
+):
+    command = stack_module.compose_command("postgres", "isolated", False, [], True)
+    assert command == [
+        "docker",
+        "compose",
+        "-p",
+        "isolated",
+        "-f",
+        "compose.yaml",
+        "-f",
+        "compose.postgres.yaml",
+        "-f",
+        "compose.credentials.yaml",
+    ]
+    assert "compose.credentials.yaml" not in stack_module.compose_command(
+        "sqlite", "isolated", False, []
+    )

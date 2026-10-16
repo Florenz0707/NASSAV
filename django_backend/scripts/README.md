@@ -636,3 +636,7 @@ git show cc6ab42^:django_backend/doc/validation-status.md
 ### 保留个人资源黑名单的旧推荐补导入
 
 从django_backend目录：`uv run python manage.py import_recommendation_data --username <原操作者> --preserve-personal-blocklist`先预览，再在维护窗口增加--apply。仅目标历史/种子为空、旧AVID黑名单为空且无目标活动job时可用；当前个人黑名单完全保留。不是通用合并开关；既有历史/种子、待合并旧黑名单及活动job仍拒绝。详见[推荐架构](../doc/recommendation-architecture.md#显式旧推荐安全补导入)及[目标迁移记录](../doc/postgres-multi-user-migration-20261015.md)。
+
+## Compose 凭证文件检查
+
+根目录 `scripts/compose_stack.py --mode <sqlite|postgres> --credentials <command>` 追加专用 keyring 只读文件绑定；根 `.env` 的 `NASSAV_SOURCE_CREDENTIAL_KEYRING_HOST_FILE` 指向原宿主机文件，容器统一读取 `/run/nassav/source-credentials.json`。该参数不创建密钥、修改开关或迁移数据库。部署入口在修改容器前验证 keyring 路径已挂载、文件私有及各消费者一致，原config目录绑定方式保留；启用独立绑定后，每次运维命令均需保留 `--credentials`。完整维护窗口和操作见[部署说明](../doc/compose-deployment.md#独立来源-keyring-挂载)。
