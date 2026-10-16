@@ -107,3 +107,9 @@ ESLint 启用 Vue essential、未定义变量、未使用变量和 debugger 检�
 阶段分支 `refactor/transparent-library-copy`，提交 `[Refactor] Unify user-facing resource and task terminology`（提交号见 Git 历史）。统一资源卡、详情、目录批量操作、资源管理、添加来源凭证与任务页的标题/按钮/确认/toast/时间线，移除按模式切换的机制文案；保留实际操作能力、来源范围选择、协议路由、权限和版本检查。管理员运维术语不变。
 
 验证：`pnpm run check`、根目录 `pre-commit run -a`；Chromium 隔离 API 的 `taskFeedback.cjs` 验证资源删除确认、来源弹窗、任务说明、取消与时间线不暴露共享/持有术语，取消仍携带版本；原任务页与控制检查继续验证兼容链路。未重建部署容器或触发真实资源删除/刮削。
+
+## 2026-10-16：管理中心导航入口
+
+阶段分支 `fix/navbar-management-entry`，提交 `[Fix] Move management entry to the right end of navigation`（提交号见 Git 历史）。管理入口由个人中心移至Navbar，桌面位于个人中心右侧、移动菜单位于最后，沿用app_admin能力与/manage路由权限，不改变播放页仅Logo的布局。
+
+验证：`pnpm run check`、根目录 `pre-commit run -a`；Chromium模拟API的 `tests/browser/managementNavigation.cjs` 覆盖1440/1024/768/390宽度、管理员/普通用户、入口顺序与可见性、键盘进入、路由高亮及移动菜单收起。未改动后端或重建部署容器。

@@ -2,11 +2,14 @@
 defineOptions({ name: 'AppNavbar' })
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useSessionStore } from '../../features/auth/stores/session.js'
+import AppIcon from '../../shared/ui/AppIcon.vue'
 
 defineProps({ logoOnly: Boolean })
 
 const route = useRoute()
 const router = useRouter()
+const session = useSessionStore()
 const showResourcesMenu = ref(false)
 const showMobileMenu = ref(false)
 const scrolled = ref(false)
@@ -307,6 +310,15 @@ watch(
           </svg>
           <span class="nav-label">个人中心</span>
         </RouterLink>
+        <RouterLink
+          v-if="session.capabilities.app_admin"
+          :to="{ name: 'Management', params: { section: 'accounts' } }"
+          class="nav-item"
+          :class="{ active: isActive('/manage') }"
+        >
+          <AppIcon name="settings" class="nav-icon w-5 h-5" />
+          <span class="nav-label">管理中心</span>
+        </RouterLink>
       </div>
 
       <!-- Hamburger button (mobile only) -->
@@ -478,6 +490,15 @@ watch(
           <path stroke-linecap="round" d="M4 17v-1a6 6 0 0 1 12 0v1" />
         </svg>
         个人中心
+      </RouterLink>
+      <RouterLink
+        v-if="session.capabilities.app_admin"
+        :to="{ name: 'Management', params: { section: 'accounts' } }"
+        class="mobile-nav-item"
+        :class="{ active: isActive('/manage') }"
+      >
+        <AppIcon name="settings" class="nav-icon w-5 h-5" />
+        管理中心
       </RouterLink>
     </div>
   </component>
