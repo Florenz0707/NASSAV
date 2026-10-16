@@ -113,7 +113,7 @@ onScopeDispose(() => {
             <th v-if="!jobs" class="p-3 text-center">版本</th>
             <th class="p-3 text-center">状态</th>
             <th v-if="!jobs" class="p-3 text-center">访问</th>
-            <th v-if="!jobs" class="p-3 text-center">保留</th>
+            <th v-if="!jobs" class="p-3 text-center">是否强制保留</th>
             <th class="p-3 text-center">{{ jobs ? '错误代码' : '最早回收时间' }}</th>
             <th class="p-3 text-center">操作</th>
           </tr>
@@ -137,7 +137,7 @@ onScopeDispose(() => {
               {{ row.is_available ? '可访问' : '已下架' }}
             </td>
             <td v-if="!jobs" class="p-3 whitespace-nowrap text-center">
-              {{ row.retained ? '已保留' : '未保留' }}
+              {{ row.retained ? '是' : '否' }}
             </td>
             <td class="p-3 text-muted text-center">
               {{ jobs ? row.error_code || '无' : time(row.gc_after) }}

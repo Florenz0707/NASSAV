@@ -55,7 +55,7 @@ async function submit() {
         </span>
         <div>
           <h1 class="text-xl font-semibold text-primary">登录 NASSAV</h1>
-          <p class="text-sm text-secondary">使用管理员账号继续</p>
+          <p class="text-sm text-secondary">使用用户名和密码继续</p>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ async function submit() {
         id="login-username"
         v-model="username"
         name="username"
-        placeholder="输入管理员用户名"
+        placeholder="输入用户名"
         autocomplete="username"
         required
         class="mb-4"

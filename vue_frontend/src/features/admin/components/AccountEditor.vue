@@ -47,7 +47,7 @@ const confirmation = computed(() => {
     content-class="min-h-0 flex-1 overflow-y-auto"
     @close="admin.close"
   >
-    <form class="space-y-4" @submit.prevent="admin.prepare">
+    <form class="space-y-6" @submit.prevent="admin.prepare">
       <p v-if="admin.editor?.account" class="text-secondary">
         {{ admin.editor.account.username }} · #{{ admin.editor.account.user_id }}
       </p>
@@ -76,8 +76,8 @@ const confirmation = computed(() => {
       />
       <template v-if="['create', 'update'].includes(action)">
         <div class="space-y-2">
-          <label for="account-role" class="text-primary">应用角色</label
-          ><CustomSelect
+          <label for="account-role" class="text-primary">应用角色</label>
+          <CustomSelect
             id="account-role"
             :model-value="admin.draft.role"
             @update:model-value="admin.setField('role', $event)"
@@ -136,8 +136,8 @@ const confirmation = computed(() => {
         新账号采用服务器默认配额，创建后可调整。
       </p>
       <div class="space-y-2">
-        <label for="account-reason" class="text-primary">操作原因</label
-        ><CustomSelect
+        <label for="account-reason" class="text-primary">操作原因</label>
+        <CustomSelect
           id="account-reason"
           :model-value="admin.draft.reason"
           @update:model-value="admin.setField('reason', $event)"
@@ -151,8 +151,8 @@ const confirmation = computed(() => {
       </div>
       <p v-if="admin.error" role="alert" class="text-accent-danger text-sm">{{ admin.error }}</p>
       <div class="flex justify-end gap-3">
-        <AppButton variant="neutral" :disabled="admin.busy" @click="admin.close">关闭</AppButton
-        ><AppButton type="submit" :loading="admin.busy" loading-text="处理中">下一步</AppButton>
+        <AppButton variant="neutral" :disabled="admin.busy" @click="admin.close">关闭</AppButton>
+        <AppButton type="submit" :loading="admin.busy" loading-text="处理中">下一步</AppButton>
       </div>
     </form>
   </SettingsModal>
